@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
@@ -25,6 +26,7 @@ function getWeekDates(date: Date) {
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function ScheduleScreen() {
+  const router = useRouter();
   const { sessions, getClientById, getSessionsForDate, updateSession, refreshData } = useApp();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
@@ -71,6 +73,9 @@ export default function ScheduleScreen() {
             {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </Text>
         </View>
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => router.push(`/book-session?date=${selectedDate.toISOString()}` as any)}>
+          <Ionicons name="add" size={22} color={Colors.white} />
+        </TouchableOpacity>
       </View>
 
       {/* Week Navigator */}
@@ -209,9 +214,10 @@ export default function ScheduleScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
   title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
   subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
+  addBtn: { width: 40, height: 40, borderRadius: Radius.md, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
 
   weekNav: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.sm, marginTop: Spacing.lg },
   weekArrow: { padding: 6 },

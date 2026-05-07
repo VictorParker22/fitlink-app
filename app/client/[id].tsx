@@ -52,7 +52,9 @@ export default function ClientDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Client Profile</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} style={styles.backBtn}>
+          <Ionicons name="create-outline" size={18} color={Colors.accent} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
