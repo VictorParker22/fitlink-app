@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider } from '../context/AppContext';
@@ -15,18 +16,31 @@ function AuthGuard() {
   const { isAuthenticated, loading, userRole } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+
+  // Check onboarding flag once on mount
+  useEffect(() => {
+    SecureStore.getItemAsync('fitlink_onboarded').then((value) => {
+      setHasOnboarded(value === 'true');
+    });
+  }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || hasOnboarded === null) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
     const inTrainerGroup = segments[0] === '(tabs)';
+    const inOnboarding = segments[1] === 'onboarding';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login');
+      // First time → onboarding, returning → login
+      if (!hasOnboarded) {
+        router.replace('/(auth)/onboarding');
+      } else {
+        router.replace('/(auth)/login');
+      }
     } else if (isAuthenticated && inAuthGroup) {
-      // Route to correct portal based on role
       if (userRole === 'client') {
         router.replace('/(client-tabs)');
       } else {
@@ -37,7 +51,7 @@ function AuthGuard() {
     } else if (isAuthenticated && userRole === 'trainer' && inClientGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, loading, segments, userRole]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
 
   if (loading) {
     return (
