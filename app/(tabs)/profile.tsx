@@ -91,30 +91,58 @@ export default function ProfileScreen() {
           </Card>
         )}
 
-        {/* Quick Actions — only functional items */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        {/* Account */}
+        <Text style={styles.sectionTitle}>Account</Text>
         <Card noPadding>
-          <TouchableOpacity style={[styles.menuItem, styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push('/settings' as any)}>
-            <View style={[styles.menuIcon, { backgroundColor: `${Colors.textSecondary}18` }]}>
-              <Ionicons name="settings" size={18} color={Colors.textSecondary} />
-            </View>
-            <Text style={styles.menuLabel}>Settings</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.menuItem, styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push('/add-client' as any)}>
-            <View style={[styles.menuIcon, { backgroundColor: `${Colors.green}18` }]}>
-              <Ionicons name="person-add" size={18} color={Colors.green} />
-            </View>
-            <Text style={styles.menuLabel}>Add New Client</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} activeOpacity={0.7} onPress={() => router.push('/book-session' as any)}>
-            <View style={[styles.menuIcon, { backgroundColor: `${Colors.accent}18` }]}>
-              <Ionicons name="calendar" size={18} color={Colors.accent} />
-            </View>
-            <Text style={styles.menuLabel}>Book a Session</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
+          {[
+            { icon: 'settings', label: 'Settings', color: Colors.textSecondary, route: '/settings' },
+            { icon: 'trophy', label: 'Certifications', color: Colors.yellow, route: '/certifications' },
+            { icon: 'barbell', label: 'Specializations', color: Colors.blue, route: '/specializations' },
+          ].map((item, i, arr) => (
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
+              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
+                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              </View>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          ))}
+        </Card>
+
+        {/* Business */}
+        <Text style={styles.sectionTitle}>Business</Text>
+        <Card noPadding>
+          {[
+            { icon: 'card', label: 'Subscription Plans', color: Colors.green, route: '/subscriptions' },
+            { icon: 'share-social', label: 'Referral Program', color: Colors.purple, route: '/referrals' },
+            { icon: 'analytics', label: 'Analytics', color: Colors.accent, route: '/analytics' },
+          ].map((item, i, arr) => (
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
+              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
+                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              </View>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          ))}
+        </Card>
+
+        {/* Support */}
+        <Text style={styles.sectionTitle}>Support</Text>
+        <Card noPadding>
+          {[
+            { icon: 'help-circle', label: 'Help Center', color: '#30D5C8', route: '/help-center' },
+            { icon: 'chatbubble-ellipses', label: 'Contact Support', color: Colors.blue, route: '/contact-support' },
+            { icon: 'document-text', label: 'Terms & Privacy', color: Colors.textTertiary, route: '/terms-privacy' },
+          ].map((item, i, arr) => (
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
+              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
+                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              </View>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          ))}
         </Card>
 
         {/* Sign Out */}

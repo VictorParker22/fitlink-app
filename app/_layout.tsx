@@ -58,6 +58,14 @@ function AuthGuard() {
       <Stack.Screen name="book-session" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="edit-client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="certifications" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="specializations" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="subscriptions" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="referrals" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="help-center" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="contact-support" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="terms-privacy" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }
