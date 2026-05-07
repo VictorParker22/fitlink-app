@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const SUPABASE_URL = 'https://bkgjrmkdmhxxqaaofhkd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrZ2pybWtkbWh4eHFhYW9maGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzMjE3NzEsImV4cCI6MjA2MTg5Nzc3MX0.sb_publishable_IxZ1QUlo0for6NcOQvf-xw_D0-vmrXL';
+const SUPABASE_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_IxZ1QUlo0for6NcOQvf-xw_D0-vmrXL';
 
 /**
  * Custom storage adapter using expo-secure-store for native
