@@ -20,15 +20,24 @@ function AuthGuard() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inClientGroup = segments[0] === '(client-tabs)';
+    const inTrainerGroup = segments[0] === '(tabs)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Not authenticated — redirect to login
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Authenticated — redirect to main app
+      // Route to correct portal based on role
+      if (userRole === 'client') {
+        router.replace('/(client-tabs)');
+      } else {
+        router.replace('/(tabs)');
+      }
+    } else if (isAuthenticated && userRole === 'client' && inTrainerGroup) {
+      router.replace('/(client-tabs)');
+    } else if (isAuthenticated && userRole === 'trainer' && inClientGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, loading, segments]);
+  }, [isAuthenticated, loading, segments, userRole]);
 
   if (loading) {
     return (
@@ -42,6 +51,7 @@ function AuthGuard() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bgPrimary } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(client-tabs)" />
       <Stack.Screen name="client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="add-client" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
