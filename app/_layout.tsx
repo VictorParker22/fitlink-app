@@ -5,6 +5,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AppProvider } from '../context/AppContext';
 import { Colors } from '../constants/theme';
 
 // Keep splash screen visible while we load fonts + check auth
@@ -41,6 +42,7 @@ function AuthGuard() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bgPrimary } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="client/[id]" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }
@@ -68,8 +70,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="light" />
-      <AuthGuard />
+      <AppProvider>
+        <StatusBar style="light" />
+        <AuthGuard />
+      </AppProvider>
     </AuthProvider>
   );
 }
