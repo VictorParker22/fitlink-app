@@ -1,98 +1,188 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import Card from '../../components/Card';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function DashboardScreen() {
+  const { user } = useAuth();
+  const name = user?.user_metadata?.name || 'Coach';
+  const firstName = name.split(' ')[0];
 
-export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.name}>{firstName} 👋</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <View style={styles.notifDot} />
+            <Ionicons name="notifications-outline" size={22} color={Colors.textSecondary} />
+          </View>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          {[
+            { label: 'Active Clients', value: '—', icon: 'people', color: Colors.accent },
+            { label: 'Sessions Today', value: '—', icon: 'calendar', color: Colors.blue },
+            { label: 'Revenue', value: '—', icon: 'cash', color: Colors.green },
+            { label: 'Referrals', value: '—', icon: 'share', color: Colors.purple },
+          ].map((stat, i) => (
+            <Card key={i} style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: `${stat.color}18` }]}>
+                <Ionicons name={stat.icon as any} size={18} color={stat.color} />
+              </View>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </Card>
+          ))}
+        </View>
+
+        {/* Quick Actions */}
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActions}>
+          {[
+            { label: 'Add Client', icon: 'person-add', color: Colors.accent },
+            { label: 'Book Session', icon: 'calendar-outline', color: Colors.blue },
+            { label: 'New Workout', icon: 'barbell', color: Colors.green },
+            { label: 'Invite', icon: 'share-social', color: Colors.purple },
+          ].map((action, i) => (
+            <View key={i} style={styles.quickAction}>
+              <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}18` }]}>
+                <Ionicons name={action.icon as any} size={22} color={action.color} />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Activity Feed Placeholder */}
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Card>
+          <View style={styles.emptyState}>
+            <Ionicons name="pulse-outline" size={32} color={Colors.textTertiary} />
+            <Text style={styles.emptyText}>Activity will appear here</Text>
+            <Text style={styles.emptySubtext}>Start by adding clients and booking sessions</Text>
+          </View>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing['3xl'] },
+
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: Spacing.xl,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  greeting: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.base,
+    color: Colors.textSecondary,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  name: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: FontSize['2xl'],
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  headerRight: { position: 'relative' },
+  notifDot: {
     position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
+    zIndex: 1,
+  },
+
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  statCard: {
+    width: '48.5%',
+    flexGrow: 1,
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  statValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: FontSize.xl,
+    color: Colors.textPrimary,
+  },
+  statLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+
+  sectionTitle: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+    letterSpacing: -0.3,
+  },
+
+  quickActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  quickActionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionLabel: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing['2xl'],
+    gap: Spacing.sm,
+  },
+  emptyText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.base,
+    color: Colors.textSecondary,
+  },
+  emptySubtext: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
   },
 });
