@@ -53,7 +53,7 @@ function AuthGuard() {
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
 
-  if (loading) {
+  if (loading || hasOnboarded === null) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.accent} />
