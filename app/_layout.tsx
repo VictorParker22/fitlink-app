@@ -43,6 +43,8 @@ function AuthGuard() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="client/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="add-client" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

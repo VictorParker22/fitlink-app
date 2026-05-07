@@ -78,7 +78,7 @@ export default function ClientsScreen() {
           <Text style={styles.title}>Clients</Text>
           <Text style={styles.subtitle}>{clients.length} total</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => router.push('/add-client' as any)}>
           <Ionicons name="person-add" size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
