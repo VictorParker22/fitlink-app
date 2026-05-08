@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider } from '../context/AppContext';
 import { Colors } from '../constants/theme';
 
-// Keep splash screen visible while we load fonts + check auth
+// Keep splash visible until we know exactly where to go
 SplashScreen.preventAutoHideAsync();
 
 function AuthGuard() {
@@ -17,6 +17,7 @@ function AuthGuard() {
   const segments = useSegments();
   const router = useRouter();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+  const hasNavigated = useRef(false);
 
   // Check onboarding flag once on mount
   useEffect(() => {
@@ -31,10 +32,8 @@ function AuthGuard() {
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
     const inTrainerGroup = segments[0] === '(tabs)';
-    const inOnboarding = segments[1] === 'onboarding';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // First time → onboarding, returning → login
       if (!hasOnboarded) {
         router.replace('/(auth)/onboarding');
       } else {
@@ -51,8 +50,16 @@ function AuthGuard() {
     } else if (isAuthenticated && userRole === 'trainer' && inClientGroup) {
       router.replace('/(tabs)');
     }
+
+    // Hide splash after initial navigation (or if already on correct screen)
+    if (!hasNavigated.current) {
+      hasNavigated.current = true;
+      // Small delay to let the target screen mount before hiding splash
+      setTimeout(() => SplashScreen.hideAsync(), 150);
+    }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
 
+  // Keep splash visible — don't render Stack until we're ready to navigate
   if (loading || hasOnboarded === null) {
     return (
       <View style={styles.loadingContainer}>
@@ -95,12 +102,7 @@ export default function RootLayout() {
     'PlusJakartaSans-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
   });
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
+  // DON'T hide splash here — AuthGuard handles it after navigation
   if (!fontsLoaded) {
     return null;
   }
