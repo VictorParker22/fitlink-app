@@ -10,8 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.55;
-const CARD_OVERLAP = 60;
+const CARD_TOP = SCREEN_HEIGHT * 0.52; // Card starts at 52% from top
 
 const SLIDES = [
   {
@@ -75,49 +74,48 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Full-bleed image slides */}
-      <FlatList
-        ref={flatListRef}
-        data={SLIDES}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        bounces={false}
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <View style={styles.slideImageWrapper}>
-            <Image source={item.image} style={styles.slideImage} resizeMode="cover" />
-            {/* Dark gradient at bottom of image */}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
-              locations={[0.3, 0.7, 1]}
-              style={styles.imageGradient}
-            />
-            {/* Logo on first slide */}
-            {item.isFirst && (
-              <View style={styles.logoOverImage}>
-                <View style={styles.logoCross}>
-                  <Ionicons name="add" size={20} color={Colors.white} />
+      {/* Background image layer — absolute, fills top portion */}
+      <View style={styles.imageLayer}>
+        <FlatList
+          ref={flatListRef}
+          data={SLIDES}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          bounces={false}
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          scrollEventThrottle={16}
+          style={styles.flatList}
+          renderItem={({ item }) => (
+            <View style={styles.slideImageWrapper}>
+              <Image source={item.image} style={styles.slideImage} resizeMode="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.5)']}
+                locations={[0.4, 0.7, 1]}
+                style={styles.imageGradient}
+              />
+              {item.isFirst && (
+                <View style={styles.logoOverImage}>
+                  <View style={styles.logoCross}>
+                    <Ionicons name="add" size={20} color={Colors.white} />
+                  </View>
                 </View>
-              </View>
-            )}
-          </View>
-        )}
-      />
+              )}
+            </View>
+          )}
+        />
+      </View>
 
-      {/* White card panel overlapping the image */}
+      {/* White card panel — positioned from CARD_TOP down */}
       <View style={styles.cardPanel}>
-        {/* Animated content per slide */}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle}>{SLIDES[currentIndex].title}</Text>
           <Text style={styles.cardSubtitle}>{SLIDES[currentIndex].subtitle}</Text>
         </View>
 
-        {/* First slide: Get Started button */}
         {currentIndex === 0 ? (
           <View style={styles.firstSlideActions}>
             <TouchableOpacity style={styles.getStartedBtn} activeOpacity={0.85} onPress={goNext}>
@@ -132,7 +130,6 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          /* Other slides: arrow navigation */
           <View style={styles.navRow}>
             <TouchableOpacity
               style={[styles.navBtn, currentIndex === 0 && styles.navBtnDisabled]}
@@ -143,7 +140,6 @@ export default function OnboardingScreen() {
               <Ionicons name="chevron-back" size={20} color={currentIndex === 0 ? Colors.textTertiary : Colors.textPrimary} />
             </TouchableOpacity>
 
-            {/* Dots */}
             <View style={styles.dotsRow}>
               {SLIDES.map((_, i) => {
                 const inputRange = [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH];
@@ -188,10 +184,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
 
-  // Image slides
+  // Image layer — absolute positioned, covers top of screen
+  imageLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: CARD_TOP + 30, // extend slightly behind the card's rounded corners
+  },
+  flatList: {
+    flex: 1,
+  },
   slideImageWrapper: {
     width: SCREEN_WIDTH,
-    height: IMAGE_HEIGHT,
+    height: CARD_TOP + 30,
   },
   slideImage: {
     width: '100%',
@@ -202,11 +208,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: IMAGE_HEIGHT * 0.5,
+    height: '50%',
   },
   logoOverImage: {
     position: 'absolute',
-    top: 60,
+    top: 55,
     left: Spacing.xl,
   },
   logoCross: {
@@ -220,20 +226,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // White card panel
+  // White card panel — uses marginTop to position precisely
   cardPanel: {
     flex: 1,
+    marginTop: CARD_TOP,
     backgroundColor: Colors.white,
-    marginTop: -CARD_OVERLAP,
     borderTopLeftRadius: Radius['2xl'],
     borderTopRightRadius: Radius['2xl'],
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.lg,
-    // Shadow on the card
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
+    justifyContent: 'space-between',
+    // Shadow lifting card from image
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -257,7 +264,6 @@ const styles = StyleSheet.create({
   // First slide actions
   firstSlideActions: {
     gap: Spacing.lg,
-    marginTop: 'auto',
   },
   getStartedBtn: {
     flexDirection: 'row',
@@ -296,7 +302,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 'auto',
   },
   navBtn: {
     width: 48,
