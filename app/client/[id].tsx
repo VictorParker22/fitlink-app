@@ -33,7 +33,7 @@ export default function ClientDetailScreen() {
   const statusColors: Record<string, { bg: string; text: string }> = {
     active: { bg: Colors.greenSoft, text: Colors.green },
     trial: { bg: Colors.yellowSoft, text: Colors.yellow },
-    inactive: { bg: 'rgba(255,255,255,0.06)', text: Colors.textTertiary },
+    inactive: { bg: Colors.bgElevated, text: Colors.textTertiary },
   };
 
   const statusStyle = statusColors[client.status] || statusColors.inactive;

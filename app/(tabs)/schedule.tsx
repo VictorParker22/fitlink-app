@@ -226,11 +226,11 @@ const styles = StyleSheet.create({
   dayBtnSelected: { backgroundColor: Colors.accent },
   dayBtnToday: { borderWidth: 1, borderColor: Colors.accent },
   dayName: { fontFamily: FontFamily.body, fontSize: 9, color: Colors.textTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  dayNameSelected: { color: 'rgba(255,255,255,0.8)' },
+  dayNameSelected: { color: Colors.white },
   dayNum: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
   dayNumSelected: { color: Colors.white },
   dayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.accent, marginTop: 3 },
-  dayDotSelected: { backgroundColor: 'rgba(255,255,255,0.7)' },
+  dayDotSelected: { backgroundColor: Colors.white },
 
   dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, marginTop: Spacing.xl, marginBottom: Spacing.md },
   dayTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },

@@ -4,7 +4,7 @@ export default function AuthLayout() {
   return (
     <Stack
       initialRouteName="login"
-      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#111114' } }}
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FAFBFC' } }}
     >
       <Stack.Screen name="login" />
       <Stack.Screen name="onboarding" options={{ animation: 'none' }} />

@@ -1,47 +1,54 @@
 /**
  * FitLink Design System — React Native
- * Matches the web version's warm dark theme with coral accent.
+ * Light theme inspired by modern SaaS design with soft pastels.
+ * Font: Epilogue (Tyler Finck) — geometric, clean, professional.
  */
 
 export const Colors = {
-  // Surfaces
-  bgPrimary: '#111114',
-  bgSecondary: '#1C1C21',
-  bgCard: '#1C1C21',
-  bgElevated: '#26262D',
-  bgInput: '#1C1C21',
-  bgHover: '#2A2A33',
-  bgOverlay: 'rgba(0, 0, 0, 0.65)',
+  // Surfaces — light, airy foundation
+  bgPrimary: '#FAFBFC',
+  bgSecondary: '#F1F3F5',
+  bgCard: '#FFFFFF',
+  bgElevated: '#F8F9FA',
+  bgInput: '#F1F3F5',
+  bgHover: '#ECEEF0',
+  bgOverlay: 'rgba(0, 0, 0, 0.45)',
 
-  // Accent
-  accent: '#FF5F3B',
-  accentSoft: 'rgba(255, 95, 59, 0.12)',
-  accentHover: '#FF7A5C',
-  accentText: '#FF5F3B',
+  // Accent — warm orange (carried from brand)
+  accent: '#FF6B35',
+  accentSoft: '#FFF0E8',
+  accentHover: '#FF8255',
+  accentText: '#E85D2A',
 
-  // Semantic
-  green: '#34C759',
-  greenSoft: 'rgba(52, 199, 89, 0.12)',
-  blue: '#5B8DEF',
-  blueSoft: 'rgba(91, 141, 239, 0.12)',
-  yellow: '#FFD60A',
-  yellowSoft: 'rgba(255, 214, 10, 0.12)',
-  red: '#FF453A',
-  redSoft: 'rgba(255, 69, 58, 0.12)',
-  purple: '#BF5AF2',
-  purpleSoft: 'rgba(191, 90, 242, 0.12)',
-  teal: '#30D5C8',
-  tealSoft: 'rgba(48, 213, 200, 0.12)',
+  // Semantic — softer, pastel-friendly
+  green: '#22C55E',
+  greenSoft: '#DCFCE7',
+  blue: '#6C9BF2',
+  blueSoft: '#DBEAFE',
+  yellow: '#F59E0B',
+  yellowSoft: '#FEF3C7',
+  red: '#EF4444',
+  redSoft: '#FEE2E2',
+  purple: '#A78BFA',
+  purpleSoft: '#EDE9FE',
+  teal: '#14B8A6',
+  tealSoft: '#CCFBF1',
 
-  // Text
-  textPrimary: '#FAFAFA',
-  textSecondary: '#8E8E93',
-  textTertiary: '#636366',
-  textInverse: '#111114',
+  // Pastel card fills (from reference)
+  peach: '#FDDCB5',
+  lavender: '#C7D4F5',
+  mint: '#D5E8A8',
+  lilac: '#E0D4F5',
 
-  // Borders
-  border: 'rgba(255,255,255, 0.06)',
-  borderStrong: 'rgba(255,255,255, 0.1)',
+  // Text — dark on light
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textTertiary: '#9CA3AF',
+  textInverse: '#FFFFFF',
+
+  // Borders — subtle gray
+  border: '#E5E7EB',
+  borderStrong: '#D1D5DB',
 
   white: '#FFFFFF',
   black: '#000000',
@@ -73,29 +80,29 @@ export const Radius = {
 export const FontSize = {
   xs: 11,
   sm: 12,
-  base: 13,
+  base: 14,
   md: 15,
   lg: 17,
   xl: 20,
-  '2xl': 24,
-  '3xl': 30,
+  '2xl': 26,
+  '3xl': 32,
 };
 
 export const FontFamily = {
-  body: 'DMSans',
-  bodyMedium: 'DMSans-Medium',
-  bodySemiBold: 'DMSans-SemiBold',
-  bodyBold: 'DMSans-Bold',
-  heading: 'PlusJakartaSans-Bold',
-  headingSemiBold: 'PlusJakartaSans-SemiBold',
-  headingExtraBold: 'PlusJakartaSans-ExtraBold',
+  body: 'Epilogue-Regular',
+  bodyMedium: 'Epilogue-Medium',
+  bodySemiBold: 'Epilogue-SemiBold',
+  bodyBold: 'Epilogue-Bold',
+  heading: 'Epilogue-Bold',
+  headingSemiBold: 'Epilogue-SemiBold',
+  headingExtraBold: 'Epilogue-ExtraBold',
 };
 
-// Avatar color palette — deterministic by name
+// Avatar color palette — warm pastels
 const AVATAR_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
-  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-  '#BB8FCE', '#85C1E9', '#F0B27A', '#82E0AA',
+  '#FF8A65', '#4DB6AC', '#64B5F6', '#AED581',
+  '#FFD54F', '#CE93D8', '#80CBC4', '#FFB74D',
+  '#9FA8DA', '#81C784', '#F48FB1', '#A1887F',
 ];
 
 export function getAvatarColor(name: string): string {

@@ -18,7 +18,7 @@ export default function ClientWorkoutsScreen() {
   const statusColors: Record<string, { bg: string; text: string; icon: string }> = {
     assigned: { bg: Colors.accentSoft, text: Colors.accent, icon: 'barbell' },
     completed: { bg: Colors.greenSoft, text: Colors.green, icon: 'checkmark-circle' },
-    skipped: { bg: 'rgba(255,255,255,0.06)', text: Colors.textTertiary, icon: 'close-circle' },
+    skipped: { bg: Colors.bgElevated, text: Colors.textTertiary, icon: 'close-circle' },
   };
 
   return (

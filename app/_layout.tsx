@@ -93,13 +93,11 @@ function AuthGuard() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    'DMSans': require('../assets/fonts/DMSans-Regular.ttf'),
-    'DMSans-Medium': require('../assets/fonts/DMSans-Medium.ttf'),
-    'DMSans-SemiBold': require('../assets/fonts/DMSans-SemiBold.ttf'),
-    'DMSans-Bold': require('../assets/fonts/DMSans-Bold.ttf'),
-    'PlusJakartaSans-SemiBold': require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
-    'PlusJakartaSans-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
-    'PlusJakartaSans-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
+    'Epilogue-Regular': require('../assets/fonts/Epilogue-Regular.ttf'),
+    'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
+    'Epilogue-SemiBold': require('../assets/fonts/Epilogue-SemiBold.ttf'),
+    'Epilogue-Bold': require('../assets/fonts/Epilogue-Bold.ttf'),
+    'Epilogue-ExtraBold': require('../assets/fonts/Epilogue-ExtraBold.ttf'),
   });
 
   // DON'T hide splash here — AuthGuard handles it after navigation
@@ -110,7 +108,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <AppProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <AuthGuard />
       </AppProvider>
     </AuthProvider>
