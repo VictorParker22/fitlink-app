@@ -10,8 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.58;
-const CARD_OVERLAP = 36;
+const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.65;
+const CARD_OVERLAP = 50;
 
 const SLIDES = [
   {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius['2xl'],
     borderTopRightRadius: Radius['2xl'],
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing['2xl'],
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
     justifyContent: 'space-between',
     // Shadow on the card
