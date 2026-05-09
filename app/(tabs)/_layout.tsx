@@ -1,18 +1,13 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, Radius } from '../../constants/theme';
 
 function CenterFAB() {
-  const router = useRouter();
   return (
-    <TouchableOpacity
-      style={styles.fab}
-      activeOpacity={0.85}
-      onPress={() => router.push('/book-session' as any)}
-    >
-      <Ionicons name="add" size={28} color={Colors.white} />
-    </TouchableOpacity>
+    <View style={styles.fab}>
+      <Ionicons name="barbell" size={26} color={Colors.white} />
+    </View>
   );
 }
 
