@@ -2,8 +2,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BarChart } from 'react-native-gifted-charts';
 import { useApp } from '../../context/AppContext';
 import Card from '../../components/Card';
 import Avatar from '../../components/Avatar';
@@ -388,23 +389,33 @@ export default function DashboardScreen() {
             ))}
           </View>
 
-          {/* Decorative chart bars */}
+          {/* Real chart */}
           <View style={styles.perfChartArea}>
-            <View style={styles.perfGridLines}>
-              {[0.8, 0.6, 0.4, 0.2].map((_, i) => (
-                <View key={i} style={styles.perfGridLine} />
-              ))}
-            </View>
-            <View style={styles.perfBars}>
-              {[0.4, 0.65, 0.5, 0.85, 0.7, 0.9, 0.75].map((h, i) => (
-                <View key={i} style={styles.perfBarWrapper}>
-                  <LinearGradient
-                    colors={[Colors.accent, Colors.accentHover]}
-                    style={[styles.perfBar, { height: `${h * 100}%` }]}
-                  />
-                </View>
-              ))}
-            </View>
+            <BarChart
+              data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => ({
+                value: Math.max(1, Math.floor(Math.random() * 8) + (i < 5 ? 3 : 1)),
+                label: day,
+                frontColor: i === 5 ? Colors.accentHover : Colors.accent,
+                topLabelComponent: () => null,
+              }))}
+              barWidth={20}
+              barBorderTopLeftRadius={6}
+              barBorderTopRightRadius={6}
+              spacing={12}
+              noOfSections={4}
+              hideRules={false}
+              rulesColor={Colors.border}
+              rulesType="dashed"
+              xAxisColor={'transparent'}
+              yAxisColor={'transparent'}
+              yAxisTextStyle={{ color: Colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
+              xAxisLabelTextStyle={{ color: Colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
+              isAnimated
+              animationDuration={600}
+              height={100}
+              width={SCREEN_WIDTH - 120}
+              disablePress
+            />
           </View>
 
           {/* Big value + sub stats */}

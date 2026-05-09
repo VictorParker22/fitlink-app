@@ -65,7 +65,9 @@ export default function ClientsScreen() {
           {item.email || item.phone || 'No contact info'}
         </Text>
       </View>
-      <View style={[styles.statusDot, { backgroundColor: statusColors[item.status] || Colors.textTertiary }]} />
+      <View style={[styles.statusPill, { backgroundColor: `${statusColors[item.status] || Colors.textTertiary}18` }]}>
+        <Text style={[styles.statusPillText, { color: statusColors[item.status] || Colors.textTertiary }]}>{item.status}</Text>
+      </View>
       <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
     </TouchableOpacity>
   );
@@ -81,6 +83,20 @@ export default function ClientsScreen() {
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => router.push('/add-client' as any)}>
           <Ionicons name="person-add" size={18} color={Colors.white} />
         </TouchableOpacity>
+      </View>
+
+      {/* Stats Summary */}
+      <View style={styles.statsSummary}>
+        {[
+          { label: 'Active', count: clients.filter(c => c.status === 'active').length, color: Colors.green, bg: Colors.greenSoft },
+          { label: 'Trial', count: clients.filter(c => c.status === 'trial').length, color: Colors.yellow, bg: Colors.yellowSoft },
+          { label: 'Inactive', count: clients.filter(c => c.status === 'inactive').length, color: Colors.textTertiary, bg: Colors.bgElevated },
+        ].map((stat) => (
+          <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
+            <Text style={[styles.statCount, { color: stat.color }]}>{stat.count}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
+          </View>
+        ))}
       </View>
 
       {/* Search */}
@@ -195,8 +211,21 @@ const styles = StyleSheet.create({
   clientInfo: { flex: 1 },
   clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
   clientMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
+  statusPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 9, textTransform: 'capitalize' },
   separator: { height: 1, backgroundColor: Colors.border },
+
+  /* Stats Summary */
+  statsSummary: {
+    flexDirection: 'row', gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg, marginBottom: Spacing.md,
+  },
+  statCard: {
+    flex: 1, alignItems: 'center', paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+  },
+  statCount: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
+  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
   emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },

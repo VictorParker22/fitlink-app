@@ -84,7 +84,10 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
+        <View>
+          <Text style={styles.title}>Messages</Text>
+          <Text style={styles.subtitle}>{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</Text>
+        </View>
       </View>
 
       {/* Search */}
@@ -113,7 +116,9 @@ export default function MessagesScreen() {
           ListHeaderComponent={
             filtered.length === 0 && unconnectedClients.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="chatbubble-outline" size={48} color={Colors.textTertiary} />
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="chatbubble-outline" size={32} color={Colors.accent} />
+                </View>
                 <Text style={styles.emptyTitle}>No messages yet</Text>
                 <Text style={styles.emptyText}>Start a conversation with a client</Text>
               </View>
@@ -170,8 +175,9 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+  header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
   title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
+  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
@@ -203,6 +209,11 @@ const styles = StyleSheet.create({
 
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
+  emptyIconCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
   emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
   emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
 });
