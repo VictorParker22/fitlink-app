@@ -8,6 +8,7 @@ import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider } from '../context/AppContext';
 import { Colors } from '../constants/theme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Keep splash visible until we know exactly where to go
 SplashScreen.preventAutoHideAsync();
@@ -106,12 +107,14 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <AppProvider>
-        <StatusBar style="dark" />
-        <AuthGuard />
-      </AppProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <AppProvider>
+          <StatusBar style="dark" />
+          <AuthGuard />
+        </AppProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
