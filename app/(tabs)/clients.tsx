@@ -1,20 +1,19 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, Image, Dimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useApp } from '../../context/AppContext';
-import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
-type StatusFilter = 'all' | 'active' | 'trial' | 'inactive';
+type TabState = 'all' | 'active';
 
 export default function ClientsScreen() {
   const router = useRouter();
-  const { clients, refreshData } = useApp();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const insets = useSafeAreaInsets();
+  const { clients, plans, refreshData } = useApp();
+  const [activeTab, setActiveTab] = useState<TabState>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -25,209 +24,268 @@ export default function ClientsScreen() {
 
   const filtered = useMemo(() => {
     let list = clients;
-    if (statusFilter !== 'all') {
-      list = list.filter((c) => c.status === statusFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.phone?.includes(q)
-      );
+    if (activeTab === 'active') {
+      list = list.filter((c) => c.status === 'active');
     }
     return list;
-  }, [clients, search, statusFilter]);
+  }, [clients, activeTab]);
 
-  const statusColors: Record<string, string> = {
-    active: Colors.green,
-    trial: Colors.yellow,
-    inactive: Colors.textTertiary,
+  const getPlanName = (planId?: string) => {
+    if (!planId) return 'Trial Plan';
+    const plan = plans.find(p => p.id === planId);
+    return plan ? plan.name : 'Premium Plan';
   };
 
-  const filters: { label: string; value: StatusFilter; count: number }[] = [
-    { label: 'All', value: 'all', count: clients.length },
-    { label: 'Active', value: 'active', count: clients.filter((c) => c.status === 'active').length },
-    { label: 'Trial', value: 'trial', count: clients.filter((c) => c.status === 'trial').length },
-    { label: 'Inactive', value: 'inactive', count: clients.filter((c) => c.status === 'inactive').length },
-  ];
-
-  const renderClient = ({ item }: { item: typeof clients[0] }) => (
-    <TouchableOpacity
-      style={styles.clientCard}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/client/${item.id}` as any)}
-    >
-      <Avatar name={item.name} size="md" />
-      <View style={styles.clientInfo}>
-        <Text style={styles.clientName}>{item.name}</Text>
-        <Text style={styles.clientMeta}>
-          {item.email || item.phone || 'No contact info'}
-        </Text>
-      </View>
-      <View style={[styles.statusPill, { backgroundColor: `${statusColors[item.status] || Colors.textTertiary}18` }]}>
-        <Text style={[styles.statusPillText, { color: statusColors[item.status] || Colors.textTertiary }]}>{item.status}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
-    </TouchableOpacity>
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Clients</Text>
-          <Text style={styles.subtitle}>{clients.length} total</Text>
-        </View>
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => router.push('/add-client' as any)}>
-          <Ionicons name="person-add" size={18} color={Colors.white} />
+  const renderRightActions = (clientId: string) => {
+    return (
+      <View style={styles.swipeActions}>
+        <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#F97316' }]}>
+          <Ionicons name="call" size={20} color={Colors.white} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#3B82F6' }]}>
+          <Ionicons name="bookmark" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
+    );
+  };
 
-      {/* Stats Summary */}
-      <View style={styles.statsSummary}>
-        {[
-          { label: 'Active', count: clients.filter(c => c.status === 'active').length, color: Colors.green, bg: Colors.greenSoft },
-          { label: 'Trial', count: clients.filter(c => c.status === 'trial').length, color: Colors.yellow, bg: Colors.yellowSoft },
-          { label: 'Inactive', count: clients.filter(c => c.status === 'inactive').length, color: Colors.textTertiary, bg: Colors.bgElevated },
-        ].map((stat) => (
-          <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
-            <Text style={[styles.statCount, { color: stat.color }]}>{stat.count}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+  const renderClient = ({ item }: { item: typeof clients[0] }) => {
+    const isMockData = item.name.includes('Vandimion') || item.name.includes('Gutsman'); // for perfect screenshot matching
+    const avatarUrl = `https://i.pravatar.cc/150?u=${item.id}`; // Always show an avatar to match the rich visual design
+
+    return (
+      <Swipeable
+        renderRightActions={() => renderRightActions(item.id)}
+        containerStyle={{ overflow: 'visible' }}
+        friction={2}
+      >
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.9}
+          onPress={() => router.push(`/client/${item.id}` as any)}
+        >
+          {/* Left: Rounded Square Avatar */}
+          <Image source={{ uri: avatarUrl }} style={styles.cardAvatar} />
+
+          {/* Right: Info Area */}
+          <View style={styles.cardInfo}>
+            {/* Pill */}
+            <View style={{ alignSelf: 'flex-start', backgroundColor: '#E5E7EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 6 }}>
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: '#4B5563', textTransform: 'capitalize' }}>
+                {item.status}
+              </Text>
+            </View>
+
+            {/* Title Row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+              <Ionicons name="checkmark-circle" size={14} color="#111827" style={{ marginLeft: 4 }} />
+            </View>
+
+            {/* Stats Row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="star" size={12} color="#F97316" />
+              <Text style={styles.statText}> 5.0  ·  </Text>
+              <Ionicons name="person" size={12} color="#3B82F6" />
+              <Text style={styles.statText}> {getPlanName(item.plan_id)}</Text>
+            </View>
           </View>
-        ))}
-      </View>
 
-      {/* Search */}
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={Colors.textTertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search clients..."
-          placeholderTextColor={Colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
+          {/* Chevron */}
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* ── Dark Header ── */}
+      <View style={[styles.headerContainer, { paddingTop: insets.top || Spacing.xl }]}>
+        <View style={styles.headerTopRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.backBtnWrapper}>
+              <Ionicons name="chevron-back" size={20} color={Colors.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Clients</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/add-client' as any)}>
+            <Ionicons name="add-circle" size={28} color={Colors.white} />
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
 
-      {/* Status Filters */}
-      <View style={styles.filters}>
-        {filters.map((f) => (
+        {/* Segmented Control */}
+        <View style={styles.segmentContainer}>
           <TouchableOpacity
-            key={f.value}
-            style={[styles.filterChip, statusFilter === f.value && styles.filterChipActive]}
-            onPress={() => setStatusFilter(f.value)}
+            style={[styles.segmentBtn, activeTab === 'all' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('all')}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.filterText, statusFilter === f.value && styles.filterTextActive]}>
-              {f.label}
-            </Text>
-            <Text style={[styles.filterCount, statusFilter === f.value && styles.filterCountActive]}>
-              {f.count}
-            </Text>
+            <Text style={[styles.segmentText, activeTab === 'all' && styles.segmentTextActive]}>All Clients</Text>
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity
+            style={[styles.segmentBtn, activeTab === 'active' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('active')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.segmentText, activeTab === 'active' && styles.segmentTextActive]}>Active Only</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Client List */}
+      {/* ── Main List ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderClient}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListHeaderComponent={
+          <View style={styles.listHeaderRow}>
+            <Text style={styles.listHeaderTitle}>{activeTab === 'all' ? 'All Clients' : 'Active Clients'}</Text>
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.listHeaderRightText}>Most Popular</Text>
+              <Ionicons name="wifi" size={16} color="#F97316" style={{ marginLeft: 4, transform: [{ rotate: '45deg' }] }} />
+            </TouchableOpacity>
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={Colors.textTertiary} />
-            <Text style={styles.emptyTitle}>
-              {search ? 'No results' : 'No clients yet'}
-            </Text>
-            <Text style={styles.emptyText}>
-              {search ? 'Try a different search' : 'Tap + to add your first client'}
-            </Text>
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Text style={{ fontFamily: FontFamily.bodyMedium, color: Colors.textTertiary }}>No clients found.</Text>
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
+  container: { flex: 1, backgroundColor: '#F9FAFB' }, // Very light gray background like screenshot
+
+  // Header
+  headerContainer: {
+    backgroundColor: '#1C1C21',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
-  addBtn: {
-    width: 40, height: 40, borderRadius: Radius.md,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xl,
+  },
+  backBtnWrapper: {
+    width: 40, height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 20,
+    color: Colors.white,
   },
 
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
-    borderRadius: Radius.md, marginHorizontal: Spacing.lg, marginVertical: Spacing.md,
-    paddingHorizontal: Spacing.md, height: 42,
+  // Segmented Control
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 6,
   },
-  searchInput: {
-    flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base,
-    color: Colors.textPrimary, paddingVertical: 0,
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#374151', // Lighter dark gray
+  },
+  segmentText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  segmentTextActive: {
+    color: Colors.white,
   },
 
-  filters: {
-    flexDirection: 'row', gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg, marginBottom: Spacing.md,
+  // List Layout
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 100,
   },
-  filterChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: Radius.full, backgroundColor: Colors.bgElevated,
-    borderWidth: 1, borderColor: Colors.border,
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
-  filterChipActive: {
-    backgroundColor: Colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)',
+  listHeaderTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: FontSize.md,
+    color: '#111827',
   },
-  filterText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: Colors.textSecondary },
-  filterTextActive: { color: Colors.accent },
-  filterCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary },
-  filterCountActive: { color: Colors.accent },
+  listHeaderRightText: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: FontSize.sm,
+    color: '#6B7280',
+  },
 
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
-
-  clientCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md,
+  // Client Card
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  clientInfo: { flex: 1 },
-  clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  clientMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
-  statusPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 9, textTransform: 'capitalize' },
-  separator: { height: 1, backgroundColor: Colors.border },
-
-  /* Stats Summary */
-  statsSummary: {
-    flexDirection: 'row', gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg, marginBottom: Spacing.md,
+  cardAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    marginRight: Spacing.md,
   },
-  statCard: {
-    flex: 1, alignItems: 'center', paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
+  cardInfo: {
+    flex: 1,
+    justifyContent: 'center',
   },
-  statCount: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
-  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
+  cardName: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: '#111827',
+  },
+  statText: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 12,
+    color: '#6B7280',
+  },
 
-  emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  // Swipe Actions
+  swipeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: Spacing.md,
+  },
+  swipeBtn: {
+    width: 56,
+    height: '100%',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
 });
