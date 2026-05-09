@@ -19,6 +19,7 @@ export default function DashboardScreen() {
     trainer, activeClients, todaySessions, totalReferrals,
     totalMonthlyRevenue, activities, upcomingSessions,
     getClientById, refreshData, loading, sessions,
+    plans, clients, referrals, trialClients,
   } = useApp();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -290,6 +291,233 @@ export default function DashboardScreen() {
           ))}
         </View>
 
+        {/* ── SECTION 4: Active Plans (horizontal scroll, like Diet & Nutrition) ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Active Plans</Text>
+          <TouchableOpacity onPress={() => router.push('/subscriptions' as any)}>
+            <Text style={styles.seeAll}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.plansScroll}
+          decelerationRate="fast"
+          snapToInterval={SCREEN_WIDTH * 0.68 + 12}
+        >
+          {plans.length > 0 ? plans.map((plan, i) => {
+            const planClients = clients.filter(c => c.plan_id === plan.id && c.status === 'active');
+            return (
+              <TouchableOpacity
+                key={plan.id}
+                style={styles.planCard}
+                activeOpacity={0.9}
+                onPress={() => router.push('/subscriptions' as any)}
+              >
+                {/* Plan info badges */}
+                <View style={styles.planBadges}>
+                  <View style={styles.planBadge}>
+                    <Text style={styles.planBadgeValue}>{planClients.length}</Text>
+                    <Text style={styles.planBadgeLabel}>Clients</Text>
+                  </View>
+                  <View style={styles.planBadge}>
+                    <Text style={styles.planBadgeValue}>${plan.price}</Text>
+                    <Text style={styles.planBadgeLabel}>{plan.interval}</Text>
+                  </View>
+                </View>
+
+                {/* Plan icon */}
+                <View style={styles.planIconCenter}>
+                  <LinearGradient
+                    colors={[Colors.accentSoft, '#FFF0E8']}
+                    style={styles.planIconGradient}
+                  >
+                    <Ionicons name="document-text-outline" size={32} color={Colors.accent} />
+                  </LinearGradient>
+                </View>
+
+                {/* Plan name + meta */}
+                <Text style={styles.planName} numberOfLines={1}>{plan.name}</Text>
+                <View style={styles.planMetaRow}>
+                  <View style={styles.planMetaItem}>
+                    <Ionicons name="cash-outline" size={11} color={Colors.textTertiary} />
+                    <Text style={styles.planMetaText}>${plan.price}/{plan.interval === 'monthly' ? 'mo' : plan.interval}</Text>
+                  </View>
+                  <Text style={styles.planMetaDot}>·</Text>
+                  <View style={styles.planMetaItem}>
+                    <Ionicons name="people-outline" size={11} color={Colors.textTertiary} />
+                    <Text style={styles.planMetaText}>{planClients.length} enrolled</Text>
+                  </View>
+                </View>
+
+                {/* Orange arrow button */}
+                <View style={styles.planArrowBtn}>
+                  <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+                </View>
+              </TouchableOpacity>
+            );
+          }) : (
+            <TouchableOpacity
+              style={styles.planCardEmpty}
+              activeOpacity={0.8}
+              onPress={() => router.push('/subscriptions' as any)}
+            >
+              <Ionicons name="add-circle-outline" size={36} color={Colors.accent} />
+              <Text style={styles.planEmptyText}>Create your first plan</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
+        {/* ── SECTION 5: Weekly Performance (like Activities chart card) ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Performance</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAll}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <Card style={styles.perfCard}>
+          {/* Time filter tabs */}
+          <View style={styles.perfTabs}>
+            {['1w', '1m', '3m', '1y', 'All'].map((tab, i) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.perfTab, i === 0 && styles.perfTabActive]}
+              >
+                <Text style={[styles.perfTabText, i === 0 && styles.perfTabTextActive]}>{tab}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Decorative chart bars */}
+          <View style={styles.perfChartArea}>
+            <View style={styles.perfGridLines}>
+              {[0.8, 0.6, 0.4, 0.2].map((_, i) => (
+                <View key={i} style={styles.perfGridLine} />
+              ))}
+            </View>
+            <View style={styles.perfBars}>
+              {[0.4, 0.65, 0.5, 0.85, 0.7, 0.9, 0.75].map((h, i) => (
+                <View key={i} style={styles.perfBarWrapper}>
+                  <LinearGradient
+                    colors={[Colors.accent, Colors.accentHover]}
+                    style={[styles.perfBar, { height: `${h * 100}%` }]}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Big value + sub stats */}
+          <View style={styles.perfBottomRow}>
+            <View>
+              <Text style={styles.perfBigValue}>{completedSessions}</Text>
+              <View style={styles.perfSubStats}>
+                <Ionicons name="trending-up" size={12} color={Colors.green} />
+                <Text style={styles.perfSubText}>+{todaySessions.length} today</Text>
+                <Text style={styles.perfSubDot}>·</Text>
+                <Ionicons name="people-outline" size={12} color={Colors.textTertiary} />
+                <Text style={styles.perfSubText}>{activeClients.length} clients</Text>
+              </View>
+            </View>
+            <View style={styles.perfActionBtn}>
+              <Ionicons name="fitness-outline" size={20} color={Colors.white} />
+            </View>
+          </View>
+        </Card>
+
+        {/* ── SECTION 6: Referral Program (like Virtual AI Coach promo card) ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Referral Program</Text>
+          <TouchableOpacity onPress={() => router.push('/referrals' as any)}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={styles.promoCard}
+          activeOpacity={0.9}
+          onPress={() => router.push('/referrals' as any)}
+        >
+          <Image
+            source={require('../../assets/images/welcome-3.png')}
+            style={styles.promoBgImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['rgba(255,107,53,0.85)', 'rgba(255,107,53,0.6)', 'rgba(0,0,0,0.7)']}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.promoGradient}
+          />
+
+          {/* Top pills */}
+          <View style={styles.promoTopPills}>
+            <View style={styles.promoPill}>
+              <Text style={styles.promoPillText}>Earn Rewards</Text>
+            </View>
+            <View style={styles.promoPill}>
+              <Text style={styles.promoPillText}>Free Tier</Text>
+            </View>
+          </View>
+
+          {/* Bottom */}
+          <View style={styles.promoBottom}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.promoBigValue}>{totalReferrals}</Text>
+              <Text style={styles.promoSubtext}>Total Referrals</Text>
+            </View>
+            <View style={styles.promoBtn}>
+              <Ionicons name="share-social" size={18} color={Colors.accent} />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* ── SECTION 7: Top Clients (like Fitness Resources list) ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Top Clients</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/clients')}>
+            <Text style={styles.seeAll}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        {activeClients.length > 0 ? (
+          <Card noPadding style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.xl }}>
+            {activeClients.slice(0, 4).map((client, i) => {
+              const clientSessions = sessions.filter(s => s.client_id === client.id && s.status === 'completed').length;
+              return (
+                <TouchableOpacity
+                  key={client.id}
+                  style={[styles.clientListItem, i < Math.min(activeClients.length, 4) - 1 && styles.clientListBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/client/${client.id}` as any)}
+                >
+                  <Avatar name={client.name} size="md" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.clientListName}>{client.name}</Text>
+                    <View style={styles.clientListMeta}>
+                      <Ionicons name="star" size={11} color={Colors.yellow} />
+                      <Text style={styles.clientListMetaText}>{Math.min(5, (clientSessions * 0.5 + 2.5)).toFixed(1)}</Text>
+                      <Text style={styles.clientListDot}>·</Text>
+                      <Ionicons name="calendar" size={11} color={Colors.textTertiary} />
+                      <Text style={styles.clientListMetaText}>{clientSessions} sessions</Text>
+                      <Text style={styles.clientListDot}>·</Text>
+                      <Ionicons name="heart" size={11} color={Colors.red} />
+                      <Text style={styles.clientListMetaText}>{Math.floor(clientSessions * 3.2)}</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              );
+            })}
+          </Card>
+        ) : (
+          <Card style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.xl }}>
+            <View style={styles.emptyState}>
+              <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
+              <Text style={styles.emptyText}>No clients yet</Text>
+              <Text style={styles.emptySubtext}>Add your first client to get started</Text>
+            </View>
+          </Card>
+        )}
+
         {/* ── Upcoming Sessions List ── */}
         {upcomingSessions.length > 1 && (
           <>
@@ -329,7 +557,7 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Recent Activity</Text>
         </View>
         {activities.length === 0 ? (
-          <Card>
+          <Card style={{ marginHorizontal: Spacing.base }}>
             <View style={styles.emptyState}>
               <Ionicons name="pulse-outline" size={32} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>No activity yet</Text>
@@ -337,7 +565,7 @@ export default function DashboardScreen() {
             </View>
           </Card>
         ) : (
-          <Card noPadding>
+          <Card noPadding style={{ marginHorizontal: Spacing.base }}>
             {activities.slice(0, 5).map((activity, i) => {
               const meta = getActivityIcon(activity.type);
               return (
@@ -670,4 +898,208 @@ const styles = StyleSheet.create({
   activityIcon: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   activityMessage: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textPrimary },
   activityTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+
+  /* ── Active Plans (horizontal cards) ── */
+  plansScroll: { paddingLeft: Spacing.base, paddingRight: Spacing.sm, gap: 12, marginBottom: Spacing.xl },
+  planCard: {
+    width: SCREEN_WIDTH * 0.68,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    position: 'relative',
+  },
+  planCardEmpty: {
+    width: SCREEN_WIDTH * 0.68,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
+    padding: Spacing['2xl'],
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  planEmptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textTertiary },
+  planBadges: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  planBadge: {
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  planBadgeValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary },
+  planBadgeLabel: { fontFamily: FontFamily.body, fontSize: 9, color: Colors.textTertiary, marginTop: 1 },
+  planIconCenter: { alignItems: 'center', marginVertical: Spacing.md },
+  planIconGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  planMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  planMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  planMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  planMetaDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  planArrowBtn: {
+    position: 'absolute',
+    bottom: Spacing.base,
+    right: Spacing.base,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── Performance Card ── */
+  perfCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.xl },
+  perfTabs: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg },
+  perfTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.bgElevated,
+  },
+  perfTabActive: { backgroundColor: Colors.textPrimary },
+  perfTabText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary },
+  perfTabTextActive: { color: Colors.white },
+  perfChartArea: {
+    height: 120,
+    marginBottom: Spacing.lg,
+    position: 'relative',
+  },
+  perfGridLines: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+  },
+  perfGridLine: {
+    height: 1,
+    backgroundColor: Colors.border,
+    opacity: 0.5,
+  },
+  perfBars: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingTop: 4,
+  },
+  perfBarWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
+  },
+  perfBar: {
+    width: '80%',
+    borderRadius: Radius.xs,
+  },
+  perfBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  perfBigValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 32,
+    color: Colors.textPrimary,
+    letterSpacing: -1,
+  },
+  perfSubStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  perfSubText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  perfSubDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  perfActionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── Referral Promo Card ── */
+  promoCard: {
+    marginHorizontal: Spacing.base,
+    height: 180,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    marginBottom: Spacing.xl,
+  },
+  promoBgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  promoGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  promoTopPills: {
+    flexDirection: 'row',
+    gap: 8,
+    position: 'absolute',
+    top: Spacing.base,
+    left: Spacing.base,
+  },
+  promoPill: {
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  promoPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.white },
+  promoBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  promoBigValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 32,
+    color: Colors.white,
+    letterSpacing: -1,
+  },
+  promoSubtext: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+  },
+  promoBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── Top Clients List ── */
+  clientListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    paddingVertical: Spacing.base,
+  },
+  clientListBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  clientListName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
+  clientListMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  clientListMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  clientListDot: { fontFamily: FontFamily.body, fontSize: 8, color: Colors.textTertiary },
 });
