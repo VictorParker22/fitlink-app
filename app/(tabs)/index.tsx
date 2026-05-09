@@ -107,7 +107,7 @@ export default function DashboardScreen() {
               <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.5)" />
               <Text style={styles.heroDateText}>{todayDate}</Text>
             </View>
-            <TouchableOpacity style={styles.notifBtn}>
+            <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/notifications' as any)}>
               <Ionicons name="notifications-outline" size={20} color={Colors.white} />
               {activities.length > 0 && (
                 <View style={styles.notifBadge}>
