@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -55,36 +54,33 @@ export default function ProfileScreen() {
       }
     }
 
+    const pickerOptions: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
+      quality: 0.7,
+      base64: true,
+    };
+
     const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.7,
-        })
-      : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.7,
-        });
+      ? await ImagePicker.launchCameraAsync(pickerOptions)
+      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
 
     if (result.canceled || !result.assets?.[0]) return;
 
     const asset = result.assets[0];
-    await uploadAvatar(asset.uri);
+    if (!asset.base64) {
+      Alert.alert('Error', 'Could not read image data. Please try again.');
+      return;
+    }
+    await uploadAvatar(asset.base64, asset.uri);
   };
 
-  const uploadAvatar = async (uri: string) => {
+  const uploadAvatar = async (base64: string, uri: string) => {
     if (!user) return;
     setUploading(true);
 
     try {
-      // Read file as base64 (the only reliable way on React Native)
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
       const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${user.id}/avatar.${fileExt}`;
       const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
