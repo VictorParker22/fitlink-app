@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
@@ -85,10 +84,16 @@ export default function ProfileScreen() {
       const fileName = `${user.id}/avatar.${fileExt}`;
       const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
 
-      // Decode base64 → ArrayBuffer and upload
+      // Decode base64 → Uint8Array and upload
+      const binaryStr = atob(base64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, decode(base64), {
+        .upload(fileName, bytes.buffer, {
           contentType,
           upsert: true,
         });
