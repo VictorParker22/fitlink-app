@@ -65,6 +65,42 @@ interface Referral {
   date: string;
 }
 
+interface Exercise {
+  id: string;
+  name: string;
+  category: string;
+  muscle_group: string;
+  equipment?: string;
+}
+
+interface WorkoutExercise {
+  id: string;
+  workout_id: string;
+  exercise_id: string;
+  sets: number;
+  reps: number;
+  rest_seconds: number;
+  order_index: number;
+  exercises?: Exercise;
+}
+
+interface Workout {
+  id: string;
+  trainer_id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  workout_exercises?: WorkoutExercise[];
+}
+
+interface ClientWorkout {
+  id: string;
+  client_id: string;
+  workout_id: string;
+  assigned_date: string;
+  status: string;
+}
+
 interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
@@ -73,6 +109,8 @@ interface AppContextType {
   activities: Activity[];
   plans: Plan[];
   referrals: Referral[];
+  workouts: Workout[];
+  exercises: Exercise[];
 
   // Computed
   activeClients: Client[];
@@ -92,6 +130,9 @@ interface AppContextType {
   getSessionsForDate: (date: Date) => Session[];
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
+  createWorkout: (name: string, description: string, exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]) => Promise<Workout>;
+  deleteWorkout: (id: string) => Promise<void>;
+  assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -105,6 +146,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -125,13 +168,15 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
           supabase.from('sessions').select('*').order('date'),
           supabase.from('referrals').select('*').order('date', { ascending: false }),
           supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
+          supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
+          supabase.from('exercises').select('*').order('name'),
         ]);
 
         if (!mounted) return;
@@ -141,6 +186,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         if (sessionsRes.data) setSessions(sessionsRes.data);
         if (referralsRes.data) setReferrals(referralsRes.data);
         if (activitiesRes.data) setActivities(activitiesRes.data);
+        if (workoutsRes.data) setWorkouts(workoutsRes.data);
+        if (exercisesRes.data) setExercises(exercisesRes.data);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -154,13 +201,15 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refreshData = useCallback(async () => {
     if (!user) return;
-    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes] = await Promise.all([
+    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').order('created_at', { ascending: false }),
       supabase.from('plans').select('*').order('price'),
       supabase.from('sessions').select('*').order('date'),
       supabase.from('referrals').select('*').order('date', { ascending: false }),
       supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
+      supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
+      supabase.from('exercises').select('*').order('name'),
     ]);
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
@@ -168,6 +217,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (sessionsRes.data) setSessions(sessionsRes.data);
     if (referralsRes.data) setReferrals(referralsRes.data);
     if (activitiesRes.data) setActivities(activitiesRes.data);
+    if (workoutsRes.data) setWorkouts(workoutsRes.data);
+    if (exercisesRes.data) setExercises(exercisesRes.data);
   }, [user]);
 
   // --- Client operations ---
@@ -268,6 +319,71 @@ export function AppProvider({ children }: PropsWithChildren) {
     return data;
   }, [user]);
 
+  // --- Workout operations ---
+  const createWorkout = useCallback(async (
+    name: string,
+    description: string,
+    exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]
+  ) => {
+    const { data: workout, error } = await supabase
+      .from('workouts')
+      .insert({ trainer_id: user!.id, name, description })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (exerciseList.length > 0) {
+      const rows = exerciseList.map((ex, i) => ({
+        workout_id: workout.id,
+        exercise_id: ex.exercise_id,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        order_index: i,
+      }));
+      await supabase.from('workout_exercises').insert(rows);
+    }
+
+    // Refetch full workout with exercises
+    const { data: full } = await supabase
+      .from('workouts')
+      .select('*, workout_exercises(*, exercises(*))')
+      .eq('id', workout.id)
+      .single();
+    if (full) setWorkouts((prev) => [full, ...prev]);
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Created workout "${name}"`,
+    });
+    return full || workout;
+  }, [user]);
+
+  const deleteWorkout = useCallback(async (id: string) => {
+    await supabase.from('workout_exercises').delete().eq('workout_id', id);
+    const { error } = await supabase.from('workouts').delete().eq('id', id);
+    if (error) throw error;
+    setWorkouts((prev) => prev.filter((w) => w.id !== id));
+  }, []);
+
+  const assignWorkout = useCallback(async (workoutId: string, clientId: string, date: string) => {
+    const { error } = await supabase.from('client_workouts').insert({
+      workout_id: workoutId,
+      client_id: clientId,
+      assigned_date: date,
+      status: 'assigned',
+    });
+    if (error) throw error;
+    const client = clients.find((c) => c.id === clientId);
+    const workout = workouts.find((w) => w.id === workoutId);
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Assigned "${workout?.name}" to ${client?.name || 'client'}`,
+    });
+  }, [user, clients, workouts]);
+
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
   const trialClients = useMemo(() => clients.filter((c) => c.status === 'trial'), [clients]);
@@ -297,6 +413,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     activities,
     plans,
     referrals,
+    workouts,
+    exercises,
     activeClients,
     trialClients,
     inactiveClients,
@@ -312,6 +430,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     getSessionsForDate,
     getClientSessions,
     updateTrainer,
+    createWorkout,
+    deleteWorkout,
+    assignWorkout,
     refreshData,
   };
 

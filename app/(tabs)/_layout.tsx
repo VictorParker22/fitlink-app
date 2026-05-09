@@ -70,9 +70,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="programs"
         options={{
-          title: 'Schedule',
+          title: 'Programs',
           tabBarIcon: () => <CenterFAB />,
           tabBarButton: (props) => (
             <TouchableOpacity
@@ -105,6 +105,13 @@ export default function TabLayout() {
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
+        }}
+      />
+      {/* Schedule hidden from tab bar, accessible via navigation */}
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
