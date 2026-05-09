@@ -136,6 +136,17 @@ interface ClientDiet {
   status: string;
 }
 
+export interface NotificationData {
+  id: string;
+  trainer_id: string;
+  type: 'message' | 'score' | 'water' | 'workout' | 'nutrition' | 'file';
+  title: string;
+  description: string;
+  metadata: any;
+  is_read: boolean;
+  created_at: string;
+}
+
 interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
@@ -148,6 +159,7 @@ interface AppContextType {
   exercises: Exercise[];
   diets: DietPlan[];
   meals: Meal[];
+  notifications: NotificationData[];
 
   // Computed
   activeClients: Client[];
@@ -173,6 +185,7 @@ interface AppContextType {
   createDietPlan: (name: string, description: string, mealList: { meal_id: string }[]) => Promise<DietPlan>;
   deleteDietPlan: (id: string) => Promise<void>;
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -190,6 +203,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [diets, setDiets] = useState<DietPlan[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -210,7 +224,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
@@ -221,6 +235,7 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('exercises').select('*').order('name'),
           supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
           supabase.from('meals').select('*').order('name'),
+          supabase.from('notifications').select('*').order('created_at', { ascending: false }),
         ]);
 
         if (!mounted) return;
@@ -235,6 +250,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         // Default to empty array if table doesn't exist yet (before migration)
         setDiets(dietsRes.data || []);
         setMeals(mealsRes.data || []);
+        setNotifications(notifRes.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -248,7 +264,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refreshData = useCallback(async () => {
     if (!user) return;
-    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes] = await Promise.all([
+    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').order('created_at', { ascending: false }),
       supabase.from('plans').select('*').order('price'),
@@ -259,6 +275,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('exercises').select('*').order('name'),
       supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
       supabase.from('meals').select('*').order('name'),
+      supabase.from('notifications').select('*').order('created_at', { ascending: false }),
     ]);
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
@@ -270,6 +287,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (exercisesRes.data) setExercises(exercisesRes.data);
     if (dietsRes.data) setDiets(dietsRes.data);
     if (mealsRes.data) setMeals(mealsRes.data);
+    if (notifRes.data) setNotifications(notifRes.data);
   }, [user]);
 
   // --- Client operations ---
@@ -496,6 +514,14 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
   }, [user, clients, diets]);
 
+  // --- Notification operations ---
+  const markNotificationRead = useCallback(async (id: string) => {
+    // Update local state immediately for UI responsiveness
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    // Update db
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  }, []);
+
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
   const trialClients = useMemo(() => clients.filter((c) => c.status === 'trial'), [clients]);
@@ -529,6 +555,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     exercises,
     diets,
     meals,
+    notifications,
     activeClients,
     trialClients,
     inactiveClients,
@@ -550,6 +577,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     createDietPlan,
     deleteDietPlan,
     assignDietPlan,
+    markNotificationRead,
     refreshData,
   };
 

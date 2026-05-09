@@ -20,8 +20,10 @@ export default function DashboardScreen() {
     trainer, activeClients, todaySessions, totalReferrals,
     totalMonthlyRevenue, activities, upcomingSessions,
     getClientById, refreshData, loading, sessions,
-    plans, clients, referrals, trialClients,
+    plans, clients, referrals, trialClients, notifications,
   } = useApp();
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -109,9 +111,9 @@ export default function DashboardScreen() {
             </View>
             <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/notifications' as any)}>
               <Ionicons name="notifications-outline" size={20} color={Colors.white} />
-              {activities.length > 0 && (
+              {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>{Math.min(activities.length, 9)}</Text>
+                  <Text style={styles.notifBadgeText}>{Math.min(unreadCount, 99)}</Text>
                 </View>
               )}
             </TouchableOpacity>
