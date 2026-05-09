@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
@@ -78,18 +80,20 @@ export default function ProfileScreen() {
     setUploading(true);
 
     try {
-      // Convert URI to blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // Read file as base64 (the only reliable way on React Native)
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
       const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${user.id}/avatar.${fileExt}`;
+      const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
 
-      // Upload to Supabase Storage
+      // Decode base64 → ArrayBuffer and upload
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, blob, {
-          contentType: `image/${fileExt === 'png' ? 'png' : 'jpeg'}`,
+        .upload(fileName, decode(base64), {
+          contentType,
           upsert: true,
         });
 
@@ -100,7 +104,7 @@ export default function ProfileScreen() {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`; // cache-bust
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       // Save to trainer profile
       await updateTrainer({ avatar_url: avatarUrl });
