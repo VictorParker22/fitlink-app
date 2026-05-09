@@ -79,7 +79,7 @@ export default function ClientProfileScreen() {
             <Text style={styles.sectionTitle}>Your Trainer</Text>
             <Card>
               <View style={styles.trainerRow}>
-                <Avatar name={trainer.name} size="md" />
+                <Avatar name={trainer.name} size="md" imageUrl={trainer.avatar_url} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trainerName}>{trainer.name}</Text>
                   {trainer.specialization && <Text style={styles.trainerSpec}>{trainer.specialization}</Text>}

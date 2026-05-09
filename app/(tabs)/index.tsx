@@ -67,7 +67,7 @@ export default function DashboardScreen() {
             <Text style={styles.name}>{firstName} 👋</Text>
           </View>
           <TouchableOpacity style={styles.avatarBtn}>
-            <Avatar name={trainer?.name || 'Coach'} size="md" />
+            <Avatar name={trainer?.name || 'Coach'} size="md" imageUrl={trainer?.avatar_url} />
           </TouchableOpacity>
         </View>
 

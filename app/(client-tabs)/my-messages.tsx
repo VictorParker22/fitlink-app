@@ -94,7 +94,7 @@ export default function ClientMessagesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Avatar name={trainer?.name || 'Coach'} size="sm" />
+        <Avatar name={trainer?.name || 'Coach'} size="sm" imageUrl={trainer?.avatar_url} />
         <View>
           <Text style={styles.headerName}>Coach {trainer?.name?.split(' ')[0] || 'Trainer'}</Text>
           <Text style={styles.headerSub}>Your Trainer</Text>
