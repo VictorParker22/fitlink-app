@@ -124,15 +124,12 @@ export default function WorkoutDetailScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-        
-        {/* Top Hero Image Area */}
         <View style={styles.heroContainer}>
           <Image source={heroImage} style={styles.heroImage} resizeMode="cover" />
           <LinearGradient
             colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)']}
             style={styles.heroGradient}
           >
-            {/* Top Nav (Absolute over image) */}
             <View style={[styles.topNav, { marginTop: insets.top || Spacing.lg }]}>
               <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
                 <Ionicons name="chevron-back" size={24} color={Colors.white} />
@@ -141,8 +138,6 @@ export default function WorkoutDetailScreen() {
                 <Ionicons name="settings-outline" size={22} color={Colors.white} />
               </TouchableOpacity>
             </View>
-
-            {/* Title Block Bottom */}
             <View style={styles.heroTitleBlock}>
               <View style={styles.totalPill}>
                 <Text style={styles.totalPillText}>{exercises.length} Total</Text>
@@ -153,15 +148,11 @@ export default function WorkoutDetailScreen() {
           </LinearGradient>
         </View>
 
-        {/* Content Sheet Area (Overlaps the image) */}
         <View style={styles.contentSheet}>
-          
-          {/* Description */}
           <Text style={styles.descText}>
             Prepare to transform your muscles with our targeted and effective workout routine tailored for you.
           </Text>
 
-          {/* Stats Row */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="time" size={16} color={Colors.textTertiary} />
@@ -182,7 +173,6 @@ export default function WorkoutDetailScreen() {
             </View>
           </View>
 
-          {/* Exercises List */}
           <View style={styles.exerciseList}>
             {exercises
               .sort((a, b) => a.order_index - b.order_index)
@@ -190,15 +180,12 @@ export default function WorkoutDetailScreen() {
                 const exImage = getCategoryImage(we.exercises?.category || '');
                 return (
                   <View key={we.id} style={styles.exerciseCard}>
-                    {/* Exercise Image with Play Button */}
                     <View style={styles.exerciseImgWrap}>
                       <Image source={exImage} style={styles.exerciseImg} resizeMode="cover" />
                       <View style={styles.playOverlay}>
                         <Ionicons name="play" size={18} color={Colors.white} style={{ marginLeft: 2 }} />
                       </View>
                     </View>
-
-                    {/* Exercise Info */}
                     <View style={styles.exerciseInfo}>
                       <View style={styles.exIndexPill}>
                         <Text style={styles.exIndexText}>Exercise {index + 1}</Text>
@@ -213,13 +200,10 @@ export default function WorkoutDetailScreen() {
                 );
             })}
           </View>
-          
-          <View style={{ height: 100 }} /> {/* Padding for absolute bottom CTA */}
+          <View style={{ height: 100 }} />
         </View>
 
       </ScrollView>
-
-      {/* Bottom CTA Button */}
       <View style={[styles.bottomCTAWrapper, { paddingBottom: insets.bottom || Spacing.xl }]}>
         <TouchableOpacity
           style={styles.bottomBtn}
