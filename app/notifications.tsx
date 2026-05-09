@@ -144,11 +144,7 @@ export default function NotificationsScreen() {
           
           <View style={{ flex: 1 }} />
           
-          {trainer ? (
-            <Image source={{ uri: trainer.avatar_url || 'https://i.pravatar.cc/150?u=' + trainer.id }} style={styles.avatar} />
-          ) : (
-            <Avatar name="Coach" size="sm" />
-          )}
+          <Avatar name={trainer?.name || 'Coach'} size="sm" imageUrl={trainer?.avatar_url} />
         </View>
 
         <View style={styles.titleRow}>

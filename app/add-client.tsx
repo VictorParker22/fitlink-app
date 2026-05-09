@@ -73,6 +73,19 @@ export default function AddClientScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
           <View style={styles.section}>
+            {/* Avatar Picker Placeholder */}
+            <View style={styles.avatarPickerContainer}>
+              <TouchableOpacity style={styles.avatarPicker} activeOpacity={0.8}>
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={40} color={Colors.textTertiary} />
+                </View>
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera" size={14} color={Colors.white} />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avatarPickerText}>Add Photo</Text>
+            </View>
+
             {/* Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
@@ -204,6 +217,21 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.xl,
   },
+
+  avatarPickerContainer: { alignItems: 'center', marginBottom: Spacing.xl },
+  avatarPicker: { position: 'relative', marginBottom: Spacing.sm },
+  avatarPlaceholder: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: Colors.accent, borderWidth: 2, borderColor: Colors.bgPrimary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarPickerText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.accent },
 
   inputGroup: { marginBottom: Spacing.xl },
   label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
