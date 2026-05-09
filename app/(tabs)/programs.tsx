@@ -1,36 +1,42 @@
 import { useMemo, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Dimensions, Image, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
-import Card from '../../components/Card';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const CATEGORY_ICONS: Record<string, { icon: string; colors: [string, string] }> = {
-  strength: { icon: 'barbell-outline', colors: [Colors.accent, '#FF8F6B'] },
-  cardio: { icon: 'heart-outline', colors: [Colors.blue, '#66B8FF'] },
-  flexibility: { icon: 'body-outline', colors: [Colors.green, '#66D9A3'] },
-  hiit: { icon: 'flash-outline', colors: [Colors.yellow, '#FFD966'] },
-  default: { icon: 'fitness-outline', colors: [Colors.purple, '#B388FF'] },
-};
-
 function getWorkoutCategory(name: string): string {
   const lower = name.toLowerCase();
-  if (lower.includes('strength') || lower.includes('push') || lower.includes('pull') || lower.includes('leg') || lower.includes('upper') || lower.includes('lower')) return 'strength';
-  if (lower.includes('cardio') || lower.includes('run') || lower.includes('cycle')) return 'cardio';
-  if (lower.includes('flex') || lower.includes('stretch') || lower.includes('yoga')) return 'flexibility';
-  if (lower.includes('hiit') || lower.includes('circuit') || lower.includes('tabata')) return 'hiit';
-  return 'default';
+  if (lower.includes('strength') || lower.includes('push') || lower.includes('pull') || lower.includes('leg') || lower.includes('upper') || lower.includes('lower')) return 'Strength';
+  if (lower.includes('cardio') || lower.includes('run') || lower.includes('cycle') || lower.includes('aerobics')) return 'Cardio';
+  if (lower.includes('flex') || lower.includes('stretch') || lower.includes('yoga')) return 'Yoga';
+  if (lower.includes('hiit') || lower.includes('circuit') || lower.includes('tabata') || lower.includes('intervals')) return 'HIIT';
+  if (lower.includes('kickboxing') || lower.includes('martial')) return 'Kickboxing';
+  return 'Endurance';
 }
+
+// Fallback images based on category
+const getCategoryImage = (category: string) => {
+  switch (category) {
+    case 'Strength': return require('../../assets/images/welcome-1.png');
+    case 'Cardio': return require('../../assets/images/welcome-2.png');
+    case 'Yoga': return require('../../assets/images/welcome-3.png');
+    default: return require('../../assets/images/welcome-1.png');
+  }
+};
+
+const CATEGORIES = ['All', 'Strength', 'Cardio', 'HIIT', 'Yoga', 'Endurance'];
 
 export default function ProgramsScreen() {
   const router = useRouter();
   const { workouts, refreshData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -38,73 +44,73 @@ export default function ProgramsScreen() {
     setRefreshing(false);
   }, [refreshData]);
 
-  const totalExercises = useMemo(() =>
-    workouts.reduce((sum, w) => sum + (w.workout_exercises?.length || 0), 0),
-    [workouts]
-  );
+  const filteredWorkouts = useMemo(() => {
+    let result = workouts;
+    if (activeCategory !== 'All') {
+      result = result.filter(w => getWorkoutCategory(w.name) === activeCategory);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(w => w.name.toLowerCase().includes(q) || w.description?.toLowerCase().includes(q));
+    }
+    return result;
+  }, [workouts, searchQuery, activeCategory]);
 
   const renderWorkout = ({ item, index }: { item: typeof workouts[0]; index: number }) => {
     const exerciseCount = item.workout_exercises?.length || 0;
     const cat = getWorkoutCategory(item.name);
-    const meta = CATEGORY_ICONS[cat];
-    const muscleGroups = [...new Set(
-      item.workout_exercises?.map((we) => we.exercises?.muscle_group).filter(Boolean) || []
-    )];
+    const estTime = Math.max(15, exerciseCount * 5);
+    const kcal = Math.max(150, exerciseCount * 45); // Rough estimate
 
     return (
       <TouchableOpacity
-        activeOpacity={0.85}
+        activeOpacity={0.9}
         onPress={() => router.push(`/workout/${item.id}` as any)}
+        style={styles.cardContainer}
       >
-        <Card style={styles.workoutCard}>
-          {/* Accent bar */}
-          <LinearGradient
-            colors={meta.colors}
-            style={styles.accentBar}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-
-          <View style={styles.cardContent}>
-            {/* Top row: icon + info + arrow */}
-            <View style={styles.cardTop}>
-              <LinearGradient
-                colors={meta.colors}
-                style={styles.iconCircle}
-              >
-                <Ionicons name={meta.icon as any} size={22} color={Colors.white} />
-              </LinearGradient>
-
-              <View style={{ flex: 1 }}>
-                <Text style={styles.workoutName} numberOfLines={1}>{item.name}</Text>
-                {item.description ? (
-                  <Text style={styles.workoutDesc} numberOfLines={1}>{item.description}</Text>
-                ) : null}
-              </View>
-
-              <View style={styles.arrowBtn}>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
-              </View>
-            </View>
-
-            {/* Bottom row: badges */}
-            <View style={styles.badgeRow}>
-              <View style={styles.badge}>
-                <Ionicons name="barbell-outline" size={12} color={Colors.accent} />
-                <Text style={styles.badgeText}>{exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}</Text>
-              </View>
-              {muscleGroups.slice(0, 2).map((mg) => (
-                <View key={mg} style={[styles.badge, { backgroundColor: `${meta.colors[0]}12` }]}>
-                  <Text style={[styles.badgeText, { color: meta.colors[0] }]}>{mg}</Text>
-                </View>
-              ))}
-              <View style={styles.badge}>
-                <Ionicons name="time-outline" size={12} color={Colors.textTertiary} />
-                <Text style={styles.badgeText}>~{Math.max(15, exerciseCount * 5)}min</Text>
-              </View>
+        <Image
+          source={getCategoryImage(cat)}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.9)']}
+          style={styles.cardGradient}
+        >
+          {/* Top Pill */}
+          <View style={styles.cardTop}>
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText}>{cat}</Text>
             </View>
           </View>
-        </Card>
+
+          {/* Bottom Info */}
+          <View style={styles.cardBottom}>
+            <View style={styles.cardInfo}>
+              <Text style={styles.workoutName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.workoutAuthor} numberOfLines={1}>{item.description || 'FitLink Coach'}</Text>
+              
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="time" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{estTime}min</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="flame" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{kcal}kcal</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="barbell" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{exerciseCount} moves</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.playBtn}>
+              <Ionicons name="play" size={24} color={Colors.white} style={{ marginLeft: 3 }} />
+            </View>
+          </View>
+        </LinearGradient>
       </TouchableOpacity>
     );
   };
@@ -113,10 +119,7 @@ export default function ProgramsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Programs</Text>
-          <Text style={styles.subtitle}>{workouts.length} workout{workouts.length !== 1 ? 's' : ''}</Text>
-        </View>
+        <Text style={styles.title}>Programs</Text>
         <TouchableOpacity
           style={styles.addBtn}
           activeOpacity={0.8}
@@ -126,36 +129,69 @@ export default function ProgramsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Stats Row */}
-      <View style={styles.statsRow}>
-        {[
-          { label: 'Programs', value: workouts.length, color: Colors.accent, bg: Colors.accentSoft },
-          { label: 'Exercises', value: totalExercises, color: Colors.blue, bg: '#E8F4FD' },
-          { label: 'Categories', value: new Set(workouts.map((w) => getWorkoutCategory(w.name))).size, color: Colors.purple, bg: '#F3E8FF' },
-        ].map((stat) => (
-          <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
-            <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </View>
-        ))}
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBox}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search Workout..."
+            placeholderTextColor={Colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          <Ionicons name="search" size={20} color={Colors.textTertiary} />
+        </View>
+      </View>
+
+      {/* Category Filter Pills */}
+      <View>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.filterScroll}
+        >
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.filterPill, activeCategory === cat && styles.filterPillActive]}
+              onPress={() => setActiveCategory(cat)}
+            >
+              {cat === 'Strength' && <Ionicons name="barbell" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
+              {cat === 'Cardio' && <Ionicons name="heart" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
+              {cat === 'Yoga' && <Ionicons name="body" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
+              <Text style={[styles.filterPillText, activeCategory === cat && styles.filterPillTextActive]}>
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Results Header */}
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsText}>{filteredWorkouts.length} Results Found.</Text>
+        <TouchableOpacity style={styles.sortBtn}>
+          <Ionicons name="bar-chart" size={14} color={Colors.textSecondary} />
+          <Text style={styles.sortText}>Popularity</Text>
+          <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       {/* Workout List */}
       <FlatList
-        data={workouts}
+        data={filteredWorkouts}
         keyExtractor={(item) => item.id}
         renderItem={renderWorkout}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="barbell-outline" size={32} color={Colors.accent} />
+              <Ionicons name="search-outline" size={32} color={Colors.accent} />
             </View>
-            <Text style={styles.emptyTitle}>No programs yet</Text>
-            <Text style={styles.emptyText}>Create your first workout program to assign to clients</Text>
+            <Text style={styles.emptyTitle}>No programs found</Text>
+            <Text style={styles.emptyText}>Adjust your filters or create a new workout program.</Text>
             <TouchableOpacity
               style={styles.emptyCTA}
               onPress={() => router.push('/create-workout' as any)}
@@ -178,55 +214,82 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
   },
   title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
   addBtn: {
     width: 40, height: 40, borderRadius: Radius.md,
     backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
   },
 
-  statsRow: {
-    flexDirection: 'row', gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg, marginBottom: Spacing.lg,
+  searchContainer: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.borderStrong,
+    borderRadius: Radius.xl, paddingHorizontal: Spacing.lg, height: 56,
   },
-  statCard: {
-    flex: 1, alignItems: 'center', paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
+  searchInput: {
+    flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base,
+    color: Colors.textPrimary, paddingVertical: 0,
   },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
-  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
 
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
+  filterScroll: { paddingHorizontal: Spacing.lg, gap: Spacing.sm, paddingBottom: Spacing.md },
+  filterPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: Radius.full, backgroundColor: Colors.bgElevated,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  filterPillActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  filterPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
+  filterPillTextActive: { color: Colors.white },
 
-  workoutCard: {
+  resultsHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.lg, marginBottom: Spacing.md,
+  },
+  resultsText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  sortText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textSecondary },
+
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 120, gap: Spacing.lg },
+
+  cardContainer: {
+    height: 220,
+    width: '100%',
+    borderRadius: 24,
     overflow: 'hidden',
-    paddingVertical: 0,
-    paddingHorizontal: 0,
+    backgroundColor: Colors.bgElevated,
   },
-  accentBar: {
-    position: 'absolute', top: 0, bottom: 0, left: 0, width: 4,
-    borderTopLeftRadius: Radius.md, borderBottomLeftRadius: Radius.md,
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
   },
-  cardContent: { paddingVertical: Spacing.base, paddingHorizontal: Spacing.lg, paddingLeft: 20 },
-
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  iconCircle: {
-    width: 48, height: 48, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
+  cardGradient: {
+    flex: 1,
+    padding: Spacing.lg,
+    justifyContent: 'space-between',
   },
-  workoutName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  workoutDesc: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  arrowBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between' },
+  categoryPill: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: Radius.sm,
+    backdropFilter: 'blur(10px)', // For web, simulating glassmorphism
   },
-
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.md },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.bgElevated, paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: Radius.full,
+  categoryPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.white, textTransform: 'uppercase', letterSpacing: 0.5 },
+  
+  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  cardInfo: { flex: 1, paddingRight: Spacing.md },
+  workoutName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.white, marginBottom: 4 },
+  workoutAuthor: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textTertiary, marginBottom: 8 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textSecondary },
+  
+  playBtn: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8,
   },
-  badgeText: { fontFamily: FontFamily.bodyMedium, fontSize: 10, color: Colors.textTertiary },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
   emptyIconCircle: {
