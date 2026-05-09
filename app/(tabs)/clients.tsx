@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   filterCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary },
   filterCountActive: { color: Colors.accent },
 
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 
   clientCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,

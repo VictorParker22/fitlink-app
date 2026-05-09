@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary, paddingVertical: 0 },
 
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   convItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md },
   convContent: { flex: 1 },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

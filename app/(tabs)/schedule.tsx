@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   dayTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
   dayCount: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
 
-  sessionList: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  sessionList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   sessionCard: { marginBottom: Spacing.sm },
   sessionDone: { opacity: 0.6 },
   sessionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },

@@ -589,7 +589,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  scrollContent: { paddingBottom: Spacing['3xl'] },
+  scrollContent: { paddingBottom: 100 },
 
   /* ── Hero Header ── */
   heroCard: {
