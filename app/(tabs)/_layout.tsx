@@ -91,18 +91,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="diets"
         options={{
-          title: 'Profile',
+          title: 'Diets',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-              <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'nutrition' : 'nutrition-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
         }}
       />
-      {/* Schedule hidden from tab bar, accessible via navigation */}
+      {/* Hidden from tab bar, accessible via navigation */}
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="schedule"
         options={{

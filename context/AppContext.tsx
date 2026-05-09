@@ -101,6 +101,41 @@ interface ClientWorkout {
   status: string;
 }
 
+interface Meal {
+  id: string;
+  name: string;
+  category: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+interface DietPlanMeal {
+  id: string;
+  diet_plan_id: string;
+  meal_id: string;
+  order_index: number;
+  meals?: Meal;
+}
+
+interface DietPlan {
+  id: string;
+  trainer_id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  diet_plan_meals?: DietPlanMeal[];
+}
+
+interface ClientDiet {
+  id: string;
+  client_id: string;
+  diet_plan_id: string;
+  assigned_date: string;
+  status: string;
+}
+
 interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
@@ -111,6 +146,8 @@ interface AppContextType {
   referrals: Referral[];
   workouts: Workout[];
   exercises: Exercise[];
+  diets: DietPlan[];
+  meals: Meal[];
 
   // Computed
   activeClients: Client[];
@@ -133,6 +170,9 @@ interface AppContextType {
   createWorkout: (name: string, description: string, exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]) => Promise<Workout>;
   deleteWorkout: (id: string) => Promise<void>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
+  createDietPlan: (name: string, description: string, mealList: { meal_id: string }[]) => Promise<DietPlan>;
+  deleteDietPlan: (id: string) => Promise<void>;
+  assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -148,6 +188,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [diets, setDiets] = useState<DietPlan[]>([]);
+  const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -168,7 +210,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
@@ -177,6 +219,8 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
           supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
           supabase.from('exercises').select('*').order('name'),
+          supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
+          supabase.from('meals').select('*').order('name'),
         ]);
 
         if (!mounted) return;
@@ -188,6 +232,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         if (activitiesRes.data) setActivities(activitiesRes.data);
         if (workoutsRes.data) setWorkouts(workoutsRes.data);
         if (exercisesRes.data) setExercises(exercisesRes.data);
+        // Default to empty array if table doesn't exist yet (before migration)
+        setDiets(dietsRes.data || []);
+        setMeals(mealsRes.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -201,7 +248,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refreshData = useCallback(async () => {
     if (!user) return;
-    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes] = await Promise.all([
+    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').order('created_at', { ascending: false }),
       supabase.from('plans').select('*').order('price'),
@@ -210,6 +257,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
       supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
       supabase.from('exercises').select('*').order('name'),
+      supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
+      supabase.from('meals').select('*').order('name'),
     ]);
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
@@ -219,6 +268,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (activitiesRes.data) setActivities(activitiesRes.data);
     if (workoutsRes.data) setWorkouts(workoutsRes.data);
     if (exercisesRes.data) setExercises(exercisesRes.data);
+    if (dietsRes.data) setDiets(dietsRes.data);
+    if (mealsRes.data) setMeals(mealsRes.data);
   }, [user]);
 
   // --- Client operations ---
@@ -384,6 +435,67 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
   }, [user, clients, workouts]);
 
+  // --- Diet Plan operations ---
+  const createDietPlan = useCallback(async (
+    name: string,
+    description: string,
+    mealList: { meal_id: string }[]
+  ) => {
+    const { data: dietPlan, error } = await supabase
+      .from('diet_plans')
+      .insert({ trainer_id: user!.id, name, description })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (mealList.length > 0) {
+      const rows = mealList.map((m, i) => ({
+        diet_plan_id: dietPlan.id,
+        meal_id: m.meal_id,
+        order_index: i,
+      }));
+      await supabase.from('diet_plan_meals').insert(rows);
+    }
+
+    const { data: full } = await supabase
+      .from('diet_plans')
+      .select('*, diet_plan_meals(*, meals(*))')
+      .eq('id', dietPlan.id)
+      .single();
+    if (full) setDiets((prev) => [full, ...prev]);
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'diet',
+      message: `Created diet plan "${name}"`,
+    });
+    return full || dietPlan;
+  }, [user]);
+
+  const deleteDietPlan = useCallback(async (id: string) => {
+    await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    const { error } = await supabase.from('diet_plans').delete().eq('id', id);
+    if (error) throw error;
+    setDiets((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const assignDietPlan = useCallback(async (dietPlanId: string, clientId: string, date: string) => {
+    const { error } = await supabase.from('client_diets').insert({
+      diet_plan_id: dietPlanId,
+      client_id: clientId,
+      assigned_date: date,
+      status: 'assigned',
+    });
+    if (error) throw error;
+    const client = clients.find((c) => c.id === clientId);
+    const diet = diets.find((d) => d.id === dietPlanId);
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'diet',
+      message: `Assigned "${diet?.name}" to ${client?.name || 'client'}`,
+    });
+  }, [user, clients, diets]);
+
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
   const trialClients = useMemo(() => clients.filter((c) => c.status === 'trial'), [clients]);
@@ -415,6 +527,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     referrals,
     workouts,
     exercises,
+    diets,
+    meals,
     activeClients,
     trialClients,
     inactiveClients,
@@ -433,6 +547,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     createWorkout,
     deleteWorkout,
     assignWorkout,
+    createDietPlan,
+    deleteDietPlan,
+    assignDietPlan,
     refreshData,
   };
 
