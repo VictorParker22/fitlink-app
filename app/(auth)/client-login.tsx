@@ -47,7 +47,7 @@ export default function ClientLoginScreen() {
   const [selectedTrainer, setSelectedTrainer] = useState<string | null>(null);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
 
-  // --- Lookup client by email ---
+  // --- Lookup client by email (uses RPC to bypass RLS) ---
   const handleLookup = useCallback(async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !trimmed.includes('@')) return setError('Enter a valid email address');
@@ -56,45 +56,33 @@ export default function ClientLoginScreen() {
     setLookupStatus('checking');
 
     try {
-      // First: look for ANY client with this email
-      const { data: clients, error: lookupErr } = await supabase
-        .from('clients')
-        .select('id, name, email, trainer_id, auth_user_id')
-        .ilike('email', trimmed);
+      const { data, error: rpcErr } = await supabase.rpc('lookup_client_by_email', {
+        lookup_email: trimmed,
+      });
 
-      console.log('[ClientLogin] Lookup result:', JSON.stringify({ trimmed, clients, lookupErr }));
+      console.log('[ClientLogin] RPC result:', JSON.stringify({ trimmed, data, rpcErr }));
 
-      if (clients && clients.length > 0) {
-        const unlinked = clients.find((c: any) => !c.auth_user_id);
-        const linked = clients.find((c: any) => c.auth_user_id);
+      if (rpcErr) throw rpcErr;
 
-        if (unlinked) {
-          // Found unlinked client — get trainer name
-          let trainerName = 'your trainer';
-          if (unlinked.trainer_id) {
-            const { data: t } = await supabase.from('trainers').select('name').eq('id', unlinked.trainer_id).maybeSingle();
-            if (t) trainerName = t.name;
-          }
-          setFoundClient(unlinked);
-          setFoundTrainerName(trainerName);
-          setName(unlinked.name || '');
-          setLookupStatus('found');
-          setFlowStep('create_password');
-          return;
-        }
-
-        if (linked) {
-          // Already has an account — tell them to sign in
+      if (data?.found) {
+        if (data.has_account) {
+          // Already linked — switch to sign in
           setLookupStatus('not_found');
           setIsSignIn(true);
           setSuccess('You already have an account! Sign in below.');
-          return;
+        } else {
+          // Found unlinked client — create password flow
+          setFoundClient({ name: data.client_name });
+          setFoundTrainerName(data.trainer_name || 'your trainer');
+          setName(data.client_name || '');
+          setLookupStatus('found');
+          setFlowStep('create_password');
         }
+      } else {
+        // Not found — new client
+        setLookupStatus('not_found');
+        setFlowStep('enter_info');
       }
-
-      // Not found at all — new client
-      setLookupStatus('not_found');
-      setFlowStep('enter_info');
     } catch (err) {
       console.error('[ClientLogin] Lookup error:', err);
       setLookupStatus('not_found');
