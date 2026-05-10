@@ -287,11 +287,20 @@ export default function ScheduleScreen() {
                       {isExpanded && session.status !== 'upcoming' && (
                         <View style={styles.actions}>
                           <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: Colors.bgElevated, flex: 1 }]}
+                            style={[styles.actionBtn, { backgroundColor: colors.bgElevated, flex: 1 }]}
                             onPress={() => handleStatusChange(session.id, 'upcoming')}
                           >
-                            <Text style={[styles.actionText, { color: Colors.textSecondary }]}>Undo — Mark as Upcoming</Text>
+                            <Text style={[styles.actionText, { color: colors.textSecondary }]}>Undo</Text>
                           </TouchableOpacity>
+                          {session.status === 'completed' && (
+                            <TouchableOpacity
+                              style={[styles.actionBtn, { backgroundColor: `${Colors.purple}15`, flex: 2, marginLeft: Spacing.sm }]}
+                              onPress={() => router.push(`/session-notes?sessionId=${session.id}` as any)}
+                            >
+                              <Ionicons name="document-text" size={14} color={Colors.purple} />
+                              <Text style={[styles.actionText, { color: Colors.purple }]}>{session.notes ? 'Edit Notes' : 'Add Notes'}</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       )}
                     </View>
