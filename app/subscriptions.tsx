@@ -76,7 +76,7 @@ export default function SubscriptionsScreen() {
                   <View style={styles.avatarStack}>
                     {planClients.slice(0, 3).map((c, i) => (
                       <View key={c.id} style={[styles.avatarRing, { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }]}>
-                        <Avatar name={c.name} size="xs" />
+                        <Avatar name={c.name} size="sm" />
                       </View>
                     ))}
                   </View>

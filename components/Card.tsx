@@ -1,4 +1,5 @@
-import { View, StyleSheet, type ViewStyle, type PropsWithChildren } from 'react-native';
+import React, { type PropsWithChildren } from 'react';
+import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Radius, Spacing } from '../constants/theme';
 

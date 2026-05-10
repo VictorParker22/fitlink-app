@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Dimensions, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -21,22 +22,24 @@ export default function DietDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { diets, deleteDietPlan, assignDietPlan, activeClients } = useApp();
+  const { diets, deleteDietPlan, assignDietPlan, activeClients, clientDiets } = useApp();
+  const { colors } = useTheme();
   const [showAssign, setShowAssign] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const diet = useMemo(() => diets.find((d) => d.id === id), [diets, id]);
 
   if (!diet) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.bgPrimary }]}>
         <View style={styles.topNav}>
           <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
             <Ionicons name="chevron-back" size={22} color={Colors.white} />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Diet plan not found</Text>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Diet plan not found</Text>
         </View>
       </View>
     );
@@ -83,39 +86,74 @@ export default function DietDetailScreen() {
   };
 
   if (showAssign) {
+    const filteredClients = activeClients.filter(c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
-      <View style={[styles.container, { backgroundColor: Colors.bgPrimary, paddingTop: insets.top }]}>
+      <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => setShowAssign(false)} style={styles.backBtnDark}>
-            <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={[styles.backBtnDark, { backgroundColor: colors.bgElevated }]}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.assignHeaderTitle}>Assign to Client</Text>
+          <Text style={[styles.assignHeaderTitle, { color: colors.textPrimary }]}>Assign to Client</Text>
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.assignList}>
-          {activeClients.length === 0 ? (
+        <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
+          <View style={[styles.searchBox, { backgroundColor: colors.bgElevated }]}>
+            <Ionicons name="search" size={20} color={colors.textTertiary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search clients..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
+          {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No active clients</Text>
-              <Text style={styles.emptyText}>Add clients first to assign diet plans</Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No clients found</Text>
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Try a different search term</Text>
             </View>
           ) : (
-            activeClients.map((client) => (
-              <TouchableOpacity
-                key={client.id}
-                style={styles.assignItem}
-                onPress={() => handleAssign(client.id)}
-              >
-                <Avatar name={client.name} size="sm" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.assignName}>{client.name}</Text>
-                  <Text style={styles.assignMeta}>{client.email || client.phone || 'No contact'}</Text>
-                </View>
-                <View style={styles.assignBtn}>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.white} />
-                </View>
-              </TouchableOpacity>
-            ))
+            filteredClients.map((client) => {
+              const alreadyAssigned = clientDiets.some(cd => cd.client_id === client.id && cd.diet_plan_id === diet.id);
+              
+              return (
+                <TouchableOpacity
+                  key={client.id}
+                  style={[styles.assignItem, { borderBottomColor: colors.border, opacity: alreadyAssigned ? 0.6 : 1 }]}
+                  onPress={() => !alreadyAssigned && handleAssign(client.id)}
+                  disabled={alreadyAssigned}
+                  activeOpacity={0.7}
+                >
+                  <Avatar name={client.name} size="sm" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assignName, { color: colors.textPrimary }]}>{client.name}</Text>
+                    <Text style={[styles.assignMeta, { color: colors.textTertiary }]}>{client.email || client.phone || 'No contact'}</Text>
+                  </View>
+                  {alreadyAssigned ? (
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: Colors.greenSoft, borderRadius: Radius.full }}>
+                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.green }}>Assigned</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.assignBtn}>
+                      <Ionicons name="add" size={16} color={Colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
       </View>
@@ -125,7 +163,7 @@ export default function DietDetailScreen() {
   const heroImage = getDietImage(diet.name);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         
         <View style={styles.heroContainer}>
@@ -153,63 +191,63 @@ export default function DietDetailScreen() {
           </LinearGradient>
         </View>
 
-        <View style={styles.contentSheet}>
-          <Text style={styles.descText}>
+        <View style={[styles.contentSheet, { backgroundColor: colors.bgPrimary }]}>
+          <Text style={[styles.descText, { color: colors.textSecondary }]}>
             Transform your health with this optimized nutrition protocol tailored specifically for your goals.
           </Text>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="flame" size={16} color={Colors.accent} />
-              <Text style={styles.statValue}>{totals.calories}</Text>
-              <Text style={styles.statLabel}>Kcal</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totals.calories}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Kcal</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <Ionicons name="barbell" size={16} color={Colors.blue} />
-              <Text style={styles.statValue}>{totals.protein}g</Text>
-              <Text style={styles.statLabel}>Protein</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totals.protein}g</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Protein</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <Ionicons name="leaf" size={16} color={Colors.green} />
-              <Text style={styles.statValue}>{totals.carbs}g</Text>
-              <Text style={styles.statLabel}>Carbs</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totals.carbs}g</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Carbs</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <Ionicons name="water" size={16} color={Colors.purple} />
-              <Text style={styles.statValue}>{totals.fat}g</Text>
-              <Text style={styles.statLabel}>Fat</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totals.fat}g</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Fat</Text>
             </View>
           </View>
 
           <View style={styles.mealList}>
-            <Text style={styles.sectionTitle}>Daily Meals</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Daily Meals</Text>
             {mealsList
               .sort((a, b) => a.order_index - b.order_index)
               .map((dm, index) => {
                 const m = dm.meals;
                 if (!m) return null;
                 return (
-                  <View key={dm.id} style={styles.mealCard}>
+                  <View key={dm.id} style={[styles.mealCard, { backgroundColor: colors.bgElevated }]}>
                     <View style={styles.mealImgWrap}>
                       <Ionicons name="restaurant" size={24} color={Colors.accent} />
                     </View>
 
                     <View style={styles.mealInfo}>
-                      <View style={styles.mealCatPill}>
-                        <Text style={styles.mealCatText}>{m.category}</Text>
+                      <View style={[styles.mealCatPill, { backgroundColor: colors.border }]}>
+                        <Text style={[styles.mealCatText, { color: colors.textSecondary }]}>{m.category}</Text>
                       </View>
-                      <Text style={styles.mealName}>{m.name}</Text>
+                      <Text style={[styles.mealName, { color: colors.textPrimary }]}>{m.name}</Text>
                       <View style={styles.mealMacrosRow}>
-                        <Text style={styles.mealMacroText}>{m.calories} kcal</Text>
-                        <Text style={styles.mealMacroDot}>•</Text>
-                        <Text style={styles.mealMacroText}>{m.protein}g P</Text>
-                        <Text style={styles.mealMacroDot}>•</Text>
-                        <Text style={styles.mealMacroText}>{m.carbs}g C</Text>
-                        <Text style={styles.mealMacroDot}>•</Text>
-                        <Text style={styles.mealMacroText}>{m.fat}g F</Text>
+                        <Text style={[styles.mealMacroText, { color: colors.textTertiary }]}>{m.calories} kcal</Text>
+                        <Text style={[styles.mealMacroDot, { color: colors.borderStrong }]}>•</Text>
+                        <Text style={[styles.mealMacroText, { color: colors.textTertiary }]}>{m.protein}g P</Text>
+                        <Text style={[styles.mealMacroDot, { color: colors.borderStrong }]}>•</Text>
+                        <Text style={[styles.mealMacroText, { color: colors.textTertiary }]}>{m.carbs}g C</Text>
+                        <Text style={[styles.mealMacroDot, { color: colors.borderStrong }]}>•</Text>
+                        <Text style={[styles.mealMacroText, { color: colors.textTertiary }]}>{m.fat}g F</Text>
                       </View>
                     </View>
                   </View>
@@ -327,16 +365,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
   },
   assignHeaderTitle: { flex: 1, fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary, textAlign: 'center' },
-  assignList: { paddingHorizontal: Spacing.lg, paddingBottom: 100, paddingTop: Spacing.md },
+  assignList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   assignItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: Spacing.md, borderBottomWidth: 1,
   },
-  assignName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  assignMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+  assignName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
+  assignMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 1 },
   assignBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
 
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: 12, borderRadius: Radius.full },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.sm, padding: 0 },
+
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
 });

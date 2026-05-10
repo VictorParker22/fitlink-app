@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Dimensions, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -22,22 +23,24 @@ export default function WorkoutDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { workouts, deleteWorkout, assignWorkout, activeClients } = useApp();
+  const { workouts, deleteWorkout, assignWorkout, activeClients, clientWorkouts } = useApp();
+  const { colors } = useTheme();
   const [showAssign, setShowAssign] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const workout = useMemo(() => workouts.find((w) => w.id === id), [workouts, id]);
 
   if (!workout) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.bgPrimary }]}>
         <View style={styles.topNav}>
           <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
             <Ionicons name="chevron-back" size={22} color={Colors.white} />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Workout not found</Text>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Workout not found</Text>
         </View>
       </View>
     );
@@ -79,39 +82,74 @@ export default function WorkoutDetailScreen() {
 
   // Assign picker overlay
   if (showAssign) {
+    const filteredClients = activeClients.filter(c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
-      <View style={[styles.container, { backgroundColor: Colors.bgPrimary, paddingTop: insets.top }]}>
+      <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => setShowAssign(false)} style={styles.backBtnDark}>
-            <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={[styles.backBtnDark, { backgroundColor: colors.bgElevated }]}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.assignHeaderTitle}>Assign to Client</Text>
+          <Text style={[styles.assignHeaderTitle, { color: colors.textPrimary }]}>Assign to Client</Text>
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.assignList}>
-          {activeClients.length === 0 ? (
+        <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
+          <View style={[styles.searchBox, { backgroundColor: colors.bgElevated }]}>
+            <Ionicons name="search" size={20} color={colors.textTertiary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search clients..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
+          {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No active clients</Text>
-              <Text style={styles.emptyText}>Add clients first to assign workouts</Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No clients found</Text>
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Try a different search term</Text>
             </View>
           ) : (
-            activeClients.map((client) => (
-              <TouchableOpacity
-                key={client.id}
-                style={styles.assignItem}
-                onPress={() => handleAssign(client.id)}
-              >
-                <Avatar name={client.name} size="sm" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.assignName}>{client.name}</Text>
-                  <Text style={styles.assignMeta}>{client.email || client.phone || 'No contact'}</Text>
-                </View>
-                <View style={styles.assignBtn}>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.white} />
-                </View>
-              </TouchableOpacity>
-            ))
+            filteredClients.map((client) => {
+              const alreadyAssigned = clientWorkouts.some(cw => cw.client_id === client.id && cw.workout_id === workout.id);
+              
+              return (
+                <TouchableOpacity
+                  key={client.id}
+                  style={[styles.assignItem, { borderBottomColor: colors.border, opacity: alreadyAssigned ? 0.6 : 1 }]}
+                  onPress={() => !alreadyAssigned && handleAssign(client.id)}
+                  disabled={alreadyAssigned}
+                  activeOpacity={0.7}
+                >
+                  <Avatar name={client.name} size="sm" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assignName, { color: colors.textPrimary }]}>{client.name}</Text>
+                    <Text style={[styles.assignMeta, { color: colors.textTertiary }]}>{client.email || client.phone || 'No contact'}</Text>
+                  </View>
+                  {alreadyAssigned ? (
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: Colors.greenSoft, borderRadius: Radius.full }}>
+                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.green }}>Assigned</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.assignBtn}>
+                      <Ionicons name="add" size={16} color={Colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
       </View>
@@ -122,7 +160,7 @@ export default function WorkoutDetailScreen() {
   const heroImage = getCategoryImage(workout.name);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         <View style={styles.heroContainer}>
           <Image source={heroImage} style={styles.heroImage} resizeMode="cover" />
@@ -148,28 +186,28 @@ export default function WorkoutDetailScreen() {
           </LinearGradient>
         </View>
 
-        <View style={styles.contentSheet}>
-          <Text style={styles.descText}>
+        <View style={[styles.contentSheet, { backgroundColor: colors.bgPrimary }]}>
+          <Text style={[styles.descText, { color: colors.textSecondary }]}>
             Prepare to transform your muscles with our targeted and effective workout routine tailored for you.
           </Text>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Ionicons name="time" size={16} color={Colors.textTertiary} />
-              <Text style={styles.statValue}>{estTime}min</Text>
-              <Text style={styles.statLabel}>Time</Text>
+              <Ionicons name="time" size={16} color={colors.textTertiary} />
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{estTime}min</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Time</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Ionicons name="flame" size={16} color={Colors.textTertiary} />
-              <Text style={styles.statValue}>{kcal}kcal</Text>
-              <Text style={styles.statLabel}>Calorie</Text>
+              <Ionicons name="flame" size={16} color={colors.textTertiary} />
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{kcal}kcal</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Calorie</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Ionicons name="barbell" size={16} color={Colors.textTertiary} />
-              <Text style={styles.statValue}>{exercises.length}x{Math.round(totalSets/Math.max(1, exercises.length))}</Text>
-              <Text style={styles.statLabel}>Sets</Text>
+              <Ionicons name="barbell" size={16} color={colors.textTertiary} />
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{exercises.length}x{Math.round(totalSets/Math.max(1, exercises.length))}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Sets</Text>
             </View>
           </View>
 
@@ -179,7 +217,7 @@ export default function WorkoutDetailScreen() {
               .map((we, index) => {
                 const exImage = getCategoryImage(we.exercises?.category || '');
                 return (
-                  <View key={we.id} style={styles.exerciseCard}>
+                  <View key={we.id} style={[styles.exerciseCard, { backgroundColor: colors.bgElevated }]}>
                     <View style={styles.exerciseImgWrap}>
                       <Image source={exImage} style={styles.exerciseImg} resizeMode="cover" />
                       <View style={styles.playOverlay}>
@@ -187,13 +225,13 @@ export default function WorkoutDetailScreen() {
                       </View>
                     </View>
                     <View style={styles.exerciseInfo}>
-                      <View style={styles.exIndexPill}>
-                        <Text style={styles.exIndexText}>Exercise {index + 1}</Text>
+                      <View style={[styles.exIndexPill, { backgroundColor: colors.border }]}>
+                        <Text style={[styles.exIndexText, { color: colors.textSecondary }]}>Exercise {index + 1}</Text>
                       </View>
-                      <Text style={styles.exName}>{we.exercises?.name || 'Exercise'}</Text>
+                      <Text style={[styles.exName, { color: colors.textPrimary }]}>{we.exercises?.name || 'Exercise'}</Text>
                       <View style={styles.exTimeRow}>
-                        <Ionicons name="time" size={12} color={Colors.textTertiary} />
-                        <Text style={styles.exTimeText}>0{Math.min(we.sets, 9)}:{we.reps < 10 ? '0'+we.reps : we.reps}</Text>
+                        <Ionicons name="time" size={12} color={colors.textTertiary} />
+                        <Text style={[styles.exTimeText, { color: colors.textTertiary }]}>0{Math.min(we.sets, 9)}:{we.reps < 10 ? '0'+we.reps : we.reps}</Text>
                       </View>
                     </View>
                   </View>
@@ -313,16 +351,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
   },
   assignHeaderTitle: { flex: 1, fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary, textAlign: 'center' },
-  assignList: { paddingHorizontal: Spacing.lg, paddingBottom: 100, paddingTop: Spacing.md },
+  assignList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   assignItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: Spacing.md, borderBottomWidth: 1,
   },
-  assignName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  assignMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+  assignName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
+  assignMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 1 },
   assignBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
 
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: 12, borderRadius: Radius.full },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.sm, padding: 0 },
+
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
 });
