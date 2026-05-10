@@ -56,42 +56,47 @@ export default function ClientLoginScreen() {
     setLookupStatus('checking');
 
     try {
-      // First: look for an unlinked client (trainer added them, no account yet)
-      const { data: unlinked } = await supabase
+      // First: look for ANY client with this email
+      const { data: clients, error: lookupErr } = await supabase
         .from('clients')
-        .select('id, name, trainer_id, auth_user_id, trainers(name)')
-        .ilike('email', trimmed)
-        .is('auth_user_id', null)
-        .maybeSingle();
+        .select('id, name, email, trainer_id, auth_user_id')
+        .ilike('email', trimmed);
 
-      if (unlinked) {
-        setFoundClient(unlinked);
-        setFoundTrainerName((unlinked as any).trainers?.name || 'your trainer');
-        setName(unlinked.name || '');
-        setLookupStatus('found');
-        setFlowStep('create_password');
-        return;
-      }
+      console.log('[ClientLogin] Lookup result:', JSON.stringify({ trimmed, clients, lookupErr }));
 
-      // Second: check if they already have a linked account (should sign in instead)
-      const { data: linked } = await supabase
-        .from('clients')
-        .select('id')
-        .ilike('email', trimmed)
-        .not('auth_user_id', 'is', null)
-        .maybeSingle();
+      if (clients && clients.length > 0) {
+        const unlinked = clients.find((c: any) => !c.auth_user_id);
+        const linked = clients.find((c: any) => c.auth_user_id);
 
-      if (linked) {
-        setLookupStatus('not_found');
-        setIsSignIn(true);
-        setSuccess('Looks like you already have an account! Sign in below.');
-        return;
+        if (unlinked) {
+          // Found unlinked client — get trainer name
+          let trainerName = 'your trainer';
+          if (unlinked.trainer_id) {
+            const { data: t } = await supabase.from('trainers').select('name').eq('id', unlinked.trainer_id).maybeSingle();
+            if (t) trainerName = t.name;
+          }
+          setFoundClient(unlinked);
+          setFoundTrainerName(trainerName);
+          setName(unlinked.name || '');
+          setLookupStatus('found');
+          setFlowStep('create_password');
+          return;
+        }
+
+        if (linked) {
+          // Already has an account — tell them to sign in
+          setLookupStatus('not_found');
+          setIsSignIn(true);
+          setSuccess('You already have an account! Sign in below.');
+          return;
+        }
       }
 
       // Not found at all — new client
       setLookupStatus('not_found');
       setFlowStep('enter_info');
-    } catch {
+    } catch (err) {
+      console.error('[ClientLogin] Lookup error:', err);
       setLookupStatus('not_found');
     }
   }, [email]);
