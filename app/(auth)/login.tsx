@@ -466,6 +466,13 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Client Login Link */}
+          <TouchableOpacity onPress={() => router.push('/(auth)/client-login' as any)} style={{ marginTop: Spacing.xl, alignItems: 'center' }}>
+            <Text style={styles.toggleText}>
+              Are you a client? <Text style={styles.toggleLink}>Sign in here →</Text>
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

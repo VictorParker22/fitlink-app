@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -143,6 +143,15 @@ export default function ChatScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerName}>{clientName}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.inviteBtn}
+          onPress={() => Share.share({
+            message: `Hey ${clientName}! Join me on FitLink to track your workouts, diet plans, and schedule sessions. Open the app and sign in as a client: https://fitlink.coach/client`,
+            title: 'Join me on FitLink',
+          })}
+        >
+          <Ionicons name="paper-plane-outline" size={18} color={Colors.accent} />
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -232,6 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSecondary,
   },
   backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  inviteBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   headerName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
 
   messageList: { padding: Spacing.lg, paddingBottom: Spacing.sm, flexGrow: 1 },
