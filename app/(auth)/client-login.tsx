@@ -56,23 +56,41 @@ export default function ClientLoginScreen() {
     setLookupStatus('checking');
 
     try {
-      const { data: client } = await supabase
+      // First: look for an unlinked client (trainer added them, no account yet)
+      const { data: unlinked } = await supabase
         .from('clients')
         .select('id, name, trainer_id, auth_user_id, trainers(name)')
-        .eq('email', trimmed)
+        .ilike('email', trimmed)
         .is('auth_user_id', null)
         .maybeSingle();
 
-      if (client) {
-        setFoundClient(client);
-        setFoundTrainerName((client as any).trainers?.name || 'your trainer');
-        setName(client.name || '');
+      if (unlinked) {
+        setFoundClient(unlinked);
+        setFoundTrainerName((unlinked as any).trainers?.name || 'your trainer');
+        setName(unlinked.name || '');
         setLookupStatus('found');
         setFlowStep('create_password');
-      } else {
-        setLookupStatus('not_found');
-        setFlowStep('enter_info'); // stay, but show "new client" UI
+        return;
       }
+
+      // Second: check if they already have a linked account (should sign in instead)
+      const { data: linked } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('email', trimmed)
+        .not('auth_user_id', 'is', null)
+        .maybeSingle();
+
+      if (linked) {
+        setLookupStatus('not_found');
+        setIsSignIn(true);
+        setSuccess('Looks like you already have an account! Sign in below.');
+        return;
+      }
+
+      // Not found at all — new client
+      setLookupStatus('not_found');
+      setFlowStep('enter_info');
     } catch {
       setLookupStatus('not_found');
     }
