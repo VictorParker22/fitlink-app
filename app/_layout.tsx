@@ -6,10 +6,22 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { AppProvider } from '../context/AppContext';
+import { AppProvider, useApp } from '../context/AppContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync } from '../utils/registerForPushNotificationsAsync';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 // Keep splash visible until we know exactly where to go
 SplashScreen.preventAutoHideAsync();
@@ -18,14 +30,32 @@ function AuthGuard() {
   const { isAuthenticated, loading, userRole } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const { updatePushToken } = useApp();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
   const hasNavigated = useRef(false);
+
+  // Push notification listeners
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   // Check onboarding flag once on mount
   useEffect(() => {
     SecureStore.getItemAsync('fitlink_onboarded').then((value) => {
       setHasOnboarded(value === 'true');
     });
+
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      // Handle foreground push notification if needed
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      // Handle interaction
+    });
+
+    return () => {
+      if (notificationListener.current) notificationListener.current.remove();
+      if (responseListener.current) responseListener.current.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -60,6 +90,15 @@ function AuthGuard() {
       setTimeout(() => SplashScreen.hideAsync(), 150);
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
+
+  // Handle push token when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) updatePushToken(token);
+      });
+    }
+  }, [isAuthenticated, updatePushToken]);
 
   // Keep splash visible — don't render Stack until we're ready to navigate
   if (loading || hasOnboarded === null) {

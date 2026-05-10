@@ -207,6 +207,7 @@ interface AppContextType {
   addProgressLog: (log: Partial<ProgressLog>) => Promise<ProgressLog>;
   deleteProgressLog: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  updatePushToken: (token: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -328,6 +329,35 @@ export function AppProvider({ children }: PropsWithChildren) {
     // Check if progress table exists/returned data
     const pRes = await supabase.from('client_progress').select('*').order('date', { ascending: false });
     if (pRes.data) setProgressLogs(pRes.data);
+  }, [user]);
+
+  // --- Realtime Subscriptions ---
+  useEffect(() => {
+    if (!user) return;
+
+    const notifChannel = supabase
+      .channel('public:notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications((prev) => [payload.new as NotificationData, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === payload.new.id ? (payload.new as NotificationData) : n))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+    };
   }, [user]);
 
   // --- Client operations ---
@@ -600,13 +630,27 @@ export function AppProvider({ children }: PropsWithChildren) {
     setProgressLogs(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  // --- Notification operations ---
+  // --- Notification & Push operations ---
   const markNotificationRead = useCallback(async (id: string) => {
     // Update local state immediately for UI responsiveness
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
-    // Update db
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (error) {
+      // Revert if error
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: false } : n)));
+      throw error;
+    }
   }, []);
+
+  const updatePushToken = useCallback(async (token: string) => {
+    if (!user) return;
+    try {
+      const table = trainer ? 'trainers' : 'clients';
+      await supabase.from(table).update({ push_token: token }).eq('id', user.id);
+    } catch (err) {
+      console.warn('Failed to update push token', err);
+    }
+  }, [user, trainer]);
 
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
@@ -672,6 +716,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     addProgressLog,
     deleteProgressLog,
     markNotificationRead,
+    updatePushToken,
     refreshData,
   };
 
