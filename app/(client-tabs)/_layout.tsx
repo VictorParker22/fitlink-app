@@ -1,24 +1,27 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ClientProvider } from '../../context/ClientContext';
-import { Colors, FontFamily, FontSize } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
+import { FontFamily } from '../../constants/theme';
 
 export default function ClientTabsLayout() {
+  const { colors } = useTheme();
+
   return (
     <ClientProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: Colors.bgSecondary,
-            borderTopColor: Colors.border,
+            backgroundColor: colors.bgSecondary,
+            borderTopColor: colors.border,
             borderTopWidth: 1,
             height: 80,
             paddingTop: 8,
             paddingBottom: 22,
           },
-          tabBarActiveTintColor: Colors.accent,
-          tabBarInactiveTintColor: Colors.textTertiary,
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.textTertiary,
           tabBarLabelStyle: { fontFamily: FontFamily.bodyMedium, fontSize: 10, marginTop: 2 },
         }}
       >
@@ -29,6 +32,14 @@ export default function ClientTabsLayout() {
         <Tabs.Screen
           name="workouts"
           options={{ title: 'Workouts', tabBarIcon: ({ color, size }) => <Ionicons name="barbell" size={size} color={color} /> }}
+        />
+        <Tabs.Screen
+          name="my-diet"
+          options={{ title: 'Diet', tabBarIcon: ({ color, size }) => <Ionicons name="nutrition" size={size} color={color} /> }}
+        />
+        <Tabs.Screen
+          name="my-progress"
+          options={{ title: 'Progress', tabBarIcon: ({ color, size }) => <Ionicons name="trending-up" size={size} color={color} /> }}
         />
         <Tabs.Screen
           name="my-messages"

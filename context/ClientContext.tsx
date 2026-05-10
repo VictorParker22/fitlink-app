@@ -22,11 +22,14 @@ interface ClientContextType {
   trainer: any;
   sessions: any[];
   workouts: any[];
+  diets: any[];
+  progressLogs: any[];
   conversation: any;
   upcomingSessions: any[];
   todayWorkout: any;
   markWorkoutComplete: (id: string) => Promise<void>;
   markWorkoutSkipped: (id: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const ClientContext = createContext<ClientContextType | null>(null);
@@ -37,50 +40,63 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [trainer, setTrainer] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [workouts, setWorkouts] = useState<any[]>([]);
+  const [diets, setDiets] = useState<any[]>([]);
+  const [progressLogs, setProgressLogs] = useState<any[]>([]);
   const [conversation, setConversation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchClientData = useCallback(async () => {
     if (!user) { setLoading(false); return; }
-    let mounted = true;
 
-    async function fetchClientData() {
-      setLoading(true);
-      try {
-        const { data: client } = await supabase
-          .from('clients')
+    setLoading(true);
+    try {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!client) { setLoading(false); return; }
+      setClientData(client);
+
+      const [trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes] = await Promise.all([
+        supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
+        supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
+        supabase.from('client_workouts')
+          .select('*, workouts(*, workout_exercises(*, exercises(*)))')
+          .eq('client_id', client.id)
+          .order('assigned_date', { ascending: false }),
+        supabase.from('client_diets')
+          .select('*, diet_plans(*, diet_plan_meals(*, meals(*)))')
+          .eq('client_id', client.id)
+          .order('assigned_date', { ascending: false }),
+        supabase.from('client_progress')
           .select('*')
-          .eq('auth_user_id', user!.id)
-          .single();
+          .eq('client_id', client.id)
+          .order('date', { ascending: false }),
+        supabase.from('conversations').select('*').eq('client_id', client.id).single(),
+      ]);
 
-        if (!client || !mounted) { setLoading(false); return; }
-        setClientData(client);
-
-        const [trainerRes, sessionsRes, workoutsRes, convRes] = await Promise.all([
-          supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
-          supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
-          supabase.from('client_workouts')
-            .select('*, workouts(*, workout_exercises(*, exercises(*)))')
-            .eq('client_id', client.id)
-            .order('assigned_date', { ascending: false }),
-          supabase.from('conversations').select('*').eq('client_id', client.id).single(),
-        ]);
-
-        if (!mounted) return;
-        if (trainerRes.data) setTrainer(trainerRes.data);
-        if (sessionsRes.data) setSessions(sessionsRes.data);
-        if (workoutsRes.data) setWorkouts(workoutsRes.data);
-        if (convRes.data) setConversation(convRes.data);
-      } catch (err) {
-        console.error('Error loading client data:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      if (trainerRes.data) setTrainer(trainerRes.data);
+      if (sessionsRes.data) setSessions(sessionsRes.data);
+      if (workoutsRes.data) setWorkouts(workoutsRes.data);
+      if (dietsRes.data) setDiets(dietsRes.data);
+      if (progressRes.data) setProgressLogs(progressRes.data);
+      if (convRes.data) setConversation(convRes.data);
+    } catch (err) {
+      console.error('Error loading client data:', err);
+    } finally {
+      setLoading(false);
     }
-
-    fetchClientData();
-    return () => { mounted = false; };
   }, [user]);
+
+  useEffect(() => {
+    fetchClientData();
+  }, [fetchClientData]);
+
+  const refreshData = useCallback(async () => {
+    await fetchClientData();
+  }, [fetchClientData]);
 
   const markWorkoutComplete = useCallback(async (clientWorkoutId: string) => {
     const { error } = await supabase.from('client_workouts').update({ status: 'completed' }).eq('id', clientWorkoutId);
@@ -99,7 +115,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
     workouts.find((w) => new Date(w.assigned_date).toDateString() === new Date().toDateString() && w.status === 'assigned'), [workouts]);
 
   return (
-    <ClientContext.Provider value={{ loading, clientData, trainer, sessions, workouts, conversation, upcomingSessions, todayWorkout, markWorkoutComplete, markWorkoutSkipped }}>
+    <ClientContext.Provider value={{
+      loading, clientData, trainer, sessions, workouts, diets, progressLogs,
+      conversation, upcomingSessions, todayWorkout,
+      markWorkoutComplete, markWorkoutSkipped, refreshData,
+    }}>
       {children}
     </ClientContext.Provider>
   );

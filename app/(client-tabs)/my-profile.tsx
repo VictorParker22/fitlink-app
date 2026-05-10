@@ -1,16 +1,24 @@
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
+const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
+  { value: 'light', label: 'Light', icon: 'sunny' },
+  { value: 'dark', label: 'Dark', icon: 'moon' },
+  { value: 'system', label: 'Auto', icon: 'phone-portrait' },
+];
+
 export default function ClientProfileScreen() {
   const { signOut } = useAuth();
   const { clientData, trainer, sessions, workouts } = useClient();
+  const { colors, mode, setMode } = useTheme();
 
   if (!clientData) return null;
 
@@ -25,33 +33,33 @@ export default function ClientProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Profile</Text>
 
         {/* Profile Card */}
         <Card style={styles.profileCard}>
-          <View style={styles.accentStrip} />
+          <View style={[styles.accentStrip, { backgroundColor: `${colors.accent}10` }]} />
           <View style={styles.profileInfo}>
             <Avatar name={clientData.name} size="xl" />
-            <Text style={styles.profileName}>{clientData.name}</Text>
-            {trainer && <Text style={styles.trainerLine}>Training with {trainer.name}</Text>}
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>{clientData.name}</Text>
+            {trainer && <Text style={[styles.trainerLine, { color: colors.textTertiary }]}>Training with {trainer.name}</Text>}
           </View>
 
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{completedSessions}</Text>
-              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{completedSessions}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Sessions</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{completedWorkouts}</Text>
-              <Text style={styles.statLabel}>Workouts</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{completedWorkouts}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Workouts</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{clientData.progress?.streak || 0}</Text>
-              <Text style={styles.statLabel}>Streak</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{clientData.progress?.streak || 0}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Streak</Text>
             </View>
           </View>
         </Card>
@@ -63,11 +71,11 @@ export default function ClientProfileScreen() {
             { icon: 'call-outline', label: 'Phone', value: clientData.phone },
             { icon: 'flag-outline', label: 'Goals', value: clientData.goals },
           ].filter((item) => item.value).map((item, i) => (
-            <View key={i} style={[styles.infoRow, i > 0 && styles.infoRowBorder]}>
-              <Ionicons name={item.icon as any} size={16} color={Colors.textTertiary} />
+            <View key={i} style={[styles.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+              <Ionicons name={item.icon as any} size={16} color={colors.textTertiary} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>{item.label}</Text>
-                <Text style={styles.infoValue}>{item.value}</Text>
+                <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>{item.label}</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{item.value}</Text>
               </View>
             </View>
           ))}
@@ -76,56 +84,80 @@ export default function ClientProfileScreen() {
         {/* Trainer Card */}
         {trainer && (
           <>
-            <Text style={styles.sectionTitle}>Your Trainer</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Your Trainer</Text>
             <Card>
               <View style={styles.trainerRow}>
                 <Avatar name={trainer.name} size="md" imageUrl={trainer.avatar_url} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.trainerName}>{trainer.name}</Text>
-                  {trainer.specialization && <Text style={styles.trainerSpec}>{trainer.specialization}</Text>}
+                  <Text style={[styles.trainerName, { color: colors.textPrimary }]}>{trainer.name}</Text>
+                  {trainer.specialization && <Text style={[styles.trainerSpec, { color: colors.accentText }]}>{trainer.specialization}</Text>}
                 </View>
               </View>
             </Card>
           </>
         )}
 
+        {/* Theme Toggle */}
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Appearance</Text>
+        <Card>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.themeOption,
+                  { backgroundColor: mode === opt.value ? `${colors.accent}15` : colors.bgElevated, borderColor: mode === opt.value ? colors.accent : colors.border },
+                ]}
+                onPress={() => setMode(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={opt.icon as any} size={18} color={mode === opt.value ? colors.accent : colors.textTertiary} />
+                <Text style={[styles.themeLabel, { color: mode === opt.value ? colors.accent : colors.textSecondary }]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
         <View style={styles.signOutSection}>
           <Button title="Sign Out" onPress={handleSignOut} variant="danger" full icon={<Ionicons name="log-out-outline" size={18} color={Colors.red} />} />
         </View>
 
-        <Text style={styles.version}>FitLink v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textTertiary }]}>FitLink v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+  container: { flex: 1 },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5, paddingTop: Spacing.md, marginBottom: Spacing.lg },
+  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], letterSpacing: -0.5, paddingTop: Spacing.md, marginBottom: Spacing.lg },
 
   profileCard: { overflow: 'hidden', marginBottom: Spacing.lg },
-  accentStrip: { position: 'absolute', top: 0, left: 0, right: 0, height: 60, backgroundColor: 'rgba(255,95,59,0.06)' },
+  accentStrip: { position: 'absolute', top: 0, left: 0, right: 0, height: 60 },
   profileInfo: { alignItems: 'center', paddingTop: Spacing['2xl'], gap: Spacing.xs },
-  profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary, marginTop: Spacing.sm },
-  trainerLine: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, marginTop: Spacing.sm },
+  trainerLine: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
 
-  statsRow: { flexDirection: 'row', marginTop: Spacing.xl, paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border },
+  statsRow: { flexDirection: 'row', marginTop: Spacing.xl, paddingTop: Spacing.lg, borderTopWidth: 1 },
   stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary },
-  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: Colors.border, marginVertical: 4 },
+  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
+  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
+  statDivider: { width: 1, marginVertical: 4 },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
-  infoRowBorder: { borderTopWidth: 1, borderTopColor: Colors.border },
-  infoLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  infoValue: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: Colors.textPrimary, marginTop: 1 },
+  infoLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
+  infoValue: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, marginTop: 1 },
 
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, marginTop: Spacing.xl, marginBottom: Spacing.md },
   trainerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trainerName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  trainerSpec: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.accentText, marginTop: 1 },
+  trainerName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md },
+  trainerSpec: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 1 },
+
+  themeRow: { flexDirection: 'row', gap: Spacing.sm },
+  themeOption: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1.5 },
+  themeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
 
   signOutSection: { marginTop: Spacing['2xl'] },
-  version: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, textAlign: 'center', marginTop: Spacing.xl, opacity: 0.5 },
+  version: { fontFamily: FontFamily.body, fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.xl, opacity: 0.5 },
 });
