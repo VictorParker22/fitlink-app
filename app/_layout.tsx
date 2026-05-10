@@ -32,16 +32,21 @@ function AuthGuard() {
   const router = useRouter();
   const { updatePushToken } = useApp();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+  const [hasWizard, setHasWizard] = useState<boolean | null>(null);
   const hasNavigated = useRef(false);
 
   // Push notification listeners
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
 
-  // Check onboarding flag once on mount
+  // Check onboarding + wizard flags once on mount
   useEffect(() => {
-    SecureStore.getItemAsync('fitlink_onboarded').then((value) => {
-      setHasOnboarded(value === 'true');
+    Promise.all([
+      SecureStore.getItemAsync('fitlink_onboarded'),
+      SecureStore.getItemAsync('fitlink_wizard_complete'),
+    ]).then(([onboarded, wizard]) => {
+      setHasOnboarded(onboarded === 'true');
+      setHasWizard(wizard === 'true');
     });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
@@ -59,7 +64,7 @@ function AuthGuard() {
   }, []);
 
   useEffect(() => {
-    if (loading || hasOnboarded === null) return;
+    if (loading || hasOnboarded === null || hasWizard === null) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
@@ -74,6 +79,9 @@ function AuthGuard() {
     } else if (isAuthenticated && inAuthGroup) {
       if (userRole === 'client') {
         router.replace('/(client-tabs)');
+      } else if (!hasWizard) {
+        // First-time trainer → send to wizard
+        router.replace('/(auth)/trainer-wizard' as any);
       } else {
         router.replace('/(tabs)');
       }
@@ -89,7 +97,14 @@ function AuthGuard() {
       // Small delay to let the target screen mount before hiding splash
       setTimeout(() => SplashScreen.hideAsync(), 150);
     }
-  }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasWizard]);
+
+  // Re-check wizard flag when auth state changes (e.g. after wizard completes)
+  useEffect(() => {
+    if (isAuthenticated) {
+      SecureStore.getItemAsync('fitlink_wizard_complete').then(val => setHasWizard(val === 'true'));
+    }
+  }, [isAuthenticated]);
 
   // Handle push token when authenticated
   useEffect(() => {
@@ -101,7 +116,7 @@ function AuthGuard() {
   }, [isAuthenticated, updatePushToken]);
 
   // Keep splash visible — don't render Stack until we're ready to navigate
-  if (loading || hasOnboarded === null) {
+  if (loading || hasOnboarded === null || hasWizard === null) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.accent} />
