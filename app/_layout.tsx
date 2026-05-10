@@ -10,18 +10,28 @@ import { AppProvider, useApp } from '../context/AppContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as Notifications from 'expo-notifications';
-import { registerForPushNotificationsAsync } from '../utils/registerForPushNotificationsAsync';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let Notifications: any = null;
+let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
+
+try {
+  Notifications = require('expo-notifications');
+  registerForPushNotificationsAsync = require('../utils/registerForPushNotificationsAsync').registerForPushNotificationsAsync;
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch {
+  // expo-notifications not available (e.g. Expo Go SDK 53+)
+  console.warn('Push notifications not available in this environment');
+}
+
 
 // Keep splash visible until we know exactly where to go
 SplashScreen.preventAutoHideAsync();
@@ -49,13 +59,15 @@ function AuthGuard() {
       setHasWizard(wizard === 'true');
     });
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      // Handle foreground push notification if needed
-    });
+    if (Notifications) {
+      notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
+        // Handle foreground push notification if needed
+      });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      // Handle interaction
-    });
+      responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
+        // Handle interaction
+      });
+    }
 
     return () => {
       if (notificationListener.current) notificationListener.current.remove();
@@ -108,7 +120,7 @@ function AuthGuard() {
 
   // Handle push token when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && registerForPushNotificationsAsync) {
       registerForPushNotificationsAsync().then(token => {
         if (token) updatePushToken(token);
       });

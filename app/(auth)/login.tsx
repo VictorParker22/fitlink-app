@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Colors, Spacing, Radius, FontFamily, FontSize } from '../../constants/theme';
@@ -17,6 +18,7 @@ type AuthMode = 'phone' | 'email';
 type PhoneStep = 'phone' | 'otp';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { signIn, signUp, signInWithPhone, verifyOtp } = useAuth();
 
   const [authMode, setAuthMode] = useState<AuthMode>('phone');
