@@ -160,6 +160,8 @@ interface AppContextType {
   diets: DietPlan[];
   meals: Meal[];
   notifications: NotificationData[];
+  clientWorkouts: ClientWorkout[];
+  clientDiets: ClientDiet[];
 
   // Computed
   activeClients: Client[];
@@ -185,6 +187,8 @@ interface AppContextType {
   createDietPlan: (name: string, description: string, mealList: { meal_id: string }[]) => Promise<DietPlan>;
   deleteDietPlan: (id: string) => Promise<void>;
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
+  getClientWorkouts: (clientId: string) => { assignment: ClientWorkout; workout: Workout }[];
+  getClientDiets: (clientId: string) => { assignment: ClientDiet; diet: DietPlan }[];
   markNotificationRead: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -204,6 +208,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [diets, setDiets] = useState<DietPlan[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const [clientWorkoutsList, setClientWorkoutsList] = useState<ClientWorkout[]>([]);
+  const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -224,7 +230,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
@@ -236,6 +242,8 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
           supabase.from('meals').select('*').order('name'),
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
+          supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
+          supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
         ]);
 
         if (!mounted) return;
@@ -251,6 +259,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         setDiets(dietsRes.data || []);
         setMeals(mealsRes.data || []);
         setNotifications(notifRes.data || []);
+        setClientWorkoutsList(cwRes.data || []);
+        setClientDietsList(cdRes.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -264,7 +274,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refreshData = useCallback(async () => {
     if (!user) return;
-    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes] = await Promise.all([
+    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').order('created_at', { ascending: false }),
       supabase.from('plans').select('*').order('price'),
@@ -276,6 +286,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
       supabase.from('meals').select('*').order('name'),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }),
+      supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
+      supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
     ]);
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
@@ -288,6 +300,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (dietsRes.data) setDiets(dietsRes.data);
     if (mealsRes.data) setMeals(mealsRes.data);
     if (notifRes.data) setNotifications(notifRes.data);
+    if (cwRes.data) setClientWorkoutsList(cwRes.data);
+    if (cdRes.data) setClientDietsList(cdRes.data);
   }, [user]);
 
   // --- Client operations ---
@@ -437,13 +451,14 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, []);
 
   const assignWorkout = useCallback(async (workoutId: string, clientId: string, date: string) => {
-    const { error } = await supabase.from('client_workouts').insert({
+    const { data, error } = await supabase.from('client_workouts').insert({
       workout_id: workoutId,
       client_id: clientId,
       assigned_date: date,
       status: 'assigned',
-    });
+    }).select().single();
     if (error) throw error;
+    if (data) setClientWorkoutsList((prev) => [data, ...prev]);
     const client = clients.find((c) => c.id === clientId);
     const workout = workouts.find((w) => w.id === workoutId);
     await supabase.from('activities').insert({
@@ -498,13 +513,14 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, []);
 
   const assignDietPlan = useCallback(async (dietPlanId: string, clientId: string, date: string) => {
-    const { error } = await supabase.from('client_diets').insert({
+    const { data, error } = await supabase.from('client_diets').insert({
       diet_plan_id: dietPlanId,
       client_id: clientId,
       assigned_date: date,
       status: 'assigned',
-    });
+    }).select().single();
     if (error) throw error;
+    if (data) setClientDietsList((prev) => [data, ...prev]);
     const client = clients.find((c) => c.id === clientId);
     const diet = diets.find((d) => d.id === dietPlanId);
     await supabase.from('activities').insert({
@@ -513,6 +529,27 @@ export function AppProvider({ children }: PropsWithChildren) {
       message: `Assigned "${diet?.name}" to ${client?.name || 'client'}`,
     });
   }, [user, clients, diets]);
+
+  // --- Client assignment lookups ---
+  const getClientWorkouts = useCallback((clientId: string) => {
+    return clientWorkoutsList
+      .filter((cw) => cw.client_id === clientId)
+      .map((cw) => ({
+        assignment: cw,
+        workout: workouts.find((w) => w.id === cw.workout_id)!,
+      }))
+      .filter((item) => item.workout);
+  }, [clientWorkoutsList, workouts]);
+
+  const getClientDiets = useCallback((clientId: string) => {
+    return clientDietsList
+      .filter((cd) => cd.client_id === clientId)
+      .map((cd) => ({
+        assignment: cd,
+        diet: diets.find((d) => d.id === cd.diet_plan_id)!,
+      }))
+      .filter((item) => item.diet);
+  }, [clientDietsList, diets]);
 
   // --- Notification operations ---
   const markNotificationRead = useCallback(async (id: string) => {
@@ -556,6 +593,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     diets,
     meals,
     notifications,
+    clientWorkouts: clientWorkoutsList,
+    clientDiets: clientDietsList,
     activeClients,
     trialClients,
     inactiveClients,
@@ -577,6 +616,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     createDietPlan,
     deleteDietPlan,
     assignDietPlan,
+    getClientWorkouts,
+    getClientDiets,
     markNotificationRead,
     refreshData,
   };
