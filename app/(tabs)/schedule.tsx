@@ -7,6 +7,7 @@ import { Calendar, DateData } from 'react-native-calendars';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 function isSameDay(a: Date, b: Date) {
@@ -20,6 +21,7 @@ function toDateString(date: Date) {
 export default function ScheduleScreen() {
   const router = useRouter();
   const { sessions, getClientById, getSessionsForDate, updateSession, refreshData } = useApp();
+  const { colors } = useTheme();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,7 +89,7 @@ export default function ScheduleScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>

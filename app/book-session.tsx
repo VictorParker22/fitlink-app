@@ -11,7 +11,8 @@ import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 const SESSION_TYPES = ['1-on-1', 'Group', 'Virtual'] as const;
 const DURATIONS = [30, 45, 60, 90] as const;

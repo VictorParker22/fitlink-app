@@ -7,11 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 
 export default function AddClientScreen() {
   const router = useRouter();
   const { addClient, plans } = useApp();
+  const { colors } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,15 +56,15 @@ export default function AddClientScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header matching create-diet/create-workout */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Client</Text>
           <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveBtn}>

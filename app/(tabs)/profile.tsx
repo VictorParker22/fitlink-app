@@ -10,12 +10,14 @@ import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
+  const { colors } = useTheme();
   const [uploading, setUploading] = useState(false);
 
   const name = trainer?.name || user?.user_metadata?.name || 'Trainer';
@@ -125,7 +127,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Profile</Text>
 

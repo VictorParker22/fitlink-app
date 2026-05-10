@@ -1,58 +1,19 @@
 /**
  * FitLink Design System — React Native
- * Light theme inspired by modern SaaS design with soft pastels.
- * Font: Epilogue (Tyler Finck) — geometric, clean, professional.
+ * Theme-agnostic tokens (spacing, radius, fonts).
+ * Color palettes live in context/ThemeContext.tsx.
+ * 
+ * The `Colors` export is kept as the LIGHT palette for backward compatibility
+ * during migration. New code should use `useTheme().colors` instead.
  */
 
-export const Colors = {
-  // Surfaces — light, airy foundation
-  bgPrimary: '#FAFBFC',
-  bgSecondary: '#F1F3F5',
-  bgCard: '#FFFFFF',
-  bgElevated: '#F8F9FA',
-  bgInput: '#F1F3F5',
-  bgHover: '#ECEEF0',
-  bgOverlay: 'rgba(0, 0, 0, 0.45)',
+// Re-export color palettes from ThemeContext for convenience
+export { LightColors, DarkColors } from '../context/ThemeContext';
+export type { ThemeColors } from '../context/ThemeContext';
 
-  // Accent — warm orange (carried from brand)
-  accent: '#FF6B35',
-  accentSoft: '#FFF0E8',
-  accentHover: '#FF8255',
-  accentText: '#E85D2A',
-
-  // Semantic — softer, pastel-friendly
-  green: '#22C55E',
-  greenSoft: '#DCFCE7',
-  blue: '#6C9BF2',
-  blueSoft: '#DBEAFE',
-  yellow: '#F59E0B',
-  yellowSoft: '#FEF3C7',
-  red: '#EF4444',
-  redSoft: '#FEE2E2',
-  purple: '#A78BFA',
-  purpleSoft: '#EDE9FE',
-  teal: '#14B8A6',
-  tealSoft: '#CCFBF1',
-
-  // Pastel card fills (from reference)
-  peach: '#FDDCB5',
-  lavender: '#C7D4F5',
-  mint: '#D5E8A8',
-  lilac: '#E0D4F5',
-
-  // Text — dark on light
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
-  textTertiary: '#9CA3AF',
-  textInverse: '#FFFFFF',
-
-  // Borders — subtle gray
-  border: '#E5E7EB',
-  borderStrong: '#D1D5DB',
-
-  white: '#FFFFFF',
-  black: '#000000',
-};
+// Default Colors export = light palette (backward compat)
+import { LightColors } from '../context/ThemeContext';
+export const Colors = LightColors;
 
 export const Spacing = {
   '2xs': 2,

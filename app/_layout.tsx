@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider } from '../context/AppContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -108,14 +109,21 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <AppProvider>
-          <StatusBar style="dark" />
-          <AuthGuard />
-        </AppProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppProvider>
+            <ThemedStatusBar />
+            <AuthGuard />
+          </AppProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
+}
+
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
 const styles = StyleSheet.create({

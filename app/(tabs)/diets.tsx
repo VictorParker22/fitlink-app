@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -32,6 +33,7 @@ const CATEGORIES = ['All', 'Balanced', 'High Protein', 'Weight Loss', 'Keto', 'V
 export default function DietsScreen() {
   const router = useRouter();
   const { diets, refreshData } = useApp();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -119,7 +121,7 @@ export default function DietsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Diet Plans</Text>
         <TouchableOpacity

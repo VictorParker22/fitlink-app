@@ -1,6 +1,6 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { Colors, Radius, FontFamily } from '../constants/theme';
-import { getAvatarColor } from '../constants/theme';
+import { Radius, FontFamily, getAvatarColor } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface AvatarProps {
   name: string;
@@ -16,6 +16,8 @@ const SIZES = {
 };
 
 export default function Avatar({ name, size = 'md', imageUrl }: AvatarProps) {
+  const { colors } = useTheme();
+
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -30,7 +32,7 @@ export default function Avatar({ name, size = 'md', imageUrl }: AvatarProps) {
     return (
       <Image
         source={{ uri: imageUrl }}
-        style={[styles.image, { width: container, height: container, borderRadius: container / 2 }]}
+        style={[styles.image, { width: container, height: container, borderRadius: container / 2, backgroundColor: colors.bgSecondary }]}
       />
     );
   }
@@ -48,11 +50,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  image: {
-    backgroundColor: Colors.bgSecondary,
-  },
+  image: {},
   text: {
     fontFamily: FontFamily.bodyBold,
-    color: Colors.white,
+    color: '#FFFFFF',
   },
 });

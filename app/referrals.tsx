@@ -7,7 +7,8 @@ import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   active: { color: Colors.green, label: 'Active' },

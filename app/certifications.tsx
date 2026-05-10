@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 const PRESET_CERTS = [
   'NASM-CPT', 'ACE-CPT', 'ISSA-CPT', 'NSCA-CSCS', 'ACSM-CEP',

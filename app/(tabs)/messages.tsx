@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 interface Conversation {
@@ -23,6 +24,7 @@ export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { clients } = useApp();
+  const { colors } = useTheme();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function MessagesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Messages</Text>

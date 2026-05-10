@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 const PRESET_SPECS = [
   'Strength Training', 'HIIT', 'CrossFit', 'Yoga', 'Pilates',

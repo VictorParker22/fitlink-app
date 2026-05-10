@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, type ViewStyle, type TextStyle } from 'react-native';
-import { Colors, Radius, FontFamily, FontSize, Spacing } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { Radius, FontFamily, FontSize } from '../constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -26,14 +27,43 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { colors } = useTheme();
   const isDisabled = disabled || loading;
+
+  const variantStyles: Record<string, ViewStyle> = {
+    primary: { backgroundColor: colors.accent },
+    secondary: { backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
+    outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255, 95, 59, 0.3)' },
+    ghost: { backgroundColor: 'transparent' },
+    danger: { backgroundColor: colors.redSoft },
+  };
+
+  const textColors: Record<string, string> = {
+    primary: colors.white,
+    secondary: colors.textPrimary,
+    outline: colors.accentText,
+    ghost: colors.textSecondary,
+    danger: colors.red,
+  };
+
+  const sizeStyles: Record<string, ViewStyle> = {
+    sm: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: Radius.sm },
+    md: { paddingVertical: 10, paddingHorizontal: 20 },
+    lg: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: Radius.lg },
+  };
+
+  const textSizes: Record<string, number> = {
+    sm: FontSize.xs,
+    md: FontSize.base,
+    lg: FontSize.md,
+  };
 
   return (
     <TouchableOpacity
       style={[
         styles.base,
-        styles[variant],
-        styles[`size_${size}`],
+        variantStyles[variant],
+        sizeStyles[size],
         full && styles.full,
         isDisabled && styles.disabled,
         style,
@@ -45,12 +75,12 @@ export default function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'danger' ? Colors.white : Colors.accent}
+          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.accent}
         />
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, styles[`text_${variant}`], styles[`textSize_${size}`], textStyle]}>
+          <Text style={[styles.text, { color: textColors[variant], fontSize: textSizes[size] }, textStyle]}>
             {title}
           </Text>
         </>
@@ -67,80 +97,14 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: Radius.md,
   },
-
-  // Variants
-  primary: {
-    backgroundColor: Colors.accent,
-  },
-  secondary: {
-    backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 95, 59, 0.3)',
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  danger: {
-    backgroundColor: Colors.redSoft,
-  },
-
-  // Sizes
-  size_sm: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: Radius.sm,
-  },
-  size_md: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  size_lg: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: Radius.lg,
-  },
-
   full: {
     width: '100%',
   },
-
   disabled: {
     opacity: 0.6,
   },
-
-  // Text
   text: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.base,
-  },
-  text_primary: {
-    color: Colors.white,
-  },
-  text_secondary: {
-    color: Colors.textPrimary,
-  },
-  text_outline: {
-    color: Colors.accentText,
-  },
-  text_ghost: {
-    color: Colors.textSecondary,
-  },
-  text_danger: {
-    color: Colors.red,
-  },
-
-  textSize_sm: {
-    fontSize: FontSize.xs,
-  },
-  textSize_md: {
-    fontSize: FontSize.base,
-  },
-  textSize_lg: {
-    fontSize: FontSize.md,
   },
 });

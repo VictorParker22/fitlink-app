@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();

@@ -6,6 +6,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import Card from '../../components/Card';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
@@ -22,6 +23,7 @@ export default function DashboardScreen() {
     getClientById, refreshData, loading, sessions,
     plans, clients, referrals, trialClients, notifications,
   } = useApp();
+  const { colors, isDark } = useTheme();
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -44,11 +46,11 @@ export default function DashboardScreen() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'signup': return { icon: 'person-add', color: Colors.green };
-      case 'session': return { icon: 'calendar', color: Colors.blue };
-      case 'referral': return { icon: 'share', color: Colors.purple };
-      case 'payment': return { icon: 'cash', color: Colors.accent };
-      default: return { icon: 'pulse', color: Colors.textTertiary };
+      case 'signup': return { icon: 'person-add', color: colors.green };
+      case 'session': return { icon: 'calendar', color: colors.blue };
+      case 'referral': return { icon: 'share', color: colors.purple };
+      case 'payment': return { icon: 'cash', color: colors.accent };
+      default: return { icon: 'pulse', color: colors.textTertiary };
     }
   };
 
@@ -90,11 +92,11 @@ export default function DashboardScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
         {/* ── SECTION 1: Dark Hero Header ── */}
         <LinearGradient

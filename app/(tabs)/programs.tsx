@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -34,6 +35,7 @@ const CATEGORIES = ['All', 'Strength', 'Cardio', 'HIIT', 'Yoga', 'Endurance'];
 export default function ProgramsScreen() {
   const router = useRouter();
   const { workouts, refreshData } = useApp();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -116,7 +118,7 @@ export default function ProgramsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Programs</Text>

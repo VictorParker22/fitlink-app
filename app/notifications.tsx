@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import Avatar from '../components/Avatar';
 import { useApp } from '../context/AppContext';
 
@@ -36,6 +37,7 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trainer, notifications, markNotificationRead } = useApp();
+  const { colors, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<'Today' | 'Past'>('Today');
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -134,9 +136,9 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.bgPrimary : '#FFFFFF' }]}>
       {/* Top Header Section (Dark) */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top || Spacing.xl }]}>
+      <View style={[styles.headerContainer, { backgroundColor: colors.headerBg, paddingTop: insets.top || Spacing.xl }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />

@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext';
 
 const TOPICS = ['Bug Report', 'Feature Request', 'Account Issue', 'Billing', 'Other'];
 

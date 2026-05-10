@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 type TabState = 'all' | 'active';
@@ -13,6 +14,7 @@ export default function ClientsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clients, plans, refreshData } = useApp();
+  const { colors, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<TabState>('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -70,8 +72,8 @@ export default function ClientsScreen() {
           {/* Right: Info Area */}
           <View style={styles.cardInfo}>
             {/* Pill */}
-            <View style={{ alignSelf: 'flex-start', backgroundColor: '#E5E7EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 6 }}>
-              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: '#4B5563', textTransform: 'capitalize' }}>
+            <View style={{ alignSelf: 'flex-start', backgroundColor: isDark ? colors.bgElevated : '#E5E7EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 6 }}>
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.textSecondary, textTransform: 'capitalize' }}>
                 {item.status}
               </Text>
             </View>
@@ -79,7 +81,7 @@ export default function ClientsScreen() {
             {/* Title Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-              <Ionicons name="checkmark-circle" size={14} color="#111827" style={{ marginLeft: 4 }} />
+              <Ionicons name="checkmark-circle" size={14} color={colors.textPrimary} style={{ marginLeft: 4 }} />
             </View>
 
             {/* Stats Row */}
@@ -92,16 +94,16 @@ export default function ClientsScreen() {
           </View>
 
           {/* Chevron */}
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
       </Swipeable>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.cardListBg }]}>
       {/* ── Dark Header ── */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top || Spacing.xl }]}>
+      <View style={[styles.headerContainer, { backgroundColor: colors.headerBg, paddingTop: insets.top || Spacing.xl }]}>
         <View style={styles.headerTopRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity style={styles.backBtnWrapper}>
@@ -110,7 +112,7 @@ export default function ClientsScreen() {
             <Text style={styles.headerTitle}>My Clients</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/add-client' as any)}>
-            <Ionicons name="add-circle" size={28} color={Colors.white} />
+            <Ionicons name="add-circle" size={28} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -153,7 +155,7 @@ export default function ClientsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', marginTop: 40 }}>
-            <Text style={{ fontFamily: FontFamily.bodyMedium, color: Colors.textTertiary }}>No clients found.</Text>
+            <Text style={{ fontFamily: FontFamily.bodyMedium, color: colors.textTertiary }}>No clients found.</Text>
           </View>
         }
       />
@@ -162,7 +164,7 @@ export default function ClientsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' }, // Very light gray background like screenshot
+  container: { flex: 1, backgroundColor: '#F9FAFB' }, // overridden inline
 
   // Header
   headerContainer: {
