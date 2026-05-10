@@ -98,8 +98,18 @@ export default function ClientLoginScreen() {
 
     setLoading(true);
     try {
-      await signUpAsClient(email.trim().toLowerCase(), password, name || 'Client');
-      setSuccess('Account created! Signing you in...');
+      const trimmedEmail = email.trim().toLowerCase();
+      // Create the account
+      await signUpAsClient(trimmedEmail, password, name || 'Client');
+      // Immediately sign in (signUp may require email confirmation)
+      await signIn(trimmedEmail, password);
+      // Ensure role is set and account is linked
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.auth.updateUser({ data: { role: 'client' } });
+        await linkClientAccount(user.id, trimmedEmail);
+      }
+      setSuccess('You\'re in! Redirecting...');
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     } finally {
