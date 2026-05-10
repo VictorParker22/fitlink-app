@@ -17,7 +17,7 @@ export default function ClientDetailScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const {
-    getClientById, getClientSessions, getClientWorkouts, getClientDiets,
+    getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
     workouts, diets, assignWorkout, assignDietPlan, plans,
   } = useApp();
 
@@ -27,6 +27,7 @@ export default function ClientDetailScreen() {
   const sessions = getClientSessions(id || '');
   const assignedWorkouts = getClientWorkouts(id || '');
   const assignedDiets = getClientDiets(id || '');
+  const progressLogs = getClientProgress(id || '');
 
   if (!client) {
     return (
@@ -70,7 +71,7 @@ export default function ClientDetailScreen() {
     { icon: 'chatbubble', label: 'Message', color: Colors.blue, onPress: () => router.push(`/chat/${client.id}` as any) },
     { icon: 'calendar', label: 'Book', color: Colors.green, onPress: () => router.push(`/book-session?clientId=${client.id}` as any) },
     { icon: 'barbell', label: 'Workout', color: Colors.accent, onPress: () => setAssignMode('workout') },
-    { icon: 'nutrition', label: 'Diet', color: Colors.purple, onPress: () => setAssignMode('diet') },
+    { icon: 'trending-up', label: 'Progress', color: Colors.purple, onPress: () => router.push(`/client/${client.id}/progress` as any) },
   ];
 
   const contactActions = [
@@ -248,6 +249,59 @@ export default function ClientDetailScreen() {
                 </TouchableOpacity>
               );
             })}
+          </Card>
+        )}
+
+        {/* Progress Tracking */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Progress Tracking</Text>
+          <TouchableOpacity onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
+            <Ionicons name="add-circle" size={24} color={Colors.purple} />
+          </TouchableOpacity>
+        </View>
+        {progressLogs.length === 0 ? (
+          <Card>
+            <View style={styles.emptySection}>
+              <Ionicons name="trending-up" size={28} color={colors.textTertiary} />
+              <Text style={[styles.emptySectionText, { color: colors.textTertiary }]}>No progress logged yet</Text>
+              <TouchableOpacity style={[styles.assignChip, { backgroundColor: `${Colors.purple}18` }]} onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
+                <Ionicons name="add" size={14} color={Colors.purple} />
+                <Text style={[styles.assignChipText, { color: Colors.purple }]}>Log Progress</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        ) : (
+          <Card noPadding>
+            {progressLogs.slice(0, 3).map((log, i) => {
+              const dt = new Date(log.date);
+              return (
+                <TouchableOpacity
+                  key={log.id}
+                  style={[styles.assignedRow, i < Math.min(progressLogs.length, 3) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
+                  onPress={() => router.push(`/client/${client.id}/progress` as any)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.assignedIcon, { backgroundColor: `${Colors.purple}18` }]}>
+                    <Ionicons name="scale" size={20} color={Colors.purple} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assignedName, { color: colors.textPrimary }]}>
+                      {log.weight ? `${log.weight} lbs` : 'Check-in'}
+                    </Text>
+                    <Text style={[styles.assignedMeta, { color: colors.textTertiary }]}>
+                      {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity 
+              style={{ padding: Spacing.md, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }}
+              onPress={() => router.push(`/client/${client.id}/progress` as any)}
+            >
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, color: Colors.purple }}>View All Progress</Text>
+            </TouchableOpacity>
           </Card>
         )}
 

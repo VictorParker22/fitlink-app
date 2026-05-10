@@ -147,6 +147,19 @@ export interface NotificationData {
   created_at: string;
 }
 
+export interface ProgressLog {
+  id: string;
+  client_id: string;
+  trainer_id: string;
+  date: string;
+  weight: number | null;
+  body_fat: number | null;
+  measurements: any;
+  photos: string[];
+  notes: string | null;
+  created_at: string;
+}
+
 interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
@@ -162,6 +175,7 @@ interface AppContextType {
   notifications: NotificationData[];
   clientWorkouts: ClientWorkout[];
   clientDiets: ClientDiet[];
+  progressLogs: ProgressLog[];
 
   // Computed
   activeClients: Client[];
@@ -189,6 +203,9 @@ interface AppContextType {
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
   getClientWorkouts: (clientId: string) => { assignment: ClientWorkout; workout: Workout }[];
   getClientDiets: (clientId: string) => { assignment: ClientDiet; diet: DietPlan }[];
+  getClientProgress: (clientId: string) => ProgressLog[];
+  addProgressLog: (log: Partial<ProgressLog>) => Promise<ProgressLog>;
+  deleteProgressLog: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -210,6 +227,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [clientWorkoutsList, setClientWorkoutsList] = useState<ClientWorkout[]>([]);
   const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
+  const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -230,7 +248,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
@@ -244,6 +262,7 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
           supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
+          supabase.from('client_progress').select('*').order('date', { ascending: false }),
         ]);
 
         if (!mounted) return;
@@ -261,6 +280,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         setNotifications(notifRes.data || []);
         setClientWorkoutsList(cwRes.data || []);
         setClientDietsList(cdRes.data || []);
+        // Progress logs might fail if migration not run yet, handle gracefully
+        if (progressRes && progressRes.data) setProgressLogs(progressRes.data);
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -288,6 +309,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('notifications').select('*').order('created_at', { ascending: false }),
       supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
       supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
+      supabase.from('client_progress').select('*').order('date', { ascending: false }),
     ]);
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
@@ -302,6 +324,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (notifRes.data) setNotifications(notifRes.data);
     if (cwRes.data) setClientWorkoutsList(cwRes.data);
     if (cdRes.data) setClientDietsList(cdRes.data);
+    
+    // Check if progress table exists/returned data
+    const pRes = await supabase.from('client_progress').select('*').order('date', { ascending: false });
+    if (pRes.data) setProgressLogs(pRes.data);
   }, [user]);
 
   // --- Client operations ---
@@ -551,6 +577,29 @@ export function AppProvider({ children }: PropsWithChildren) {
       .filter((item) => item.diet);
   }, [clientDietsList, diets]);
 
+  // --- Progress operations ---
+  const getClientProgress = useCallback((clientId: string) => {
+    return progressLogs
+      .filter(p => p.client_id === clientId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [progressLogs]);
+
+  const addProgressLog = useCallback(async (log: Partial<ProgressLog>) => {
+    const { data, error } = await supabase.from('client_progress').insert({
+      ...log,
+      trainer_id: user!.id,
+    }).select().single();
+    if (error) throw error;
+    setProgressLogs(prev => [data, ...prev]);
+    return data;
+  }, [user]);
+
+  const deleteProgressLog = useCallback(async (id: string) => {
+    const { error } = await supabase.from('client_progress').delete().eq('id', id);
+    if (error) throw error;
+    setProgressLogs(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   // --- Notification operations ---
   const markNotificationRead = useCallback(async (id: string) => {
     // Update local state immediately for UI responsiveness
@@ -618,6 +667,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     assignDietPlan,
     getClientWorkouts,
     getClientDiets,
+    progressLogs,
+    getClientProgress,
+    addProgressLog,
+    deleteProgressLog,
     markNotificationRead,
     refreshData,
   };
