@@ -193,26 +193,17 @@ export default function ClientLoginScreen() {
   };
 
   const createClientRow = async (userId: string, trainerId: string) => {
-    // Create client row linked to trainer
-    const { error: insertErr } = await supabase.from('clients').insert({
-      name: name.trim(),
-      email: contact.trim().toLowerCase(),
-      trainer_id: trainerId,
-      auth_user_id: userId,
-      status: 'trial',
+    const { data: result, error: rpcErr } = await supabase.rpc('create_client_and_notify', {
+      p_name: name.trim(),
+      p_email: contact.trim().toLowerCase(),
+      p_trainer_id: trainerId,
+      p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
     });
-    if (insertErr) throw insertErr;
 
-    // Notify trainer
-    try {
-      await supabase.from('notifications').insert({
-        trainer_id: trainerId,
-        type: 'new_client',
-        title: 'New Client!',
-        message: `${name.trim()} just signed up and chose you as their trainer!`,
-        read: false,
-      });
-    } catch {} // non-critical
+    console.log('[ClientLogin] Create client RPC:', JSON.stringify({ result, rpcErr }));
+
+    if (rpcErr) throw rpcErr;
+    if (!result?.success) throw new Error(result?.reason || 'Failed to create client');
 
     setSuccess('Connected! Redirecting...');
     // Auth state change will trigger navigation
