@@ -42,6 +42,14 @@ const ASSESSMENT_QUESTIONS = [
       lbs: { min: 66, max: 440, default: 154 }
     }
   },
+  {
+    id: 'age',
+    title: 'What is your age?',
+    type: 'wheel',
+    min: 14,
+    max: 100,
+    default: 18,
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -112,6 +120,78 @@ function RulerPicker({ min, max, value, onChange }: { min: number, max: number, 
   );
 }
 
+// --- Custom Wheel Component ---
+const WHEEL_ITEM_HEIGHT = 80;
+
+function WheelPicker({ min, max, value, onChange }: { min: number, max: number, value: number, onChange: (v: number) => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  const numItems = max - min + 1;
+  const items = Array.from({ length: numItems }).map((_, i) => min + i);
+
+  useEffect(() => {
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        const offset = (value - min) * WHEEL_ITEM_HEIGHT;
+        scrollViewRef.current.scrollTo({ y: offset, animated: false });
+      }
+    }, 100);
+  }, [min, max]);
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    let idx = Math.round(y / WHEEL_ITEM_HEIGHT);
+    if (idx < 0) idx = 0;
+    if (idx >= numItems) idx = numItems - 1;
+    const val = min + idx;
+    if (val !== value) onChange(val);
+  };
+
+  return (
+    <View style={styles.wheelContainer}>
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        snapToInterval={WHEEL_ITEM_HEIGHT}
+        decelerationRate="fast"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{
+          paddingVertical: WHEEL_ITEM_HEIGHT * 2,
+        }}
+      >
+        {items.map((item) => {
+          const diff = Math.abs(item - value);
+          const isActive = diff === 0;
+          const isAdj1 = diff === 1;
+          const isAdj2 = diff === 2;
+
+          let fontSize = FontSize.lg;
+          let opacity = 0.2;
+          if (isActive) { fontSize = 80; opacity = 1; }
+          else if (isAdj1) { fontSize = 56; opacity = 0.5; }
+          else if (isAdj2) { fontSize = 32; opacity = 0.3; }
+
+          return (
+            <View key={item} style={[styles.wheelItem, isActive && styles.wheelItemActive]}>
+              <Text style={[
+                styles.wheelItemText,
+                { fontSize, opacity, color: isActive ? '#FFF' : colors.textTertiary },
+                isActive && { letterSpacing: -2 }
+              ]}>
+                {item}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function AssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -126,15 +206,17 @@ export default function AssessmentScreen() {
   const question = ASSESSMENT_QUESTIONS[currentStep];
   const isLastStep = currentStep === ASSESSMENT_QUESTIONS.length - 1;
   
-  // Ensure default state for ruler types
+  // Ensure default state for specialized types
   if (question.type === 'ruler' && !answers[question.id]) {
     const unit = 'kg';
     const defVal = (question as any).config[unit].default;
     setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
+  } else if (question.type === 'wheel' && !answers[question.id]) {
+    setAnswers(prev => ({ ...prev, [question.id]: (question as any).default }));
   }
 
   const currentAnswer = answers[question.id];
-  const canContinue = question.type === 'single' ? !!currentAnswer : true; // Ruler always has a value
+  const canContinue = question.type === 'single' ? !!currentAnswer : true; // Ruler & Wheel always have a value
 
   const handleSelect = (optionId: string) => {
     if (question.type === 'single') {
@@ -232,7 +314,18 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {question.type !== 'ruler' && (
+        {question.type === 'wheel' && currentAnswer && (
+          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+            <WheelPicker
+              min={(question as any).min}
+              max={(question as any).max}
+              value={currentAnswer}
+              onChange={(val) => setAnswers(prev => ({ ...prev, [question.id]: val }))}
+            />
+          </View>
+        )}
+
+        {(question.type !== 'ruler' && question.type !== 'wheel') && (
           <View style={styles.optionsContainer}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
@@ -431,6 +524,12 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   tickTall: { width: 2, height: 40, backgroundColor: colors.textTertiary },
   tickShort: { width: 2, height: 20 },
   tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
+
+  // Wheel Styles
+  wheelContainer: { height: WHEEL_ITEM_HEIGHT * 5, overflow: 'hidden' },
+  wheelItem: { height: WHEEL_ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+  wheelItemActive: { backgroundColor: colors.accent, borderRadius: 40, marginHorizontal: Spacing.xl, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  wheelItemText: { fontFamily: FontFamily.headingExtraBold, includeFontPadding: false },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
