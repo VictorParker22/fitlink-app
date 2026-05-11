@@ -122,24 +122,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const linkClientAccount = useCallback(async (userId: string, email?: string, phone?: string) => {
     try {
-      // Try to find an unlinked client row matching this email or phone
-      let query = supabase.from('clients').select('id').is('auth_user_id', null);
-
-      if (email) {
-        const { data } = await query.eq('email', email).maybeSingle();
-        if (data) {
-          await supabase.from('clients').update({ auth_user_id: userId }).eq('id', data.id);
-          return;
-        }
-      }
-      if (phone) {
-        const { data } = await supabase.from('clients').select('id').is('auth_user_id', null).eq('phone', phone).maybeSingle();
-        if (data) {
-          await supabase.from('clients').update({ auth_user_id: userId }).eq('id', data.id);
-          return;
-        }
-      }
-      // No match found — that's okay, trainer can link manually later
+      const { data, error } = await supabase.rpc('link_client_account', {
+        p_user_id: userId,
+        p_email: email || null,
+        p_phone: phone || null,
+      });
+      console.log('[AuthContext] Link result:', JSON.stringify({ data, error }));
     } catch (err) {
       console.warn('Auto-link client failed:', err);
     }

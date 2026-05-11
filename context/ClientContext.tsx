@@ -54,7 +54,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
         .from('clients')
         .select('*')
         .eq('auth_user_id', user.id)
-        .single();
+        .maybeSingle();
 
       console.log('[ClientContext] Fetch result:', JSON.stringify({ userId: user.id, client: client?.id, clientErr }));
 
