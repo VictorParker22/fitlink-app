@@ -80,6 +80,18 @@ const ASSESSMENT_QUESTIONS = [
     suggestions: ['Knee Pain', 'Muscle Pain', 'Arthritis', 'Back Pain', 'Asthma', 'Obesity'],
     maxTags: 10,
   },
+  {
+    id: 'diet_preference',
+    title: 'Do you have a specific diet preference?',
+    type: 'single',
+    layout: 'grid',
+    options: [
+      { id: 'plant_based', label: 'Plant Based', description: 'Vegan', icon: 'leaf' as any },
+      { id: 'carbo_diet', label: 'Carbo Diet', description: 'Bread, etc', icon: 'fast-food' as any },
+      { id: 'specialized', label: 'Specialized', description: 'Paleo, keto, etc', icon: 'restaurant' as any },
+      { id: 'traditional', label: 'Traditional', description: 'Fruit diet', icon: 'nutrition' as any },
+    ]
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -590,11 +602,32 @@ export default function AssessmentScreen() {
         )}
 
         {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags') && (
-          <View style={styles.optionsContainer}>
+          <View style={[styles.optionsContainer, (question as any).layout === 'grid' && styles.optionsGrid]}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
                 ? currentAnswer === option.id 
                 : (currentAnswer || []).includes(option.id);
+
+              if ((question as any).layout === 'grid') {
+                 return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[styles.gridOption, isSelected && styles.gridOptionActive]}
+                      onPress={() => handleSelect(option.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                      {option.description && (
+                        <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
+                      )}
+                      {option.icon && (
+                        <View style={styles.gridOptionIconWrapper}>
+                           <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                 );
+              }
 
               const isImageOption = !!option.image;
 
@@ -778,14 +811,28 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   iconContainerActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
   optionLabel: { flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
   optionLabelActive: { color: '#FFF' },
-  
-  radioOuter: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 2, borderColor: colors.textTertiary,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioOuterActive: { borderColor: '#FFF' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFF' },
+  
+  // Grid Layout Styles
+  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  gridOption: {
+    width: '48%', // roughly half minus gap
+    aspectRatio: 1, // square
+    backgroundColor: `${colors.textTertiary}10`,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    position: 'relative'
+  },
+  gridOptionActive: {
+    backgroundColor: colors.accent,
+    borderColor: 'rgba(255, 95, 59, 0.3)',
+    borderWidth: 4,
+  },
+  gridOptionLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 },
+  gridOptionDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
+  gridOptionIconWrapper: { position: 'absolute', bottom: Spacing.xl, right: Spacing.xl },
 
   // Ruler Styles
   unitToggle: {
