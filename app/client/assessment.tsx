@@ -893,6 +893,7 @@ export default function AssessmentScreen() {
                 </View>
               )}
             </View>
+          </View>
         )}
       </ScrollView>
 
