@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -49,6 +49,12 @@ const ASSESSMENT_QUESTIONS = [
     min: 14,
     max: 100,
     default: 18,
+  },
+  {
+    id: 'previous_experience',
+    title: 'Do you have previous fitness experience?',
+    type: 'yes_no',
+    image: require('../../assets/images/fitness_experience.png'),
   },
 ];
 
@@ -232,6 +238,24 @@ export default function AssessmentScreen() {
     }
   };
 
+  const handleSelectAndNext = async (val: any) => {
+    const newAnswers = { ...answers, [question.id]: val };
+    setAnswers(newAnswers);
+    if (isLastStep) {
+      setSaving(true);
+      try {
+        await updateClientAssessment(user!.id, newAnswers);
+        router.replace('/(client-tabs)' as any);
+      } catch (error) {
+        console.error('Failed to save assessment', error);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
   const handleNext = async () => {
     if (!canContinue) return;
 
@@ -325,7 +349,17 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {(question.type !== 'ruler' && question.type !== 'wheel') && (
+        {question.type === 'yes_no' && (question as any).image && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: Spacing.xl }}>
+            <Image 
+              source={(question as any).image} 
+              style={{ width: '100%', height: 350 }} 
+              resizeMode="contain" 
+            />
+          </View>
+        )}
+
+        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no') && (
           <View style={styles.optionsContainer}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
@@ -415,22 +449,46 @@ export default function AssessmentScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        {(question as any).skippable && (
-          <TouchableOpacity style={styles.skipBtn} onPress={() => handleNext()} activeOpacity={0.7}>
-            <Text style={styles.skipBtnText}>Prefer to skip, thanks!</Text>
-            <Ionicons name="close" size={18} color={colors.accent} />
-          </TouchableOpacity>
-        )}
+        {question.type === 'yes_no' ? (
+          <View style={styles.yesNoFooter}>
+            <TouchableOpacity 
+              style={[styles.yesNoBtn, { backgroundColor: colors.bgSecondary }]}
+              onPress={() => handleSelectAndNext(false)}
+              disabled={saving}
+            >
+              <Text style={[styles.yesNoBtnText, { color: colors.textSecondary }]}>No</Text>
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.yesNoBtn, { backgroundColor: '#111114' }]}
+              onPress={() => handleSelectAndNext(true)}
+              disabled={saving}
+            >
+              <Text style={[styles.yesNoBtnText, { color: '#FFF' }]}>Yes</Text>
+              <Ionicons name="checkmark" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {(question as any).skippable && (
+              <TouchableOpacity style={styles.skipBtn} onPress={() => handleNext()} activeOpacity={0.7}>
+                <Text style={styles.skipBtnText}>Prefer to skip, thanks!</Text>
+                <Ionicons name="close" size={18} color={colors.accent} />
+              </TouchableOpacity>
+            )}
 
-        <Button
-          title={isLastStep ? (saving ? "Saving..." : "Finish") : "Continue"}
-          onPress={handleNext}
-          disabled={!canContinue || saving}
-          full
-          icon={!isLastStep ? <Ionicons name="arrow-forward" size={18} color="#FFF" /> : undefined}
-          iconPosition="right"
-          style={styles.continueBtn}
-        />
+            <Button
+              title={isLastStep ? (saving ? "Saving..." : "Finish") : "Continue"}
+              onPress={handleNext}
+              disabled={!canContinue || saving}
+              full
+              icon={!isLastStep ? <Ionicons name="arrow-forward" size={18} color="#FFF" /> : undefined}
+              iconPosition="right"
+              style={styles.continueBtn}
+            />
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -536,6 +594,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.bgPrimary,
     borderTopWidth: 1, borderTopColor: colors.border,
   },
+  yesNoFooter: { flexDirection: 'row', gap: Spacing.md },
+  yesNoBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+    paddingVertical: 18, borderRadius: Radius.xl,
+  },
+  yesNoBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.lg },
+
   skipBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: `${colors.accent}15`,
