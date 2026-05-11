@@ -157,6 +157,8 @@ export default function ClientMessagesScreen() {
             <Ionicons name="send" size={18} color={newMessage.trim() ? Colors.white : colors.textTertiary} />
           </TouchableOpacity>
         </View>
+        {/* Spacer for floating tab bar */}
+        <View style={{ height: Platform.OS === 'ios' ? 88 : 72, backgroundColor: colors.bgSecondary }} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
