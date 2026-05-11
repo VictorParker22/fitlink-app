@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -24,16 +24,15 @@ const ASSESSMENT_QUESTIONS = [
     ]
   },
   {
-    id: 'experience',
-    title: "What is your current fitness level?",
+    id: 'gender',
+    title: 'What is your gender?',
     type: 'single',
+    skippable: true,
     options: [
-      { id: 'beginner', label: 'Beginner', icon: 'walk-outline' as any },
-      { id: 'intermediate', label: 'Intermediate', icon: 'fitness-outline' as any },
-      { id: 'advanced', label: 'Advanced', icon: 'body-outline' as any },
+      { id: 'male', label: 'Male', icon: 'male', image: require('../../assets/images/male_runner.png') },
+      { id: 'female', label: 'Female', icon: 'female', image: require('../../assets/images/female_runner.png') },
     ]
   },
-  // The user can easily add the rest of the 17 questions here
 ];
 
 export default function AssessmentScreen() {
@@ -115,6 +114,55 @@ export default function AssessmentScreen() {
               ? currentAnswer === option.id 
               : (currentAnswer || []).includes(option.id);
 
+            const isImageOption = !!option.image;
+
+            const content = (
+              <>
+                <View style={[styles.optionContentLeft, isImageOption && styles.optionContentLeftImage]}>
+                  {option.icon && (
+                    <Ionicons 
+                      name={option.icon as any} 
+                      size={20} 
+                      color={isImageOption ? colors.textPrimary : (isSelected ? '#FFF' : colors.textTertiary)} 
+                      style={isImageOption ? { marginRight: 8 } : undefined}
+                    />
+                  )}
+                  <Text style={[
+                    styles.optionLabel, 
+                    isSelected && !isImageOption && styles.optionLabelActive,
+                    isImageOption && { fontSize: FontSize.lg }
+                  ]}>
+                    {option.label}
+                  </Text>
+                </View>
+
+                {/* Radio Button matching screenshot */}
+                <View style={[
+                  styles.radioOuter, 
+                  isSelected && !isImageOption && styles.radioOuterActive,
+                  isImageOption && isSelected && { borderColor: colors.textPrimary },
+                  isImageOption && { position: 'absolute', bottom: Spacing.md, left: Spacing.md }
+                ]}>
+                  {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: colors.textPrimary }]} />}
+                </View>
+              </>
+            );
+
+            if (isImageOption) {
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.imageOptionWrapper, isSelected && styles.imageOptionActive]}
+                  activeOpacity={0.8}
+                  onPress={() => handleSelect(option.id)}
+                >
+                  <ImageBackground source={option.image} style={styles.imageOptionBg} imageStyle={{ borderRadius: Radius.xl, opacity: 0.9 }}>
+                    {content}
+                  </ImageBackground>
+                </TouchableOpacity>
+              );
+            }
+
             return (
               <TouchableOpacity
                 key={option.id}
@@ -122,18 +170,20 @@ export default function AssessmentScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleSelect(option.id)}
               >
-                <View style={[styles.iconContainer, isSelected && styles.iconContainerActive]}>
-                  <Ionicons 
-                    name={option.icon} 
-                    size={20} 
-                    color={isSelected ? '#FFF' : colors.textTertiary} 
-                  />
-                </View>
+                {!isImageOption && option.icon && (
+                  <View style={[styles.iconContainer, isSelected && styles.iconContainerActive]}>
+                    <Ionicons 
+                      name={option.icon as any} 
+                      size={20} 
+                      color={isSelected ? '#FFF' : colors.textTertiary} 
+                    />
+                  </View>
+                )}
                 <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
                   {option.label}
                 </Text>
                 
-                {/* Radio Button matching screenshot */}
+                {/* Radio Button */}
                 <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
                   {isSelected && <View style={styles.radioInner} />}
                 </View>
@@ -145,6 +195,13 @@ export default function AssessmentScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
+        {(question as any).skippable && (
+          <TouchableOpacity style={styles.skipBtn} onPress={() => handleNext()} activeOpacity={0.7}>
+            <Text style={styles.skipBtnText}>Prefer to skip, thanks!</Text>
+            <Ionicons name="close" size={18} color={colors.accent} />
+          </TouchableOpacity>
+        )}
+
         <Button
           title={isLastStep ? (saving ? "Saving..." : "Finish") : "Continue"}
           onPress={handleNext}
@@ -194,6 +251,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
+  
+  imageOptionWrapper: {
+    height: 140, borderRadius: Radius.xl, overflow: 'hidden',
+    backgroundColor: '#f5f5f5', borderWidth: 2, borderColor: 'transparent',
+  },
+  imageOptionActive: { borderColor: colors.accent },
+  imageOptionBg: { flex: 1, padding: Spacing.md, justifyContent: 'space-between' },
+  
+  optionContentLeft: { flexDirection: 'row', alignItems: 'center' },
+  optionContentLeftImage: { position: 'absolute', top: Spacing.md, left: Spacing.md },
+
   iconContainer: {
     width: 36, height: 36, borderRadius: Radius.md,
     backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center',
@@ -216,6 +284,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.bgPrimary,
     borderTopWidth: 1, borderTopColor: colors.border,
   },
+  skipBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: `${colors.accent}15`,
+    paddingVertical: 16, borderRadius: Radius.xl,
+    marginBottom: Spacing.md,
+  },
+  skipBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.accent },
   continueBtn: {
     borderRadius: Radius.xl,
     paddingVertical: 18,
