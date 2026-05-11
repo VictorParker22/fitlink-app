@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
+import Button from '../components/Button';
 import type { ThemeColors } from '../constants/theme';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -30,7 +31,9 @@ export default function SubscriptionsScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Subscriptions</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity onPress={() => router.push('/create-plan' as any)} style={styles.addBtn}>
+          <Ionicons name="add" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -48,7 +51,10 @@ export default function SubscriptionsScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="card-outline" size={40} color={colors.textTertiary} />
               <Text style={styles.emptyTitle}>No plans yet</Text>
-              <Text style={styles.emptyText}>Create subscription plans for your clients in the web dashboard</Text>
+              <Text style={styles.emptyText}>Create a subscription plan to start billing your clients.</Text>
+              <View style={{ marginTop: Spacing.sm }}>
+                <Button title="Create Plan" onPress={() => router.push('/create-plan' as any)} />
+              </View>
             </View>
           </Card>
         ) : (
@@ -140,6 +146,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 

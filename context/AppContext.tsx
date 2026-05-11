@@ -195,6 +195,7 @@ interface AppContextType {
   getSessionsForDate: (date: Date) => Session[];
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
+  createPlan: (name: string, price: number, interval: string, features?: string[], color?: string, isPopular?: boolean) => Promise<Plan>;
   createWorkout: (name: string, description: string, exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]) => Promise<Workout>;
   deleteWorkout: (id: string) => Promise<void>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
@@ -586,6 +587,41 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
   }, [user, clients, diets]);
 
+  // --- Plan operations ---
+  const createPlan = useCallback(async (
+    name: string,
+    price: number,
+    interval: string,
+    features: string[] = [],
+    color: string = Colors.blue,
+    isPopular: boolean = false
+  ) => {
+    const { data, error } = await supabase
+      .from('plans')
+      .insert({
+        trainer_id: user!.id,
+        name,
+        price,
+        interval,
+        features,
+        color,
+        is_popular: isPopular
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) setPlans((prev) => [...prev, data].sort((a, b) => a.price - b.price));
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'plan',
+      message: `Created new subscription plan "${name}"`,
+    });
+
+    return data as Plan;
+  }, [user]);
+
   // --- Client assignment lookups ---
   const getClientWorkouts = useCallback((clientId: string) => {
     return clientWorkoutsList
@@ -703,6 +739,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     getSessionsForDate,
     getClientSessions,
     updateTrainer,
+    createPlan,
     createWorkout,
     deleteWorkout,
     assignWorkout,
