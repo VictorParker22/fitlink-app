@@ -6,12 +6,15 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import type { ThemeColors } from '../constants/theme';
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const { plans, clients } = useApp();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const getSubCount = (planId: string) => clients.filter((c) => c.plan_id === planId && c.status !== 'inactive').length;
 
@@ -24,7 +27,7 @@ export default function SubscriptionsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Subscriptions</Text>
         <View style={{ width: 36 }} />
@@ -43,7 +46,7 @@ export default function SubscriptionsScreen() {
         {plans.length === 0 ? (
           <Card>
             <View style={styles.emptyState}>
-              <Ionicons name="card-outline" size={40} color={Colors.textTertiary} />
+              <Ionicons name="card-outline" size={40} color={colors.textTertiary} />
               <Text style={styles.emptyTitle}>No plans yet</Text>
               <Text style={styles.emptyText}>Create subscription plans for your clients in the web dashboard</Text>
             </View>
@@ -53,7 +56,7 @@ export default function SubscriptionsScreen() {
             const subCount = getSubCount(plan.id);
             const planRevenue = Number(plan.price) * subCount;
             const planClients = clients.filter((c) => c.plan_id === plan.id && c.status !== 'inactive');
-            const planColor = (plan as any).color || Colors.blue;
+            const planColor = (plan as any).color || colors.blue;
 
             return (
               <Card key={plan.id} style={styles.planCard}>
@@ -113,7 +116,7 @@ export default function SubscriptionsScreen() {
               {plans.map((plan) => {
                 const revenue = Number(plan.price) * getSubCount(plan.id);
                 const percent = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
-                const planColor = (plan as any).color || Colors.blue;
+                const planColor = (plan as any).color || colors.blue;
                 return (
                   <View key={plan.id} style={styles.breakdownRow}>
                     <View style={[styles.breakdownDot, { backgroundColor: planColor }]} />
@@ -133,49 +136,49 @@ export default function SubscriptionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 
   revenueCard: { alignItems: 'center', paddingVertical: Spacing.xl },
-  revenueLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
-  revenueAmount: { fontFamily: FontFamily.headingExtraBold, fontSize: 36, color: Colors.textPrimary, marginTop: Spacing.xs },
-  revenueSubLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4 },
+  revenueLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
+  revenueAmount: { fontFamily: FontFamily.headingExtraBold, fontSize: 36, color: colors.textPrimary, marginTop: Spacing.xs },
+  revenueSubLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, marginTop: 4 },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
 
   planCard: { marginBottom: Spacing.md },
   planHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   planDot: { width: 10, height: 10, borderRadius: 5 },
   planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
-  planPrice: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 1 },
+  planPrice: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, marginTop: 1 },
   popularBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
   popularText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10 },
 
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   avatarStack: { flexDirection: 'row' },
-  avatarRing: { borderWidth: 2, borderColor: Colors.bgCard, borderRadius: 100 },
-  subCount: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary },
+  avatarRing: { borderWidth: 2, borderColor: colors.bgCard, borderRadius: 100 },
+  subCount: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
 
   featureList: { marginTop: Spacing.md, gap: 4 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  featureText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary },
+  featureText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
 
-  planRevenueRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
-  planRevenueLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  planRevenueRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  planRevenueLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
   planRevenueValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
 
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 8 },
   breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textPrimary, flex: 1 },
-  breakdownAmount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textPrimary, marginRight: Spacing.sm },
-  breakdownBarTrack: { width: 60, height: 4, borderRadius: 2, backgroundColor: Colors.bgElevated },
+  breakdownName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary, flex: 1 },
+  breakdownAmount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, marginRight: Spacing.sm },
+  breakdownBarTrack: { width: 60, height: 4, borderRadius: 2, backgroundColor: colors.bgElevated },
   breakdownBarFill: { height: 4, borderRadius: 2 },
 
   emptyState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, textAlign: 'center' },
+  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center' },
 });
