@@ -19,7 +19,7 @@ export default function CreatePlanModal() {
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [interval, setInterval] = useState('month');
+  const [period, setPeriod] = useState('month');
   const [featureInput, setFeatureInput] = useState('');
   const [features, setFeatures] = useState<string[]>([]);
   const [color, setColor] = useState(PLAN_COLORS[0]);
@@ -44,7 +44,7 @@ export default function CreatePlanModal() {
 
     setLoading(true);
     try {
-      await createPlan(name.trim(), Number(price), interval, features, color, isPopular);
+      await createPlan(name.trim(), Number(price), period, features, color, isPopular);
       router.back();
     } catch (err: any) {
       console.error(err);
@@ -94,18 +94,18 @@ export default function CreatePlanModal() {
           </View>
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.label}>Billing Period</Text>
-            <View style={styles.intervalToggle}>
+            <View style={styles.periodToggle}>
               <TouchableOpacity
-                style={[styles.intervalBtn, interval === 'month' && styles.intervalBtnActive]}
-                onPress={() => setInterval('month')}
+                style={[styles.periodBtn, period === 'month' && styles.periodBtnActive]}
+                onPress={() => setPeriod('month')}
               >
-                <Text style={[styles.intervalText, interval === 'month' && styles.intervalTextActive]}>Month</Text>
+                <Text style={[styles.periodText, period === 'month' && styles.periodTextActive]}>Month</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.intervalBtn, interval === 'year' && styles.intervalBtnActive]}
-                onPress={() => setInterval('year')}
+                style={[styles.periodBtn, period === 'year' && styles.periodBtnActive]}
+                onPress={() => setPeriod('year')}
               >
-                <Text style={[styles.intervalText, interval === 'year' && styles.intervalTextActive]}>Year</Text>
+                <Text style={[styles.periodText, period === 'year' && styles.periodTextActive]}>Year</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -211,14 +211,14 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
   },
 
-  intervalToggle: {
+  periodToggle: {
     flexDirection: 'row', backgroundColor: colors.bgSecondary,
     borderRadius: Radius.md, padding: 4, borderWidth: 1, borderColor: colors.border,
   },
-  intervalBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm },
-  intervalBtnActive: { backgroundColor: colors.bgElevated, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  intervalText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  intervalTextActive: { color: colors.textPrimary },
+  periodBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm },
+  periodBtnActive: { backgroundColor: colors.bgElevated, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  periodText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
+  periodTextActive: { color: colors.textPrimary },
 
   featureInputRow: { flexDirection: 'row', gap: Spacing.sm },
   addFeatureBtn: { width: 46, height: 46, borderRadius: Radius.md, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },

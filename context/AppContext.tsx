@@ -53,7 +53,7 @@ interface Plan {
   trainer_id: string;
   name: string;
   price: number;
-  interval: string;
+  period: string;
 }
 
 interface Referral {
@@ -195,7 +195,7 @@ interface AppContextType {
   getSessionsForDate: (date: Date) => Session[];
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
-  createPlan: (name: string, price: number, interval: string, features?: string[], color?: string, isPopular?: boolean) => Promise<Plan>;
+  createPlan: (name: string, price: number, period: string, features?: string[], color?: string, isPopular?: boolean) => Promise<Plan>;
   createWorkout: (name: string, description: string, exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]) => Promise<Workout>;
   deleteWorkout: (id: string) => Promise<void>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
@@ -591,7 +591,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const createPlan = useCallback(async (
     name: string,
     price: number,
-    interval: string,
+    period: string,
     features: string[] = [],
     color: string = Colors.blue,
     isPopular: boolean = false
@@ -602,7 +602,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         trainer_id: user!.id,
         name,
         price,
-        interval,
+        period,
         features,
         color,
         is_popular: isPopular
