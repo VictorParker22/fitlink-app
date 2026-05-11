@@ -92,6 +92,23 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'traditional', label: 'Traditional', description: 'Fruit diet', icon: 'nutrition' as any },
     ]
   },
+  {
+    id: 'exercise_preference',
+    title: 'Do you have a specific Exercise Preference?',
+    type: 'single',
+    layout: 'grid-3',
+    options: [
+      { id: 'jogging', label: 'Jogging', icon: 'walk-outline' as any },
+      { id: 'walking', label: 'Walking', icon: 'accessibility-outline' as any },
+      { id: 'hiking', label: 'Hiking', icon: 'trail-sign-outline' as any },
+      { id: 'skating', label: 'Skating', icon: 'snow-outline' as any },
+      { id: 'biking', label: 'Biking', icon: 'bicycle-outline' as any },
+      { id: 'weightlift', label: 'Weightlift', icon: 'barbell-outline' as any },
+      { id: 'cardio', label: 'Cardio', icon: 'pulse-outline' as any },
+      { id: 'yoga', label: 'Yoga', icon: 'body-outline' as any },
+      { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-circle-outline' as any },
+    ]
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -602,28 +619,44 @@ export default function AssessmentScreen() {
         )}
 
         {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags') && (
-          <View style={[styles.optionsContainer, (question as any).layout === 'grid' && styles.optionsGrid]}>
+          <View style={[styles.optionsContainer, ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && styles.optionsGrid]}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
                 ? currentAnswer === option.id 
                 : (currentAnswer || []).includes(option.id);
 
-              if ((question as any).layout === 'grid') {
+              if ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') {
+                 const isGrid3 = (question as any).layout === 'grid-3';
                  return (
                     <TouchableOpacity
                       key={option.id}
-                      style={[styles.gridOption, isSelected && styles.gridOptionActive]}
+                      style={[
+                        styles.gridOption, 
+                        isGrid3 && styles.gridOption3,
+                        isSelected && styles.gridOptionActive
+                      ]}
                       onPress={() => handleSelect(option.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
-                      {option.description && (
-                        <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
-                      )}
-                      {option.icon && (
-                        <View style={styles.gridOptionIconWrapper}>
-                           <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
+                      {isGrid3 ? (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          {option.icon && (
+                            <Ionicons name={option.icon as any} size={32} color={isSelected ? '#FFF' : colors.textTertiary} />
+                          )}
+                          <Text style={[styles.gridOptionLabel3, isSelected && { color: '#FFF' }]}>{option.label}</Text>
                         </View>
+                      ) : (
+                        <>
+                          <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                          {option.description && (
+                            <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
+                          )}
+                          {option.icon && (
+                            <View style={styles.gridOptionIconWrapper}>
+                               <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
+                            </View>
+                          )}
+                        </>
                       )}
                     </TouchableOpacity>
                  );
@@ -825,12 +858,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     padding: Spacing.xl,
     position: 'relative'
   },
+  gridOption3: {
+    width: '31%', // roughly third minus gap
+    padding: Spacing.md,
+  },
   gridOptionActive: {
     backgroundColor: colors.accent,
     borderColor: 'rgba(255, 95, 59, 0.3)',
     borderWidth: 4,
   },
   gridOptionLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 },
+  gridOptionLabel3: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary, textAlign: 'center' },
   gridOptionDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
   gridOptionIconWrapper: { position: 'absolute', bottom: Spacing.xl, right: Spacing.xl },
 
