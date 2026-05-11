@@ -123,14 +123,14 @@ export default function AssessmentScreen() {
                     <Ionicons 
                       name={option.icon as any} 
                       size={20} 
-                      color={isImageOption ? colors.textPrimary : (isSelected ? '#FFF' : colors.textTertiary)} 
+                      color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)} 
                       style={isImageOption ? { marginRight: 8 } : undefined}
                     />
                   )}
                   <Text style={[
                     styles.optionLabel, 
                     isSelected && !isImageOption && styles.optionLabelActive,
-                    isImageOption && { fontSize: FontSize.lg }
+                    isImageOption && { fontSize: FontSize.lg, color: '#111114' }
                   ]}>
                     {option.label}
                   </Text>
@@ -140,10 +140,11 @@ export default function AssessmentScreen() {
                 <View style={[
                   styles.radioOuter, 
                   isSelected && !isImageOption && styles.radioOuterActive,
-                  isImageOption && isSelected && { borderColor: colors.textPrimary },
+                  isImageOption && isSelected && { borderColor: '#111114' },
+                  isImageOption && !isSelected && { borderColor: '#666' },
                   isImageOption && { position: 'absolute', bottom: Spacing.md, left: Spacing.md }
                 ]}>
-                  {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: colors.textPrimary }]} />}
+                  {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: '#111114' }]} />}
                 </View>
               </>
             );
