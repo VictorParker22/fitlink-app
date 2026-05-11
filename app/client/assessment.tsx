@@ -117,6 +117,12 @@ const ASSESSMENT_QUESTIONS = [
     max: 7,
     default: 5,
   },
+  {
+    id: 'taking_supplements',
+    title: 'Are you taking any supplements?',
+    type: 'yes_no',
+    image: require('../../assets/images/supplements.png'),
+  },
 ];
 
 // --- Custom Ruler Component ---
