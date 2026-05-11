@@ -123,6 +123,34 @@ const ASSESSMENT_QUESTIONS = [
     type: 'yes_no',
     image: require('../../assets/images/supplements.png'),
   },
+  {
+    id: 'supplements_list',
+    title: 'Specify Supplement',
+    subtitle: 'Please specify your supplement.',
+    type: 'multi',
+    layout: 'pill_cloud',
+    condition: (answers: Record<string, any>) => answers['taking_supplements'] === true,
+    options: [
+      { id: 'protein', label: 'Protein' },
+      { id: 'whey', label: 'Whey' },
+      { id: 'bcaas', label: 'BCAAs' },
+      { id: 'vitamin_d', label: 'Vitamin D' },
+      { id: 'beta_alanine', label: 'Beta-Alanine' },
+      { id: 'tumeric', label: 'Tumeric' },
+      { id: 'curcumin', label: 'Curcumin' },
+      { id: 'magnesium', label: 'Magnesium' },
+      { id: 'iron', label: 'Iron' },
+      { id: 'omega_4', label: 'Omega 4' },
+      { id: 'omega_8', label: 'Omega 8' },
+      { id: 'vitamin_a', label: 'Vitamin A' },
+      { id: 'vitamin_b', label: 'Vitamin B' },
+      { id: 'vitamin_c', label: 'Vitamin C' },
+      { id: 'fiber', label: 'Fiber' },
+      { id: 'omega_12', label: 'Omega 12' },
+      { id: 'omega_2', label: 'Omega 2' },
+      { id: 'creatine', label: 'Creatine' },
+    ]
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -450,7 +478,16 @@ export default function AssessmentScreen() {
   const [saving, setSaving] = useState(false);
 
   const question = ASSESSMENT_QUESTIONS[currentStep];
-  const isLastStep = currentStep === ASSESSMENT_QUESTIONS.length - 1;
+  
+  // Find next valid step to determine if this is the last step
+  let nextValidStep = -1;
+  for (let i = currentStep + 1; i < ASSESSMENT_QUESTIONS.length; i++) {
+    if (!(ASSESSMENT_QUESTIONS[i] as any).condition || (ASSESSMENT_QUESTIONS[i] as any).condition(answers)) {
+      nextValidStep = i;
+      break;
+    }
+  }
+  const isLastValidStep = nextValidStep === -1;
   
   // Ensure default state for specialized types
   if (question.type === 'ruler' && !answers[question.id]) {
@@ -483,7 +520,17 @@ export default function AssessmentScreen() {
   const handleSelectAndNext = async (val: any) => {
     const newAnswers = { ...answers, [question.id]: val };
     setAnswers(newAnswers);
-    if (isLastStep) {
+
+    // Re-evaluate if the newly answered question makes this the last step
+    let nextStepAfterSelect = -1;
+    for (let i = currentStep + 1; i < ASSESSMENT_QUESTIONS.length; i++) {
+      if (!(ASSESSMENT_QUESTIONS[i] as any).condition || (ASSESSMENT_QUESTIONS[i] as any).condition(newAnswers)) {
+        nextStepAfterSelect = i;
+        break;
+      }
+    }
+
+    if (nextStepAfterSelect === -1) {
       setSaving(true);
       try {
         await updateClientAssessment(user!.id, newAnswers);
@@ -494,14 +541,14 @@ export default function AssessmentScreen() {
         setSaving(false);
       }
     } else {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(nextStepAfterSelect);
     }
   };
 
   const handleNext = async () => {
     if (!canContinue) return;
 
-    if (isLastStep) {
+    if (isLastValidStep) {
       setSaving(true);
       try {
         await updateClientAssessment(user!.id, answers);
@@ -513,13 +560,26 @@ export default function AssessmentScreen() {
         setSaving(false);
       }
     } else {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(nextValidStep);
     }
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+      let prevStep = currentStep - 1;
+      while (prevStep >= 0) {
+        const prevQ = ASSESSMENT_QUESTIONS[prevStep];
+        if (!(prevQ as any).condition || (prevQ as any).condition(answers)) {
+          break;
+        }
+        prevStep--;
+      }
+      
+      if (prevStep >= 0) {
+        setCurrentStep(prevStep);
+      } else {
+        router.back();
+      }
     } else {
       router.back();
     }
@@ -540,6 +600,9 @@ export default function AssessmentScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.questionTitle}>{question.title}</Text>
+        {(question as any).subtitle && (
+          <Text style={styles.questionSubtitle}>{(question as any).subtitle}</Text>
+        )}
 
         {question.type === 'ruler' && currentAnswer && (
           <View style={{ flex: 1, marginTop: Spacing.xl }}>
@@ -664,13 +727,40 @@ export default function AssessmentScreen() {
         )}
 
         {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags' && question.type !== 'segmented_number') && (
-          <View style={[styles.optionsContainer, ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && styles.optionsGrid]}>
-            {question.options.map((option) => {
-              const isSelected = question.type === 'single' 
-                ? currentAnswer === option.id 
-                : (currentAnswer || []).includes(option.id);
+          <View style={[
+            styles.optionsContainer, 
+            ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && styles.optionsGrid,
+            (question as any).layout === 'pill_cloud' && { marginTop: Spacing.md }
+          ]}>
+            {(question as any).layout === 'pill_cloud' && (
+              <View style={styles.cloudHeaderRow}>
+                <Text style={styles.cloudHeaderTitle}>Most Common</Text>
+                <TouchableOpacity>
+                  <Text style={styles.cloudHeaderLink}>See All Supplements</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-              if ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') {
+            <View style={[(question as any).layout === 'pill_cloud' && styles.pillCloud]}>
+              {question.options.map((option) => {
+                const isSelected = question.type === 'single' 
+                  ? currentAnswer === option.id 
+                  : (currentAnswer || []).includes(option.id);
+
+                if ((question as any).layout === 'pill_cloud') {
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[styles.cloudPill, isSelected && styles.cloudPillActive]}
+                      onPress={() => handleSelect(option.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.cloudPillText, isSelected && styles.cloudPillTextActive]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                }
+
+                if ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') {
                  const isGrid3 = (question as any).layout === 'grid-3';
                  return (
                     <TouchableOpacity
@@ -784,7 +874,25 @@ export default function AssessmentScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
+
+              {/* Selected Chips for Pill Cloud Layout */}
+              {(question as any).layout === 'pill_cloud' && currentAnswer && currentAnswer.length > 0 && (
+                <View style={styles.cloudSelectedContainer}>
+                  <Text style={styles.cloudSelectedLabel}>Selected</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: Spacing.xl }}>
+                    {currentAnswer.map((id: string) => {
+                      const opt = question.options.find(o => o.id === id);
+                      return (
+                        <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
+                          <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
+                          <Ionicons name="close" size={14} color={colors.blue} />
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
         )}
       </ScrollView>
 
@@ -820,11 +928,11 @@ export default function AssessmentScreen() {
             )}
 
             <Button
-              title={isLastStep ? (saving ? "Saving..." : "Finish") : "Continue"}
+              title={isLastValidStep ? (saving ? "Saving..." : "Finish") : "Continue"}
               onPress={handleNext}
               disabled={!canContinue || saving}
               full
-              icon={!isLastStep ? <Ionicons name="arrow-forward" size={18} color="#FFF" /> : undefined}
+              icon={!isLastValidStep ? <Ionicons name="arrow-forward" size={18} color="#FFF" /> : undefined}
               iconPosition="right"
               style={styles.continueBtn}
             />
@@ -846,19 +954,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textPrimary },
-  progressBadge: {
-    backgroundColor: `${colors.accent}20`, paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: Radius.full,
-  },
-  progressText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
-  
+  progressBadge: { backgroundColor: `${colors.blue}15`, paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full },
+  progressText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.blue },
   content: { padding: Spacing.xl, paddingBottom: 100 },
-  questionTitle: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 32, lineHeight: 38,
-    color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing['3xl'],
-  },
+  questionTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 28, color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.xs },
+  questionSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing['2xl'] },
 
-  optionsContainer: { gap: Spacing.md },
+  optionsContainer: { gap: Spacing.md, marginTop: Spacing.xl },
   optionBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.bgSecondary,
@@ -916,6 +1018,20 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   gridOptionLabel3: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary, textAlign: 'center' },
   gridOptionDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
   gridOptionIconWrapper: { position: 'absolute', bottom: Spacing.xl, right: Spacing.xl },
+
+  // Pill Cloud Styles
+  cloudHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md, paddingHorizontal: Spacing.xs },
+  cloudHeaderTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.sm, color: colors.textPrimary },
+  cloudHeaderLink: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.blue },
+  pillCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: Spacing.xs },
+  cloudPill: { backgroundColor: `${colors.textTertiary}10`, paddingHorizontal: Spacing.lg, paddingVertical: 12, borderRadius: Radius.xl },
+  cloudPillActive: { backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
+  cloudPillText: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  cloudPillTextActive: { color: '#FFF' },
+  cloudSelectedContainer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing['3xl'] },
+  cloudSelectedLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textPrimary },
+  cloudSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${colors.blue}15`, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.sm },
+  cloudSelectedChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.blue },
 
   // Ruler Styles
   unitToggle: {
