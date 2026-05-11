@@ -112,23 +112,39 @@ export default function ClientLoginScreen() {
     try {
       const contactEmail = isEmail(contact.trim()) ? contact.trim().toLowerCase() : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
-      // Sign up — the DB trigger auto-links the client row by email
-      const { error: signUpErr } = await supabase.auth.signUp({
+      console.log('[ClientLogin] Step 1: Signing up with', contactEmail);
+
+      // Step 1: Create auth account (DB trigger will attempt auto-link)
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: contactEmail,
         password,
         options: { data: { name: name || 'Client', role: 'client' } },
       });
       if (signUpErr) throw signUpErr;
+      console.log('[ClientLogin] Step 2: SignUp success, userId:', signUpData.user?.id);
 
-      // Immediately sign in (bypasses email confirmation)
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
+      // Step 2: Sign in immediately
+      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: contactEmail,
         password,
       });
       if (signInErr) throw signInErr;
+      console.log('[ClientLogin] Step 3: SignIn success');
+
+      // Step 3: Explicitly link the client row (in case trigger didn't fire)
+      // This uses the lookup_client_by_contact RPC + a direct update via RPC
+      const userId = signInData.user?.id;
+      if (userId) {
+        const { data: linkResult, error: linkErr } = await supabase.rpc('link_client_to_auth_user', {
+          p_email: contactEmail,
+          p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
+        });
+        console.log('[ClientLogin] Step 4: Link result:', JSON.stringify({ linkResult, linkErr }));
+      }
 
       setSuccess('You\'re in! Redirecting...');
     } catch (err: any) {
+      console.error('[ClientLogin] Error:', err);
       setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
