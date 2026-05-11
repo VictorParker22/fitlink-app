@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground } from 'react-native';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -33,7 +33,82 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'female', label: 'Female', icon: 'female', image: require('../../assets/images/female_runner.png') },
     ]
   },
+  {
+    id: 'weight',
+    title: 'What is your weight?',
+    type: 'ruler',
+    config: {
+      kg: { min: 30, max: 200, default: 70 },
+      lbs: { min: 66, max: 440, default: 154 }
+    }
+  },
 ];
+
+// --- Custom Ruler Component ---
+const TICK_GAP = 10; // distance between short ticks
+const TICKS_PER_UNIT = 5; // 5 gaps = 1 unit
+const UNIT_WIDTH = TICK_GAP * TICKS_PER_UNIT; // 50px per integer unit
+
+function RulerPicker({ min, max, value, onChange }: { min: number, max: number, value: number, onChange: (v: number) => void }) {
+  const { width } = useWindowDimensions();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const halfWidth = width / 2;
+  const numUnits = max - min;
+  const totalTicks = numUnits * TICKS_PER_UNIT;
+
+  // Scroll to initial value on mount
+  useEffect(() => {
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        const offset = (value - min) * UNIT_WIDTH;
+        scrollViewRef.current.scrollTo({ x: offset, animated: false });
+      }
+    }, 100); // small delay to ensure layout
+  }, [min, max]); // re-run if units change
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    let val = min + Math.round(x / UNIT_WIDTH);
+    if (val < min) val = min;
+    if (val > max) val = max;
+    if (val !== value) onChange(val);
+  };
+
+  return (
+    <View style={styles.rulerContainer}>
+      <View style={styles.rulerPointer} />
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        snapToInterval={UNIT_WIDTH}
+        decelerationRate="fast"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{
+          paddingHorizontal: halfWidth,
+          alignItems: 'flex-end',
+          height: 100,
+        }}
+      >
+        {Array.from({ length: totalTicks + 1 }).map((_, i) => {
+          const isTall = i % TICKS_PER_UNIT === 0;
+          const currentVal = min + (i / TICKS_PER_UNIT);
+          
+          return (
+            <View key={i} style={[styles.tickWrapper, { width: TICK_GAP }]}>
+              <View style={[styles.tick, isTall ? styles.tickTall : styles.tickShort]} />
+              {isTall && (
+                <Text style={styles.tickLabel}>{currentVal}</Text>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function AssessmentScreen() {
   const router = useRouter();
@@ -48,8 +123,16 @@ export default function AssessmentScreen() {
 
   const question = ASSESSMENT_QUESTIONS[currentStep];
   const isLastStep = currentStep === ASSESSMENT_QUESTIONS.length - 1;
+  
+  // Ensure default state for ruler types
+  if (question.type === 'ruler' && !answers[question.id]) {
+    const unit = 'kg';
+    const defVal = (question as any).config[unit].default;
+    setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
+  }
+
   const currentAnswer = answers[question.id];
-  const canContinue = question.type === 'single' ? !!currentAnswer : (currentAnswer && currentAnswer.length > 0);
+  const canContinue = question.type === 'single' ? !!currentAnswer : true; // Ruler always has a value
 
   const handleSelect = (optionId: string) => {
     if (question.type === 'single') {
@@ -108,90 +191,131 @@ export default function AssessmentScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.questionTitle}>{question.title}</Text>
 
-        <View style={styles.optionsContainer}>
-          {question.options.map((option) => {
-            const isSelected = question.type === 'single' 
-              ? currentAnswer === option.id 
-              : (currentAnswer || []).includes(option.id);
+        {question.type === 'ruler' && currentAnswer && (
+          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+            {/* Unit Toggle */}
+            <View style={styles.unitToggle}>
+              {Object.keys((question as any).config).map((u) => {
+                const isActive = currentAnswer.unit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    style={[styles.unitBtn, isActive && styles.unitBtnActive]}
+                    onPress={() => {
+                      if (isActive) return;
+                      // Convert roughly or just switch to default
+                      const defVal = (question as any).config[u].default;
+                      setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit: u } }));
+                    }}
+                  >
+                    <Text style={[styles.unitText, isActive && styles.unitTextActive]}>{u}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-            const isImageOption = !!option.image;
+            {/* Display Value */}
+            <View style={styles.valueDisplay}>
+              <Text style={styles.valueNumber}>{currentAnswer.value}</Text>
+              <Text style={styles.valueUnit}>{currentAnswer.unit}</Text>
+            </View>
 
-            const content = (
-              <>
-                <View style={[styles.optionContentLeft, isImageOption && styles.optionContentLeftImage]}>
-                  {option.icon && (
-                    <Ionicons 
-                      name={option.icon as any} 
-                      size={20} 
-                      color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)} 
-                      style={isImageOption ? { marginRight: 8 } : undefined}
-                    />
-                  )}
-                  <Text style={[
-                    styles.optionLabel, 
-                    isSelected && !isImageOption && styles.optionLabelActive,
-                    isImageOption && { fontSize: FontSize.lg, color: '#111114' }
+            {/* Ruler Picker */}
+            <RulerPicker
+              min={(question as any).config[currentAnswer.unit].min}
+              max={(question as any).config[currentAnswer.unit].max}
+              value={currentAnswer.value}
+              onChange={(val) => setAnswers(prev => ({ ...prev, [question.id]: { ...currentAnswer, value: val } }))}
+            />
+          </View>
+        )}
+
+        {question.type !== 'ruler' && (
+          <View style={styles.optionsContainer}>
+            {question.options.map((option) => {
+              const isSelected = question.type === 'single' 
+                ? currentAnswer === option.id 
+                : (currentAnswer || []).includes(option.id);
+
+              const isImageOption = !!option.image;
+
+              const content = (
+                <>
+                  <View style={[styles.optionContentLeft, isImageOption && styles.optionContentLeftImage]}>
+                    {option.icon && (
+                      <Ionicons 
+                        name={option.icon as any} 
+                        size={20} 
+                        color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)} 
+                        style={isImageOption ? { marginRight: 8 } : undefined}
+                      />
+                    )}
+                    <Text style={[
+                      styles.optionLabel, 
+                      isSelected && !isImageOption && styles.optionLabelActive,
+                      isImageOption && { fontSize: FontSize.lg, color: '#111114' }
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </View>
+
+                  {/* Radio Button matching screenshot */}
+                  <View style={[
+                    styles.radioOuter, 
+                    isSelected && !isImageOption && styles.radioOuterActive,
+                    isImageOption && isSelected && { borderColor: '#111114' },
+                    isImageOption && !isSelected && { borderColor: '#666' },
+                    isImageOption && { position: 'absolute', bottom: Spacing.md, left: Spacing.md }
                   ]}>
-                    {option.label}
-                  </Text>
-                </View>
+                    {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: '#111114' }]} />}
+                  </View>
+                </>
+              );
 
-                {/* Radio Button matching screenshot */}
-                <View style={[
-                  styles.radioOuter, 
-                  isSelected && !isImageOption && styles.radioOuterActive,
-                  isImageOption && isSelected && { borderColor: '#111114' },
-                  isImageOption && !isSelected && { borderColor: '#666' },
-                  isImageOption && { position: 'absolute', bottom: Spacing.md, left: Spacing.md }
-                ]}>
-                  {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: '#111114' }]} />}
-                </View>
-              </>
-            );
+              if (isImageOption) {
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.imageOptionWrapper, isSelected && styles.imageOptionActive]}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelect(option.id)}
+                  >
+                    <ImageBackground source={option.image} style={styles.imageOptionBg} imageStyle={{ borderRadius: Radius.xl, opacity: 0.9 }}>
+                      {content}
+                    </ImageBackground>
+                  </TouchableOpacity>
+                );
+              }
 
-            if (isImageOption) {
               return (
                 <TouchableOpacity
                   key={option.id}
-                  style={[styles.imageOptionWrapper, isSelected && styles.imageOptionActive]}
-                  activeOpacity={0.8}
+                  style={[styles.optionBtn, isSelected && styles.optionBtnActive]}
+                  activeOpacity={0.7}
                   onPress={() => handleSelect(option.id)}
                 >
-                  <ImageBackground source={option.image} style={styles.imageOptionBg} imageStyle={{ borderRadius: Radius.xl, opacity: 0.9 }}>
-                    {content}
-                  </ImageBackground>
+                  {!isImageOption && option.icon && (
+                    <View style={[styles.iconContainer, isSelected && styles.iconContainerActive]}>
+                      <Ionicons 
+                        name={option.icon as any} 
+                        size={20} 
+                        color={isSelected ? '#FFF' : colors.textTertiary} 
+                      />
+                    </View>
+                  )}
+                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
+                    {option.label}
+                  </Text>
+                  
+                  {/* Radio Button */}
+                  <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
                 </TouchableOpacity>
               );
-            }
-
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.optionBtn, isSelected && styles.optionBtnActive]}
-                activeOpacity={0.7}
-                onPress={() => handleSelect(option.id)}
-              >
-                {!isImageOption && option.icon && (
-                  <View style={[styles.iconContainer, isSelected && styles.iconContainerActive]}>
-                    <Ionicons 
-                      name={option.icon as any} 
-                      size={20} 
-                      color={isSelected ? '#FFF' : colors.textTertiary} 
-                    />
-                  </View>
-                )}
-                <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
-                  {option.label}
-                </Text>
-                
-                {/* Radio Button */}
-                <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
-                  {isSelected && <View style={styles.radioInner} />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+            })}
+          </View>
+        )}
       </ScrollView>
 
       {/* Footer */}
@@ -279,6 +403,32 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   radioOuterActive: { borderColor: '#FFF' },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
+
+  // Ruler Styles
+  unitToggle: {
+    flexDirection: 'row', backgroundColor: colors.bgSecondary,
+    borderRadius: Radius.full, padding: 4, marginBottom: Spacing['3xl'],
+  },
+  unitBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: Radius.full },
+  unitBtnActive: { backgroundColor: colors.blue, shadowColor: colors.blue, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
+  unitText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textSecondary },
+  unitTextActive: { color: '#FFF' },
+
+  valueDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: Spacing['3xl'] },
+  valueNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 80, letterSpacing: -3, color: colors.textPrimary, includeFontPadding: false },
+  valueUnit: { fontFamily: FontFamily.bodySemiBold, fontSize: 32, color: colors.textTertiary, marginLeft: 8 },
+
+  rulerContainer: { position: 'relative', height: 120, justifyContent: 'flex-end', marginTop: Spacing.xl },
+  rulerPointer: {
+    position: 'absolute', top: 0, bottom: 30, width: 8, backgroundColor: colors.accent,
+    borderRadius: 4, left: '50%', transform: [{ translateX: -4 }], zIndex: 10,
+    shadowColor: colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4
+  },
+  tickWrapper: { alignItems: 'flex-start', justifyContent: 'flex-end', height: 100 },
+  tick: { backgroundColor: colors.border, borderRadius: 2, transform: [{ translateX: -1 }] }, // -1 to center the 2px tick over the gap start
+  tickTall: { width: 2, height: 40, backgroundColor: colors.textTertiary },
+  tickShort: { width: 2, height: 20 },
+  tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
