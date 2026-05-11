@@ -44,10 +44,10 @@ BEGIN
 
   -- Notify the trainer (non-critical, wrapped in exception handler)
   BEGIN
-    INSERT INTO public.notifications (trainer_id, type, title, message, read)
+    INSERT INTO public.notifications (trainer_id, type, title, description, is_read)
     VALUES (
       p_trainer_id,
-      'new_client',
+      'message',
       'New Client!',
       p_name || ' just signed up and chose you as their trainer!',
       false

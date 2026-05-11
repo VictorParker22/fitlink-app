@@ -339,14 +339,14 @@ export function AppProvider({ children }: PropsWithChildren) {
       .channel('public:notifications')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `trainer_id=eq.${user.id}` },
         (payload) => {
           setNotifications((prev) => [payload.new as NotificationData, ...prev]);
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `trainer_id=eq.${user.id}` },
         (payload) => {
           setNotifications((prev) =>
             prev.map((n) => (n.id === payload.new.id ? (payload.new as NotificationData) : n))
