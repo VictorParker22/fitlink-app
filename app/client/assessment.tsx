@@ -734,76 +734,104 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags' && question.type !== 'segmented_number') && (
-          <View style={[
-            styles.optionsContainer, 
-            ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && styles.optionsGrid,
-            (question as any).layout === 'pill_cloud' && { marginTop: Spacing.md }
-          ]}>
-            {(question as any).layout === 'pill_cloud' && (
-              <View style={styles.cloudHeaderRow}>
-                <Text style={styles.cloudHeaderTitle}>Most Common</Text>
-                <TouchableOpacity>
-                  <Text style={styles.cloudHeaderLink}>See All Supplements</Text>
+        {/* --- GRID LAYOUT (2-col and 3-col) --- */}
+        {(question.type === 'single' || question.type === 'multi') && ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && (
+          <View style={[styles.optionsContainer, styles.optionsGrid]}>
+            {question.options.map((option) => {
+              const isSelected = question.type === 'single'
+                ? currentAnswer === option.id
+                : (currentAnswer || []).includes(option.id);
+              const isGrid3 = (question as any).layout === 'grid-3';
+
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.gridOption,
+                    isGrid3 ? { width: grid3Width, padding: Spacing.md } : { width: grid2Width },
+                    isSelected && styles.gridOptionActive
+                  ]}
+                  onPress={() => handleSelect(option.id)}
+                  activeOpacity={0.7}
+                >
+                  {isGrid3 ? (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      {option.icon && (
+                        <Ionicons name={option.icon as any} size={32} color={isSelected ? '#FFF' : colors.textTertiary} />
+                      )}
+                      <Text style={[styles.gridOptionLabel3, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                      {option.description && (
+                        <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
+                      )}
+                      {option.icon && (
+                        <View style={styles.gridOptionIconWrapper}>
+                          <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
+                        </View>
+                      )}
+                    </>
+                  )}
                 </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* --- PILL CLOUD LAYOUT --- */}
+        {(question.type === 'single' || question.type === 'multi') && (question as any).layout === 'pill_cloud' && (
+          <View style={[styles.optionsContainer, { marginTop: Spacing.md }]}>
+            <View style={styles.cloudHeaderRow}>
+              <Text style={styles.cloudHeaderTitle}>Most Common</Text>
+              <TouchableOpacity>
+                <Text style={styles.cloudHeaderLink}>See All Supplements</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pillCloud}>
+              {question.options.map((option) => {
+                const isSelected = (currentAnswer || []).includes(option.id);
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.cloudPill, isSelected && styles.cloudPillActive]}
+                    onPress={() => handleSelect(option.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.cloudPillText, isSelected && styles.cloudPillTextActive]}>{option.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {currentAnswer && currentAnswer.length > 0 && (
+              <View style={styles.cloudSelectedContainer}>
+                <Text style={styles.cloudSelectedLabel}>Selected</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: Spacing.xl }}>
+                  {currentAnswer.map((id: string) => {
+                    const opt = question.options.find(o => o.id === id);
+                    return (
+                      <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
+                        <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
+                        <Ionicons name="close" size={14} color={colors.blue} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
             )}
+          </View>
+        )}
 
-            <View style={[(question as any).layout === 'pill_cloud' && styles.pillCloud]}>
-              {question.options.map((option) => {
-                const isSelected = question.type === 'single' 
-                  ? currentAnswer === option.id 
-                  : (currentAnswer || []).includes(option.id);
-
-                if ((question as any).layout === 'pill_cloud') {
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      style={[styles.cloudPill, isSelected && styles.cloudPillActive]}
-                      onPress={() => handleSelect(option.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.cloudPillText, isSelected && styles.cloudPillTextActive]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  );
-                }
-
-                if ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') {
-                 const isGrid3 = (question as any).layout === 'grid-3';
-                 return (
-                    <TouchableOpacity
-                      key={option.id}
-                      style={[
-                        styles.gridOption, 
-                        isGrid3 ? { width: grid3Width, padding: Spacing.md } : { width: grid2Width },
-                        isSelected && styles.gridOptionActive
-                      ]}
-                      onPress={() => handleSelect(option.id)}
-                      activeOpacity={0.7}
-                    >
-                      {isGrid3 ? (
-                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          {option.icon && (
-                            <Ionicons name={option.icon as any} size={32} color={isSelected ? '#FFF' : colors.textTertiary} />
-                          )}
-                          <Text style={[styles.gridOptionLabel3, isSelected && { color: '#FFF' }]}>{option.label}</Text>
-                        </View>
-                      ) : (
-                        <>
-                          <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
-                          {option.description && (
-                            <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
-                          )}
-                          {option.icon && (
-                            <View style={styles.gridOptionIconWrapper}>
-                               <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
-                            </View>
-                          )}
-                        </>
-                      )}
-                    </TouchableOpacity>
-                 );
-              }
+        {/* --- DEFAULT LIST LAYOUT (radio buttons) --- */}
+        {(question.type === 'single' || question.type === 'multi') && !(question as any).layout && (
+          <View style={styles.optionsContainer}>
+            {question.options.map((option) => {
+              const isSelected = question.type === 'single'
+                ? currentAnswer === option.id
+                : (currentAnswer || []).includes(option.id);
 
               const isImageOption = !!option.image;
 
@@ -811,15 +839,15 @@ export default function AssessmentScreen() {
                 <>
                   <View style={[styles.optionContentLeft, isImageOption && styles.optionContentLeftImage]}>
                     {option.icon && (
-                      <Ionicons 
-                        name={option.icon as any} 
-                        size={20} 
-                        color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)} 
+                      <Ionicons
+                        name={option.icon as any}
+                        size={20}
+                        color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)}
                         style={isImageOption ? { marginRight: 8 } : undefined}
                       />
                     )}
                     <Text style={[
-                      styles.optionLabel, 
+                      styles.optionLabel,
                       isSelected && !isImageOption && styles.optionLabelActive,
                       isImageOption && { fontSize: FontSize.lg, color: '#111114' }
                     ]}>
@@ -827,9 +855,8 @@ export default function AssessmentScreen() {
                     </Text>
                   </View>
 
-                  {/* Radio Button matching screenshot */}
                   <View style={[
-                    styles.radioOuter, 
+                    styles.radioOuter,
                     isSelected && !isImageOption && styles.radioOuterActive,
                     isImageOption && isSelected && { borderColor: '#111114' },
                     isImageOption && !isSelected && { borderColor: '#666' },
@@ -864,43 +891,22 @@ export default function AssessmentScreen() {
                 >
                   {!isImageOption && option.icon && (
                     <View style={[styles.iconContainer, isSelected && styles.iconContainerActive]}>
-                      <Ionicons 
-                        name={option.icon as any} 
-                        size={20} 
-                        color={isSelected ? '#FFF' : colors.textTertiary} 
+                      <Ionicons
+                        name={option.icon as any}
+                        size={20}
+                        color={isSelected ? '#FFF' : colors.textTertiary}
                       />
                     </View>
                   )}
                   <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
                     {option.label}
                   </Text>
-                  
-                  {/* Radio Button */}
                   <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
                     {isSelected && <View style={styles.radioInner} />}
                   </View>
                 </TouchableOpacity>
               );
             })}
-
-              {/* Selected Chips for Pill Cloud Layout */}
-              {(question as any).layout === 'pill_cloud' && currentAnswer && currentAnswer.length > 0 && (
-                <View style={styles.cloudSelectedContainer}>
-                  <Text style={styles.cloudSelectedLabel}>Selected</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: Spacing.xl }}>
-                    {currentAnswer.map((id: string) => {
-                      const opt = question.options.find(o => o.id === id);
-                      return (
-                        <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
-                          <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
-                          <Ionicons name="close" size={14} color={colors.blue} />
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
           </View>
         )}
       </ScrollView>
