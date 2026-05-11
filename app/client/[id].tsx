@@ -154,6 +154,30 @@ export default function ClientDetailScreen() {
           </>
         )}
 
+        {/* Assessment Results */}
+        {client.assessment_data && Object.keys(client.assessment_data).length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Results</Text>
+            <Card style={styles.assessmentCard}>
+              {Object.entries(client.assessment_data).map(([key, value], index, arr) => {
+                // Formatting key (e.g. "lose_weight" -> "Lose weight")
+                let formattedKey = key.replace(/_/g, ' ');
+                formattedKey = formattedKey.charAt(0).toUpperCase() + formattedKey.slice(1);
+                
+                // Formatting value (if array, join with comma)
+                const formattedValue = Array.isArray(value) ? value.join(', ') : String(value);
+
+                return (
+                  <View key={key} style={[styles.assessmentRow, index < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <Text style={[styles.assessmentKey, { color: colors.textTertiary }]}>{formattedKey}</Text>
+                    <Text style={[styles.assessmentValue, { color: colors.textPrimary }]}>{formattedValue}</Text>
+                  </View>
+                );
+              })}
+            </Card>
+          </>
+        )}
+
         {/* Assigned Workouts */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assigned Workouts</Text>
@@ -450,6 +474,11 @@ const styles = StyleSheet.create({
 
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
   contactValue: { flex: 1, fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base },
+
+  assessmentCard: { marginBottom: Spacing.xl },
+  assessmentRow: { paddingVertical: Spacing.sm },
+  assessmentKey: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, textTransform: 'uppercase', marginBottom: 2 },
+  assessmentValue: { fontFamily: FontFamily.body, fontSize: FontSize.base },
 
   emptySection: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
   emptySectionText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },

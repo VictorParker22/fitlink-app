@@ -40,6 +40,21 @@ export default function ClientHomeScreen() {
         <Text style={[styles.name, { color: colors.textPrimary }]}>{firstName} 💪</Text>
         {trainer && <Text style={[styles.trainerLine, { color: colors.textTertiary }]}>Training with Coach {trainer.name?.split(' ')[0]}</Text>}
 
+        {/* Assessment Prompt */}
+        {!clientData.assessment_data && (
+          <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/client/assessment' as any)}>
+            <Card style={[styles.assessmentCard, { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+              <View style={styles.assessmentCardInner}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.assessmentTitle}>Complete your profile</Text>
+                  <Text style={styles.assessmentDesc}>Help your coach build the perfect plan by sharing your goals.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#FFF" />
+              </View>
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {/* Quick Stats */}
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
@@ -113,6 +128,11 @@ const styles = StyleSheet.create({
   greeting: { fontFamily: FontFamily.body, fontSize: FontSize.base },
   name: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], letterSpacing: -0.5 },
   trainerLine: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: Spacing.xs },
+
+  assessmentCard: { marginTop: Spacing.xl, paddingVertical: Spacing.md },
+  assessmentCardInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  assessmentTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: '#FFF' },
+  assessmentDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: 2, paddingRight: Spacing.md },
 
   statsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xl },
   statCard: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md },

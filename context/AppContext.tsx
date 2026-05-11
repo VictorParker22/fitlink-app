@@ -25,6 +25,7 @@ interface Client {
   plan_id?: string;
   notes?: string;
   goals?: string;
+  assessment_data?: any;
   created_at: string;
 }
 
@@ -189,6 +190,7 @@ interface AppContextType {
   // Operations
   addClient: (data: Partial<Client>) => Promise<Client>;
   updateClient: (id: string, updates: Partial<Client>) => Promise<Client>;
+  updateClientAssessment: (clientId: string, assessmentData: any) => Promise<void>;
   getClientById: (id: string) => Client | undefined;
   addSession: (data: Partial<Session>) => Promise<Session>;
   updateSession: (id: string, updates: Partial<Session>) => Promise<Session>;
@@ -377,6 +379,17 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
     return data;
   }, [user]);
+
+  const updateClientAssessment = useCallback(async (clientId: string, assessmentData: any) => {
+    const { error } = await supabase
+      .from('clients')
+      .update({ assessment_data: assessmentData })
+      .eq('id', clientId);
+      
+    if (error) throw error;
+    
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, assessment_data: assessmentData } : c));
+  }, []);
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
     const { data, error } = await supabase
@@ -733,6 +746,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     totalMonthlyRevenue,
     addClient,
     updateClient,
+    updateClientAssessment,
     getClientById,
     addSession,
     updateSession,
