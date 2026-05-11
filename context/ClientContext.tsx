@@ -50,11 +50,13 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
     setLoading(true);
     try {
-      const { data: client } = await supabase
+      const { data: client, error: clientErr } = await supabase
         .from('clients')
         .select('*')
         .eq('auth_user_id', user.id)
         .single();
+
+      console.log('[ClientContext] Fetch result:', JSON.stringify({ userId: user.id, client: client?.id, clientErr }));
 
       if (!client) { setLoading(false); return; }
       setClientData(client);
@@ -74,8 +76,15 @@ export function ClientProvider({ children }: PropsWithChildren) {
           .select('*')
           .eq('client_id', client.id)
           .order('date', { ascending: false }),
-        supabase.from('conversations').select('*').eq('client_id', client.id).single(),
+        supabase.from('conversations').select('*').eq('client_id', client.id).maybeSingle(),
       ]);
+
+      console.log('[ClientContext] Related data:', JSON.stringify({
+        trainer: !!trainerRes.data,
+        sessions: sessionsRes.data?.length,
+        workouts: workoutsRes.data?.length,
+        trainerErr: trainerRes.error?.message,
+      }));
 
       if (trainerRes.data) setTrainer(trainerRes.data);
       if (sessionsRes.data) setSessions(sessionsRes.data);
