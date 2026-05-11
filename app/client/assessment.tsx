@@ -109,6 +109,14 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-circle-outline' as any },
     ]
   },
+  {
+    id: 'commit_days',
+    title: 'How many days/wk will you commit?',
+    type: 'segmented_number',
+    min: 1,
+    max: 7,
+    default: 5,
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -443,7 +451,7 @@ export default function AssessmentScreen() {
     const unit = 'kg';
     const defVal = (question as any).config[unit].default;
     setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
-  } else if ((question.type === 'wheel' || question.type === 'arc_slider') && !answers[question.id]) {
+  } else if ((question.type === 'wheel' || question.type === 'arc_slider' || question.type === 'segmented_number') && !answers[question.id]) {
     setAnswers(prev => ({ ...prev, [question.id]: (question as any).default }));
   } else if (question.type === 'tags' && !answers[question.id]) {
     setAnswers(prev => ({ ...prev, [question.id]: [] }));
@@ -618,7 +626,38 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags') && (
+        {question.type === 'segmented_number' && currentAnswer && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: Spacing['3xl'] }}>
+            <Text style={styles.massiveSegmentedNumber}>{currentAnswer}x</Text>
+            
+            <View style={styles.segmentedContainer}>
+               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentedScroll}>
+                  {Array.from({ length: (question as any).max - (question as any).min + 1 }).map((_, i) => {
+                     const val = (question as any).min + i;
+                     const isSelected = val === currentAnswer;
+                     return (
+                       <TouchableOpacity 
+                         key={val} 
+                         onPress={() => setAnswers(prev => ({ ...prev, [question.id]: val }))} 
+                         style={[styles.segmentedItemBox, isSelected && styles.segmentedItemBoxActive]}
+                         activeOpacity={0.8}
+                       >
+                          <View style={[styles.segmentedItem, isSelected && styles.segmentedItemActive]}>
+                            <Text style={[styles.segmentedItemText, isSelected && styles.segmentedItemTextActive]}>{val}</Text>
+                          </View>
+                       </TouchableOpacity>
+                     );
+                  })}
+               </ScrollView>
+            </View>
+            
+            <Text style={styles.segmentedFooterText}>
+               I'm commited to exercising <Text style={{ fontFamily: FontFamily.bodySemiBold, color: colors.textPrimary }}>{currentAnswer}x</Text> weekly
+            </Text>
+          </View>
+        )}
+
+        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags' && question.type !== 'segmented_number') && (
           <View style={[styles.optionsContainer, ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && styles.optionsGrid]}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
@@ -931,6 +970,18 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   suggestionsLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textSecondary },
   suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.blue}15`, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.md },
   suggestionText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.blue },
+
+  // Segmented Number Styles
+  massiveSegmentedNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 160, lineHeight: 160, letterSpacing: -10, color: '#111114', includeFontPadding: false },
+  segmentedContainer: { backgroundColor: `${colors.textTertiary}15`, borderRadius: 100, marginTop: Spacing['3xl'], marginBottom: Spacing['2xl'] },
+  segmentedScroll: { padding: 4, alignItems: 'center' },
+  segmentedItemBox: { padding: 4, borderRadius: 100 },
+  segmentedItemBoxActive: { backgroundColor: `${colors.blue}20` },
+  segmentedItem: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  segmentedItemActive: { backgroundColor: colors.blue, shadowColor: colors.blue, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 },
+  segmentedItemText: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textTertiary },
+  segmentedItemTextActive: { color: '#FFF' },
+  segmentedFooterText: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
