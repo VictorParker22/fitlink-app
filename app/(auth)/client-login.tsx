@@ -18,8 +18,8 @@ const HERO_HEIGHT = 200;
 // Lookup status after email/phone entered
 type LookupStatus = 'idle' | 'checking' | 'found' | 'not_found';
 
-// Flow: email entry → lookup → either OTP verify or full signup + pick trainer
-type FlowStep = 'enter_info' | 'verify_otp' | 'pick_trainer';
+// Flow: contact entry → lookup → either create password or full signup + pick trainer
+type FlowStep = 'enter_info' | 'create_password' | 'pick_trainer';
 
 export default function ClientLoginScreen() {
   const router = useRouter();
@@ -88,18 +88,7 @@ export default function ClientLoginScreen() {
           setFoundTrainerName(data.trainer_name || 'your trainer');
           setName(data.client_name || '');
           setLookupStatus('found');
-
-          // Send OTP via email or phone
-          if (data.client_email) {
-            const { error: otpErr } = await supabase.auth.signInWithOtp({ email: data.client_email.toLowerCase() });
-            if (otpErr) throw otpErr;
-            setSuccess(`Code sent to ${data.client_email}!`);
-          } else if (data.client_phone) {
-            const { error: otpErr } = await supabase.auth.signInWithOtp({ phone: data.client_phone });
-            if (otpErr) throw otpErr;
-            setSuccess(`Code sent to ${data.client_phone}!`);
-          }
-          setFlowStep('verify_otp');
+          setFlowStep('create_password');
         }
       } else {
         setLookupStatus('not_found');
@@ -112,46 +101,44 @@ export default function ClientLoginScreen() {
     }
   }, [contact]);
 
-  // --- Existing client: send OTP to email ---
-  const handleSendOtp = async () => {
+  // --- Existing client: create password & sign in ---
+  const handleCreatePassword = async () => {
     setError('');
-    setLoading(true);
-    try {
-      const trimmedContact = contact.trim().toLowerCase();
-      const { error: otpErr } = await supabase.auth.signInWithOtp({ email: trimmedContact });
-      if (otpErr) throw otpErr;
-      setFlowStep('verify_otp');
-      setSuccess('Verification code sent to your email!');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- Verify OTP & link account ---
-  const handleVerifyOtp = async () => {
-    setError('');
-    if (otpCode.length < 6) return setError('Enter the 6-digit code');
+    if (!password.trim()) return setError('Create a password');
+    if (password.length < 6) return setError('Password must be 6+ characters');
+    if (password !== confirmPassword) return setError("Passwords don't match");
 
     setLoading(true);
     try {
-      const trimmed = contact.trim();
-      const isEmailInput = isEmail(trimmed);
-      const verifyPayload = isEmailInput
-        ? { email: trimmed.toLowerCase(), token: otpCode, type: 'email' as const }
-        : { phone: formatPhone(trimmed), token: otpCode, type: 'sms' as const };
+      const contactEmail = isEmail(contact.trim()) ? contact.trim().toLowerCase() : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
-      const { data, error: verifyErr } = await supabase.auth.verifyOtp(verifyPayload);
-      if (verifyErr) throw verifyErr;
+      // Create auth account
+      const { error: signUpErr } = await supabase.auth.signUp({
+        email: contactEmail,
+        password,
+        options: { data: { name: name || 'Client', role: 'client' } },
+      });
+      if (signUpErr) throw signUpErr;
 
-      if (data.user) {
-        await supabase.auth.updateUser({ data: { name: name || 'Client', role: 'client' } });
-        await linkClientAccount(data.user.id, isEmailInput ? trimmed.toLowerCase() : undefined, !isEmailInput ? formatPhone(trimmed) : undefined);
+      // Immediately sign in (bypasses email confirmation)
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: contactEmail,
+        password,
+      });
+      if (signInErr) throw signInErr;
+
+      // Link to client row
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await linkClientAccount(
+          user.id,
+          isEmail(contact.trim()) ? contact.trim().toLowerCase() : undefined,
+          !isEmail(contact.trim()) ? formatPhone(contact.trim()) : undefined,
+        );
       }
       setSuccess('You\'re in! Redirecting...');
     } catch (err: any) {
-      setError(err.message || 'Invalid code');
+      setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -393,30 +380,40 @@ export default function ClientLoginScreen() {
             </>
           )}
 
-          {/* ============ STEP 2: Existing client — verify OTP ============ */}
-          {flowStep === 'verify_otp' && (
+          {/* ============ STEP 2: Existing client — create password ============ */}
+          {flowStep === 'create_password' && (
             <>
-              <Text style={styles.title}>Verify Your Identity 📬</Text>
+              <Text style={styles.title}>Almost There! 🎉</Text>
               <View style={styles.foundBanner}>
                 <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.foundTitle}>Welcome, {foundClient?.name}!</Text>
-                  <Text style={styles.foundSub}>We sent a 6-digit code to {contact}. Enter it below to get started with Coach {foundTrainerName}.</Text>
+                  <Text style={styles.foundSub}>Coach {foundTrainerName} has everything ready for you. Just create a password to get started.</Text>
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Verification Code</Text>
+                <Text style={styles.inputLabel}>Create Password</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="000000" placeholderTextColor={Colors.textTertiary} value={otpCode} onChangeText={setOtpCode} keyboardType="number-pad" maxLength={6} autoFocus />
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="6+ characters" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoFocus />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleVerifyOtp} disabled={loading} activeOpacity={0.85}>
-                <Text style={styles.submitText}>{loading ? 'Verifying...' : "Let's Go!"}</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Confirm Password</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={Colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+                </View>
+              </View>
+              <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleCreatePassword} disabled={loading} activeOpacity={0.85}>
+                <Text style={styles.submitText}>{loading ? 'Setting up...' : "Let's Go!"}</Text>
                 <Ionicons name="arrow-forward" size={18} color={Colors.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setFlowStep('enter_info'); setOtpCode(''); setError(''); }} style={{ marginTop: Spacing.md, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => { setFlowStep('enter_info'); setPassword(''); setConfirmPassword(''); setError(''); }} style={{ marginTop: Spacing.md, alignItems: 'center' }}>
                 <Text style={styles.backText}>← Change email</Text>
               </TouchableOpacity>
             </>
