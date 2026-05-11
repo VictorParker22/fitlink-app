@@ -472,6 +472,14 @@ export default function AssessmentScreen() {
   const { updateClientAssessment } = useApp();
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate precise grid widths to prevent overlapping
+  const containerPadding = Spacing.xl * 2;
+  const gap = Spacing.md;
+  const availableWidth = windowWidth - containerPadding;
+  const grid2Width = Math.floor((availableWidth - gap) / 2);
+  const grid3Width = Math.floor((availableWidth - gap * 2) / 3);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -767,7 +775,7 @@ export default function AssessmentScreen() {
                       key={option.id}
                       style={[
                         styles.gridOption, 
-                        isGrid3 && styles.gridOption3,
+                        isGrid3 ? { width: grid3Width, padding: Spacing.md } : { width: grid2Width },
                         isSelected && styles.gridOptionActive
                       ]}
                       onPress={() => handleSelect(option.id)}
@@ -999,16 +1007,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   // Grid Layout Styles
   optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   gridOption: {
-    width: '48%', // roughly half minus gap
     aspectRatio: 1, // square
     backgroundColor: `${colors.textTertiary}10`,
     borderRadius: Radius.xl,
     padding: Spacing.xl,
     position: 'relative'
-  },
-  gridOption3: {
-    width: '31%', // roughly third minus gap
-    padding: Spacing.md,
   },
   gridOptionActive: {
     backgroundColor: colors.accent,
