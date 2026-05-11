@@ -23,7 +23,7 @@ type FlowStep = 'enter_info' | 'create_password' | 'pick_trainer';
 
 export default function ClientLoginScreen() {
   const router = useRouter();
-  const { signUpAsClient, signIn, linkClientAccount } = useAuth();
+  const { signUpAsClient, signIn } = useAuth();
 
   const [flowStep, setFlowStep] = useState<FlowStep>('enter_info');
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
@@ -112,7 +112,7 @@ export default function ClientLoginScreen() {
     try {
       const contactEmail = isEmail(contact.trim()) ? contact.trim().toLowerCase() : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
-      // Create auth account
+      // Sign up — the DB trigger auto-links the client row by email
       const { error: signUpErr } = await supabase.auth.signUp({
         email: contactEmail,
         password,
@@ -127,15 +127,6 @@ export default function ClientLoginScreen() {
       });
       if (signInErr) throw signInErr;
 
-      // Link to client row
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await linkClientAccount(
-          user.id,
-          isEmail(contact.trim()) ? contact.trim().toLowerCase() : undefined,
-          !isEmail(contact.trim()) ? formatPhone(contact.trim()) : undefined,
-        );
-      }
       setSuccess('You\'re in! Redirecting...');
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
@@ -234,11 +225,7 @@ export default function ClientLoginScreen() {
     setLoading(true);
     try {
       await signIn(contact.trim().toLowerCase(), password);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.auth.updateUser({ data: { role: 'client' } });
-        await linkClientAccount(user.id, contact.trim().toLowerCase());
-      }
+      // Role is already set from signup metadata
     } catch (err: any) {
       setError(err.message || 'Invalid credentials');
     } finally {

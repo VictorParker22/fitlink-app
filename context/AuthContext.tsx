@@ -15,7 +15,6 @@ interface AuthContextType {
   verifyOtp: (phone: string, token: string, metadata?: Record<string, string>) => Promise<any>;
   signUpAsClient: (email: string, password: string, name: string) => Promise<void>;
   verifyOtpAsClient: (phone: string, token: string, name?: string) => Promise<any>;
-  linkClientAccount: (userId: string, email?: string, phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -92,11 +91,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       options: { data: { name, role: 'client' } },
     });
     if (error) throw error;
-
-    // Auto-link after signup
-    if (data.user) {
-      await linkClientAccount(data.user.id, email);
-    }
+    // DB trigger on auth.users automatically links matching client row
   }, []);
 
   const verifyOtpAsClient = useCallback(async (phone: string, token: string, name?: string) => {
@@ -112,26 +107,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const meta: Record<string, string> = { role: 'client' };
       if (name) meta.name = name;
       await supabase.auth.updateUser({ data: meta });
-
-      // Auto-link
-      await linkClientAccount(data.user.id, undefined, phone);
+      // DB trigger handles auto-linking by phone via raw_user_meta_data
     }
 
     return data;
   }, []);
-
-  const linkClientAccount = useCallback(async (userId: string, email?: string, phone?: string) => {
-    try {
-      const { data, error } = await supabase.rpc('link_client_account', {
-        p_user_id: userId,
-        p_email: email || null,
-        p_phone: phone || null,
-      });
-      console.log('[AuthContext] Link result:', JSON.stringify({ data, error }));
-    } catch (err) {
-      console.warn('Auto-link client failed:', err);
-    }
-  }, []);
+  // linkClientAccount is no longer needed — a DB trigger on auth.users
+  // automatically sets auth_user_id on matching client rows at signup time.
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
@@ -151,7 +133,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       verifyOtp,
       signUpAsClient,
       verifyOtpAsClient,
-      linkClientAccount,
       signOut,
     }}>
       {children}
