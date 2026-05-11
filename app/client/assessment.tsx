@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder, TextInput } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,6 +71,14 @@ const ASSESSMENT_QUESTIONS = [
       4: 'Athletic',
       5: 'Advanced'
     }
+  },
+  {
+    id: 'physical_limitations',
+    title: 'Do you have any physical limitations?',
+    type: 'tags',
+    image: require('../../assets/images/walker.png'),
+    suggestions: ['Knee Pain', 'Muscle Pain', 'Arthritis', 'Back Pain', 'Asthma', 'Obesity'],
+    maxTags: 10,
   },
 ];
 
@@ -325,6 +333,68 @@ function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
   );
 }
 
+// --- Custom Tags Picker Component ---
+function TagsPicker({ question, value, onChange }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const [inputText, setInputText] = useState('');
+  const tags = value || [];
+
+  const handleAddTag = (tag: string) => {
+    if (tag.trim() && tags.length < (question.maxTags || 10) && !tags.includes(tag.trim())) {
+      onChange([...tags, tag.trim()]);
+    }
+    setInputText('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    onChange(tags.filter((t: string) => t !== tagToRemove));
+  };
+
+  return (
+    <View style={styles.tagsContainer}>
+      <View style={styles.tagsInputBox}>
+        <View style={styles.tagsList}>
+          {tags.map((tag: string) => (
+            <TouchableOpacity key={tag} style={styles.tagItem} onPress={() => handleRemoveTag(tag)}>
+              <Text style={styles.tagText}>{tag}</Text>
+            </TouchableOpacity>
+          ))}
+          {tags.length < (question.maxTags || 10) && (
+            <TextInput
+              style={styles.tagInput}
+              value={inputText}
+              onChangeText={setInputText}
+              onSubmitEditing={() => handleAddTag(inputText)}
+              placeholder={tags.length === 0 ? "Type a limitation..." : ""}
+              placeholderTextColor={colors.textTertiary}
+              returnKeyType="done"
+            />
+          )}
+        </View>
+        <View style={styles.tagsFooterBox}>
+           <Ionicons name="document-text" size={14} color={colors.textTertiary} />
+           <Text style={styles.tagsCount}>{tags.length}/{question.maxTags || 10}</Text>
+        </View>
+      </View>
+
+      {question.suggestions && question.suggestions.length > 0 && (
+        <View style={styles.suggestionsRow}>
+          <Text style={styles.suggestionsLabel}>Most Common:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+             {question.suggestions.filter((s: string) => !tags.includes(s)).map((s: string) => (
+               <TouchableOpacity key={s} style={styles.suggestionItem} onPress={() => handleAddTag(s)}>
+                 <Text style={styles.suggestionText}>{s}</Text>
+                 <Ionicons name="add" size={14} color={colors.blue} />
+               </TouchableOpacity>
+             ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function AssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -346,6 +416,8 @@ export default function AssessmentScreen() {
     setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
   } else if ((question.type === 'wheel' || question.type === 'arc_slider') && !answers[question.id]) {
     setAnswers(prev => ({ ...prev, [question.id]: (question as any).default }));
+  } else if (question.type === 'tags' && !answers[question.id]) {
+    setAnswers(prev => ({ ...prev, [question.id]: [] }));
   }
 
   const currentAnswer = answers[question.id];
@@ -498,7 +570,26 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider') && (
+        {question.type === 'tags' && currentAnswer && (
+          <View style={{ flex: 1, marginTop: Spacing.md }}>
+            {question.image && (
+              <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl }}>
+                <Image 
+                  source={(question as any).image} 
+                  style={{ width: '100%', height: 220 }} 
+                  resizeMode="contain" 
+                />
+              </View>
+            )}
+            <TagsPicker
+              question={question}
+              value={currentAnswer}
+              onChange={(val: string[]) => setAnswers(prev => ({ ...prev, [question.id]: val }))}
+            />
+          </View>
+        )}
+
+        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider' && question.type !== 'tags') && (
           <View style={styles.optionsContainer}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
@@ -741,6 +832,20 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   arcValueLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textSecondary, textAlign: 'right', marginTop: -10 },
   arcHint: { position: 'absolute', top: -40, left: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
   arcHintText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
+
+  // Tags Styles
+  tagsContainer: { flex: 1 },
+  tagsInputBox: { borderWidth: 2, borderColor: colors.accent, borderRadius: Radius.xl, padding: Spacing.lg, minHeight: 140 },
+  tagsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tagItem: { backgroundColor: `${colors.accent}20`, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.md },
+  tagText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
+  tagInput: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, minWidth: 100, paddingVertical: 8 },
+  tagsFooterBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 'auto', paddingTop: Spacing.md },
+  tagsCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
+  suggestionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.lg, gap: Spacing.md },
+  suggestionsLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textSecondary },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.blue}15`, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.md },
+  suggestionText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.blue },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
