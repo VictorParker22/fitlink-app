@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +56,21 @@ const ASSESSMENT_QUESTIONS = [
     title: 'Do you have previous fitness experience?',
     type: 'yes_no',
     image: require('../../assets/images/fitness_experience.png'),
+  },
+  {
+    id: 'fitness_level',
+    title: 'How would you rate your fitness level?',
+    type: 'arc_slider',
+    min: 1,
+    max: 5,
+    default: 3,
+    labels: {
+      1: 'Beginner',
+      2: 'Novice',
+      3: 'Somewhat Athletic',
+      4: 'Athletic',
+      5: 'Advanced'
+    }
   },
 ];
 
@@ -198,6 +214,117 @@ function WheelPicker({ min, max, value, onChange }: { min: number, max: number, 
   );
 }
 
+// --- Custom Arc Slider Component ---
+const ARC_HEIGHT = 400;
+const ARC_WIDTH = 120;
+const P1_X = ARC_WIDTH * 2.2; // pull control point to the right
+const THUMB_SIZE = 56;
+
+function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const range = max - min;
+  
+  const [t, setT] = useState((value - min) / range);
+  const tRef = useRef(t);
+  const startTRef = useRef(t);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        startTRef.current = tRef.current;
+      },
+      onPanResponderMove: (e, gestureState) => {
+        let newT = startTRef.current - (gestureState.dy / ARC_HEIGHT);
+        if (newT < 0) newT = 0;
+        if (newT > 1) newT = 1;
+        tRef.current = newT;
+        setT(newT);
+        
+        const val = min + Math.round(newT * range);
+        if (val !== value) onChange(val);
+      },
+      onPanResponderRelease: () => {
+        const val = min + Math.round(tRef.current * range);
+        const snappedT = (val - min) / range;
+        tRef.current = snappedT;
+        setT(snappedT);
+        onChange(val);
+      }
+    })
+  ).current;
+
+  useEffect(() => {
+    const targetT = (value - min) / range;
+    tRef.current = targetT;
+    setT(targetT);
+  }, [value, min, max, range]);
+
+  // Thumb position
+  const x = 2 * (1 - t) * t * P1_X;
+  const y = ARC_HEIGHT * (1 - t);
+
+  // Ticks path
+  let ticksPath = "";
+  for (let i = min; i <= max; i++) {
+    const tickT = (i - min) / range;
+    const tx = 2 * (1 - tickT) * tickT * P1_X;
+    const ty = ARC_HEIGHT * (1 - tickT);
+    const dx = 2 * P1_X * (1 - 2 * tickT);
+    const dy = -ARC_HEIGHT;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const nx = dy / len;
+    const ny = -dx / len;
+    
+    const tickLen = 8;
+    ticksPath += ` M ${tx + nx * tickLen} ${ty + ny * tickLen} L ${tx - nx * tickLen} ${ty - ny * tickLen}`;
+  }
+
+  const arcPath = `M 0 ${ARC_HEIGHT} Q ${P1_X} ${ARC_HEIGHT / 2} 0 0`;
+  const filledHeight = Math.max(0, t * ARC_HEIGHT);
+
+  return (
+    <View style={styles.arcContainer}>
+      {/* Left side: The Arc Slider */}
+      <View style={{ width: ARC_WIDTH, height: ARC_HEIGHT, position: 'relative' }}>
+        {/* Background Arc */}
+        <Svg width={ARC_WIDTH} height={ARC_HEIGHT} style={{ position: 'absolute' }}>
+          <Path d={arcPath} stroke={colors.border} strokeWidth={6} fill="none" strokeLinecap="round" />
+          <Path d={ticksPath} stroke={colors.textTertiary} strokeWidth={2} />
+        </Svg>
+        
+        {/* Filled Arc */}
+        <View style={{ position: 'absolute', bottom: 0, width: ARC_WIDTH, height: filledHeight, overflow: 'hidden' }}>
+          <Svg width={ARC_WIDTH} height={ARC_HEIGHT} style={{ position: 'absolute', bottom: 0 }}>
+            <Path d={arcPath} stroke={colors.accent} strokeWidth={6} fill="none" strokeLinecap="round" />
+          </Svg>
+        </View>
+
+        {/* Thumb */}
+        <View
+          {...panResponder.panHandlers}
+          style={[styles.arcThumb, { left: x - THUMB_SIZE / 2, top: y - THUMB_SIZE / 2 }]}
+        >
+          <View style={styles.arcThumbInner} />
+        </View>
+      </View>
+
+      {/* Right side: The Value Display */}
+      <View style={styles.arcValueDisplay}>
+        <Text style={styles.arcValueNumber}>{value}</Text>
+        <Text style={styles.arcValueLabel}>{labels[value]}</Text>
+      </View>
+
+      {/* Hint */}
+      <View style={styles.arcHint}>
+        <Ionicons name="help-circle" size={16} color={colors.textTertiary} />
+        <Text style={styles.arcHintText}>Drag to adjust</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function AssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -217,12 +344,12 @@ export default function AssessmentScreen() {
     const unit = 'kg';
     const defVal = (question as any).config[unit].default;
     setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
-  } else if (question.type === 'wheel' && !answers[question.id]) {
+  } else if ((question.type === 'wheel' || question.type === 'arc_slider') && !answers[question.id]) {
     setAnswers(prev => ({ ...prev, [question.id]: (question as any).default }));
   }
 
   const currentAnswer = answers[question.id];
-  const canContinue = question.type === 'single' ? !!currentAnswer : true; // Ruler & Wheel always have a value
+  const canContinue = question.type === 'single' ? !!currentAnswer : true; // Custom types always have a value
 
   const handleSelect = (optionId: string) => {
     if (question.type === 'single') {
@@ -359,7 +486,19 @@ export default function AssessmentScreen() {
           </View>
         )}
 
-        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no') && (
+        {question.type === 'arc_slider' && currentAnswer && (
+          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+            <ArcSliderPicker
+              min={(question as any).min}
+              max={(question as any).max}
+              value={currentAnswer}
+              onChange={(val: number) => setAnswers(prev => ({ ...prev, [question.id]: val }))}
+              labels={(question as any).labels}
+            />
+          </View>
+        )}
+
+        {(question.type !== 'ruler' && question.type !== 'wheel' && question.type !== 'yes_no' && question.type !== 'arc_slider') && (
           <View style={styles.optionsContainer}>
             {question.options.map((option) => {
               const isSelected = question.type === 'single' 
@@ -588,6 +727,20 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   wheelItem: { height: WHEEL_ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
   wheelItemActive: { backgroundColor: colors.accent, borderRadius: 40, marginHorizontal: Spacing.xl, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   wheelItemText: { fontFamily: FontFamily.headingExtraBold, includeFontPadding: false },
+
+  // Arc Slider Styles
+  arcContainer: { flexDirection: 'row', alignItems: 'center', height: ARC_HEIGHT, position: 'relative' },
+  arcThumb: {
+    width: THUMB_SIZE, height: THUMB_SIZE, backgroundColor: colors.accent,
+    borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6
+  },
+  arcThumbInner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
+  arcValueDisplay: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', paddingRight: Spacing.md },
+  arcValueNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 140, lineHeight: 150, letterSpacing: -8, color: colors.textPrimary, includeFontPadding: false },
+  arcValueLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textSecondary, textAlign: 'right', marginTop: -10 },
+  arcHint: { position: 'absolute', top: -40, left: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  arcHintText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
