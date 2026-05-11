@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [clientName, setClientName] = useState('Client');
   const flatListRef = useRef<FlatList>(null);
+  const { isTyping, startTyping } = useTypingIndicator(conversationId, 'trainer');
 
   // Load conversation + messages
   useEffect(() => {
@@ -199,6 +201,19 @@ export default function ChatScreen() {
               <Text style={styles.emptyText}>Start the conversation!</Text>
             </View>
           }
+          ListFooterComponent={
+            isTyping ? (
+              <View style={styles.typingRow}>
+                <View style={styles.typingBubble}>
+                  <View style={styles.typingDots}>
+                    <View style={[styles.dot, styles.dot1]} />
+                    <View style={[styles.dot, styles.dot2]} />
+                    <View style={[styles.dot, styles.dot3]} />
+                  </View>
+                </View>
+              </View>
+            ) : null
+          }
         />
 
         {/* Input Bar */}
@@ -208,7 +223,7 @@ export default function ChatScreen() {
             placeholder="Type a message..."
             placeholderTextColor={Colors.textTertiary}
             value={newMessage}
-            onChangeText={setNewMessage}
+            onChangeText={(text) => { setNewMessage(text); startTyping(); }}
             multiline
             maxLength={2000}
             onSubmitEditing={handleSend}
@@ -284,4 +299,12 @@ const styles = StyleSheet.create({
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing['4xl'] },
   emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+
+  typingRow: { flexDirection: 'row', marginBottom: Spacing.sm },
+  typingBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: Radius.lg, borderBottomLeftRadius: 4, backgroundColor: Colors.bgElevated },
+  typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.textTertiary },
+  dot1: { opacity: 0.4 },
+  dot2: { opacity: 0.6 },
+  dot3: { opacity: 0.8 },
 });

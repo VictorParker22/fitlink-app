@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -27,6 +28,7 @@ export default function ClientMessagesScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const { isTyping, startTyping } = useTypingIndicator(conversation?.id, 'client', !!conversation);
 
   useEffect(() => {
     if (!conversation) { setLoading(false); return; }
@@ -125,6 +127,19 @@ export default function ClientMessagesScreen() {
               );
             }}
             ListEmptyComponent={<View style={styles.emptyState}><Text style={[styles.emptyText, { color: colors.textTertiary }]}>Say hi to your trainer! 👋</Text></View>}
+            ListFooterComponent={
+              isTyping ? (
+                <View style={styles.typingRow}>
+                  <View style={[styles.typingBubble, { backgroundColor: colors.bgElevated }]}>
+                    <View style={styles.typingDots}>
+                      <View style={[styles.dot, styles.dot1, { backgroundColor: colors.textTertiary }]} />
+                      <View style={[styles.dot, styles.dot2, { backgroundColor: colors.textTertiary }]} />
+                      <View style={[styles.dot, styles.dot3, { backgroundColor: colors.textTertiary }]} />
+                    </View>
+                  </View>
+                </View>
+              ) : null
+            }
           />
         )}
 
@@ -134,7 +149,7 @@ export default function ClientMessagesScreen() {
             placeholder="Type a message..."
             placeholderTextColor={colors.textTertiary}
             value={newMessage}
-            onChangeText={setNewMessage}
+            onChangeText={(text) => { setNewMessage(text); startTyping(); }}
             multiline
             maxLength={2000}
           />
@@ -172,4 +187,12 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing['4xl'] },
   emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
   emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
+
+  typingRow: { flexDirection: 'row', marginBottom: Spacing.sm },
+  typingBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: Radius.lg, borderBottomLeftRadius: 4 },
+  typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, opacity: 0.5 },
+  dot1: { opacity: 0.4 },
+  dot2: { opacity: 0.6 },
+  dot3: { opacity: 0.8 },
 });
