@@ -51,6 +51,8 @@ const UNIT_WIDTH = TICK_GAP * TICKS_PER_UNIT; // 50px per integer unit
 
 function RulerPicker({ min, max, value, onChange }: { min: number, max: number, value: number, onChange: (v: number) => void }) {
   const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
   const halfWidth = width / 2;
   const numUnits = max - min;
