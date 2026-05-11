@@ -33,7 +33,7 @@ export default function ClientLoginScreen() {
   const [success, setSuccess] = useState('');
 
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');  // email or phone
   const [otpCode, setOtpCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,59 +48,77 @@ export default function ClientLoginScreen() {
   const [selectedTrainer, setSelectedTrainer] = useState<string | null>(null);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
 
-  // --- Lookup client by email (uses RPC to bypass RLS) ---
+  const isEmail = (val: string) => val.includes('@');
+  const formatPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('1') && digits.length === 11) return `+${digits}`;
+    if (digits.length === 10) return `+1${digits}`;
+    if (raw.startsWith('+')) return raw;
+    return `+${digits}`;
+  };
+
+  // --- Lookup client by email or phone ---
   const handleLookup = useCallback(async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) return setError('Enter a valid email address');
+    const trimmed = contact.trim();
+    const isEmailInput = isEmail(trimmed);
+    const lookupVal = isEmailInput ? trimmed.toLowerCase() : formatPhone(trimmed);
+
+    if (!trimmed || (isEmailInput && !trimmed.includes('@')) || (!isEmailInput && trimmed.replace(/\D/g, '').length < 10)) {
+      return setError('Enter a valid email or phone number');
+    }
 
     setError(''); setSuccess('');
     setLookupStatus('checking');
 
     try {
-      const { data, error: rpcErr } = await supabase.rpc('lookup_client_by_email', {
-        lookup_email: trimmed,
+      const { data, error: rpcErr } = await supabase.rpc('lookup_client_by_contact', {
+        contact_value: lookupVal,
       });
 
-      console.log('[ClientLogin] RPC result:', JSON.stringify({ trimmed, data, rpcErr }));
-
+      console.log('[ClientLogin] RPC result:', JSON.stringify({ lookupVal, data, rpcErr }));
       if (rpcErr) throw rpcErr;
 
       if (data?.found) {
         if (data.has_account) {
-          // Already linked — switch to sign in
           setLookupStatus('not_found');
           setIsSignIn(true);
           setSuccess('You already have an account! Sign in below.');
         } else {
-          // Found unlinked client — send OTP automatically
           setFoundClient({ name: data.client_name });
           setFoundTrainerName(data.trainer_name || 'your trainer');
           setName(data.client_name || '');
           setLookupStatus('found');
-          // Send OTP to their email
-          const { error: otpErr } = await supabase.auth.signInWithOtp({ email: trimmed });
-          if (otpErr) throw otpErr;
+
+          // Send OTP via email or phone
+          if (data.client_email) {
+            const { error: otpErr } = await supabase.auth.signInWithOtp({ email: data.client_email.toLowerCase() });
+            if (otpErr) throw otpErr;
+            setSuccess(`Code sent to ${data.client_email}!`);
+          } else if (data.client_phone) {
+            const { error: otpErr } = await supabase.auth.signInWithOtp({ phone: data.client_phone });
+            if (otpErr) throw otpErr;
+            setSuccess(`Code sent to ${data.client_phone}!`);
+          }
           setFlowStep('verify_otp');
-          setSuccess('Verification code sent to your email!');
         }
       } else {
-        // Not found — new client
         setLookupStatus('not_found');
         setFlowStep('enter_info');
       }
     } catch (err) {
       console.error('[ClientLogin] Lookup error:', err);
       setLookupStatus('not_found');
+      setError('Something went wrong. Try again.');
     }
-  }, [email]);
+  }, [contact]);
 
   // --- Existing client: send OTP to email ---
   const handleSendOtp = async () => {
     setError('');
     setLoading(true);
     try {
-      const trimmedEmail = email.trim().toLowerCase();
-      const { error: otpErr } = await supabase.auth.signInWithOtp({ email: trimmedEmail });
+      const trimmedContact = contact.trim().toLowerCase();
+      const { error: otpErr } = await supabase.auth.signInWithOtp({ email: trimmedContact });
       if (otpErr) throw otpErr;
       setFlowStep('verify_otp');
       setSuccess('Verification code sent to your email!');
@@ -118,18 +136,18 @@ export default function ClientLoginScreen() {
 
     setLoading(true);
     try {
-      const trimmedEmail = email.trim().toLowerCase();
-      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
-        email: trimmedEmail,
-        token: otpCode,
-        type: 'email',
-      });
+      const trimmed = contact.trim();
+      const isEmailInput = isEmail(trimmed);
+      const verifyPayload = isEmailInput
+        ? { email: trimmed.toLowerCase(), token: otpCode, type: 'email' as const }
+        : { phone: formatPhone(trimmed), token: otpCode, type: 'sms' as const };
+
+      const { data, error: verifyErr } = await supabase.auth.verifyOtp(verifyPayload);
       if (verifyErr) throw verifyErr;
 
-      // Set role and link
       if (data.user) {
         await supabase.auth.updateUser({ data: { name: name || 'Client', role: 'client' } });
-        await linkClientAccount(data.user.id, trimmedEmail);
+        await linkClientAccount(data.user.id, isEmailInput ? trimmed.toLowerCase() : undefined, !isEmailInput ? formatPhone(trimmed) : undefined);
       }
       setSuccess('You\'re in! Redirecting...');
     } catch (err: any) {
@@ -143,7 +161,7 @@ export default function ClientLoginScreen() {
   const handleNewSignup = async () => {
     setError('');
     if (!name.trim()) return setError('Enter your name');
-    if (!email.trim()) return setError('Enter your email');
+    if (!contact.trim()) return setError('Enter your email');
     if (password.length < 6) return setError('Password must be 6+ characters');
     if (password !== confirmPassword) return setError("Passwords don't match");
 
@@ -151,7 +169,7 @@ export default function ClientLoginScreen() {
     try {
       // Create auth account
       const { data, error: signUpErr } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email: contact.trim().toLowerCase(),
         password,
         options: { data: { name: name.trim(), role: 'client' } },
       });
@@ -200,7 +218,7 @@ export default function ClientLoginScreen() {
     // Create client row linked to trainer
     const { error: insertErr } = await supabase.from('clients').insert({
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: contact.trim().toLowerCase(),
       trainer_id: trainerId,
       auth_user_id: userId,
       status: 'trial',
@@ -225,14 +243,14 @@ export default function ClientLoginScreen() {
   // --- Existing user sign in ---
   const handleSignIn = async () => {
     setError('');
-    if (!email.trim() || !password.trim()) return setError('Fill in all fields');
+    if (!contact.trim() || !password.trim()) return setError('Fill in all fields');
     setLoading(true);
     try {
-      await signIn(email.trim().toLowerCase(), password);
+      await signIn(contact.trim().toLowerCase(), password);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.auth.updateUser({ data: { role: 'client' } });
-        await linkClientAccount(user.id, email.trim().toLowerCase());
+        await linkClientAccount(user.id, contact.trim().toLowerCase());
       }
     } catch (err: any) {
       setError(err.message || 'Invalid credentials');
@@ -269,13 +287,13 @@ export default function ClientLoginScreen() {
           {flowStep === 'enter_info' && !isSignIn && (
             <>
               <Text style={styles.title}>Get Started</Text>
-              <Text style={styles.subtitle}>Enter your email and we'll check if your trainer already set you up.</Text>
+              <Text style={styles.subtitle}>Enter your email or phone number and we'll check if your trainer already set you up.</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>Email or Phone</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="you@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={(t) => { setEmail(t); setLookupStatus('idle'); }} keyboardType="email-address" autoCapitalize="none" autoFocus />
+                  <Ionicons name={isEmail(contact) ? 'mail-outline' : 'call-outline'} size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="email@example.com or (555) 000-0000" placeholderTextColor={Colors.textTertiary} value={contact} onChangeText={(t) => { setContact(t); setLookupStatus('idle'); }} autoCapitalize="none" autoFocus />
                 </View>
               </View>
 
@@ -290,7 +308,7 @@ export default function ClientLoginScreen() {
                 </View>
               )}
 
-              {lookupStatus === 'not_found' && email.includes('@') && (
+              {lookupStatus === 'not_found' && contact.trim().length > 3 && (
                 <>
                   <View style={styles.newBanner}>
                     <Ionicons name="person-add" size={20} color={Colors.blue} />
@@ -349,10 +367,10 @@ export default function ClientLoginScreen() {
               <Text style={styles.subtitle}>Sign in to your client account.</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>Email or Phone</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="you@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+                  <Ionicons name={isEmail(contact) ? 'mail-outline' : 'call-outline'} size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="email@example.com or (555) 000-0000" placeholderTextColor={Colors.textTertiary} value={contact} onChangeText={setContact} autoCapitalize="none" />
                 </View>
               </View>
               <View style={styles.inputGroup}>
@@ -378,12 +396,12 @@ export default function ClientLoginScreen() {
           {/* ============ STEP 2: Existing client — verify OTP ============ */}
           {flowStep === 'verify_otp' && (
             <>
-              <Text style={styles.title}>Check Your Email 📬</Text>
+              <Text style={styles.title}>Verify Your Identity 📬</Text>
               <View style={styles.foundBanner}>
                 <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.foundTitle}>Welcome, {foundClient?.name}!</Text>
-                  <Text style={styles.foundSub}>We sent a 6-digit code to {email}. Enter it below to get started with Coach {foundTrainerName}.</Text>
+                  <Text style={styles.foundSub}>We sent a 6-digit code to {contact}. Enter it below to get started with Coach {foundTrainerName}.</Text>
                 </View>
               </View>
 
