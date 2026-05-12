@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, Image, Dimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,8 @@ export default function ClientsScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<TabState>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const firstItemRef = useRef<Swipeable>(null);
+  const hasBounced = useRef(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -34,6 +36,22 @@ export default function ClientsScreen() {
     }
     return list;
   }, [clients, activeTab]);
+
+  useEffect(() => {
+    if (filtered.length > 0 && !hasBounced.current) {
+      hasBounced.current = true;
+      const timer1 = setTimeout(() => {
+        firstItemRef.current?.openRight();
+      }, 800);
+      const timer2 = setTimeout(() => {
+        firstItemRef.current?.close();
+      }, 1500);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [filtered.length]);
 
   const getPlanName = (planId?: string) => {
     if (!planId) return 'Trial Plan';
@@ -54,9 +72,10 @@ export default function ClientsScreen() {
     );
   };
 
-  const renderClient = ({ item }: { item: typeof clients[0] }) => {
+  const renderClient = ({ item, index }: { item: typeof clients[0]; index: number }) => {
     return (
       <Swipeable
+        ref={index === 0 ? firstItemRef : undefined}
         renderRightActions={() => renderRightActions(item.id)}
         containerStyle={{ overflow: 'visible' }}
         friction={2}
