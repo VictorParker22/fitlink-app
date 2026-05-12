@@ -1,4 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +24,7 @@ export default function ClientProfileScreen() {
   const { clientData, trainer, sessions, workouts, plans, requestPlanUpgrade } = useClient();
   const { colors, mode, setMode } = useTheme();
   const { showAlert } = useAlert();
+  const [uploading, setUploading] = useState(false);
 
   if (!clientData) return null;
 
@@ -35,6 +38,52 @@ export default function ClientProfileScreen() {
     ]);
   };
 
+  const handlePickImage = async () => {
+    Alert.alert('Profile Photo', 'Choose a source', [
+      { text: 'Camera', onPress: () => pickImage('camera') },
+      { text: 'Photo Library', onPress: () => pickImage('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const pickImage = async (source: 'camera' | 'library') => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need access to your photos to update your profile.');
+      return;
+    }
+
+    const pickerOptions: ImagePicker.ImagePickerOptions = {
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    };
+
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync(pickerOptions)
+      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      Alert.alert('Error', 'Could not read image data.');
+      return;
+    }
+    
+    setUploading(true);
+    try {
+      // @ts-ignore - The context type is missing updateClientAvatar, but it's implemented.
+      await updateClientAvatar(asset.base64, asset.uri);
+    } catch (err: any) {
+      console.error('Upload Failed', err);
+      Alert.alert('Upload Failed', err.message || 'Could not upload photo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -44,7 +93,16 @@ export default function ClientProfileScreen() {
         <Card style={styles.profileCard}>
           <View style={[styles.accentStrip, { backgroundColor: `${colors.accent}10` }]} />
           <View style={styles.profileInfo}>
-            <Avatar name={clientData.name} size="xl" />
+            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8} style={styles.avatarWrapper}>
+              <Avatar name={clientData.name} size="xl" imageUrl={clientData.avatar_url} />
+              <View style={styles.cameraOverlay}>
+                {uploading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                )}
+              </View>
+            </TouchableOpacity>
             <Text style={[styles.profileName, { color: colors.textPrimary }]}>{clientData.name}</Text>
             {trainer && <Text style={[styles.trainerLine, { color: colors.textTertiary }]}>Training with {trainer.name}</Text>}
           </View>
@@ -198,6 +256,8 @@ const styles = StyleSheet.create({
   profileInfo: { alignItems: 'center', paddingTop: Spacing['2xl'], gap: Spacing.xs },
   profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, marginTop: Spacing.sm },
   trainerLine: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
+  avatarWrapper: { position: 'relative' },
+  cameraOverlay: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.white },
 
   statsRow: { flexDirection: 'row', marginTop: Spacing.xl, paddingTop: Spacing.lg, borderTopWidth: 1 },
   stat: { flex: 1, alignItems: 'center' },

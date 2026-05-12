@@ -13,6 +13,7 @@ interface ClientData {
   goals?: string;
   notes?: string;
   auth_user_id?: string;
+  avatar_url?: string;
   assessment_data?: any;
   trial_end_date?: string;
   progress?: { streak: number; workoutsThisMonth: number };
@@ -35,6 +36,7 @@ interface ClientContextType {
   markWorkoutSkipped: (id: string) => Promise<void>;
   requestPlanUpgrade: (planId: string) => Promise<void>;
   updateAssessment: (data: any) => Promise<void>;
+  updateClientAvatar: (base64: string, uri: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -156,11 +158,41 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setClientData(data);
   }, [clientData]);
 
+  const updateClientAvatar = useCallback(async (base64: string, uri: string) => {
+    if (!clientData) return;
+    
+    const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${clientData.id}/avatar.${fileExt}`;
+    const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) { bytes[i] = binaryStr.charCodeAt(i); }
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, bytes.buffer, { contentType, upsert: true });
+      
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+    const avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
+    
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ avatar_url })
+      .eq('id', clientData.id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    setClientData(data);
+  }, [clientData]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
       conversation, plans, upcomingSessions, todayWorkout,
-      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, updateAssessment, refreshData,
+      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, updateAssessment, updateClientAvatar, refreshData,
     }}>
       {children}
     </ClientContext.Provider>
