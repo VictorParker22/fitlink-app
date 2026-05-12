@@ -151,6 +151,15 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'creatine', label: 'Creatine' },
     ]
   },
+  {
+    id: 'calorie_goal',
+    title: "What's Your Calorie Goal per day?",
+    type: 'counter',
+    config: {
+      'Kcal': { min: 500, max: 5000, default: 1550, step: 50, label: 'calories daily' },
+      "Joule's": { min: 2000, max: 21000, default: 6490, step: 200, label: 'joules daily' },
+    }
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -502,6 +511,10 @@ export default function AssessmentScreen() {
     const unit = 'kg';
     const defVal = (question as any).config[unit].default;
     setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit } }));
+  } else if ((question.type === 'counter') && !answers[question.id]) {
+    const firstUnit = Object.keys((question as any).config)[0];
+    const defVal = (question as any).config[firstUnit].default;
+    setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit: firstUnit } }));
   } else if ((question.type === 'wheel' || question.type === 'arc_slider' || question.type === 'segmented_number') && !answers[question.id]) {
     setAnswers(prev => ({ ...prev, [question.id]: (question as any).default }));
   } else if (question.type === 'tags' && !answers[question.id]) {
@@ -733,6 +746,65 @@ export default function AssessmentScreen() {
             </Text>
           </View>
         )}
+
+        {question.type === 'counter' && currentAnswer && (() => {
+          const cfg = (question as any).config[currentAnswer.unit];
+          return (
+            <View style={{ flex: 1, alignItems: 'center', marginTop: Spacing.xl }}>
+              {/* Unit Toggle */}
+              <View style={styles.unitToggle}>
+                {Object.keys((question as any).config).map((u) => {
+                  const isActive = currentAnswer.unit === u;
+                  return (
+                    <TouchableOpacity
+                      key={u}
+                      style={[styles.unitBtn, isActive && styles.unitBtnActive]}
+                      onPress={() => {
+                        if (isActive) return;
+                        const defVal = (question as any).config[u].default;
+                        setAnswers(prev => ({ ...prev, [question.id]: { value: defVal, unit: u } }));
+                      }}
+                    >
+                      <Text style={[styles.unitText, isActive && styles.unitTextActive]}>{u}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Massive Value */}
+              <Text style={styles.counterValue}>
+                {currentAnswer.value.toLocaleString()}
+              </Text>
+              <Text style={styles.counterLabel}>{cfg.label}</Text>
+
+              {/* +/- Buttons */}
+              <View style={styles.counterBtnRow}>
+                <TouchableOpacity
+                  style={[styles.counterBtn, styles.counterBtnMinus]}
+                  onPress={() => {
+                    const newVal = Math.max(cfg.min, currentAnswer.value - cfg.step);
+                    setAnswers(prev => ({ ...prev, [question.id]: { ...currentAnswer, value: newVal } }));
+                  }}
+                  disabled={currentAnswer.value <= cfg.min}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={28} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.counterBtn, styles.counterBtnPlus]}
+                  onPress={() => {
+                    const newVal = Math.min(cfg.max, currentAnswer.value + cfg.step);
+                    setAnswers(prev => ({ ...prev, [question.id]: { ...currentAnswer, value: newVal } }));
+                  }}
+                  disabled={currentAnswer.value >= cfg.max}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={28} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* --- GRID LAYOUT (2-col and 3-col) --- */}
         {(question.type === 'single' || question.type === 'multi') && ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && (
@@ -1114,6 +1186,14 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   segmentedItemText: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textTertiary },
   segmentedItemTextActive: { color: '#FFF' },
   segmentedFooterText: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary },
+
+  // Counter Styles
+  counterValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 80, letterSpacing: -3, color: colors.textPrimary, includeFontPadding: false, marginTop: Spacing['3xl'] },
+  counterLabel: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary, marginTop: Spacing.xs },
+  counterBtnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing['3xl'] },
+  counterBtn: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  counterBtnMinus: { backgroundColor: `${colors.textTertiary}15` },
+  counterBtnPlus: { backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
