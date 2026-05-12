@@ -5,14 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function AnalyticsScreen() {
   const router = useRouter();
-  const { clients, sessions, referrals, plans, activeClients, totalMonthlyRevenue } = useApp();
+  const { clients, sessions, referrals, activeClients, totalMonthlyRevenue } = useApp();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   // Session stats
   const completedSessions = sessions.filter((s) => s.status === 'completed').length;
@@ -55,7 +58,7 @@ export default function AnalyticsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
         <View style={{ width: 36 }} />
@@ -153,45 +156,45 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 
   overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   overviewCard: { width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2 - 1, alignItems: 'center', paddingVertical: Spacing.lg },
   overviewIcon: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  overviewValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary },
-  overviewLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
+  overviewValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.textPrimary },
+  overviewLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
 
   chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingTop: Spacing.md },
   chartBar: { alignItems: 'center', gap: 4 },
-  chartCount: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.textSecondary },
+  chartCount: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.textSecondary },
   bar: { width: 28, borderRadius: 4 },
-  chartLabel: { fontFamily: FontFamily.body, fontSize: 10, color: Colors.textTertiary },
+  chartLabel: { fontFamily: FontFamily.body, fontSize: 10, color: colors.textTertiary },
 
   breakdownHeader: { marginBottom: Spacing.md },
-  breakdownTotal: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
+  breakdownTotal: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 6 },
   breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textPrimary, width: 80 },
-  breakdownCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textPrimary, width: 30 },
-  breakdownBarTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.bgElevated },
+  breakdownLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary, width: 80 },
+  breakdownCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, width: 30 },
+  breakdownBarTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.bgElevated },
   breakdownBarFill: { height: 4, borderRadius: 2 },
 
-  typeSection: { marginTop: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
-  typeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, marginBottom: Spacing.sm },
+  typeSection: { marginTop: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  typeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, marginBottom: Spacing.sm },
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 4 },
   typeDot: { width: 8, height: 8, borderRadius: 4 },
-  typeLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textPrimary, flex: 1 },
-  typeCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
+  typeLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary, flex: 1 },
+  typeCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
 
   insightsRow: { flexDirection: 'row', gap: Spacing.sm },
   insightCard: { flex: 1, alignItems: 'center', paddingVertical: Spacing.lg },
   insightValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg },
-  insightLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
+  insightLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
 });
