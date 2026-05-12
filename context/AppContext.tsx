@@ -522,6 +522,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const assignWorkout = useCallback(async (workoutId: string, clientId: string, date: string) => {
     const { data, error } = await supabase.from('client_workouts').insert({
+      trainer_id: user!.id,
       workout_id: workoutId,
       client_id: clientId,
       assigned_date: date,
