@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 type TabState = 'all' | 'active';
@@ -15,6 +16,7 @@ export default function ClientsScreen() {
   const insets = useSafeAreaInsets();
   const { clients, plans, refreshData } = useApp();
   const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<TabState>('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -62,7 +64,7 @@ export default function ClientsScreen() {
         friction={2}
       >
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, { backgroundColor: colors.bgElevated }]}
           activeOpacity={0.9}
           onPress={() => router.push(`/client/${item.id}` as any)}
         >
@@ -80,16 +82,16 @@ export default function ClientsScreen() {
 
             {/* Title Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+              <Text style={[styles.cardName, { color: colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
               <Ionicons name="checkmark-circle" size={14} color={colors.textPrimary} style={{ marginLeft: 4 }} />
             </View>
 
             {/* Stats Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="star" size={12} color="#F97316" />
-              <Text style={styles.statText}> 5.0  ·  </Text>
+              <Text style={[styles.statText, { color: colors.textTertiary }]}> 5.0  ·  </Text>
               <Ionicons name="person" size={12} color="#3B82F6" />
-              <Text style={styles.statText}> {getPlanName(item.plan_id)}</Text>
+              <Text style={[styles.statText, { color: colors.textTertiary }]}> {getPlanName(item.plan_id)}</Text>
             </View>
           </View>
 
@@ -106,7 +108,7 @@ export default function ClientsScreen() {
       <View style={[styles.headerContainer, { backgroundColor: colors.headerBg, paddingTop: insets.top || Spacing.xl }]}>
         <View style={styles.headerTopRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity style={styles.backBtnWrapper}>
+            <TouchableOpacity style={styles.backBtnWrapper} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={20} color={Colors.white} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Clients</Text>
@@ -145,9 +147,9 @@ export default function ClientsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
         ListHeaderComponent={
           <View style={styles.listHeaderRow}>
-            <Text style={styles.listHeaderTitle}>{activeTab === 'all' ? 'All Clients' : 'Active Clients'}</Text>
+            <Text style={[styles.listHeaderTitle, { color: colors.textPrimary }]}>{activeTab === 'all' ? 'All Clients' : 'Active Clients'}</Text>
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.listHeaderRightText}>Most Popular</Text>
+              <Text style={[styles.listHeaderRightText, { color: colors.textSecondary }]}>Most Popular</Text>
               <Ionicons name="wifi" size={16} color="#F97316" style={{ marginLeft: 4, transform: [{ rotate: '45deg' }] }} />
             </TouchableOpacity>
           </View>
@@ -163,8 +165,8 @@ export default function ClientsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' }, // overridden inline
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
 
   // Header
   headerContainer: {
