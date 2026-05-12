@@ -4,7 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
+import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../constants/theme';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
@@ -491,7 +491,7 @@ function TagsPicker({ question, value, onChange }: any) {
 export default function AssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { updateClientAssessment } = useApp();
+  const { updateAssessment } = useClient();
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { width: windowWidth } = useWindowDimensions();
@@ -567,7 +567,7 @@ export default function AssessmentScreen() {
     if (nextStepAfterSelect === -1) {
       setSaving(true);
       try {
-        await updateClientAssessment(user!.id, newAnswers);
+        await updateAssessment(newAnswers);
         router.replace('/(client-tabs)' as any);
       } catch (error) {
         console.error('Failed to save assessment', error);
@@ -585,7 +585,7 @@ export default function AssessmentScreen() {
     if (isLastValidStep) {
       setSaving(true);
       try {
-        await updateClientAssessment(user!.id, answers);
+        await updateAssessment(answers);
         // After finishing, go to home
         router.replace('/(client-tabs)' as any);
       } catch (error) {

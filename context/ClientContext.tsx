@@ -34,6 +34,7 @@ interface ClientContextType {
   markWorkoutComplete: (id: string) => Promise<void>;
   markWorkoutSkipped: (id: string) => Promise<void>;
   requestPlanUpgrade: (planId: string) => Promise<void>;
+  updateAssessment: (data: any) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -143,11 +144,23 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setClientData(data);
   }, [clientData]);
 
+  const updateAssessment = useCallback(async (assessmentData: any) => {
+    if (!clientData) return;
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ assessment_data: assessmentData })
+      .eq('id', clientData.id)
+      .select()
+      .single();
+    if (error) throw error;
+    setClientData(data);
+  }, [clientData]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
       conversation, plans, upcomingSessions, todayWorkout,
-      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, refreshData,
+      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, updateAssessment, refreshData,
     }}>
       {children}
     </ClientContext.Provider>
