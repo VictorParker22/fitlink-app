@@ -10,6 +10,7 @@ import { AppProvider, useApp } from '../context/AppContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 
 let Notifications: any = null;
@@ -191,12 +192,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AuthProvider>
-          <AppProvider>
-            <ThemedStatusBar />
-            <AuthGuard />
-          </AppProvider>
-        </AuthProvider>
+        <AlertProvider>
+          <AuthProvider>
+            <AppProvider>
+              <ThemedStatusBar />
+              <AuthGuard />
+            </AppProvider>
+          </AuthProvider>
+        </AlertProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

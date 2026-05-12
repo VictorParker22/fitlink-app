@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, Switch, Alert, KeyboardAvoidingView, Platform,
+  TouchableOpacity, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { useTheme, type ThemeMode } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
@@ -18,6 +19,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { trainer, updateTrainer } = useApp();
   const { colors, mode, setMode, isDark } = useTheme();
+  const { showAlert } = useAlert();
 
   const [name, setName] = useState(trainer?.name || '');
   const [email, setEmail] = useState(trainer?.email || '');
@@ -58,7 +60,7 @@ export default function SettingsScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Name required', 'Please enter your name.');
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Name Required', message: 'Please enter your name.' });
 
     setSaving(true);
     try {
@@ -71,9 +73,9 @@ export default function SettingsScreen() {
         working_hours: workingHours,
         notification_prefs: { sessionReminders, newClientAlerts, messageNotifs },
       });
-      Alert.alert('Saved', 'Your settings have been updated.');
+      showAlert({ type: 'success', title: 'Saved!', message: 'Your settings have been updated.' });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save settings');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save settings' });
     } finally {
       setSaving(false);
     }

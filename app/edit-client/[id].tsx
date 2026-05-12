@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import Button from '../../components/Button';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -14,6 +15,7 @@ export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getClientById, updateClient, plans } = useApp();
+  const { showAlert } = useAlert();
 
   const client = getClientById(id || '');
 
@@ -38,7 +40,7 @@ export default function EditClientScreen() {
   }
 
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Name required', 'Please enter a client name.');
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Name Required', message: 'Please enter a client name.' });
     setSaving(true);
     try {
       await updateClient(id!, {
@@ -50,11 +52,9 @@ export default function EditClientScreen() {
         status: status as any,
         plan_id: selectedPlan || undefined,
       });
-      Alert.alert('Saved', 'Client updated successfully.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showAlert({ type: 'success', title: 'Saved!', message: 'Client updated successfully.', buttons: [{ text: 'OK', onPress: () => router.back() }] });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update client');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to update client' });
     } finally {
       setSaving(false);
     }

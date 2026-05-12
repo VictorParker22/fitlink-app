@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
 
 interface SelectedExercise {
   exercise_id: string;
@@ -27,6 +28,7 @@ export default function CreateWorkoutScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const { showAlert } = useAlert();
 
   const filteredExercises = useMemo(() => {
     if (!exerciseSearch.trim()) return exercises;
@@ -64,7 +66,7 @@ export default function CreateWorkoutScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Required', 'Please enter a workout name');
+      showAlert({ type: 'warning', title: 'Name Required', message: 'Please enter a workout name' });
       return;
     }
     setSaving(true);
@@ -77,7 +79,7 @@ export default function CreateWorkoutScreen() {
       })));
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create workout');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to create workout' });
     } finally {
       setSaving(false);
     }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -16,6 +17,7 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
     workouts, diets, assignWorkout, assignDietPlan, plans,
@@ -56,14 +58,14 @@ export default function ClientDetailScreen() {
       const today = new Date().toISOString().split('T')[0];
       if (assignMode === 'workout') {
         await assignWorkout(itemId, client.id, today);
-        Alert.alert('Success', 'Workout assigned!');
+        showAlert({ type: 'success', title: 'Workout Assigned!', message: 'The workout has been assigned to this client.' });
       } else {
         await assignDietPlan(itemId, client.id, today);
-        Alert.alert('Success', 'Diet plan assigned!');
+        showAlert({ type: 'success', title: 'Diet Plan Assigned!', message: 'The diet plan has been assigned to this client.' });
       }
       setAssignMode(null);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to assign');
+      showAlert({ type: 'error', title: 'Assignment Failed', message: err.message || 'Failed to assign' });
     }
   };
 

@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, Share,
+  KeyboardAvoidingView, Platform, ScrollView, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 
 export default function AddClientScreen() {
   const router = useRouter();
   const { addClient, plans } = useApp();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,7 +26,7 @@ export default function AddClientScreen() {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Error', 'Please enter a client name.');
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Name Required', message: 'Please enter a client name.' });
 
     setSaving(true);
     try {
@@ -39,7 +41,7 @@ export default function AddClientScreen() {
       });
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add client');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to add client' });
       setSaving(false);
     }
   };
