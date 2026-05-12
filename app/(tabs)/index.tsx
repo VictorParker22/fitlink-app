@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
 import Card from '../../components/Card';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
@@ -24,6 +25,7 @@ export default function DashboardScreen() {
     plans, clients, referrals, trialClients, notifications,
   } = useApp();
   const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -219,7 +221,7 @@ export default function DashboardScreen() {
                 Next Session
               </Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/schedule')}>
-                <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textTertiary} />
+                <Ionicons name="ellipsis-horizontal" size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             </View>
 
@@ -345,12 +347,12 @@ export default function DashboardScreen() {
                 <Text style={styles.planName} numberOfLines={1}>{plan.name}</Text>
                 <View style={styles.planMetaRow}>
                   <View style={styles.planMetaItem}>
-                    <Ionicons name="cash-outline" size={11} color={Colors.textTertiary} />
+                    <Ionicons name="cash-outline" size={11} color={colors.textTertiary} />
                     <Text style={styles.planMetaText}>${plan.price}/{plan.interval === 'monthly' ? 'mo' : plan.interval}</Text>
                   </View>
                   <Text style={styles.planMetaDot}>·</Text>
                   <View style={styles.planMetaItem}>
-                    <Ionicons name="people-outline" size={11} color={Colors.textTertiary} />
+                    <Ionicons name="people-outline" size={11} color={colors.textTertiary} />
                     <Text style={styles.planMetaText}>{planClients.length} enrolled</Text>
                   </View>
                 </View>
@@ -408,12 +410,12 @@ export default function DashboardScreen() {
               spacing={12}
               noOfSections={4}
               hideRules={false}
-              rulesColor={Colors.border}
+              rulesColor={colors.border}
               rulesType="dashed"
               xAxisColor={'transparent'}
               yAxisColor={'transparent'}
-              yAxisTextStyle={{ color: Colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
-              xAxisLabelTextStyle={{ color: Colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
+              yAxisTextStyle={{ color: colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
+              xAxisLabelTextStyle={{ color: colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
               isAnimated
               animationDuration={600}
               height={100}
@@ -430,7 +432,7 @@ export default function DashboardScreen() {
                 <Ionicons name="trending-up" size={12} color={Colors.green} />
                 <Text style={styles.perfSubText}>+{todaySessions.length} today</Text>
                 <Text style={styles.perfSubDot}>·</Text>
-                <Ionicons name="people-outline" size={12} color={Colors.textTertiary} />
+                <Ionicons name="people-outline" size={12} color={colors.textTertiary} />
                 <Text style={styles.perfSubText}>{activeClients.length} clients</Text>
               </View>
             </View>
@@ -444,7 +446,7 @@ export default function DashboardScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Referral Program</Text>
           <TouchableOpacity onPress={() => router.push('/referrals' as any)}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textTertiary} />
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
         <TouchableOpacity
@@ -511,14 +513,14 @@ export default function DashboardScreen() {
                       <Ionicons name="star" size={11} color={Colors.yellow} />
                       <Text style={styles.clientListMetaText}>{Math.min(5, (clientSessions * 0.5 + 2.5)).toFixed(1)}</Text>
                       <Text style={styles.clientListDot}>·</Text>
-                      <Ionicons name="calendar" size={11} color={Colors.textTertiary} />
+                      <Ionicons name="calendar" size={11} color={colors.textTertiary} />
                       <Text style={styles.clientListMetaText}>{clientSessions} sessions</Text>
                       <Text style={styles.clientListDot}>·</Text>
                       <Ionicons name="heart" size={11} color={Colors.red} />
                       <Text style={styles.clientListMetaText}>{Math.floor(clientSessions * 3.2)}</Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
                 </TouchableOpacity>
               );
             })}
@@ -526,7 +528,7 @@ export default function DashboardScreen() {
         ) : (
           <Card style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.xl }}>
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
+              <Ionicons name="people-outline" size={32} color={colors.textTertiary} />
               <Text style={styles.emptyText}>No clients yet</Text>
               <Text style={styles.emptySubtext}>Add your first client to get started</Text>
             </View>
@@ -574,7 +576,7 @@ export default function DashboardScreen() {
         {activities.length === 0 ? (
           <Card style={{ marginHorizontal: Spacing.base }}>
             <View style={styles.emptyState}>
-              <Ionicons name="pulse-outline" size={32} color={Colors.textTertiary} />
+              <Ionicons name="pulse-outline" size={32} color={colors.textTertiary} />
               <Text style={styles.emptyText}>No activity yet</Text>
               <Text style={styles.emptySubtext}>Start by adding clients and booking sessions</Text>
             </View>
@@ -602,8 +604,8 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   scrollContent: { paddingBottom: 100 },
 
   /* ── Hero Header ── */
@@ -704,13 +706,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: FontFamily.headingSemiBold,
     fontSize: FontSize.lg,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: -0.3,
   },
   seeAll: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.sm,
-    color: Colors.accentText,
+    color: colors.accentText,
   },
 
   /* ── Metric Cards ── */
@@ -889,15 +891,15 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontFamily: FontFamily.bodyMedium,
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
   /* ── Upcoming Sessions ── */
   upcomingCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.sm },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  upcomingName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  upcomingMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
+  upcomingName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
+  upcomingMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
   groupAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.purple, alignItems: 'center', justifyContent: 'center' },
   groupAvatarText: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: Colors.white },
   upcomingTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.xs },
@@ -905,48 +907,48 @@ const styles = StyleSheet.create({
 
   /* ── Activity ── */
   emptyState: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.sm },
-  emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textSecondary },
-  emptySubtext: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textSecondary },
+  emptySubtext: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
 
   activityItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
-  activityBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  activityBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   activityIcon: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  activityMessage: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textPrimary },
-  activityTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+  activityMessage: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textPrimary },
+  activityTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 1 },
 
   /* ── Active Plans (horizontal cards) ── */
   plansScroll: { paddingLeft: Spacing.base, paddingRight: Spacing.sm, gap: 12, marginBottom: Spacing.xl },
   planCard: {
     width: SCREEN_WIDTH * 0.68,
-    backgroundColor: Colors.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: Radius.xl,
     padding: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     position: 'relative',
   },
   planCardEmpty: {
     width: SCREEN_WIDTH * 0.68,
-    backgroundColor: Colors.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: Radius.xl,
     padding: Spacing['2xl'],
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
   },
-  planEmptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textTertiary },
+  planEmptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
   planBadges: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   planBadge: {
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: colors.bgElevated,
     borderRadius: Radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  planBadgeValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary },
-  planBadgeLabel: { fontFamily: FontFamily.body, fontSize: 9, color: Colors.textTertiary, marginTop: 1 },
+  planBadgeValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
+  planBadgeLabel: { fontFamily: FontFamily.body, fontSize: 9, color: colors.textTertiary, marginTop: 1 },
   planIconCenter: { alignItems: 'center', marginVertical: Spacing.md },
   planIconGradient: {
     width: 64,
@@ -955,11 +957,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   planMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   planMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  planMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  planMetaDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  planMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  planMetaDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
   planArrowBtn: {
     position: 'absolute',
     bottom: Spacing.base,
@@ -979,11 +981,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: Radius.full,
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: colors.bgElevated,
   },
-  perfTabActive: { backgroundColor: Colors.textPrimary },
-  perfTabText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary },
-  perfTabTextActive: { color: Colors.white },
+  perfTabActive: { backgroundColor: colors.textPrimary },
+  perfTabText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
+  perfTabTextActive: { color: '#FFF' },
   perfChartArea: {
     height: 120,
     marginBottom: Spacing.lg,
@@ -995,7 +997,7 @@ const styles = StyleSheet.create({
   },
   perfGridLine: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     opacity: 0.5,
   },
   perfBars: {
@@ -1023,7 +1025,7 @@ const styles = StyleSheet.create({
   perfBigValue: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 32,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: -1,
   },
   perfSubStats: {
@@ -1032,13 +1034,13 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
-  perfSubText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  perfSubDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  perfSubText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  perfSubDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
   perfActionBtn: {
     width: 44,
     height: 44,
     borderRadius: Radius.md,
-    backgroundColor: Colors.textPrimary,
+    backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1112,9 +1114,9 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingVertical: Spacing.base,
   },
-  clientListBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-  clientListName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
+  clientListBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  clientListName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
   clientListMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  clientListMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  clientListDot: { fontFamily: FontFamily.body, fontSize: 8, color: Colors.textTertiary },
+  clientListMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  clientListDot: { fontFamily: FontFamily.body, fontSize: 8, color: colors.textTertiary },
 });
