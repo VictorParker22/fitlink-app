@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { useTheme, type ThemeMode } from '../../context/ThemeContext';
+import { useAlert } from '../../context/AlertContext';
+import { LinearGradient } from 'expo-linear-gradient';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -17,8 +19,9 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
 
 export default function ClientProfileScreen() {
   const { signOut } = useAuth();
-  const { clientData, trainer, sessions, workouts } = useClient();
+  const { clientData, trainer, sessions, workouts, plans, requestPlanUpgrade } = useClient();
   const { colors, mode, setMode } = useTheme();
+  const { showAlert } = useAlert();
 
   if (!clientData) return null;
 
@@ -80,6 +83,63 @@ export default function ClientProfileScreen() {
             </View>
           ))}
         </Card>
+
+        {/* Membership Section */}
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Membership</Text>
+        {clientData.status === 'active' ? (
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+              <View style={[styles.activePlanIcon, { backgroundColor: `${colors.accent}18` }]}>
+                <Ionicons name="star" size={24} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.activePlanTitle, { color: colors.textPrimary }]}>
+                  {plans.find(p => p.id === clientData.plan_id)?.name || 'Active Subscription'}
+                </Text>
+                <Text style={[styles.activePlanSub, { color: colors.textSecondary }]}>
+                  You have full access to your personalized training.
+                </Text>
+              </View>
+            </View>
+          </Card>
+        ) : (
+          <View style={{ gap: Spacing.sm }}>
+            {plans.length === 0 ? (
+              <Card>
+                <Text style={[styles.noPlansText, { color: colors.textTertiary }]}>No subscription plans available yet.</Text>
+              </Card>
+            ) : (
+              plans.map((plan) => (
+                <TouchableOpacity
+                  key={plan.id}
+                  style={[styles.planCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+                  activeOpacity={0.85}
+                  onPress={async () => {
+                    try {
+                      await requestPlanUpgrade(plan.id);
+                      showAlert({ type: 'success', title: 'Upgraded! 🎉', message: `You are now on the "${plan.name}" plan.` });
+                    } catch (err: any) {
+                      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to upgrade' });
+                    }
+                  }}
+                >
+                  <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planIcon}>
+                    <Ionicons name="diamond" size={24} color="#FFF" />
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.planName, { color: colors.textPrimary }]}>{plan.name}</Text>
+                    <Text style={[styles.planPrice, { color: colors.textTertiary }]}>
+                      ${plan.price}/{(plan as any).interval === 'monthly' ? 'mo' : (plan as any).interval || 'mo'}
+                    </Text>
+                  </View>
+                  <View style={styles.selectBtn}>
+                    <Text style={styles.selectText}>Upgrade</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Trainer Card */}
         {trainer && (
@@ -160,4 +220,17 @@ const styles = StyleSheet.create({
 
   signOutSection: { marginTop: Spacing['2xl'] },
   version: { fontFamily: FontFamily.body, fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.xl, opacity: 0.5 },
+
+  // Membership Styles
+  activePlanIcon: { width: 48, height: 48, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
+  activePlanTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
+  activePlanSub: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 2 },
+  noPlansText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, textAlign: 'center', paddingVertical: Spacing.md },
+  
+  planCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.base, borderRadius: Radius.xl, borderWidth: 1 },
+  planIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
+  planPrice: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 2 },
+  selectBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: Colors.accent },
+  selectText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#FFF' },
 });

@@ -9,9 +9,12 @@ interface ClientData {
   email?: string;
   phone?: string;
   status: string;
+  plan_id?: string;
   goals?: string;
   notes?: string;
   auth_user_id?: string;
+  assessment_data?: any;
+  trial_end_date?: string;
   progress?: { streak: number; workoutsThisMonth: number };
   created_at: string;
 }
@@ -25,10 +28,12 @@ interface ClientContextType {
   diets: any[];
   progressLogs: any[];
   conversation: any;
+  plans: any[];
   upcomingSessions: any[];
   todayWorkout: any;
   markWorkoutComplete: (id: string) => Promise<void>;
   markWorkoutSkipped: (id: string) => Promise<void>;
+  requestPlanUpgrade: (planId: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -43,6 +48,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [diets, setDiets] = useState<any[]>([]);
   const [progressLogs, setProgressLogs] = useState<any[]>([]);
   const [conversation, setConversation] = useState<any>(null);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchClientData = useCallback(async () => {
@@ -61,7 +67,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (!client) { setLoading(false); return; }
       setClientData(client);
 
-      const [trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes] = await Promise.all([
+      const [trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes] = await Promise.all([
         supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')
@@ -77,6 +83,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
           .eq('client_id', client.id)
           .order('date', { ascending: false }),
         supabase.from('conversations').select('*').eq('client_id', client.id).maybeSingle(),
+        supabase.from('plans').select('*').eq('trainer_id', client.trainer_id),
       ]);
 
       console.log('[ClientContext] Related data:', JSON.stringify({
@@ -92,6 +99,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (dietsRes.data) setDiets(dietsRes.data);
       if (progressRes.data) setProgressLogs(progressRes.data);
       if (convRes.data) setConversation(convRes.data);
+      if (plansRes.data) setPlans(plansRes.data);
     } catch (err) {
       console.error('Error loading client data:', err);
     } finally {
@@ -123,11 +131,23 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const todayWorkout = useMemo(() =>
     workouts.find((w) => new Date(w.assigned_date).toDateString() === new Date().toDateString() && w.status === 'assigned'), [workouts]);
 
+  const requestPlanUpgrade = useCallback(async (planId: string) => {
+    if (!clientData) return;
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ status: 'active', plan_id: planId, trial_end_date: null })
+      .eq('id', clientData.id)
+      .select()
+      .single();
+    if (error) throw error;
+    setClientData(data);
+  }, [clientData]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
-      conversation, upcomingSessions, todayWorkout,
-      markWorkoutComplete, markWorkoutSkipped, refreshData,
+      conversation, plans, upcomingSessions, todayWorkout,
+      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, refreshData,
     }}>
       {children}
     </ClientContext.Provider>

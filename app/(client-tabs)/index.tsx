@@ -40,6 +40,48 @@ export default function ClientHomeScreen() {
         <Text style={[styles.name, { color: colors.textPrimary }]}>{firstName} 💪</Text>
         {trainer && <Text style={[styles.trainerLine, { color: colors.textTertiary }]}>Training with Coach {trainer.name?.split(' ')[0]}</Text>}
 
+        {/* Trial Banner */}
+        {clientData.status === 'trial' && (() => {
+          const trialEnd = clientData.trial_end_date
+            ? new Date(clientData.trial_end_date)
+            : new Date(new Date(clientData.created_at).getTime() + 20 * 86400000);
+          const now = new Date();
+          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000));
+          const totalTrialDays = Math.ceil((trialEnd.getTime() - new Date(clientData.created_at).getTime()) / 86400000);
+          const isExpired = daysLeft === 0;
+          const progressPct = Math.min(1, (totalTrialDays - daysLeft) / totalTrialDays);
+
+          return (
+            <View style={[styles.trialBanner, { backgroundColor: isExpired ? '#EF444418' : Colors.yellowSoft }]}>
+              <View style={styles.trialBannerTop}>
+                <Ionicons name={isExpired ? 'alert-circle' : 'time'} size={24} color={isExpired ? '#EF4444' : Colors.yellow} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.trialBannerTitle, { color: colors.textPrimary }]}>
+                    {isExpired ? 'Trial Expired' : `${daysLeft} Day${daysLeft !== 1 ? 's' : ''} Left in Trial`}
+                  </Text>
+                  <Text style={[styles.trialBannerSub, { color: colors.textTertiary }]}>
+                    {isExpired ? 'Upgrade to continue using FitLink.' : `Your trial ends on ${trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.trialProgressTrack, { backgroundColor: colors.bgElevated }]}>
+                <View style={[
+                  styles.trialProgressFill,
+                  { width: `${progressPct * 100}%`, backgroundColor: isExpired ? '#EF4444' : daysLeft <= 5 ? Colors.yellow : Colors.green },
+                ]} />
+              </View>
+              <TouchableOpacity
+                style={[styles.trialUpgradeBtn, { backgroundColor: Colors.accent }]}
+                activeOpacity={0.8}
+                onPress={() => router.push('/(client-tabs)/my-profile' as any)}
+              >
+                <Text style={styles.trialUpgradeText}>View Upgrade Options</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
+
         {/* Assessment Prompt */}
         {!clientData.assessment_data && (
           <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/client/assessment' as any)}>
@@ -158,4 +200,13 @@ const styles = StyleSheet.create({
 
   emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.base },
   emptySubtext: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 4 },
+
+  trialBanner: { marginTop: Spacing.xl, padding: Spacing.lg, borderRadius: Radius.xl, gap: Spacing.md },
+  trialBannerTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  trialBannerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base },
+  trialBannerSub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
+  trialProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  trialProgressFill: { height: '100%', borderRadius: 3 },
+  trialUpgradeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: 12, borderRadius: Radius.md },
+  trialUpgradeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: '#FFF' },
 });
