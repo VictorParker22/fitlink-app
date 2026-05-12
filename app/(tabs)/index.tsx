@@ -506,7 +506,7 @@ export default function DashboardScreen() {
                   activeOpacity={0.7}
                   onPress={() => router.push(`/client/${client.id}` as any)}
                 >
-                  <Avatar name={client.name} size="md" />
+                  <Avatar name={client.name} size="md" imageUrl={client.avatar_url} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.clientListName}>{client.name}</Text>
                     <View style={styles.clientListMeta}>
@@ -550,7 +550,7 @@ export default function DashboardScreen() {
               return (
                 <Card key={session.id} style={styles.upcomingCard}>
                   <View style={styles.upcomingRow}>
-                    {client ? <Avatar name={client.name} size="sm" /> : (
+                    {client ? <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} /> : (
                       <View style={styles.groupAvatar}><Text style={styles.groupAvatarText}>G</Text></View>
                     )}
                     <View style={{ flex: 1 }}>

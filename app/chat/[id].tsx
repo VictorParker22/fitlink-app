@@ -29,6 +29,7 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [clientName, setClientName] = useState('Client');
+  const [clientAvatar, setClientAvatar] = useState<string | undefined>();
   const flatListRef = useRef<FlatList>(null);
   const { isTyping, startTyping } = useTypingIndicator(conversationId, 'trainer');
 
@@ -37,10 +38,13 @@ export default function ChatScreen() {
     async function load() {
       const { data: conv } = await supabase
         .from('conversations')
-        .select('*, clients(name)')
+        .select('*, clients(name, avatar_url)')
         .eq('id', conversationId)
         .single();
-      if (conv) setClientName(conv.clients?.name || 'Client');
+      if (conv) {
+        setClientName(conv.clients?.name || 'Client');
+        setClientAvatar(conv.clients?.avatar_url);
+      }
 
       const { data: msgs } = await supabase
         .from('messages')
@@ -141,7 +145,7 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Avatar name={clientName} size="sm" />
+        <Avatar name={clientName} size="sm" imageUrl={clientAvatar} />
         <View style={{ flex: 1 }}>
           <Text style={styles.headerName}>{clientName}</Text>
         </View>

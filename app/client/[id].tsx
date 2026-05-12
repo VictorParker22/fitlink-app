@@ -100,7 +100,7 @@ export default function ClientDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Profile Hero */}
         <View style={styles.profileHero}>
-          <Avatar name={client.name} size="xl" />
+          <Avatar name={client.name} size="xl" imageUrl={client.avatar_url} />
           <Text style={[styles.profileName, { color: colors.textPrimary }]}>{client.name}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
             <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>

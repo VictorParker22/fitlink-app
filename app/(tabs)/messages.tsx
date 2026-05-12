@@ -17,7 +17,7 @@ interface Conversation {
   last_message: string | null;
   last_message_at: string | null;
   unread_count: number;
-  clients?: { name: string };
+  clients?: { name: string; avatar_url?: string };
 }
 
 export default function MessagesScreen() {
@@ -33,7 +33,7 @@ export default function MessagesScreen() {
   const fetchConversations = useCallback(async () => {
     const { data } = await supabase
       .from('conversations')
-      .select('*, clients(name)')
+      .select('*, clients(name, avatar_url)')
       .order('last_message_at', { ascending: false });
     if (data) setConversations(data);
     setLoading(false);
@@ -132,7 +132,7 @@ export default function MessagesScreen() {
               activeOpacity={0.7}
               onPress={() => router.push(`/chat/${conv.id}` as any)}
             >
-              <Avatar name={conv.clients?.name || '?'} size="md" />
+              <Avatar name={conv.clients?.name || '?'} size="md" imageUrl={conv.clients?.avatar_url} />
               <View style={styles.convContent}>
                 <View style={styles.convTop}>
                   <Text style={styles.convName} numberOfLines={1}>{conv.clients?.name || 'Unknown'}</Text>
@@ -161,7 +161,7 @@ export default function MessagesScreen() {
                     activeOpacity={0.7}
                     onPress={() => startConversation(client.id)}
                   >
-                    <Avatar name={client.name} size="sm" />
+                    <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} />
                     <Text style={styles.qsName}>{client.name}</Text>
                     <Ionicons name="chatbubble" size={16} color={Colors.accent} style={{ marginLeft: 'auto' }} />
                   </TouchableOpacity>

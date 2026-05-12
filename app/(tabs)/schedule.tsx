@@ -236,7 +236,7 @@ export default function ScheduleScreen() {
                     <View style={[styles.sessionAccent, { backgroundColor: typeColor }]} />
                     <View style={styles.sessionContent}>
                       <View style={styles.sessionRow}>
-                        {client ? <Avatar name={client.name} size="sm" /> : (
+                        {client ? <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} /> : (
                           <View style={[styles.groupAvatar, { backgroundColor: Colors.purple }]}>
                             <Text style={styles.groupAvatarText}>G</Text>
                           </View>

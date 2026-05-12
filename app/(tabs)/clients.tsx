@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import Avatar from '../../components/Avatar';
 
 type TabState = 'all' | 'active';
 
@@ -54,9 +55,6 @@ export default function ClientsScreen() {
   };
 
   const renderClient = ({ item }: { item: typeof clients[0] }) => {
-    const isMockData = item.name.includes('Vandimion') || item.name.includes('Gutsman'); // for perfect screenshot matching
-    const avatarUrl = `https://i.pravatar.cc/150?u=${item.id}`; // Always show an avatar to match the rich visual design
-
     return (
       <Swipeable
         renderRightActions={() => renderRightActions(item.id)}
@@ -69,7 +67,7 @@ export default function ClientsScreen() {
           onPress={() => router.push(`/client/${item.id}` as any)}
         >
           {/* Left: Rounded Square Avatar */}
-          <Image source={{ uri: avatarUrl }} style={styles.cardAvatar} />
+          <Avatar name={item.name} size="xl" imageUrl={item.avatar_url} />
 
           {/* Right: Info Area */}
           <View style={styles.cardInfo}>
@@ -245,7 +243,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Client Card
   card: {
-    backgroundColor: Colors.white,
     borderRadius: 24,
     padding: Spacing.md,
     flexDirection: 'row',
@@ -256,16 +253,10 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  cardAvatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 18,
-    backgroundColor: '#E5E7EB',
-    marginRight: Spacing.md,
-  },
   cardInfo: {
     flex: 1,
     justifyContent: 'center',
+    marginLeft: Spacing.md,
   },
   cardName: {
     fontFamily: FontFamily.headingExtraBold,
