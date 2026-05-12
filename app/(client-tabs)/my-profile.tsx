@@ -21,7 +21,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
 
 export default function ClientProfileScreen() {
   const { signOut } = useAuth();
-  const { clientData, trainer, sessions, workouts, plans, requestPlanUpgrade } = useClient();
+  const { clientData, trainer, sessions, workouts, plans, requestPlanUpgrade, updateClientAvatar } = useClient();
   const { colors, mode, setMode } = useTheme();
   const { showAlert } = useAlert();
   const [uploading, setUploading] = useState(false);
