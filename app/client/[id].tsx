@@ -154,29 +154,214 @@ export default function ClientDetailScreen() {
           </>
         )}
 
-        {/* Assessment Results */}
-        {client.assessment_data && Object.keys(client.assessment_data).length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Results</Text>
-            <Card style={styles.assessmentCard}>
-              {Object.entries(client.assessment_data).map(([key, value], index, arr) => {
-                // Formatting key (e.g. "lose_weight" -> "Lose weight")
-                let formattedKey = key.replace(/_/g, ' ');
-                formattedKey = formattedKey.charAt(0).toUpperCase() + formattedKey.slice(1);
-                
-                // Formatting value (if array, join with comma)
-                const formattedValue = Array.isArray(value) ? value.join(', ') : String(value);
+        {/* Assessment Summary */}
+        {client.assessment_data && Object.keys(client.assessment_data).length > 0 && (() => {
+          const d = client.assessment_data;
+          
+          // Map IDs to readable labels
+          const goalLabels: Record<string, string> = { lose_weight: 'Lose Weight', build_muscle: 'Build Muscle', stay_fit: 'Stay Fit', improve_endurance: 'Improve Endurance' };
+          const dietLabels: Record<string, string> = { plant_based: 'Plant Based', carbo_diet: 'Carbo Diet', specialized: 'Specialized', traditional: 'Traditional' };
+          const sleepEmojis: Record<string, string> = { excellent: '😊', great: '😃', normal: '😐', bad: '😞', insomniac: '😫' };
+          const sleepLabels: Record<string, string> = { excellent: 'Excellent (>8h)', great: 'Great (7-8h)', normal: 'Normal (6-7h)', bad: 'Bad (3-4h)', insomniac: 'Insomniac (<2h)' };
+          const exerciseLabels: Record<string, string> = { weightlifting: 'Weightlifting', cardio: 'Cardio', yoga: 'Yoga', pilates: 'Pilates', swimming: 'Swimming', running: 'Running', cycling: 'Cycling', boxing: 'Boxing', hiit: 'HIIT' };
+          
+          const weight = d.weight;
+          const age = d.age;
+          const calorieGoal = d.calorie_goal;
+          const commitDays = d.commit_days;
+          const fitnessLevel = d.fitness_level;
 
-                return (
-                  <View key={key} style={[styles.assessmentRow, index < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <Text style={[styles.assessmentKey, { color: colors.textTertiary }]}>{formattedKey}</Text>
-                    <Text style={[styles.assessmentValue, { color: colors.textPrimary }]}>{formattedValue}</Text>
+          return (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Summary</Text>
+                <View style={[styles.assessBadge, { backgroundColor: Colors.greenSoft }]}>
+                  <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+                  <Text style={[styles.assessBadgeText, { color: Colors.green }]}>Completed</Text>
+                </View>
+              </View>
+              
+              {/* Key Stats Tiles */}
+              <View style={styles.assessTilesRow}>
+                {weight && (
+                  <Card style={styles.assessTile}>
+                    <Ionicons name="scale-outline" size={20} color={colors.accent} />
+                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                      {typeof weight === 'object' ? `${weight.value}` : weight}
+                    </Text>
+                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>
+                      {typeof weight === 'object' ? weight.unit : 'kg'}
+                    </Text>
+                  </Card>
+                )}
+                {age && (
+                  <Card style={styles.assessTile}>
+                    <Ionicons name="calendar-outline" size={20} color={Colors.blue} />
+                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>{age}</Text>
+                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>years</Text>
+                  </Card>
+                )}
+                {calorieGoal && (
+                  <Card style={styles.assessTile}>
+                    <Ionicons name="flame-outline" size={20} color={Colors.accent} />
+                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                      {typeof calorieGoal === 'object' ? calorieGoal.value?.toLocaleString() : calorieGoal}
+                    </Text>
+                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>
+                      {typeof calorieGoal === 'object' ? calorieGoal.unit : 'kcal'}
+                    </Text>
+                  </Card>
+                )}
+                {commitDays && (
+                  <Card style={styles.assessTile}>
+                    <Ionicons name="repeat-outline" size={20} color={Colors.green} />
+                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>{commitDays}x</Text>
+                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>weekly</Text>
+                  </Card>
+                )}
+              </View>
+
+              {/* Detailed Breakdown */}
+              <Card noPadding style={{ marginBottom: Spacing.lg }}>
+                {/* Goal */}
+                {d.fitness_goal && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
+                      <Ionicons name="flag" size={16} color={Colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Fitness Goal</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{goalLabels[d.fitness_goal] || d.fitness_goal}</Text>
+                    </View>
                   </View>
-                );
-              })}
-            </Card>
-          </>
-        )}
+                )}
+
+                {/* Fitness Level */}
+                {fitnessLevel && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
+                      <Ionicons name="speedometer" size={16} color={Colors.blue} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Fitness Level</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 }}>
+                        <View style={[styles.assessLevelBar, { backgroundColor: `${colors.textTertiary}20` }]}>
+                          <View style={[styles.assessLevelFill, { width: `${(fitnessLevel / 10) * 100}%`, backgroundColor: fitnessLevel <= 3 ? Colors.red : fitnessLevel <= 6 ? Colors.yellow : Colors.green }]} />
+                        </View>
+                        <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{fitnessLevel}/10</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Gender */}
+                {d.gender && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.purple}18` }]}>
+                      <Ionicons name="person" size={16} color={Colors.purple} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Gender</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary, textTransform: 'capitalize' }]}>{d.gender}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Diet Preference */}
+                {d.diet_preference && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
+                      <Ionicons name="leaf" size={16} color={Colors.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Diet Preference</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{dietLabels[d.diet_preference] || d.diet_preference}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Exercise Preference */}
+                {d.exercise_preference && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
+                      <Ionicons name="barbell" size={16} color={Colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Exercise Preference</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{exerciseLabels[d.exercise_preference] || d.exercise_preference}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Sleep Quality */}
+                {d.sleep_quality && (
+                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.purple}18` }]}>
+                      <Ionicons name="moon" size={16} color={Colors.purple} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Sleep Quality</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
+                        {sleepEmojis[d.sleep_quality] || ''} {sleepLabels[d.sleep_quality] || d.sleep_quality}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Previous Experience */}
+                {d.previous_experience !== undefined && (
+                  <View style={[styles.assessRow, (d.physical_limitations?.length > 0 || d.supplements_list?.length > 0) && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
+                      <Ionicons name="medal" size={16} color={Colors.blue} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Previous Experience</Text>
+                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{d.previous_experience ? 'Yes' : 'No'}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Physical Limitations (tags) */}
+                {d.physical_limitations && d.physical_limitations.length > 0 && (
+                  <View style={[styles.assessRow, d.supplements_list?.length > 0 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.red}18` }]}>
+                      <Ionicons name="alert-circle" size={16} color={Colors.red} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Physical Limitations</Text>
+                      <View style={styles.assessTagRow}>
+                        {d.physical_limitations.map((tag: string) => (
+                          <View key={tag} style={[styles.assessTag, { backgroundColor: `${Colors.red}15` }]}>
+                            <Text style={[styles.assessTagText, { color: Colors.red }]}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Supplements */}
+                {d.supplements_list && d.supplements_list.length > 0 && (
+                  <View style={styles.assessRow}>
+                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
+                      <Ionicons name="medkit" size={16} color={Colors.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Supplements</Text>
+                      <View style={styles.assessTagRow}>
+                        {d.supplements_list.map((tag: string) => (
+                          <View key={tag} style={[styles.assessTag, { backgroundColor: `${Colors.green}15` }]}>
+                            <Text style={[styles.assessTagText, { color: Colors.green }]}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </Card>
+            </>
+          );
+        })()}
 
         {/* Assigned Workouts */}
         <View style={styles.sectionHeader}>
@@ -475,10 +660,22 @@ const styles = StyleSheet.create({
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
   contactValue: { flex: 1, fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base },
 
-  assessmentCard: { marginBottom: Spacing.xl },
-  assessmentRow: { paddingVertical: Spacing.sm },
-  assessmentKey: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, textTransform: 'uppercase', marginBottom: 2 },
-  assessmentValue: { fontFamily: FontFamily.body, fontSize: FontSize.base },
+  // Assessment Summary Styles
+  assessBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
+  assessBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
+  assessTilesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
+  assessTile: { flex: 1, minWidth: '22%', alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, gap: 2 },
+  assessTileValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
+  assessTileLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
+  assessRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.md },
+  assessRowIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  assessRowLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginBottom: 2 },
+  assessRowValue: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
+  assessLevelBar: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
+  assessLevelFill: { height: '100%', borderRadius: 4 },
+  assessTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  assessTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
+  assessTagText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
 
   emptySection: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
   emptySectionText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
