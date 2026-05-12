@@ -160,6 +160,19 @@ const ASSESSMENT_QUESTIONS = [
       "Joule's": { min: 2000, max: 21000, default: 6490, step: 200, label: 'joules daily' },
     }
   },
+  {
+    id: 'sleep_quality',
+    title: "What's your sleep quality like?",
+    type: 'single',
+    layout: 'badge_list',
+    options: [
+      { id: 'excellent', label: 'Excellent', emoji: '😊', badge: '>8 hours' },
+      { id: 'great', label: 'Great', emoji: '😃', badge: '7-8 hours' },
+      { id: 'normal', label: 'Normal', emoji: '😐', badge: '6-7 hours' },
+      { id: 'bad', label: 'Bad', emoji: '😞', badge: '3-4 hours' },
+      { id: 'insomniac', label: 'Insomniac', emoji: '😫', badge: '<2 hours' },
+    ]
+  },
 ];
 
 // --- Custom Ruler Component ---
@@ -852,6 +865,33 @@ export default function AssessmentScreen() {
           </View>
         )}
 
+        {/* --- BADGE LIST LAYOUT --- */}
+        {(question.type === 'single' || question.type === 'multi') && (question as any).layout === 'badge_list' && (
+          <View style={styles.optionsContainer}>
+            {question.options.map((option) => {
+              const isSelected = question.type === 'single'
+                ? currentAnswer === option.id
+                : (currentAnswer || []).includes(option.id);
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.badgeListItem, isSelected && styles.badgeListItemActive]}
+                  onPress={() => handleSelect(option.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.badgeEmoji}>{(option as any).emoji}</Text>
+                  <Text style={[styles.badgeListLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                  <View style={{ flex: 1 }} />
+                  <View style={[styles.badgePill, isSelected && styles.badgePillActive]}>
+                    <Ionicons name="time-outline" size={14} color={isSelected ? '#FFF' : colors.textTertiary} />
+                    <Text style={[styles.badgePillText, isSelected && { color: '#FFF' }]}>{(option as any).badge}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
         {/* --- PILL CLOUD LAYOUT --- */}
         {(question.type === 'single' || question.type === 'multi') && (question as any).layout === 'pill_cloud' && (
           <View style={[styles.optionsContainer, { marginTop: Spacing.md }]}>
@@ -1194,6 +1234,22 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   counterBtn: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   counterBtnMinus: { backgroundColor: `${colors.textTertiary}15` },
   counterBtnPlus: { backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+
+  // Badge List Styles
+  badgeListItem: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: `${colors.textTertiary}08`, borderRadius: Radius.xl,
+    paddingVertical: 16, paddingHorizontal: Spacing.xl,
+  },
+  badgeListItemActive: {
+    backgroundColor: colors.accent,
+    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
+  badgeEmoji: { fontSize: 24 },
+  badgeListLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.base, color: colors.textPrimary },
+  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.textTertiary}15`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
+  badgePillActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  badgePillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
 
   footer: {
     padding: Spacing.xl, paddingBottom: Spacing['2xl'],
