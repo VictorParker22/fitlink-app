@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
 import { useTheme } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 interface Conversation {
@@ -25,6 +26,7 @@ export default function MessagesScreen() {
   const { user } = useAuth();
   const { clients } = useApp();
   const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -94,11 +96,11 @@ export default function MessagesScreen() {
 
       {/* Search */}
       <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={Colors.textTertiary} />
+        <Ionicons name="search" size={18} color={colors.textTertiary} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search conversations..."
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={colors.textTertiary}
           value={search}
           onChangeText={setSearch}
         />
@@ -106,7 +108,7 @@ export default function MessagesScreen() {
 
       {loading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={Colors.accent} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -114,12 +116,12 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           ListHeaderComponent={
             filtered.length === 0 && unconnectedClients.length === 0 ? (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconCircle}>
-                  <Ionicons name="chatbubble-outline" size={32} color={Colors.accent} />
+                  <Ionicons name="chatbubble-outline" size={32} color={colors.accent} />
                 </View>
                 <Text style={styles.emptyTitle}>No messages yet</Text>
                 <Text style={styles.emptyText}>Start a conversation with a client</Text>
@@ -163,7 +165,7 @@ export default function MessagesScreen() {
                   >
                     <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} />
                     <Text style={styles.qsName}>{client.name}</Text>
-                    <Ionicons name="chatbubble" size={16} color={Colors.accent} style={{ marginLeft: 'auto' }} />
+                    <Ionicons name="chatbubble" size={16} color={colors.accent} style={{ marginLeft: 'auto' }} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -175,47 +177,47 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
+  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: colors.textPrimary, letterSpacing: -0.5 },
+  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, marginTop: 2 },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, marginHorizontal: Spacing.lg, marginVertical: Spacing.md,
     paddingHorizontal: Spacing.md, height: 42,
   },
-  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary, paddingVertical: 0 },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary, paddingVertical: 0 },
 
   list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   convItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md },
   convContent: { flex: 1 },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  convName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textPrimary, flex: 1, marginRight: 8 },
-  convTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  convPreview: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
+  convName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: colors.textPrimary, flex: 1, marginRight: 8 },
+  convTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  convPreview: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, marginTop: 2 },
   unreadBadge: {
     minWidth: 20, height: 20, borderRadius: 10,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,
   },
   unreadText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.white },
-  separator: { height: 1, backgroundColor: Colors.border },
+  separator: { height: 1, backgroundColor: colors.border },
 
-  quickStartSection: { marginTop: Spacing.xl, paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border },
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary, marginBottom: Spacing.md },
+  quickStartSection: { marginTop: Spacing.xl, paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: Spacing.md },
   qsItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
-  qsName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: Colors.textPrimary },
+  qsName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textPrimary },
 
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
   emptyIconCircle: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: `${colors.accent}15`, alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
 });
