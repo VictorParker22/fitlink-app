@@ -9,6 +9,7 @@ import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 type AssignMode = 'workout' | 'diet' | null;
@@ -21,9 +22,11 @@ export default function ClientDetailScreen() {
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
     workouts, diets, assignWorkout, assignDietPlan, plans,
+    upgradeClientToPlan, extendClientTrial,
   } = useApp();
 
   const [assignMode, setAssignMode] = useState<AssignMode>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const client = getClientById(id || '');
   const sessions = getClientSessions(id || '');
@@ -110,6 +113,85 @@ export default function ClientDetailScreen() {
             )}
           </View>
         </View>
+
+        {/* Trial Banner */}
+        {client.status === 'trial' && (() => {
+          const trialEnd = client.trial_end_date
+            ? new Date(client.trial_end_date)
+            : new Date(new Date(client.created_at).getTime() + 20 * 86400000);
+          const now = new Date();
+          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000));
+          const totalTrialDays = Math.ceil((trialEnd.getTime() - new Date(client.created_at).getTime()) / 86400000);
+          const maxDays = 40;
+          const canExtend = totalTrialDays < maxDays;
+          const isExpired = daysLeft === 0;
+          const progressPct = Math.min(1, (totalTrialDays - daysLeft) / totalTrialDays);
+
+          return (
+            <View style={[trialStyles.banner, { backgroundColor: isExpired ? '#EF444418' : Colors.yellowSoft }]}>
+              <View style={trialStyles.bannerTop}>
+                <View style={trialStyles.bannerLeft}>
+                  <Ionicons name={isExpired ? 'alert-circle' : 'time-outline'} size={20} color={isExpired ? '#EF4444' : Colors.yellow} />
+                  <View>
+                    <Text style={[trialStyles.bannerTitle, { color: colors.textPrimary }]}>
+                      {isExpired ? 'Trial Expired' : `${daysLeft} Day${daysLeft !== 1 ? 's' : ''} Left`}
+                    </Text>
+                    <Text style={[trialStyles.bannerSub, { color: colors.textTertiary }]}>
+                      {isExpired ? 'Upgrade to continue access' : `Trial ends ${trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Progress bar */}
+              <View style={[trialStyles.progressTrack, { backgroundColor: colors.bgElevated }]}>
+                <View style={[
+                  trialStyles.progressFill,
+                  { width: `${progressPct * 100}%`, backgroundColor: isExpired ? '#EF4444' : daysLeft <= 5 ? Colors.yellow : Colors.green },
+                ]} />
+              </View>
+
+              {/* Action buttons */}
+              <View style={trialStyles.bannerActions}>
+                {canExtend && !isExpired && (
+                  <>
+                    <TouchableOpacity
+                      style={[trialStyles.extendBtn, { backgroundColor: colors.bgElevated }]}
+                      onPress={async () => {
+                        try {
+                          await extendClientTrial(client.id, 7);
+                          showAlert({ type: 'success', title: 'Extended!', message: 'Trial extended by 1 week.' });
+                        } catch { showAlert({ type: 'error', title: 'Error', message: 'Could not extend trial.' }); }
+                      }}
+                    >
+                      <Ionicons name="add" size={14} color={colors.textPrimary} />
+                      <Text style={[trialStyles.extendText, { color: colors.textPrimary }]}>+1 Week</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[trialStyles.extendBtn, { backgroundColor: colors.bgElevated }]}
+                      onPress={async () => {
+                        try {
+                          await extendClientTrial(client.id, 30);
+                          showAlert({ type: 'success', title: 'Extended!', message: 'Trial extended by 1 month.' });
+                        } catch { showAlert({ type: 'error', title: 'Error', message: 'Max 40-day trial reached.' }); }
+                      }}
+                    >
+                      <Ionicons name="add" size={14} color={colors.textPrimary} />
+                      <Text style={[trialStyles.extendText, { color: colors.textPrimary }]}>+1 Month</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                <TouchableOpacity
+                  style={trialStyles.upgradeBtn}
+                  onPress={() => setShowUpgradeModal(true)}
+                >
+                  <Ionicons name="arrow-up-circle" size={16} color="#FFF" />
+                  <Text style={trialStyles.upgradeText}>Upgrade to Plan</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -630,6 +712,64 @@ export default function ClientDetailScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Upgrade Plan Modal */}
+      <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
+              <Ionicons name="close" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Choose a Plan</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md }}>
+            <Text style={[trialStyles.modalSubtitle, { color: colors.textSecondary }]}>
+              Select a subscription plan to upgrade {client.name} from trial to active member.
+            </Text>
+
+            {plans.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.md }}>
+                <Ionicons name="document-text-outline" size={48} color={colors.textTertiary} />
+                <Text style={[trialStyles.noPlanText, { color: colors.textTertiary }]}>No plans created yet</Text>
+                <Button title="Create Plan" onPress={() => { setShowUpgradeModal(false); router.push('/create-plan' as any); }} size="sm" />
+              </View>
+            ) : (
+              plans.map((plan) => (
+                <TouchableOpacity
+                  key={plan.id}
+                  style={[trialStyles.planCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+                  activeOpacity={0.85}
+                  onPress={async () => {
+                    try {
+                      await upgradeClientToPlan(client.id, plan.id);
+                      setShowUpgradeModal(false);
+                      showAlert({ type: 'success', title: 'Upgraded! 🎉', message: `${client.name} is now on the "${plan.name}" plan.` });
+                    } catch (err: any) {
+                      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to upgrade' });
+                    }
+                  }}
+                >
+                  <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={trialStyles.planIcon}>
+                    <Ionicons name="diamond" size={24} color="#FFF" />
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[trialStyles.planName, { color: colors.textPrimary }]}>{plan.name}</Text>
+                    <Text style={[trialStyles.planPrice, { color: colors.textTertiary }]}>
+                      ${plan.price}/{(plan as any).interval === 'monthly' ? 'mo' : (plan as any).interval || 'mo'}
+                    </Text>
+                  </View>
+                  <View style={trialStyles.selectBtn}>
+                    <Text style={trialStyles.selectText}>Select</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#FFF" />
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -704,4 +844,123 @@ const styles = StyleSheet.create({
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
   emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md },
+});
+
+const trialStyles = StyleSheet.create({
+  banner: {
+    marginHorizontal: 0,
+    borderRadius: Radius.xl,
+    padding: Spacing.base,
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  bannerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  bannerTitle: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: FontSize.md,
+  },
+  bannerSub: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.xs,
+    marginTop: 1,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  extendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+  },
+  extendText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.xs,
+  },
+  upgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+    marginLeft: 'auto',
+  },
+  upgradeText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: '#FFF',
+  },
+  // Upgrade modal
+  modalSubtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.sm,
+  },
+  noPlanText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.base,
+  },
+  planCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.base,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+  },
+  planIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planName: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: FontSize.md,
+  },
+  planPrice: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.sm,
+    marginTop: 2,
+  },
+  selectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.accent,
+  },
+  selectText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: '#FFF',
+  },
 });

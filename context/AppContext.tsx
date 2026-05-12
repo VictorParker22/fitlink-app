@@ -26,6 +26,7 @@ interface Client {
   notes?: string;
   goals?: string;
   assessment_data?: any;
+  trial_end_date?: string;
   created_at: string;
 }
 
@@ -190,6 +191,8 @@ interface AppContextType {
   // Operations
   addClient: (data: Partial<Client>) => Promise<Client>;
   updateClient: (id: string, updates: Partial<Client>) => Promise<Client>;
+  upgradeClientToPlan: (clientId: string, planId: string) => Promise<void>;
+  extendClientTrial: (clientId: string, days: number) => Promise<void>;
   updateClientAssessment: (clientId: string, assessmentData: any) => Promise<void>;
   getClientById: (id: string) => Client | undefined;
   addSession: (data: Partial<Session>) => Promise<Session>;
@@ -402,6 +405,48 @@ export function AppProvider({ children }: PropsWithChildren) {
     setClients((prev) => prev.map((c) => (c.id === id ? data : c)));
     return data;
   }, []);
+
+  const upgradeClientToPlan = useCallback(async (clientId: string, planId: string) => {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ status: 'active', plan_id: planId, trial_end_date: null })
+      .eq('id', clientId)
+      .select()
+      .single();
+    if (error) throw error;
+    setClients((prev) => prev.map((c) => (c.id === clientId ? data : c)));
+    const client = clients.find((c) => c.id === clientId);
+    const plan = plans.find((p) => p.id === planId);
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'signup',
+      message: `${client?.name || 'Client'} upgraded to "${plan?.name || 'plan'}"`,
+    });
+  }, [user, clients, plans]);
+
+  const extendClientTrial = useCallback(async (clientId: string, days: number) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) throw new Error('Client not found');
+
+    // Calculate current trial end (default 20 days from created_at)
+    const currentEnd = client.trial_end_date
+      ? new Date(client.trial_end_date)
+      : new Date(new Date(client.created_at).getTime() + 20 * 86400000);
+    const newEnd = new Date(currentEnd.getTime() + days * 86400000);
+    
+    // Max 40 days from created_at
+    const maxEnd = new Date(new Date(client.created_at).getTime() + 40 * 86400000);
+    const finalEnd = newEnd > maxEnd ? maxEnd : newEnd;
+
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ trial_end_date: finalEnd.toISOString() })
+      .eq('id', clientId)
+      .select()
+      .single();
+    if (error) throw error;
+    setClients((prev) => prev.map((c) => (c.id === clientId ? data : c)));
+  }, [clients]);
 
   const getClientById = useCallback((id: string) => {
     return clients.find((c) => c.id === id);
@@ -703,7 +748,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user, trainer]);
 
   // --- Computed values ---
-  const activeClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
+  const activeClients = useMemo(() => clients.filter((c) => c.status === 'active' || c.status === 'trial'), [clients]);
   const trialClients = useMemo(() => clients.filter((c) => c.status === 'trial'), [clients]);
   const inactiveClients = useMemo(() => clients.filter((c) => c.status === 'inactive'), [clients]);
 
@@ -747,6 +792,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     totalMonthlyRevenue,
     addClient,
     updateClient,
+    upgradeClientToPlan,
+    extendClientTrial,
     updateClientAssessment,
     getClientById,
     addSession,
