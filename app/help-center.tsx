@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 const FAQ_SECTIONS = [
@@ -43,6 +44,8 @@ const FAQ_SECTIONS = [
 export default function HelpCenterScreen() {
   const router = useRouter();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const toggleItem = (key: string) => {
     setExpandedItem((prev) => prev === key ? null : key);
@@ -52,7 +55,7 @@ export default function HelpCenterScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help Center</Text>
         <View style={{ width: 36 }} />
@@ -78,7 +81,7 @@ export default function HelpCenterScreen() {
                   >
                     <View style={styles.faqHeader}>
                       <Text style={styles.faqQuestion}>{item.q}</Text>
-                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.textTertiary} />
+                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
                     </View>
                     {isExpanded && (
                       <Text style={styles.faqAnswer}>{item.a}</Text>
@@ -94,21 +97,21 @@ export default function HelpCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 
-  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, textAlign: 'center', marginTop: Spacing.lg },
-  heroSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs },
+  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: colors.textPrimary, textAlign: 'center', marginTop: Spacing.lg },
+  heroSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
 
   faqItem: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.base },
-  faqItemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  faqItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   faqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
-  faqQuestion: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary, flex: 1 },
-  faqAnswer: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20, marginTop: Spacing.sm },
+  faqQuestion: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary, flex: 1 },
+  faqAnswer: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, lineHeight: 20, marginTop: Spacing.sm },
 });
