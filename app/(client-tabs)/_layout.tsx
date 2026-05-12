@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ClientProvider } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FontFamily } from '../../constants/theme';
 
@@ -9,9 +8,8 @@ export default function ClientTabsLayout() {
   const { colors, isDark } = useTheme();
 
   return (
-    <ClientProvider>
-      <Tabs
-        screenOptions={{
+    <Tabs
+      screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textTertiary,
@@ -99,6 +97,5 @@ export default function ClientTabsLayout() {
         {/* Progress hidden from tab bar — accessible via Home screen */}
         <Tabs.Screen name="my-progress" options={{ href: null }} />
       </Tabs>
-    </ClientProvider>
   );
 }

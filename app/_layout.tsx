@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider, useApp } from '../context/AppContext';
+import { ClientProvider } from '../context/ClientContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -195,8 +196,10 @@ export default function RootLayout() {
         <AlertProvider>
           <AuthProvider>
             <AppProvider>
-              <ThemedStatusBar />
-              <AuthGuard />
+              <ClientProvider>
+                <ThemedStatusBar />
+                <AuthGuard />
+              </ClientProvider>
             </AppProvider>
           </AuthProvider>
         </AlertProvider>
