@@ -159,10 +159,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
   }, [clientData]);
 
   const updateClientAvatar = useCallback(async (base64: string, uri: string) => {
-    if (!clientData) return;
+    if (!clientData || !user) return;
     
     const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `${clientData.id}/avatar.${fileExt}`;
+    const fileName = `${user.id}/avatar.${fileExt}`;
     const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
     const binaryStr = atob(base64);
     const bytes = new Uint8Array(binaryStr.length);
@@ -186,7 +186,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       
     if (error) throw error;
     setClientData(data);
-  }, [clientData]);
+  }, [clientData, user]);
 
   return (
     <ClientContext.Provider value={{
