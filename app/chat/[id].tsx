@@ -10,6 +10,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import Avatar from '../../components/Avatar';
+import { useTheme } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
 interface Message {
@@ -31,6 +33,8 @@ export default function ChatScreen() {
   const [clientName, setClientName] = useState('Client');
   const [clientAvatar, setClientAvatar] = useState<string | undefined>();
   const flatListRef = useRef<FlatList>(null);
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { isTyping, startTyping } = useTypingIndicator(conversationId, 'trainer');
 
   // Load conversation + messages
@@ -143,7 +147,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Avatar name={clientName} size="sm" imageUrl={clientAvatar} />
         <View style={{ flex: 1 }}>
@@ -156,7 +160,7 @@ export default function ChatScreen() {
             title: 'Join me on FitLink',
           })}
         >
-          <Ionicons name="paper-plane-outline" size={18} color={Colors.accent} />
+          <Ionicons name="paper-plane-outline" size={18} color={colors.accent} />
         </TouchableOpacity>
       </View>
 
@@ -201,7 +205,7 @@ export default function ChatScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="chatbubble-outline" size={40} color={Colors.textTertiary} />
+              <Ionicons name="chatbubble-outline" size={40} color={colors.textTertiary} />
               <Text style={styles.emptyText}>Start the conversation!</Text>
             </View>
           }
@@ -225,7 +229,7 @@ export default function ChatScreen() {
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={newMessage}
             onChangeText={(text) => { setNewMessage(text); startTyping(); }}
             multiline
@@ -241,7 +245,7 @@ export default function ChatScreen() {
             <Ionicons
               name="send"
               size={18}
-              color={newMessage.trim() ? Colors.white : Colors.textTertiary}
+              color={newMessage.trim() ? Colors.white : colors.textTertiary}
             />
           </TouchableOpacity>
         </View>
@@ -250,64 +254,64 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
 
   header: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
-    backgroundColor: Colors.bgSecondary,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    backgroundColor: colors.bgSecondary,
   },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  inviteBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  headerName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  inviteBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: `${colors.accent}15`, alignItems: 'center', justifyContent: 'center' },
+  headerName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
 
   messageList: { padding: Spacing.lg, paddingBottom: Spacing.sm, flexGrow: 1 },
 
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.lg },
-  dateLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dateText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary },
+  dateLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dateText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
 
   bubbleRow: { flexDirection: 'row', marginBottom: Spacing.sm },
   bubbleRowRight: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.lg },
-  bubbleSent: { backgroundColor: Colors.accent, borderBottomRightRadius: 4 },
-  bubbleReceived: { backgroundColor: Colors.bgElevated, borderBottomLeftRadius: 4 },
+  bubbleSent: { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
+  bubbleReceived: { backgroundColor: colors.bgElevated, borderBottomLeftRadius: 4 },
   bubbleText: { fontFamily: FontFamily.body, fontSize: FontSize.base, lineHeight: 20 },
   bubbleTextSent: { color: Colors.white },
-  bubbleTextReceived: { color: Colors.textPrimary },
+  bubbleTextReceived: { color: colors.textPrimary },
   bubbleTime: { fontFamily: FontFamily.body, fontSize: 9, marginTop: 4 },
   bubbleTimeSent: { color: 'rgba(255,255,255,0.6)', textAlign: 'right' },
-  bubbleTimeReceived: { color: Colors.textTertiary },
+  bubbleTimeReceived: { color: colors.textTertiary },
 
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    borderTopWidth: 1, borderTopColor: Colors.border,
-    backgroundColor: Colors.bgSecondary,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: colors.bgSecondary,
   },
   input: {
-    flex: 1, backgroundColor: Colors.bgInput,
-    borderWidth: 1, borderColor: Colors.borderStrong, borderRadius: Radius.xl,
+    flex: 1, backgroundColor: colors.bgInput,
+    borderWidth: 1, borderColor: colors.borderStrong, borderRadius: Radius.xl,
     paddingHorizontal: 16, paddingVertical: 10,
-    fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary,
+    fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
     maxHeight: 100,
   },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: colors.bgElevated,
     alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnActive: { backgroundColor: Colors.accent },
+  sendBtnActive: { backgroundColor: colors.accent },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing['4xl'] },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
 
   typingRow: { flexDirection: 'row', marginBottom: Spacing.sm },
-  typingBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: Radius.lg, borderBottomLeftRadius: 4, backgroundColor: Colors.bgElevated },
+  typingBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: Radius.lg, borderBottomLeftRadius: 4, backgroundColor: colors.bgElevated },
   typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.textTertiary },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textTertiary },
   dot1: { opacity: 0.4 },
   dot2: { opacity: 0.6 },
   dot3: { opacity: 0.8 },
