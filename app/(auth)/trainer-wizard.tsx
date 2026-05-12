@@ -148,6 +148,13 @@ export default function TrainerWizardScreen() {
 
   const completeWizard = async () => {
     await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
+    // Also persist to Supabase user_metadata so it survives cache clears
+    try {
+      const { supabase } = require('../../lib/supabase');
+      await supabase.auth.updateUser({ data: { wizard_complete: true } });
+    } catch (e) {
+      // Non-critical — SecureStore fallback still works
+    }
     router.replace('/(tabs)');
   };
 

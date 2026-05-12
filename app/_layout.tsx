@@ -10,6 +10,7 @@ import { AppProvider, useApp } from '../context/AppContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { supabase } from '../lib/supabase';
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -111,10 +112,23 @@ function AuthGuard() {
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasWizard]);
 
-  // Re-check wizard flag when auth state changes (e.g. after wizard completes)
+  // Re-check wizard flag when auth state changes — check both Supabase metadata and SecureStore
   useEffect(() => {
     if (isAuthenticated) {
-      SecureStore.getItemAsync('fitlink_wizard_complete').then(val => setHasWizard(val === 'true'));
+      (async () => {
+        // Check Supabase user_metadata first (survives cache clears)
+        const { data: { user } } = await supabase.auth.getUser();
+        const metaWizard = user?.user_metadata?.wizard_complete === true;
+        if (metaWizard) {
+          // Sync to SecureStore so future checks are instant
+          await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
+          setHasWizard(true);
+        } else {
+          // Fallback to SecureStore
+          const val = await SecureStore.getItemAsync('fitlink_wizard_complete');
+          setHasWizard(val === 'true');
+        }
+      })();
     }
   }, [isAuthenticated]);
 
