@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Share,
+  KeyboardAvoidingView, Platform, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,37 +36,47 @@ export default function ChatScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { isTyping, startTyping } = useTypingIndicator(conversationId, 'trainer');
+  const [refreshing, setRefreshing] = useState(false);
+  const [clientPushToken, setClientPushToken] = useState<string | null>(null);
+
+  const loadMessages = async () => {
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('*, clients(name, avatar_url, expo_push_token)')
+      .eq('id', conversationId)
+      .single();
+    if (conv) {
+      setClientName(conv.clients?.name || 'Client');
+      setClientAvatar(conv.clients?.avatar_url);
+      setClientPushToken(conv.clients?.expo_push_token || null);
+    }
+
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+    if (msgs) setMessages(msgs);
+
+    // Mark as read
+    await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conversationId);
+    await supabase.from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .eq('sender_type', 'client')
+      .eq('read', false);
+  };
 
   // Load conversation + messages
   useEffect(() => {
-    async function load() {
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('*, clients(name, avatar_url)')
-        .eq('id', conversationId)
-        .single();
-      if (conv) {
-        setClientName(conv.clients?.name || 'Client');
-        setClientAvatar(conv.clients?.avatar_url);
-      }
-
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-      if (msgs) setMessages(msgs);
-
-      // Mark as read
-      await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conversationId);
-      await supabase.from('messages')
-        .update({ read: true })
-        .eq('conversation_id', conversationId)
-        .eq('sender_type', 'client')
-        .eq('read', false);
-    }
-    load();
+    loadMessages();
   }, [conversationId]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadMessages();
+    setRefreshing(false);
+  };
 
   // Real-time subscription
   useEffect(() => {
@@ -109,13 +119,24 @@ export default function ChatScreen() {
         last_message: content,
         last_message_at: new Date().toISOString(),
       }).eq('id', conversationId);
+      
+      if (clientPushToken) {
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            pushToken: clientPushToken,
+            title: `Message from your Coach`,
+            body: content,
+            data: { url: '/my-messages' }
+          }
+        }).catch(err => console.log('Push error:', err));
+      }
     } catch (err) {
       console.error('Send failed:', err);
       setNewMessage(content);
     } finally {
       setSending(false);
     }
-  }, [newMessage, sending, conversationId]);
+  }, [newMessage, sending, conversationId, clientPushToken]);
 
   const formatTime = (ts: string) => {
     return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -176,6 +197,7 @@ export default function ChatScreen() {
           keyExtractor={(item, i) => 'id' in item ? item.id : `divider-${i}`}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => {
             if ('type' in item && item.type === 'divider') {
               return (

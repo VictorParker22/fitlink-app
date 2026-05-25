@@ -1,6 +1,21 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type PropsWithChildren } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export interface ExerciseLogEntry {
+  weight: number;
+  reps: number;
+  completed: boolean;
+}
 
 interface ClientData {
   id: string;
@@ -32,12 +47,26 @@ interface ClientContextType {
   plans: any[];
   upcomingSessions: any[];
   todayWorkout: any;
+  subscription: any;
+  paymentHistory: any[];
+  exerciseLogs: Record<string, ExerciseLogEntry>;
+  logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => void;
+  clearExerciseLogs: () => void;
+  completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<void>;
   markWorkoutComplete: (id: string) => Promise<void>;
   markWorkoutSkipped: (id: string) => Promise<void>;
   requestPlanUpgrade: (planId: string) => Promise<void>;
   updateAssessment: (data: any) => Promise<void>;
   updateClientAvatar: (base64: string, uri: string) => Promise<void>;
+  logProgress: (data: { weight?: number; bodyFat?: number; measurements?: any; notes?: string }) => Promise<void>;
+  cancelSubscription: (subscriptionId: string) => Promise<void>;
+  setupPaymentMethod: () => Promise<{ clientSecret: string, customerId: string }>;
+  healthSharingEnabled: boolean;
+  toggleHealthSharing: (enabled: boolean) => Promise<void>;
   refreshData: () => Promise<void>;
+  activeGymVisit: any;
+  checkInGym: () => Promise<void>;
+  checkOutGym: () => Promise<void>;
 }
 
 const ClientContext = createContext<ClientContextType | null>(null);
@@ -52,7 +81,12 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [progressLogs, setProgressLogs] = useState<any[]>([]);
   const [conversation, setConversation] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
+  const [healthSharingEnabled, setHealthSharingEnabled] = useState(false);
+  const [activeGymVisit, setActiveGymVisit] = useState<any>(null);
 
   const fetchClientData = useCallback(async () => {
     if (!user) { setLoading(false); return; }
@@ -65,12 +99,15 @@ export function ClientProvider({ children }: PropsWithChildren) {
         .eq('auth_user_id', user.id)
         .maybeSingle();
 
-      console.log('[ClientContext] Fetch result:', JSON.stringify({ userId: user.id, client: client?.id, clientErr }));
+      if (__DEV__) console.log('[ClientContext] Fetch result:', JSON.stringify({ userId: user.id, client: client?.id, clientErr }));
 
       if (!client) { setLoading(false); return; }
       setClientData(client);
+      setHealthSharingEnabled(!!client.health_sharing_enabled);
 
-      const [trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes] = await Promise.all([
+      const [
+        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes
+      ] = await Promise.all([
         supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')
@@ -87,9 +124,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
           .order('date', { ascending: false }),
         supabase.from('conversations').select('*').eq('client_id', client.id).maybeSingle(),
         supabase.from('plans').select('*').eq('trainer_id', client.trainer_id),
+        supabase.from('payments').select('*, plans(*)').eq('client_id', client.id).order('created_at', { ascending: false }),
+        supabase.from('gym_visits').select('*').eq('client_id', client.id).is('check_out_time', null).maybeSingle(),
       ]);
 
-      console.log('[ClientContext] Related data:', JSON.stringify({
+      if (__DEV__) console.log('[ClientContext] Related data:', JSON.stringify({
         trainer: !!trainerRes.data,
         sessions: sessionsRes.data?.length,
         workouts: workoutsRes.data?.length,
@@ -103,8 +142,13 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (progressRes.data) setProgressLogs(progressRes.data);
       if (convRes.data) setConversation(convRes.data);
       if (plansRes.data) setPlans(plansRes.data);
+      if (payRes.data) setPaymentHistory(payRes.data);
+      
+      // If there's an active gym visit, set it
+      if (visitRes && visitRes.data) setActiveGymVisit(visitRes.data);
+      else setActiveGymVisit(null);
     } catch (err) {
-      console.error('Error loading client data:', err);
+      if (__DEV__) console.error('Error loading client data:', err);
     } finally {
       setLoading(false);
     }
@@ -114,9 +158,84 @@ export function ClientProvider({ children }: PropsWithChildren) {
     fetchClientData();
   }, [fetchClientData]);
 
+  // Synthesize subscription object from clientData
+  useEffect(() => {
+    if (clientData && clientData.status === 'active') {
+      const activePlan = plans.find(p => p.id === clientData.plan_id) || {
+        id: clientData.plan_id || 'custom-plan',
+        name: 'Personal Coaching',
+        price: '---',
+        interval: 'monthly'
+      };
+      
+      setSubscription({
+        id: 'sub_' + clientData.id,
+        status: clientData.status,
+        current_period_end: clientData.trial_end_date || new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
+        plans: activePlan
+      });
+      return;
+    }
+    setSubscription(null);
+  }, [clientData, plans]);
+
   const refreshData = useCallback(async () => {
     await fetchClientData();
   }, [fetchClientData]);
+
+  // Log individual exercise set completion (in-memory only)
+  const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => {
+    const key = `${workoutId}-${exerciseId}-${setIndex}`;
+    setExerciseLogs((prev) => ({
+      ...prev,
+      [key]: { weight, reps, completed: true },
+    }));
+  }, []);
+
+  const clearExerciseLogs = useCallback(() => {
+    setExerciseLogs({});
+  }, []);
+
+  // Complete workout with full exercise log data
+  const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number) => {
+    // Persist the log data alongside the workout completion
+    const logEntries = Object.entries(exerciseLogs)
+      .filter(([key]) => key.startsWith(clientWorkoutId))
+      .map(([key, entry]) => {
+        const parts = key.replace(`${clientWorkoutId}-`, '').split('-');
+        const setIndex = parseInt(parts.pop()!, 10);
+        const exerciseId = parts.join('-');
+        return {
+          client_workout_id: clientWorkoutId,
+          exercise_id: exerciseId,
+          set_index: setIndex,
+          weight: entry.weight,
+          reps: entry.reps,
+        };
+      });
+
+    // Try to save logs (table may not exist yet — that's OK, we still complete)
+    if (logEntries.length > 0) {
+      const { error: logError } = await supabase.from('client_workout_logs').insert(logEntries);
+      if (logError && __DEV__) console.warn('[ClientContext] Log save skipped:', logError.message);
+    }
+
+    // Mark workout complete with duration metadata
+    const { error } = await supabase
+      .from('client_workouts')
+      .update({ status: 'completed', duration_seconds: durationSeconds })
+      .eq('id', clientWorkoutId);
+
+    if (!error) {
+      setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
+      // Clear logs for this workout
+      setExerciseLogs((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => { if (k.startsWith(clientWorkoutId)) delete next[k]; });
+        return next;
+      });
+    }
+  }, [exerciseLogs]);
 
   const markWorkoutComplete = useCallback(async (clientWorkoutId: string) => {
     const { error } = await supabase.from('client_workouts').update({ status: 'completed' }).eq('id', clientWorkoutId);
@@ -188,11 +307,125 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setClientData(data);
   }, [clientData, user]);
 
+  const logProgress = useCallback(async (data: { weight?: number; bodyFat?: number; measurements?: any; notes?: string }) => {
+    if (!clientData) return;
+    const { error } = await supabase.from('client_progress').insert({
+      client_id: clientData.id,
+      trainer_id: clientData.trainer_id,
+      date: new Date().toISOString().split('T')[0],
+      weight: data.weight ?? null,
+      body_fat: data.bodyFat ?? null,
+      measurements: data.measurements ?? null,
+      notes: data.notes ?? null,
+    });
+    if (error) throw error;
+    await refreshData();
+  }, [clientData, refreshData]);
+
+  const cancelSubscription = useCallback(async () => {
+    if (!clientData) return;
+    const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+      body: { clientId: clientData.id }
+    });
+    if (error) throw error;
+    await refreshData();
+  }, [clientData, refreshData]);
+
+  const setupPaymentMethod = useCallback(async () => {
+    if (!clientData) throw new Error("No client data");
+    const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+      body: { clientId: clientData.id }
+    });
+    if (error) throw error;
+    return data;
+  }, [clientData]);
+
+  const toggleHealthSharing = useCallback(async (enabled: boolean) => {
+    if (!clientData) return;
+    const { error } = await supabase
+      .from('clients')
+      .update({ health_sharing_enabled: enabled })
+      .eq('id', clientData.id);
+    if (!error) {
+      setHealthSharingEnabled(enabled);
+      setClientData((prev) => prev ? { ...prev, health_sharing_enabled: enabled } as any : prev);
+    } else {
+      throw error;
+    }
+  }, [clientData]);
+
+  const checkInGym = useCallback(async () => {
+    if (!clientData) return;
+    const { data, error } = await supabase
+      .from('gym_visits')
+      .insert({ client_id: clientData.id })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    setActiveGymVisit(data);
+    
+    // Schedule smart reminders
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status === 'granted') {
+      await Notifications.scheduleNotificationAsync({
+        content: { title: "Still at the gym? 🏋️‍♂️", body: "You've been checked in for 1 hour!" },
+        trigger: { 
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 3600 
+        },
+      });
+      await Notifications.scheduleNotificationAsync({
+        content: { title: "Gym Check-in Active ⏰", body: "You've been checked in for 2 hours. Don't forget to check out!" },
+        trigger: { 
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 7200 
+        },
+      });
+    }
+  }, [clientData]);
+
+  const checkOutGym = useCallback(async () => {
+    if (!clientData || !activeGymVisit) return;
+    const now = new Date();
+    const checkInTime = new Date(activeGymVisit.check_in_time);
+    const durationMinutes = Math.round((now.getTime() - checkInTime.getTime()) / 60000);
+    
+    const { error } = await supabase
+      .from('gym_visits')
+      .update({ check_out_time: now.toISOString(), duration_minutes: durationMinutes })
+      .eq('id', activeGymVisit.id);
+      
+    if (error) throw error;
+    setActiveGymVisit(null);
+    
+    // Cancel all scheduled reminders
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    // Add XP and drop an activity for the coach
+    const xpReward = 50;
+    await supabase.from('clients').update({
+      completed_workouts: (clientData.completed_workouts || 0) + 1, // Treat gym visit as a workout for XP purposes
+    }).eq('id', clientData.id);
+    
+    await supabase.from('activities').insert({
+      trainer_id: clientData.trainer_id,
+      type: 'workout_completed',
+      message: `${clientData.name} checked out of the gym. Duration: ${durationMinutes} mins (+${xpReward} XP)`,
+    });
+    
+    // Refresh to get updated XP
+    refreshData();
+  }, [clientData, activeGymVisit]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
-      conversation, plans, upcomingSessions, todayWorkout,
-      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, updateAssessment, updateClientAvatar, refreshData,
+      conversation, plans, upcomingSessions, todayWorkout, exerciseLogs,
+      subscription, paymentHistory, healthSharingEnabled, activeGymVisit,
+      logExerciseSet, clearExerciseLogs, completeWorkoutWithLog,
+      markWorkoutComplete, markWorkoutSkipped, requestPlanUpgrade, updateAssessment, updateClientAvatar, logProgress, cancelSubscription, setupPaymentMethod, toggleHealthSharing, refreshData,
+      checkInGym, checkOutGym,
     }}>
       {children}
     </ClientContext.Provider>

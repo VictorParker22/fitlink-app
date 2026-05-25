@@ -1,11 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator, Switch, Modal, TextInput } from 'react-native';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { supabase } from '../../lib/supabase';
 import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
@@ -14,6 +17,7 @@ import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { calculateXp, calculateLevel, calculateProgressToNextLevel } from '../../utils/xp';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
   { value: 'light', label: 'Light', icon: 'sunny' },
@@ -22,20 +26,27 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
 ];
 
 export default function ClientProfileScreen() {
+  const router = useRouter();
   const { signOut } = useAuth();
-  const { clientData, trainer, sessions, workouts, plans, requestPlanUpgrade, updateClientAvatar } = useClient();
+  const { clientData, trainer, sessions, workouts, plans, updateClientAvatar, healthSharingEnabled, toggleHealthSharing } = useClient();
   const { colors, isDark, mode, setMode } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const { showAlert } = useAlert();
   const [uploading, setUploading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
 
-  if (!clientData) return null;
+  if (!clientData) return (
+    <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+      <ActivityIndicator size="large" color={colors.accent} />
+    </SafeAreaView>
+  );
 
   const completedSessions = sessions.filter((s: any) => s.status === 'completed').length;
   const completedWorkouts = workouts.filter((w: any) => w.status === 'completed').length;
   const streak = clientData.progress?.streak || 0;
-  const xp = completedWorkouts * 50;
-  const level = Math.floor(xp / 250) + 1;
+  const xp = calculateXp(completedWorkouts);
+  const level = calculateLevel(xp);
   const xpInLevel = xp % 250;
   const memberSince = new Date(clientData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -44,6 +55,40 @@ export default function ClientProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: signOut },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all associated data (workouts, diet plans, messages). This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: () => {
+            setDeleteInput('');
+            setShowDeleteModal(true);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteInput !== 'DELETE') {
+      Alert.alert('Cancelled', 'Account deletion cancelled.');
+      setShowDeleteModal(false);
+      return;
+    }
+    try {
+      await supabase.rpc('delete_client_account');
+      setShowDeleteModal(false);
+      await signOut();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to delete account. Contact support.');
+      setShowDeleteModal(false);
+    }
   };
 
   const handlePickImage = async () => {
@@ -107,7 +152,7 @@ export default function ClientProfileScreen() {
               <Text style={styles.levelText}>Level {level}</Text>
             </View>
             <View style={styles.xpBarTrack}>
-              <View style={[styles.xpBarFill, { width: `${(xpInLevel / 250) * 100}%` }]} />
+              <View style={[styles.xpBarFill, { width: `${calculateProgressToNextLevel(xp) * 100}%` }]} />
             </View>
             <Text style={styles.xpLabel}>{xpInLevel}/250 XP</Text>
           </View>
@@ -154,54 +199,18 @@ export default function ClientProfileScreen() {
 
         {/* ── MEMBERSHIP ── */}
         <Text style={styles.sectionTitle}>Membership</Text>
-        {clientData.status === 'active' ? (
-          <Card>
-            <View style={styles.activePlan}>
-              <LinearGradient colors={[colors.accent, '#FF9F6B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.activePlanIcon}>
-                <Ionicons name="star" size={22} color="#FFF" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.activePlanName}>{plans.find(p => p.id === clientData.plan_id)?.name || 'Active Plan'}</Text>
-                <Text style={styles.activePlanSub}>Full access to personalized training</Text>
-              </View>
-              <View style={[styles.activeBadge, { backgroundColor: `${colors.green}15` }]}>
-                <Text style={[styles.activeBadgeText, { color: colors.green }]}>Active</Text>
-              </View>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/my-subscription' as any)}>
+          <Card style={[styles.planCard, { paddingVertical: Spacing.md }]}>
+            <LinearGradient colors={[colors.accent, '#FF9F6B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planIcon}>
+              <Ionicons name="card" size={22} color="#FFF" />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.planName}>My Subscription</Text>
+              <Text style={styles.planPrice}>Manage your plan and billing</Text>
             </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </Card>
-        ) : (
-          <View style={{ gap: Spacing.sm }}>
-            {plans.length === 0 ? (
-              <Card><Text style={styles.noPlans}>No subscription plans available yet.</Text></Card>
-            ) : (
-              plans.map((plan) => (
-                <TouchableOpacity key={plan.id} activeOpacity={0.85} onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  try {
-                    await requestPlanUpgrade(plan.id);
-                    showAlert({ type: 'success', title: 'Upgraded! 🎉', message: `You are now on the "${plan.name}" plan.` });
-                  } catch (err: any) {
-                    showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to upgrade' });
-                  }
-                }}>
-                  <Card style={styles.planCard}>
-                    <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planIcon}>
-                      <Ionicons name="diamond" size={22} color="#FFF" />
-                    </LinearGradient>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.planName}>{plan.name}</Text>
-                      <Text style={styles.planPrice}>${plan.price}/{(plan as any).interval === 'monthly' ? 'mo' : (plan as any).interval || 'mo'}</Text>
-                    </View>
-                    <View style={styles.upgradeBtn}>
-                      <Text style={styles.upgradeBtnText}>Upgrade</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#FFF" />
-                    </View>
-                  </Card>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        )}
+        </TouchableOpacity>
 
         {/* ── TRAINER ── */}
         {trainer && (
@@ -227,7 +236,7 @@ export default function ClientProfileScreen() {
             {THEME_OPTIONS.map((opt) => {
               const active = mode === opt.value;
               return (
-                <TouchableOpacity key={opt.value} style={[styles.themeOpt, active && styles.themeOptActive]} onPress={() => { Haptics.selectionAsync(); setMode(opt.value); }} activeOpacity={0.7}>
+                <TouchableOpacity key={opt.value} style={[styles.themeOpt, active && styles.themeOptActive]} onPress={() => { Haptics.selectionAsync(); setMode(opt.value); }} activeOpacity={0.7} accessibilityLabel={`${opt.label} theme`} accessibilityRole="button">
                   <View style={[styles.themeIconCircle, { backgroundColor: active ? `${colors.accent}18` : colors.bgElevated }]}>
                     <Ionicons name={opt.icon as any} size={20} color={active ? colors.accent : colors.textTertiary} />
                   </View>
@@ -239,13 +248,95 @@ export default function ClientProfileScreen() {
           </View>
         </Card>
 
+        {/* ── HEALTH DATA SHARING ── */}
+        <Card style={{ marginBottom: Spacing.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing.md }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: `${Colors.accent}15`, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="heart" size={20} color={Colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary }}>
+                  Share Health Data
+                </Text>
+                <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 }}>
+                  Let your coach view your daily health metrics
+                </Text>
+              </View>
+            </View>
+            <Switch
+              accessibilityLabel="Enable health data sharing"
+              accessibilityRole="switch"
+              value={healthSharingEnabled}
+              onValueChange={async (val) => {
+                try {
+                  await toggleHealthSharing(val);
+                  showAlert({ type: 'success', title: val ? 'Sharing Enabled' : 'Sharing Disabled', message: val ? 'Your coach can now see your health data.' : 'Your coach can no longer see your health data.' });
+                } catch (e) {
+                  showAlert({ type: 'error', title: 'Error', message: 'Failed to update sharing preference.' });
+                }
+              }}
+              trackColor={{ false: colors.bgElevated, true: `${Colors.accent}50` }}
+              thumbColor={healthSharingEnabled ? Colors.accent : colors.textTertiary}
+            />
+          </View>
+        </Card>
+
         {/* ── SIGN OUT ── */}
         <View style={styles.signOut}>
           <Button title="Sign Out" onPress={handleSignOut} variant="danger" full icon={<Ionicons name="log-out-outline" size={18} color={Colors.red} />} />
         </View>
-        <Text style={styles.version}>FitLink v1.0.0</Text>
+
+        {/* ── DELETE ACCOUNT ── */}
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
+          <Text style={styles.deleteText}>Delete Account</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.version}>FitLink v{Constants.expoConfig?.version || '1.0.0'}</Text>
 
       </ScrollView>
+
+      {/* ── DELETE ACCOUNT CONFIRMATION MODAL ── */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Deletion</Text>
+            <Text style={styles.modalMessage}>Type <Text style={{ fontFamily: FontFamily.headingSemiBold }}>DELETE</Text> to confirm.</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder="Type DELETE"
+              placeholderTextColor={colors.textTertiary}
+              autoCapitalize="characters"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setShowDeleteModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.4 }]}
+                onPress={handleConfirmDelete}
+                activeOpacity={0.7}
+                disabled={deleteInput !== 'DELETE'}
+              >
+                <Text style={styles.modalBtnConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -311,9 +402,24 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   themeOpt: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1.5, borderColor: colors.border },
   themeOptActive: { borderColor: colors.accent, backgroundColor: `${colors.accent}08` },
   themeIconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  themeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textSecondary },
-  themeCheck: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  themeLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: colors.textSecondary, marginTop: Spacing.sm },
+  themeCheck: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bgElevated },
 
   signOut: { marginTop: Spacing['2xl'] },
-  version: { fontFamily: FontFamily.body, fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.xl, color: colors.textTertiary, opacity: 0.5 },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.xl, paddingVertical: Spacing.md },
+  deleteText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, textDecorationLine: 'underline' },
+  version: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.lg, opacity: 0.5 },
+
+  // Delete Account Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
+  modalContent: { width: '100%', backgroundColor: isDark ? '#1A1A24' : '#2A2A32', borderRadius: Radius.xl, padding: Spacing.xl },
+  modalTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: '#FFF', marginBottom: Spacing.sm },
+  modalMessage: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: 'rgba(255,255,255,0.6)', marginBottom: Spacing.lg },
+  modalInput: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: '#FFF', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: 14 },
+  modalButtons: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  modalBtnCancel: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  modalBtnCancelText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: 'rgba(255,255,255,0.6)' },
+  modalBtnConfirm: { backgroundColor: Colors.red },
+  modalBtnConfirmText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: '#FFF' },
 });

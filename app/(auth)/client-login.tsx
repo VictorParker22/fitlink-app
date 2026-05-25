@@ -75,7 +75,7 @@ export default function ClientLoginScreen() {
         contact_value: lookupVal,
       });
 
-      console.log('[ClientLogin] RPC result:', JSON.stringify({ lookupVal, data, rpcErr }));
+      if (__DEV__) console.log('[ClientLogin] RPC result:', JSON.stringify({ lookupVal, data, rpcErr }));
       if (rpcErr) throw rpcErr;
 
       if (data?.found) {
@@ -112,7 +112,7 @@ export default function ClientLoginScreen() {
     try {
       const contactEmail = isEmail(contact.trim()) ? contact.trim().toLowerCase() : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
-      console.log('[ClientLogin] Step 1: Signing up with', contactEmail);
+      if (__DEV__) console.log('[ClientLogin] Step 1: Signing up with', contactEmail);
 
       // Step 1: Create auth account (DB trigger will attempt auto-link)
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
@@ -121,7 +121,7 @@ export default function ClientLoginScreen() {
         options: { data: { name: name || 'Client', role: 'client' } },
       });
       if (signUpErr) throw signUpErr;
-      console.log('[ClientLogin] Step 2: SignUp success, userId:', signUpData.user?.id);
+      if (__DEV__) console.log('[ClientLogin] Step 2: SignUp success, userId:', signUpData.user?.id);
 
       // Step 2: Sign in immediately
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
@@ -129,7 +129,7 @@ export default function ClientLoginScreen() {
         password,
       });
       if (signInErr) throw signInErr;
-      console.log('[ClientLogin] Step 3: SignIn success');
+      if (__DEV__) console.log('[ClientLogin] Step 3: SignIn success');
 
       // Step 3: Explicitly link the client row (in case trigger didn't fire)
       // This uses the lookup_client_by_contact RPC + a direct update via RPC
@@ -139,7 +139,7 @@ export default function ClientLoginScreen() {
           p_email: contactEmail,
           p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
         });
-        console.log('[ClientLogin] Step 4: Link result:', JSON.stringify({ linkResult, linkErr }));
+        if (__DEV__) console.log('[ClientLogin] Step 4: Link result:', JSON.stringify({ linkResult, linkErr }));
       }
 
       setSuccess('You\'re in! Redirecting...');
@@ -216,7 +216,7 @@ export default function ClientLoginScreen() {
       p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
     });
 
-    console.log('[ClientLogin] Create client RPC:', JSON.stringify({ result, rpcErr }));
+    if (__DEV__) console.log('[ClientLogin] Create client RPC:', JSON.stringify({ result, rpcErr }));
 
     if (rpcErr) throw rpcErr;
     if (!result?.success) throw new Error(result?.reason || 'Failed to create client');
@@ -232,9 +232,32 @@ export default function ClientLoginScreen() {
     setLoading(true);
     try {
       await signIn(contact.trim().toLowerCase(), password);
-      // Role is already set from signup metadata
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials');
+      if (err.message?.toLowerCase().includes('rate limit')) {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Invalid credentials');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const trimmed = contact.trim().toLowerCase();
+    if (!trimmed || !isEmail(trimmed)) return setError('Enter your email address first');
+    setLoading(true);
+    setError('');
+    try {
+      const { error: e } = await supabase.auth.resetPasswordForEmail(trimmed);
+      if (e) throw e;
+      setSuccess('Reset link sent! Check your email.');
+    } catch (err: any) {
+      if (err.message?.toLowerCase().includes('rate limit')) {
+        setError('Too many reset attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Failed to send reset email');
+      }
     } finally {
       setLoading(false);
     }
@@ -368,9 +391,14 @@ export default function ClientLoginScreen() {
                 <Text style={styles.submitText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
                 <Ionicons name="arrow-forward" size={18} color={Colors.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setIsSignIn(false)} style={{ marginTop: Spacing.xl, alignItems: 'center' }}>
-                <Text style={styles.toggleText}>Don't have an account? <Text style={styles.toggleLink}>Sign Up.</Text></Text>
-              </TouchableOpacity>
+              <View style={{ alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.sm }}>
+                <TouchableOpacity onPress={handleForgotPassword}>
+                  <Text style={[styles.toggleLink, { textDecorationLine: 'underline' }]}>Forgot Password?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsSignIn(false)}>
+                  <Text style={styles.toggleText}>Don't have an account? <Text style={styles.toggleLink}>Sign Up.</Text></Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 

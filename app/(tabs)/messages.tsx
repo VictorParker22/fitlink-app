@@ -116,7 +116,7 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
           ListHeaderComponent={
             filtered.length === 0 && unconnectedClients.length === 0 ? (
               <View style={styles.emptyState}>

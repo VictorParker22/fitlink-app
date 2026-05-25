@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, Switch, KeyboardAvoidingView, Platform,
@@ -12,6 +12,7 @@ import { useAlert } from '../context/AlertContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import type { ThemeColors } from '../constants/theme';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { trainer, updateTrainer } = useApp();
   const { colors, mode, setMode, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
 
   const [name, setName] = useState(trainer?.name || '');
@@ -222,10 +224,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 

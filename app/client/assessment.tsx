@@ -140,14 +140,13 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'curcumin', label: 'Curcumin' },
       { id: 'magnesium', label: 'Magnesium' },
       { id: 'iron', label: 'Iron' },
-      { id: 'omega_4', label: 'Omega 4' },
-      { id: 'omega_8', label: 'Omega 8' },
+      { id: 'omega_3', label: 'Omega-3' },
+      { id: 'omega_6', label: 'Omega-6' },
       { id: 'vitamin_a', label: 'Vitamin A' },
       { id: 'vitamin_b', label: 'Vitamin B' },
       { id: 'vitamin_c', label: 'Vitamin C' },
       { id: 'fiber', label: 'Fiber' },
-      { id: 'omega_12', label: 'Omega 12' },
-      { id: 'omega_2', label: 'Omega 2' },
+      { id: 'omega_9', label: 'Omega-9' },
       { id: 'creatine', label: 'Creatine' },
     ]
   },
@@ -157,7 +156,7 @@ const ASSESSMENT_QUESTIONS = [
     type: 'counter',
     config: {
       'Kcal': { min: 500, max: 5000, default: 1550, step: 50, label: 'calories daily' },
-      "Joule's": { min: 2000, max: 21000, default: 6490, step: 200, label: 'joules daily' },
+      'Joules': { min: 2000, max: 21000, default: 6490, step: 200, label: 'joules daily' },
     }
   },
   {

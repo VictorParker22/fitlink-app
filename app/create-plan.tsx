@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import Button from '../components/Button';
 import type { ThemeColors } from '../constants/theme';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
@@ -15,6 +16,7 @@ export default function CreatePlanModal() {
   const router = useRouter();
   const { createPlan } = useApp();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [name, setName] = useState('');
@@ -39,8 +41,8 @@ export default function CreatePlanModal() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Error', 'Plan name is required');
-    if (!price || isNaN(Number(price))) return Alert.alert('Error', 'Valid price is required');
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing Name', message: 'Plan name is required.' });
+    if (!price || isNaN(Number(price))) return showAlert({ type: 'warning', title: 'Invalid Price', message: 'A valid price is required.' });
 
     setLoading(true);
     try {
@@ -48,7 +50,7 @@ export default function CreatePlanModal() {
       router.back();
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Error', err.message || 'Failed to create plan');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to create plan' });
     } finally {
       setLoading(false);
     }
@@ -196,7 +198,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  closeBtn: { padding: 4 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   
   scrollContent: { padding: Spacing.lg },
   

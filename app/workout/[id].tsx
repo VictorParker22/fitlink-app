@@ -35,7 +35,7 @@ export default function WorkoutDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.bgPrimary }]}>
         <View style={styles.topNav}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={22} color={Colors.white} />
           </TouchableOpacity>
         </View>
@@ -90,7 +90,7 @@ export default function WorkoutDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={[styles.backBtnDark, { backgroundColor: colors.bgElevated }]}>
+          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={[styles.backBtnDark, { backgroundColor: colors.bgElevated }]} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={[styles.assignHeaderTitle, { color: colors.textPrimary }]}>Assign to Client</Text>
@@ -123,7 +123,7 @@ export default function WorkoutDetailScreen() {
             </View>
           ) : (
             filteredClients.map((client) => {
-              const alreadyAssigned = clientWorkouts.some(cw => cw.client_id === client.id && cw.workout_id === workout.id);
+              const alreadyAssigned = clientWorkouts.some(cw => cw.client_id === client.id && cw.workout_id === workout.id && cw.status === 'assigned');
               
               return (
                 <TouchableOpacity
@@ -169,11 +169,11 @@ export default function WorkoutDetailScreen() {
             style={styles.heroGradient}
           >
             <View style={[styles.topNav, { marginTop: insets.top || Spacing.lg }]}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn} accessibilityLabel="Go back" accessibilityRole="button">
                 <Ionicons name="chevron-back" size={24} color={Colors.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={styles.glassBtn} disabled={deleting}>
-                <Ionicons name="settings-outline" size={22} color={Colors.white} />
+              <TouchableOpacity onPress={handleDelete} style={[styles.glassBtn, { backgroundColor: 'rgba(255,59,48,0.35)' }]} disabled={deleting}>
+                <Ionicons name="trash-outline" size={22} color={Colors.white} />
               </TouchableOpacity>
             </View>
             <View style={styles.heroTitleBlock}>
@@ -188,20 +188,20 @@ export default function WorkoutDetailScreen() {
 
         <View style={[styles.contentSheet, { backgroundColor: colors.bgPrimary }]}>
           <Text style={[styles.descText, { color: colors.textSecondary }]}>
-            Prepare to transform your muscles with our targeted and effective workout routine tailored for you.
+            {workout.description || 'A custom workout routine designed by your coach.'}
           </Text>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="time" size={16} color={colors.textTertiary} />
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{estTime}min</Text>
-              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Time</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>~{estTime}min</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Est. Time</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <Ionicons name="flame" size={16} color={colors.textTertiary} />
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{kcal}kcal</Text>
-              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Calorie</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>~{kcal}kcal</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Est. Calories</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
@@ -230,8 +230,8 @@ export default function WorkoutDetailScreen() {
                       </View>
                       <Text style={[styles.exName, { color: colors.textPrimary }]}>{we.exercises?.name || 'Exercise'}</Text>
                       <View style={styles.exTimeRow}>
-                        <Ionicons name="time" size={12} color={colors.textTertiary} />
-                        <Text style={[styles.exTimeText, { color: colors.textTertiary }]}>0{Math.min(we.sets, 9)}:{we.reps < 10 ? '0'+we.reps : we.reps}</Text>
+                        <Ionicons name="barbell-outline" size={12} color={colors.textTertiary} />
+                        <Text style={[styles.exTimeText, { color: colors.textTertiary }]}>{we.sets} × {we.reps} reps</Text>
                       </View>
                     </View>
                   </View>

@@ -95,6 +95,41 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all associated data (clients, workouts, sessions, messages). This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Confirm Deletion',
+              'Type DELETE to confirm.',
+              async (text) => {
+                if (text !== 'DELETE') {
+                  Alert.alert('Cancelled', 'Account deletion cancelled.');
+                  return;
+                }
+                try {
+                  await supabase.rpc('delete_trainer_account');
+                  await signOut();
+                } catch (err: any) {
+                  Alert.alert('Error', err.message || 'Failed to delete account. Contact support.');
+                }
+              },
+              'plain-text',
+              '',
+              'default'
+            );
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -228,6 +263,12 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {/* Delete Account */}
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
+          <Text style={styles.deleteText}>Delete Account</Text>
+        </TouchableOpacity>
+
         <Text style={styles.version}>FitLink v1.0.0 · Made with 💪</Text>
       </ScrollView>
     </SafeAreaView>
@@ -287,8 +328,10 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   menuLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textPrimary },
 
   signOutSection: { marginTop: Spacing['2xl'] },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.xl, paddingVertical: Spacing.md },
+  deleteText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, textDecorationLine: 'underline' },
   version: {
     fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary,
-    textAlign: 'center', marginTop: Spacing.xl, opacity: 0.5,
+    textAlign: 'center', marginTop: Spacing.lg, opacity: 0.5,
   },
 });

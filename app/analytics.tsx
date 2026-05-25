@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -13,9 +13,15 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function AnalyticsScreen() {
   const router = useRouter();
-  const { clients, sessions, referrals, activeClients, totalMonthlyRevenue } = useApp();
+  const { clients, sessions, referrals, activeClients, totalMonthlyRevenue, refreshData } = useApp();
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await refreshData(); } finally { setRefreshing(false); }
+  };
 
   // Session stats
   const completedSessions = sessions.filter((s) => s.status === 'completed').length;
@@ -52,7 +58,7 @@ export default function AnalyticsScreen() {
   const avgRevenuePerClient = activeClients.length > 0 ? Math.round(totalMonthlyRevenue / activeClients.length) : 0;
   const totalSessionHours = Math.round(sessions.filter((s) => s.status === 'completed').reduce((sum, s) => sum + s.duration, 0) / 60);
 
-  const typeColors: Record<string, string> = { '1-on-1': Colors.accent, 'Group': Colors.purple, 'Virtual': Colors.blue };
+  const typeColors: Record<string, string> = { '1-on-1': colors.accent, 'Group': colors.purple, 'Virtual': colors.blue };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -64,14 +70,14 @@ export default function AnalyticsScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}>
         {/* Overview Cards */}
         <View style={styles.overviewGrid}>
           {[
-            { label: 'Active Clients', value: activeClients.length.toString(), icon: 'people', color: Colors.blue },
-            { label: 'Monthly Revenue', value: `$${totalMonthlyRevenue}`, icon: 'cash', color: Colors.green },
-            { label: 'Completion Rate', value: `${completionRate}%`, icon: 'checkmark-circle', color: Colors.accent },
-            { label: 'Total Hours', value: totalSessionHours.toString(), icon: 'time', color: Colors.purple },
+            { label: 'Active Clients', value: activeClients.length.toString(), icon: 'people', color: colors.blue },
+            { label: 'Monthly Revenue', value: `$${totalMonthlyRevenue}`, icon: 'cash', color: colors.green },
+            { label: 'Completion Rate', value: `${completionRate}%`, icon: 'checkmark-circle', color: colors.accent },
+            { label: 'Total Hours', value: totalSessionHours.toString(), icon: 'time', color: colors.purple },
           ].map((item, i) => (
             <Card key={i} style={styles.overviewCard}>
               <View style={[styles.overviewIcon, { backgroundColor: `${item.color}18` }]}>
@@ -90,7 +96,7 @@ export default function AnalyticsScreen() {
             {monthlyGrowth.map((m, i) => (
               <View key={i} style={styles.chartBar}>
                 <Text style={styles.chartCount}>{m.count}</Text>
-                <View style={[styles.bar, { height: Math.max((m.count / maxGrowth) * 80, 4), backgroundColor: i === monthlyGrowth.length - 1 ? Colors.accent : Colors.blue }]} />
+                <View style={[styles.bar, { height: Math.max((m.count / maxGrowth) * 80, 4), backgroundColor: i === monthlyGrowth.length - 1 ? colors.accent : colors.blue }]} />
                 <Text style={styles.chartLabel}>{m.label}</Text>
               </View>
             ))}
@@ -104,9 +110,9 @@ export default function AnalyticsScreen() {
             <Text style={styles.breakdownTotal}>{sessions.length} total sessions</Text>
           </View>
           {[
-            { label: 'Completed', count: completedSessions, color: Colors.green },
-            { label: 'Upcoming', count: upcomingSessions, color: Colors.blue },
-            { label: 'Cancelled', count: cancelledSessions, color: Colors.red },
+            { label: 'Completed', count: completedSessions, color: colors.green },
+            { label: 'Upcoming', count: upcomingSessions, color: colors.blue },
+            { label: 'Cancelled', count: cancelledSessions, color: colors.red },
           ].map((item) => {
             const pct = sessions.length > 0 ? (item.count / sessions.length) * 100 : 0;
             return (
@@ -126,7 +132,7 @@ export default function AnalyticsScreen() {
               <Text style={styles.typeTitle}>By Type</Text>
               {sessionTypes.map(([type, count]) => (
                 <View key={type} style={styles.typeRow}>
-                  <View style={[styles.typeDot, { backgroundColor: typeColors[type] || Colors.textTertiary }]} />
+                  <View style={[styles.typeDot, { backgroundColor: typeColors[type] || colors.textTertiary }]} />
                   <Text style={styles.typeLabel}>{type}</Text>
                   <Text style={styles.typeCount}>{count}</Text>
                 </View>
@@ -139,15 +145,15 @@ export default function AnalyticsScreen() {
         <Text style={styles.sectionLabel}>REVENUE INSIGHTS</Text>
         <View style={styles.insightsRow}>
           <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: Colors.green }]}>${totalMonthlyRevenue}</Text>
+            <Text style={[styles.insightValue, { color: colors.green }]}>${totalMonthlyRevenue}</Text>
             <Text style={styles.insightLabel}>MRR</Text>
           </Card>
           <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: Colors.blue }]}>${avgRevenuePerClient}</Text>
+            <Text style={[styles.insightValue, { color: colors.blue }]}>${avgRevenuePerClient}</Text>
             <Text style={styles.insightLabel}>Avg/Client</Text>
           </Card>
           <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: Colors.purple }]}>{referrals.length}</Text>
+            <Text style={[styles.insightValue, { color: colors.purple }]}>{referrals.length}</Text>
             <Text style={styles.insightLabel}>Referrals</Text>
           </Card>
         </View>
@@ -159,7 +165,7 @@ export default function AnalyticsScreen() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 

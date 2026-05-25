@@ -176,8 +176,8 @@ export default function DietDetailScreen() {
               <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
                 <Ionicons name="chevron-back" size={24} color={Colors.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={styles.glassBtn} disabled={deleting}>
-                <Ionicons name="settings-outline" size={22} color={Colors.white} />
+              <TouchableOpacity onPress={handleDelete} style={[styles.glassBtn, { backgroundColor: 'rgba(255,59,48,0.35)' }]} disabled={deleting}>
+                <Ionicons name="trash-outline" size={22} color={Colors.white} />
               </TouchableOpacity>
             </View>
 

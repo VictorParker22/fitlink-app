@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import type { ThemeColors } from '../../constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -36,6 +37,7 @@ export default function ProgramsScreen() {
   const router = useRouter();
   const { workouts, refreshData } = useApp();
   const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -94,22 +96,22 @@ export default function ProgramsScreen() {
               
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                  <Ionicons name="time" size={14} color={Colors.textTertiary} />
+                  <Ionicons name="time" size={14} color={colors.textTertiary} />
                   <Text style={styles.metaText}>{estTime}min</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Ionicons name="flame" size={14} color={Colors.textTertiary} />
+                  <Ionicons name="flame" size={14} color={colors.textTertiary} />
                   <Text style={styles.metaText}>{kcal}kcal</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Ionicons name="barbell" size={14} color={Colors.textTertiary} />
+                  <Ionicons name="barbell" size={14} color={colors.textTertiary} />
                   <Text style={styles.metaText}>{exerciseCount} moves</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.playBtn}>
-              <Ionicons name="play" size={24} color={Colors.white} style={{ marginLeft: 3 }} />
+              <Ionicons name="play" size={24} color={colors.white} style={{ marginLeft: 3 }} />
             </View>
           </View>
         </LinearGradient>
@@ -127,7 +129,7 @@ export default function ProgramsScreen() {
           activeOpacity={0.8}
           onPress={() => router.push('/create-workout' as any)}
         >
-          <Ionicons name="add" size={22} color={Colors.white} />
+          <Ionicons name="add" size={22} color={colors.white} />
         </TouchableOpacity>
       </View>
 
@@ -137,11 +139,11 @@ export default function ProgramsScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search Workout..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          <Ionicons name="search" size={20} color={Colors.textTertiary} />
+          <Ionicons name="search" size={20} color={colors.textTertiary} />
         </View>
       </View>
 
@@ -158,9 +160,9 @@ export default function ProgramsScreen() {
               style={[styles.filterPill, activeCategory === cat && styles.filterPillActive]}
               onPress={() => setActiveCategory(cat)}
             >
-              {cat === 'Strength' && <Ionicons name="barbell" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
-              {cat === 'Cardio' && <Ionicons name="heart" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
-              {cat === 'Yoga' && <Ionicons name="body" size={14} color={activeCategory === cat ? Colors.white : Colors.textSecondary} />}
+              {cat === 'Strength' && <Ionicons name="barbell" size={14} color={activeCategory === cat ? colors.white : colors.textSecondary} />}
+              {cat === 'Cardio' && <Ionicons name="heart" size={14} color={activeCategory === cat ? colors.white : colors.textSecondary} />}
+              {cat === 'Yoga' && <Ionicons name="body" size={14} color={activeCategory === cat ? colors.white : colors.textSecondary} />}
               <Text style={[styles.filterPillText, activeCategory === cat && styles.filterPillTextActive]}>
                 {cat}
               </Text>
@@ -173,9 +175,9 @@ export default function ProgramsScreen() {
       <View style={styles.resultsHeader}>
         <Text style={styles.resultsText}>{filteredWorkouts.length} Results Found.</Text>
         <TouchableOpacity style={styles.sortBtn}>
-          <Ionicons name="bar-chart" size={14} color={Colors.textSecondary} />
+          <Ionicons name="bar-chart" size={14} color={colors.textSecondary} />
           <Text style={styles.sortText}>Popularity</Text>
-          <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
+          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -186,11 +188,11 @@ export default function ProgramsScreen() {
         renderItem={renderWorkout}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="search-outline" size={32} color={Colors.accent} />
+              <Ionicons name="search-outline" size={32} color={colors.accent} />
             </View>
             <Text style={styles.emptyTitle}>No programs found</Text>
             <Text style={styles.emptyText}>Adjust your filters or create a new workout program.</Text>
@@ -198,7 +200,7 @@ export default function ProgramsScreen() {
               style={styles.emptyCTA}
               onPress={() => router.push('/create-workout' as any)}
             >
-              <Ionicons name="add" size={16} color={Colors.white} />
+              <Ionicons name="add" size={16} color={colors.white} />
               <Text style={styles.emptyCTAText}>Create Program</Text>
             </TouchableOpacity>
           </View>
@@ -208,48 +210,48 @@ export default function ProgramsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
   },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
+  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: colors.textPrimary, letterSpacing: -0.5 },
   addBtn: {
     width: 40, height: 40, borderRadius: Radius.md,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
 
   searchContainer: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
   searchBox: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.xl, paddingHorizontal: Spacing.lg, height: 56,
   },
   searchInput: {
     flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base,
-    color: Colors.textPrimary, paddingVertical: 0,
+    color: colors.textPrimary, paddingVertical: 0,
   },
 
   filterScroll: { paddingHorizontal: Spacing.lg, gap: Spacing.sm, paddingBottom: Spacing.md },
   filterPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: Radius.full, backgroundColor: Colors.bgElevated,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.full, backgroundColor: colors.bgElevated,
+    borderWidth: 1, borderColor: colors.border,
   },
-  filterPillActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  filterPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
-  filterPillTextActive: { color: Colors.white },
+  filterPillActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  filterPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  filterPillTextActive: { color: colors.white },
 
   resultsHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, marginBottom: Spacing.md,
   },
-  resultsText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary },
+  resultsText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  sortText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textSecondary },
+  sortText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
 
   list: { paddingHorizontal: Spacing.lg, paddingBottom: 120, gap: Spacing.lg },
 
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: colors.bgElevated,
   },
   cardImage: {
     width: '100%',
@@ -277,34 +279,34 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     backdropFilter: 'blur(10px)', // For web, simulating glassmorphism
   },
-  categoryPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.white, textTransform: 'uppercase', letterSpacing: 0.5 },
+  categoryPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.white, textTransform: 'uppercase', letterSpacing: 0.5 },
   
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   cardInfo: { flex: 1, paddingRight: Spacing.md },
-  workoutName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.white, marginBottom: 4 },
-  workoutAuthor: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textTertiary, marginBottom: 8 },
+  workoutName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.white, marginBottom: 4 },
+  workoutAuthor: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textTertiary, marginBottom: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textSecondary },
+  metaText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textSecondary },
   
   playBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8,
   },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
   emptyIconCircle: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, textAlign: 'center', paddingHorizontal: Spacing['2xl'] },
+  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
+  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', paddingHorizontal: Spacing['2xl'] },
   emptyCTA: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: Colors.accent, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+    backgroundColor: colors.accent, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
     borderRadius: Radius.full, marginTop: Spacing.md,
   },
-  emptyCTAText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.white },
+  emptyCTAText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.white },
 });

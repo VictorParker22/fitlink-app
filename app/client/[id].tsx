@@ -22,7 +22,7 @@ export default function ClientDetailScreen() {
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
     workouts, diets, assignWorkout, assignDietPlan, plans,
-    upgradeClientToPlan, extendClientTrial,
+    upgradeClientToPlan, extendClientTrial, getClientHealthSnapshot, requestHealthAccess,
   } = useApp();
 
   const [assignMode, setAssignMode] = useState<AssignMode>(null);
@@ -33,6 +33,7 @@ export default function ClientDetailScreen() {
   const assignedWorkouts = getClientWorkouts(id || '');
   const assignedDiets = getClientDiets(id || '');
   const progressLogs = getClientProgress(id || '');
+  const healthSnapshot = getClientHealthSnapshot(id || '');
 
   if (!client) {
     return (
@@ -196,7 +197,7 @@ export default function ClientDetailScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           {quickActions.map((action, i) => (
-            <TouchableOpacity key={i} style={styles.quickBtn} onPress={action.onPress} activeOpacity={0.7}>
+            <TouchableOpacity key={i} style={styles.quickBtn} onPress={action.onPress} activeOpacity={0.7} accessibilityLabel={action.label} accessibilityRole="button">
               <View style={[styles.quickIcon, { backgroundColor: `${action.color}18` }]}>
                 <Ionicons name={action.icon as any} size={20} color={action.color} />
               </View>
@@ -239,7 +240,7 @@ export default function ClientDetailScreen() {
         )}
 
         {/* Assessment Summary */}
-        {client.assessment_data && Object.keys(client.assessment_data).length > 0 && (() => {
+        {client.assessment_data && Object.keys(client.assessment_data).length > 0 ? (() => {
           const d = client.assessment_data;
           
           // Map IDs to readable labels
@@ -445,7 +446,168 @@ export default function ClientDetailScreen() {
               </Card>
             </>
           );
-        })()}
+        })() : (
+          <View style={{ marginBottom: Spacing.lg }}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Summary</Text>
+              <View style={[styles.assessBadge, { backgroundColor: `${Colors.yellow}20` }]}>
+                <Ionicons name="time-outline" size={14} color={Colors.yellow} />
+                <Text style={[styles.assessBadgeText, { color: Colors.yellow }]}>Pending</Text>
+              </View>
+            </View>
+            <Card style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${Colors.yellow}15`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md }}>
+                <Ionicons name="clipboard-outline" size={24} color={Colors.yellow} />
+              </View>
+              <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 }}>
+                Assessment Not Completed
+              </Text>
+              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg }}>
+                {client.name} hasn't completed their initial fitness assessment yet.
+              </Text>
+              <Button 
+                title="Remind Client" 
+                variant="primary" 
+                onPress={() => showAlert({ type: 'success', title: 'Reminder Sent', message: `${client.name} has been notified to complete their assessment.` })} 
+              />
+            </Card>
+          </View>
+        )}
+
+        {/* Health & Activity */}
+        <View style={{ marginBottom: Spacing.lg }}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Health & Activity</Text>
+            <View style={[styles.assessBadge, { backgroundColor: healthSnapshot ? `${Colors.green}20` : `${Colors.yellow}20` }]}>
+              <Ionicons name={healthSnapshot ? 'heart' : 'heart-outline'} size={14} color={healthSnapshot ? Colors.green : Colors.yellow} />
+              <Text style={[styles.assessBadgeText, { color: healthSnapshot ? Colors.green : Colors.yellow }]}>
+                {healthSnapshot ? 'Shared' : 'Not Shared'}
+              </Text>
+            </View>
+          </View>
+
+          {healthSnapshot ? (
+            <>
+              {/* Health data cards */}
+              <View style={styles.assessTilesRow}>
+                <Card style={styles.assessTile}>
+                  <Ionicons name="walk-outline" size={20} color={Colors.blue} />
+                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                    {(healthSnapshot.steps || 0).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>steps</Text>
+                </Card>
+                <Card style={styles.assessTile}>
+                  <Ionicons name="heart-outline" size={20} color={Colors.accent} />
+                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                    {healthSnapshot.heart_rate_avg || '--'}
+                  </Text>
+                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>avg BPM</Text>
+                </Card>
+                <Card style={styles.assessTile}>
+                  <Ionicons name="flame-outline" size={20} color={Colors.accent} />
+                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                    {Math.round((healthSnapshot.active_calories || 0) + (healthSnapshot.basal_calories || 0))}
+                  </Text>
+                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>kcal</Text>
+                </Card>
+                <Card style={styles.assessTile}>
+                  <Ionicons name="water-outline" size={20} color={Colors.blue} />
+                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
+                    {healthSnapshot.blood_oxygen ? `${healthSnapshot.blood_oxygen}%` : '--'}
+                  </Text>
+                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>SpO2</Text>
+                </Card>
+              </View>
+
+              {/* More details card */}
+              <Card noPadding style={{ marginBottom: 0 }}>
+                <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
+                    <Ionicons name="pulse" size={16} color={Colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Heart Rate Range</Text>
+                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
+                      {healthSnapshot.heart_rate_min || '--'} – {healthSnapshot.heart_rate_max || '--'} BPM
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
+                    <Ionicons name="bed-outline" size={16} color={Colors.green} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Resting Heart Rate</Text>
+                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
+                      {healthSnapshot.resting_heart_rate || '--'} BPM
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.assessRow}>
+                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
+                    <Ionicons name="analytics-outline" size={16} color={Colors.blue} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Blood Pressure</Text>
+                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
+                      {healthSnapshot.blood_pressure_systolic && healthSnapshot.blood_pressure_diastolic
+                        ? `${healthSnapshot.blood_pressure_systolic}/${healthSnapshot.blood_pressure_diastolic} mmHg`
+                        : 'Not recorded'}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: Spacing.sm, textAlign: 'right' }}>
+                Last synced: {healthSnapshot.synced_at ? new Date(healthSnapshot.synced_at).toLocaleDateString() : 'N/A'}
+              </Text>
+            </>
+          ) : (
+            <Card style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${Colors.accent}15`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md }}>
+                <Ionicons name="heart-outline" size={24} color={Colors.accent} />
+              </View>
+              <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 }}>
+                {(client as any).health_sharing_enabled
+                  ? 'Waiting for Health Data'
+                  : 'Health Data Not Shared'}
+              </Text>
+              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg }}>
+                {(client as any).health_sharing_enabled
+                  ? `${client.name} has enabled sharing. Data will appear once synced from their device.`
+                  : (client as any).health_sharing_requested
+                    ? `Awaiting ${client.name}'s approval to share health data.`
+                    : `Request access to ${client.name}'s health metrics like steps, heart rate, and more.`}
+              </Text>
+              {!(client as any).health_sharing_requested && !(client as any).health_sharing_enabled && (
+                <Button
+                  title="Request Health Data"
+                  variant="primary"
+                  onPress={async () => {
+                    try {
+                      await requestHealthAccess(client.id);
+                      showAlert({ type: 'success', title: 'Request Sent', message: `${client.name} has been notified to share their health data.` });
+                    } catch (e) {
+                      showAlert({ type: 'error', title: 'Error', message: 'Failed to send request.' });
+                    }
+                  }}
+                />
+              )}
+              {(client as any).health_sharing_requested && !(client as any).health_sharing_enabled && (
+                <View style={[styles.assessBadge, { backgroundColor: `${Colors.yellow}20`, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm }]}>
+                  <Ionicons name="time-outline" size={14} color={Colors.yellow} />
+                  <Text style={[styles.assessBadgeText, { color: Colors.yellow }]}>Request Pending</Text>
+                </View>
+              )}
+              {(client as any).health_sharing_enabled && (
+                <View style={[styles.assessBadge, { backgroundColor: `${Colors.green}20`, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm }]}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color={Colors.green} />
+                  <Text style={[styles.assessBadgeText, { color: Colors.green }]}>Sharing Enabled</Text>
+                </View>
+              )}
+            </Card>
+          )}
+        </View>
 
         {/* Assigned Workouts */}
         <View style={styles.sectionHeader}>
@@ -676,8 +838,8 @@ export default function ClientDetailScreen() {
               (assignMode === 'workout' ? workouts : diets).map((item: any) => {
                 const isWorkout = assignMode === 'workout';
                 const alreadyAssigned = isWorkout
-                  ? assignedWorkouts.some(aw => aw.workout.id === item.id)
-                  : assignedDiets.some(ad => ad.diet.id === item.id);
+                  ? assignedWorkouts.some(aw => aw.workout.id === item.id && aw.assignment.status === 'assigned')
+                  : assignedDiets.some(ad => ad.diet.id === item.id && ad.assignment.status === 'assigned');
 
                 return (
                   <TouchableOpacity

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
@@ -9,7 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Colors, Spacing, Radius, FontFamily, FontSize } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../constants/theme';
+import { Spacing, Radius, FontFamily, FontSize } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 260;
@@ -20,6 +22,8 @@ type PhoneStep = 'phone' | 'otp';
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, signUp, signInWithPhone, verifyOtp } = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [authMode, setAuthMode] = useState<AuthMode>('phone');
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone');
@@ -36,6 +40,7 @@ export default function LoginScreen() {
   // Phone
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const hasAutoSubmitted = useRef(false);
   const [phoneName, setPhoneName] = useState('');
 
   // Email
@@ -64,10 +69,13 @@ export default function LoginScreen() {
       await signInWithPhone(formatted);
       setPhone(formatted);
 
+      // Check if this phone belongs to an existing trainer
+      // Try multiple phone formats to avoid format mismatch issues
+      const phonesToCheck = [formatted, formatted.replace('+1', ''), formatted.replace('+', '')];
       const { data: existing } = await supabase
         .from('trainers')
         .select('id')
-        .eq('phone', formatted)
+        .in('phone', phonesToCheck)
         .maybeSingle();
       setIsNewUser(!existing);
 
@@ -88,10 +96,29 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const metadata: Record<string, string> = {};
-      if (phoneName.trim()) metadata.name = phoneName.trim();
-      await verifyOtp(phone, otpCode, metadata);
+      if (isNewUser && phoneName.trim()) metadata.name = phoneName.trim();
+
+      const data = await verifyOtp(phone, otpCode, metadata);
+
+      // After OTP verification, double-check if this user is actually a returning trainer
+      // (in case the phone format lookup missed them)
+      if (isNewUser && data?.user?.id) {
+        const { data: trainerRow } = await supabase
+          .from('trainers')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        if (trainerRow) {
+          setIsNewUser(false);
+          // They're a returning trainer — the AuthGuard will route them correctly
+        }
+      }
     } catch (err: any) {
-      setError(err.message || 'Invalid code');
+      if (err.message?.toLowerCase().includes('rate limit')) {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Invalid code');
+      }
     } finally {
       setLoading(false);
     }
@@ -119,7 +146,11 @@ export default function LoginScreen() {
         await signIn(email, password);
       }
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      if (err.message?.toLowerCase().includes('rate limit')) {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
@@ -133,7 +164,11 @@ export default function LoginScreen() {
       if (e) throw e;
       setSuccess('Reset link sent! Check your email.');
     } catch (err: any) {
-      setError(err.message || 'Failed to send reset email');
+      if (err.message?.toLowerCase().includes('rate limit')) {
+        setError('Too many reset attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Failed to send reset email');
+      }
     } finally {
       setLoading(false);
     }
@@ -147,6 +182,17 @@ export default function LoginScreen() {
     setOtpCode('');
     setIsSignUp(false);
   };
+
+  // Auto-submit OTP when all 6 digits are entered
+  useEffect(() => {
+    if (otpCode.length === 6 && !hasAutoSubmitted.current && !loading) {
+      hasAutoSubmitted.current = true;
+      handleVerifyOtp();
+    }
+    if (otpCode.length < 6) {
+      hasAutoSubmitted.current = false;
+    }
+  }, [otpCode]);
 
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
@@ -184,13 +230,18 @@ export default function LoginScreen() {
           resizeMode="cover"
         />
         <LinearGradient
-          colors={['transparent', 'rgba(250,251,252,0.4)', 'rgba(250,251,252,0.85)', '#FAFBFC']}
+          colors={[
+            'transparent',
+            isDark ? 'rgba(17,17,20,0.4)' : 'rgba(250,251,252,0.4)',
+            isDark ? 'rgba(17,17,20,0.85)' : 'rgba(250,251,252,0.85)',
+            colors.bgPrimary,
+          ]}
           locations={[0, 0.4, 0.7, 1]}
           style={styles.heroGradient}
         />
         {/* Logo Badge */}
         <View style={styles.logoBadge}>
-          <Ionicons name="fitness" size={22} color={Colors.white} />
+          <Ionicons name="fitness" size={22} color={colors.white} />
         </View>
       </View>
 
@@ -214,14 +265,14 @@ export default function LoginScreen() {
               style={[styles.authTab, authMode === 'phone' && styles.authTabActive]}
               onPress={() => switchMode('phone')}
             >
-              <Ionicons name="call-outline" size={15} color={authMode === 'phone' ? Colors.accent : Colors.textTertiary} />
+              <Ionicons name="call-outline" size={15} color={authMode === 'phone' ? colors.accent : colors.textTertiary} />
               <Text style={[styles.authTabText, authMode === 'phone' && styles.authTabTextActive]}>Phone</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.authTab, authMode === 'email' && styles.authTabActive]}
               onPress={() => switchMode('email')}
             >
-              <Ionicons name="mail-outline" size={15} color={authMode === 'email' ? Colors.accent : Colors.textTertiary} />
+              <Ionicons name="mail-outline" size={15} color={authMode === 'email' ? colors.accent : colors.textTertiary} />
               <Text style={[styles.authTabText, authMode === 'email' && styles.authTabTextActive]}>Email</Text>
             </TouchableOpacity>
           </View>
@@ -245,11 +296,11 @@ export default function LoginScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Phone Number</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="call-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <Ionicons name="call-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="(555) 123-4567"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
@@ -266,7 +317,7 @@ export default function LoginScreen() {
                 disabled={loading}
               >
                 <Text style={styles.submitText}>{loading ? 'Sending...' : 'Send Verification Code'}</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
               </TouchableOpacity>
             </>
           )}
@@ -278,37 +329,19 @@ export default function LoginScreen() {
                 onPress={() => { setPhoneStep('phone'); setError(''); setSuccess(''); }}
                 style={styles.changePhoneRow}
               >
-                <Ionicons name="arrow-back" size={14} color={Colors.accentText} />
+                <Ionicons name="arrow-back" size={14} color={colors.accentText} />
                 <Text style={styles.changePhoneText}>Change number</Text>
               </TouchableOpacity>
-
-              {/* Name for new users */}
-              {isNewUser && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Your Name</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Coach Mike Johnson"
-                      placeholderTextColor={Colors.textTertiary}
-                      value={phoneName}
-                      onChangeText={setPhoneName}
-                      autoComplete="name"
-                    />
-                  </View>
-                </View>
-              )}
 
               {/* OTP Code */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Verification Code</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <Ionicons name="keypad-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, styles.otpInput]}
                     placeholder="000000"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     value={otpCode}
                     onChangeText={(t) => setOtpCode(t.replace(/\D/g, ''))}
                     keyboardType="number-pad"
@@ -325,7 +358,7 @@ export default function LoginScreen() {
                 disabled={loading}
               >
                 <Text style={styles.submitText}>{loading ? 'Verifying...' : 'Verify & Sign In'}</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={handleSendOtp} style={styles.resendRow}>
@@ -342,11 +375,11 @@ export default function LoginScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Full Name</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <Ionicons name="person-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Coach Mike Johnson"
-                      placeholderTextColor={Colors.textTertiary}
+                      placeholderTextColor={colors.textTertiary}
                       value={emailName}
                       onChangeText={setEmailName}
                       autoComplete="name"
@@ -359,11 +392,11 @@ export default function LoginScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Email Address</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <Ionicons name="mail-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="coach@example.com"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -377,18 +410,18 @@ export default function LoginScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Password</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                  <Ionicons name="lock-closed-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     autoComplete="password"
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -401,17 +434,17 @@ export default function LoginScreen() {
                     styles.inputWrapper,
                     confirmPassword && password !== confirmPassword && styles.inputWrapperError,
                   ]}>
-                    <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <Ionicons name="lock-closed-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="••••••••"
-                      placeholderTextColor={Colors.textTertiary}
+                      placeholderTextColor={colors.textTertiary}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showConfirmPassword}
                     />
                     <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn}>
-                      <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                      <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textTertiary} />
                     </TouchableOpacity>
                   </View>
                   {confirmPassword && password !== confirmPassword && (
@@ -431,7 +464,7 @@ export default function LoginScreen() {
                 disabled={loading}
               >
                 <Text style={styles.submitText}>{loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
               </TouchableOpacity>
 
               {/* Toggle + Forgot */}
@@ -463,7 +496,7 @@ export default function LoginScreen() {
                 style={styles.emailSwitchBtn}
                 onPress={() => switchMode('email')}
               >
-                <Ionicons name="mail-outline" size={16} color={Colors.textPrimary} />
+                <Ionicons name="mail-outline" size={16} color={colors.textPrimary} />
                 <Text style={styles.emailSwitchText}>Continue with Email</Text>
               </TouchableOpacity>
             </View>
@@ -481,10 +514,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgPrimary,
+    backgroundColor: colors.bgPrimary,
   },
 
   // Hero
@@ -511,10 +544,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: Radius.md,
-    backgroundColor: Colors.accent,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.accent,
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -534,14 +567,14 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: FontSize['3xl'],
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: -0.8,
     lineHeight: 38,
   },
   subtitle: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: Spacing.xs,
     marginBottom: Spacing.lg,
   },
@@ -549,7 +582,7 @@ const styles = StyleSheet.create({
   // Auth Tabs
   authTabs: {
     flexDirection: 'row',
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: colors.bgSecondary,
     borderRadius: Radius.lg,
     padding: 4,
     marginBottom: Spacing.lg,
@@ -564,8 +597,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   authTabActive: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
+    backgroundColor: colors.bgCard,
+    shadowColor: colors.cardShadowColor,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -574,10 +607,10 @@ const styles = StyleSheet.create({
   authTabText: {
     fontFamily: FontFamily.bodyMedium,
     fontSize: FontSize.sm,
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
   },
   authTabTextActive: {
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontFamily: FontFamily.bodySemiBold,
   },
 
@@ -586,32 +619,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.redSoft,
+    backgroundColor: colors.redSoft,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.red,
   },
   errorEmoji: { fontSize: 14 },
   errorText: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.sm,
-    color: Colors.red,
+    color: colors.red,
     flex: 1,
   },
   successBox: {
-    backgroundColor: Colors.greenSoft,
+    backgroundColor: colors.greenSoft,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.green,
   },
   successText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.sm,
-    color: Colors.green,
+    color: colors.green,
     textAlign: 'center',
   },
 
@@ -622,21 +655,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.sm,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7F2',
+    backgroundColor: colors.accentSoft,
     borderWidth: 1.5,
-    borderColor: '#FDDCB5',
+    borderColor: colors.peach,
     borderRadius: Radius.lg,
     paddingHorizontal: 14,
   },
   inputWrapperError: {
-    borderColor: Colors.red,
-    backgroundColor: Colors.redSoft,
+    borderColor: colors.red,
+    backgroundColor: colors.redSoft,
   },
   inputIcon: {
     marginRight: 10,
@@ -646,12 +679,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: FontSize.base,
     fontFamily: FontFamily.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   inputHint: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     marginTop: 4,
     marginLeft: 2,
   },
@@ -669,18 +702,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginTop: 6,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: colors.redSoft,
     borderRadius: Radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.red,
   },
   matchErrorEmoji: { fontSize: 12 },
   matchErrorText: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.xs,
-    color: Colors.red,
+    color: colors.red,
   },
 
   // Phone OTP extras
@@ -693,7 +726,7 @@ const styles = StyleSheet.create({
   changePhoneText: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.sm,
-    color: Colors.accentText,
+    color: colors.accentText,
   },
   resendRow: {
     alignItems: 'center',
@@ -702,11 +735,11 @@ const styles = StyleSheet.create({
   resendText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   resendLink: {
     fontFamily: FontFamily.bodySemiBold,
-    color: Colors.accentText,
+    color: colors.accentText,
     textDecorationLine: 'underline',
   },
 
@@ -716,7 +749,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.textPrimary,
+    backgroundColor: colors.textPrimary,
     borderRadius: Radius.lg,
     paddingVertical: 16,
     marginTop: Spacing.sm,
@@ -727,7 +760,7 @@ const styles = StyleSheet.create({
   submitText: {
     fontFamily: FontFamily.headingSemiBold,
     fontSize: FontSize.md,
-    color: Colors.white,
+    color: colors.textInverse,
   },
 
   // Social / Alt auth
@@ -743,12 +776,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
   dividerText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.xs,
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
   },
   emailSwitchBtn: {
     flexDirection: 'row',
@@ -756,14 +789,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderRadius: Radius.lg,
     paddingVertical: 14,
   },
   emailSwitchText: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.base,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
 
   // Footer
@@ -775,11 +808,11 @@ const styles = StyleSheet.create({
   toggleText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   toggleLink: {
     fontFamily: FontFamily.bodySemiBold,
-    color: Colors.accentText,
+    color: colors.accentText,
     textDecorationLine: 'underline',
   },
   forgotBtn: {
@@ -788,7 +821,7 @@ const styles = StyleSheet.create({
   forgotText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.sm,
-    color: Colors.accentText,
+    color: colors.accentText,
     textDecorationLine: 'underline',
   },
 });

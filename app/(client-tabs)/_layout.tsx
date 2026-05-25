@@ -1,11 +1,14 @@
 import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { FontFamily } from '../../constants/theme';
 
 export default function ClientTabsLayout() {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <Tabs
@@ -17,7 +20,7 @@ export default function ClientTabsLayout() {
           tabBarStyle: {
             position: 'absolute',
             bottom: 0, left: 0, right: 0,
-            height: Platform.OS === 'ios' ? 88 : 72,
+            height: 64 + bottomPadding,
             backgroundColor: colors.tabBarBg,
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
@@ -28,7 +31,7 @@ export default function ClientTabsLayout() {
             shadowOpacity: isDark ? 0.3 : 0.08,
             shadowRadius: 16,
             elevation: 12,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+            paddingBottom: bottomPadding,
             paddingTop: 6,
             paddingHorizontal: 8,
           },
@@ -71,6 +74,18 @@ export default function ClientTabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="health-insights"
+          options={{
+            title: 'Health',
+            tabBarIcon: ({ color, focused }) => (
+              <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 4 }}>
+                <Ionicons name={focused ? 'heart' : 'heart-outline'} size={22} color={color} />
+                {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />}
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="my-messages"
           options={{
             title: 'Messages',
@@ -96,6 +111,7 @@ export default function ClientTabsLayout() {
         />
         {/* Progress hidden from tab bar — accessible via Home screen */}
         <Tabs.Screen name="my-progress" options={{ href: null }} />
+        <Tabs.Screen name="my-subscription" options={{ href: null }} />
       </Tabs>
   );
 }

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 
@@ -22,6 +23,8 @@ interface SelectedExercise {
 export default function CreateWorkoutScreen() {
   const router = useRouter();
   const { exercises, createWorkout } = useApp();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
@@ -55,7 +58,10 @@ export default function CreateWorkoutScreen() {
   };
 
   const removeExercise = (id: string) => {
-    setSelectedExercises((prev) => prev.filter((e) => e.exercise_id !== id));
+    Alert.alert('Remove Exercise', 'Are you sure you want to remove this exercise?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => setSelectedExercises((prev) => prev.filter((e) => e.exercise_id !== id)) },
+    ]);
   };
 
   const updateExercise = (id: string, field: string, value: number) => {
@@ -91,18 +97,18 @@ export default function CreateWorkoutScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.pickerHeader}>
           <TouchableOpacity onPress={() => { setShowPicker(false); setExerciseSearch(''); }}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.pickerTitle}>Add Exercise</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={Colors.textTertiary} />
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search exercises..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={exerciseSearch}
             onChangeText={setExerciseSearch}
             autoFocus
@@ -122,7 +128,7 @@ export default function CreateWorkoutScreen() {
                 disabled={isAdded}
               >
                 <View style={styles.exerciseIcon}>
-                  <Ionicons name="barbell-outline" size={18} color={isAdded ? Colors.white : Colors.accent} />
+                  <Ionicons name="barbell-outline" size={18} color={isAdded ? colors.white : colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.exerciseName}>{item.name}</Text>
@@ -139,9 +145,9 @@ export default function CreateWorkoutScreen() {
                   </View>
                 </View>
                 {isAdded ? (
-                  <Ionicons name="checkmark-circle" size={22} color={Colors.green} />
+                  <Ionicons name="checkmark-circle" size={22} color={colors.green} />
                 ) : (
-                  <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+                  <Ionicons name="add-circle-outline" size={22} color={colors.accent} />
                 )}
               </TouchableOpacity>
             );
@@ -161,7 +167,7 @@ export default function CreateWorkoutScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Workout</Text>
           <View style={{ width: 36 }} />
@@ -177,7 +183,7 @@ export default function CreateWorkoutScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Upper Body Push"
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={name}
             onChangeText={setName}
           />
@@ -187,7 +193,7 @@ export default function CreateWorkoutScreen() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Brief description of this workout..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -203,7 +209,7 @@ export default function CreateWorkoutScreen() {
               style={styles.addExerciseBtn}
               onPress={() => setShowPicker(true)}
             >
-              <Ionicons name="add" size={16} color={Colors.accent} />
+              <Ionicons name="add" size={16} color={colors.accent} />
               <Text style={styles.addExerciseText}>Add</Text>
             </TouchableOpacity>
           </View>
@@ -213,7 +219,7 @@ export default function CreateWorkoutScreen() {
               style={styles.emptyExercises}
               onPress={() => setShowPicker(true)}
             >
-              <Ionicons name="barbell-outline" size={24} color={Colors.textTertiary} />
+              <Ionicons name="barbell-outline" size={24} color={colors.textTertiary} />
               <Text style={styles.emptyExercisesText}>Tap to add exercises</Text>
             </TouchableOpacity>
           ) : (
@@ -228,7 +234,7 @@ export default function CreateWorkoutScreen() {
                     <Text style={styles.exerciseCardMuscle}>{ex.muscle_group}</Text>
                   </View>
                   <TouchableOpacity onPress={() => removeExercise(ex.exercise_id)}>
-                    <Ionicons name="trash-outline" size={18} color={Colors.red} />
+                    <Ionicons name="trash-outline" size={18} color={colors.red} />
                   </TouchableOpacity>
                 </View>
 
@@ -246,14 +252,14 @@ export default function CreateWorkoutScreen() {
                           style={styles.paramBtn}
                           onPress={() => updateExercise(ex.exercise_id, param.field, Math.max(1, param.value - (param.field === 'rest_seconds' ? 15 : 1)))}
                         >
-                          <Ionicons name="remove" size={14} color={Colors.textSecondary} />
+                          <Ionicons name="remove" size={14} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <Text style={styles.paramValue}>{param.value}</Text>
                         <TouchableOpacity
                           style={styles.paramBtn}
                           onPress={() => updateExercise(ex.exercise_id, param.field, param.value + (param.field === 'rest_seconds' ? 15 : 1))}
                         >
-                          <Ionicons name="add" size={14} color={Colors.textSecondary} />
+                          <Ionicons name="add" size={14} color={colors.textSecondary} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -277,29 +283,29 @@ export default function CreateWorkoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
 
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 
   label: {
     fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm,
-    color: Colors.textSecondary, marginBottom: 6, marginTop: Spacing.lg,
+    color: colors.textSecondary, marginBottom: 6, marginTop: Spacing.lg,
   },
   input: {
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary,
+    fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
   },
   textArea: { height: 80, textAlignVertical: 'top' },
 
@@ -307,43 +313,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: Spacing.xl, marginBottom: Spacing.md,
   },
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full,
-    backgroundColor: Colors.accentSoft,
+    backgroundColor: colors.accentSoft,
   },
-  addExerciseText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.accent },
+  addExerciseText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.accent },
 
   emptyExercises: {
     alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.sm,
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.lg,
-    borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
+    backgroundColor: colors.bgElevated, borderRadius: Radius.lg,
+    borderWidth: 1.5, borderColor: colors.border, borderStyle: 'dashed',
   },
-  emptyExercisesText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyExercisesText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textTertiary },
 
   exerciseCard: { marginBottom: Spacing.sm },
   exerciseCardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   orderBadge: {
     width: 28, height: 28, borderRadius: 8,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  orderBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.white },
-  exerciseCardName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  exerciseCardMuscle: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 1 },
+  orderBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.white },
+  exerciseCardName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
+  exerciseCardMuscle: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 1 },
 
   paramRow: {
     flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md,
-    paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border,
+    paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border,
   },
   paramItem: { flex: 1, alignItems: 'center', gap: 4 },
-  paramLabel: { fontFamily: FontFamily.body, fontSize: 10, color: Colors.textTertiary },
+  paramLabel: { fontFamily: FontFamily.body, fontSize: 10, color: colors.textTertiary },
   paramControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   paramBtn: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center',
   },
-  paramValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary, minWidth: 28, textAlign: 'center' },
+  paramValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, minWidth: 28, textAlign: 'center' },
 
   saveArea: { marginTop: Spacing.xl },
 
@@ -352,17 +358,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  pickerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
+  pickerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
     paddingHorizontal: Spacing.md, height: 42,
   },
   searchInput: {
     flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base,
-    color: Colors.textPrimary, paddingVertical: 0,
+    color: colors.textPrimary, paddingVertical: 0,
   },
 
   exerciseItem: {
@@ -372,11 +378,11 @@ const styles = StyleSheet.create({
   exerciseItemAdded: { opacity: 0.5 },
   exerciseIcon: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center',
   },
-  exerciseName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
+  exerciseName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
   exerciseTags: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  exerciseTag: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  exerciseTagDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  separator: { height: 1, backgroundColor: Colors.border },
+  exerciseTag: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  exerciseTagDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  separator: { height: 1, backgroundColor: colors.border },
 });

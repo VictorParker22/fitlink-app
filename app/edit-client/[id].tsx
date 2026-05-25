@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, KeyboardAvoidingView, Platform,
@@ -8,14 +8,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
+import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/Button';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import type { ThemeColors } from '../../constants/theme';
 
 export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getClientById, updateClient, plans } = useApp();
   const { showAlert } = useAlert();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const client = getClientById(id || '');
 
@@ -61,9 +65,9 @@ export default function EditClientScreen() {
   };
 
   const statuses = [
-    { value: 'active', label: 'Active', color: Colors.green },
-    { value: 'trial', label: 'Trial', color: Colors.yellow },
-    { value: 'inactive', label: 'Inactive', color: Colors.textTertiary },
+    { value: 'active', label: 'Active', color: colors.green },
+    { value: 'trial', label: 'Trial', color: colors.yellow },
+    { value: 'inactive', label: 'Inactive', color: colors.textTertiary },
   ];
 
   return (
@@ -72,7 +76,7 @@ export default function EditClientScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Client</Text>
           <View style={{ width: 36 }} />
@@ -81,17 +85,17 @@ export default function EditClientScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.inputGroup}>
             <Text style={styles.label}>NAME *</Text>
-            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Client name" placeholderTextColor={Colors.textTertiary} />
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Client name" placeholderTextColor={colors.textTertiary} />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>EMAIL</Text>
-            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="email@example.com" placeholderTextColor={Colors.textTertiary} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="email@example.com" placeholderTextColor={colors.textTertiary} keyboardType="email-address" autoCapitalize="none" />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>PHONE</Text>
-            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={Colors.textTertiary} keyboardType="phone-pad" />
+            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={colors.textTertiary} keyboardType="phone-pad" />
           </View>
 
           {/* Status */}
@@ -130,12 +134,12 @@ export default function EditClientScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>GOALS</Text>
-            <TextInput style={[styles.input, styles.textArea]} value={goals} onChangeText={setGoals} placeholder="Client goals..." placeholderTextColor={Colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={[styles.input, styles.textArea]} value={goals} onChangeText={setGoals} placeholder="Client goals..." placeholderTextColor={colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>NOTES</Text>
-            <TextInput style={[styles.input, styles.textArea]} value={notes} onChangeText={setNotes} placeholder="Notes about this client..." placeholderTextColor={Colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={[styles.input, styles.textArea]} value={notes} onChangeText={setNotes} placeholder="Notes about this client..." placeholderTextColor={colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
           </View>
 
           <Button title="Save Changes" onPress={handleSave} loading={saving} full size="lg" />
@@ -145,20 +149,20 @@ export default function EditClientScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
-  notFound: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  notFound: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: colors.textSecondary, marginBottom: Spacing.lg },
 
   inputGroup: { marginBottom: Spacing.lg },
-  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, letterSpacing: 0.8, marginBottom: 6 },
+  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginBottom: 6 },
   input: {
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, paddingVertical: 12, paddingHorizontal: 14,
-    fontFamily: FontFamily.body, fontSize: FontSize.md, color: Colors.textPrimary,
+    fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textPrimary,
   },
   textArea: { minHeight: 80, paddingTop: 12 },
 
@@ -166,14 +170,14 @@ const styles = StyleSheet.create({
   statusChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10, borderRadius: Radius.md,
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
+  statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
 
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border },
-  planChipActive: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)' },
-  planChipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textSecondary },
-  planChipTextActive: { color: Colors.accent },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
+  planChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
+  planChipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
+  planChipTextActive: { color: colors.accent },
 });

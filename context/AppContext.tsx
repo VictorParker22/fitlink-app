@@ -214,6 +214,8 @@ interface AppContextType {
   deleteProgressLog: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   updatePushToken: (token: string) => Promise<void>;
+  getClientHealthSnapshot: (clientId: string) => any | null;
+  requestHealthAccess: (clientId: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -235,6 +237,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [clientWorkoutsList, setClientWorkoutsList] = useState<ClientWorkout[]>([]);
   const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
+  const [clientHealthSnapshots, setClientHealthSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -255,9 +258,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
-          supabase.from('clients').select('*').order('created_at', { ascending: false }),
+          supabase.from('clients').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
           supabase.from('sessions').select('*').order('date'),
           supabase.from('referrals').select('*').order('date', { ascending: false }),
@@ -270,6 +273,7 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
           supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
           supabase.from('client_progress').select('*').order('date', { ascending: false }),
+          supabase.from('client_health_snapshots').select('*').order('date', { ascending: false }),
         ]);
 
         if (!mounted) return;
@@ -289,8 +293,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         setClientDietsList(cdRes.data || []);
         // Progress logs might fail if migration not run yet, handle gracefully
         if (progressRes && progressRes.data) setProgressLogs(progressRes.data);
+        if (healthSnapshotsRes && healthSnapshotsRes.data) setClientHealthSnapshots(healthSnapshotsRes.data);
       } catch (err) {
-        console.error('Error fetching data:', err);
+        if (__DEV__) console.error('Error fetching data:', err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -304,7 +309,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (!user) return;
     const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
-      supabase.from('clients').select('*').order('created_at', { ascending: false }),
+      supabase.from('clients').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
       supabase.from('plans').select('*').order('price'),
       supabase.from('sessions').select('*').order('date'),
       supabase.from('referrals').select('*').order('date', { ascending: false }),
@@ -318,6 +323,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
       supabase.from('client_progress').select('*').order('date', { ascending: false }),
     ]);
+    
+    // Check if health snapshots table exists/returned data
+    const hsRes = await supabase.from('client_health_snapshots').select('*').order('date', { ascending: false });
+    if (hsRes.data) setClientHealthSnapshots(hsRes.data);
+
     if (trainerRes.data) setTrainer(trainerRes.data);
     if (clientsRes.data) setClients(clientsRes.data);
     if (plansRes.data) setPlans(plansRes.data);
@@ -743,9 +753,34 @@ export function AppProvider({ children }: PropsWithChildren) {
       const table = trainer ? 'trainers' : 'clients';
       await supabase.from(table).update({ push_token: token }).eq('id', user.id);
     } catch (err) {
-      console.warn('Failed to update push token', err);
+      if (__DEV__) console.warn('Failed to update push token', err);
     }
   }, [user, trainer]);
+
+  // --- Health snapshot operations (coach-side) ---
+  const getClientHealthSnapshot = useCallback((clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    // Only return data if client has consented to sharing
+    if (!client || !(client as any).health_sharing_enabled) return null;
+    return clientHealthSnapshots
+      .filter((s) => s.client_id === clientId)
+      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
+  }, [clients, clientHealthSnapshots]);
+
+  const requestHealthAccess = useCallback(async (clientId: string) => {
+    if (!user) return;
+    // Set the request flag on client
+    await supabase.from('clients').update({ health_sharing_requested: true }).eq('id', clientId);
+    // Update local state
+    setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, health_sharing_requested: true } as any : c));
+    // Send a notification to the client's trainer feed
+    const client = clients.find((c) => c.id === clientId);
+    await supabase.from('activities').insert({
+      trainer_id: user.id,
+      type: 'health_request',
+      message: `Requested health data access from ${client?.name || 'client'}`,
+    });
+  }, [user, clients]);
 
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active' || c.status === 'trial'), [clients]);
@@ -816,6 +851,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     deleteProgressLog,
     markNotificationRead,
     updatePushToken,
+    getClientHealthSnapshot,
+    requestHealthAccess,
     refreshData,
   };
 

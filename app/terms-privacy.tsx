@@ -3,8 +3,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useMemo } from 'react';
 
 const TERMS_SECTIONS = [
   {
@@ -51,12 +53,14 @@ const TERMS_SECTIONS = [
 
 export default function TermsPrivacyScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Terms & Privacy</Text>
         <View style={{ width: 36 }} />
@@ -93,19 +97,19 @@ export default function TermsPrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 
-  lastUpdated: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginBottom: Spacing.lg },
+  lastUpdated: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, marginBottom: Spacing.lg },
 
   section: { marginBottom: Spacing.lg },
-  sectionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  sectionContent: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20 },
+  sectionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary, marginBottom: Spacing.xs },
+  sectionContent: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, lineHeight: 20 },
 
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.xl },
-  privacyHeader: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary, marginBottom: Spacing.lg },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.xl },
+  privacyHeader: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.textPrimary, marginBottom: Spacing.lg },
 });

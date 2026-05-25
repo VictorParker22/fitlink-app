@@ -1,0 +1,2 @@
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS expo_push_token TEXT;
+ALTER TABLE trainers ADD COLUMN IF NOT EXISTS expo_push_token TEXT;

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -66,6 +66,34 @@ export default function DashboardScreen() {
     return `${days}d ago`;
   };
 
+  // Compute real weekly performance data
+  const chartData = useMemo(() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    sessions.forEach(s => {
+      if (s.status === 'completed') {
+        const d = new Date(s.date);
+        if (d >= oneWeekAgo && d <= now) {
+          const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
+          counts[dayIndex]++;
+        }
+      }
+    });
+
+    const currentDayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    return days.map((day, i) => ({
+      value: Math.max(0.5, counts[i]), // BarChart needs > 0
+      label: day,
+      frontColor: i === currentDayIndex ? Colors.accentHover : Colors.accent,
+      topLabelComponent: () => null,
+    }));
+  }, [sessions]);
+
+
   const metricCards = [
     {
       label: 'Clients',
@@ -92,6 +120,12 @@ export default function DashboardScreen() {
       gradient: ['#A78BFA', '#C4B5FD'] as const,
     },
   ];
+
+  if (loading || !trainer) return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary, justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+      <ActivityIndicator size="large" color={colors.accent} />
+    </SafeAreaView>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
@@ -147,9 +181,6 @@ export default function DashboardScreen() {
         {/* ── SECTION 2: Business Metrics ── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Business Metrics</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -175,36 +206,9 @@ export default function DashboardScreen() {
                 </View>
               </View>
 
-              {/* Middle: decorative bars/lines */}
+              {/* Middle: icon accent area */}
               <View style={styles.metricChartArea}>
-                {card.label === 'Clients' && (
-                  <View style={styles.miniBarChart}>
-                    {[0.4, 0.6, 0.3, 0.8, 0.5, 0.9, 0.7].map((h, j) => (
-                      <View key={j} style={[styles.miniBar, { height: h * 40, opacity: 0.3 + h * 0.5 }]} />
-                    ))}
-                  </View>
-                )}
-                {card.label === 'Sessions' && (
-                  <View style={styles.miniLineChart}>
-                    {[20, 35, 25, 45, 30, 50, 40].map((h, j) => (
-                      <View key={j} style={[styles.miniDot, { bottom: h }]} />
-                    ))}
-                  </View>
-                )}
-                {card.label === 'Revenue' && (
-                  <View style={styles.miniBarChart}>
-                    {[0.5, 0.7, 0.4, 0.9, 0.6, 0.8, 0.95].map((h, j) => (
-                      <View key={j} style={[styles.miniBar, { height: h * 40, opacity: 0.3 + h * 0.5 }]} />
-                    ))}
-                  </View>
-                )}
-                {card.label === 'Referrals' && (
-                  <View style={styles.miniLineChart}>
-                    {[15, 30, 20, 40, 35, 45, 50].map((h, j) => (
-                      <View key={j} style={[styles.miniDot, { bottom: h }]} />
-                    ))}
-                  </View>
-                )}
+                <Ionicons name={card.icon as any} size={36} color="rgba(255,255,255,0.25)" />
               </View>
 
               {/* Bottom: value */}
@@ -228,7 +232,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={styles.sessionCard}
               activeOpacity={0.9}
-              onPress={() => router.push('/(tabs)/schedule')}
+              onPress={() => router.push(`/session/${nextSession.id}` as any)}
             >
               <Image
                 source={require('../../assets/images/session-bg.png')}
@@ -289,7 +293,12 @@ export default function DashboardScreen() {
             { label: 'Message', icon: 'chatbubble', color: Colors.green, route: '/(tabs)/messages' },
             { label: 'Invite', icon: 'share-social', color: Colors.purple, route: '/referrals' },
           ].map((action, i) => (
-            <TouchableOpacity key={i} style={styles.quickAction} onPress={() => router.push(action.route as any)} activeOpacity={0.7}>
+            <TouchableOpacity 
+              key={i} 
+              style={styles.quickAction} 
+              onPress={() => action.label === 'Add Client' ? router.push('/add-client' as any) : router.push(action.route as any)} 
+              activeOpacity={0.7}
+            >
               <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}14` }]}>
                 <Ionicons name={action.icon as any} size={22} color={action.color} />
               </View>
@@ -378,32 +387,19 @@ export default function DashboardScreen() {
         {/* ── SECTION 5: Weekly Performance (like Activities chart card) ── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Performance</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
         </View>
         <Card style={styles.perfCard}>
-          {/* Time filter tabs */}
+          {/* Time period label */}
           <View style={styles.perfTabs}>
-            {['1w', '1m', '3m', '1y', 'All'].map((tab, i) => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.perfTab, i === 0 && styles.perfTabActive]}
-              >
-                <Text style={[styles.perfTabText, i === 0 && styles.perfTabTextActive]}>{tab}</Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.perfTabActive}>
+              <Text style={styles.perfTabTextActive}>This Week</Text>
+            </View>
           </View>
 
           {/* Real chart */}
           <View style={styles.perfChartArea}>
             <BarChart
-              data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => ({
-                value: Math.max(1, Math.floor(Math.random() * 8) + (i < 5 ? 3 : 1)),
-                label: day,
-                frontColor: i === 5 ? Colors.accentHover : Colors.accent,
-                topLabelComponent: () => null,
-              }))}
+              data={chartData}
               barWidth={20}
               barBorderTopLeftRadius={6}
               barBorderTopRightRadius={6}
@@ -510,14 +506,11 @@ export default function DashboardScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.clientListName}>{client.name}</Text>
                     <View style={styles.clientListMeta}>
-                      <Ionicons name="star" size={11} color={Colors.yellow} />
-                      <Text style={styles.clientListMetaText}>{Math.min(5, (clientSessions * 0.5 + 2.5)).toFixed(1)}</Text>
+                      <Ionicons name="flame" size={11} color={Colors.accent} />
+                      <Text style={styles.clientListMetaText}>{clientSessions} completed</Text>
                       <Text style={styles.clientListDot}>·</Text>
-                      <Ionicons name="calendar" size={11} color={colors.textTertiary} />
-                      <Text style={styles.clientListMetaText}>{clientSessions} sessions</Text>
-                      <Text style={styles.clientListDot}>·</Text>
-                      <Ionicons name="heart" size={11} color={Colors.red} />
-                      <Text style={styles.clientListMetaText}>{Math.floor(clientSessions * 3.2)}</Text>
+                      <Ionicons name="card" size={11} color={colors.textTertiary} />
+                      <Text style={styles.clientListMetaText}>{plans.find(p => p.id === client.plan_id)?.name || 'Custom Plan'}</Text>
                     </View>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />

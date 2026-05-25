@@ -1,18 +1,20 @@
 import { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import type { ThemeColors } from '../constants/theme';
 
 const SESSION_TYPES = ['1-on-1', 'Group', 'Virtual'] as const;
 const DURATIONS = [30, 45, 60, 90] as const;
@@ -21,6 +23,9 @@ export default function BookSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ date?: string }>();
   const { addSession, clients } = useApp();
+  const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const activeClients = useMemo(() => clients.filter((c) => c.status !== 'inactive'), [clients]);
 
@@ -56,10 +61,10 @@ export default function BookSessionScreen() {
 
   const handleSubmit = async () => {
     if (sessionType !== 'Group' && !selectedClient) {
-      return Alert.alert('Select a client', 'Please pick a client for this session.');
+      return showAlert({ type: 'warning', title: 'Select a Client', message: 'Please pick a client for this session.' });
     }
     if (sessionType === 'Group' && !groupName.trim()) {
-      return Alert.alert('Group name required', 'Please enter a name for the group session.');
+      return showAlert({ type: 'warning', title: 'Group Name Required', message: 'Please enter a name for the group session.' });
     }
 
     setLoading(true);
@@ -73,11 +78,14 @@ export default function BookSessionScreen() {
         status: 'upcoming',
         notes: notes.trim() || undefined,
       });
-      Alert.alert('Session Booked!', 'The session has been added to your schedule.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showAlert({
+        type: 'success',
+        title: 'Session Booked!',
+        message: 'The session has been added to your schedule.',
+        buttons: [{ text: 'OK', onPress: () => router.back() }],
+      });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to book session');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to book session' });
     } finally {
       setLoading(false);
     }
@@ -89,7 +97,7 @@ export default function BookSessionScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="close" size={22} color={Colors.textPrimary} />
+            <Ionicons name="close" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Book Session</Text>
           <View style={{ width: 36 }} />
@@ -109,7 +117,7 @@ export default function BookSessionScreen() {
                 <Ionicons
                   name={type === '1-on-1' ? 'person' : type === 'Group' ? 'people' : 'videocam'}
                   size={16}
-                  color={sessionType === type ? Colors.accent : Colors.textTertiary}
+                  color={sessionType === type ? colors.accent : colors.textTertiary}
                 />
                 <Text style={[styles.typeText, sessionType === type && styles.typeTextActive]}>{type}</Text>
               </TouchableOpacity>
@@ -123,7 +131,7 @@ export default function BookSessionScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Evening HIIT"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={groupName}
                 onChangeText={setGroupName}
               />
@@ -135,16 +143,16 @@ export default function BookSessionScreen() {
                 <TouchableOpacity style={styles.selectedClient} onPress={() => setSelectedClient(null)}>
                   <Avatar name={selectedClientObj.name} size="sm" />
                   <Text style={styles.selectedClientName}>{selectedClientObj.name}</Text>
-                  <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
+                  <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>
               ) : (
                 <>
                   <View style={styles.searchBox}>
-                    <Ionicons name="search" size={16} color={Colors.textTertiary} />
+                    <Ionicons name="search" size={16} color={colors.textTertiary} />
                     <TextInput
                       style={styles.searchInput}
                       placeholder="Search clients..."
-                      placeholderTextColor={Colors.textTertiary}
+                      placeholderTextColor={colors.textTertiary}
                       value={clientSearch}
                       onChangeText={setClientSearch}
                     />
@@ -174,13 +182,13 @@ export default function BookSessionScreen() {
             <Text style={styles.label}>DATE & TIME</Text>
             <View style={styles.dateRow}>
               <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-                <Ionicons name="calendar-outline" size={16} color={Colors.accent} />
+                <Ionicons name="calendar-outline" size={16} color={colors.accent} />
                 <Text style={styles.dateBtnText}>
                   {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.dateBtn} onPress={() => setShowTimePicker(true)}>
-                <Ionicons name="time-outline" size={16} color={Colors.accent} />
+                <Ionicons name="time-outline" size={16} color={colors.accent} />
                 <Text style={styles.dateBtnText}>
                   {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                 </Text>
@@ -196,7 +204,7 @@ export default function BookSessionScreen() {
                   setShowTimePicker(false);
                   if (selectedDate) setDate(selectedDate);
                 }}
-                themeVariant="dark"
+                themeVariant={isDark ? 'dark' : 'light'}
                 minimumDate={new Date()}
               />
             )}
@@ -224,7 +232,7 @@ export default function BookSessionScreen() {
             <TextInput
               style={styles.input}
               placeholder="Upper body focus, bring bands..."
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               value={notes}
               onChangeText={setNotes}
             />
@@ -237,66 +245,66 @@ export default function BookSessionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 
   section: { marginBottom: Spacing.xl },
-  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textTertiary, letterSpacing: 0.8, marginBottom: Spacing.sm },
+  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginBottom: Spacing.sm },
 
   typeRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   typeChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 12, borderRadius: Radius.md,
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
   },
-  typeChipActive: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)' },
-  typeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
-  typeTextActive: { color: Colors.accent },
+  typeChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
+  typeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  typeTextActive: { color: colors.accent },
 
   input: {
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, paddingVertical: 12, paddingHorizontal: 14,
-    fontFamily: FontFamily.body, fontSize: FontSize.md, color: Colors.textPrimary,
+    fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textPrimary,
   },
 
   selectedClient: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.md, padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderRadius: Radius.md, padding: Spacing.md,
+    borderWidth: 1, borderColor: colors.border,
   },
-  selectedClientName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: Colors.textPrimary, flex: 1 },
+  selectedClientName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: colors.textPrimary, flex: 1 },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.bgInput, borderWidth: 1, borderColor: Colors.borderStrong,
+    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
     borderRadius: Radius.md, paddingHorizontal: Spacing.md, height: 40, marginBottom: Spacing.sm,
   },
-  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textPrimary, paddingVertical: 0 },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textPrimary, paddingVertical: 0 },
 
-  clientList: { maxHeight: 160, borderRadius: Radius.md, backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border },
-  clientOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: 10, paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  clientOptionName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: Colors.textPrimary },
-  noClients: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, padding: Spacing.md, textAlign: 'center' },
+  clientList: { maxHeight: 160, borderRadius: Radius.md, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
+  clientOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: 10, paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  clientOptionName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textPrimary },
+  noClients: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, padding: Spacing.md, textAlign: 'center' },
 
   dateRow: { flexDirection: 'row', gap: Spacing.sm },
   dateBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
     borderRadius: Radius.md, paddingVertical: 12,
   },
-  dateBtnText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textPrimary },
+  dateBtnText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary },
 
   durationRow: { flexDirection: 'row', gap: Spacing.sm },
   durationChip: {
     flex: 1, alignItems: 'center', paddingVertical: 12,
-    borderRadius: Radius.md, backgroundColor: Colors.bgElevated,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.md, backgroundColor: colors.bgElevated,
+    borderWidth: 1, borderColor: colors.border,
   },
-  durationChipActive: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)' },
-  durationText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary },
-  durationTextActive: { color: Colors.accent },
+  durationChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
+  durationText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  durationTextActive: { color: colors.accent },
 });

@@ -76,6 +76,18 @@ export default function ClientMessagesScreen() {
     try {
       await supabase.from('messages').insert({ conversation_id: conversation.id, sender_type: 'client', content });
       await supabase.from('conversations').update({ last_message: content, last_message_at: new Date().toISOString() }).eq('id', conversation.id);
+      
+      // Trigger push notification to trainer
+      if (trainer?.expo_push_token) {
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            pushToken: trainer.expo_push_token,
+            title: `Message from ${clientData?.name || 'Client'}`,
+            body: content,
+            data: { url: '/messages' }
+          }
+        }).catch(err => console.log('Push error:', err));
+      }
     } catch { setNewMessage(content); }
     finally { setSending(false); }
   }, [newMessage, sending, conversation]);

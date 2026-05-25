@@ -1,10 +1,11 @@
-import { useCallback, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { useCallback, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../context/ThemeContext';
@@ -13,6 +14,7 @@ import Card from '../../components/Card';
 import WeeklyRing from '../../components/WeeklyRing';
 import CountdownTimer from '../../components/CountdownTimer';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { calculateXp, calculateLevel } from '../../utils/xp';
 
 const QUOTES = [
   { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
@@ -55,9 +57,59 @@ function getWeekDates() {
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+function GymCheckInWidget({ activeVisit, checkIn, checkOut, colors }: { activeVisit: any, checkIn: () => void, checkOut: () => void, colors: ThemeColors }) {
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    if (!activeVisit) {
+      setElapsed('');
+      return;
+    }
+    const updateElapsed = () => {
+      const diff = Date.now() - new Date(activeVisit.check_in_time).getTime();
+      const mins = Math.floor(diff / 60000);
+      const hrs = Math.floor(mins / 60);
+      const displayMins = mins % 60;
+      setElapsed(`${hrs > 0 ? hrs + 'h ' : ''}${displayMins}m`);
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 60000);
+    return () => clearInterval(interval);
+  }, [activeVisit]);
+
+  if (activeVisit) {
+    return (
+      <View style={{ backgroundColor: `${Colors.accent}20`, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', borderColor: Colors.accent, borderWidth: 1 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="fitness" size={24} color="#FFF" />
+        </View>
+        <View style={{ flex: 1, marginLeft: Spacing.md }}>
+          <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary }}>At the Gym</Text>
+          <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary }}>Duration: <Text style={{ color: Colors.accent, fontFamily: FontFamily.headingSemiBold }}>{elapsed}</Text></Text>
+        </View>
+        <TouchableOpacity style={{ backgroundColor: Colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }} onPress={checkOut}>
+          <Text style={{ color: '#FFF', fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm }}>Check Out</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={checkIn} style={{ backgroundColor: colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', borderColor: colors.border, borderWidth: 1 }}>
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${Colors.accent}15`, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="scan" size={20} color={Colors.accent} />
+      </View>
+      <View style={{ flex: 1, marginLeft: Spacing.md }}>
+        <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary }}>Gym Check-in</Text>
+        <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary }}>Tap here when you arrive at the gym.</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function ClientHomeScreen() {
   const router = useRouter();
-  const { clientData, trainer, upcomingSessions, todayWorkout, workouts, sessions, loading, refreshData } = useClient();
+  const { clientData, trainer, upcomingSessions, todayWorkout, workouts, sessions, loading, refreshData, activeGymVisit, checkInGym, checkOutGym } = useClient();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,7 +121,7 @@ export default function ClientHomeScreen() {
   }, [refreshData]);
 
   if (loading || !clientData) return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}><View style={styles.loading}><Text style={[styles.loadingText, { color: colors.textTertiary }]}>Loading...</Text></View></SafeAreaView>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}><View style={styles.loading}><ActivityIndicator size="large" color={colors.accent} /></View></SafeAreaView>
   );
 
   const firstName = clientData.name.split(' ')[0];
@@ -92,8 +144,8 @@ export default function ClientHomeScreen() {
 
   // XP
   const totalCompleted = workouts.filter((w: any) => w.status === 'completed').length;
-  const xp = totalCompleted * 50;
-  const level = Math.floor(xp / 250) + 1;
+  const xp = calculateXp(totalCompleted);
+  const level = calculateLevel(xp);
 
   // Week day completion map
   const completedDays = new Set<number>();
@@ -167,6 +219,34 @@ export default function ClientHomeScreen() {
           </TouchableOpacity>
         )}
 
+        {/* ── HEALTH DATA REQUEST BANNER ── */}
+        {(clientData as any).health_sharing_requested && !clientData.health_sharing_enabled && (
+          <View style={[styles.trialBanner, { backgroundColor: `${colors.accent}15`, borderColor: colors.accent, borderWidth: 1 }]}>
+            <View style={styles.trialTop}>
+              <Ionicons name="heart" size={22} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.trialTitle, { color: colors.textPrimary }]}>Health Access Request</Text>
+                <Text style={[styles.trialSub, { color: colors.textTertiary, marginBottom: Spacing.sm }]}>Your coach wants to see your health metrics (steps, heart rate, etc.) to tailor your plan.</Text>
+                <TouchableOpacity 
+                  activeOpacity={0.8} 
+                  style={[styles.missionBtn, { marginTop: 0, paddingVertical: 8 }]}
+                  onPress={async () => {
+                    try {
+                      await supabase.from('clients').update({ health_sharing_enabled: true }).eq('id', clientData.id);
+                      await refreshData();
+                      Alert.alert('Enabled', 'Health sharing enabled!');
+                    } catch (e) {
+                      Alert.alert('Error', 'Failed to enable health sharing.');
+                    }
+                  }}
+                >
+                  <Text style={styles.missionBtnText}>Enable Health Sharing</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* ── TRIAL BANNER ── */}
         {clientData.status === 'trial' && (() => {
           const trialEnd = clientData.trial_end_date ? new Date(clientData.trial_end_date) : new Date(new Date(clientData.created_at).getTime() + 20 * 86400000);
@@ -189,6 +269,9 @@ export default function ClientHomeScreen() {
             </View>
           );
         })()}
+
+        {/* ── GYM CHECK-IN ── */}
+        <GymCheckInWidget activeVisit={activeGymVisit} checkIn={checkInGym} checkOut={checkOutGym} colors={colors} />
 
         {/* ── ASSESSMENT PROMPT ── */}
         {!clientData.assessment_data && (
@@ -265,7 +348,13 @@ export default function ClientHomeScreen() {
         {nextSession && (
           <>
             <Text style={styles.sectionTitle}>Next Session</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => {}}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => {
+              Alert.alert(
+                `${nextSession.type} Session`,
+                `${new Date(nextSession.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}\n${new Date(nextSession.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${nextSession.duration} min\n\nWith ${trainer?.name || 'your trainer'}`,
+                [{ text: 'OK' }]
+              );
+            }}>
               <Card style={styles.countdownCard}>
                 <View style={styles.countdownTop}>
                   <View style={[styles.countdownIcon, { backgroundColor: `${colors.accent}18` }]}>
@@ -331,6 +420,20 @@ export default function ClientHomeScreen() {
             })}
           </>
         )}
+
+        {/* ── VIEW PROGRESS ── */}
+        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/my-progress' as any)}>
+          <Card style={[styles.sessionCard, { flexDirection: 'row', alignItems: 'center', gap: Spacing.md }]}>
+            <View style={[styles.sessionIcon, { backgroundColor: `${colors.green}18` }]}>
+              <Ionicons name="trending-up" size={20} color={colors.green} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sessionType, { color: colors.textPrimary }]}>View Your Progress</Text>
+              <Text style={[styles.sessionMeta, { color: colors.textTertiary }]}>Weight, measurements & photos</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </Card>
+        </TouchableOpacity>
 
         {/* ── QUOTE ── */}
         <LinearGradient colors={isDark ? ['#1E1E28', '#252535'] : ['#FFF8F5', '#FFF0E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quoteCard}>

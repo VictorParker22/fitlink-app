@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -13,9 +13,15 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
-  const { plans, clients } = useApp();
+  const { plans, clients, refreshData } = useApp();
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await refreshData(); } finally { setRefreshing(false); }
+  };
 
   const getSubCount = (planId: string) => clients.filter((c) => c.plan_id === planId && c.status !== 'inactive').length;
 
@@ -36,7 +42,7 @@ export default function SubscriptionsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}>
         {/* Revenue Summary */}
         <Card style={styles.revenueCard}>
           <Text style={styles.revenueLabel}>Monthly Recurring Revenue</Text>
@@ -109,6 +115,32 @@ export default function SubscriptionsScreen() {
                   <Text style={styles.planRevenueLabel}>Monthly revenue</Text>
                   <Text style={[styles.planRevenueValue, { color: planColor }]}>{formatCurrency(planRevenue)}</Text>
                 </View>
+
+                {/* Collect Payment */}
+                <View style={{ marginTop: Spacing.md }}>
+                  <Button
+                    title="Collect Payment"
+                    variant="outline"
+                    size="sm"
+                    full
+                    icon={<Ionicons name="card" size={16} color={colors.accent} />}
+                    onPress={() => {
+                      if (planClients.length === 0) {
+                        Alert.alert('No Subscribers', 'Add a client to this plan before collecting payment.');
+                      } else if (planClients.length === 1) {
+                        router.push({ pathname: '/checkout', params: { planId: plan.id, clientId: planClients[0].id } } as any);
+                      } else {
+                        // Multiple subscribers — let the trainer pick which client to charge
+                        const buttons = planClients.map((c) => ({
+                          text: c.name,
+                          onPress: () => router.push({ pathname: '/checkout', params: { planId: plan.id, clientId: c.id } } as any),
+                        }));
+                        buttons.push({ text: 'Cancel', onPress: () => {} });
+                        Alert.alert('Select Client', 'Which client would you like to charge?', buttons as any);
+                      }
+                    }}
+                  />
+                </View>
               </Card>
             );
           })
@@ -145,8 +177,8 @@ export default function SubscriptionsScreen() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  addBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
 

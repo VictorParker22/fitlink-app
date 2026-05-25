@@ -4,12 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { useAlert } from '../context/AlertContext';
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 export default function CreateDietScreen() {
   const router = useRouter();
   const { createDietPlan, meals } = useApp();
+  const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,8 +41,8 @@ export default function CreateDietScreen() {
   }, [selectedMeals]);
 
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Error', 'Please enter a plan name.');
-    if (selectedMeals.length === 0) return Alert.alert('Error', 'Please add at least one meal.');
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing Name', message: 'Please enter a plan name.' });
+    if (selectedMeals.length === 0) return showAlert({ type: 'warning', title: 'No Meals', message: 'Please add at least one meal.' });
     
     setSaving(true);
     try {
@@ -45,15 +50,20 @@ export default function CreateDietScreen() {
       await createDietPlan(name.trim(), description.trim(), mealMap);
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create diet plan');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to create diet plan' });
       setSaving(false);
     }
   };
 
   const removeMeal = (index: number) => {
-    const newMeals = [...selectedMeals];
-    newMeals.splice(index, 1);
-    setSelectedMeals(newMeals);
+    Alert.alert('Remove Meal', 'Are you sure you want to remove this meal?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => {
+        const newMeals = [...selectedMeals];
+        newMeals.splice(index, 1);
+        setSelectedMeals(newMeals);
+      }},
+    ]);
   };
 
   if (isSearching) {
@@ -61,18 +71,18 @@ export default function CreateDietScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setIsSearching(false)} style={styles.backBtn}>
-            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Meal</Text>
           <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={Colors.textTertiary} />
+          <Ionicons name="search" size={20} color={colors.textTertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search foods..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
@@ -91,7 +101,7 @@ export default function CreateDietScreen() {
               }}
             >
               <View style={styles.mealResultIcon}>
-                <Ionicons name="restaurant" size={20} color={Colors.accent} />
+                <Ionicons name="restaurant" size={20} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.mealResultName}>{meal.name}</Text>
@@ -101,7 +111,7 @@ export default function CreateDietScreen() {
                 <Text style={styles.mealResultKcal}>{meal.calories} kcal</Text>
                 <Text style={styles.mealResultMacros}>P:{meal.protein} C:{meal.carbs} F:{meal.fat}</Text>
               </View>
-              <Ionicons name="add-circle" size={24} color={Colors.accent} style={{ marginLeft: Spacing.sm }} />
+              <Ionicons name="add-circle" size={24} color={colors.accent} style={{ marginLeft: Spacing.sm }} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -116,7 +126,7 @@ export default function CreateDietScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Diet Plan</Text>
           <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveBtn}>
@@ -131,7 +141,7 @@ export default function CreateDietScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 4-Week Cut"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               value={name}
               onChangeText={setName}
             />
@@ -141,7 +151,7 @@ export default function CreateDietScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Add some notes about this plan..."
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               value={description}
               onChangeText={setDescription}
               multiline
@@ -153,14 +163,14 @@ export default function CreateDietScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Meals</Text>
             <TouchableOpacity onPress={() => setIsSearching(true)} style={styles.addSmallBtn}>
-              <Ionicons name="add" size={16} color={Colors.accent} />
+              <Ionicons name="add" size={16} color={colors.accent} />
               <Text style={styles.addSmallText}>Add Meal</Text>
             </TouchableOpacity>
           </View>
 
           {selectedMeals.length === 0 ? (
             <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setIsSearching(true)}>
-              <Ionicons name="restaurant-outline" size={32} color={Colors.textTertiary} />
+              <Ionicons name="restaurant-outline" size={32} color={colors.textTertiary} />
               <Text style={styles.emptyAddText}>Tap to add your first meal</Text>
             </TouchableOpacity>
           ) : (
@@ -173,7 +183,7 @@ export default function CreateDietScreen() {
                     <Text style={styles.selectedMealCategory}>{meal.category}</Text>
                   </View>
                   <TouchableOpacity onPress={() => removeMeal(index)} style={styles.removeBtn}>
-                    <Ionicons name="trash-outline" size={18} color={Colors.red} />
+                    <Ionicons name="trash-outline" size={18} color={colors.red} />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.macrosRow}>
@@ -205,80 +215,80 @@ export default function CreateDietScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  saveBtn: { backgroundColor: Colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full },
-  saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
+  saveBtn: { backgroundColor: colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full },
+  saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.white },
   
   content: { padding: Spacing.lg },
   inputGroup: { marginBottom: Spacing.xl },
-  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary, marginBottom: Spacing.sm },
   input: {
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
-    fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
+    fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.border,
   },
   textArea: { height: 100 },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
   addSmallBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addSmallText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.accent },
+  addSmallText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
 
   emptyAddBtn: {
-    borderWidth: 2, borderColor: Colors.border, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
     borderRadius: Radius.lg, padding: Spacing['2xl'], alignItems: 'center', gap: Spacing.sm,
   },
-  emptyAddText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptyAddText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textTertiary },
 
   selectedMealCard: {
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
-    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
+    marginBottom: Spacing.md, borderWidth: 1, borderColor: colors.border,
   },
   selectedMealHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
-  mealNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  mealNumberText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: Colors.accent },
-  selectedMealName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  selectedMealCategory: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
+  mealNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  mealNumberText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: colors.accent },
+  selectedMealName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textPrimary },
+  selectedMealCategory: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
   removeBtn: { padding: 4 },
 
-  macrosRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: Colors.bgPrimary, padding: Spacing.sm, borderRadius: Radius.md },
+  macrosRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.bgPrimary, padding: Spacing.sm, borderRadius: Radius.md },
   macroItem: { alignItems: 'center' },
-  macroVal: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary },
-  macroLbl: { fontFamily: FontFamily.body, fontSize: 10, color: Colors.textTertiary },
+  macroVal: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
+  macroLbl: { fontFamily: FontFamily.body, fontSize: 10, color: colors.textTertiary },
 
   totalsBanner: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: Colors.bgElevated, borderTopWidth: 1, borderTopColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderTopWidth: 1, borderTopColor: colors.border,
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 40,
   },
-  totalsTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: Colors.textPrimary, marginBottom: Spacing.sm },
+  totalsTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary, marginBottom: Spacing.sm },
   totalsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   totalItem: { alignItems: 'center', flex: 1 },
-  totalVal: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: Colors.accent },
-  totalLbl: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.textSecondary },
+  totalVal: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.accent },
+  totalLbl: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textSecondary },
 
   // Search UI
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.bgElevated, margin: Spacing.lg, paddingHorizontal: Spacing.md,
-    borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border, height: 48,
+    backgroundColor: colors.bgElevated, margin: Spacing.lg, paddingHorizontal: Spacing.md,
+    borderRadius: Radius.full, borderWidth: 1, borderColor: colors.border, height: 48,
   },
-  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary },
   searchList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   mealResult: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  mealResultIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  mealResultName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  mealResultCategory: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  mealResultKcal: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textPrimary, textAlign: 'right' },
-  mealResultMacros: { fontFamily: FontFamily.body, fontSize: 10, color: Colors.textTertiary, textAlign: 'right' },
+  mealResultIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  mealResultName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
+  mealResultCategory: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  mealResultKcal: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, textAlign: 'right' },
+  mealResultMacros: { fontFamily: FontFamily.body, fontSize: 10, color: colors.textTertiary, textAlign: 'right' },
 });

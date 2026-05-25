@@ -1,18 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider, useApp } from '../context/AppContext';
 import { ClientProvider } from '../context/ClientContext';
+import { HealthProvider } from '../context/HealthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
-import { Colors } from '../constants/theme';
+import { Colors, Spacing, Radius, FontFamily, FontSize } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
+import { ErrorBoundaryProps } from 'expo-router';
+import Button from '../components/Button';
+import { StripeProvider } from '@stripe/stripe-react-native';
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -59,7 +64,14 @@ function AuthGuard() {
       SecureStore.getItemAsync('fitlink_wizard_complete'),
     ]).then(([onboarded, wizard]) => {
       setHasOnboarded(onboarded === 'true');
-      setHasWizard(wizard === 'true');
+      // Only set hasWizard to true if SecureStore says so.
+      // If it's null/false, keep hasWizard as null and let the
+      // auth-based DB check (below) make the final determination.
+      if (wizard === 'true') {
+        setHasWizard(true);
+      }
+      // If wizard is not 'true', don't set hasWizard yet —
+      // the isAuthenticated effect will handle it after checking the DB
     });
 
     if (Notifications) {
@@ -68,7 +80,11 @@ function AuthGuard() {
       });
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
-        // Handle interaction
+        // Handle interaction - navigate if URL is provided
+        const data = response.notification.request.content.data;
+        if (data && data.url) {
+          router.push(data.url);
+        }
       });
     }
 
@@ -79,7 +95,10 @@ function AuthGuard() {
   }, []);
 
   useEffect(() => {
-    if (loading || hasOnboarded === null || hasWizard === null) return;
+    if (loading || hasOnboarded === null) return;
+    // For unauthenticated users, hasWizard doesn't matter — route to login.
+    // For authenticated users, wait until hasWizard is determined.
+    if (isAuthenticated && hasWizard === null) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
@@ -114,19 +133,48 @@ function AuthGuard() {
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasWizard]);
 
-  // Re-check wizard flag when auth state changes — check both Supabase metadata and SecureStore
+  // Re-check wizard flag when auth state changes
+  // Priority: 1) trainers table exists → returning coach, skip wizard
+  //           2) user_metadata.wizard_complete → skip wizard
+  //           3) SecureStore fallback
   useEffect(() => {
     if (isAuthenticated) {
       (async () => {
-        // Check Supabase user_metadata first (survives cache clears)
-        const { data: { user } } = await supabase.auth.getUser();
-        const metaWizard = user?.user_metadata?.wizard_complete === true;
-        if (metaWizard) {
-          // Sync to SecureStore so future checks are instant
-          await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
-          setHasWizard(true);
-        } else {
-          // Fallback to SecureStore
+        try {
+          // PRIORITY 1: Check if a trainer record exists in the database
+          // This is the definitive source of truth — if the row exists, they're not new
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: trainerRow } = await supabase
+              .from('trainers')
+              .select('id')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (trainerRow) {
+              // Returning coach — sync wizard flag everywhere and skip wizard
+              await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
+              if (!user.user_metadata?.wizard_complete) {
+                await supabase.auth.updateUser({ data: { wizard_complete: true } });
+              }
+              setHasWizard(true);
+              return;
+            }
+          }
+
+          // PRIORITY 2: Check Supabase user_metadata (survives cache clears)
+          const metaWizard = user?.user_metadata?.wizard_complete === true;
+          if (metaWizard) {
+            await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
+            setHasWizard(true);
+          } else {
+            // PRIORITY 3: Fallback to SecureStore
+            const val = await SecureStore.getItemAsync('fitlink_wizard_complete');
+            setHasWizard(val === 'true');
+          }
+        } catch (err) {
+          if (__DEV__) console.warn('Wizard check error:', err);
+          // Fallback to SecureStore on error
           const val = await SecureStore.getItemAsync('fitlink_wizard_complete');
           setHasWizard(val === 'true');
         }
@@ -144,7 +192,7 @@ function AuthGuard() {
   }, [isAuthenticated, updatePushToken]);
 
   // Keep splash visible — don't render Stack until we're ready to navigate
-  if (loading || hasOnboarded === null || hasWizard === null) {
+  if (loading || hasOnboarded === null || (isAuthenticated && hasWizard === null)) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.accent} />
@@ -192,18 +240,26 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AlertProvider>
-          <AuthProvider>
-            <AppProvider>
-              <ClientProvider>
-                <ThemedStatusBar />
-                <AuthGuard />
-              </ClientProvider>
-            </AppProvider>
-          </AuthProvider>
-        </AlertProvider>
-      </ThemeProvider>
+      <StripeProvider
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51Ta21qFfIwmgc6dvqTcBLdA9Tvxo9pvMXnC0KL5Gi4oNJ4wWAcwLolF2OnBefPxrAx6kJuU581bOWihpZThv13VA00lxaE9PFO"}
+        merchantIdentifier="merchant.com.fitlink.app"
+        urlScheme="fitlink"
+      >
+        <ThemeProvider>
+          <AlertProvider>
+            <AuthProvider>
+              <AppProvider>
+                <ClientProvider>
+                  <HealthProvider>
+                    <ThemedStatusBar />
+                    <AuthGuard />
+                  </HealthProvider>
+                </ClientProvider>
+              </AppProvider>
+            </AuthProvider>
+          </AlertProvider>
+        </ThemeProvider>
+      </StripeProvider>
     </GestureHandlerRootView>
   );
 }
@@ -221,3 +277,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return (
+    <View style={[styles.loadingContainer, { padding: Spacing.xl }]}>
+      <Ionicons name="warning" size={48} color={Colors.yellow} style={{ marginBottom: Spacing.md }} />
+      <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary, marginBottom: Spacing.xs }}>Something went wrong</Text>
+      <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl }}>
+        {__DEV__ ? props.error.message : "We're sorry, an unexpected error occurred. Please try again."}
+      </Text>
+      <TouchableOpacity
+        onPress={props.retry}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24 }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="refresh" size={18} color={Colors.white} />
+        <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white }}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}

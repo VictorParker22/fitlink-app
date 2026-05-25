@@ -187,7 +187,7 @@ export default function ScheduleScreen() {
       <ScrollView
         contentContainerStyle={styles.sessionList}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
       >
         {daySessions.length === 0 ? (
           <View style={styles.emptyState}>
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
   },
   addBtn: {
-    width: 40, height: 40, borderRadius: Radius.md,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
   },
 

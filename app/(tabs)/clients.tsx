@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, Image, Dimensions, Linking, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,7 @@ type TabState = 'all' | 'active';
 export default function ClientsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { clients, plans, refreshData } = useApp();
+  const { clients, plans, sessions, refreshData } = useApp();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<TabState>('all');
@@ -59,14 +59,26 @@ export default function ClientsScreen() {
     return plan ? plan.name : 'Premium Plan';
   };
 
-  const renderRightActions = (clientId: string) => {
+  const getClientCompletedSessions = (clientId: string) => {
+    return sessions.filter(s => s.client_id === clientId && s.status === 'completed').length;
+  };
+
+  const handleCallClient = (client: typeof clients[0]) => {
+    if (client.phone) {
+      Linking.openURL(`tel:${client.phone}`);
+    } else {
+      Alert.alert('No Phone Number', `${client.name} doesn't have a phone number on file.`);
+    }
+  };
+
+  const renderRightActions = (client: typeof clients[0]) => {
     return (
       <View style={styles.swipeActions}>
-        <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#F97316' }]}>
+        <TouchableOpacity
+          style={[styles.swipeBtn, { backgroundColor: '#F97316' }]}
+          onPress={() => handleCallClient(client)}
+        >
           <Ionicons name="call" size={20} color={Colors.white} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#3B82F6' }]}>
-          <Ionicons name="bookmark" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
     );
@@ -76,7 +88,7 @@ export default function ClientsScreen() {
     return (
       <Swipeable
         ref={index === 0 ? firstItemRef : undefined}
-        renderRightActions={() => renderRightActions(item.id)}
+        renderRightActions={() => renderRightActions(item)}
         containerStyle={{ overflow: 'visible' }}
         friction={2}
       >
@@ -105,8 +117,8 @@ export default function ClientsScreen() {
 
             {/* Stats Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="star" size={12} color="#F97316" />
-              <Text style={[styles.statText, { color: colors.textTertiary }]}> 5.0  ·  </Text>
+              <Ionicons name="fitness" size={12} color="#F97316" />
+              <Text style={[styles.statText, { color: colors.textTertiary }]}> {getClientCompletedSessions(item.id)} sessions  ·  </Text>
               <Ionicons name="person" size={12} color="#3B82F6" />
               <Text style={[styles.statText, { color: colors.textTertiary }]}> {getPlanName(item.plan_id)}</Text>
             </View>
@@ -161,7 +173,7 @@ export default function ClientsScreen() {
         renderItem={renderClient}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
         ListHeaderComponent={
           <View style={styles.listHeaderRow}>
             <Text style={[styles.listHeaderTitle, { color: colors.textPrimary }]}>{activeTab === 'all' ? 'All Clients' : 'Active Clients'}</Text>

@@ -1,6 +1,43 @@
 import { createContext, useContext, useState, useEffect, useCallback, type PropsWithChildren } from 'react';
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
+
+async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      return null;
+    }
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    if (!projectId) return null;
+    try {
+      return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } catch (e) {
+      console.log(e);
+      return null;
+    }
+  } else {
+    return null;
+  }
+}
 
 interface AuthContextType {
   user: User | null;
@@ -27,20 +64,34 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [userRole, setUserRole] = useState<'trainer' | 'client'>('trainer');
 
   useEffect(() => {
-    // Get initial session from secure store
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    const handleSession = async (s: Session | null) => {
       setSession(s);
       setUser(s?.user ?? null);
-      setUserRole((s?.user?.user_metadata?.role as 'trainer' | 'client') || 'trainer');
+      const role = (s?.user?.user_metadata?.role as 'trainer' | 'client') || 'trainer';
+      setUserRole(role);
+      
+      if (s?.user) {
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          if (role === 'client') {
+            await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id);
+          } else {
+            await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+          }
+        }
+      }
+      
       setLoading(false);
+    };
+
+    // Get initial session from secure store
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      handleSession(s);
     });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      setUserRole((s?.user?.user_metadata?.role as 'trainer' | 'client') || 'trainer');
-      setLoading(false);
+      handleSession(s);
     });
 
     return () => subscription.unsubscribe();

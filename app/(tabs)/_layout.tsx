@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { FontFamily, Radius } from '../../constants/theme';
 
@@ -25,6 +26,8 @@ function CenterFAB() {
 
 export default function TabLayout() {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <Tabs
@@ -36,7 +39,7 @@ export default function TabLayout() {
         tabBarStyle: {
           position: 'absolute',
           bottom: 0, left: 0, right: 0,
-          height: Platform.OS === 'ios' ? 88 : 72,
+          height: 64 + bottomPadding,
           backgroundColor: colors.tabBarBg,
           borderTopLeftRadius: 28,
           borderTopRightRadius: 28,
@@ -47,7 +50,7 @@ export default function TabLayout() {
           shadowOpacity: isDark ? 0.3 : 0.08,
           shadowRadius: 16,
           elevation: 12,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingBottom: bottomPadding,
           paddingTop: 6,
           paddingHorizontal: 8,
         },

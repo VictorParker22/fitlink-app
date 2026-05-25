@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, Share,
@@ -9,12 +9,14 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import type { ThemeColors } from '../constants/theme';
 
 export default function AddClientScreen() {
   const router = useRouter();
   const { addClient, plans } = useApp();
   const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
 
   const [name, setName] = useState('');
@@ -68,7 +70,7 @@ export default function AddClientScreen() {
           <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Client</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Add Client</Text>
           <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveBtn}>
             <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
           </TouchableOpacity>
@@ -81,10 +83,10 @@ export default function AddClientScreen() {
             <View style={styles.avatarPickerContainer}>
               <TouchableOpacity style={styles.avatarPicker} activeOpacity={0.8}>
                 <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={40} color={Colors.textTertiary} />
+                  <Ionicons name="person" size={40} color={colors.textTertiary} />
                 </View>
                 <View style={styles.avatarEditBadge}>
-                  <Ionicons name="camera" size={14} color={Colors.white} />
+                  <Ionicons name="camera" size={14} color={colors.white} />
                 </View>
               </TouchableOpacity>
               <Text style={styles.avatarPickerText}>Add Photo</Text>
@@ -96,7 +98,7 @@ export default function AddClientScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. John Smith"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={name}
                 onChangeText={setName}
                 autoFocus
@@ -109,7 +111,7 @@ export default function AddClientScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="john@example.com"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -122,7 +124,7 @@ export default function AddClientScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="(555) 123-4567"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -161,7 +163,7 @@ export default function AddClientScreen() {
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="e.g. Lose 20 lbs, run a 5K..."
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={goals}
                 onChangeText={setGoals}
                 multiline
@@ -175,7 +177,7 @@ export default function AddClientScreen() {
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="Any additional notes (client cannot see this)..."
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -187,7 +189,7 @@ export default function AddClientScreen() {
           {/* Invite Section */}
           <View style={styles.inviteCard}>
             <View style={styles.inviteIconWrap}>
-              <Ionicons name="share-social" size={24} color={Colors.accent} />
+              <Ionicons name="share-social" size={24} color={colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.inviteTitle}>Invite to App</Text>
@@ -204,17 +206,17 @@ export default function AddClientScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
   
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  saveBtn: { backgroundColor: Colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full },
-  saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.white },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
+  saveBtn: { backgroundColor: colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full },
+  saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.white },
 
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'], paddingTop: Spacing.md },
   
@@ -226,48 +228,48 @@ const styles = StyleSheet.create({
   avatarPicker: { position: 'relative', marginBottom: Spacing.sm },
   avatarPlaceholder: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarEditBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: Colors.accent, borderWidth: 2, borderColor: Colors.bgPrimary,
+    backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.bgPrimary,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarPickerText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.accent },
+  avatarPickerText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
 
   inputGroup: { marginBottom: Spacing.xl },
-  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary, marginBottom: Spacing.sm },
   input: {
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
-    fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md,
+    fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.border,
   },
   textArea: { height: 100 },
 
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   planChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.full,
-    backgroundColor: Colors.bgElevated, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
   },
-  planChipActive: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)' },
-  planChipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: Colors.textSecondary },
-  planChipTextActive: { fontFamily: FontFamily.bodySemiBold, color: Colors.accent },
+  planChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
+  planChipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
+  planChipTextActive: { fontFamily: FontFamily.bodySemiBold, color: colors.accent },
 
   inviteCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: Colors.bgElevated, borderRadius: Radius.xl, padding: Spacing.lg,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.bgElevated, borderRadius: Radius.xl, padding: Spacing.lg,
+    borderWidth: 1, borderColor: colors.border,
   },
   inviteIconWrap: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center',
   },
-  inviteTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: Colors.textPrimary, marginBottom: 2 },
-  inviteDesc: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: Colors.textTertiary, lineHeight: 18 },
+  inviteTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textPrimary, marginBottom: 2 },
+  inviteDesc: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: colors.textTertiary, lineHeight: 18 },
   inviteBtn: {
-    backgroundColor: Colors.textPrimary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full,
+    backgroundColor: colors.textPrimary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full,
   },
-  inviteBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.bgPrimary },
+  inviteBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.bgPrimary },
 });

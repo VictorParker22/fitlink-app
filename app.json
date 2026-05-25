@@ -12,7 +12,14 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.fitlink.app",
       "infoPlist": {
-        "NSContactsUsageDescription": "FitLink needs access to your contacts to invite clients."
+        "NSContactsUsageDescription": "FitLink needs access to your contacts to invite clients.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthShareUsageDescription": "FitLink needs access to your health data to track your fitness progress and share insights with your coach.",
+        "NSHealthUpdateUsageDescription": "FitLink needs access to update your health data."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "android": {
@@ -24,7 +31,18 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["android.permission.READ_CONTACTS"]
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_BASAL_METABOLIC_RATE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_RESTING_HEART_RATE"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -46,11 +64,42 @@
       ],
       [
         "expo-secure-store"
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.fitlink.app",
+          "enableGooglePay": true
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "FitLink needs access to your health data to track your fitness progress and share insights with your coach.",
+          "healthUpdatePermission": "FitLink needs access to update your health data."
+        }
+      ],
+      "expo-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 26
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "dbf0a57a-dc69-427a-9fc1-1d53779bfc49"
+      }
     }
   }
 }
