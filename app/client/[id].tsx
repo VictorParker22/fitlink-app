@@ -1,23 +1,30 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Modal } from 'react-native';
+import { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Modal, ActivityIndicator, Dimensions, Image as RNImage } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 
-type AssignMode = 'workout' | 'diet' | null;
+type AssignMode = 'enroll' | 'workout' | 'diet' | null;
+type TabType = 'overview' | 'health' | 'programs' | 'progress';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { showAlert } = useAlert();
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
@@ -25,8 +32,10 @@ export default function ClientDetailScreen() {
     upgradeClientToPlan, extendClientTrial, getClientHealthSnapshot, requestHealthAccess,
   } = useApp();
 
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [assignMode, setAssignMode] = useState<AssignMode>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const client = getClientById(id || '');
   const sessions = getClientSessions(id || '');
@@ -35,25 +44,25 @@ export default function ClientDetailScreen() {
   const progressLogs = getClientProgress(id || '');
   const healthSnapshot = getClientHealthSnapshot(id || '');
 
+  const upcomingSessions = sessions.filter((s) => s.status === 'upcoming' && new Date(s.date) > new Date());
+  const completedSessions = sessions.filter((s) => s.status === 'completed');
+  const planName = plans.find(p => p.id === client?.plan_id)?.name;
+
   if (!client) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Client not found</Text>
+      <SafeAreaView style={[st.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={st.emptyState}>
+          <Text style={st.emptyText}>Client not found</Text>
           <Button title="Go Back" onPress={() => router.back()} variant="secondary" />
         </View>
       </SafeAreaView>
     );
   }
 
-  const upcomingSessions = sessions.filter((s) => s.status === 'upcoming' && new Date(s.date) > new Date());
-  const completedSessions = sessions.filter((s) => s.status === 'completed');
-  const planName = plans.find(p => p.id === client.plan_id)?.name;
-
   const statusColors: Record<string, { bg: string; text: string }> = {
-    active: { bg: Colors.greenSoft, text: Colors.green },
-    trial: { bg: Colors.yellowSoft, text: Colors.yellow },
-    inactive: { bg: colors.bgElevated, text: colors.textTertiary },
+    active: { bg: '#22C55E1A', text: '#22C55E' },
+    trial: { bg: '#EAB3081A', text: '#EAB308' },
+    inactive: { bg: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.4)' },
   };
   const statusStyle = statusColors[client.status] || statusColors.inactive;
 
@@ -73,55 +82,79 @@ export default function ClientDetailScreen() {
     }
   };
 
-  const quickActions = [
-    { icon: 'chatbubble', label: 'Message', color: Colors.blue, onPress: () => router.push(`/chat/${client.id}` as any) },
-    { icon: 'calendar', label: 'Book', color: Colors.green, onPress: () => router.push(`/book-session?clientId=${client.id}` as any) },
-    { icon: 'barbell', label: 'Workout', color: Colors.accent, onPress: () => setAssignMode('workout') },
-    { icon: 'trending-up', label: 'Progress', color: Colors.purple, onPress: () => router.push(`/client/${client.id}/progress` as any) },
-  ];
-
   const contactActions = [
     ...(client.phone ? [{ icon: 'call', label: 'Call', color: Colors.green, onPress: () => Linking.openURL(`tel:${client.phone}`) }] : []),
     ...(client.email ? [{ icon: 'mail', label: 'Email', color: Colors.blue, onPress: () => Linking.openURL(`mailto:${client.email}`) }] : []),
   ];
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Client Profile</Text>
-        <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-          <Ionicons name="create-outline" size={18} color={colors.accent} />
-        </TouchableOpacity>
-      </View>
+  // Start or resume in-app conversation
+  const startConversation = useCallback(async () => {
+    try {
+      // Check for existing conversation
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('client_id', client.id)
+        .maybeSingle();
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Hero */}
-        <View style={styles.profileHero}>
+      if (existing) {
+        router.push(`/chat/${existing.id}` as any);
+        return;
+      }
+
+      // Create new conversation
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: newConvo, error } = await supabase
+        .from('conversations')
+        .insert({ trainer_id: user!.id, client_id: client.id })
+        .select()
+        .single();
+
+      if (error) throw error;
+      router.push(`/chat/${newConvo.id}` as any);
+    } catch (err: any) {
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Could not open chat' });
+    }
+  }, [client.id, router, showAlert]);
+
+  return (
+    <View style={st.container}>
+      {/* Header */}
+      <SafeAreaView edges={['top']}>
+        <View style={st.header}>
+          <TouchableOpacity onPress={() => router.back()} style={st.headerBtn}>
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={st.headerTitle}>Client Profile</Text>
+          <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} style={st.headerBtn}>
+            <Ionicons name="create-outline" size={20} color="#FF6B35" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+        {/* Profile Hero Section */}
+        <View style={st.profileHero}>
           <Avatar name={client.name} size="xl" imageUrl={client.avatar_url} />
-          <Text style={[styles.profileName, { color: colors.textPrimary }]}>{client.name}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-            <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[styles.statusText, { color: statusStyle.text }]}>{client.status}</Text>
+          <Text style={st.profileName}>{client.name}</Text>
+          <View style={st.badgeRow}>
+            <View style={[st.statusBadge, { backgroundColor: statusStyle.bg }]}>
+              <Text style={[st.statusText, { color: statusStyle.text }]}>{client.status}</Text>
             </View>
             {planName && (
-              <View style={[styles.statusBadge, { backgroundColor: `${Colors.blue}18` }]}>
-                <Text style={[styles.statusText, { color: Colors.blue }]}>{planName}</Text>
+              <View style={[st.statusBadge, { backgroundColor: '#6C9BF21A' }]}>
+                <Text style={[st.statusText, { color: '#6C9BF2' }]}>{planName}</Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Trial Banner */}
+        {/* Dynamic Trial Banner */}
         {client.status === 'trial' && (() => {
           const trialEnd = client.trial_end_date
             ? new Date(client.trial_end_date)
             : new Date(new Date(client.created_at).getTime() + 20 * 86400000);
-          const now = new Date();
-          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000));
+          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000));
           const totalTrialDays = Math.ceil((trialEnd.getTime() - new Date(client.created_at).getTime()) / 86400000);
           const maxDays = 40;
           const canExtend = totalTrialDays < maxDays;
@@ -129,35 +162,24 @@ export default function ClientDetailScreen() {
           const progressPct = Math.min(1, (totalTrialDays - daysLeft) / totalTrialDays);
 
           return (
-            <View style={[trialStyles.banner, { backgroundColor: isExpired ? '#EF444418' : Colors.yellowSoft }]}>
-              <View style={trialStyles.bannerTop}>
-                <View style={trialStyles.bannerLeft}>
-                  <Ionicons name={isExpired ? 'alert-circle' : 'time-outline'} size={20} color={isExpired ? '#EF4444' : Colors.yellow} />
+            <View style={[st.trialCard, { borderColor: isExpired ? '#EF444430' : 'rgba(255,255,255,0.06)' }]}>
+              <View style={st.trialHeader}>
+                <View style={st.trialHeaderLeft}>
+                  <Ionicons name={isExpired ? 'alert-circle' : 'time'} size={20} color={isExpired ? '#EF4444' : '#EAB308'} />
                   <View>
-                    <Text style={[trialStyles.bannerTitle, { color: colors.textPrimary }]}>
-                      {isExpired ? 'Trial Expired' : `${daysLeft} Day${daysLeft !== 1 ? 's' : ''} Left`}
-                    </Text>
-                    <Text style={[trialStyles.bannerSub, { color: colors.textTertiary }]}>
-                      {isExpired ? 'Upgrade to continue access' : `Trial ends ${trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                    </Text>
+                    <Text style={st.trialTitle}>{isExpired ? 'Trial Expired' : `${daysLeft} Day${daysLeft !== 1 ? 's' : ''} Left`}</Text>
+                    <Text style={st.trialSub}>{isExpired ? 'Upgrade to active plan' : `Ends ${trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
                   </View>
                 </View>
               </View>
-
-              {/* Progress bar */}
-              <View style={[trialStyles.progressTrack, { backgroundColor: colors.bgElevated }]}>
-                <View style={[
-                  trialStyles.progressFill,
-                  { width: `${progressPct * 100}%`, backgroundColor: isExpired ? '#EF4444' : daysLeft <= 5 ? Colors.yellow : Colors.green },
-                ]} />
+              <View style={st.trialTrack}>
+                <View style={[st.trialFill, { width: `${progressPct * 100}%`, backgroundColor: isExpired ? '#EF4444' : daysLeft <= 5 ? '#EAB308' : '#22C55E' }]} />
               </View>
-
-              {/* Action buttons */}
-              <View style={trialStyles.bannerActions}>
+              <View style={st.trialActions}>
                 {canExtend && !isExpired && (
                   <>
                     <TouchableOpacity
-                      style={[trialStyles.extendBtn, { backgroundColor: colors.bgElevated }]}
+                      style={st.extendBtn}
                       onPress={async () => {
                         try {
                           await extendClientTrial(client.id, 7);
@@ -165,11 +187,10 @@ export default function ClientDetailScreen() {
                         } catch { showAlert({ type: 'error', title: 'Error', message: 'Could not extend trial.' }); }
                       }}
                     >
-                      <Ionicons name="add" size={14} color={colors.textPrimary} />
-                      <Text style={[trialStyles.extendText, { color: colors.textPrimary }]}>+1 Week</Text>
+                      <Text style={st.extendText}>+1 Wk</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[trialStyles.extendBtn, { backgroundColor: colors.bgElevated }]}
+                      style={st.extendBtn}
                       onPress={async () => {
                         try {
                           await extendClientTrial(client.id, 30);
@@ -177,699 +198,742 @@ export default function ClientDetailScreen() {
                         } catch { showAlert({ type: 'error', title: 'Error', message: 'Max 40-day trial reached.' }); }
                       }}
                     >
-                      <Ionicons name="add" size={14} color={colors.textPrimary} />
-                      <Text style={[trialStyles.extendText, { color: colors.textPrimary }]}>+1 Month</Text>
+                      <Text style={st.extendText}>+1 Mo</Text>
                     </TouchableOpacity>
                   </>
                 )}
-                <TouchableOpacity
-                  style={trialStyles.upgradeBtn}
-                  onPress={() => setShowUpgradeModal(true)}
-                >
-                  <Ionicons name="arrow-up-circle" size={16} color="#FFF" />
-                  <Text style={trialStyles.upgradeText}>Upgrade to Plan</Text>
+                <TouchableOpacity style={st.upgradeBtn} onPress={() => setShowUpgradeModal(true)}>
+                  <Ionicons name="arrow-up-circle" size={15} color="#FFF" />
+                  <Text style={st.upgradeText}>Upgrade Plan</Text>
                 </TouchableOpacity>
               </View>
             </View>
           );
         })()}
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          {quickActions.map((action, i) => (
-            <TouchableOpacity key={i} style={styles.quickBtn} onPress={action.onPress} activeOpacity={0.7} accessibilityLabel={action.label} accessibilityRole="button">
-              <View style={[styles.quickIcon, { backgroundColor: `${action.color}18` }]}>
-                <Ionicons name={action.icon as any} size={20} color={action.color} />
-              </View>
-              <Text style={[styles.quickLabel, { color: colors.textSecondary }]}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
+        {/* Quick Messaging & Booking Icons */}
+        <View style={st.quickActions}>
           {[
-            { value: upcomingSessions.length, label: 'Upcoming', color: Colors.blue },
-            { value: completedSessions.length, label: 'Completed', color: Colors.green },
-            { value: assignedWorkouts.length, label: 'Programs', color: Colors.accent },
-          ].map((stat, i) => (
-            <Card key={i} style={styles.miniStat}>
-              <Text style={[styles.miniStatValue, { color: stat.color }]}>{stat.value}</Text>
-              <Text style={[styles.miniStatLabel, { color: colors.textTertiary }]}>{stat.label}</Text>
-            </Card>
+            { icon: 'chatbubble-ellipses', label: 'Message', color: '#6C9BF2', action: startConversation },
+            { icon: 'calendar-outline', label: 'Book Session', color: '#22C55E', action: () => router.push(`/book-session?clientId=${client.id}` as any) },
+            { icon: 'ribbon', label: 'Enroll', color: '#FF6B35', action: () => setAssignMode('enroll') },
+            { icon: 'trending-up', label: 'Progress', color: '#A78BFA', action: () => router.push(`/client/${client.id}/progress` as any) },
+          ].map((action, i) => (
+            <TouchableOpacity key={i} style={st.quickAction} onPress={action.action} activeOpacity={0.7}>
+              <View style={[st.quickActionIcon, { backgroundColor: `${action.color}14` }]}>
+                <Ionicons name={action.icon as any} size={22} color={action.color} />
+              </View>
+              <Text style={st.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {/* Contact Info */}
-        {(client.email || client.phone) && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Contact</Text>
-            <Card noPadding>
-              {[
-                client.email && { icon: 'mail-outline', value: client.email, action: contactActions.find(a => a.icon === 'mail') },
-                client.phone && { icon: 'call-outline', value: client.phone, action: contactActions.find(a => a.icon === 'call') },
-              ].filter(Boolean).map((item: any, i, arr) => (
-                <TouchableOpacity key={i} style={[styles.contactRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]} onPress={item.action?.onPress} activeOpacity={0.7}>
-                  <Ionicons name={item.icon} size={18} color={colors.textTertiary} />
-                  <Text style={[styles.contactValue, { color: colors.textPrimary }]}>{item.value}</Text>
-                  <Ionicons name="open-outline" size={14} color={colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
-            </Card>
-          </>
-        )}
-
-        {/* Assessment Summary */}
-        {client.assessment_data && Object.keys(client.assessment_data).length > 0 ? (() => {
-          const d = client.assessment_data;
-          
-          // Map IDs to readable labels
-          const goalLabels: Record<string, string> = { lose_weight: 'Lose Weight', build_muscle: 'Build Muscle', stay_fit: 'Stay Fit', improve_endurance: 'Improve Endurance' };
-          const dietLabels: Record<string, string> = { plant_based: 'Plant Based', carbo_diet: 'Carbo Diet', specialized: 'Specialized', traditional: 'Traditional' };
-          const sleepEmojis: Record<string, string> = { excellent: '😊', great: '😃', normal: '😐', bad: '😞', insomniac: '😫' };
-          const sleepLabels: Record<string, string> = { excellent: 'Excellent (>8h)', great: 'Great (7-8h)', normal: 'Normal (6-7h)', bad: 'Bad (3-4h)', insomniac: 'Insomniac (<2h)' };
-          const exerciseLabels: Record<string, string> = { weightlifting: 'Weightlifting', cardio: 'Cardio', yoga: 'Yoga', pilates: 'Pilates', swimming: 'Swimming', running: 'Running', cycling: 'Cycling', boxing: 'Boxing', hiit: 'HIIT' };
-          
-          const weight = d.weight;
-          const age = d.age;
-          const calorieGoal = d.calorie_goal;
-          const commitDays = d.commit_days;
-          const fitnessLevel = d.fitness_level;
-
-          return (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Summary</Text>
-                <View style={[styles.assessBadge, { backgroundColor: Colors.greenSoft }]}>
-                  <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
-                  <Text style={[styles.assessBadgeText, { color: Colors.green }]}>Completed</Text>
-                </View>
-              </View>
-              
-              {/* Key Stats Tiles */}
-              <View style={styles.assessTilesRow}>
-                {weight && (
-                  <Card style={styles.assessTile}>
-                    <Ionicons name="scale-outline" size={20} color={colors.accent} />
-                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                      {typeof weight === 'object' ? `${weight.value}` : weight}
-                    </Text>
-                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>
-                      {typeof weight === 'object' ? weight.unit : 'kg'}
-                    </Text>
-                  </Card>
-                )}
-                {age && (
-                  <Card style={styles.assessTile}>
-                    <Ionicons name="calendar-outline" size={20} color={Colors.blue} />
-                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>{age}</Text>
-                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>years</Text>
-                  </Card>
-                )}
-                {calorieGoal && (
-                  <Card style={styles.assessTile}>
-                    <Ionicons name="flame-outline" size={20} color={Colors.accent} />
-                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                      {typeof calorieGoal === 'object' ? calorieGoal.value?.toLocaleString() : calorieGoal}
-                    </Text>
-                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>
-                      {typeof calorieGoal === 'object' ? calorieGoal.unit : 'kcal'}
-                    </Text>
-                  </Card>
-                )}
-                {commitDays && (
-                  <Card style={styles.assessTile}>
-                    <Ionicons name="repeat-outline" size={20} color={Colors.green} />
-                    <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>{commitDays}x</Text>
-                    <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>weekly</Text>
-                  </Card>
-                )}
-              </View>
-
-              {/* Detailed Breakdown */}
-              <Card noPadding style={{ marginBottom: Spacing.lg }}>
-                {/* Goal */}
-                {d.fitness_goal && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
-                      <Ionicons name="flag" size={16} color={Colors.accent} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Fitness Goal</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{goalLabels[d.fitness_goal] || d.fitness_goal}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Fitness Level */}
-                {fitnessLevel && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
-                      <Ionicons name="speedometer" size={16} color={Colors.blue} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Fitness Level</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 }}>
-                        <View style={[styles.assessLevelBar, { backgroundColor: `${colors.textTertiary}20` }]}>
-                          <View style={[styles.assessLevelFill, { width: `${(fitnessLevel / 10) * 100}%`, backgroundColor: fitnessLevel <= 3 ? Colors.red : fitnessLevel <= 6 ? Colors.yellow : Colors.green }]} />
-                        </View>
-                        <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{fitnessLevel}/10</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* Gender */}
-                {d.gender && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.purple}18` }]}>
-                      <Ionicons name="person" size={16} color={Colors.purple} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Gender</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary, textTransform: 'capitalize' }]}>{d.gender}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Diet Preference */}
-                {d.diet_preference && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
-                      <Ionicons name="leaf" size={16} color={Colors.green} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Diet Preference</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{dietLabels[d.diet_preference] || d.diet_preference}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Exercise Preference */}
-                {d.exercise_preference && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
-                      <Ionicons name="barbell" size={16} color={Colors.accent} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Exercise Preference</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{exerciseLabels[d.exercise_preference] || d.exercise_preference}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Sleep Quality */}
-                {d.sleep_quality && (
-                  <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.purple}18` }]}>
-                      <Ionicons name="moon" size={16} color={Colors.purple} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Sleep Quality</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
-                        {sleepEmojis[d.sleep_quality] || ''} {sleepLabels[d.sleep_quality] || d.sleep_quality}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Previous Experience */}
-                {d.previous_experience !== undefined && (
-                  <View style={[styles.assessRow, (d.physical_limitations?.length > 0 || d.supplements_list?.length > 0) && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
-                      <Ionicons name="medal" size={16} color={Colors.blue} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Previous Experience</Text>
-                      <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>{d.previous_experience ? 'Yes' : 'No'}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Physical Limitations (tags) */}
-                {d.physical_limitations && d.physical_limitations.length > 0 && (
-                  <View style={[styles.assessRow, d.supplements_list?.length > 0 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.red}18` }]}>
-                      <Ionicons name="alert-circle" size={16} color={Colors.red} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Physical Limitations</Text>
-                      <View style={styles.assessTagRow}>
-                        {d.physical_limitations.map((tag: string) => (
-                          <View key={tag} style={[styles.assessTag, { backgroundColor: `${Colors.red}15` }]}>
-                            <Text style={[styles.assessTagText, { color: Colors.red }]}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* Supplements */}
-                {d.supplements_list && d.supplements_list.length > 0 && (
-                  <View style={styles.assessRow}>
-                    <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
-                      <Ionicons name="medkit" size={16} color={Colors.green} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Supplements</Text>
-                      <View style={styles.assessTagRow}>
-                        {d.supplements_list.map((tag: string) => (
-                          <View key={tag} style={[styles.assessTag, { backgroundColor: `${Colors.green}15` }]}>
-                            <Text style={[styles.assessTagText, { color: Colors.green }]}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </Card>
-            </>
-          );
-        })() : (
-          <View style={{ marginBottom: Spacing.lg }}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assessment Summary</Text>
-              <View style={[styles.assessBadge, { backgroundColor: `${Colors.yellow}20` }]}>
-                <Ionicons name="time-outline" size={14} color={Colors.yellow} />
-                <Text style={[styles.assessBadgeText, { color: Colors.yellow }]}>Pending</Text>
-              </View>
-            </View>
-            <Card style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${Colors.yellow}15`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md }}>
-                <Ionicons name="clipboard-outline" size={24} color={Colors.yellow} />
-              </View>
-              <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 }}>
-                Assessment Not Completed
-              </Text>
-              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg }}>
-                {client.name} hasn't completed their initial fitness assessment yet.
-              </Text>
-              <Button 
-                title="Remind Client" 
-                variant="primary" 
-                onPress={() => showAlert({ type: 'success', title: 'Reminder Sent', message: `${client.name} has been notified to complete their assessment.` })} 
-              />
-            </Card>
-          </View>
-        )}
-
-        {/* Health & Activity */}
-        <View style={{ marginBottom: Spacing.lg }}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Health & Activity</Text>
-            <View style={[styles.assessBadge, { backgroundColor: healthSnapshot ? `${Colors.green}20` : `${Colors.yellow}20` }]}>
-              <Ionicons name={healthSnapshot ? 'heart' : 'heart-outline'} size={14} color={healthSnapshot ? Colors.green : Colors.yellow} />
-              <Text style={[styles.assessBadgeText, { color: healthSnapshot ? Colors.green : Colors.yellow }]}>
-                {healthSnapshot ? 'Shared' : 'Not Shared'}
-              </Text>
-            </View>
-          </View>
-
-          {healthSnapshot ? (
-            <>
-              {/* Health data cards */}
-              <View style={styles.assessTilesRow}>
-                <Card style={styles.assessTile}>
-                  <Ionicons name="walk-outline" size={20} color={Colors.blue} />
-                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                    {(healthSnapshot.steps || 0).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>steps</Text>
-                </Card>
-                <Card style={styles.assessTile}>
-                  <Ionicons name="heart-outline" size={20} color={Colors.accent} />
-                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                    {healthSnapshot.heart_rate_avg || '--'}
-                  </Text>
-                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>avg BPM</Text>
-                </Card>
-                <Card style={styles.assessTile}>
-                  <Ionicons name="flame-outline" size={20} color={Colors.accent} />
-                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                    {Math.round((healthSnapshot.active_calories || 0) + (healthSnapshot.basal_calories || 0))}
-                  </Text>
-                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>kcal</Text>
-                </Card>
-                <Card style={styles.assessTile}>
-                  <Ionicons name="water-outline" size={20} color={Colors.blue} />
-                  <Text style={[styles.assessTileValue, { color: colors.textPrimary }]}>
-                    {healthSnapshot.blood_oxygen ? `${healthSnapshot.blood_oxygen}%` : '--'}
-                  </Text>
-                  <Text style={[styles.assessTileLabel, { color: colors.textTertiary }]}>SpO2</Text>
-                </Card>
-              </View>
-
-              {/* More details card */}
-              <Card noPadding style={{ marginBottom: 0 }}>
-                <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.accent}18` }]}>
-                    <Ionicons name="pulse" size={16} color={Colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Heart Rate Range</Text>
-                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
-                      {healthSnapshot.heart_rate_min || '--'} – {healthSnapshot.heart_rate_max || '--'} BPM
-                    </Text>
-                  </View>
-                </View>
-                <View style={[styles.assessRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.green}18` }]}>
-                    <Ionicons name="bed-outline" size={16} color={Colors.green} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Resting Heart Rate</Text>
-                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
-                      {healthSnapshot.resting_heart_rate || '--'} BPM
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.assessRow}>
-                  <View style={[styles.assessRowIcon, { backgroundColor: `${Colors.blue}18` }]}>
-                    <Ionicons name="analytics-outline" size={16} color={Colors.blue} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assessRowLabel, { color: colors.textTertiary }]}>Blood Pressure</Text>
-                    <Text style={[styles.assessRowValue, { color: colors.textPrimary }]}>
-                      {healthSnapshot.blood_pressure_systolic && healthSnapshot.blood_pressure_diastolic
-                        ? `${healthSnapshot.blood_pressure_systolic}/${healthSnapshot.blood_pressure_diastolic} mmHg`
-                        : 'Not recorded'}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: Spacing.sm, textAlign: 'right' }}>
-                Last synced: {healthSnapshot.synced_at ? new Date(healthSnapshot.synced_at).toLocaleDateString() : 'N/A'}
-              </Text>
-            </>
-          ) : (
-            <Card style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${Colors.accent}15`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md }}>
-                <Ionicons name="heart-outline" size={24} color={Colors.accent} />
-              </View>
-              <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 }}>
-                {(client as any).health_sharing_enabled
-                  ? 'Waiting for Health Data'
-                  : 'Health Data Not Shared'}
-              </Text>
-              <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg }}>
-                {(client as any).health_sharing_enabled
-                  ? `${client.name} has enabled sharing. Data will appear once synced from their device.`
-                  : (client as any).health_sharing_requested
-                    ? `Awaiting ${client.name}'s approval to share health data.`
-                    : `Request access to ${client.name}'s health metrics like steps, heart rate, and more.`}
-              </Text>
-              {!(client as any).health_sharing_requested && !(client as any).health_sharing_enabled && (
-                <Button
-                  title="Request Health Data"
-                  variant="primary"
-                  onPress={async () => {
-                    try {
-                      await requestHealthAccess(client.id);
-                      showAlert({ type: 'success', title: 'Request Sent', message: `${client.name} has been notified to share their health data.` });
-                    } catch (e) {
-                      showAlert({ type: 'error', title: 'Error', message: 'Failed to send request.' });
-                    }
-                  }}
-                />
-              )}
-              {(client as any).health_sharing_requested && !(client as any).health_sharing_enabled && (
-                <View style={[styles.assessBadge, { backgroundColor: `${Colors.yellow}20`, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm }]}>
-                  <Ionicons name="time-outline" size={14} color={Colors.yellow} />
-                  <Text style={[styles.assessBadgeText, { color: Colors.yellow }]}>Request Pending</Text>
-                </View>
-              )}
-              {(client as any).health_sharing_enabled && (
-                <View style={[styles.assessBadge, { backgroundColor: `${Colors.green}20`, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm }]}>
-                  <Ionicons name="checkmark-circle-outline" size={14} color={Colors.green} />
-                  <Text style={[styles.assessBadgeText, { color: Colors.green }]}>Sharing Enabled</Text>
-                </View>
-              )}
-            </Card>
-          )}
-        </View>
-
-        {/* Assigned Workouts */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assigned Workouts</Text>
-          <TouchableOpacity onPress={() => setAssignMode('workout')}>
-            <Ionicons name="add-circle" size={24} color={colors.accent} />
-          </TouchableOpacity>
-        </View>
-        {assignedWorkouts.length === 0 ? (
-          <Card>
-            <View style={styles.emptySection}>
-              <Ionicons name="barbell-outline" size={28} color={colors.textTertiary} />
-              <Text style={[styles.emptySectionText, { color: colors.textTertiary }]}>No workouts assigned yet</Text>
-              <TouchableOpacity style={[styles.assignChip, { backgroundColor: `${Colors.accent}18` }]} onPress={() => setAssignMode('workout')}>
-                <Ionicons name="add" size={14} color={Colors.accent} />
-                <Text style={[styles.assignChipText, { color: Colors.accent }]}>Assign Workout</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        ) : (
-          <Card noPadding>
-            {assignedWorkouts.map((item, i) => {
-              const exCount = item.workout.workout_exercises?.length || 0;
-              return (
-                <TouchableOpacity
-                  key={item.assignment.id}
-                  style={[styles.assignedRow, i < assignedWorkouts.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-                  onPress={() => router.push(`/workout/${item.workout.id}` as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.assignedIcon, { backgroundColor: `${Colors.accent}18` }]}>
-                    <Ionicons name="barbell" size={20} color={Colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assignedName, { color: colors.textPrimary }]}>{item.workout.name}</Text>
-                    <Text style={[styles.assignedMeta, { color: colors.textTertiary }]}>
-                      {exCount} exercises · {new Date(item.assignment.assigned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusPill, { backgroundColor: item.assignment.status === 'completed' ? Colors.greenSoft : `${Colors.blue}18` }]}>
-                    <Text style={[styles.statusPillText, { color: item.assignment.status === 'completed' ? Colors.green : Colors.blue }]}>
-                      {item.assignment.status}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </Card>
-        )}
-
-        {/* Assigned Diets */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assigned Diet Plans</Text>
-          <TouchableOpacity onPress={() => setAssignMode('diet')}>
-            <Ionicons name="add-circle" size={24} color={colors.accent} />
-          </TouchableOpacity>
-        </View>
-        {assignedDiets.length === 0 ? (
-          <Card>
-            <View style={styles.emptySection}>
-              <Ionicons name="nutrition-outline" size={28} color={colors.textTertiary} />
-              <Text style={[styles.emptySectionText, { color: colors.textTertiary }]}>No diet plans assigned yet</Text>
-              <TouchableOpacity style={[styles.assignChip, { backgroundColor: `${Colors.purple}18` }]} onPress={() => setAssignMode('diet')}>
-                <Ionicons name="add" size={14} color={Colors.purple} />
-                <Text style={[styles.assignChipText, { color: Colors.purple }]}>Assign Diet</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        ) : (
-          <Card noPadding>
-            {assignedDiets.map((item, i) => {
-              const mealCount = item.diet.diet_plan_meals?.length || 0;
-              return (
-                <TouchableOpacity
-                  key={item.assignment.id}
-                  style={[styles.assignedRow, i < assignedDiets.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-                  onPress={() => router.push(`/diet/${item.diet.id}` as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.assignedIcon, { backgroundColor: `${Colors.purple}18` }]}>
-                    <Ionicons name="nutrition" size={20} color={Colors.purple} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assignedName, { color: colors.textPrimary }]}>{item.diet.name}</Text>
-                    <Text style={[styles.assignedMeta, { color: colors.textTertiary }]}>
-                      {mealCount} meals · {new Date(item.assignment.assigned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusPill, { backgroundColor: item.assignment.status === 'completed' ? Colors.greenSoft : `${Colors.blue}18` }]}>
-                    <Text style={[styles.statusPillText, { color: item.assignment.status === 'completed' ? Colors.green : Colors.blue }]}>
-                      {item.assignment.status}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </Card>
-        )}
-
-        {/* Progress Tracking */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Progress Tracking</Text>
-          <TouchableOpacity onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
-            <Ionicons name="add-circle" size={24} color={Colors.purple} />
-          </TouchableOpacity>
-        </View>
-        {progressLogs.length === 0 ? (
-          <Card>
-            <View style={styles.emptySection}>
-              <Ionicons name="trending-up" size={28} color={colors.textTertiary} />
-              <Text style={[styles.emptySectionText, { color: colors.textTertiary }]}>No progress logged yet</Text>
-              <TouchableOpacity style={[styles.assignChip, { backgroundColor: `${Colors.purple}18` }]} onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
-                <Ionicons name="add" size={14} color={Colors.purple} />
-                <Text style={[styles.assignChipText, { color: Colors.purple }]}>Log Progress</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        ) : (
-          <Card noPadding>
-            {progressLogs.slice(0, 3).map((log, i) => {
-              const dt = new Date(log.date);
-              return (
-                <TouchableOpacity
-                  key={log.id}
-                  style={[styles.assignedRow, i < Math.min(progressLogs.length, 3) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-                  onPress={() => router.push(`/client/${client.id}/progress` as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.assignedIcon, { backgroundColor: `${Colors.purple}18` }]}>
-                    <Ionicons name="scale" size={20} color={Colors.purple} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assignedName, { color: colors.textPrimary }]}>
-                      {log.weight ? `${log.weight} lbs` : 'Check-in'}
-                    </Text>
-                    <Text style={[styles.assignedMeta, { color: colors.textTertiary }]}>
-                      {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity 
-              style={{ padding: Spacing.md, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }}
-              onPress={() => router.push(`/client/${client.id}/progress` as any)}
+        {/* Tab Selection Switcher */}
+        <View style={st.tabBar}>
+          {(['overview', 'health', 'programs', 'progress'] as TabType[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[st.tabItem, activeTab === tab && st.tabItemActive]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
             >
-              <Text style={{ fontFamily: FontFamily.bodySemiBold, color: Colors.purple }}>View All Progress</Text>
+              <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
+                {tab.toUpperCase()}
+              </Text>
             </TouchableOpacity>
-          </Card>
+          ))}
+        </View>
+
+        {/* TAB 1: OVERVIEW */}
+        {activeTab === 'overview' && (
+          <View style={st.tabContent}>
+            {/* Contacts details */}
+            {(client.email || client.phone) && (
+              <Card noPadding style={st.sectionCard}>
+                {[
+                  client.email && { icon: 'mail-outline', value: client.email, action: contactActions.find(a => a.icon === 'mail') },
+                  client.phone && { icon: 'call-outline', value: client.phone, action: contactActions.find(a => a.icon === 'call') },
+                ].filter(Boolean).map((item: any, i, arr) => (
+                  <TouchableOpacity key={i} style={[st.contactRow, i < arr.length - 1 && st.rowBorder]} onPress={item.action?.onPress} activeOpacity={0.7}>
+                    <Ionicons name={item.icon} size={18} color="rgba(255,255,255,0.4)" />
+                    <Text style={st.contactValue}>{item.value}</Text>
+                    <Ionicons name="open-outline" size={14} color="rgba(255,255,255,0.3)" />
+                  </TouchableOpacity>
+                ))}
+              </Card>
+            )}
+
+            {/* ── Client Snapshot ── */}
+            {client.assessment_data && Object.keys(client.assessment_data).length > 0 ? (() => {
+              const d = client.assessment_data;
+              const hasBodyStats = d.weight || d.height || d.age || d.gender;
+              const fitnessGoals: string[] = d.fitness_goals || (d.fitness_goal ? [d.fitness_goal] : []);
+              const trainingStyles: string[] = d.training_styles || [];
+              const activities: string[] = d.activities || [];
+              const commitDays: number = d.commit_days || d.weekly_workout_goal || 0;
+
+              const trainingIcons: Record<string, string> = {
+                '1-on-1 with a coach': 'person',
+                'Solo workouts': 'fitness',
+                'Small group sessions': 'people',
+                'Online / virtual': 'laptop',
+                'In-person at gym': 'barbell',
+                'Something else': 'ellipsis-horizontal',
+              };
+
+              return (
+                <View style={{ gap: Spacing.md }}>
+                  {/* Body Stats */}
+                  {hasBodyStats && (
+                    <>
+                      <Text style={st.sectionTitle}>Body Stats</Text>
+                      <View style={st.snapGrid}>
+                        {d.weight && (
+                          <View style={st.snapTile}>
+                            <Ionicons name="scale-outline" size={18} color="#FF6B35" />
+                            <Text style={st.snapTileValue}>{typeof d.weight === 'object' ? d.weight.value : d.weight}</Text>
+                            <Text style={st.snapTileLabel}>Weight</Text>
+                          </View>
+                        )}
+                        {d.height && (
+                          <View style={st.snapTile}>
+                            <Ionicons name="resize-outline" size={18} color="#7DAAFF" />
+                            <Text style={st.snapTileValue}>{typeof d.height === 'object' ? d.height.value : d.height}</Text>
+                            <Text style={st.snapTileLabel}>Height</Text>
+                          </View>
+                        )}
+                        {d.age && (
+                          <View style={st.snapTile}>
+                            <Ionicons name="calendar-outline" size={18} color="#B8A4FF" />
+                            <Text style={st.snapTileValue}>{d.age}</Text>
+                            <Text style={st.snapTileLabel}>Age</Text>
+                          </View>
+                        )}
+                        {d.gender && (
+                          <View style={st.snapTile}>
+                            <Ionicons name="person-outline" size={18} color="#2DD4BF" />
+                            <Text style={st.snapTileValue}>{d.gender}</Text>
+                            <Text style={st.snapTileLabel}>Gender</Text>
+                          </View>
+                        )}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Fitness Goals */}
+                  {fitnessGoals.length > 0 && (
+                    <>
+                      <Text style={st.sectionTitle}>Goals</Text>
+                      <View style={st.snapChipRow}>
+                        {fitnessGoals.map((g, i) => (
+                          <View key={i} style={st.snapGoalChip}>
+                            <Ionicons name="flag" size={12} color="#FF6B35" />
+                            <Text style={st.snapGoalText}>{g}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Weekly Commitment */}
+                  {commitDays > 0 && (
+                    <>
+                      <Text style={st.sectionTitle}>Weekly Commitment</Text>
+                      <View style={st.snapCommitCard}>
+                        <View style={st.snapCommitRing}>
+                          <Text style={st.snapCommitNum}>{commitDays}</Text>
+                        </View>
+                        <View>
+                          <Text style={st.snapCommitLabel}>{commitDays} day{commitDays !== 1 ? 's' : ''} per week</Text>
+                          <Text style={st.snapCommitDesc}>
+                            {commitDays <= 2 ? 'Light schedule' : commitDays <= 4 ? 'Moderate schedule' : 'Intense schedule'}
+                          </Text>
+                        </View>
+                        {/* Mini bar visualization */}
+                        <View style={st.snapCommitBars}>
+                          {[1,2,3,4,5,6,7].map(day => (
+                            <View key={day} style={[st.snapCommitBar, day <= commitDays && st.snapCommitBarActive]} />
+                          ))}
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {/* Training Style */}
+                  {trainingStyles.length > 0 && (
+                    <>
+                      <Text style={st.sectionTitle}>Training Style</Text>
+                      <View style={st.snapChipRow}>
+                        {trainingStyles.map((s, i) => (
+                          <View key={i} style={st.snapTagChip}>
+                            <Ionicons name={(trainingIcons[s] || 'ellipsis-horizontal') as any} size={13} color="rgba(255,255,255,0.5)" />
+                            <Text style={st.snapTagText}>{s}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Activity Preferences */}
+                  {activities.length > 0 && (
+                    <>
+                      <Text style={st.sectionTitle}>Preferred Activities</Text>
+                      <View style={st.snapChipRow}>
+                        {activities.map((a, i) => (
+                          <View key={i} style={st.snapActivityChip}>
+                            <Text style={st.snapActivityText}>{a}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </View>
+              );
+            })() : (
+              <Card style={st.emptySection}>
+                <Ionicons name="clipboard-outline" size={32} color="rgba(255,255,255,0.3)" />
+                <Text style={st.emptyText}>No assessment completed yet</Text>
+                <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: 4 }}>
+                  Client hasn't completed their onboarding profile
+                </Text>
+              </Card>
+            )}
+
+            {/* Goals & Notes */}
+            {client.goals && (
+              <>
+                <Text style={st.sectionTitle}>Client Goals</Text>
+                <Card style={st.noteCard}>
+                  <Text style={st.noteText}>{client.goals}</Text>
+                </Card>
+              </>
+            )}
+            {client.notes && (
+              <>
+                <Text style={st.sectionTitle}>Coach Notes</Text>
+                <Card style={st.noteCard}>
+                  <Text style={st.noteText}>{client.notes}</Text>
+                </Card>
+              </>
+            )}
+          </View>
         )}
 
-        {/* Goals & Notes */}
-        {client.goals && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Goals</Text>
-            <Card><Text style={[styles.bodyText, { color: colors.textSecondary }]}>{client.goals}</Text></Card>
-          </>
-        )}
-        {client.notes && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notes</Text>
-            <Card><Text style={[styles.bodyText, { color: colors.textSecondary }]}>{client.notes}</Text></Card>
-          </>
-        )}
+        {/* TAB 2: HEALTH */}
+        {activeTab === 'health' && (
+          <View style={st.tabContent}>
+            {healthSnapshot ? (
+              <View style={{ gap: Spacing.md }}>
+                <Text style={st.sectionTitle}>Daily Health Snapshot</Text>
+                <View style={st.assessGrid}>
+                  <Card style={st.assessTile}>
+                    <Ionicons name="walk-outline" size={20} color="#6C9BF2" />
+                    <Text style={st.assessTileValue}>{(healthSnapshot.steps || 0).toLocaleString()}</Text>
+                    <Text style={st.assessTileLabel}>steps</Text>
+                  </Card>
+                  <Card style={st.assessTile}>
+                    <Ionicons name="heart-outline" size={20} color="#FF6B35" />
+                    <Text style={st.assessTileValue}>{healthSnapshot.heart_rate_avg || '--'}</Text>
+                    <Text style={st.assessTileLabel}>avg BPM</Text>
+                  </Card>
+                  <Card style={st.assessTile}>
+                    <Ionicons name="water-outline" size={20} color="#22C55E" />
+                    <Text style={st.assessTileValue}>{healthSnapshot.blood_oxygen ? `${healthSnapshot.blood_oxygen}%` : '--'}</Text>
+                    <Text style={st.assessTileLabel}>SpO2</Text>
+                  </Card>
+                </View>
 
-        {/* Recent Sessions */}
-        {sessions.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Sessions</Text>
-            <Card noPadding>
-              {sessions.slice(0, 5).map((session, i) => {
-                const dt = new Date(session.date);
-                return (
-                  <View key={session.id} style={[styles.sessionRow, i < Math.min(sessions.length, 5) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                    <View style={[styles.sessionDot, {
-                      backgroundColor: session.status === 'completed' ? Colors.green : session.status === 'cancelled' ? Colors.red : Colors.blue,
-                    }]} />
+                <Card noPadding style={st.sectionCard}>
+                  <View style={[st.assessRow, st.rowBorder]}>
+                    <Ionicons name="pulse" size={16} color="#FF6B35" style={st.assessRowIcon} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.sessionDate, { color: colors.textPrimary }]}>
-                        {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </Text>
-                      <Text style={[styles.sessionTime, { color: colors.textTertiary }]}>
-                        {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {session.type} · {session.duration}min
+                      <Text style={st.assessRowLabel}>Heart Rate Range</Text>
+                      <Text style={st.assessRowValue}>{healthSnapshot.heart_rate_min || '--'} - {healthSnapshot.heart_rate_max || '--'} BPM</Text>
+                    </View>
+                  </View>
+                  <View style={[st.assessRow, st.rowBorder]}>
+                    <Ionicons name="bed-outline" size={16} color="#6C9BF2" style={st.assessRowIcon} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.assessRowLabel}>Resting Heart Rate</Text>
+                      <Text style={st.assessRowValue}>{healthSnapshot.resting_heart_rate || '--'} BPM</Text>
+                    </View>
+                  </View>
+                  <View style={st.assessRow}>
+                    <Ionicons name="analytics" size={16} color="#A78BFA" style={st.assessRowIcon} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.assessRowLabel}>Blood Pressure</Text>
+                      <Text style={st.assessRowValue}>
+                        {healthSnapshot.blood_pressure_systolic && healthSnapshot.blood_pressure_diastolic
+                          ? `${healthSnapshot.blood_pressure_systolic}/${healthSnapshot.blood_pressure_diastolic} mmHg`
+                          : 'Not sync\'d'}
                       </Text>
                     </View>
-                    {session.status !== 'upcoming' && (
-                      <Text style={[styles.sessionStatus, { color: session.status === 'completed' ? Colors.green : Colors.red }]}>
-                        {session.status === 'completed' ? 'Done' : 'Cancelled'}
-                      </Text>
+                  </View>
+                </Card>
+                <Text style={st.syncText}>
+                  Last synced: {healthSnapshot.synced_at ? new Date(healthSnapshot.synced_at).toLocaleDateString() : 'N/A'}
+                </Text>
+              </View>
+            ) : (
+              <Card style={st.emptySection}>
+                <Ionicons name="heart-dislike-outline" size={36} color="rgba(255,255,255,0.3)" />
+                <Text style={st.emptyText}>Health data not shared</Text>
+                <Text style={st.emptySub}>Ask the client to approve sharing steps and vitals from Apple Health / Google Fit.</Text>
+                {!(client as any).health_sharing_requested && (
+                  <Button
+                    title="Request Health Data"
+                    variant="primary"
+                    onPress={async () => {
+                      try {
+                        await requestHealthAccess(client.id);
+                        showAlert({ type: 'success', title: 'Request Sent', message: `Request has been sent to ${client.name}.` });
+                      } catch {
+                        showAlert({ type: 'error', title: 'Error', message: 'Failed to send request.' });
+                      }
+                    }}
+                    style={{ marginTop: Spacing.md }}
+                  />
+                )}
+                {(client as any).health_sharing_requested && (
+                  <View style={st.pendingBadge}>
+                    <Text style={st.pendingBadgeText}>Request Pending Approval</Text>
+                  </View>
+                )}
+              </Card>
+            )}
+          </View>
+        )}
+
+        {/* TAB 3: PROGRAMS */}
+        {activeTab === 'programs' && (
+          <View style={st.tabContent}>
+            {/* ── Active Program ── */}
+            <Text style={st.sectionTitle}>Active Program</Text>
+            {(() => {
+              const activePlan = plans.find(p => p.id === client.plan_id);
+              if (!activePlan) return (
+                <TouchableOpacity style={st.planCardEmpty} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
+                  <Ionicons name="ribbon-outline" size={32} color="rgba(255,255,255,0.2)" />
+                  <Text style={st.planEmptyText}>No program enrolled</Text>
+                  <View style={[st.selectBtn, { marginTop: 4 }]}>
+                    <Text style={st.selectText}>Enroll Now</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#FFF" />
+                  </View>
+                </TouchableOpacity>
+              );
+
+              const trackNodes = activePlan.track || [];
+              const trackWorkouts = trackNodes.filter(n => n.type === 'workout');
+              const trackDiets = trackNodes.filter(n => n.type === 'diet');
+              const trackMilestones = trackNodes.filter(n => n.type === 'milestone');
+
+              return (
+                <Card noPadding style={st.sectionCard}>
+                  <View style={{ padding: Spacing.md }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+                      <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.planIcon}>
+                        <Ionicons name="ribbon" size={24} color="#FFF" />
+                      </LinearGradient>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.planName}>{activePlan.name}</Text>
+                        <Text style={st.planPrice}>${activePlan.price} / {activePlan.period === 'monthly' ? 'mo' : activePlan.period}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setAssignMode('enroll')} style={{ padding: 8 }}>
+                        <Ionicons name="swap-horizontal" size={20} color="rgba(255,255,255,0.4)" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Track Stats */}
+                    {trackNodes.length > 0 && (
+                      <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
+                        {trackWorkouts.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="barbell" size={14} color="#FF6B35" />
+                            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{trackWorkouts.length} workouts</Text>
+                          </View>
+                        )}
+                        {trackDiets.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="nutrition" size={14} color="#A78BFA" />
+                            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{trackDiets.length} diets</Text>
+                          </View>
+                        )}
+                        {trackMilestones.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="flag" size={14} color="#22C55E" />
+                            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{trackMilestones.length} milestones</Text>
+                          </View>
+                        )}
+                      </View>
                     )}
                   </View>
-                );
-              })}
-            </Card>
-          </>
+
+                  {/* Track Timeline */}
+                  {trackNodes.length > 0 && (
+                    <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+                      {trackNodes.sort((a, b) => a.order - b.order).slice(0, 5).map((node, i) => {
+                        const isLast = i === Math.min(trackNodes.length, 5) - 1;
+                        const nodeWorkout = node.type === 'workout' ? workouts.find(w => w.id === node.id) : null;
+                        const nodeDiet = node.type === 'diet' ? diets.find(d => d.id === node.id) : null;
+                        const nodeIcon = node.type === 'workout' ? 'barbell' : node.type === 'diet' ? 'nutrition' : 'flag';
+                        const nodeColor = node.type === 'workout' ? '#FF6B35' : node.type === 'diet' ? '#A78BFA' : '#22C55E';
+                        const nodeName = nodeWorkout?.name || nodeDiet?.name || node.label || 'Milestone';
+
+                        return (
+                          <View key={i} style={[st.assignedRow, !isLast && st.rowBorder]}>
+                            <View style={{ alignItems: 'center', width: 30 }}>
+                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: nodeColor }} />
+                              {!isLast && <View style={{ width: 2, height: 24, backgroundColor: 'rgba(255,255,255,0.08)', position: 'absolute', top: 14 }} />}
+                            </View>
+                            <View style={[st.assignedIcon, { backgroundColor: `${nodeColor}18` }]}>
+                              <Ionicons name={nodeIcon as any} size={18} color={nodeColor} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={st.assignedName}>{nodeName}</Text>
+                              <Text style={st.assignedMeta}>Step {node.order + 1} · {node.type}</Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                      {trackNodes.length > 5 && (
+                        <TouchableOpacity style={st.viewAllBtn} onPress={() => router.push(`/plan/${activePlan.id}` as any)}>
+                          <Text style={st.viewAllBtnText}>View full track ({trackNodes.length} items)</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </Card>
+              );
+            })()}
+
+            {/* ── Bonus Workouts ── */}
+            {assignedWorkouts.length > 0 && (
+              <>
+                <Text style={st.sectionTitle}>Bonus Workouts</Text>
+                <Card noPadding style={st.sectionCard}>
+                  {assignedWorkouts.map((item, i) => (
+                    <TouchableOpacity
+                      key={item.assignment.id}
+                      style={[st.assignedRow, i < assignedWorkouts.length - 1 && st.rowBorder]}
+                      onPress={() => router.push(`/workout/${item.workout.id}` as any)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[st.assignedIcon, { backgroundColor: '#111111' }]}>
+                        <RNImage source={getWorkoutEmblem(item.workout.id, item.workout.name, item.workout.workout_exercises?.map((we: any) => we.exercises?.muscle_group).filter(Boolean))} style={{ width: 36, height: 36, borderRadius: Radius.xs }} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.assignedName}>{item.workout.name}</Text>
+                        <Text style={st.assignedMeta}>
+                          {item.workout.workout_exercises?.length || 0} exercises · {new Date(item.assignment.assigned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
+                      <View style={[st.statusPill, { backgroundColor: item.assignment.status === 'completed' ? '#22C55E1A' : '#6C9BF21A' }]}>
+                        <Text style={[st.statusPillText, { color: item.assignment.status === 'completed' ? '#22C55E' : '#6C9BF2' }]}>
+                          {item.assignment.status}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </Card>
+              </>
+            )}
+
+            {/* ── Custom Diet Plans ── */}
+            {assignedDiets.length > 0 && (
+              <>
+                <Text style={st.sectionTitle}>Custom Diet Plans</Text>
+                <Card noPadding style={st.sectionCard}>
+                  {assignedDiets.map((item, i) => (
+                    <TouchableOpacity
+                      key={item.assignment.id}
+                      style={[st.assignedRow, i < assignedDiets.length - 1 && st.rowBorder]}
+                      onPress={() => router.push(`/diet/${item.diet.id}` as any)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[st.assignedIcon, { backgroundColor: '#A78BFA18' }]}>
+                        <Ionicons name="nutrition" size={20} color="#A78BFA" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.assignedName}>{item.diet.name}</Text>
+                        <Text style={st.assignedMeta}>
+                          {item.diet.diet_plan_meals?.length || 0} meals · {new Date(item.assignment.assigned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
+                      <View style={[st.statusPill, { backgroundColor: item.assignment.status === 'completed' ? '#22C55E1A' : '#6C9BF21A' }]}>
+                        <Text style={[st.statusPillText, { color: item.assignment.status === 'completed' ? '#22C55E' : '#6C9BF2' }]}>
+                          {item.assignment.status}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </Card>
+              </>
+            )}
+
+            {/* Quick Add button */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: Spacing.sm }}
+              onPress={() => setAssignMode('workout')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={18} color="rgba(255,255,255,0.4)" />
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Quick add workout or diet</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
-        <View style={{ height: Spacing['3xl'] }} />
+        {/* TAB 4: PROGRESS */}
+        {activeTab === 'progress' && (
+          <View style={st.tabContent}>
+            <View style={st.sectionHeader}>
+              <Text style={st.sectionTitle}>Client Logs</Text>
+              <TouchableOpacity onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
+                <Ionicons name="add-circle" size={24} color="#FF6B35" />
+              </TouchableOpacity>
+            </View>
+
+            {progressLogs.length === 0 ? (
+              <Card style={st.emptySection}>
+                <Ionicons name="trending-up-outline" size={28} color="rgba(255,255,255,0.3)" />
+                <Text style={st.emptyText}>No progress entries recorded yet</Text>
+              </Card>
+            ) : (
+              <Card noPadding style={st.sectionCard}>
+                {progressLogs.slice(0, 5).map((log, i) => (
+                  <TouchableOpacity
+                    key={log.id}
+                    style={[st.assignedRow, i < Math.min(progressLogs.length, 5) - 1 && st.rowBorder]}
+                    onPress={() => router.push(`/client/${client.id}/progress` as any)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[st.assignedIcon, { backgroundColor: '#6C9BF218' }]}>
+                      <Ionicons name="scale" size={20} color="#6C9BF2" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.assignedName}>{log.weight ? `${log.weight} lbs` : 'Check-in entry'}</Text>
+                      <Text style={st.assignedMeta}>{new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={st.viewAllBtn}
+                  onPress={() => router.push(`/client/${client.id}/progress` as any)}
+                >
+                  <Text style={st.viewAllBtnText}>View All Progress History</Text>
+                </TouchableOpacity>
+              </Card>
+            )}
+
+            {/* Sessions list */}
+            {sessions.length > 0 && (
+              <>
+                <Text style={st.sectionTitle}>Recent Sessions</Text>
+                <Card noPadding style={st.sectionCard}>
+                  {sessions.slice(0, 5).map((session, i) => {
+                    const dt = new Date(session.date);
+                    return (
+                      <View key={session.id} style={[st.sessionRow, i < Math.min(sessions.length, 5) - 1 && st.rowBorder]}>
+                        <View style={[st.sessionDot, { backgroundColor: session.status === 'completed' ? '#22C55E' : session.status === 'cancelled' ? '#EF4444' : '#6C9BF2' }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.sessionDate}>{dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
+                          <Text style={st.sessionTime}>
+                            {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {session.type} · {session.duration}m
+                          </Text>
+                        </View>
+                        {session.status !== 'upcoming' && (
+                          <Text style={[st.sessionStatus, { color: session.status === 'completed' ? '#22C55E' : '#EF4444' }]}>
+                            {session.status === 'completed' ? 'Done' : 'Cancelled'}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </Card>
+              </>
+            )}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Assign Modal */}
+      {/* Enroll / Quick Add Modal */}
       <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => setAssignMode(null)} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-              <Ionicons name="close" size={22} color={colors.textPrimary} />
+        <SafeAreaView style={[st.container, { backgroundColor: '#000' }]}>
+          <View style={st.header}>
+            <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }} style={st.headerBtn}>
+              <Ionicons name="close" size={22} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              Assign {assignMode === 'workout' ? 'Workout' : 'Diet Plan'}
+            <Text style={st.headerTitle}>
+              {assignMode === 'enroll' ? 'Enroll in Program' : `Assign ${assignMode === 'workout' ? 'Workout' : 'Diet Plan'}`}
             </Text>
             <View style={{ width: 36 }} />
           </View>
 
           <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.sm }}>
-            {(assignMode === 'workout' ? workouts : diets).length === 0 ? (
-              <View style={styles.emptySection}>
-                <Text style={[styles.emptySectionText, { color: colors.textTertiary }]}>
-                  No {assignMode === 'workout' ? 'workouts' : 'diet plans'} created yet
-                </Text>
-                <Button
-                  title={`Create ${assignMode === 'workout' ? 'Workout' : 'Diet Plan'}`}
-                  onPress={() => { setAssignMode(null); router.push(assignMode === 'workout' ? '/create-workout' : '/create-diet' as any); }}
-                  size="sm"
-                />
-              </View>
-            ) : (
-              (assignMode === 'workout' ? workouts : diets).map((item: any) => {
-                const isWorkout = assignMode === 'workout';
-                const alreadyAssigned = isWorkout
-                  ? assignedWorkouts.some(aw => aw.workout.id === item.id && aw.assignment.status === 'assigned')
-                  : assignedDiets.some(ad => ad.diet.id === item.id && ad.assignment.status === 'assigned');
+            {/* ── Programs Section (shown in enroll mode) ── */}
+            {assignMode === 'enroll' && (
+              <>
+                <Text style={st.modalSubtitle}>Choose a program for {client.name}. This gives them access to all workouts and diets in the program's track.</Text>
+                {plans.length === 0 ? (
+                  <View style={st.emptySection}>
+                    <Ionicons name="ribbon-outline" size={48} color="rgba(255,255,255,0.3)" />
+                    <Text style={st.emptyText}>No programs created yet</Text>
+                    <Button title="Create Program" onPress={() => { setAssignMode(null); router.push('/create-plan' as any); }} size="sm" style={{ marginTop: Spacing.md }} />
+                  </View>
+                ) : (
+                  plans.map((plan) => {
+                    const isActive = client.plan_id === plan.id;
+                    const trackCount = plan.track?.length || 0;
+                    const wCount = plan.track?.filter(n => n.type === 'workout').length || 0;
+                    const dCount = plan.track?.filter(n => n.type === 'diet').length || 0;
 
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.assignModalItem, { backgroundColor: colors.bgElevated, opacity: alreadyAssigned ? 0.5 : 1 }]}
-                    onPress={() => !alreadyAssigned && handleAssign(item.id)}
-                    disabled={alreadyAssigned}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.assignedIcon, { backgroundColor: isWorkout ? `${Colors.accent}18` : `${Colors.purple}18` }]}>
-                      <Ionicons name={isWorkout ? 'barbell' : 'nutrition'} size={20} color={isWorkout ? Colors.accent : Colors.purple} />
+                    return (
+                      <TouchableOpacity
+                        key={plan.id}
+                        style={[st.planCard, isActive && { borderColor: '#FF6B35', borderWidth: 1.5 }]}
+                        activeOpacity={isActive ? 1 : 0.85}
+                        onPress={async () => {
+                          if (isActive) return;
+                          try {
+                            await upgradeClientToPlan(client.id, plan.id);
+                            setAssignMode(null);
+                            showAlert({ type: 'success', title: 'Enrolled! 🎉', message: `${client.name} is now enrolled in ${plan.name}.` });
+                          } catch (err: any) {
+                            showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to enroll' });
+                          }
+                        }}
+                      >
+                        <LinearGradient colors={isActive ? ['#FF6B35', '#FF8F65'] : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.planIcon}>
+                          <Ionicons name="ribbon" size={24} color={isActive ? '#FFF' : 'rgba(255,255,255,0.5)'} />
+                        </LinearGradient>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.planName}>{plan.name}</Text>
+                          <Text style={st.planPrice}>
+                            ${plan.price}/{plan.period === 'monthly' ? 'mo' : plan.period}
+                            {trackCount > 0 ? ` · ${wCount} workouts${dCount > 0 ? ` · ${dCount} diets` : ''}` : ''}
+                          </Text>
+                        </View>
+                        {isActive ? (
+                          <View style={[st.statusPill, { backgroundColor: '#22C55E1A' }]}>
+                            <Text style={[st.statusPillText, { color: '#22C55E' }]}>Active</Text>
+                          </View>
+                        ) : (
+                          <View style={st.selectBtn}>
+                            <Text style={st.selectText}>Enroll</Text>
+                            <Ionicons name="arrow-forward" size={14} color="#FFF" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+
+                {/* Quick Add Expandable */}
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}
+                  onPress={() => setShowQuickAdd(!showQuickAdd)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(255,255,255,0.4)" />
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+                    Quick add individual workout or diet
+                  </Text>
+                </TouchableOpacity>
+
+                {showQuickAdd && (
+                  <View style={{ gap: Spacing.sm }}>
+                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                      <TouchableOpacity
+                        style={[st.createNewTemplateBtn, { flex: 1 }]}
+                        onPress={() => setAssignMode('workout')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="barbell" size={18} color="#FF6B35" />
+                        <Text style={st.createNewTemplateBtnText}>Assign Workout</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[st.createNewTemplateBtn, { flex: 1 }]}
+                        onPress={() => setAssignMode('diet')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="nutrition" size={18} color="#FF6B35" />
+                        <Text style={st.createNewTemplateBtnText}>Assign Diet</Text>
+                      </TouchableOpacity>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.assignedName, { color: colors.textPrimary }]}>{item.name}</Text>
-                      <Text style={[styles.assignedMeta, { color: colors.textTertiary }]}>
-                        {item.description || (isWorkout ? `${item.workout_exercises?.length || 0} exercises` : `${item.diet_plan_meals?.length || 0} meals`)}
-                      </Text>
-                    </View>
-                    {alreadyAssigned ? (
-                      <View style={[styles.statusPill, { backgroundColor: Colors.greenSoft }]}>
-                        <Text style={[styles.statusPillText, { color: Colors.green }]}>Assigned</Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.assignArrow, { backgroundColor: colors.accent }]}>
-                        <Ionicons name="add" size={16} color="#FFFFFF" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* ── Workout / Diet Assignment List (shown in workout/diet mode) ── */}
+            {(assignMode === 'workout' || assignMode === 'diet') && (
+              <>
+                <TouchableOpacity
+                  style={st.createNewTemplateBtn}
+                  onPress={() => {
+                    const mode = assignMode;
+                    setAssignMode(null);
+                    router.push(mode === 'workout' ? '/create-workout' : '/create-diet' as any);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={20} color="#FF6B35" />
+                  <Text style={st.createNewTemplateBtnText}>
+                    Create New {assignMode === 'workout' ? 'Workout' : 'Diet Plan'}
+                  </Text>
+                </TouchableOpacity>
+
+                {(assignMode === 'workout' ? workouts : diets).length === 0 ? (
+                  <View style={st.emptySection}>
+                    <Text style={st.emptyText}>No templates found</Text>
+                  </View>
+                ) : (
+                  (assignMode === 'workout' ? workouts : diets).map((item: any) => {
+                    const isWorkout = assignMode === 'workout';
+                    const alreadyAssigned = isWorkout
+                      ? assignedWorkouts.some(aw => aw.workout.id === item.id && aw.assignment.status === 'assigned')
+                      : assignedDiets.some(ad => ad.diet.id === item.id && ad.assignment.status === 'assigned');
+
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[st.assignModalItem, { opacity: alreadyAssigned ? 0.5 : 1 }]}
+                        onPress={() => !alreadyAssigned && handleAssign(item.id)}
+                        disabled={alreadyAssigned}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[st.assignedIcon, { backgroundColor: isWorkout ? '#FF6B3518' : '#A78BFA18' }]}>
+                          <Ionicons name={isWorkout ? 'barbell' : 'nutrition'} size={20} color={isWorkout ? '#FF6B35' : '#A78BFA'} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.assignedName}>{item.name}</Text>
+                          <Text style={st.assignedMeta}>
+                            {item.description || (isWorkout ? `${item.workout_exercises?.length || 0} exercises` : `${item.diet_plan_meals?.length || 0} meals`)}
+                          </Text>
+                        </View>
+                        {alreadyAssigned ? (
+                          <View style={[st.statusPill, { backgroundColor: '#22C55E1A' }]}>
+                            <Text style={[st.statusPillText, { color: '#22C55E' }]}>Assigned</Text>
+                          </View>
+                        ) : (
+                          <View style={st.assignArrow}>
+                            <Ionicons name="add" size={16} color="#000" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+
+                {/* Back to enroll */}
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}
+                  onPress={() => setAssignMode('enroll')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="arrow-back" size={16} color="rgba(255,255,255,0.4)" />
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Back to programs</Text>
+                </TouchableOpacity>
+              </>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -877,53 +941,48 @@ export default function ClientDetailScreen() {
 
       {/* Upgrade Plan Modal */}
       <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-              <Ionicons name="close" size={22} color={colors.textPrimary} />
+        <SafeAreaView style={[st.container, { backgroundColor: '#000' }]}>
+          <View style={st.header}>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} style={st.headerBtn}>
+              <Ionicons name="close" size={22} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Choose a Plan</Text>
+            <Text style={st.headerTitle}>Select Membership Plan</Text>
             <View style={{ width: 36 }} />
           </View>
 
           <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md }}>
-            <Text style={[trialStyles.modalSubtitle, { color: colors.textSecondary }]}>
-              Select a subscription plan to upgrade {client.name} from trial to active member.
-            </Text>
-
+            <Text style={st.modalSubtitle}>Upgrade {client.name} from trial status to a permanent plan.</Text>
             {plans.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.md }}>
-                <Ionicons name="document-text-outline" size={48} color={colors.textTertiary} />
-                <Text style={[trialStyles.noPlanText, { color: colors.textTertiary }]}>No plans created yet</Text>
-                <Button title="Create Plan" onPress={() => { setShowUpgradeModal(false); router.push('/create-plan' as any); }} size="sm" />
+              <View style={st.emptySection}>
+                <Ionicons name="document-text-outline" size={48} color="rgba(255,255,255,0.3)" />
+                <Text style={st.emptyText}>No subscription plans created yet</Text>
+                <Button title="Create Plan" onPress={() => { setShowUpgradeModal(false); router.push('/create-plan' as any); }} size="sm" style={{ marginTop: Spacing.md }} />
               </View>
             ) : (
               plans.map((plan) => (
                 <TouchableOpacity
                   key={plan.id}
-                  style={[trialStyles.planCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+                  style={st.planCard}
                   activeOpacity={0.85}
                   onPress={async () => {
                     try {
                       await upgradeClientToPlan(client.id, plan.id);
                       setShowUpgradeModal(false);
-                      showAlert({ type: 'success', title: 'Upgraded! 🎉', message: `${client.name} is now on the "${plan.name}" plan.` });
+                      showAlert({ type: 'success', title: 'Success! 🎉', message: `${client.name} upgraded to plan.` });
                     } catch (err: any) {
                       showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to upgrade' });
                     }
                   }}
                 >
-                  <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={trialStyles.planIcon}>
+                  <LinearGradient colors={['#FF6B35', '#FF8F65']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.planIcon}>
                     <Ionicons name="diamond" size={24} color="#FFF" />
                   </LinearGradient>
                   <View style={{ flex: 1 }}>
-                    <Text style={[trialStyles.planName, { color: colors.textPrimary }]}>{plan.name}</Text>
-                    <Text style={[trialStyles.planPrice, { color: colors.textTertiary }]}>
-                      ${plan.price}/{(plan as any).interval === 'monthly' ? 'mo' : (plan as any).interval || 'mo'}
-                    </Text>
+                    <Text style={st.planName}>{plan.name}</Text>
+                    <Text style={st.planPrice}>${plan.price} / {plan.period === 'monthly' ? 'mo' : plan.period}</Text>
                   </View>
-                  <View style={trialStyles.selectBtn}>
-                    <Text style={trialStyles.selectText}>Select</Text>
+                  <View style={st.selectBtn}>
+                    <Text style={st.selectText}>Select</Text>
                     <Ionicons name="arrow-forward" size={14} color="#FFF" />
                   </View>
                 </TouchableOpacity>
@@ -932,197 +991,201 @@ export default function ClientDetailScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  scroll: { paddingBottom: 100 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
-  scrollContent: { paddingHorizontal: Spacing.lg },
+  headerBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: '#FFFFFF' },
 
   profileHero: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
-  profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], letterSpacing: -0.5 },
+  profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: '#FFFFFF', letterSpacing: -0.5 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full },
   statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, textTransform: 'capitalize' },
 
-  quickActions: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.xl, marginBottom: Spacing.xl },
-  quickBtn: { alignItems: 'center', gap: 6 },
-  quickIcon: { width: 48, height: 48, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs },
+  trialCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: Radius.lg, padding: Spacing.base, marginHorizontal: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  trialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  trialHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  trialTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: '#FFFFFF' },
+  trialSub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  trialTrack: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginTop: Spacing.md },
+  trialFill: { height: '100%', borderRadius: 2 },
+  trialActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  extendBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.08)' },
+  extendText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#FFFFFF' },
+  upgradeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.full, backgroundColor: '#FF6B35', marginLeft: 'auto' },
+  upgradeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#FFFFFF' },
 
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  miniStat: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md },
-  miniStatValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
-  miniStatLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
+  quickActions: { flexDirection: 'row', gap: Spacing.md, paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
+  quickAction: { flex: 1, alignItems: 'center', gap: 6 },
+  quickActionIcon: { width: 50, height: 50, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  quickActionLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md, marginTop: Spacing.sm },
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, marginBottom: Spacing.md, marginTop: Spacing.sm },
+  tabBar: { flexDirection: 'row', paddingHorizontal: Spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', marginBottom: Spacing.md },
+  tabItem: { flex: 1, paddingVertical: Spacing.md, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabItemActive: { borderBottomColor: '#FF6B35' },
+  tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 },
+  tabTextActive: { color: '#FF6B35' },
+  tabContent: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
 
+  sectionCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
-  contactValue: { flex: 1, fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base },
+  contactValue: { flex: 1, fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: '#FFFFFF' },
 
-  // Assessment Summary Styles
-  assessBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
-  assessBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
-  assessTilesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  assessTile: { flex: 1, minWidth: '22%', alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, gap: 2 },
-  assessTileValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
-  assessTileLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
-  assessRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.md },
-  assessRowIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  assessRowLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginBottom: 2 },
-  assessRowValue: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
-  assessLevelBar: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
-  assessLevelFill: { height: '100%', borderRadius: 4 },
-  assessTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  assessTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
-  assessTagText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.sm },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: '#FFFFFF', marginTop: Spacing.md },
+  seeAll: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: '#FF6B35' },
 
-  emptySection: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
-  emptySectionText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
-  assignChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, marginTop: Spacing.xs },
-  assignChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
+  assessGrid: { flexDirection: 'row', gap: Spacing.sm },
+  assessTile: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, gap: 4, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.lg },
+  assessTileValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: '#FFFFFF' },
+  assessTileLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)' },
+
+  assessRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
+  assessRowIcon: { marginRight: Spacing.xs },
+  assessRowLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.4)' },
+  assessRowValue: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: '#FFFFFF', marginTop: 2 },
+
+  noteCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  noteText: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: 'rgba(255,255,255,0.8)', lineHeight: 22 },
+
+  syncText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.3)', textAlign: 'right', marginTop: Spacing.xs },
+  pendingBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, backgroundColor: '#EAB3081A', alignSelf: 'flex-start', marginTop: Spacing.md },
+  pendingBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#EAB308' },
 
   assignedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
-  assignedIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  assignedName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, marginBottom: 2 },
-  assignedMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
+  assignedIcon: { width: 44, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  assignedName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: '#FFFFFF' },
+  assignedMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
   statusPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, textTransform: 'capitalize' },
 
-  assignModalItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg },
-  assignArrow: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-
-  bodyText: { fontFamily: FontFamily.body, fontSize: FontSize.base, lineHeight: 20 },
+  viewAllBtn: { padding: Spacing.md, alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
+  viewAllBtnText: { fontFamily: FontFamily.bodySemiBold, color: '#FF6B35', fontSize: FontSize.sm },
 
   sessionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
   sessionDot: { width: 8, height: 8, borderRadius: 4 },
-  sessionDate: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
-  sessionTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 1 },
+  sessionDate: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: '#FFFFFF' },
+  sessionTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
   sessionStatus: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
 
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
-  emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md },
-});
+  emptySection: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', borderRadius: Radius.lg },
+  emptySub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingHorizontal: Spacing.xl },
 
-const trialStyles = StyleSheet.create({
-  banner: {
-    marginHorizontal: 0,
-    borderRadius: Radius.xl,
-    padding: Spacing.base,
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
-  },
-  bannerTop: {
+  assignModalItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg, backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: Spacing.sm },
+  assignArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+
+  createNewTemplateBtn: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  bannerTitle: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: FontSize.md,
-  },
-  bannerSub: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.xs,
-    marginTop: 1,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  bannerActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  },
-  extendBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-  },
-  extendText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.xs,
-  },
-  upgradeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.accent,
-    marginLeft: 'auto',
-  },
-  upgradeText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.xs,
-    color: '#FFF',
-  },
-  // Upgrade modal
-  modalSubtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.sm,
-    lineHeight: 20,
-    marginBottom: Spacing.sm,
-  },
-  noPlanText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.base,
-  },
-  planCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.base,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-  },
-  planIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(255, 107, 53, 0.08)',
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.2)',
+    marginBottom: Spacing.md,
   },
-  planName: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: FontSize.md,
-  },
-  planPrice: {
-    fontFamily: FontFamily.body,
+  createNewTemplateBtnText: {
+    fontFamily: FontFamily.bodyBold,
     fontSize: FontSize.sm,
-    marginTop: 2,
+    color: '#FF6B35',
   },
-  selectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.accent,
+
+  modalSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)', lineHeight: 20, marginBottom: Spacing.md },
+  planCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.base, borderRadius: Radius.xl, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: Spacing.sm },
+  planCardEmpty: { width: '100%', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: Radius.lg, padding: Spacing.xl, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.06)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  planEmptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.3)' },
+  planIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: '#FFFFFF' },
+  planPrice: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  selectBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: '#FF6B35' },
+  selectText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#FFF' },
+
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
+  emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: '#FFFFFF' },
+
+  // ── Client Snapshot ──
+  snapGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
   },
-  selectText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.xs,
-    color: '#FFF',
+  snapTile: {
+    flex: 1, minWidth: '44%', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14, paddingVertical: 16, paddingHorizontal: 8,
+  },
+  snapTileValue: {
+    fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: '#FFF',
+  },
+  snapTileLabel: {
+    fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  snapChipRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+  },
+  snapGoalChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,107,53,0.1)',
+    borderWidth: 1, borderColor: 'rgba(255,107,53,0.2)',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
+  },
+  snapGoalText: {
+    fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: '#FF8255',
+  },
+  snapCommitCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14, padding: 16,
+  },
+  snapCommitRing: {
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 3, borderColor: '#FF6B35',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  snapCommitNum: {
+    fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: '#FF6B35',
+  },
+  snapCommitLabel: {
+    fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: '#FFF',
+  },
+  snapCommitDesc: {
+    fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 2,
+  },
+  snapCommitBars: {
+    flexDirection: 'row', gap: 3, marginLeft: 'auto',
+  },
+  snapCommitBar: {
+    width: 6, height: 20, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  snapCommitBarActive: {
+    backgroundColor: '#FF6B35',
+  },
+  snapTagChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  snapTagText: {
+    fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)',
+  },
+  snapActivityChip: {
+    backgroundColor: 'rgba(125,170,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(125,170,255,0.15)',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  snapActivityText: {
+    fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: '#7DAAFF',
   },
 });

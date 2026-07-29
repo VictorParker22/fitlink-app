@@ -30,8 +30,8 @@ const ASSESSMENT_QUESTIONS = [
     type: 'single',
     skippable: true,
     options: [
-      { id: 'male', label: 'Male', icon: 'male', image: require('../../assets/images/male_runner.png') },
-      { id: 'female', label: 'Female', icon: 'female', image: require('../../assets/images/female_runner.png') },
+      { id: 'male', label: 'Male', icon: 'male', image: require('../../assets/images/male_runner.jpg') },
+      { id: 'female', label: 'Female', icon: 'female', image: require('../../assets/images/female_runner.jpg') },
     ]
   },
   {
@@ -55,7 +55,7 @@ const ASSESSMENT_QUESTIONS = [
     id: 'previous_experience',
     title: 'Do you have previous fitness experience?',
     type: 'yes_no',
-    image: require('../../assets/images/fitness_experience.png'),
+    image: require('../../assets/images/fitness_experience.jpg'),
   },
   {
     id: 'fitness_level',
@@ -76,7 +76,7 @@ const ASSESSMENT_QUESTIONS = [
     id: 'physical_limitations',
     title: 'Do you have any physical limitations?',
     type: 'tags',
-    image: require('../../assets/images/walker.png'),
+    image: require('../../assets/images/walker.jpg'),
     suggestions: ['Knee Pain', 'Muscle Pain', 'Arthritis', 'Back Pain', 'Asthma', 'Obesity'],
     maxTags: 10,
   },
@@ -121,7 +121,7 @@ const ASSESSMENT_QUESTIONS = [
     id: 'taking_supplements',
     title: 'Are you taking any supplements?',
     type: 'yes_no',
-    image: require('../../assets/images/supplements.png'),
+    image: require('../../assets/images/supplements.jpg'),
   },
   {
     id: 'supplements_list',
@@ -821,7 +821,7 @@ export default function AssessmentScreen() {
         {/* --- GRID LAYOUT (2-col and 3-col) --- */}
         {(question.type === 'single' || question.type === 'multi') && ((question as any).layout === 'grid' || (question as any).layout === 'grid-3') && (
           <View style={[styles.optionsContainer, styles.optionsGrid]}>
-            {question.options.map((option) => {
+            {(question as any).options.map((option: any) => {
               const isSelected = question.type === 'single'
                 ? currentAnswer === option.id
                 : (currentAnswer || []).includes(option.id);
@@ -867,7 +867,7 @@ export default function AssessmentScreen() {
         {/* --- BADGE LIST LAYOUT --- */}
         {(question.type === 'single' || question.type === 'multi') && (question as any).layout === 'badge_list' && (
           <View style={styles.optionsContainer}>
-            {question.options.map((option) => {
+            {(question as any).options.map((option: any) => {
               const isSelected = question.type === 'single'
                 ? currentAnswer === option.id
                 : (currentAnswer || []).includes(option.id);
@@ -902,7 +902,7 @@ export default function AssessmentScreen() {
             </View>
 
             <View style={styles.pillCloud}>
-              {question.options.map((option) => {
+              {(question as any).options.map((option: any) => {
                 const isSelected = (currentAnswer || []).includes(option.id);
                 return (
                   <TouchableOpacity
@@ -922,7 +922,7 @@ export default function AssessmentScreen() {
                 <Text style={styles.cloudSelectedLabel}>Selected</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: Spacing.xl }}>
                   {currentAnswer.map((id: string) => {
-                    const opt = question.options.find(o => o.id === id);
+                    const opt = (question as any).options.find((o: any) => o.id === id);
                     return (
                       <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
                         <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
@@ -939,7 +939,7 @@ export default function AssessmentScreen() {
         {/* --- DEFAULT LIST LAYOUT (radio buttons) --- */}
         {(question.type === 'single' || question.type === 'multi') && !(question as any).layout && (
           <View style={styles.optionsContainer}>
-            {question.options.map((option) => {
+            {(question as any).options.map((option: any) => {
               const isSelected = question.type === 'single'
                 ? currentAnswer === option.id
                 : (currentAnswer || []).includes(option.id);

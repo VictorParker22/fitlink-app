@@ -24,4 +24,4 @@ CREATE POLICY "Clients can manage own snapshots" ON client_health_snapshots
   FOR ALL USING (client_id IN (SELECT id FROM clients WHERE auth_user_id = auth.uid()));
 
 CREATE POLICY "Trainers can read client snapshots" ON client_health_snapshots
-  FOR SELECT USING (client_id IN (SELECT id FROM clients WHERE trainer_id IN (SELECT id FROM trainers WHERE user_id = auth.uid())));
+  FOR SELECT USING (client_id IN (SELECT id FROM clients WHERE trainer_id = auth.uid()));

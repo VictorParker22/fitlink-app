@@ -10,9 +10,11 @@ interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
   full?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
 }
 
 export default function Button({
@@ -23,9 +25,11 @@ export default function Button({
   loading = false,
   disabled = false,
   icon,
+  iconPosition = 'left',
   full = false,
   style,
   textStyle,
+  accessibilityLabel,
 }: ButtonProps) {
   const { colors } = useTheme();
   const isDisabled = disabled || loading;
@@ -71,6 +75,8 @@ export default function Button({
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.75}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
     >
       {loading ? (
         <ActivityIndicator
@@ -79,10 +85,11 @@ export default function Button({
         />
       ) : (
         <>
-          {icon}
+          {icon && iconPosition !== 'right' && icon}
           <Text style={[styles.text, { color: textColors[variant], fontSize: textSizes[size] }, textStyle]}>
             {title}
           </Text>
+          {icon && iconPosition === 'right' && icon}
         </>
       )}
     </TouchableOpacity>

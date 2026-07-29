@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Card from '../components/Card';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -12,31 +11,30 @@ const FAQ_SECTIONS = [
   {
     title: 'Getting Started',
     items: [
-      { q: 'How do I add my first client?', a: 'Go to the Clients tab and tap the + button in the top right. Fill in their details and optionally assign a plan. You can also share an invite link for clients to sign up themselves.' },
-      { q: 'How do clients access their portal?', a: 'When you add a client with their email or phone, they can log in to the FitLink app using the same credentials. They\'ll see their assigned workouts, upcoming sessions, and can message you directly.' },
-      { q: 'How do I book a session?', a: 'Go to the Schedule tab and tap the + button. Choose the session type (1-on-1, Group, or Virtual), select a client, pick a date/time, and set the duration.' },
+      { q: 'How do I view my assigned workouts?', a: 'Go to the Explore tab to see the workout plans and on-demand classes your coach has assigned for you. You can also see your daily tasks on the Home tab.' },
+      { q: 'How do I join a scheduled session?', a: 'Any upcoming 1-on-1 or group sessions will appear on your Home tab. If it is a virtual session, a "Join Video" button will appear 5 minutes before the start time.' },
     ],
   },
   {
-    title: 'Managing Clients',
+    title: 'Tracking Progress',
     items: [
-      { q: 'How do I change a client\'s status?', a: 'Tap on a client in the Clients tab, then tap the edit icon in the top right. You can change their status between Active, Trial, and Inactive.' },
-      { q: 'Can I assign workouts to clients?', a: 'Yes! Create workout templates in the Workouts section, then assign them to specific clients. Clients will see assigned workouts in their portal.' },
-      { q: 'How do referrals work?', a: 'Share your referral link from the Profile → Referral Program section. When someone signs up using your link, they appear in your referral tracking dashboard.' },
+      { q: 'How do I log my meals?', a: 'Go to the Profile tab and select "Diet & Nutrition" to log your daily meals and water intake. Your coach will automatically see your updates.' },
+      { q: 'Where can I track my habits?', a: 'Your daily habits, like step count or sleep goals, are located on the Home tab. Simply tap to check them off as you complete them.' },
+      { q: 'How do I update my body metrics?', a: 'Go to the Activity tab to view your progress charts. You can log new weight entries or body measurements from this screen.' },
     ],
   },
   {
-    title: 'Billing & Plans',
+    title: 'Billing & Subscriptions',
     items: [
-      { q: 'How do I create subscription plans?', a: 'Go to Profile → Subscription Plans. You can view your plans and their revenue. New plans can be created from the web dashboard.' },
-      { q: 'How is revenue calculated?', a: 'Monthly Recurring Revenue (MRR) is calculated by multiplying each plan\'s price by its active subscriber count. You can see a full breakdown in the Subscriptions and Analytics screens.' },
+      { q: 'How do I manage my subscription?', a: 'Go to Profile → My Subscription to view your active plans, billing history, or to update your payment method.' },
+      { q: 'Can I purchase an on-demand pass?', a: 'Yes! Navigate to the Pass tab to purchase an all-access pass for your coach\'s premium on-demand class library.' },
     ],
   },
   {
-    title: 'Account & Security',
+    title: 'Account & Support',
     items: [
-      { q: 'How do I change my password?', a: 'Go to Settings and update your email. For password resets, use the "Forgot Password" option on the login screen.' },
-      { q: 'Is my data secure?', a: 'Yes. FitLink uses Supabase with Row Level Security (RLS), meaning you can only access your own data. All connections are encrypted with TLS.' },
+      { q: 'How do I contact my coach?', a: 'You can send a direct message to your coach from the Profile → Messages section, or use the Contact Support option for technical help.' },
+      { q: 'Is my personal data secure?', a: 'Absolutely. FitLink uses enterprise-grade encryption to ensure that your health and fitness data is kept completely private between you and your coach.' },
     ],
   },
 ];
@@ -54,21 +52,21 @@ export default function HelpCenterScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help Center</Text>
+        <Text style={styles.headerTitle}>HELP CENTER</Text>
         <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heroTitle}>How can we help?</Text>
-        <Text style={styles.heroSubtitle}>Find answers to common questions below</Text>
+        <Text style={styles.heroTitle}>HOW CAN WE HELP?</Text>
+        <Text style={styles.heroSubtitle}>FIND ANSWERS TO COMMON QUESTIONS BELOW</Text>
 
         {FAQ_SECTIONS.map((section, si) => (
           <View key={si}>
             <Text style={styles.sectionLabel}>{section.title.toUpperCase()}</Text>
-            <Card noPadding>
+            <View style={styles.cardContainer}>
               {section.items.map((item, i) => {
                 const key = `${si}-${i}`;
                 const isExpanded = expandedItem === key;
@@ -76,12 +74,12 @@ export default function HelpCenterScreen() {
                   <TouchableOpacity
                     key={i}
                     style={[styles.faqItem, i < section.items.length - 1 && styles.faqItemBorder]}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                     onPress={() => toggleItem(key)}
                   >
                     <View style={styles.faqHeader}>
-                      <Text style={styles.faqQuestion}>{item.q}</Text>
-                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
+                      <Text style={styles.faqQuestion}>{item.q.toUpperCase()}</Text>
+                      <Ionicons name={isExpanded ? 'remove' : 'add'} size={20} color={colors.textPrimary} />
                     </View>
                     {isExpanded && (
                       <Text style={styles.faqAnswer}>{item.a}</Text>
@@ -89,7 +87,7 @@ export default function HelpCenterScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </Card>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -99,19 +97,47 @@ export default function HelpCenterScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
-  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: colors.textPrimary, textAlign: 'center', marginTop: Spacing.lg },
-  heroSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs },
+  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 24, color: colors.textPrimary, textAlign: 'center', marginTop: Spacing.xl, letterSpacing: 1 },
+  heroSubtitle: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.sm, letterSpacing: 1.5 },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  sectionLabel: { fontFamily: FontFamily.heading, fontSize: 11, color: colors.textTertiary, letterSpacing: 1.5, marginTop: Spacing['2xl'], marginBottom: Spacing.xs },
 
-  faqItem: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.base },
+  cardContainer: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+  },
+  faqItem: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.md },
   faqItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   faqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
-  faqQuestion: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary, flex: 1 },
-  faqAnswer: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, lineHeight: 20, marginTop: Spacing.sm },
+  faqQuestion: { fontFamily: FontFamily.bodyBold, fontSize: 12, color: colors.textPrimary, flex: 1, letterSpacing: 0.5 },
+  faqAnswer: { fontFamily: FontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 20, marginTop: Spacing.sm },
 });

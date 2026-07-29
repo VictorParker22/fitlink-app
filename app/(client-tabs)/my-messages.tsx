@@ -1,16 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, StatusBar, Image as RNImage
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import Avatar from '../../components/Avatar';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { ClientRoute } from '../../types/routes';
+import { getWorkoutEmblem } from '../../utils/workoutEmblems';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 
 interface Message {
   id: string;
@@ -18,17 +23,28 @@ interface Message {
   sender_type: 'trainer' | 'client';
   content: string;
   created_at: string;
+  attachment_url?: string;
+  attachment_type?: string;
 }
 
 export default function ClientMessagesScreen() {
+  const router = useRouter();
   const { conversation, trainer, clientData } = useClient();
   const { colors } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const { isTyping, startTyping } = useTypingIndicator(conversation?.id, 'client', !!conversation);
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!conversation) { setLoading(false); return; }
@@ -79,37 +95,172 @@ export default function ClientMessagesScreen() {
       
       // Trigger push notification to trainer
       if (trainer?.expo_push_token) {
+        console.log('Sending push to trainer:', trainer.expo_push_token);
+        const pushBody = content.startsWith('[WORKOUT_CARD:') 
+          ? 'Client sent an attachment' 
+          : content;
+
         supabase.functions.invoke('send-push-notification', {
           body: {
             pushToken: trainer.expo_push_token,
             title: `Message from ${clientData?.name || 'Client'}`,
-            body: content,
+            body: pushBody,
             data: { url: '/messages' }
           }
         }).catch(err => console.log('Push error:', err));
+      } else {
+        console.log('Trainer has NO push token saved!');
       }
     } catch { setNewMessage(content); }
     finally { setSending(false); }
   }, [newMessage, sending, conversation]);
 
+  const handleImagePick = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64 && conversation) {
+        setSending(true);
+        const base64 = result.assets[0].base64;
+        const ext = result.assets[0].uri.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        
+        const { error } = await supabase.storage
+          .from('chat-attachments')
+          .upload(fileName, decode(base64), { contentType: `image/${ext}` });
+
+        if (error) throw error;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(fileName);
+
+        await supabase.from('messages').insert({
+          conversation_id: conversation.id,
+          sender_type: 'client',
+          content: '[IMAGE]',
+          attachment_url: publicUrlData.publicUrl,
+          attachment_type: 'image'
+        });
+
+        await supabase.from('conversations').update({
+          last_message: 'Sent an image 📸',
+          last_message_at: new Date().toISOString(),
+        }).eq('id', conversation.id);
+
+        if (trainer?.expo_push_token) {
+          supabase.functions.invoke('send-push-notification', {
+            body: {
+              pushToken: trainer.expo_push_token,
+              title: `Message from ${clientData?.name || 'Client'}`,
+              body: 'Client sent an image',
+              data: { url: '/messages' }
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Image upload failed', err);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const formatTime = (ts: string) => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+  const renderMessageContent = (msg: Message, isMine: boolean) => {
+    const { content } = msg;
+
+    if (content === '[IMAGE]' && msg.attachment_url) {
+      return (
+        <RNImage 
+          source={{ uri: msg.attachment_url }} 
+          style={{ width: 220, height: 300, borderRadius: Radius.sm, backgroundColor: isMine ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }} 
+          resizeMode="cover"
+        />
+      );
+    }
+
+    if (content.startsWith('[WORKOUT_CARD:')) {
+      const parts = content.split(':');
+      const wId = parts[1];
+      const wName = parts[2] || 'Attached Routine';
+      const count = parts[3] || '0';
+      const emblem = getWorkoutEmblem(wId, wName, []);
+
+      return (
+        <View style={{ minWidth: 200, gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ backgroundColor: isMine ? '#00000022' : '#FFFFFF22', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.xs }}>
+              <Text style={{ fontFamily: FontFamily.heading, fontSize: 9, color: isMine ? '#000000' : colors.textSecondary, letterSpacing: 0.8 }}>WORKOUT ATTACHMENT</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 2 }}>
+            <RNImage source={emblem} style={{ width: 42, height: 42, borderRadius: Radius.xs }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: FontSize.sm, color: isMine ? '#000000' : '#FFFFFF' }} numberOfLines={1}>{wName}</Text>
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: isMine ? 'rgba(0,0,0,0.6)' : colors.textTertiary }}>{count} Exercises</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={{
+              backgroundColor: isMine ? '#000000' : '#FFFFFF',
+              paddingVertical: 8, paddingHorizontal: 12,
+              borderRadius: Radius.xs, alignItems: 'center', marginTop: 4
+            }}
+            onPress={() => router.push(`/workouts` as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={{ fontFamily: FontFamily.heading, fontSize: 11, color: isMine ? '#FFFFFF' : '#000000', letterSpacing: 0.5 }}>VIEW WORKOUTS ➔</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (content.startsWith('[QUICK_NOTE:')) {
+      const text = content.replace('[QUICK_NOTE:', '').replace(/\]$/, '');
+      return (
+        <View style={{ minWidth: 180, gap: 4 }}>
+          <Text style={{ fontFamily: FontFamily.heading, fontSize: 9, color: isMine ? '#00000099' : colors.textTertiary, letterSpacing: 0.8 }}>COACH DIRECT TIP</Text>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: FontSize.sm, color: isMine ? '#000000' : colors.textPrimary, lineHeight: 20 }}>{text}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <Text style={[styles.bubbleText, isMine ? styles.bubbleTextSent : { color: colors.textPrimary }]}>
+        {content}
+      </Text>
+    );
+  };
 
   if (!conversation) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+      <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Messages</Text>
         <View style={styles.emptyState}>
           <Ionicons name="chatbubble-outline" size={48} color={colors.textTertiary} />
           <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No conversation yet</Text>
           <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Your trainer will start a conversation with you</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.bgSecondary }]}>
+        <TouchableOpacity onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
         <Avatar name={trainer?.name || 'Coach'} size="sm" imageUrl={trainer?.avatar_url} />
         <View>
           <Text style={[styles.headerName, { color: colors.textPrimary }]}>Coach {trainer?.name?.split(' ')[0] || 'Trainer'}</Text>
@@ -117,7 +268,7 @@ export default function ClientMessagesScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24)}>
         {loading ? (
           <View style={styles.emptyState}><ActivityIndicator size="large" color={colors.accent} /></View>
         ) : (
@@ -130,9 +281,9 @@ export default function ClientMessagesScreen() {
             renderItem={({ item: msg }) => {
               const isMine = msg.sender_type === 'client';
               return (
-                <View style={[styles.bubbleRow, isMine && styles.bubbleRowRight]}>
-                  <View style={[styles.bubble, isMine ? [styles.bubbleSent, { backgroundColor: colors.accent }] : [styles.bubbleReceived, { backgroundColor: colors.bgElevated }]]}>
-                    <Text style={[styles.bubbleText, isMine ? styles.bubbleTextSent : { color: colors.textPrimary }]}>{msg.content}</Text>
+                <View style={[styles.bubbleRow, isMine && styles.bubbleRowRight]} accessible={true} accessibilityLabel={`${isMine ? 'You' : trainer?.name || 'Coach'} said: ${msg.content}, at ${formatTime(msg.created_at)}`} accessibilityRole="text">
+                  <View style={[styles.bubble, msg.content === '[IMAGE]' ? { backgroundColor: 'transparent', padding: 0 } : isMine ? [styles.bubbleSent, { backgroundColor: colors.accent }] : [styles.bubbleReceived, { backgroundColor: colors.bgElevated }]]}>
+                    {renderMessageContent(msg, isMine)}
                     <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : { color: colors.textTertiary }]}>{formatTime(msg.created_at)}</Text>
                   </View>
                 </View>
@@ -156,28 +307,36 @@ export default function ClientMessagesScreen() {
         )}
 
         <View style={[styles.inputBar, { borderTopColor: colors.border, backgroundColor: colors.bgSecondary }]}>
+          <TouchableOpacity onPress={handleImagePick} style={{ padding: Spacing.sm }} activeOpacity={0.7}>
+            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+          </TouchableOpacity>
           <TextInput
             style={[styles.input, { backgroundColor: colors.bgInput, borderColor: colors.borderStrong, color: colors.textPrimary }]}
             placeholder="Type a message..."
             placeholderTextColor={colors.textTertiary}
             value={newMessage}
             onChangeText={(text) => { setNewMessage(text); startTyping(); }}
-            multiline
             maxLength={2000}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            blurOnSubmit={false}
+            accessibilityLabel="Type a message to your coach"
+            accessibilityRole="text"
           />
-          <TouchableOpacity style={[styles.sendBtn, { backgroundColor: newMessage.trim() ? colors.accent : colors.bgElevated }]} onPress={handleSend} disabled={!newMessage.trim() || sending}>
+          <TouchableOpacity style={[styles.sendBtn, { backgroundColor: newMessage.trim() ? colors.accent : colors.bgElevated }]} onPress={handleSend} disabled={!newMessage.trim() || sending} accessibilityLabel="Send message" accessibilityRole="button">
             <Ionicons name="send" size={18} color={newMessage.trim() ? Colors.white : colors.textTertiary} />
           </TouchableOpacity>
         </View>
         {/* Spacer for floating tab bar */}
-        <View style={{ height: Platform.OS === 'ios' ? 88 : 72, backgroundColor: colors.bgSecondary }} />
+        {!isKeyboardVisible && <View style={{ height: Platform.OS === 'ios' ? 88 : (72 + insets.bottom), backgroundColor: colors.bgSecondary }} />}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  backBtn: { paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
   title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1 },
   headerName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },

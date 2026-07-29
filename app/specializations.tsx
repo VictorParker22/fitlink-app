@@ -61,12 +61,12 @@ export default function SpecializationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Specializations</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving}>
-          <Text style={[styles.saveBtn, saving && { opacity: 0.5 }]}>{saving ? 'Saving...' : 'Save'}</Text>
+        <Text style={styles.headerTitle}>SPECIALIZATIONS</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveHeaderBtn} accessibilityRole="button">
+          <Text style={[styles.saveBtnText, saving && { opacity: 0.5 }]}>{saving ? 'SAVING...' : 'SAVE'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -76,10 +76,10 @@ export default function SpecializationsScreen() {
             <Text style={styles.sectionLabel}>YOUR SPECIALIZATIONS ({specs.length})</Text>
             <View style={styles.chipGrid}>
               {specs.map((spec) => (
-                <TouchableOpacity key={spec} style={styles.chipActive} onPress={() => toggleSpec(spec)}>
-                  <Ionicons name="checkmark-circle" size={14} color={colors.blue} />
+                <TouchableOpacity key={spec} style={styles.chipActive} onPress={() => toggleSpec(spec)} activeOpacity={0.8}>
+                  <Ionicons name="checkmark" size={13} color={colors.bgPrimary} />
                   <Text style={styles.chipTextActive}>{spec}</Text>
-                  <Ionicons name="close" size={12} color={colors.textTertiary} />
+                  <Ionicons name="close" size={12} color={colors.bgPrimary} style={{ opacity: 0.7 }} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -97,16 +97,16 @@ export default function SpecializationsScreen() {
             onSubmitEditing={addCustom}
             returnKeyType="done"
           />
-          <TouchableOpacity style={styles.addBtn} onPress={addCustom} disabled={!customSpec.trim()}>
-            <Ionicons name="add" size={20} color={customSpec.trim() ? colors.white : colors.textTertiary} />
+          <TouchableOpacity style={[styles.addBtn, !customSpec.trim() && styles.addBtnDisabled]} onPress={addCustom} disabled={!customSpec.trim()} activeOpacity={0.8}>
+            <Ionicons name="add" size={20} color={customSpec.trim() ? colors.bgPrimary : colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionLabel}>POPULAR SPECIALIZATIONS</Text>
         <View style={styles.chipGrid}>
           {PRESET_SPECS.filter((s) => !specs.includes(s)).map((spec) => (
-            <TouchableOpacity key={spec} style={styles.chip} onPress={() => toggleSpec(spec)}>
-              <Ionicons name="add-circle-outline" size={14} color={colors.textTertiary} />
+            <TouchableOpacity key={spec} style={styles.chip} onPress={() => toggleSpec(spec)} activeOpacity={0.7}>
+              <Ionicons name="add-outline" size={14} color={colors.textTertiary} />
               <Text style={styles.chipText}>{spec}</Text>
             </TouchableOpacity>
           ))}
@@ -118,18 +118,112 @@ export default function SpecializationsScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  saveBtn: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.accent },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  chipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  chipActive: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: `${colors.blue}12`, borderWidth: 1, borderColor: `${colors.blue}30` },
-  chipTextActive: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.blue },
-  addRow: { flexDirection: 'row', gap: Spacing.sm },
-  addInput: { flex: 1, backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 10, fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary },
-  addBtn: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  saveHeaderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.textPrimary,
+    borderRadius: Radius.xs,
+  },
+  saveBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: colors.bgPrimary,
+    letterSpacing: 1,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
+  sectionLabel: {
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.sm,
+  },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  chipActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+  },
+  chipTextActive: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.bgPrimary,
+    letterSpacing: 0.5,
+  },
+  addRow: { flexDirection: 'row', gap: Spacing.xs },
+  addInput: {
+    flex: 1,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  addBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnDisabled: {
+    backgroundColor: colors.bgSecondary,
+    borderColor: colors.border,
+  },
 });

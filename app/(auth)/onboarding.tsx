@@ -1,178 +1,175 @@
-import { useState, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, Dimensions, Image, TouchableOpacity,
-  FlatList, Animated,
+  Animated, StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Spacing, FontFamily } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_TOP = SCREEN_HEIGHT * 0.52; // Card starts at 52% from top
-
-const SLIDES = [
-  {
-    id: '1',
-    image: require('../../assets/images/welcome-1.png'),
-    title: 'Welcome To\nFitLink!',
-    subtitle: 'Your personal fitness coaching platform',
-    isFirst: true,
-  },
-  {
-    id: '2',
-    image: require('../../assets/images/welcome-2.png'),
-    title: 'Manage Clients\n& Sessions',
-    subtitle: 'Organize your roster, schedule, and workouts in one place',
-    isFirst: false,
-  },
-  {
-    id: '3',
-    image: require('../../assets/images/welcome-3.png'),
-    title: 'Grow Your\nFitness Business',
-    subtitle: 'Track referrals, analytics, and revenue growth',
-    isFirst: false,
-  },
-];
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const flatListRef = useRef<FlatList>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    { useNativeDriver: false }
-  );
+  // Animated values for staggered entrance
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoTranslateY = useRef(new Animated.Value(-20)).current;
+  const headlineOpacity = useRef(new Animated.Value(0)).current;
+  const headlineTranslateY = useRef(new Animated.Value(30)).current;
+  const buttonsOpacity = useRef(new Animated.Value(0)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(40)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index ?? 0);
-    }
-  }).current;
+  useEffect(() => {
+    // Staggered fade-in animation
+    Animated.sequence([
+      // Logo fades in first
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoTranslateY, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Headline slides up
+      Animated.parallel([
+        Animated.timing(headlineOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headlineTranslateY, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Buttons and tagline appear
+      Animated.parallel([
+        Animated.timing(buttonsOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonsTranslateY, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(taglineOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
-
-  const completeOnboarding = useCallback(async () => {
-    await SecureStore.setItemAsync('fitlink_onboarded', 'true');
-    router.replace('/(auth)/login');
-  }, [router]);
-
-  const goNext = () => {
-    if (currentIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
-    }
+  const handleSignIn = () => {
+    router.push('/(auth)/login');
   };
 
-  const goPrev = () => {
-    if (currentIndex > 0) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex - 1, animated: true });
-    }
+  const handleCreateAccount = () => {
+    router.push('/(auth)/create-account');
   };
 
   return (
     <View style={styles.container}>
-      {/* Background image layer — absolute, fills top portion */}
-      <View style={styles.imageLayer}>
-        <FlatList
-          ref={flatListRef}
-          data={SLIDES}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          scrollEventThrottle={16}
-          style={styles.flatList}
-          renderItem={({ item }) => (
-            <View style={styles.slideImageWrapper}>
-              <Image source={item.image} style={styles.slideImage} resizeMode="cover" />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.5)']}
-                locations={[0.4, 0.7, 1]}
-                style={styles.imageGradient}
-              />
-              {item.isFirst && (
-                <View style={styles.logoOverImage}>
-                  <View style={styles.logoCross}>
-                    <Ionicons name="add" size={20} color={Colors.white} />
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-        />
-      </View>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* White card panel — positioned from CARD_TOP down */}
-      <View style={styles.cardPanel}>
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>{SLIDES[currentIndex].title}</Text>
-          <Text style={styles.cardSubtitle}>{SLIDES[currentIndex].subtitle}</Text>
-        </View>
+      {/* Full-bleed background image */}
+      <Image
+        source={require('../../assets/images/auth-bg.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
 
-        {currentIndex === 0 ? (
-          <View style={styles.firstSlideActions}>
-            <TouchableOpacity style={styles.getStartedBtn} activeOpacity={0.85} onPress={goNext}>
-              <Text style={styles.getStartedText}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={16} color={Colors.white} />
-            </TouchableOpacity>
+      {/* Dark gradient overlay — heavier at bottom for text legibility */}
+      <LinearGradient
+        colors={[
+          'rgba(0,0,0,0.15)',
+          'rgba(0,0,0,0.05)',
+          'rgba(0,0,0,0.25)',
+          'rgba(0,0,0,0.70)',
+          'rgba(0,0,0,0.85)',
+        ]}
+        locations={[0, 0.25, 0.45, 0.72, 1]}
+        style={styles.overlay}
+      />
 
-            <TouchableOpacity onPress={completeOnboarding}>
-              <Text style={styles.signInLink}>
-                Already have account? <Text style={styles.signInLinkAccent}>Sign In</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.navRow}>
+      {/* Content — positioned absolute over the image */}
+      <View style={styles.content}>
+        {/* Logo at top */}
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            {
+              opacity: logoOpacity,
+              transform: [{ translateY: logoTranslateY }],
+            },
+          ]}
+        >
+          <Text style={styles.logoText}>FITLINK</Text>
+        </Animated.View>
+
+        {/* Bottom section — headline + buttons */}
+        <View style={styles.bottomSection}>
+          {/* Bold headline */}
+          <Animated.View
+            style={{
+              opacity: headlineOpacity,
+              transform: [{ translateY: headlineTranslateY }],
+            }}
+          >
+            <Text style={styles.headline}>
+              ELEVATE YOUR{'\n'}COACHING.{'\n'}EMPOWER YOUR{'\n'}CLIENTS.
+            </Text>
+          </Animated.View>
+
+          {/* Buttons */}
+          <Animated.View
+            style={[
+              styles.buttonContainer,
+              {
+                opacity: buttonsOpacity,
+                transform: [{ translateY: buttonsTranslateY }],
+              },
+            ]}
+          >
+            {/* Sign In — solid white button */}
             <TouchableOpacity
-              style={[styles.navBtn, currentIndex === 0 && styles.navBtnDisabled]}
-              onPress={goPrev}
-              disabled={currentIndex === 0}
-              activeOpacity={0.7}
+              style={styles.signInButton}
+              activeOpacity={0.85}
+              onPress={handleSignIn}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
             >
-              <Ionicons name="chevron-back" size={20} color={currentIndex === 0 ? Colors.textTertiary : Colors.textPrimary} />
+              <Text style={styles.signInButtonText}>Sign in</Text>
             </TouchableOpacity>
 
-            <View style={styles.dotsRow}>
-              {SLIDES.map((_, i) => {
-                const inputRange = [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH];
-                const dotWidth = scrollX.interpolate({
-                  inputRange,
-                  outputRange: [6, 20, 6],
-                  extrapolate: 'clamp',
-                });
-                const dotOpacity = scrollX.interpolate({
-                  inputRange,
-                  outputRange: [0.25, 1, 0.25],
-                  extrapolate: 'clamp',
-                });
-                return (
-                  <Animated.View
-                    key={i}
-                    style={[styles.dot, { width: dotWidth, opacity: dotOpacity }]}
-                  />
-                );
-              })}
-            </View>
+            {/* Create Account — outlined button */}
+            <TouchableOpacity
+              style={styles.createAccountButton}
+              activeOpacity={0.85}
+              onPress={handleCreateAccount}
+              accessibilityRole="button"
+              accessibilityLabel="Create FitLink account"
+            >
+              <Text style={styles.createAccountButtonText}>Create FitLink account</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
-            {currentIndex < SLIDES.length - 1 ? (
-              <TouchableOpacity style={styles.navBtn} onPress={goNext} activeOpacity={0.7}>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textPrimary} />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.navBtnAccent} onPress={completeOnboarding} activeOpacity={0.85}>
-                <Ionicons name="arrow-forward" size={20} color={Colors.white} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          {/* Tagline */}
+          <Animated.View style={{ opacity: taglineOpacity }}>
+            <Text style={styles.tagline}>The Coaching Platform</Text>
+          </Animated.View>
+        </View>
       </View>
     </View>
   );
@@ -181,164 +178,107 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: '#000',
   },
 
-  // Image layer — absolute positioned, covers top of screen
-  imageLayer: {
+  // Full-screen background image
+  backgroundImage: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: CARD_TOP + 30, // extend slightly behind the card's rounded corners
-  },
-  flatList: {
-    flex: 1,
-  },
-  slideImageWrapper: {
+    bottom: 0,
     width: SCREEN_WIDTH,
-    height: CARD_TOP + 30,
+    height: SCREEN_HEIGHT,
   },
-  slideImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageGradient: {
+
+  // Gradient overlay
+  overlay: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    height: '50%',
-  },
-  logoOverImage: {
-    position: 'absolute',
-    top: 55,
-    left: Spacing.xl,
-  },
-  logoCross: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  // White card panel — uses marginTop to position precisely
-  cardPanel: {
+  // Content overlay
+  content: {
     flex: 1,
-    marginTop: CARD_TOP,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: Radius['2xl'],
-    borderTopRightRadius: Radius['2xl'],
+    justifyContent: 'space-between',
+    paddingTop: SCREEN_HEIGHT * 0.12,
+    paddingBottom: SCREEN_HEIGHT * 0.06,
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
-    justifyContent: 'space-between',
-    // Shadow lifting card from image
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
   },
 
-  cardContent: {},
-  cardTitle: {
+  // Logo
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoText: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 30,
-    color: Colors.textPrimary,
-    letterSpacing: -0.8,
-    lineHeight: 38,
-  },
-  cardSubtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.base,
-    color: Colors.textSecondary,
-    marginTop: Spacing.sm,
-    lineHeight: 21,
+    fontSize: 28,
+    color: '#FFFFFF',
+    letterSpacing: 8,
   },
 
-  // First slide actions
-  firstSlideActions: {
-    gap: Spacing.lg,
+  // Bottom section
+  bottomSection: {
+    gap: 28,
   },
-  getStartedBtn: {
-    flexDirection: 'row',
+
+  // Headline
+  headline: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 38,
+    color: '#FFFFFF',
+    lineHeight: 44,
+    letterSpacing: -0.5,
+  },
+
+  // Buttons
+  buttonContainer: {
+    gap: 14,
+  },
+
+  // Sign In — white filled
+  signInButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.full,
-    paddingVertical: 15,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 28,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  getStartedText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.white,
-  },
-  signInLink: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-  },
-  signInLinkAccent: {
+  signInButtonText: {
     fontFamily: FontFamily.bodySemiBold,
-    color: Colors.accentText,
-    textDecorationLine: 'underline',
+    fontSize: 16,
+    color: '#000000',
+    letterSpacing: 0.5,
   },
 
-  // Navigation arrows
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  navBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.full,
+  // Create Account — outlined
+  createAccountButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.7)',
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
   },
-  navBtnDisabled: {
-    opacity: 0.4,
-  },
-  navBtnAccent: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+  createAccountButtonText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 
-  // Dots
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  dot: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.textPrimary,
+  // Tagline
+  tagline: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
 });

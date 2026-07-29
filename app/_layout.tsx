@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider, useApp } from '../context/AppContext';
 import { ClientProvider } from '../context/ClientContext';
 import { HealthProvider } from '../context/HealthContext';
+import { WorkoutProvider } from '../context/WorkoutContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { Colors, Spacing, Radius, FontFamily, FontSize } from '../constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,7 +18,11 @@ import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { ErrorBoundaryProps } from 'expo-router';
 import Button from '../components/Button';
-import { StripeProvider } from '@stripe/stripe-react-native';
+
+// Platform-specific: .native.ts re-exports @stripe/stripe-react-native,
+// .web.tsx provides a passthrough wrapper
+import { StripeProvider } from '../lib/stripe-provider';
+import { NetworkProvider } from '../context/NetworkContext';
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -51,6 +56,7 @@ function AuthGuard() {
   const { updatePushToken } = useApp();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
   const [hasWizard, setHasWizard] = useState<boolean | null>(null);
+  const [hasClientOnboarded, setHasClientOnboarded] = useState<boolean | null>(null);
   const hasNavigated = useRef(false);
 
   // Push notification listeners
@@ -62,8 +68,10 @@ function AuthGuard() {
     Promise.all([
       SecureStore.getItemAsync('fitlink_onboarded'),
       SecureStore.getItemAsync('fitlink_wizard_complete'),
-    ]).then(([onboarded, wizard]) => {
+      SecureStore.getItemAsync('fitlink_client_onboarded'),
+    ]).then(([onboarded, wizard, clientOnboarded]) => {
       setHasOnboarded(onboarded === 'true');
+      setHasClientOnboarded(clientOnboarded === 'true');
       // Only set hasWizard to true if SecureStore says so.
       // If it's null/false, keep hasWizard as null and let the
       // auth-based DB check (below) make the final determination.
@@ -105,14 +113,17 @@ function AuthGuard() {
     const inTrainerGroup = segments[0] === '(tabs)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      if (!hasOnboarded) {
-        router.replace('/(auth)/onboarding');
-      } else {
-        router.replace('/(auth)/login');
-      }
+      router.replace('/(auth)/onboarding');
     } else if (isAuthenticated && inAuthGroup) {
+      // Allow clients to re-enter onboarding to update their profile
+      const isOnboardingScreen = segments[1] === 'client-onboarding';
       if (userRole === 'client') {
-        router.replace('/(client-tabs)');
+        if (!hasClientOnboarded && !isOnboardingScreen) {
+          router.replace('/(auth)/client-onboarding' as any);
+        } else if (hasClientOnboarded && !isOnboardingScreen) {
+          router.replace('/(client-tabs)');
+        }
+        // If isOnboardingScreen, let them stay — they're updating their profile
       } else if (!hasWizard) {
         // First-time trainer → send to wizard
         router.replace('/(auth)/trainer-wizard' as any);
@@ -207,7 +218,7 @@ function AuthGuard() {
       <Stack.Screen name="(client-tabs)" />
       <Stack.Screen name="client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="add-client" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="add-client" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="create-plan" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="book-session" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="edit-client/[id]" options={{ animation: 'slide_from_right' }} />
@@ -220,6 +231,7 @@ function AuthGuard() {
       <Stack.Screen name="help-center" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="contact-support" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="terms-privacy" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }
@@ -241,24 +253,28 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StripeProvider
-        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51Ta21qFfIwmgc6dvqTcBLdA9Tvxo9pvMXnC0KL5Gi4oNJ4wWAcwLolF2OnBefPxrAx6kJuU581bOWihpZThv13VA00lxaE9PFO"}
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""}
         merchantIdentifier="merchant.com.fitlink.app"
         urlScheme="fitlink"
       >
-        <ThemeProvider>
-          <AlertProvider>
-            <AuthProvider>
-              <AppProvider>
-                <ClientProvider>
-                  <HealthProvider>
-                    <ThemedStatusBar />
-                    <AuthGuard />
-                  </HealthProvider>
-                </ClientProvider>
-              </AppProvider>
-            </AuthProvider>
-          </AlertProvider>
-        </ThemeProvider>
+        <NetworkProvider>
+          <ThemeProvider>
+            <AlertProvider>
+              <AuthProvider>
+                <AppProvider>
+                  <ClientProvider>
+                    <WorkoutProvider>
+                      <HealthProvider>
+                        <ThemedStatusBar />
+                        <AuthGuard />
+                      </HealthProvider>
+                    </WorkoutProvider>
+                  </ClientProvider>
+                </AppProvider>
+              </AuthProvider>
+            </AlertProvider>
+          </ThemeProvider>
+        </NetworkProvider>
       </StripeProvider>
     </GestureHandlerRootView>
   );

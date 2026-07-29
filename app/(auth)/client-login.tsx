@@ -1,24 +1,19 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, FlatList,
-  ActivityIndicator, Dimensions,
+  KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, Dimensions, StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
-import { Colors, Spacing, Radius, FontFamily, FontSize } from '../../constants/theme';
+import { Spacing, FontFamily } from '../../constants/theme';
 
-const HERO_HEIGHT = 200;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Lookup status after email/phone entered
 type LookupStatus = 'idle' | 'checking' | 'found' | 'not_found';
-
-// Flow: contact entry → lookup → either create password or full signup + pick trainer
 type FlowStep = 'enter_info' | 'create_password' | 'pick_trainer';
 
 export default function ClientLoginScreen() {
@@ -33,20 +28,20 @@ export default function ClientLoginScreen() {
   const [success, setSuccess] = useState('');
 
   const [name, setName] = useState('');
-  const [contact, setContact] = useState('');  // email or phone
+  const [contact, setContact] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Found client data
   const [foundClient, setFoundClient] = useState<any>(null);
   const [foundTrainerName, setFoundTrainerName] = useState('');
 
-  // Trainer picker (for new clients)
   const [trainers, setTrainers] = useState<any[]>([]);
   const [selectedTrainer, setSelectedTrainer] = useState<string | null>(null);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
+
+  const [isSignIn, setIsSignIn] = useState(false);
 
   const isEmail = (val: string) => val.includes('@');
   const formatPhone = (raw: string) => {
@@ -114,7 +109,6 @@ export default function ClientLoginScreen() {
 
       if (__DEV__) console.log('[ClientLogin] Step 1: Signing up with', contactEmail);
 
-      // Step 1: Create auth account (DB trigger will attempt auto-link)
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: contactEmail,
         password,
@@ -123,7 +117,6 @@ export default function ClientLoginScreen() {
       if (signUpErr) throw signUpErr;
       if (__DEV__) console.log('[ClientLogin] Step 2: SignUp success, userId:', signUpData.user?.id);
 
-      // Step 2: Sign in immediately
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: contactEmail,
         password,
@@ -131,8 +124,6 @@ export default function ClientLoginScreen() {
       if (signInErr) throw signInErr;
       if (__DEV__) console.log('[ClientLogin] Step 3: SignIn success');
 
-      // Step 3: Explicitly link the client row (in case trigger didn't fire)
-      // This uses the lookup_client_by_contact RPC + a direct update via RPC
       const userId = signInData.user?.id;
       if (userId) {
         const { data: linkResult, error: linkErr } = await supabase.rpc('link_client_to_auth_user', {
@@ -142,7 +133,7 @@ export default function ClientLoginScreen() {
         if (__DEV__) console.log('[ClientLogin] Step 4: Link result:', JSON.stringify({ linkResult, linkErr }));
       }
 
-      setSuccess('You\'re in! Redirecting...');
+      setSuccess("You're in! Redirecting...");
     } catch (err: any) {
       console.error('[ClientLogin] Error:', err);
       setError(err.message || 'Failed to create account');
@@ -161,7 +152,6 @@ export default function ClientLoginScreen() {
 
     setLoading(true);
     try {
-      // Create auth account
       const { data, error: signUpErr } = await supabase.auth.signUp({
         email: contact.trim().toLowerCase(),
         password,
@@ -170,7 +160,6 @@ export default function ClientLoginScreen() {
       if (signUpErr) throw signUpErr;
 
       if (!selectedTrainer) {
-        // Load trainers for picker
         setLoadingTrainers(true);
         const { data: trainerList } = await supabase
           .from('trainers')
@@ -183,7 +172,6 @@ export default function ClientLoginScreen() {
         return;
       }
 
-      // If trainer already selected, create client row
       await createClientRow(data.user!.id, selectedTrainer);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
@@ -222,7 +210,6 @@ export default function ClientLoginScreen() {
     if (!result?.success) throw new Error(result?.reason || 'Failed to create client');
 
     setSuccess('Connected! Redirecting...');
-    // Auth state change will trigger navigation
   };
 
   // --- Existing user sign in ---
@@ -263,103 +250,183 @@ export default function ClientLoginScreen() {
     }
   };
 
-  const [isSignIn, setIsSignIn] = useState(false);
+  const getTitle = () => {
+    if (flowStep === 'create_password') return 'Almost there';
+    if (flowStep === 'pick_trainer') return 'Pick your coach';
+    if (isSignIn) return 'Welcome back';
+    return 'Get started';
+  };
 
-  // === RENDER ===
+  const getSubtitle = () => {
+    if (flowStep === 'create_password') return '';
+    if (flowStep === 'pick_trainer') return 'Choose a trainer to start your fitness journey with.';
+    if (isSignIn) return 'Sign in to your client account.';
+    return "Enter your email or phone and we'll check if your trainer already set you up.";
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.heroSection}>
-        <LinearGradient colors={[Colors.accent, '#FF8A65', '#FFB74D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroGradient} />
-        <View style={styles.heroContent}>
-          <Ionicons name="fitness" size={32} color={Colors.white} />
-          <Text style={styles.heroTitle}>FitLink</Text>
-          <Text style={styles.heroSub}>Client Portal</Text>
-        </View>
-      </View>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <KeyboardAvoidingView style={styles.formWrapper} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={() => flowStep === 'enter_info' ? router.back() : setFlowStep('enter_info')} style={styles.backRow}>
-            <Ionicons name="arrow-back" size={16} color={Colors.textTertiary} />
-            <Text style={styles.backText}>{flowStep === 'enter_info' ? 'Back to trainer login' : 'Back'}</Text>
-          </TouchableOpacity>
+      <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => flowStep === 'enter_info' ? router.back() : setFlowStep('enter_info')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={flowStep === 'enter_info' ? 'Go back' : 'Back'}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerLogo}>FITLINK</Text>
+          </View>
 
-          {error ? <View style={styles.errorBox}><Ionicons name="alert-circle" size={16} color={Colors.red} /><Text style={styles.errorText}>{error}</Text></View> : null}
-          {success ? <View style={styles.successBox}><Ionicons name="checkmark-circle" size={16} color={Colors.green} /><Text style={styles.successText}>{success}</Text></View> : null}
+          {/* Title + Subtitle */}
+          <Text style={styles.title}>{getTitle()}</Text>
+          {getSubtitle() ? <Text style={styles.subtitle}>{getSubtitle()}</Text> : null}
+
+          {/* Messages */}
+          {error ? (
+            <View style={styles.messageBox}>
+              <Ionicons name="alert-circle" size={18} color="#FF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          {success ? (
+            <View style={styles.messageBox}>
+              <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
+              <Text style={styles.successText}>{success}</Text>
+            </View>
+          ) : null}
 
           {/* ============ STEP 1: Enter email to check ============ */}
           {flowStep === 'enter_info' && !isSignIn && (
             <>
-              <Text style={styles.title}>Get Started</Text>
-              <Text style={styles.subtitle}>Enter your email or phone number and we'll check if your trainer already set you up.</Text>
-
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email or Phone</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name={isEmail(contact) ? 'mail-outline' : 'call-outline'} size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="email@example.com or (555) 000-0000" placeholderTextColor={Colors.textTertiary} value={contact} onChangeText={(t) => { setContact(t); setLookupStatus('idle'); }} autoCapitalize="none" autoFocus />
-                </View>
+                <Text style={styles.inputLabel}>Email or phone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="email@example.com or (555) 000-0000"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={contact}
+                  onChangeText={(t) => { setContact(t); setLookupStatus('idle'); }}
+                  autoCapitalize="none"
+                  autoFocus
+                  accessibilityLabel="Email or phone number"
+                  selectionColor="rgba(255,255,255,0.5)"
+                />
+                <View style={styles.inputLine} />
               </View>
 
               {/* Found banner */}
               {lookupStatus === 'found' && (
-                <View style={styles.foundBanner}>
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
+                <View style={styles.statusBanner}>
+                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.foundTitle}>Welcome, {foundClient?.name}! 🎉</Text>
-                    <Text style={styles.foundSub}>Your trainer {foundTrainerName} already added you. Just create a password below.</Text>
+                    <Text style={styles.bannerTitle}>Welcome, {foundClient?.name}!</Text>
+                    <Text style={styles.bannerSub}>Your trainer {foundTrainerName} already added you. Just create a password below.</Text>
                   </View>
                 </View>
               )}
 
               {lookupStatus === 'not_found' && contact.trim().length > 3 && (
                 <>
-                  <View style={styles.newBanner}>
-                    <Ionicons name="person-add" size={20} color={Colors.blue} />
+                  <View style={styles.statusBanner}>
+                    <Ionicons name="person-add" size={20} color="rgba(255,255,255,0.6)" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.newTitle}>New here? No problem!</Text>
-                      <Text style={styles.newSub}>Fill out your info below and pick your trainer.</Text>
+                      <Text style={styles.bannerTitle}>New here? No problem!</Text>
+                      <Text style={styles.bannerSub}>Fill out your info below and pick your trainer.</Text>
                     </View>
                   </View>
+
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Your Name</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                      <TextInput style={styles.input} placeholder="Your full name" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} />
-                    </View>
+                    <Text style={styles.inputLabel}>Your name</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Your full name"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={name}
+                      onChangeText={setName}
+                      accessibilityLabel="Your full name"
+                      selectionColor="rgba(255,255,255,0.5)"
+                    />
+                    <View style={styles.inputLine} />
                   </View>
+
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Create Password</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                      <TextInput style={styles.input} placeholder="6+ characters" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
-                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                    <Text style={styles.inputLabel}>Create password</Text>
+                    <View style={styles.passwordRow}>
+                      <TextInput
+                        style={[styles.input, styles.passwordInput]}
+                        placeholder="6+ characters"
+                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        accessibilityLabel="Create password"
+                        selectionColor="rgba(255,255,255,0.5)"
+                      />
+                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
                       </TouchableOpacity>
                     </View>
+                    <View style={styles.inputLine} />
                   </View>
+
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Confirm Password</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={Colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-                    </View>
+                    <Text style={styles.inputLabel}>Confirm password</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="••••••••"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry
+                      accessibilityLabel="Confirm password"
+                      selectionColor="rgba(255,255,255,0.5)"
+                    />
+                    <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
+                    {confirmPassword && password !== confirmPassword && (
+                      <Text style={styles.fieldError}>Passwords don't match</Text>
+                    )}
                   </View>
-                  <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleNewSignup} disabled={loading} activeOpacity={0.85}>
-                    <Text style={styles.submitText}>{loading ? 'Creating...' : 'Sign Up & Pick Trainer'}</Text>
-                    <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+
+                  <TouchableOpacity
+                    style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                    onPress={handleNewSignup}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={loading ? 'Creating account' : 'Sign up and pick trainer'}
+                  >
+                    <Text style={styles.submitText}>{loading ? 'Creating...' : 'Sign up & pick trainer'}</Text>
                   </TouchableOpacity>
                 </>
               )}
 
               {lookupStatus === 'idle' && (
-                <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleLookup} disabled={loading} activeOpacity={0.85}>
-                <Text style={styles.submitText}>Continue</Text><Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                <TouchableOpacity
+                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                  onPress={handleLookup}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue"
+                >
+                  <Text style={styles.submitText}>Continue</Text>
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity onPress={() => setIsSignIn(true)} style={{ marginTop: Spacing.xl, alignItems: 'center' }}>
-                <Text style={styles.toggleText}>Already have an account? <Text style={styles.toggleLink}>Sign In.</Text></Text>
+              <TouchableOpacity onPress={() => setIsSignIn(true)} style={styles.toggleRow} accessibilityRole="button" accessibilityLabel="Switch to sign in">
+                <Text style={styles.toggleText}>Already have an account? <Text style={styles.toggleLink}>Sign in</Text></Text>
               </TouchableOpacity>
             </>
           )}
@@ -367,76 +434,136 @@ export default function ClientLoginScreen() {
           {/* ============ Sign In Mode ============ */}
           {flowStep === 'enter_info' && isSignIn && (
             <>
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Sign in to your client account.</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="email@example.com"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={contact}
+                  onChangeText={setContact}
+                  autoCapitalize="none"
+                  accessibilityLabel="Email"
+                  selectionColor="rgba(255,255,255,0.5)"
+                />
+                <View style={styles.inputLine} />
+              </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email or Phone</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name={isEmail(contact) ? 'mail-outline' : 'call-outline'} size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="email@example.com or (555) 000-0000" placeholderTextColor={Colors.textTertiary} value={contact} onChangeText={setContact} autoCapitalize="none" />
-                </View>
-              </View>
-              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="••••••••"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    accessibilityLabel="Password"
+                    selectionColor="rgba(255,255,255,0.5)"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
                   </TouchableOpacity>
                 </View>
+                <View style={styles.inputLine} />
               </View>
-              <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleSignIn} disabled={loading} activeOpacity={0.85}>
-                <Text style={styles.submitText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotRow} accessibilityRole="button" accessibilityLabel="Forgot password">
+                <Text style={styles.forgotText}>Forgot password</Text>
               </TouchableOpacity>
-              <View style={{ alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.sm }}>
-                <TouchableOpacity onPress={handleForgotPassword}>
-                  <Text style={[styles.toggleLink, { textDecorationLine: 'underline' }]}>Forgot Password?</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsSignIn(false)}>
-                  <Text style={styles.toggleText}>Don't have an account? <Text style={styles.toggleLink}>Sign Up.</Text></Text>
-                </TouchableOpacity>
-              </View>
+
+              <Text style={styles.termsText}>
+                By clicking "Sign in", you agree to our{' '}
+                <Text style={styles.termsLink}>Terms and Conditions</Text> and consent to our{' '}
+                <Text style={styles.termsLink}>Privacy Policy</Text>.
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleSignIn}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={loading ? 'Signing in' : 'Sign in'}
+              >
+                <Text style={styles.submitText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setIsSignIn(false)} style={styles.toggleRow} accessibilityRole="button" accessibilityLabel="Switch to sign up">
+                <Text style={styles.toggleText}>Don't have an account? <Text style={styles.toggleLink}>Sign up</Text></Text>
+              </TouchableOpacity>
             </>
           )}
 
           {/* ============ STEP 2: Existing client — create password ============ */}
           {flowStep === 'create_password' && (
             <>
-              <Text style={styles.title}>Almost There! 🎉</Text>
-              <View style={styles.foundBanner}>
-                <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
+              <View style={styles.statusBanner}>
+                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.foundTitle}>Welcome, {foundClient?.name}!</Text>
-                  <Text style={styles.foundSub}>Coach {foundTrainerName} has everything ready for you. Just create a password to get started.</Text>
+                  <Text style={styles.bannerTitle}>Welcome, {foundClient?.name}!</Text>
+                  <Text style={styles.bannerSub}>Coach {foundTrainerName} has everything ready for you. Just create a password to get started.</Text>
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Create Password</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="6+ characters" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoFocus />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+                <Text style={styles.inputLabel}>Create password</Text>
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="6+ characters"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoFocus
+                    accessibilityLabel="Create password"
+                    selectionColor="rgba(255,255,255,0.5)"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
                   </TouchableOpacity>
                 </View>
+                <View style={styles.inputLine} />
               </View>
+
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Confirm Password</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={Colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-                </View>
+                <Text style={styles.inputLabel}>Confirm password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  accessibilityLabel="Confirm password"
+                  selectionColor="rgba(255,255,255,0.5)"
+                />
+                <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
+                {confirmPassword && password !== confirmPassword && (
+                  <Text style={styles.fieldError}>Passwords don't match</Text>
+                )}
               </View>
-              <TouchableOpacity style={[styles.submitBtn, loading && styles.submitBtnDisabled]} onPress={handleCreatePassword} disabled={loading} activeOpacity={0.85}>
-                <Text style={styles.submitText}>{loading ? 'Setting up...' : "Let's Go!"}</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+
+              <TouchableOpacity
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleCreatePassword}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={loading ? 'Setting up account' : 'Create account and continue'}
+              >
+                <Text style={styles.submitText}>{loading ? 'Setting up...' : "Let's go"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setFlowStep('enter_info'); setPassword(''); setConfirmPassword(''); setError(''); }} style={{ marginTop: Spacing.md, alignItems: 'center' }}>
-                <Text style={styles.backText}>← Change email</Text>
+
+              <TouchableOpacity
+                onPress={() => { setFlowStep('enter_info'); setPassword(''); setConfirmPassword(''); setError(''); }}
+                style={styles.toggleRow}
+                accessibilityRole="button"
+                accessibilityLabel="Change email address"
+              >
+                <Text style={styles.changeText}>← Change email</Text>
               </TouchableOpacity>
             </>
           )}
@@ -444,36 +571,51 @@ export default function ClientLoginScreen() {
           {/* ============ STEP 3: Pick a trainer ============ */}
           {flowStep === 'pick_trainer' && (
             <>
-              <Text style={styles.title}>Pick Your Coach</Text>
-              <Text style={styles.subtitle}>Choose a trainer to start your fitness journey with.</Text>
-
               {loadingTrainers ? (
-                <ActivityIndicator size="large" color={Colors.accent} style={{ marginTop: Spacing['2xl'] }} />
+                <ActivityIndicator size="large" color="rgba(255,255,255,0.6)" style={{ marginTop: Spacing['2xl'] }} />
               ) : trainers.length === 0 ? (
-                <View style={styles.emptyTrainers}>
-                  <Ionicons name="people-outline" size={40} color={Colors.textTertiary} />
+                <View style={styles.emptySection}>
+                  <Ionicons name="people-outline" size={40} color="rgba(255,255,255,0.3)" />
                   <Text style={styles.emptyText}>No trainers available yet</Text>
                 </View>
               ) : (
                 trainers.map((t) => (
-                  <TouchableOpacity key={t.id} activeOpacity={0.7} onPress={() => handlePickTrainer(t.id)} disabled={loading}>
-                    <Card style={styles.trainerCard}>
-                      <View style={styles.trainerRow}>
-                        <Avatar name={t.name} size="md" imageUrl={t.avatar_url} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.trainerName}>{t.name}</Text>
-                          {t.specialization && <Text style={styles.trainerSpec}>{t.specialization}</Text>}
-                        </View>
-                        <View style={[styles.pickBadge, { backgroundColor: Colors.accentSoft }]}>
-                          <Text style={styles.pickText}>Select</Text>
-                        </View>
+                  <TouchableOpacity
+                    key={t.id}
+                    activeOpacity={0.7}
+                    onPress={() => handlePickTrainer(t.id)}
+                    disabled={loading}
+                    style={styles.trainerCard}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select trainer ${t.name}`}
+                  >
+                    <View style={styles.trainerRow}>
+                      <Avatar name={t.name} size="md" imageUrl={t.avatar_url} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.trainerName}>{t.name}</Text>
+                        {t.specialization && <Text style={styles.trainerSpec}>{t.specialization}</Text>}
                       </View>
-                    </Card>
+                      <View style={styles.selectBadge}>
+                        <Text style={styles.selectText}>Select</Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 ))
               )}
             </>
           )}
+
+          {/* Coach Login Link */}
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/login' as any)}
+            style={styles.coachRow}
+            accessibilityRole="button"
+            accessibilityLabel="Go to coach login"
+          >
+            <Text style={styles.coachText}>
+              Are you a coach? <Text style={styles.coachLink}>Sign in here →</Text>
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -481,52 +623,279 @@ export default function ClientLoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFBFC' },
-  heroSection: { height: HERO_HEIGHT, overflow: 'hidden' },
-  heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  heroContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 30 },
-  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 26, color: Colors.white, marginTop: Spacing.xs },
-  heroSub: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: 2, letterSpacing: 1, textTransform: 'uppercase' },
-  formWrapper: { flex: 1, marginTop: -20, backgroundColor: '#FAFBFC', borderTopLeftRadius: Radius['2xl'], borderTopRightRadius: Radius['2xl'] },
-  scrollContent: { padding: Spacing.xl, paddingBottom: Spacing['4xl'] },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.lg },
-  backText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: 24, color: Colors.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 6, lineHeight: 20, marginBottom: Spacing.xl },
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: 40,
+  },
 
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: `${Colors.red}10`, padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.md },
-  errorText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.red, flex: 1 },
-  successBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: `${Colors.green}10`, padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.md },
-  successText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.green, flex: 1 },
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: SCREEN_HEIGHT * 0.06,
+    paddingBottom: Spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLogo: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 4,
+  },
 
-  inputGroup: { marginBottom: Spacing.md },
-  inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.textPrimary, marginBottom: 6 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, paddingHorizontal: Spacing.md },
-  inputIcon: { marginRight: 8 },
-  input: { flex: 1, paddingVertical: 14, fontFamily: FontFamily.body, fontSize: FontSize.base, color: Colors.textPrimary },
-  eyeBtn: { padding: 6 },
+  // Title
+  title: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 34,
+    color: '#FFFFFF',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  subtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+  },
 
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 15, marginTop: Spacing.sm, shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white },
-  toggleText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary },
-  toggleLink: { fontFamily: FontFamily.bodySemiBold, color: Colors.accent },
+  // Messages
+  messageBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: Spacing.lg,
+  },
+  errorText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: '#FF6B6B',
+    flex: 1,
+  },
+  successText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: '#4CAF50',
+    flex: 1,
+  },
 
-  foundBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, backgroundColor: `${Colors.green}10`, padding: Spacing.lg, borderRadius: Radius.lg, marginBottom: Spacing.lg, borderWidth: 1, borderColor: `${Colors.green}30` },
-  foundTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  foundSub: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4, lineHeight: 18 },
+  // Input
+  inputGroup: {
+    marginBottom: 28,
+  },
+  inputLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
+  },
+  input: {
+    fontSize: 16,
+    fontFamily: FontFamily.body,
+    color: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+  },
+  inputLine: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginTop: 2,
+  },
+  inputLineError: {
+    backgroundColor: '#FF4444',
+  },
+  fieldError: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: '#FF6B6B',
+    marginTop: 6,
+  },
 
-  newBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, backgroundColor: `${Colors.blue}10`, padding: Spacing.lg, borderRadius: Radius.lg, marginBottom: Spacing.lg, borderWidth: 1, borderColor: `${Colors.blue}30` },
-  newTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  newSub: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4, lineHeight: 18 },
+  // Password
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeBtn: {
+    padding: 8,
+  },
 
-  trainerCard: { marginBottom: Spacing.md },
-  trainerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trainerName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.textPrimary },
-  trainerSpec: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.accentText, marginTop: 2 },
-  pickBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.sm },
-  pickText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.accent },
+  // Status banners
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(255,255,255,0.15)',
+  },
+  bannerTitle: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  bannerSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
+    lineHeight: 18,
+  },
 
-  emptyTrainers: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  // Forgot
+  forgotRow: {
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+  },
+  forgotText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: '#FFFFFF',
+    textDecorationLine: 'underline',
+  },
+
+  // Terms
+  termsText: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: 18,
+    marginBottom: Spacing.xl,
+  },
+  termsLink: {
+    textDecorationLine: 'underline',
+    color: 'rgba(255,255,255,0.6)',
+  },
+
+  // Submit
+  submitBtn: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 4,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  submitBtnDisabled: {
+    opacity: 0.4,
+  },
+  submitText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  // Toggle
+  toggleRow: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  toggleText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  toggleLink: {
+    fontFamily: FontFamily.bodySemiBold,
+    color: '#FFFFFF',
+    textDecorationLine: 'underline',
+  },
+  changeText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+  },
+
+  // Trainer picker
+  trainerCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  trainerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  trainerName: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  trainerSpec: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  selectBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  selectText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+
+  // Empty
+  emptySection: {
+    alignItems: 'center',
+    paddingVertical: Spacing['4xl'],
+    gap: Spacing.md,
+  },
+  emptyText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
+  },
+
+  // Coach link
+  coachRow: {
+    marginTop: Spacing['2xl'],
+    alignItems: 'center',
+    paddingBottom: Spacing.xl,
+  },
+  coachText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  coachLink: {
+    fontFamily: FontFamily.bodySemiBold,
+    color: '#FFFFFF',
+    textDecorationLine: 'underline',
+  },
 });

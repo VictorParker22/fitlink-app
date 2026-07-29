@@ -32,6 +32,11 @@ export default function CheckoutScreen() {
   const client = clients.find((c) => c.id === clientId);
 
   const handlePayment = useCallback(async () => {
+    if (!trainer?.stripe_onboarding_complete) {
+      Alert.alert('Payment Setup Required', 'The coach needs to complete Stripe setup before accepting payments.');
+      return;
+    }
+
     if (!plan || !client || !trainer) {
       Alert.alert('Error', 'Missing plan, client, or trainer information.');
       return;
@@ -144,6 +149,16 @@ export default function CheckoutScreen() {
             ${Number(plan.price).toFixed(2)}
             <Text style={styles.planPeriod}> / {(plan as any).period || 'month'}</Text>
           </Text>
+          <View style={styles.feeBreakdown}>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Platform fee (10%)</Text>
+              <Text style={styles.feeValue}>${(Number(plan.price) * 0.10).toFixed(2)}</Text>
+            </View>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Coach receives</Text>
+              <Text style={styles.feeValueHighlight}>${(Number(plan.price) * 0.90).toFixed(2)}</Text>
+            </View>
+          </View>
           <View style={styles.divider} />
           <View style={styles.clientRow}>
             <Ionicons name="person" size={16} color={colors.textTertiary} />
@@ -218,6 +233,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.xl, color: colors.textPrimary },
   planPrice: { fontFamily: FontFamily.headingExtraBold, fontSize: 36, color: colors.accent, marginTop: Spacing.xs },
   planPeriod: { fontFamily: FontFamily.body, fontSize: FontSize.lg, color: colors.textTertiary },
+  feeBreakdown: { width: '100%', marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border, gap: Spacing.xs },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.sm },
+  feeLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
+  feeValue: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary },
+  feeValueHighlight: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.green },
   divider: { height: 1, backgroundColor: colors.border, width: '100%', marginVertical: Spacing.lg },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   clientName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textSecondary },

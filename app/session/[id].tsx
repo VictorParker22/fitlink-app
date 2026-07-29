@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../context/ThemeContext';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import Avatar from '../../components/Avatar';
+import { useRestChime } from '../../hooks/useRestChime';
 
 // ─── Types ──────────────────────────────────────────────────
 interface SetLog {
@@ -140,6 +141,33 @@ export default function TrainerSessionScreen() {
     }));
   }, []);
 
+  const { triggerRestCue, triggerCountdownTick } = useRestChime();
+  const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Rest timer countdown
+  useEffect(() => {
+    if (restRemaining !== null && restRemaining > 0) {
+      restTimerRef.current = setInterval(() => {
+        setRestRemaining((prev) => {
+          if (prev === null || prev <= 1) {
+            if (restTimerRef.current) clearInterval(restTimerRef.current);
+            triggerRestCue();
+            return null;
+          }
+          const nextVal = prev - 1;
+          if (nextVal <= 3) {
+            triggerCountdownTick(nextVal);
+          }
+          return nextVal;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (restTimerRef.current) clearInterval(restTimerRef.current);
+    };
+  }, [restRemaining, triggerRestCue, triggerCountdownTick]);
+
   const completeSet = useCallback((exIdx: number, setIdx: number) => {
     setExerciseStates((prev) => {
       const updated = prev.map((ex, i) => {
@@ -153,6 +181,10 @@ export default function TrainerSessionScreen() {
       if (set.completed) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         
+        // Start rest timer if exercise specifies restSeconds or default to 60s
+        const restSecs = updated[exIdx].restSeconds || 60;
+        setRestRemaining(restSecs);
+
         // Auto-expand next if done
         const allDone = updated[exIdx].sets.every((s) => s.completed);
         if (allDone && exIdx < updated.length - 1) {
@@ -395,8 +427,28 @@ export default function TrainerSessionScreen() {
         </TouchableOpacity>
         </>
         )}
-        <View style={{ height: 40 }} />
+        <View style={{ height: restRemaining !== null ? 90 : 40 }} />
       </ScrollView>
+
+      {/* Floating Rest Timer Bar */}
+      {restRemaining !== null && (
+        <View style={styles.restTimerFloatingBar}>
+          <View style={styles.restTimerInfo}>
+            <Ionicons name="timer-outline" size={20} color="#FFD700" />
+            <Text style={styles.restTimerLabel}>REST TIMER</Text>
+            <Text style={styles.restTimerTime}>{formatTime(restRemaining)}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.restTimerSkipBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setRestRemaining(null);
+            }}
+          >
+            <Text style={styles.restTimerSkipText}>SKIP</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -419,7 +471,7 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   awProgressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 3 },
   awProgressLabel: { fontFamily: FontFamily.bodyMedium, fontSize: 12, color: 'rgba(255,255,255,0.6)', alignSelf: 'flex-end' },
 
-  awExCard: { backgroundColor: colors.cardBg, borderRadius: Radius.xl, marginBottom: Spacing.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  awExCard: { backgroundColor: colors.bgCard, borderRadius: Radius.xl, marginBottom: Spacing.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   awExCardDone: { borderColor: `${colors.green}50`, backgroundColor: isDark ? '#141E18' : '#F0FDF4' },
   awExHeader: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.md },
   awExIdx: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
@@ -454,4 +506,55 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   awSummaryStatLabel: { fontFamily: FontFamily.bodyMedium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
   awSummaryFinishBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: Radius.full, backgroundColor: colors.green, gap: 8 },
   awSummaryFinishBtnText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: '#FFF' },
+
+  restTimerFloatingBar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    backgroundColor: '#0C0C0E',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  restTimerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  restTimerLabel: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 10,
+    color: '#FFD700',
+    letterSpacing: 1.5,
+  },
+  restTimerTime: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
+    marginLeft: 4,
+  },
+  restTimerSkipBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  restTimerSkipText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1,
+  },
 });

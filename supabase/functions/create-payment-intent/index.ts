@@ -65,6 +65,29 @@ serve(async (req) => {
       )
     }
 
+    // Fetch trainer's Stripe Connect account
+    const { data: trainer, error: trainerError } = await supabaseAdmin
+      .from('trainers')
+      .select('stripe_account_id, stripe_charges_enabled')
+      .eq('id', trainerId)
+      .single()
+
+    if (trainerError || !trainer) {
+      return new Response(
+        JSON.stringify({ error: 'Trainer not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!trainer.stripe_charges_enabled) {
+      return new Response(
+        JSON.stringify({ error: 'Coach has not completed payment setup' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const trainerStripeAccountId = trainer.stripe_account_id
+
     // Create or retrieve Stripe Customer
     let stripeCustomerId = client.stripe_customer_id
 
@@ -92,6 +115,10 @@ serve(async (req) => {
       amount,
       currency: 'usd',
       customer: stripeCustomerId,
+      application_fee_amount: Math.round(amount * 0.10),
+      transfer_data: {
+        destination: trainerStripeAccountId,
+      },
       metadata: {
         fitlink_plan_id: planId,
         fitlink_client_id: clientId,

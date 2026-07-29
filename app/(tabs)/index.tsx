@@ -1,1115 +1,803 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState, useCallback, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BarChart } from 'react-native-gifted-charts';
+import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { ThemeColors } from '../../context/ThemeContext';
-import Card from '../../components/Card';
-import Avatar from '../../components/Avatar';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const METRIC_CARD_WIDTH = (SCREEN_WIDTH - 48 - 12) / 2; // 2 visible + peek
-const METRIC_CARD_HEIGHT = 170;
+import { FontFamily, Radius } from '../../constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import GlobalSearchModal from '../../components/dashboard/GlobalSearchModal';
+import AlertPill, { AlertPillProps } from '../../components/dashboard/AlertPill';
+import ClientPulseModal from '../../components/dashboard/ClientPulseModal';
+import { Client } from '../../context/AppContext';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const {
-    trainer, activeClients, todaySessions, totalReferrals,
-    totalMonthlyRevenue, activities, upcomingSessions,
-    getClientById, refreshData, loading, sessions,
-    plans, clients, referrals, trialClients, notifications,
-  } = useApp();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { trainer, clients, plans, sessions, notifications } = useApp();
+  const { colors } = useTheme();
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const [isSearchVisible, setIsSearchVisible] = React.useState(false);
+  const [selectedPulseClient, setSelectedPulseClient] = React.useState<Client | null>(null);
 
-  const [refreshing, setRefreshing] = useState(false);
+  const activeClients = clients.filter(c => c.status !== 'inactive');
+  const activeClientsCount = activeClients.length;
+  const firstName = (trainer?.name || 'Victor').split(' ')[0];
+  const initials = (trainer?.name || 'VP').substring(0, 2).toUpperCase();
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refreshData();
-    setRefreshing(false);
-  }, [refreshData]);
-
-  const firstName = trainer?.name?.split(' ')[0] || 'Coach';
-  const todayDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-  const completedSessions = sessions.filter((s) => s.status === 'completed').length;
-
-  // Next upcoming session
-  const nextSession = upcomingSessions[0];
-  const nextClient = nextSession ? getClientById(nextSession.client_id || '') : null;
-  const nextSessionDate = nextSession ? new Date(nextSession.date) : null;
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'signup': return { icon: 'person-add', color: colors.green };
-      case 'session': return { icon: 'calendar', color: colors.blue };
-      case 'referral': return { icon: 'share', color: colors.purple };
-      case 'payment': return { icon: 'cash', color: colors.accent };
-      default: return { icon: 'pulse', color: colors.textTertiary };
-    }
-  };
-
-  const getTimeAgo = (timestamp: string) => {
-    const diff = Date.now() - new Date(timestamp).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  };
-
-  // Compute real weekly performance data
-  const chartData = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const counts = [0, 0, 0, 0, 0, 0, 0];
-    
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
-    sessions.forEach(s => {
-      if (s.status === 'completed') {
-        const d = new Date(s.date);
-        if (d >= oneWeekAgo && d <= now) {
-          const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1;
-          counts[dayIndex]++;
-        }
-      }
+  // Calculate actual money made from plans and active subs
+  const actualEarnings = useMemo(() => {
+    let total = 0;
+    plans.forEach(plan => {
+      const subs = activeClients.filter(c => c.plan_id === plan.id).length;
+      const gross = Number(plan.price || 0) * subs;
+      const net = gross * 0.9; // 10% platform fee as per earnings.tsx
+      total += net;
     });
+    return total;
+  }, [clients, plans]);
 
-    const currentDayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
-    return days.map((day, i) => ({
-      value: Math.max(0.5, counts[i]), // BarChart needs > 0
-      label: day,
-      frontColor: i === currentDayIndex ? Colors.accentHover : Colors.accent,
-      topLabelComponent: () => null,
-    }));
+  // Notifications and Sessions logic
+  const unreadNotifs = notifications?.filter(n => !n.is_read).length || 0;
+  
+  const nextSession = useMemo(() => {
+    const now = new Date().getTime();
+    const upcoming = sessions
+      .filter(s => new Date(s.date).getTime() > now && s.status === 'upcoming')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return upcoming.length > 0 ? upcoming[0] : null;
   }, [sessions]);
 
+  const todayIndex = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+  const completedThisWeek = 0;
 
-  const metricCards = [
-    {
-      label: 'Clients',
-      value: String(activeClients.length),
-      icon: 'people',
-      gradient: ['#FF6B35', '#FF8F65'] as const,
-    },
-    {
-      label: 'Sessions',
-      value: String(todaySessions.length),
-      icon: 'calendar',
-      gradient: ['#6C9BF2', '#8BB5FF'] as const,
-    },
-    {
-      label: 'Revenue',
-      value: `$${totalMonthlyRevenue.toLocaleString()}`,
-      icon: 'cash-outline',
-      gradient: ['#22C55E', '#4ADE80'] as const,
-    },
-    {
-      label: 'Referrals',
-      value: String(totalReferrals),
-      icon: 'share-social',
-      gradient: ['#A78BFA', '#C4B5FD'] as const,
-    },
-  ];
+  // Compute Dynamic Action Alerts
+  const actionAlerts = useMemo(() => {
+    const alerts: AlertPillProps[] = [];
+    
+    // Check for trial clients
+    const trialClient = clients.find(c => c.status === 'trial');
+    if (trialClient) {
+      alerts.push({
+        id: 'trial-ending',
+        type: 'warning',
+        icon: 'time-outline',
+        title: `Trial Ending: ${trialClient.name}`,
+        subtitle: 'Trial expires soon. Tap to follow up.',
+        actionText: 'Review',
+        onPress: () => setSelectedPulseClient(trialClient),
+      });
+    }
 
-  if (loading || !trainer) return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary, justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
-      <ActivityIndicator size="large" color={colors.accent} />
-    </SafeAreaView>
-  );
+    // Check for unread notifications
+    if (unreadNotifs > 0) {
+      alerts.push({
+        id: 'unread-notifs',
+        type: 'urgent',
+        icon: 'notifications-outline',
+        title: `${unreadNotifs} Unread Notifications`,
+        subtitle: 'Action required on recent client activity.',
+        actionText: 'View',
+        onPress: () => router.push('/notifications'),
+      });
+    }
+
+    // Default alert if no active urgent items
+    if (alerts.length === 0) {
+      alerts.push({
+        id: 'roster-check',
+        type: 'info',
+        icon: 'sparkles-outline',
+        title: 'Roster Insights',
+        subtitle: `${activeClientsCount} active clients on track this week.`,
+        actionText: 'Roster',
+        onPress: () => router.push('/(tabs)/clients'),
+      });
+    }
+
+    return alerts;
+  }, [clients, unreadNotifs, activeClientsCount]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-      >
-        {/* ── SECTION 1: Dark Hero Header ── */}
-        <LinearGradient
-          colors={['#1C1C21', '#2A2A32', '#1C1C21']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
-          {/* Top row: date + notification */}
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroDateRow}>
-              <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.heroDateText}>{todayDate}</Text>
-            </View>
-            <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/notifications' as any)}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.white} />
-              {unreadCount > 0 && (
-                <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>{Math.min(unreadCount, 99)}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Main row: avatar + greeting */}
-          <TouchableOpacity style={styles.heroMainRow} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile')}>
-            <Avatar name={trainer?.name || 'Coach'} size="lg" imageUrl={trainer?.avatar_url} />
-            <View style={styles.heroTextCol}>
-              <Text style={styles.heroGreeting}>Hello, {firstName}!</Text>
-              <View style={styles.heroBadges}>
-                <View style={styles.heroBadge}>
-                  <Ionicons name="people" size={11} color="#FF6B35" />
-                  <Text style={styles.heroBadgeText}>{activeClients.length} Active</Text>
-                </View>
-                <Text style={styles.heroDot}>·</Text>
-                <View style={styles.heroBadge}>
-                  <Ionicons name="calendar" size={11} color="#6C9BF2" />
-                  <Text style={styles.heroBadgeText}>{todaySessions.length} Today</Text>
-                </View>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
-          </TouchableOpacity>
-        </LinearGradient>
-
-        {/* ── SECTION 2: Business Metrics ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Business Metrics</Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.metricsScroll}
-          decelerationRate="fast"
-          snapToInterval={METRIC_CARD_WIDTH + 12}
-        >
-          {metricCards.map((card, i) => (
-            <LinearGradient
-              key={i}
-              colors={[card.gradient[0], card.gradient[1]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.metricCard}
-            >
-              {/* Top: label + icon */}
-              <View style={styles.metricTopRow}>
-                <Text style={styles.metricLabel}>{card.label}</Text>
-                <View style={styles.metricIconBubble}>
-                  <Ionicons name={card.icon as any} size={14} color={Colors.white} />
-                </View>
-              </View>
-
-              {/* Middle: icon accent area */}
-              <View style={styles.metricChartArea}>
-                <Ionicons name={card.icon as any} size={36} color="rgba(255,255,255,0.25)" />
-              </View>
-
-              {/* Bottom: value */}
-              <Text style={styles.metricValue}>{card.value}</Text>
-            </LinearGradient>
-          ))}
-        </ScrollView>
-
-        {/* ── SECTION 3: Next Session Card ── */}
-        {nextSession && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                Next Session
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/schedule')}>
-                <Ionicons name="ellipsis-horizontal" size={20} color={colors.textTertiary} />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.sessionCard}
-              activeOpacity={0.9}
-              onPress={() => router.push(`/session/${nextSession.id}` as any)}
-            >
-              <Image
-                source={require('../../assets/images/session-bg.png')}
-                style={styles.sessionBgImage}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
-                locations={[0.1, 0.5, 1]}
-                style={styles.sessionGradient}
-              />
-
-              {/* Top pills */}
-              <View style={styles.sessionTopPills}>
-                <View style={styles.sessionPill}>
-                  <Ionicons name="time-outline" size={12} color={Colors.white} />
-                  <Text style={styles.sessionPillText}>
-                    {nextSessionDate?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                  </Text>
-                </View>
-                <View style={styles.sessionPill}>
-                  <Ionicons name="flame-outline" size={12} color={Colors.white} />
-                  <Text style={styles.sessionPillText}>{nextSession.duration}min</Text>
-                </View>
-              </View>
-
-              {/* Bottom info */}
-              <View style={styles.sessionBottomRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sessionTitle}>
-                    {nextClient?.name || nextSession.group_name || 'Session'}
-                  </Text>
-                  <View style={styles.sessionMetaRow}>
-                    <Text style={styles.sessionMeta}>
-                      {nextSessionDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </Text>
-                    <View style={styles.sessionTypeBadge}>
-                      <Text style={styles.sessionTypeText}>{nextSession.type}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.sessionPlayBtn}>
-                  <Ionicons name="arrow-forward" size={20} color={Colors.white} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── Quick Actions ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-        <View style={styles.quickActions}>
-          {[
-            { label: 'Add Client', icon: 'person-add', color: Colors.accent, route: '/(tabs)/clients' },
-            { label: 'Book Session', icon: 'calendar-outline', color: Colors.blue, route: '/book-session' },
-            { label: 'Message', icon: 'chatbubble', color: Colors.green, route: '/(tabs)/messages' },
-            { label: 'Invite', icon: 'share-social', color: Colors.purple, route: '/referrals' },
-          ].map((action, i) => (
-            <TouchableOpacity 
-              key={i} 
-              style={styles.quickAction} 
-              onPress={() => action.label === 'Add Client' ? router.push('/add-client' as any) : router.push(action.route as any)} 
-              activeOpacity={0.7}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}14` }]}>
-                <Ionicons name={action.icon as any} size={22} color={action.color} />
-              </View>
-              <Text style={styles.quickActionLabel}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── SECTION 4: Active Plans (horizontal scroll, like Diet & Nutrition) ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Plans</Text>
-          <TouchableOpacity onPress={() => router.push('/subscriptions' as any)}>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.plansScroll}
-          decelerationRate="fast"
-          snapToInterval={SCREEN_WIDTH * 0.68 + 12}
-        >
-          {plans.length > 0 ? plans.map((plan, i) => {
-            const planClients = clients.filter(c => c.plan_id === plan.id && c.status === 'active');
-            return (
-              <TouchableOpacity
-                key={plan.id}
-                style={styles.planCard}
-                activeOpacity={0.9}
-                onPress={() => router.push('/subscriptions' as any)}
-              >
-                {/* Plan info badges */}
-                <View style={styles.planBadges}>
-                  <View style={styles.planBadge}>
-                    <Text style={styles.planBadgeValue}>{planClients.length}</Text>
-                    <Text style={styles.planBadgeLabel}>Clients</Text>
-                  </View>
-                  <View style={styles.planBadge}>
-                    <Text style={styles.planBadgeValue}>${plan.price}</Text>
-                    <Text style={styles.planBadgeLabel}>{plan.interval}</Text>
-                  </View>
-                </View>
-
-                {/* Plan icon */}
-                <View style={styles.planIconCenter}>
-                  <LinearGradient
-                    colors={[Colors.accentSoft, '#FFF0E8']}
-                    style={styles.planIconGradient}
-                  >
-                    <Ionicons name="document-text-outline" size={32} color={Colors.accent} />
-                  </LinearGradient>
-                </View>
-
-                {/* Plan name + meta */}
-                <Text style={styles.planName} numberOfLines={1}>{plan.name}</Text>
-                <View style={styles.planMetaRow}>
-                  <View style={styles.planMetaItem}>
-                    <Ionicons name="cash-outline" size={11} color={colors.textTertiary} />
-                    <Text style={styles.planMetaText}>${plan.price}/{plan.interval === 'monthly' ? 'mo' : plan.interval}</Text>
-                  </View>
-                  <Text style={styles.planMetaDot}>·</Text>
-                  <View style={styles.planMetaItem}>
-                    <Ionicons name="people-outline" size={11} color={colors.textTertiary} />
-                    <Text style={styles.planMetaText}>{planClients.length} enrolled</Text>
-                  </View>
-                </View>
-
-                {/* Orange arrow button */}
-                <View style={styles.planArrowBtn}>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.white} />
-                </View>
-              </TouchableOpacity>
-            );
-          }) : (
-            <TouchableOpacity
-              style={styles.planCardEmpty}
-              activeOpacity={0.8}
-              onPress={() => router.push('/subscriptions' as any)}
-            >
-              <Ionicons name="add-circle-outline" size={36} color={Colors.accent} />
-              <Text style={styles.planEmptyText}>Create your first plan</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-
-        {/* ── SECTION 5: Weekly Performance (like Activities chart card) ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Performance</Text>
-        </View>
-        <Card style={styles.perfCard}>
-          {/* Time period label */}
-          <View style={styles.perfTabs}>
-            <View style={styles.perfTabActive}>
-              <Text style={styles.perfTabTextActive}>This Week</Text>
-            </View>
-          </View>
-
-          {/* Real chart */}
-          <View style={styles.perfChartArea}>
-            <BarChart
-              data={chartData}
-              barWidth={20}
-              barBorderTopLeftRadius={6}
-              barBorderTopRightRadius={6}
-              spacing={12}
-              noOfSections={4}
-              hideRules={false}
-              rulesColor={colors.border}
-              rulesType="dashed"
-              xAxisColor={'transparent'}
-              yAxisColor={'transparent'}
-              yAxisTextStyle={{ color: colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
-              xAxisLabelTextStyle={{ color: colors.textTertiary, fontFamily: FontFamily.body, fontSize: 9 }}
-              isAnimated
-              animationDuration={600}
-              height={100}
-              width={SCREEN_WIDTH - 120}
-              disablePress
-            />
-          </View>
-
-          {/* Big value + sub stats */}
-          <View style={styles.perfBottomRow}>
-            <View>
-              <Text style={styles.perfBigValue}>{completedSessions}</Text>
-              <View style={styles.perfSubStats}>
-                <Ionicons name="trending-up" size={12} color={Colors.green} />
-                <Text style={styles.perfSubText}>+{todaySessions.length} today</Text>
-                <Text style={styles.perfSubDot}>·</Text>
-                <Ionicons name="people-outline" size={12} color={colors.textTertiary} />
-                <Text style={styles.perfSubText}>{activeClients.length} clients</Text>
-              </View>
-            </View>
-            <View style={styles.perfActionBtn}>
-              <Ionicons name="fitness-outline" size={20} color={Colors.white} />
-            </View>
-          </View>
-        </Card>
-
-        {/* ── SECTION 6: Referral Program (like Virtual AI Coach promo card) ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Referral Program</Text>
-          <TouchableOpacity onPress={() => router.push('/referrals' as any)}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={styles.promoCard}
-          activeOpacity={0.9}
-          onPress={() => router.push('/referrals' as any)}
-        >
-          <Image
-            source={require('../../assets/images/welcome-3.png')}
-            style={styles.promoBgImage}
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
+        
+        {/* HERO BACKGROUND (ABSOLUTE) */}
+        <View style={styles.heroBgContainer}>
+          <Image 
+            source={require('../../assets/images/milestone-bg.png')} 
+            style={styles.heroImg}
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['rgba(255,107,53,0.85)', 'rgba(255,107,53,0.6)', 'rgba(0,0,0,0.7)']}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.promoGradient}
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)', '#000000']}
+            style={StyleSheet.absoluteFillObject}
           />
-
-          {/* Top pills */}
-          <View style={styles.promoTopPills}>
-            <View style={styles.promoPill}>
-              <Text style={styles.promoPillText}>Earn Rewards</Text>
-            </View>
-            <View style={styles.promoPill}>
-              <Text style={styles.promoPillText}>Free Tier</Text>
-            </View>
-          </View>
-
-          {/* Bottom */}
-          <View style={styles.promoBottom}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.promoBigValue}>{totalReferrals}</Text>
-              <Text style={styles.promoSubtext}>Total Referrals</Text>
-            </View>
-            <View style={styles.promoBtn}>
-              <Ionicons name="share-social" size={18} color={Colors.accent} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* ── SECTION 7: Top Clients (like Fitness Resources list) ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Top Clients</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/clients')}>
-            <Text style={styles.seeAll}>See All</Text>
-          </TouchableOpacity>
         </View>
-        {activeClients.length > 0 ? (
-          <Card noPadding style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.xl }}>
-            {activeClients.slice(0, 4).map((client, i) => {
-              const clientSessions = sessions.filter(s => s.client_id === client.id && s.status === 'completed').length;
-              return (
-                <TouchableOpacity
-                  key={client.id}
-                  style={[styles.clientListItem, i < Math.min(activeClients.length, 4) - 1 && styles.clientListBorder]}
-                  activeOpacity={0.7}
-                  onPress={() => router.push(`/client/${client.id}` as any)}
-                >
-                  <Avatar name={client.name} size="md" imageUrl={client.avatar_url} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.clientListName}>{client.name}</Text>
-                    <View style={styles.clientListMeta}>
-                      <Ionicons name="flame" size={11} color={Colors.accent} />
-                      <Text style={styles.clientListMetaText}>{clientSessions} completed</Text>
-                      <Text style={styles.clientListDot}>·</Text>
-                      <Ionicons name="card" size={11} color={colors.textTertiary} />
-                      <Text style={styles.clientListMetaText}>{plans.find(p => p.id === client.plan_id)?.name || 'Custom Plan'}</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+        
+        <SafeAreaView edges={['top']} style={styles.heroContentWrapper}>
+            {/* TOP BAR */}
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.avatarBtn}>
+                {trainer?.avatar_url ? (
+                  <Image source={{ uri: trainer.avatar_url }} style={styles.avatarImg} />
+                ) : (
+                  <Text style={styles.avatarText}>{initials}</Text>
+                )}
+              </TouchableOpacity>
+              
+              <View style={styles.topBarIcons}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => setIsSearchVisible(true)}>
+                  <Ionicons name="search" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
-              );
-            })}
-          </Card>
-        ) : (
-          <Card style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.xl }}>
-            <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={32} color={colors.textTertiary} />
-              <Text style={styles.emptyText}>No clients yet</Text>
-              <Text style={styles.emptySubtext}>Add your first client to get started</Text>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/schedule')}>
+                  <Ionicons name="calendar-outline" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+                  <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+                  {unreadNotifs > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.scheduleBtn} onPress={() => router.push('/(tabs)/schedule')}>
+                  <Text style={styles.scheduleText}>Schedule</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </Card>
-        )}
-
-        {/* ── Upcoming Sessions List ── */}
-        {upcomingSessions.length > 1 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming ({upcomingSessions.length})</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/schedule')}>
-                <Text style={styles.seeAll}>See All</Text>
+            
+            {/* TEXT CONTENT */}
+            <View style={styles.heroContent}>
+              <Text style={styles.bizOverview}>BUSINESS OVERVIEW</Text>
+              <Text style={styles.revenue}>${Math.floor(actualEarnings)}</Text>
+              <Text style={styles.greeting}>
+                Good afternoon, {firstName}! You have {activeClientsCount} active client{activeClientsCount !== 1 ? 's' : ''} under your roster.
+              </Text>
+              
+              <TouchableOpacity style={styles.rosterBtn} onPress={() => router.push('/(tabs)/clients')}>
+                <Text style={styles.rosterText}>Client Roster</Text>
+                <View style={styles.rosterArrow}>
+                  <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                </View>
               </TouchableOpacity>
             </View>
-            {upcomingSessions.slice(1, 4).map((session) => {
-              const client = getClientById(session.client_id || '');
-              const dt = new Date(session.date);
-              return (
-                <Card key={session.id} style={styles.upcomingCard}>
-                  <View style={styles.upcomingRow}>
-                    {client ? <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} /> : (
-                      <View style={styles.groupAvatar}><Text style={styles.groupAvatarText}>G</Text></View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.upcomingName}>{client?.name || session.group_name}</Text>
-                      <Text style={styles.upcomingMeta}>
-                        {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      </Text>
-                    </View>
-                    <View style={[styles.upcomingTypeBadge, { backgroundColor: `${Colors.blue}18` }]}>
-                      <Text style={[styles.upcomingTypeText, { color: Colors.blue }]}>{session.type}</Text>
-                    </View>
-                  </View>
-                </Card>
-              );
-            })}
-          </>
-        )}
+        </SafeAreaView>
 
-        {/* ── Recent Activity ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+        {/* ACTION CENTER */}
+        <View style={styles.actionCenterSection}>
+          <Text style={styles.sectionHeaderLabel}>ACTION CENTER</Text>
+          {actionAlerts.map(alert => (
+            <AlertPill key={alert.id} {...alert} />
+          ))}
         </View>
-        {activities.length === 0 ? (
-          <Card style={{ marginHorizontal: Spacing.base }}>
-            <View style={styles.emptyState}>
-              <Ionicons name="pulse-outline" size={32} color={colors.textTertiary} />
-              <Text style={styles.emptyText}>No activity yet</Text>
-              <Text style={styles.emptySubtext}>Start by adding clients and booking sessions</Text>
+
+        {/* METRICS GRID */}
+        <View style={styles.contentRow}>
+          {/* NEXT UP */}
+          <View style={styles.contentCol}>
+            <Text style={styles.verticalLabel}>NEXT UP</Text>
+            <View style={styles.contentInner}>
+              {nextSession ? (
+                <>
+                  <Ionicons name="calendar" size={32} color="#6C9BF2" />
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.sessionTitle} numberOfLines={1}>
+                      {clients.find(c => c.id === nextSession.client_id)?.name || nextSession.group_name || 'Session'}
+                    </Text>
+                    <Text style={styles.sessionTime}>
+                      {new Date(nextSession.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="calendar-outline" size={32} color="rgba(255,255,255,0.2)" />
+                  <Text style={styles.emptyMetricText}>No upcoming sessions</Text>
+                </>
+              )}
             </View>
-          </Card>
-        ) : (
-          <Card noPadding style={{ marginHorizontal: Spacing.base }}>
-            {activities.slice(0, 5).map((activity, i) => {
-              const meta = getActivityIcon(activity.type);
-              return (
-                <View key={activity.id} style={[styles.activityItem, i < activities.slice(0, 5).length - 1 && styles.activityBorder]}>
-                  <View style={[styles.activityIcon, { backgroundColor: `${meta.color}14` }]}>
-                    <Ionicons name={meta.icon as any} size={15} color={meta.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.activityMessage} numberOfLines={1}>{activity.message}</Text>
-                    <Text style={styles.activityTime}>{getTimeAgo(activity.timestamp)}</Text>
-                  </View>
+          </View>
+          
+          {/* PERFORMANCE */}
+          <View style={styles.contentCol}>
+            <Text style={styles.verticalLabel}>PERFORMANCE</Text>
+            <View style={styles.performanceInner}>
+              {/* Circular Progress */}
+              <View style={styles.progressCircle}>
+                <View style={styles.progressInner}>
+                  <Text style={styles.progressNumber}>{completedThisWeek}</Text>
                 </View>
-              );
-            })}
-          </Card>
-        )}
+              </View>
+              <Text style={styles.progressSubtext}>of 5 this week</Text>
+              
+              {/* Day tracker */}
+              <View style={styles.daysRow}>
+                {['M','T','W','T','F','S','S'].map((day, i) => (
+                  <View key={i} style={[
+                    styles.dayCircle,
+                    i === todayIndex && styles.dayCircleToday
+                  ]}>
+                    <Text style={[
+                      styles.dayText,
+                      i === todayIndex && styles.dayTextToday
+                    ]}>{day}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              <View style={styles.lightningRow}>
+                <Ionicons name="flash" size={12} color="#FFFFFF" />
+                <Text style={styles.lightningText}>0 done this week</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* QUICK ACTIONS */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.quickActionsScroll}
+          style={styles.quickActionsContainer}
+        >
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/(tabs)/clients')} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#1A0C0C', borderColor: '#FF6B6B' }]}>
+              <Ionicons name="person-add-outline" size={20} color="#FF6B6B" />
+            </View>
+            <Text style={styles.actionText}>ADD CLIENT</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/(tabs)/schedule')} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#0C1420', borderColor: '#4D94FF' }]}>
+              <Ionicons name="calendar-outline" size={20} color="#4D94FF" />
+            </View>
+            <Text style={styles.actionText}>BOOK SESSION</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/subscriptions')} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#1A1500', borderColor: '#EAB308' }]}>
+              <Ionicons name="ticket-outline" size={20} color="#EAB308" />
+            </View>
+            <Text style={styles.actionText}>SEASON PASSES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/(tabs)/messages')} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#0C1C12', borderColor: '#22C55E' }]}>
+              <Ionicons name="chatbubble-outline" size={20} color="#22C55E" />
+            </View>
+            <Text style={styles.actionText}>MESSAGES</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/create-class' as any)} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#160C20', borderColor: '#A855F7' }]}>
+              <Ionicons name="videocam-outline" size={20} color="#A855F7" />
+            </View>
+            <Text style={styles.actionText}>NEW CLASS</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionItem} onPress={() => router.push('/(tabs)/programs')} activeOpacity={0.8}>
+            <View style={[styles.actionIcon, { backgroundColor: '#160C20', borderColor: '#A855F7' }]}>
+              <Ionicons name="document-text-outline" size={20} color="#A855F7" />
+            </View>
+            <Text style={styles.actionText}>NEW PLAN</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* CLIENT PULSE (HORIZONTAL FEED) */}
+        <View style={styles.pulseSection}>
+          <View style={styles.pulseHeader}>
+            <Text style={styles.sectionTitle}>Client Pulse</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/clients')}>
+              <Text style={styles.seeAllText}>See Roster →</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pulseScroll}>
+            {activeClients.map(client => (
+              <TouchableOpacity 
+                key={client.id} 
+                style={styles.pulseCard} 
+                activeOpacity={0.8}
+                onPress={() => setSelectedPulseClient(client)}
+              >
+                <View style={styles.pulseAvatarWrapper}>
+                  {client.avatar_url ? (
+                    <Image source={{ uri: client.avatar_url }} style={styles.pulseAvatarImg} />
+                  ) : (
+                    <Text style={styles.pulseAvatarText}>{client.name.substring(0, 2).toUpperCase()}</Text>
+                  )}
+                  <View style={[styles.pulseStatusDot, { backgroundColor: client.status === 'active' ? '#22C55E' : '#F59E0B' }]} />
+                </View>
+                <Text style={styles.pulseName} numberOfLines={1}>{client.name.split(' ')[0]}</Text>
+                <Text style={styles.pulseMeta}>{client.completed_workouts || 0} workouts · {client.xp || 0} XP</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* LIVE ACTIVITY STREAM */}
+        <View style={styles.activitySection}>
+          <Text style={styles.sectionTitle}>Live Activity Stream</Text>
+          
+          <View style={styles.activityCard}>
+            <View style={styles.timelineItem}>
+              <View style={styles.timelineIconBg}>
+                <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              </View>
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Workout Completed</Text>
+                <Text style={styles.timelineSub}>Active client logged today's session</Text>
+              </View>
+              <Text style={styles.timelineTime}>Today</Text>
+            </View>
+
+            <View style={styles.timelineDivider} />
+
+            <View style={styles.timelineItem}>
+              <View style={styles.timelineIconBg}>
+                <Ionicons name="card-outline" size={18} color="#6C9BF2" />
+              </View>
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>Subscription Renewed</Text>
+                <Text style={styles.timelineSub}>Client plan bill processed cleanly</Text>
+              </View>
+              <Text style={styles.timelineTime}>Yesterday</Text>
+            </View>
+
+            <View style={styles.timelineDivider} />
+
+            <View style={styles.timelineItem}>
+              <View style={styles.timelineIconBg}>
+                <Ionicons name="person-add" size={18} color="#A855F7" />
+              </View>
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTitle}>New Client Roster Added</Text>
+                <Text style={styles.timelineSub}>Joined via coach invite link</Text>
+              </View>
+              <Text style={styles.timelineTime}>3 days ago</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 120 }} />
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal 
+        visible={isSearchVisible} 
+        onClose={() => setIsSearchVisible(false)} 
+      />
+
+      {/* Client Pulse Inspection Modal */}
+      <ClientPulseModal
+        visible={!!selectedPulseClient}
+        client={selectedPulseClient}
+        onClose={() => setSelectedPulseClient(null)}
+      />
+    </View>
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  scrollContent: { paddingBottom: 100 },
-
-  /* ── Hero Header ── */
-  heroCard: {
-    marginHorizontal: Spacing.base,
-    marginTop: Spacing.sm,
-    borderRadius: Radius['2xl'],
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.xl,
-    marginBottom: Spacing.xl,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
-  heroTopRow: {
+  scroll: {
+    flexGrow: 1,
+  },
+  heroBgContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 380,
+    overflow: 'hidden',
+  },
+  heroImg: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.8,
+  },
+  heroContentWrapper: {
+    paddingBottom: 20,
+  },
+  topBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    marginBottom: 40,
   },
-  heroDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  heroDateText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-  },
-  notifBtn: {
+  avatarBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  notifBadge: {
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarText: {
+    fontFamily: FontFamily.headingSemiBold,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  topBarIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBtn: {
+    padding: 4,
+    position: 'relative',
+  },
+  badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#000000',
   },
-  notifBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+  badgeText: {
+    color: '#FFFFFF',
     fontSize: 9,
-    color: Colors.white,
-  },
-  heroMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  heroTextCol: {
-    flex: 1,
-  },
-  heroGreeting: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    letterSpacing: -0.5,
-  },
-  heroBadges: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  heroBadgeText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  heroDot: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 10,
-  },
-
-  /* ── Section Headers ── */
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  sectionTitle: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: FontSize.lg,
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  seeAll: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: colors.accentText,
   },
-
-  /* ── Metric Cards ── */
-  metricsScroll: {
-    paddingLeft: Spacing.base,
-    paddingRight: Spacing.sm,
-    gap: 12,
-    marginBottom: Spacing.xl,
+  scheduleBtn: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 8,
   },
-  metricCard: {
-    width: METRIC_CARD_WIDTH,
-    height: METRIC_CARD_HEIGHT,
-    borderRadius: Radius.xl,
-    padding: Spacing.base,
-    justifyContent: 'space-between',
-  },
-  metricTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  metricLabel: {
+  scheduleText: {
+    color: '#FFFFFF',
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: Colors.white,
+    fontSize: 14,
   },
-  metricIconBubble: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
   },
-  metricChartArea: {
-    flex: 1,
-    justifyContent: 'center',
+  bizOverview: {
+    color: 'rgba(255,255,255,0.5)',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 2,
+    marginBottom: 6,
   },
-  miniBarChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    height: 44,
-  },
-  miniBar: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 3,
-  },
-  miniLineChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 55,
-    gap: 4,
-    position: 'relative',
-  },
-  miniDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    flex: 1,
-    position: 'absolute',
-  },
-  metricValue: {
+  revenue: {
+    color: '#FFFFFF',
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28,
-    color: Colors.white,
+    fontSize: 52,
     letterSpacing: -1,
+    marginBottom: 12,
   },
-
-  /* ── Next Session Card ── */
-  sessionCard: {
-    marginHorizontal: Spacing.base,
-    height: 200,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    marginBottom: Spacing.xl,
-  },
-  sessionBgImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  sessionGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  sessionTopPills: {
-    flexDirection: 'row',
-    gap: 8,
-    position: 'absolute',
-    top: Spacing.base,
-    left: Spacing.base,
-  },
-  sessionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: Radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  sessionPillText: {
+  greeting: {
+    color: 'rgba(255,255,255,0.6)',
     fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.xs,
-    color: Colors.white,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 20,
+    maxWidth: '90%',
   },
-  sessionBottomRow: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
-  sessionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    letterSpacing: -0.5,
-  },
-  sessionMetaRow: {
+  rosterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
   },
-  sessionMeta: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  sessionTypeBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: Radius.xs,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  sessionTypeText: {
+  rosterText: {
+    color: '#FFFFFF',
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.white,
+    fontSize: 16,
   },
-  sessionPlayBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.accent,
+  rosterArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
   },
-
-  /* ── Quick Actions ── */
-  quickActions: {
+  contentRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.xl,
+    paddingHorizontal: 16,
+    gap: 16,
+    marginBottom: 24,
   },
-  quickAction: { flex: 1, alignItems: 'center', gap: 6 },
-  quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.lg,
+  contentCol: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  verticalLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 2,
+    transform: [{ rotate: '-90deg' }],
+    position: 'absolute',
+    left: -28,
+    top: '40%',
+    width: 80,
+  },
+  contentInner: {
+    flex: 1,
+    marginLeft: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+    minHeight: 180,
   },
-  quickActionLabel: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.xs,
-    color: colors.textSecondary,
+  performanceInner: {
+    flex: 1,
+    marginLeft: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 180,
+    paddingVertical: 10,
+  },
+  emptyMetricText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: FontFamily.body,
+    fontSize: 12,
     textAlign: 'center',
   },
-
-  /* ── Upcoming Sessions ── */
-  upcomingCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.sm },
-  upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  upcomingName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  upcomingMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
-  groupAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.purple, alignItems: 'center', justifyContent: 'center' },
-  groupAvatarText: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: Colors.white },
-  upcomingTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.xs },
-  upcomingTypeText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
-
-  /* ── Activity ── */
-  emptyState: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.sm },
-  emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textSecondary },
-  emptySubtext: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-
-  activityItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md },
-  activityBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  activityIcon: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  activityMessage: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textPrimary },
-  activityTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 1 },
-
-  /* ── Active Plans (horizontal cards) ── */
-  plansScroll: { paddingLeft: Spacing.base, paddingRight: Spacing.sm, gap: 12, marginBottom: Spacing.xl },
-  planCard: {
-    width: SCREEN_WIDTH * 0.68,
-    backgroundColor: colors.bgCard,
-    borderRadius: Radius.xl,
-    padding: Spacing.base,
-    borderWidth: 1,
-    borderColor: colors.border,
-    position: 'relative',
+  sessionTitle: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  planCardEmpty: {
-    width: SCREEN_WIDTH * 0.68,
-    backgroundColor: colors.bgCard,
-    borderRadius: Radius.xl,
-    padding: Spacing['2xl'],
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
+  sessionTime: {
+    color: 'rgba(255,255,255,0.6)',
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 12,
+    textAlign: 'center',
   },
-  planEmptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
-  planBadges: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  planBadge: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: Radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  planBadgeValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
-  planBadgeLabel: { fontFamily: FontFamily.body, fontSize: 9, color: colors.textTertiary, marginTop: 1 },
-  planIconCenter: { alignItems: 'center', marginVertical: Spacing.md },
-  planIconGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  progressCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  planMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  planMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  planMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  planMetaDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  planArrowBtn: {
-    position: 'absolute',
-    bottom: Spacing.base,
-    right: Spacing.base,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.accent,
+  progressInner: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /* ── Performance Card ── */
-  perfCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.xl },
-  perfTabs: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg },
-  perfTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    backgroundColor: colors.bgElevated,
-  },
-  perfTabActive: { backgroundColor: colors.textPrimary },
-  perfTabText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
-  perfTabTextActive: { color: '#FFF' },
-  perfChartArea: {
-    height: 120,
-    marginBottom: Spacing.lg,
-    position: 'relative',
-  },
-  perfGridLines: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-  },
-  perfGridLine: {
-    height: 1,
-    backgroundColor: colors.border,
-    opacity: 0.5,
-  },
-  perfBars: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingTop: 4,
-  },
-  perfBarWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
-  },
-  perfBar: {
-    width: '80%',
-    borderRadius: Radius.xs,
-  },
-  perfBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  perfBigValue: {
+  progressNumber: {
+    color: '#FFFFFF',
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 32,
-    color: colors.textPrimary,
-    letterSpacing: -1,
   },
-  perfSubStats: {
+  progressSubtext: {
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 6,
+  },
+  dayCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleToday: {
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    backgroundColor: 'transparent',
+  },
+  dayText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 8,
+  },
+  dayTextToday: {
+    color: '#FFFFFF',
+  },
+  lightningRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
-  perfSubText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  perfSubDot: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  perfActionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: colors.textPrimary,
+  lightningText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 10,
+  },
+  quickActionsContainer: {
+    marginBottom: 32,
+  },
+  quickActionsScroll: {
+    paddingHorizontal: 24,
+    gap: 20,
+  },
+  actionItem: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  actionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.xs,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
-
-  /* ── Referral Promo Card ── */
-  promoCard: {
-    marginHorizontal: Spacing.base,
-    height: 180,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    marginBottom: Spacing.xl,
+  actionText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1,
   },
-  promoBgImage: {
-    ...StyleSheet.absoluteFillObject,
+  actionCenterSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionHeaderLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255, 255, 255, 0.4)',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  pulseSection: {
+    marginBottom: 28,
+  },
+  pulseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  seeAllText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: '#6C9BF2',
+    letterSpacing: 0.5,
+  },
+  pulseScroll: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  pulseCard: {
+    width: 96,
+    backgroundColor: '#0F0F0F',
+    borderRadius: Radius.md,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  pulseAvatarWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    backgroundColor: '#262626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    position: 'relative',
+  },
+  pulseAvatarImg: {
     width: '100%',
     height: '100%',
+    borderRadius: Radius.sm,
   },
-  promoGradient: {
-    ...StyleSheet.absoluteFillObject,
+  pulseAvatarText: {
+    fontFamily: FontFamily.heading,
+    fontSize: 13,
+    color: '#FFFFFF',
   },
-  promoTopPills: {
-    flexDirection: 'row',
-    gap: 8,
+  pulseStatusDot: {
     position: 'absolute',
-    top: Spacing.base,
-    left: Spacing.base,
+    bottom: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#0F0F0F',
   },
-  promoPill: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: Radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+  pulseName: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
-  promoPillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: Colors.white },
-  promoBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+  pulseMeta: {
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
-  promoBigValue: {
+  activitySection: {
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 32,
-    color: Colors.white,
-    letterSpacing: -1,
+    fontSize: 16,
+    letterSpacing: 0.5,
+    marginBottom: 14,
   },
-  promoSubtext: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
+  activityCard: {
+    backgroundColor: '#0F0F0F',
+    borderRadius: Radius.lg,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  promoBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.white,
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  timelineIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-
-  /* ── Top Clients List ── */
-  clientListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    paddingVertical: Spacing.base,
+  timelineContent: {
+    flex: 1,
   },
-  clientListBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  clientListName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  clientListMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  clientListMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  clientListDot: { fontFamily: FontFamily.body, fontSize: 8, color: colors.textTertiary },
+  timelineTitle: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  timelineSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 2,
+  },
+  timelineTime: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  timelineDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginVertical: 4,
+    marginLeft: 46,
+  },
 });

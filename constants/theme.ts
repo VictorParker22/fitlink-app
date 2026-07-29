@@ -18,35 +18,35 @@ export const Colors = LightColors;
 export const Spacing = {
   '2xs': 2,
   xs: 4,
-  sm: 8,
-  md: 12,
-  base: 16,
-  lg: 20,
-  xl: 24,
-  '2xl': 32,
-  '3xl': 48,
-  '4xl': 64,
+  sm: 6,
+  md: 10,
+  base: 14,
+  lg: 16,
+  xl: 20,
+  '2xl': 28,
+  '3xl': 40,
+  '4xl': 56,
 };
 
 export const Radius = {
-  xs: 6,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
+  xs: 2,
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 12,
+  '2xl': 16,
   full: 9999,
 };
 
 export const FontSize = {
-  xs: 11,
-  sm: 12,
-  base: 14,
-  md: 15,
-  lg: 17,
-  xl: 20,
-  '2xl': 26,
-  '3xl': 32,
+  xs: 12,
+  sm: 14,
+  base: 16,
+  md: 17,
+  lg: 20,
+  xl: 24,
+  '2xl': 30,
+  '3xl': 38,
 };
 
 export const FontFamily = {

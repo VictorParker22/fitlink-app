@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import Button from '../components/Button';
-import Card from '../components/Card';
+import { useClient } from '../context/ClientContext';
+import { supabase } from '../lib/supabase';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -15,6 +15,7 @@ const TOPICS = ['Bug Report', 'Feature Request', 'Account Issue', 'Billing', 'Ot
 export default function ContactSupportScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { clientData } = useClient();
   const [selectedTopic, setSelectedTopic] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -25,22 +26,37 @@ export default function ContactSupportScreen() {
     if (!selectedTopic) return Alert.alert('Select a topic', 'Please choose what your message is about.');
     if (!message.trim()) return Alert.alert('Empty message', 'Please describe your issue.');
     setSending(true);
-    // Simulate sending (in production, this would hit a Supabase edge function or email API)
-    await new Promise((r) => setTimeout(r, 1500));
-    setSending(false);
-    Alert.alert('Message Sent!', 'We\'ll get back to you within 24 hours.', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    
+    try {
+      if (clientData) {
+        await supabase.from('activities').insert({
+          trainer_id: clientData.trainer_id,
+          type: 'support_request',
+          message: `${clientData.name} requested support for: ${selectedTopic}\n\nMessage: ${message}`
+        });
+      } else {
+        await new Promise((r) => setTimeout(r, 1500)); // Fallback if no clientData
+      }
+      
+      setSending(false);
+      Alert.alert('Message Sent!', 'We\'ll get back to you within 24 hours.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      console.warn('Error sending support message:', error);
+      setSending(false);
+      Alert.alert('Error', 'Failed to send message. Please try again later.');
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Contact Support</Text>
+          <Text style={styles.headerTitle}>CONTACT SUPPORT</Text>
           <View style={{ width: 36 }} />
         </View>
 
@@ -48,23 +64,23 @@ export default function ContactSupportScreen() {
           {/* Quick Contact */}
           <View style={styles.quickRow}>
             <TouchableOpacity style={styles.quickBtn} onPress={() => Linking.openURL('mailto:support@getfitlink.com')}>
-              <View style={[styles.quickIcon, { backgroundColor: `${colors.blue}18` }]}>
-                <Ionicons name="mail" size={20} color={colors.blue} />
+              <View style={styles.quickIcon}>
+                <Ionicons name="mail" size={16} color={colors.textPrimary} />
               </View>
-              <Text style={styles.quickLabel}>Email</Text>
+              <Text style={styles.quickLabel}>EMAIL</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickBtn} onPress={() => Linking.openURL('https://twitter.com/fitlinkapp')}>
-              <View style={[styles.quickIcon, { backgroundColor: `${colors.accent}18` }]}>
-                <Ionicons name="logo-twitter" size={20} color={colors.accent} />
+              <View style={styles.quickIcon}>
+                <Ionicons name="logo-twitter" size={16} color={colors.textPrimary} />
               </View>
-              <Text style={styles.quickLabel}>Twitter</Text>
+              <Text style={styles.quickLabel}>TWITTER</Text>
             </TouchableOpacity>
           </View>
 
           {/* Contact Form */}
           <Text style={styles.sectionLabel}>SEND A MESSAGE</Text>
 
-          <Text style={styles.fieldLabel}>Topic</Text>
+          <Text style={styles.fieldLabel}>TOPIC</Text>
           <View style={styles.topicRow}>
             {TOPICS.map((topic) => (
               <TouchableOpacity
@@ -72,15 +88,15 @@ export default function ContactSupportScreen() {
                 style={[styles.topicChip, selectedTopic === topic && styles.topicChipActive]}
                 onPress={() => setSelectedTopic(topic)}
               >
-                <Text style={[styles.topicText, selectedTopic === topic && styles.topicTextActive]}>{topic}</Text>
+                <Text style={[styles.topicText, selectedTopic === topic && styles.topicTextActive]}>{topic.toUpperCase()}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={styles.fieldLabel}>Your Message</Text>
+          <Text style={styles.fieldLabel}>YOUR MESSAGE</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Describe your issue or feedback..."
+            placeholder="DESCRIBE YOUR ISSUE OR FEEDBACK..."
             placeholderTextColor={colors.textTertiary}
             value={message}
             onChangeText={setMessage}
@@ -89,9 +105,11 @@ export default function ContactSupportScreen() {
             textAlignVertical="top"
           />
 
-          <Text style={styles.emailNote}>We'll respond to {user?.email || user?.phone || 'your account email'}</Text>
+          <Text style={styles.emailNote}>WE'LL RESPOND TO {user?.email?.toUpperCase() || user?.phone || 'YOUR ACCOUNT EMAIL'}</Text>
 
-          <Button title="Send Message" onPress={handleSend} loading={sending} full size="lg" />
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={sending} activeOpacity={0.8}>
+            <Text style={styles.sendBtnText}>{sending ? 'SENDING...' : 'SEND MESSAGE'}</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -100,30 +118,100 @@ export default function ContactSupportScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
-  quickRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
-  quickBtn: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: Spacing.lg, backgroundColor: colors.bgElevated, borderRadius: Radius.lg, borderWidth: 1, borderColor: colors.border },
-  quickIcon: { width: 44, height: 44, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
+  quickRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  quickBtn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: Spacing.md,
+    backgroundColor: colors.bgSecondary,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textPrimary, letterSpacing: 1 },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing['2xl'], marginBottom: Spacing.md },
-  fieldLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, marginBottom: 6, marginTop: Spacing.md },
+  sectionLabel: { fontFamily: FontFamily.heading, fontSize: 11, color: colors.textTertiary, letterSpacing: 1.5, marginTop: Spacing['2xl'], marginBottom: Spacing.md },
+  fieldLabel: { fontFamily: FontFamily.heading, fontSize: 10, color: colors.textSecondary, letterSpacing: 1, marginBottom: Spacing.xs, marginTop: Spacing.md },
 
-  topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  topicChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  topicChipActive: { backgroundColor: colors.accentSoft, borderColor: 'rgba(255,95,59,0.3)' },
-  topicText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  topicTextActive: { color: colors.accent },
+  topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  topicChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  topicChipActive: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
+  topicText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textTertiary, letterSpacing: 0.8 },
+  topicTextActive: { color: colors.bgPrimary },
 
   textArea: {
-    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
-    borderRadius: Radius.md, padding: 14, minHeight: 120,
-    fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.md,
+    minHeight: 120,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 12,
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
   },
 
-  emailNote: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: Spacing.sm, marginBottom: Spacing.xl },
+  emailNote: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, marginTop: Spacing.sm, marginBottom: Spacing.xl, letterSpacing: 0.5 },
+
+  sendBtn: {
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    borderRadius: Radius.xs,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 12,
+    color: colors.bgPrimary,
+    letterSpacing: 1.5,
+  },
 });

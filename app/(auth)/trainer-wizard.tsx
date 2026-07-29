@@ -2,13 +2,15 @@ import { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, Alert, Share,
-  Animated, Dimensions,
+  Animated, Dimensions, Linking, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 
@@ -18,6 +20,7 @@ const STEPS = [
   { title: 'Set Up Your Profile', subtitle: 'Let your clients know who you are' },
   { title: 'Set Your Availability', subtitle: 'Choose which days you train clients' },
   { title: 'Invite Your First Client', subtitle: 'Get started by adding someone to your roster' },
+  { title: 'Set Up Payments', subtitle: 'Get paid for your coaching' },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -26,6 +29,7 @@ const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function TrainerWizardScreen() {
   const router = useRouter();
   const { trainer, updateTrainer, addClient } = useApp();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
 
   const [step, setStep] = useState(0);
@@ -48,6 +52,10 @@ export default function TrainerWizardScreen() {
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientAdded, setClientAdded] = useState(false);
+
+  // Step 4 — Payments
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeComplete, setStripeComplete] = useState(false);
 
   const [saving, setSaving] = useState(false);
 
@@ -108,6 +116,9 @@ export default function TrainerWizardScreen() {
       }
       setSaving(false);
       animateToStep(2);
+    } else if (step === 2) {
+      // Advance to payments step
+      animateToStep(3);
     } else {
       // Complete wizard
       await completeWizard();
@@ -146,11 +157,41 @@ export default function TrainerWizardScreen() {
     }
   };
 
+  const handleStripeSetup = async () => {
+    if (!user) return;
+    setStripeLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-connect-account',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            trainerId: user.id,
+            email: user.email,
+            name: name,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      await Linking.openURL(data.url);
+      setStripeComplete(true);
+    } catch (err: any) {
+      Alert.alert('Setup Error', err.message || 'Failed to start payment setup');
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
   const completeWizard = async () => {
     await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
     // Also persist to Supabase user_metadata so it survives cache clears
     try {
-      const { supabase } = require('../../lib/supabase');
       await supabase.auth.updateUser({ data: { wizard_complete: true } });
     } catch (e) {
       // Non-critical — SecureStore fallback still works
@@ -165,7 +206,7 @@ export default function TrainerWizardScreen() {
       {/* Header */}
       <View style={styles.header}>
         {step > 0 ? (
-          <TouchableOpacity onPress={handleBack} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
+          <TouchableOpacity onPress={handleBack} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]} accessibilityRole="button" accessibilityLabel="Go back to previous step">
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : (
@@ -205,6 +246,7 @@ export default function TrainerWizardScreen() {
                     placeholder="e.g. Coach Mike"
                     placeholderTextColor={colors.textTertiary}
                     autoFocus
+                    accessibilityLabel="Your name"
                   />
                 </View>
 
@@ -219,6 +261,7 @@ export default function TrainerWizardScreen() {
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
+                    accessibilityLabel="Bio"
                   />
                 </View>
 
@@ -230,6 +273,7 @@ export default function TrainerWizardScreen() {
                     onChangeText={setSpecialization}
                     placeholder="e.g. Strength & Conditioning, HIIT, Yoga"
                     placeholderTextColor={colors.textTertiary}
+                    accessibilityLabel="Specialization"
                   />
                 </View>
               </>
@@ -252,6 +296,8 @@ export default function TrainerWizardScreen() {
                       ]}
                       onPress={() => setActiveDays(prev => ({ ...prev, [day]: !prev[day] }))}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Toggle ${day} ${isActive ? 'off' : 'on'}`}
                     >
                       <View style={styles.dayLeft}>
                         <View style={[
@@ -288,6 +334,7 @@ export default function TrainerWizardScreen() {
                         onChangeText={setClientName}
                         placeholder="e.g. Sarah Johnson"
                         placeholderTextColor={colors.textTertiary}
+                        accessibilityLabel="Client name"
                       />
                     </View>
                     <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
@@ -300,6 +347,7 @@ export default function TrainerWizardScreen() {
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="email-address"
                         autoCapitalize="none"
+                        accessibilityLabel="Client email"
                       />
                     </View>
 
@@ -308,6 +356,8 @@ export default function TrainerWizardScreen() {
                       onPress={handleAddClient}
                       activeOpacity={0.85}
                       disabled={saving}
+                      accessibilityRole="button"
+                      accessibilityLabel={saving ? 'Adding client' : 'Add client'}
                     >
                       <Ionicons name="person-add" size={18} color={Colors.white} />
                       <Text style={styles.addClientBtnText}>{saving ? 'Adding...' : 'Add Client'}</Text>
@@ -325,6 +375,8 @@ export default function TrainerWizardScreen() {
                       style={[styles.shareBtn, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}
                       onPress={handleShareInvite}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Share invite link"
                     >
                       <Ionicons name="share-outline" size={20} color={Colors.purple} />
                       <Text style={[styles.shareBtnText, { color: colors.textPrimary }]}>Share Invite Link</Text>
@@ -343,13 +395,63 @@ export default function TrainerWizardScreen() {
                 )}
               </>
             )}
+
+            {/* ============ STEP 4: Payments ============ */}
+            {step === 3 && (
+              <View style={styles.stepContent}>
+                <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                  <View style={{
+                    width: 80, height: 80, borderRadius: 40,
+                    backgroundColor: colors.accentSoft,
+                    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+                  }}>
+                    <Ionicons name="wallet-outline" size={36} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.stepTitle, { textAlign: 'center' }]}>
+                    Get paid for your coaching
+                  </Text>
+                  <Text style={[styles.stepSubtitle, { textAlign: 'center', marginTop: 8 }]}>
+                    Connect your bank account through Stripe to receive payments from your clients. FitLink handles all payment processing with a 10% platform fee.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.continueBtn, stripeLoading && { opacity: 0.7 }]}
+                  onPress={handleStripeSetup}
+                  disabled={stripeLoading}
+                  activeOpacity={0.8}
+                >
+                  {stripeLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="card-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.continueBtnText}>
+                        {stripeComplete ? 'Continue Setup' : 'Connect Bank Account'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {stripeComplete && (
+                  <Text style={[styles.stepSubtitle, { textAlign: 'center', marginTop: 12, color: colors.green || '#34C759' }]}>
+                    ✓ Stripe setup started — you can finish it anytime from Settings
+                  </Text>
+                )}
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
 
         {/* Footer */}
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           {step === 2 && !clientAdded && (
-            <TouchableOpacity onPress={completeWizard} style={styles.skipBtn}>
+            <TouchableOpacity onPress={() => animateToStep(3)} style={styles.skipBtn} accessibilityRole="button" accessibilityLabel="Skip adding client for now">
+              <Text style={[styles.skipText, { color: colors.textTertiary }]}>Skip for now</Text>
+            </TouchableOpacity>
+          )}
+          {step === 3 && (
+            <TouchableOpacity onPress={completeWizard} style={styles.skipBtn} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
               <Text style={[styles.skipText, { color: colors.textTertiary }]}>Skip for now</Text>
             </TouchableOpacity>
           )}
@@ -358,9 +460,11 @@ export default function TrainerWizardScreen() {
             onPress={handleNext}
             activeOpacity={0.85}
             disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel={step === 3 ? 'Finish setup' : step === 2 ? (clientAdded ? 'Continue to payments' : 'Continue') : 'Continue to next step'}
           >
             <Text style={styles.nextBtnText}>
-              {step === 2 ? (clientAdded ? "Let's Go!" : 'Finish Setup') : 'Continue'}
+              {step === 3 ? "Let's Go!" : step === 2 ? (clientAdded ? 'Continue' : 'Continue') : 'Continue'}
             </Text>
             <Ionicons name="arrow-forward" size={18} color={Colors.white} />
           </TouchableOpacity>
@@ -389,6 +493,14 @@ const styles = StyleSheet.create({
   stepSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 6, lineHeight: 20 },
 
   formContent: { paddingBottom: Spacing['3xl'] },
+  stepContent: { paddingVertical: Spacing.md },
+  continueBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 15,
+    width: '100%',
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
+  continueBtnText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white },
 
   // Input groups
   inputGroup: { padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginBottom: Spacing.md },

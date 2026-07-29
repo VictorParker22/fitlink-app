@@ -1,5 +1,5 @@
-export function calculateXp(completedWorkouts: number): number {
-  return completedWorkouts * 50;
+export function calculateXp(baseXp: number): number {
+  return baseXp;
 }
 
 export function calculateLevel(xp: number): number {

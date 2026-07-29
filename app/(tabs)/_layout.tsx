@@ -1,28 +1,8 @@
 import { Tabs } from 'expo-router';
-import { View, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { FontFamily, Radius } from '../../constants/theme';
-
-function CenterFAB() {
-  const { colors } = useTheme();
-  return (
-    <View style={{
-      width: 56, height: 56, borderRadius: 16,
-      backgroundColor: colors.accent,
-      alignItems: 'center', justifyContent: 'center',
-      marginBottom: 28,
-      shadowColor: colors.accent,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.4,
-      shadowRadius: 12,
-      elevation: 8,
-    }}>
-      <Ionicons name="barbell" size={26} color="#FFFFFF" />
-    </View>
-  );
-}
+import { FontFamily } from '../../constants/theme';
 
 export default function TabLayout() {
   const { colors, isDark } = useTheme();
@@ -33,26 +13,26 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.textPrimary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarShowLabel: false,
+        tabBarActiveTintColor: isDark ? '#FFFFFF' : colors.textPrimary,
+        tabBarInactiveTintColor: isDark ? '#707070' : colors.textTertiary,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontFamily: FontFamily.bodyMedium,
+          fontSize: 10,
+          marginTop: 2,
+          marginBottom: 4,
+        },
         tabBarStyle: {
           position: 'absolute',
           bottom: 0, left: 0, right: 0,
-          height: 64 + bottomPadding,
-          backgroundColor: colors.tabBarBg,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          borderTopWidth: isDark ? 1 : 0,
-          borderTopColor: colors.border,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: isDark ? 0.3 : 0.08,
-          shadowRadius: 16,
-          elevation: 12,
+          height: 56 + bottomPadding,
+          backgroundColor: isDark ? '#000000' : '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: isDark ? '#1C1C1E' : '#E5E7EB',
           paddingBottom: bottomPadding,
           paddingTop: 6,
           paddingHorizontal: 8,
+          elevation: 0,
         },
       }}
     >
@@ -60,11 +40,9 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
+          tabBarAccessibilityLabel: 'Dashboard tab',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 4 }}>
-              <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />}
-            </View>
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={20} color={color} />
           ),
         }}
       />
@@ -72,25 +50,29 @@ export default function TabLayout() {
         name="clients"
         options={{
           title: 'Clients',
+          tabBarAccessibilityLabel: 'Clients tab',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 4 }}>
-              <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />}
-            </View>
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={20} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="programs"
         options={{
-          title: 'Programs',
-          tabBarIcon: () => <CenterFAB />,
-          tabBarButton: (props) => (
-            <TouchableOpacity
-              {...props}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-              activeOpacity={1}
-            />
+          title: 'Library',
+          tabBarAccessibilityLabel: 'Library tab',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'barbell' : 'barbell-outline'} size={20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="studio"
+        options={{
+          title: 'Studio',
+          tabBarAccessibilityLabel: 'Studio tab',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'radio' : 'radio-outline'} size={20} color={color} />
           ),
         }}
       />
@@ -98,11 +80,9 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: 'Messages',
+          tabBarAccessibilityLabel: 'Messages tab',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 4 }}>
-              <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={22} color={color} />
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />}
-            </View>
+            <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={20} color={color} />
           ),
         }}
       />
@@ -110,11 +90,9 @@ export default function TabLayout() {
         name="diets"
         options={{
           title: 'Diets',
+          tabBarAccessibilityLabel: 'Diets tab',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 4 }}>
-              <Ionicons name={focused ? 'nutrition' : 'nutrition-outline'} size={22} color={color} />
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />}
-            </View>
+            <Ionicons name={focused ? 'nutrition' : 'nutrition-outline'} size={20} color={color} />
           ),
         }}
       />

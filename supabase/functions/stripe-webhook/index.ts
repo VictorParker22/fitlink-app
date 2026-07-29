@@ -120,6 +120,25 @@ serve(async (req) => {
               .eq('id', subRecord.client_id)
           }
 
+          // Also check if this is an On-Demand Pass subscription
+          const { data: classSubRecord } = await supabaseAdmin
+            .from('class_subscriptions')
+            .select('client_id')
+            .eq('stripe_subscription_id', subId)
+            .single()
+
+          if (classSubRecord?.client_id) {
+            await supabaseAdmin
+              .from('class_subscriptions')
+              .update({
+                status: 'active',
+                current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+                current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('stripe_subscription_id', subId)
+          }
+
           // Record the recurring payment
           if (invoice.payment_intent) {
             await supabaseAdmin.from('payments').upsert({
@@ -164,6 +183,15 @@ serve(async (req) => {
           })
           .eq('stripe_subscription_id', sub.id)
 
+        // Also check if this was an On-Demand Pass
+        await supabaseAdmin
+          .from('class_subscriptions')
+          .update({
+            status: 'cancelled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', sub.id)
+
         // Optionally mark client as inactive
         const { data: subRecord } = await supabaseAdmin
           .from('client_subscriptions')
@@ -177,6 +205,22 @@ serve(async (req) => {
             .update({ status: 'inactive' })
             .eq('id', subRecord.client_id)
         }
+        break
+      }
+
+      // ---- Connect Account Events ----
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        console.log(`Account updated: ${account.id}`)
+
+        // Update trainer's Stripe status
+        await supabaseAdmin
+          .from('trainers')
+          .update({
+            stripe_onboarding_complete: account.details_submitted ?? false,
+            stripe_charges_enabled: account.charges_enabled ?? false,
+          })
+          .eq('stripe_account_id', account.id)
         break
       }
 

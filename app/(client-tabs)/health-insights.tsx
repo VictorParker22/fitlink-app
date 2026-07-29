@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useClient } from '../../context/ClientContext';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import type { ThemeColors } from '../../context/ThemeContext';
+import { ClientRoute } from '../../types/routes';
 
 // ─── Try to import health hook; gracefully handle missing module ────
 let useHealthHook: (() => any) | null = null;
@@ -71,6 +73,7 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Component ──────────────────────────────────────────────────────
 export default function HealthInsightsScreen() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { clientData } = useClient();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
@@ -158,6 +161,11 @@ export default function HealthInsightsScreen() {
   // ─── Render ─────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
+        <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -514,6 +522,11 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
+  },
+  backBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
   },
   scrollContent: {
     padding: Spacing.lg,

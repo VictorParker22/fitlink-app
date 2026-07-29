@@ -7,6 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Firebase Cloud Function URL for Android FCM delivery
+const FIREBASE_PUSH_URL = 'https://sendpush-dzajkrvoua-ue.a.run.app';
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -23,24 +26,60 @@ serve(async (req) => {
       )
     }
 
-    // Call Expo Push API
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: pushToken,
-        title,
-        body,
-        sound: 'default',
-        data: data || {},
-      }),
-    });
+    let result;
+    const isExpoToken = pushToken.startsWith('ExponentPushToken[') || pushToken.startsWith('ExpoPushToken[');
 
-    const result = await response.json()
+    if (isExpoToken) {
+      // ── iOS path: Expo Push API ──
+      console.log('Sending via Expo Push API to:', pushToken);
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: pushToken,
+          title,
+          body,
+          sound: 'default',
+          channelId: 'default',
+          data: data || {},
+        }),
+      });
+      result = await response.json();
+    } else {
+      // ── Android path: Firebase Cloud Function (uses ADC, no key needed) ──
+      // FCM v1 requires all values in the data object to be strings
+      const stringifiedData: Record<string, string> = {};
+      if (data) {
+        Object.entries(data).forEach(([key, val]) => {
+          stringifiedData[key] = typeof val === 'string' ? val : JSON.stringify(val);
+        });
+      }
+
+      console.log('Sending via Firebase Cloud Function to:', pushToken);
+      const response = await fetch(FIREBASE_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: pushToken,
+          title,
+          body,
+          data: stringifiedData,
+        }),
+      });
+      const responseText = await response.text();
+      console.log('Firebase response:', response.status, responseText);
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { status: response.status, body: responseText };
+      }
+    }
+
+    console.log('Push result:', JSON.stringify(result));
 
     return new Response(
       JSON.stringify(result),

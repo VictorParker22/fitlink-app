@@ -4,8 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import Card from '../components/Card';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -61,12 +60,12 @@ export default function CertificationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Certifications</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving}>
-          <Text style={[styles.saveBtn, saving && { opacity: 0.5 }]}>{saving ? 'Saving...' : 'Save'}</Text>
+        <Text style={styles.headerTitle}>CERTIFICATIONS</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveHeaderBtn} accessibilityRole="button">
+          <Text style={[styles.saveBtnText, saving && { opacity: 0.5 }]}>{saving ? 'SAVING...' : 'SAVE'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -77,10 +76,10 @@ export default function CertificationsScreen() {
             <Text style={styles.sectionLabel}>YOUR CERTIFICATIONS ({certs.length})</Text>
             <View style={styles.chipGrid}>
               {certs.map((cert) => (
-                <TouchableOpacity key={cert} style={styles.chipActive} onPress={() => toggleCert(cert)}>
-                  <Ionicons name="checkmark-circle" size={14} color={colors.green} />
+                <TouchableOpacity key={cert} style={styles.chipActive} onPress={() => toggleCert(cert)} activeOpacity={0.8}>
+                  <Ionicons name="checkmark" size={13} color={colors.bgPrimary} />
                   <Text style={styles.chipTextActive}>{cert}</Text>
-                  <Ionicons name="close" size={12} color={colors.textTertiary} />
+                  <Ionicons name="close" size={12} color={colors.bgPrimary} style={{ opacity: 0.7 }} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -99,8 +98,8 @@ export default function CertificationsScreen() {
             onSubmitEditing={addCustom}
             returnKeyType="done"
           />
-          <TouchableOpacity style={styles.addBtn} onPress={addCustom} disabled={!customCert.trim()}>
-            <Ionicons name="add" size={20} color={customCert.trim() ? colors.white : colors.textTertiary} />
+          <TouchableOpacity style={[styles.addBtn, !customCert.trim() && styles.addBtnDisabled]} onPress={addCustom} disabled={!customCert.trim()} activeOpacity={0.8}>
+            <Ionicons name="add" size={20} color={customCert.trim() ? colors.bgPrimary : colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
@@ -108,8 +107,8 @@ export default function CertificationsScreen() {
         <Text style={styles.sectionLabel}>POPULAR CERTIFICATIONS</Text>
         <View style={styles.chipGrid}>
           {PRESET_CERTS.filter((c) => !certs.includes(c)).map((cert) => (
-            <TouchableOpacity key={cert} style={styles.chip} onPress={() => toggleCert(cert)}>
-              <Ionicons name="add-circle-outline" size={14} color={colors.textTertiary} />
+            <TouchableOpacity key={cert} style={styles.chip} onPress={() => toggleCert(cert)} activeOpacity={0.7}>
+              <Ionicons name="add-outline" size={14} color={colors.textTertiary} />
               <Text style={styles.chipText}>{cert}</Text>
             </TouchableOpacity>
           ))}
@@ -121,18 +120,112 @@ export default function CertificationsScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  saveBtn: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.accent },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  chipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  chipActive: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: `${colors.green}12`, borderWidth: 1, borderColor: `${colors.green}30` },
-  chipTextActive: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.green },
-  addRow: { flexDirection: 'row', gap: Spacing.sm },
-  addInput: { flex: 1, backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 10, fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textPrimary },
-  addBtn: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  saveHeaderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.textPrimary,
+    borderRadius: Radius.xs,
+  },
+  saveBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: colors.bgPrimary,
+    letterSpacing: 1,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
+  sectionLabel: {
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.sm,
+  },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  chipActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+  },
+  chipTextActive: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.bgPrimary,
+    letterSpacing: 0.5,
+  },
+  addRow: { flexDirection: 'row', gap: Spacing.xs },
+  addInput: {
+    flex: 1,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  addBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnDisabled: {
+    backgroundColor: colors.bgSecondary,
+    borderColor: colors.border,
+  },
 });

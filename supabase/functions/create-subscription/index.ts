@@ -63,6 +63,29 @@ serve(async (req) => {
       )
     }
 
+    // Fetch trainer's Stripe Connect account
+    const { data: trainer, error: trainerError } = await supabaseAdmin
+      .from('trainers')
+      .select('stripe_account_id, stripe_charges_enabled')
+      .eq('id', trainerId)
+      .single()
+
+    if (trainerError || !trainer) {
+      return new Response(
+        JSON.stringify({ error: 'Trainer not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!trainer.stripe_charges_enabled) {
+      return new Response(
+        JSON.stringify({ error: 'Coach has not completed payment setup' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const trainerStripeAccountId = trainer.stripe_account_id
+
     // Create or retrieve Stripe Customer
     let stripeCustomerId = client.stripe_customer_id
 
@@ -103,7 +126,7 @@ serve(async (req) => {
         unit_amount: Math.round(Number(plan.price) * 100), // dollars to cents
         currency: 'usd',
         recurring: {
-          interval: 'month',
+          interval: plan.period === 'year' ? 'year' : 'month',
         },
         metadata: {
           fitlink_plan_id: planId,
@@ -131,6 +154,10 @@ serve(async (req) => {
         save_default_payment_method: 'on_subscription',
       },
       expand: ['latest_invoice.payment_intent'],
+      application_fee_percent: 10,
+      transfer_data: {
+        destination: trainerStripeAccountId,
+      },
       metadata: {
         fitlink_plan_id: planId,
         fitlink_client_id: clientId,

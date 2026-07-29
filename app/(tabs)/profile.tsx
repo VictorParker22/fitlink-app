@@ -8,8 +8,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemeColors } from '../../constants/theme';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
@@ -133,24 +131,35 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Profile</Text>
+        {/* Editorial Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>COACH PROFILE</Text>
+          <Text style={styles.subtitle}>ACCOUNT & BUSINESS HUB</Text>
+        </View>
 
         {/* Profile Hero */}
-        <Card style={styles.profileCard}>
+        <View style={styles.profileCard}>
           <View style={styles.accentStrip} />
           <View style={styles.profileInfo}>
-            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8} style={styles.avatarWrapper}>
-              <Avatar name={name} size="xl" imageUrl={trainer?.avatar_url} />
+            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8} style={styles.avatarWrapper} accessibilityRole="button" accessibilityLabel="Change profile photo">
+              <Avatar name={name} size="xl" imageUrl={trainer?.avatar_url} shape="square" />
               <View style={styles.cameraOverlay}>
                 {uploading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.textPrimary} />
                 ) : (
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  <Ionicons name="camera" size={14} color={colors.textPrimary} />
                 )}
               </View>
             </TouchableOpacity>
+            
             <Text style={styles.profileName}>{name}</Text>
-            {trainer?.specialization && <Text style={styles.profileSpec}>{trainer.specialization}</Text>}
+            
+            {trainer?.specialization && (
+              <View style={styles.specBadge}>
+                <Text style={styles.profileSpec}>{trainer.specialization}</Text>
+              </View>
+            )}
+
             <View style={styles.contactRow}>
               {email && (
                 <View style={styles.contactItem}>
@@ -167,109 +176,107 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.editProfileBtn} onPress={() => router.push('/settings' as any)}>
-            <Ionicons name="create-outline" size={16} color={colors.accent} />
-            <Text style={styles.editProfileText}>Edit Profile</Text>
+          <TouchableOpacity style={styles.editProfileBtn} onPress={() => router.push('/settings' as any)} accessibilityRole="button" accessibilityLabel="Edit profile">
+            <Ionicons name="create-outline" size={16} color={colors.textPrimary} />
+            <Text style={styles.editProfileText}>EDIT PROFILE</Text>
           </TouchableOpacity>
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{activeClients.length}</Text>
-              <Text style={styles.statLabel}>Clients</Text>
+              <Text style={styles.statLabel}>CLIENTS</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
               <Text style={styles.statValue}>{completedSessions}</Text>
-              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={styles.statLabel}>SESSIONS</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
               <Text style={styles.statValue}>{totalReferrals}</Text>
-              <Text style={styles.statLabel}>Referrals</Text>
+              <Text style={styles.statLabel}>REFERRALS</Text>
             </View>
           </View>
-        </Card>
+        </View>
 
         {/* Bio */}
         {trainer?.bio && (
-          <Card style={styles.bioCard}>
-            <Text style={styles.bioLabel}>About</Text>
+          <View style={styles.bioCard}>
+            <Text style={styles.bioLabel}>ABOUT</Text>
             <Text style={styles.bioText}>{trainer.bio}</Text>
-          </Card>
+          </View>
         )}
 
         {/* Account */}
-        <Text style={styles.sectionTitle}>Account</Text>
-        <Card noPadding>
+        <Text style={styles.sectionTitle}>ACCOUNT</Text>
+        <View style={styles.menuContainer}>
           {[
-            { icon: 'settings', label: 'Settings', color: colors.textSecondary, route: '/settings' },
-            { icon: 'trophy', label: 'Certifications', color: colors.yellow, route: '/certifications' },
-            { icon: 'barbell', label: 'Specializations', color: colors.blue, route: '/specializations' },
+            { icon: 'settings-outline', label: 'SETTINGS', route: '/settings' },
+            { icon: 'trophy-outline', label: 'CERTIFICATIONS', route: '/certifications' },
+            { icon: 'barbell-outline', label: 'SPECIALIZATIONS', route: '/specializations' },
           ].map((item, i, arr) => (
-            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
-              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)} accessibilityRole="link" accessibilityLabel={`Open ${item.label}`}>
+              <View style={styles.menuIcon}>
+                <Ionicons name={item.icon as any} size={16} color={colors.textPrimary} />
               </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="arrow-forward-outline" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           ))}
-        </Card>
+        </View>
 
         {/* Business */}
-        <Text style={styles.sectionTitle}>Business</Text>
-        <Card noPadding>
+        <Text style={styles.sectionTitle}>BUSINESS</Text>
+        <View style={styles.menuContainer}>
           {[
-            { icon: 'card', label: 'Subscription Plans', color: colors.green, route: '/subscriptions' },
-            { icon: 'share-social', label: 'Referral Program', color: colors.purple, route: '/referrals' },
-            { icon: 'analytics', label: 'Analytics', color: colors.accent, route: '/analytics' },
+            { icon: 'card-outline', label: 'SUBSCRIPTION PLANS', route: '/subscriptions' },
+            { icon: 'wallet-outline', label: 'EARNINGS & PAYOUTS', route: '/earnings' },
+            { icon: 'share-social-outline', label: 'REFERRAL PROGRAM', route: '/referrals' },
+            { icon: 'analytics-outline', label: 'ANALYTICS', route: '/analytics' },
           ].map((item, i, arr) => (
-            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
-              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)} accessibilityRole="link" accessibilityLabel={`Open ${item.label}`}>
+              <View style={styles.menuIcon}>
+                <Ionicons name={item.icon as any} size={16} color={colors.textPrimary} />
               </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="arrow-forward-outline" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           ))}
-        </Card>
+        </View>
 
         {/* Support */}
-        <Text style={styles.sectionTitle}>Support</Text>
-        <Card noPadding>
+        <Text style={styles.sectionTitle}>SUPPORT</Text>
+        <View style={styles.menuContainer}>
           {[
-            { icon: 'help-circle', label: 'Help Center', color: '#30D5C8', route: '/help-center' },
-            { icon: 'chatbubble-ellipses', label: 'Contact Support', color: colors.blue, route: '/contact-support' },
-            { icon: 'document-text', label: 'Terms & Privacy', color: colors.textTertiary, route: '/terms-privacy' },
+            { icon: 'help-circle-outline', label: 'HELP CENTER', route: '/help-center' },
+            { icon: 'chatbubble-ellipses-outline', label: 'CONTACT SUPPORT', route: '/contact-support' },
+            { icon: 'document-text-outline', label: 'TERMS & PRIVACY', route: '/terms-privacy' },
           ].map((item, i, arr) => (
-            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)}>
-              <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+            <TouchableOpacity key={i} style={[styles.menuItem, i < arr.length - 1 && styles.menuItemBorder]} activeOpacity={0.7} onPress={() => router.push(item.route as any)} accessibilityRole="link" accessibilityLabel={`Open ${item.label}`}>
+              <View style={styles.menuIcon}>
+                <Ionicons name={item.icon as any} size={16} color={colors.textPrimary} />
               </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
+              <Ionicons name="arrow-forward-outline" size={16} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           ))}
-        </Card>
+        </View>
 
-        {/* Sign Out */}
+        {/* Actions */}
         <View style={styles.signOutSection}>
-          <Button
-            title="Sign Out"
-            onPress={handleSignOut}
-            variant="danger"
-            full
-            icon={<Ionicons name="log-out-outline" size={18} color={colors.red} />}
-          />
+          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Sign out of your account">
+            <Ionicons name="log-out-outline" size={18} color={colors.red} />
+            <Text style={styles.signOutText}>SIGN OUT</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Delete Account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Delete your account">
           <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
-          <Text style={styles.deleteText}>Delete Account</Text>
+          <Text style={styles.deleteText}>DELETE ACCOUNT</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>FitLink v1.0.0 · Made with 💪</Text>
+        <Text style={styles.version}>FITLINK SYSTEM V1.0 · BRUTALIST LUXURY EDITION</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -277,61 +284,261 @@ export default function ProfileScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
+  
+  header: {
+    paddingTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
   title: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'],
-    color: colors.textPrimary, letterSpacing: -0.5, paddingTop: Spacing.md, marginBottom: Spacing.lg,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 26,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  subtitle: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.2,
+    marginTop: 2,
   },
 
-  profileCard: { overflow: 'hidden', marginBottom: Spacing.lg },
-  accentStrip: { position: 'absolute', top: 0, left: 0, right: 0, height: 70, backgroundColor: `${colors.accent}10` },
-  profileInfo: { alignItems: 'center', paddingTop: Spacing['2xl'], gap: Spacing.xs },
-  avatarWrapper: { position: 'relative' },
-  cameraOverlay: {
-    position: 'absolute', bottom: 0, right: -2,
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.bgCard,
+  profileCard: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
   },
-  profileName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.textPrimary, marginTop: Spacing.sm },
-  profileSpec: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.accentText },
-  contactRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.md, marginTop: Spacing.sm },
-  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  contactText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
+  accentStrip: {
+    height: 3,
+    backgroundColor: colors.accent,
+  },
+  profileInfo: {
+    alignItems: 'center',
+    paddingTop: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 4,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 26,
+    height: 26,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  profileName: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 20,
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
+    marginTop: Spacing.xs,
+    textTransform: 'uppercase',
+  },
+  specBadge: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: Radius.xs,
+    marginTop: 2,
+  },
+  profileSpec: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  contactText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 0.2,
+  },
+
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editProfileText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 12,
+    color: colors.textPrimary,
+    letterSpacing: 1,
+  },
 
   statsRow: {
-    flexDirection: 'row', marginTop: Spacing.xl, paddingTop: Spacing.lg,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    flexDirection: 'row',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bgPrimary,
   },
-  stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.textPrimary },
-  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  statLabel: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 9,
+    color: colors.textTertiary,
+    letterSpacing: 1.2,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginVertical: 2,
+  },
 
-  editProfileBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.lg, paddingVertical: 8, borderRadius: Radius.md, backgroundColor: colors.accentSoft },
-  editProfileText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
-
-  bioCard: { marginBottom: Spacing.lg },
-  bioLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.5, marginBottom: Spacing.xs },
-  bioText: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textSecondary, lineHeight: 20 },
+  bioCard: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  bioLabel: {
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginBottom: Spacing.xs,
+  },
+  bioText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
 
   sectionTitle: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary,
-    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: Spacing.sm, marginTop: Spacing.md,
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.md,
+  },
+  menuContainer: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    overflow: 'hidden',
   },
   menuItem: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  menuIcon: { width: 34, height: 34, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textPrimary },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuLabel: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 13,
+    color: colors.textPrimary,
+    letterSpacing: 0.8,
+  },
 
-  signOutSection: { marginTop: Spacing['2xl'] },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.xl, paddingVertical: Spacing.md },
-  deleteText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, textDecorationLine: 'underline' },
+  signOutSection: {
+    marginTop: Spacing['2xl'],
+  },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.red,
+  },
+  signOutText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 13,
+    color: colors.red,
+    letterSpacing: 1.2,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  deleteText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: colors.textTertiary,
+    letterSpacing: 1.2,
+  },
   version: {
-    fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary,
-    textAlign: 'center', marginTop: Spacing.lg, opacity: 0.5,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: Spacing.xl,
+    letterSpacing: 1,
+    opacity: 0.6,
   },
 });

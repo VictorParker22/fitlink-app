@@ -6,6 +6,16 @@ import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('default', {
@@ -26,12 +36,23 @@ async function registerForPushNotificationsAsync() {
     if (finalStatus !== 'granted') {
       return null;
     }
-    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-    if (!projectId) return null;
+
     try {
-      return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      if (Platform.OS === 'android') {
+        // Native FCM token — delivered via our Firebase Cloud Function (no service account key needed)
+        const deviceToken = await Notifications.getDevicePushTokenAsync();
+        if (__DEV__) console.log('FCM Device Token:', deviceToken.data);
+        return deviceToken.data as string;
+      } else {
+        // iOS — Expo push token (works perfectly through Expo's push service)
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (!projectId) return null;
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        if (__DEV__) console.log('Expo Push Token:', token);
+        return token;
+      }
     } catch (e) {
-      console.log(e);
+      console.warn('Error fetching push token:', e);
       return null;
     }
   } else {
@@ -71,13 +92,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUserRole(role);
       
       if (s?.user) {
-        const token = await registerForPushNotificationsAsync();
-        if (token) {
-          if (role === 'client') {
-            await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id);
-          } else {
-            await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+        try {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            if (role === 'client') {
+              await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id);
+            } else {
+              await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+            }
           }
+        } catch (e) {
+          console.warn('[AuthContext] Failed to register push token on DB:', e);
         }
       }
       

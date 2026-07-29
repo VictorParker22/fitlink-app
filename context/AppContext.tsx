@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { Colors } from '../constants/theme';
 
 interface Trainer {
   id: string;
@@ -13,9 +14,13 @@ interface Trainer {
   working_hours?: any;
   notification_prefs?: any;
   avatar_url?: string;
+  stripe_account_id?: string;
+  stripe_onboarding_complete?: boolean;
+  stripe_charges_enabled?: boolean;
+  referral_code?: string;
 }
 
-interface Client {
+export interface Client {
   id: string;
   trainer_id: string;
   name: string;
@@ -25,8 +30,12 @@ interface Client {
   plan_id?: string;
   notes?: string;
   goals?: string;
+  avatar_url?: string;
   assessment_data?: any;
   trial_end_date?: string;
+  completed_workouts?: number;
+  progress?: { streak: number; workoutsThisMonth: number };
+  xp?: number;
   created_at: string;
 }
 
@@ -50,12 +59,77 @@ interface Activity {
   timestamp: string;
 }
 
+export interface TrackNode {
+  type: 'workout' | 'diet' | 'milestone' | 'class';
+  id?: string; // workout_id, diet_plan_id, or class_id
+  label?: string; // for milestones
+  order: number;
+}
+
+export interface PlanEnrollment {
+  id: string;
+  client_id: string;
+  plan_id: string;
+  track_snapshot: TrackNode[];
+  track_position: number;
+  status: 'active' | 'paused' | 'completed';
+  started_at: string;
+  completed_at?: string;
+  paused_at?: string;
+  sync_with_plan: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassItem {
+  id: string;
+  trainer_id: string;
+  title: string;
+  description?: string;
+  category: string;
+  tags: string[];
+  difficulty: string;
+  duration_minutes: number;
+  video_url?: string;
+  thumbnail_url?: string;
+  equipment: string[];
+  is_free: boolean;
+  plan_id?: string;
+  workout_id?: string;
+  status: 'draft' | 'published' | 'archived';
+  take_count: number;
+  total_watch_minutes: number;
+  avg_rating: number;
+  rating_count: number;
+  created_at: string;
+}
+
+export interface LiveClassItem {
+  id: string;
+  trainer_id: string;
+  title: string;
+  description?: string;
+  scheduled_for: string;
+  mux_stream_id?: string;
+  mux_stream_key?: string;
+  mux_playback_id?: string;
+  status: 'scheduled' | 'live' | 'ended' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+}
+
 interface Plan {
   id: string;
   trainer_id: string;
   name: string;
   price: number;
   period: string;
+  features?: string[];
+  color?: string;
+  is_popular?: boolean;
+  stripe_price_id?: string;
+  stripe_product_id?: string;
+  track?: TrackNode[];
 }
 
 interface Referral {
@@ -73,6 +147,13 @@ interface Exercise {
   category: string;
   muscle_group: string;
   equipment?: string;
+  trainer_id?: string | null;
+  is_custom?: boolean;
+  instructions?: string;
+  image_url?: string;
+  description?: string;
+  difficulty?: string;
+  secondary_muscles?: string[];
 }
 
 interface WorkoutExercise {
@@ -83,6 +164,10 @@ interface WorkoutExercise {
   reps: number;
   rest_seconds: number;
   order_index: number;
+  video_url?: string;
+  notes?: string;
+  group_id?: string;
+  group_type?: string;
   exercises?: Exercise;
 }
 
@@ -111,6 +196,13 @@ interface Meal {
   protein: number;
   carbs: number;
   fat: number;
+  trainer_id?: string | null;
+  is_custom?: boolean;
+  serving_size_g?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium_mg?: number;
+  image_url?: string;
 }
 
 interface DietPlanMeal {
@@ -118,6 +210,8 @@ interface DietPlanMeal {
   diet_plan_id: string;
   meal_id: string;
   order_index: number;
+  meal_time?: string;  // 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  servings?: number;
   meals?: Meal;
 }
 
@@ -126,6 +220,12 @@ interface DietPlan {
   trainer_id: string;
   name: string;
   description?: string;
+  category?: string;  // 'balanced' | 'high-protein' | 'keto' | 'vegan' | 'weight-loss' | 'custom'
+  target_calories?: number;
+  target_protein?: number;
+  target_carbs?: number;
+  target_fat?: number;
+  image_url?: string;
   created_at?: string;
   diet_plan_meals?: DietPlanMeal[];
 }
@@ -162,6 +262,8 @@ export interface ProgressLog {
   created_at: string;
 }
 
+type CreateClassData = Omit<ClassItem, 'id' | 'trainer_id' | 'take_count' | 'total_watch_minutes' | 'avg_rating' | 'rating_count' | 'created_at'>;
+
 interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
@@ -172,9 +274,13 @@ interface AppContextType {
   referrals: Referral[];
   workouts: Workout[];
   exercises: Exercise[];
+  autoAddExerciseId: string | null;
+  setAutoAddExerciseId: (id: string | null) => void;
   diets: DietPlan[];
   meals: Meal[];
   notifications: NotificationData[];
+  classes: ClassItem[];
+  liveClasses: LiveClassItem[];
   clientWorkouts: ClientWorkout[];
   clientDiets: ClientDiet[];
   progressLogs: ProgressLog[];
@@ -195,16 +301,31 @@ interface AppContextType {
   extendClientTrial: (clientId: string, days: number) => Promise<void>;
   updateClientAssessment: (clientId: string, assessmentData: any) => Promise<void>;
   getClientById: (id: string) => Client | undefined;
+  enrollClientInPlan: (clientId: string, planId: string) => Promise<PlanEnrollment>;
+  advanceTrackPosition: (enrollmentId: string, nodeType: string, nodeId?: string, durationSec?: number) => Promise<void>;
+  skipTrackNode: (enrollmentId: string) => Promise<void>;
+  pauseEnrollment: (enrollmentId: string) => Promise<void>;
+  resumeEnrollment: (enrollmentId: string) => Promise<void>;
+  getClientEnrollment: (clientId: string) => Promise<PlanEnrollment | null>;
   addSession: (data: Partial<Session>) => Promise<Session>;
   updateSession: (id: string, updates: Partial<Session>) => Promise<Session>;
   getSessionsForDate: (date: Date) => Session[];
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
   createPlan: (name: string, price: number, period: string, features?: string[], color?: string, isPopular?: boolean) => Promise<Plan>;
-  createWorkout: (name: string, description: string, exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]) => Promise<Workout>;
+  updatePlanTrack: (planId: string, track: TrackNode[]) => Promise<void>;
+  createExercise: (name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
+  updateExercise: (id: string, name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
+  importExercise: (exData: { name: string; category: string; muscle_group: string; equipment: string; image_url?: string | null; instructions?: string }) => Promise<Exercise>;
+  createWorkout: (name: string, description: string, exercises: { exercise_id: string; sets: number; reps: number; rest_seconds: number; video_url?: string; notes?: string; group_id?: string; group_type?: string }[]) => Promise<Workout>;
+  updateWorkout: (id: string, name: string, description: string, exercises: { exercise_id: string; sets: number; reps: number; rest_seconds: number; video_url?: string; notes?: string; group_id?: string; group_type?: string }[]) => Promise<Workout>;
   deleteWorkout: (id: string) => Promise<void>;
+  duplicateWorkout: (id: string) => Promise<Workout>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
-  createDietPlan: (name: string, description: string, mealList: { meal_id: string }[]) => Promise<DietPlan>;
+  createMeal: (meal: Partial<Meal>, isGlobal?: boolean) => Promise<Meal>;
+  createDietPlan: (name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null) => Promise<DietPlan>;
+  updateDietPlan: (id: string, name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null) => Promise<DietPlan>;
+  duplicateDietPlan: (id: string) => Promise<DietPlan>;
   deleteDietPlan: (id: string) => Promise<void>;
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
   getClientWorkouts: (clientId: string) => { assignment: ClientWorkout; workout: Workout }[];
@@ -216,10 +337,54 @@ interface AppContextType {
   updatePushToken: (token: string) => Promise<void>;
   getClientHealthSnapshot: (clientId: string) => any | null;
   requestHealthAccess: (clientId: string) => Promise<void>;
+  createClass: (data: CreateClassData) => Promise<ClassItem>;
+  updateClass: (id: string, data: Partial<ClassItem>) => Promise<ClassItem>;
+  deleteClass: (id: string) => Promise<void>;
+  publishClass: (id: string) => Promise<void>;
+  createLiveClass: (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_stream_id' | 'mux_stream_key' | 'mux_playback_id' | 'created_at' | 'updated_at'>) => Promise<LiveClassItem>;
+  updateLiveClass: (id: string, data: Partial<LiveClassItem>) => Promise<LiveClassItem>;
+  deleteLiveClass: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
+  refreshClients: () => Promise<void>;
+  refreshSessions: (data: Session[]) => void;
+  createStripeConnectAccount: () => Promise<{ url: string; accountId: string }>;
+  fetchAnalytics: () => Promise<{
+    growth: any[];
+    sessionStats: any[];
+    sessionTypes: any[];
+    revenue: any;
+  }>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+
+export const sanitizeEquipment = (eq?: string): string | null => {
+  if (!eq || eq.toLowerCase() === 'none') return null;
+  const e = eq.toLowerCase();
+  if (e.includes('barbell')) return 'barbell';
+  if (e.includes('dumbbell')) return 'dumbbell';
+  if (e.includes('machine')) return 'machine';
+  if (e.includes('cable')) return 'cable';
+  if (e.includes('kettlebell')) return 'kettlebell';
+  if (e.includes('band')) return 'band';
+  if (e.includes('bodyweight')) return 'bodyweight';
+  if (e.includes('plate')) return 'plate';
+  return null;
+};
+
+export const sanitizeCategory = (cat?: string): string => {
+  if (!cat) return 'full body';
+  const c = cat.toLowerCase();
+  if (c.includes('chest')) return 'chest';
+  if (c.includes('back')) return 'back';
+  if (c.includes('leg') || c.includes('calv')) return 'legs';
+  if (c.includes('arm')) return 'arms';
+  if (c.includes('shoulder')) return 'shoulders';
+  if (c.includes('ab') || c.includes('core')) return 'core';
+  if (c.includes('cardio')) return 'cardio';
+  if (c.includes('flex')) return 'flexibility';
+  return 'full body';
+};
 
 export function AppProvider({ children }: PropsWithChildren) {
   const { user, signOut } = useAuth();
@@ -231,6 +396,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [autoAddExerciseId, setAutoAddExerciseId] = useState<string | null>(null);
   const [diets, setDiets] = useState<DietPlan[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -238,6 +404,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
   const [clientHealthSnapshots, setClientHealthSnapshots] = useState<any[]>([]);
+  const [trainerClasses, setTrainerClasses] = useState<ClassItem[]>([]);
+  const [liveClassesList, setLiveClassesList] = useState<LiveClassItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data when user is authenticated
@@ -258,7 +426,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     async function fetchAll() {
       setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
           supabase.from('plans').select('*').order('price'),
@@ -274,6 +442,8 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
           supabase.from('client_progress').select('*').order('date', { ascending: false }),
           supabase.from('client_health_snapshots').select('*').order('date', { ascending: false }),
+          supabase.from('classes').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('live_classes').select('*').eq('trainer_id', user!.id).order('scheduled_for', { ascending: true }),
         ]);
 
         if (!mounted) return;
@@ -294,6 +464,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         // Progress logs might fail if migration not run yet, handle gracefully
         if (progressRes && progressRes.data) setProgressLogs(progressRes.data);
         if (healthSnapshotsRes && healthSnapshotsRes.data) setClientHealthSnapshots(healthSnapshotsRes.data);
+        setTrainerClasses(classesRes.data || []);
+        setLiveClassesList(liveClassesRes?.data || []);
       } catch (err) {
         if (__DEV__) console.error('Error fetching data:', err);
       } finally {
@@ -345,7 +517,33 @@ export function AppProvider({ children }: PropsWithChildren) {
     // Check if progress table exists/returned data
     const pRes = await supabase.from('client_progress').select('*').order('date', { ascending: false });
     if (pRes.data) setProgressLogs(pRes.data);
+
+    // Refresh classes
+    if (user) {
+      const [clsRes, liveClsRes] = await Promise.all([
+        supabase.from('classes').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('live_classes').select('*').eq('trainer_id', user.id).order('scheduled_for', { ascending: true })
+      ]);
+      if (clsRes.data) setTrainerClasses(clsRes.data);
+      if (liveClsRes.data) setLiveClassesList(liveClsRes.data);
+    }
   }, [user]);
+
+  // Lightweight refresh — only clients table (1 query, 1 setState)
+  const refreshClients = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('trainer_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setClients(data);
+  }, [user]);
+
+  // Ultra-lightweight: just set sessions from pre-fetched data
+  const refreshSessions = useCallback((data: Session[]) => {
+    setSessions(data);
+  }, []);
 
   // --- Realtime Subscriptions ---
   useEffect(() => {
@@ -416,6 +614,124 @@ export function AppProvider({ children }: PropsWithChildren) {
     return data;
   }, []);
 
+  const enrollClientInPlan = useCallback(async (clientId: string, planId: string): Promise<PlanEnrollment> => {
+    const plan = plans.find(p => p.id === planId);
+    const trackSnapshot = plan?.track || [];
+    
+    const { data, error } = await supabase
+      .from('client_plan_enrollments')
+      .upsert({
+        client_id: clientId,
+        plan_id: planId,
+        track_snapshot: trackSnapshot,
+        track_position: 0,
+        status: 'active',
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        paused_at: null,
+        sync_with_plan: false,
+      }, { onConflict: 'client_id,plan_id' })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as PlanEnrollment;
+  }, [plans]);
+
+  const advanceTrackPosition = useCallback(async (enrollmentId: string, nodeType: string, nodeId?: string, durationSec?: number) => {
+    const { data: enrollment } = await supabase
+      .from('client_plan_enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .single();
+    
+    if (!enrollment) return;
+    
+    const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
+    const newPos = enrollment.track_position + 1;
+    
+    await supabase.from('track_events').insert({
+      enrollment_id: enrollmentId,
+      client_id: enrollment.client_id,
+      track_position: enrollment.track_position,
+      node_type: nodeType,
+      node_id: nodeId || null,
+      event_type: 'completed',
+      duration_sec: durationSec || null,
+    });
+    
+    if (newPos >= track.length) {
+      await supabase
+        .from('client_plan_enrollments')
+        .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', enrollmentId);
+    } else {
+      await supabase
+        .from('client_plan_enrollments')
+        .update({ track_position: newPos, updated_at: new Date().toISOString() })
+        .eq('id', enrollmentId);
+    }
+  }, []);
+
+  const skipTrackNode = useCallback(async (enrollmentId: string) => {
+    const { data: enrollment } = await supabase
+      .from('client_plan_enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .single();
+    
+    if (!enrollment) return;
+    
+    const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
+    const node = track[enrollment.track_position];
+    
+    await supabase.from('track_events').insert({
+      enrollment_id: enrollmentId,
+      client_id: enrollment.client_id,
+      track_position: enrollment.track_position,
+      node_type: node?.type || 'unknown',
+      node_id: node?.id || null,
+      event_type: 'skipped',
+    });
+    
+    const newPos = enrollment.track_position + 1;
+    if (newPos >= track.length) {
+      await supabase
+        .from('client_plan_enrollments')
+        .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', enrollmentId);
+    } else {
+      await supabase
+        .from('client_plan_enrollments')
+        .update({ track_position: newPos, updated_at: new Date().toISOString() })
+        .eq('id', enrollmentId);
+    }
+  }, []);
+
+  const pauseEnrollment = useCallback(async (enrollmentId: string) => {
+    await supabase.from('client_plan_enrollments')
+      .update({ status: 'paused', paused_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', enrollmentId);
+  }, []);
+
+  const resumeEnrollment = useCallback(async (enrollmentId: string) => {
+    await supabase.from('client_plan_enrollments')
+      .update({ status: 'active', paused_at: null, updated_at: new Date().toISOString() })
+      .eq('id', enrollmentId);
+  }, []);
+
+  const getClientEnrollment = useCallback(async (clientId: string): Promise<PlanEnrollment | null> => {
+    const { data } = await supabase
+      .from('client_plan_enrollments')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('status', 'active')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .single();
+    return data as PlanEnrollment | null;
+  }, []);
+
   const upgradeClientToPlan = useCallback(async (clientId: string, planId: string) => {
     const { data, error } = await supabase
       .from('clients')
@@ -427,12 +743,15 @@ export function AppProvider({ children }: PropsWithChildren) {
     setClients((prev) => prev.map((c) => (c.id === clientId ? data : c)));
     const client = clients.find((c) => c.id === clientId);
     const plan = plans.find((p) => p.id === planId);
+    
+    await enrollClientInPlan(clientId, planId);
+    
     await supabase.from('activities').insert({
       trainer_id: user!.id,
       type: 'signup',
       message: `${client?.name || 'Client'} upgraded to "${plan?.name || 'plan'}"`,
     });
-  }, [user, clients, plans]);
+  }, [user, clients, plans, enrollClientInPlan]);
 
   const extendClientTrial = useCallback(async (clientId: string, days: number) => {
     const client = clients.find((c) => c.id === clientId);
@@ -531,7 +850,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const createWorkout = useCallback(async (
     name: string,
     description: string,
-    exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number }[]
+    exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number; video_url?: string; notes?: string; group_id?: string; group_type?: string }[]
   ) => {
     const { data: workout, error } = await supabase
       .from('workouts')
@@ -548,8 +867,13 @@ export function AppProvider({ children }: PropsWithChildren) {
         reps: ex.reps,
         rest_seconds: ex.rest_seconds,
         order_index: i,
+        notes: ex.notes || null,
+        group_id: ex.group_id || null,
+        group_type: ex.group_type || null,
+        ...(ex.video_url ? { video_url: ex.video_url } : {}),
       }));
-      await supabase.from('workout_exercises').insert(rows);
+      const { error: exError } = await supabase.from('workout_exercises').insert(rows);
+      if (exError) throw exError;
     }
 
     // Refetch full workout with exercises
@@ -568,12 +892,105 @@ export function AppProvider({ children }: PropsWithChildren) {
     return full || workout;
   }, [user]);
 
+  const updateWorkout = useCallback(async (
+    id: string,
+    name: string,
+    description: string,
+    exerciseList: { exercise_id: string; sets: number; reps: number; rest_seconds: number; video_url?: string; notes?: string; group_id?: string; group_type?: string }[]
+  ) => {
+    const { data: workout, error } = await supabase
+      .from('workouts')
+      .update({ name, description })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Delete existing workout exercises
+    await supabase.from('workout_exercises').delete().eq('workout_id', id);
+
+    // Insert new workout exercises
+    if (exerciseList.length > 0) {
+      const rows = exerciseList.map((ex, i) => ({
+        workout_id: id,
+        exercise_id: ex.exercise_id,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        order_index: i,
+        notes: ex.notes || null,
+        group_id: ex.group_id || null,
+        group_type: ex.group_type || null,
+        ...(ex.video_url ? { video_url: ex.video_url } : {}),
+      }));
+      const { error: exError } = await supabase.from('workout_exercises').insert(rows);
+      if (exError) throw exError;
+    }
+
+    // Refetch full workout
+    const { data: full } = await supabase
+      .from('workouts')
+      .select('*, workout_exercises(*, exercises(*))')
+      .eq('id', id)
+      .single();
+      
+    if (full) {
+      setWorkouts((prev) => prev.map(w => w.id === id ? full : w));
+    }
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Updated workout "${name}"`,
+    });
+
+    return full || workout;
+  }, [user]);
+
   const deleteWorkout = useCallback(async (id: string) => {
     await supabase.from('workout_exercises').delete().eq('workout_id', id);
     const { error } = await supabase.from('workouts').delete().eq('id', id);
     if (error) throw error;
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
   }, []);
+
+  const duplicateWorkout = useCallback(async (id: string) => {
+    const existing = workouts.find((w) => w.id === id);
+    if (!existing) throw new Error('Workout not found');
+
+    const { data: newWorkout, error } = await supabase
+      .from('workouts')
+      .insert({ trainer_id: user!.id, name: `Copy of ${existing.name}`, description: existing.description })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (existing.workout_exercises && existing.workout_exercises.length > 0) {
+      const rows = existing.workout_exercises.map((ex) => ({
+        workout_id: newWorkout.id,
+        exercise_id: ex.exercise_id,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        order_index: ex.order_index,
+        notes: ex.notes || null,
+        group_id: ex.group_id || null,
+        group_type: ex.group_type || null,
+        ...(ex.video_url ? { video_url: ex.video_url } : {}),
+      }));
+      const { error: exError } = await supabase.from('workout_exercises').insert(rows);
+      if (exError) throw exError;
+    }
+
+    const { data: full } = await supabase
+      .from('workouts')
+      .select('*, workout_exercises(*, exercises(*))')
+      .eq('id', newWorkout.id)
+      .single();
+    if (full) setWorkouts((prev) => [full, ...prev]);
+
+    return full || newWorkout;
+  }, [user, workouts]);
 
   const assignWorkout = useCallback(async (workoutId: string, clientId: string, date: string) => {
     const { data, error } = await supabase.from('client_workouts').insert({
@@ -595,14 +1012,43 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user, clients, workouts]);
 
   // --- Diet Plan operations ---
+  // --- Meal / Diet operations ---
+  const createMeal = useCallback(async (mealData: Partial<Meal>, isGlobal: boolean = false) => {
+    const payload = isGlobal 
+      ? { ...mealData, is_custom: false } 
+      : { ...mealData, trainer_id: user!.id, is_custom: true };
+
+    const { data, error } = await supabase
+      .from('meals')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    setMeals((prev) => [data, ...prev]);
+    return data;
+  }, [user]);
+
   const createDietPlan = useCallback(async (
     name: string,
     description: string,
-    mealList: { meal_id: string }[]
+    mealList: { meal_id: string; meal_time?: string; servings?: number }[],
+    category?: string,
+    targets?: { calories: number; protein: number; carbs: number; fat: number },
+    imageUrl?: string | null
   ) => {
     const { data: dietPlan, error } = await supabase
       .from('diet_plans')
-      .insert({ trainer_id: user!.id, name, description })
+      .insert({ 
+        trainer_id: user!.id, 
+        name, 
+        description, 
+        category: category || 'custom',
+        target_calories: targets?.calories || 2000,
+        target_protein: targets?.protein || 150,
+        target_carbs: targets?.carbs || 200,
+        target_fat: targets?.fat || 65,
+        image_url: imageUrl || null,
+      })
       .select()
       .single();
     if (error) throw error;
@@ -612,6 +1058,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         diet_plan_id: dietPlan.id,
         meal_id: m.meal_id,
         order_index: i,
+        meal_time: m.meal_time || 'snack',
+        servings: m.servings || 1,
       }));
       await supabase.from('diet_plan_meals').insert(rows);
     }
@@ -630,6 +1078,95 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
     return full || dietPlan;
   }, [user]);
+
+  const updateDietPlan = useCallback(async (
+    id: string,
+    name: string,
+    description: string,
+    mealList: { meal_id: string; meal_time?: string; servings?: number }[],
+    category?: string,
+    targets?: { calories: number; protein: number; carbs: number; fat: number },
+    imageUrl?: string | null
+  ) => {
+    const { error } = await supabase
+      .from('diet_plans')
+      .update({ 
+        name, 
+        description, 
+        category: category || 'custom',
+        ...(targets && {
+          target_calories: targets.calories,
+          target_protein: targets.protein,
+          target_carbs: targets.carbs,
+          target_fat: targets.fat
+        }),
+        ...(imageUrl !== undefined && { image_url: imageUrl }),
+      })
+      .eq('id', id);
+    if (error) throw error;
+
+    // Replace all meal associations
+    await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    if (mealList.length > 0) {
+      const rows = mealList.map((m, i) => ({
+        diet_plan_id: id,
+        meal_id: m.meal_id,
+        order_index: i,
+        meal_time: m.meal_time || 'snack',
+        servings: m.servings || 1,
+      }));
+      await supabase.from('diet_plan_meals').insert(rows);
+    }
+
+    const { data: full } = await supabase
+      .from('diet_plans')
+      .select('*, diet_plan_meals(*, meals(*))')
+      .eq('id', id)
+      .single();
+    if (full) setDiets((prev) => prev.map((d) => (d.id === id ? full : d)));
+    return full!;
+  }, []);
+
+  const duplicateDietPlan = useCallback(async (id: string) => {
+    const original = diets.find((d) => d.id === id);
+    if (!original) throw new Error('Diet plan not found');
+
+    const { data: copy, error } = await supabase
+      .from('diet_plans')
+      .insert({
+        trainer_id: user!.id,
+        name: `${original.name} (Copy)`,
+        description: original.description,
+        category: original.category,
+        target_calories: original.target_calories,
+        target_protein: original.target_protein,
+        target_carbs: original.target_carbs,
+        target_fat: original.target_fat,
+        image_url: original.image_url,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (original.diet_plan_meals && original.diet_plan_meals.length > 0) {
+      const rows = original.diet_plan_meals.map((m) => ({
+        diet_plan_id: copy.id,
+        meal_id: m.meal_id,
+        order_index: m.order_index,
+        meal_time: m.meal_time,
+        servings: m.servings || 1,
+      }));
+      await supabase.from('diet_plan_meals').insert(rows);
+    }
+
+    const { data: full } = await supabase
+      .from('diet_plans')
+      .select('*, diet_plan_meals(*, meals(*))')
+      .eq('id', copy.id)
+      .single();
+    if (full) setDiets((prev) => [full, ...prev]);
+    return full || copy;
+  }, [user, diets]);
 
   const deleteDietPlan = useCallback(async (id: string) => {
     await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
@@ -690,6 +1227,197 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     return data as Plan;
   }, [user]);
+
+  const updatePlanTrack = useCallback(async (planId: string, track: TrackNode[]) => {
+    const { error } = await supabase
+      .from('plans')
+      .update({ track })
+      .eq('id', planId);
+    if (error) throw error;
+    setPlans(prev => prev.map(p => p.id === planId ? { ...p, track } : p));
+  }, []);
+
+  const createExercise = useCallback(async (
+    name: string,
+    category: string,
+    muscleGroup: string,
+    equipment?: string,
+    instructions?: string,
+    imageUrl?: string
+  ) => {
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert({
+        trainer_id: user!.id,
+        name,
+        category: sanitizeCategory(category),
+        muscle_group: muscleGroup,
+        equipment: sanitizeEquipment(equipment),
+        instructions: instructions || '',
+        image_url: imageUrl || null,
+        is_custom: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) {
+        setExercises((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+        setAutoAddExerciseId(data.id);
+    }
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Created custom exercise "${name}"`,
+    });
+
+    return data as Exercise;
+  }, [user]);
+
+  const updateExercise = useCallback(async (
+    id: string,
+    name: string,
+    category: string,
+    muscleGroup: string,
+    equipment?: string,
+    instructions?: string,
+    imageUrl?: string
+  ) => {
+    const { data, error } = await supabase
+      .from('exercises')
+      .update({
+        name,
+        category: sanitizeCategory(category),
+        muscle_group: muscleGroup,
+        equipment: sanitizeEquipment(equipment),
+        instructions: instructions || '',
+        image_url: imageUrl || null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) {
+        setExercises((prev) => prev.map(e => e.id === id ? data : e).sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Updated custom exercise "${name}"`,
+    });
+
+    return data as Exercise;
+  }, [user]);
+
+  const importExercise = useCallback(async (exData: { 
+    name: string; category: string; muscle_group: string; equipment: string; 
+    image_url?: string | null; instructions?: string; 
+  }) => {
+    // Check if we already imported this exercise by name (to avoid duplicates)
+    const existing = exercises.find((e) => e.name.toLowerCase() === exData.name.toLowerCase() && e.trainer_id === user!.id);
+    if (existing) {
+      // Update existing exercise if it's missing instructions or image
+      const needsInstructions = !existing.instructions || existing.instructions.trim().length < 20;
+      const needsImage = !existing.image_url && exData.image_url;
+      
+      if (needsInstructions || needsImage) {
+        const newInstructions = exData.instructions || '';
+        
+        // Build update payload
+        const updatePayload: Record<string, any> = {};
+        if (needsInstructions && newInstructions.trim().length >= 20) {
+          updatePayload.instructions = newInstructions;
+        }
+        if (needsImage) {
+          updatePayload.image_url = exData.image_url;
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          try {
+            const { data: updated } = await supabase
+              .from('exercises')
+              .update(updatePayload)
+              .eq('id', existing.id)
+              .select()
+              .single();
+            if (updated) {
+              setExercises((prev) => prev.map(e => e.id === existing.id ? updated : e));
+              return updated;
+            }
+          } catch (updateErr) {
+            console.warn('Failed to update existing exercise:', updateErr);
+          }
+        }
+        
+        // Fall back to AI only if no instructions provided
+        try {
+          const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-exercise', {
+            body: { name: existing.name }
+          });
+          if (!aiError && aiData?.instructions) {
+            const { data: updated } = await supabase
+              .from('exercises')
+              .update({ instructions: aiData.instructions })
+              .eq('id', existing.id)
+              .select()
+              .single();
+            if (updated) {
+              setExercises((prev) => prev.map(e => e.id === existing.id ? updated : e));
+              return updated;
+            }
+          }
+        } catch (aiErr) {
+          console.warn('AI regeneration failed for existing exercise', aiErr);
+        }
+      }
+      return existing;
+    }
+
+    // Use provided instructions, or fall back to AI generation
+    let finalInstructions = exData.instructions || '';
+    if (!finalInstructions || finalInstructions.trim().length < 20) {
+      try {
+        const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-exercise', {
+          body: { name: exData.name }
+        });
+        if (!aiError && aiData?.instructions) {
+          finalInstructions = aiData.instructions;
+        }
+      } catch (aiErr) {
+        console.warn('AI generation failed for imported exercise', aiErr);
+      }
+    }
+
+    // Create the exercise
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert({
+        trainer_id: user!.id,
+        name: exData.name,
+        category: exData.category,
+        muscle_group: exData.muscle_group,
+        equipment: exData.equipment,
+        instructions: finalInstructions,
+        is_custom: true,
+        image_url: exData.image_url || null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) setExercises((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+
+    await supabase.from('activities').insert({
+      trainer_id: user!.id,
+      type: 'workout',
+      message: `Imported exercise "${exData.name}"`,
+    });
+
+    return data as Exercise;
+  }, [user, exercises]);
 
   // --- Client assignment lookups ---
   const getClientWorkouts = useCallback((clientId: string) => {
@@ -782,6 +1510,112 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
   }, [user, clients]);
 
+  // ─── CLASS CRUD ────────────────────────────────────────────
+  const createClass = useCallback(async (data: CreateClassData): Promise<ClassItem> => {
+    if (!user) throw new Error('Not authenticated');
+    const { data: newClass, error } = await supabase
+      .from('classes')
+      .insert({
+        trainer_id: user.id,
+        title: data.title,
+        description: data.description || null,
+        category: data.category,
+        tags: data.tags || [],
+        difficulty: data.difficulty,
+        duration_minutes: data.duration_minutes,
+        video_url: data.video_url || null,
+        thumbnail_url: data.thumbnail_url || null,
+        equipment: data.equipment || [],
+        is_free: data.is_free || false,
+        plan_id: data.plan_id || null,
+        workout_id: data.workout_id || null,
+        status: data.status || 'draft',
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    setTrainerClasses((prev) => [newClass, ...prev]);
+    return newClass;
+  }, [user]);
+
+  const updateClass = useCallback(async (id: string, data: Partial<ClassItem>): Promise<ClassItem> => {
+    const { id: _id, trainer_id: _tid, created_at: _ca, take_count: _tc, total_watch_minutes: _tw, avg_rating: _ar, rating_count: _rc, ...safeData } = data as any;
+    const { data: updated, error } = await supabase
+      .from('classes')
+      .update({ ...safeData, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    setTrainerClasses((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  }, []);
+
+  const deleteClass = useCallback(async (id: string): Promise<void> => {
+    const { error } = await supabase.from('classes').delete().eq('id', id);
+    if (error) throw error;
+    setTrainerClasses((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  const publishClass = useCallback(async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('classes')
+      .update({ status: 'published', updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    setTrainerClasses((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'published' as const } : c)));
+  }, []);
+
+  const createLiveClass = useCallback(async (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_stream_id' | 'mux_stream_key' | 'mux_playback_id' | 'created_at' | 'updated_at'>): Promise<LiveClassItem> => {
+    let streamId = `stream_${Date.now()}`;
+    let streamKey = `key_${Date.now()}`;
+    let playbackId = `playback_${Date.now()}`;
+
+    // 1. Try calling the Supabase Edge Function to get real Mux stream details
+    try {
+      const { data: muxData, error: muxError } = await supabase.functions.invoke('create-mux-stream');
+      if (!muxError && muxData?.stream_key) {
+        streamId = muxData.stream_id;
+        streamKey = muxData.stream_key;
+        playbackId = muxData.playback_id;
+      } else if (muxError) {
+        console.warn('[AppContext] Edge Function create-mux-stream error, using fallback stream values:', muxError);
+      }
+    } catch (e) {
+      console.warn('[AppContext] Edge Function not deployed or unreachable, using fallback values:', e);
+    }
+    
+    // 2. Save in database
+    const payload = {
+      ...data,
+      trainer_id: user!.id,
+      mux_stream_id: streamId,
+      mux_stream_key: streamKey,
+      mux_playback_id: playbackId,
+      status: 'scheduled',
+    };
+    
+    const { data: newClass, error } = await supabase.from('live_classes').insert(payload).select().single();
+    if (error) throw error;
+    
+    setLiveClassesList((prev) => [newClass, ...prev].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
+    return newClass;
+  }, [user]);
+
+  const updateLiveClass = useCallback(async (id: string, updates: Partial<LiveClassItem>): Promise<LiveClassItem> => {
+    const { data, error } = await supabase.from('live_classes').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setLiveClassesList((prev) => prev.map((c) => (c.id === id ? data : c)));
+    return data;
+  }, []);
+
+  const deleteLiveClass = useCallback(async (id: string): Promise<void> => {
+    const { error } = await supabase.from('live_classes').delete().eq('id', id);
+    if (error) throw error;
+    setLiveClassesList((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+
   // --- Computed values ---
   const activeClients = useMemo(() => clients.filter((c) => c.status === 'active' || c.status === 'trial'), [clients]);
   const trialClients = useMemo(() => clients.filter((c) => c.status === 'trial'), [clients]);
@@ -803,7 +1637,44 @@ export function AppProvider({ children }: PropsWithChildren) {
     [plans, clients]
   );
 
-  const value: AppContextType = {
+  const fetchAnalytics = useCallback(async () => {
+    if (!user) return { growth: [], sessionStats: [], sessionTypes: [], revenue: null };
+    try {
+      const [growth, stats, types, revenue] = await Promise.all([
+        supabase.from('coach_client_growth').select('*').eq('trainer_id', user.id).order('month', { ascending: true }),
+        supabase.from('coach_session_stats').select('*').eq('trainer_id', user.id),
+        supabase.from('coach_session_types').select('*').eq('trainer_id', user.id),
+        supabase.from('coach_revenue_mrr').select('*').eq('trainer_id', user.id).single()
+      ]);
+      return {
+        growth: growth.data || [],
+        sessionStats: stats.data || [],
+        sessionTypes: types.data || [],
+        revenue: revenue.data || null,
+      };
+    } catch (e) {
+      console.error('Error fetching analytics views:', e);
+      return { growth: [], sessionStats: [], sessionTypes: [], revenue: null };
+    }
+  }, [user]);
+
+  const createStripeConnectAccount = useCallback(async () => {
+    if (!user) throw new Error('Not authenticated');
+    
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('create-connect-account', {
+      body: { 
+        trainerId: user.id,
+        email: trainer?.email || user.email,
+        name: trainer?.name || 'FitLink Coach'
+      }
+    });
+
+    if (error) throw error;
+    return data as { url: string; accountId: string };
+  }, [user, trainer]);
+
+  const value: AppContextType = useMemo(() => ({
     loading,
     trainer,
     clients,
@@ -813,9 +1684,13 @@ export function AppProvider({ children }: PropsWithChildren) {
     referrals,
     workouts,
     exercises,
+    autoAddExerciseId,
+    setAutoAddExerciseId,
     diets,
     meals,
     notifications,
+    classes: trainerClasses,
+    liveClasses: liveClassesList,
     clientWorkouts: clientWorkoutsList,
     clientDiets: clientDietsList,
     activeClients,
@@ -837,10 +1712,19 @@ export function AppProvider({ children }: PropsWithChildren) {
     getClientSessions,
     updateTrainer,
     createPlan,
+    updatePlanTrack,
+    createExercise,
+    updateExercise,
+    importExercise,
     createWorkout,
+    updateWorkout,
     deleteWorkout,
+    duplicateWorkout,
     assignWorkout,
+    createMeal,
     createDietPlan,
+    updateDietPlan,
+    duplicateDietPlan,
     deleteDietPlan,
     assignDietPlan,
     getClientWorkouts,
@@ -853,8 +1737,44 @@ export function AppProvider({ children }: PropsWithChildren) {
     updatePushToken,
     getClientHealthSnapshot,
     requestHealthAccess,
+    createClass,
+    updateClass,
+    deleteClass,
+    publishClass,
+    createLiveClass,
+    updateLiveClass,
+    deleteLiveClass,
     refreshData,
-  };
+    refreshClients,
+    refreshSessions,
+    createStripeConnectAccount,
+    fetchAnalytics,
+    enrollClientInPlan,
+    advanceTrackPosition,
+    skipTrackNode,
+    pauseEnrollment,
+    resumeEnrollment,
+    getClientEnrollment,
+  }), [
+    loading, trainer, clients, sessions, activities, plans, referrals,
+    workouts, exercises, autoAddExerciseId, diets, meals, notifications,
+    clientWorkoutsList, clientDietsList, activeClients, trialClients,
+    inactiveClients, todaySessions, upcomingSessions, totalReferrals,
+    totalMonthlyRevenue, addClient, updateClient, upgradeClientToPlan,
+    extendClientTrial, updateClientAssessment, getClientById, addSession,
+    updateSession, getSessionsForDate, getClientSessions, updateTrainer,
+    createPlan, updatePlanTrack, createExercise, updateExercise, importExercise,
+    createWorkout, updateWorkout, deleteWorkout, duplicateWorkout, assignWorkout,
+    createMeal, createDietPlan, updateDietPlan, duplicateDietPlan, deleteDietPlan, assignDietPlan, getClientWorkouts,
+    getClientDiets, progressLogs, getClientProgress, addProgressLog,
+    deleteProgressLog, markNotificationRead, updatePushToken,
+    getClientHealthSnapshot, requestHealthAccess,
+    createClass, updateClass, deleteClass, publishClass,
+    refreshData, refreshClients, refreshSessions,
+    createStripeConnectAccount, fetchAnalytics, trainerClasses,
+    enrollClientInPlan, advanceTrackPosition, skipTrackNode,
+    pauseEnrollment, resumeEnrollment, getClientEnrollment,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

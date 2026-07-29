@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type PropsWithChildren } from 'react';
-import { Platform, AppState, Alert } from 'react-native';
+import { Platform, AppState, Alert, NativeModules } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
 
@@ -96,13 +96,28 @@ function loadAppleHealth() {
   if (appleHealthModule) return appleHealthModule;
   if (Platform.OS !== 'ios') return null;
   try {
-    // The patched react-native-health uses a Proxy to lazily access
-    // NativeModules.AppleHealthKit at call time (fixes new arch compatibility)
     const mod = require('react-native-health');
-    appleHealthModule = mod;
 
+    // The patched react-native-health uses a Proxy to lazily access
+    // NativeModules.AppleHealthKit at call time (fixes new arch compatibility).
+    // However, the native module only exists in custom dev builds (not Expo Go).
+    // We must verify the native module is actually registered before claiming
+    // Apple Health is available.
+    const nativeMod = NativeModules.AppleHealthKit;
+    if (!nativeMod) {
+      if (__DEV__) {
+        console.warn(
+          '[HealthContext] react-native-health JS loaded, but NativeModules.AppleHealthKit is undefined. '
+          + 'This usually means you are running in Expo Go. '
+          + 'Apple Health requires a custom dev build (npx expo run:ios or EAS Build).'
+        );
+      }
+      return null;
+    }
+
+    appleHealthModule = mod;
     if (__DEV__) {
-      console.log('[HealthContext] AppleHealthKit loaded via patched module');
+      console.log('[HealthContext] AppleHealthKit loaded — native module confirmed available');
     }
     return appleHealthModule;
   } catch (e) {
@@ -310,12 +325,24 @@ export function HealthProvider({ children }: PropsWithChildren) {
   // ─── iOS: Apple HealthKit ─────────────────────────────────
   const connectIOS = useCallback(async () => {
     const AppleHealthKit = loadAppleHealth();
-    if (!AppleHealthKit) return;
+    if (!AppleHealthKit) {
+      Alert.alert(
+        'Apple Health Unavailable',
+        'Apple Health requires a custom development build. '
+        + 'It is not available in Expo Go.\n\n'
+        + 'To enable Apple Health:\n'
+        + '1. Run: npx expo run:ios\n'
+        + '2. Or create an EAS development build',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     const Permissions = AppleHealthKit.Constants?.Permissions;
 
     if (!Permissions) {
       console.error('[HealthContext] Apple HealthKit Constants not available');
+      Alert.alert('Error', 'Apple HealthKit permissions could not be loaded. Please reinstall the app.');
       return;
     }
 
@@ -360,10 +387,15 @@ export function HealthProvider({ children }: PropsWithChildren) {
     const readPromise = (method: string, options: any): Promise<any> =>
       new Promise((resolve) => {
         if (typeof (AppleHealthKit as any)[method] === 'function') {
-          (AppleHealthKit as any)[method](options, (err: any, results: any) => {
-            if (err) { if (__DEV__) console.warn(`[Health iOS] ${method} error:`, err); resolve(null); }
-            else resolve(results);
-          });
+          try {
+            (AppleHealthKit as any)[method](options, (err: any, results: any) => {
+              if (err) { if (__DEV__) console.warn(`[Health iOS] ${method} error:`, err); resolve(null); }
+              else resolve(results);
+            });
+          } catch (e) {
+            if (__DEV__) console.warn(`[Health iOS] ${method} threw:`, e);
+            resolve(null);
+          }
         } else { resolve(null); }
       });
 
@@ -419,6 +451,26 @@ export function HealthProvider({ children }: PropsWithChildren) {
       snapshot.bloodOxygen = val ? Math.round(val * 100) : null;
     }
 
+    // Basal Energy Burned (was requested but never queried — iOS gap fix)
+    const basalResult = await readPromise('getBasalEnergyBurned', {
+      startDate: getStartOfDay(0).toISOString(), endDate: now.toISOString(),
+    });
+    if (Array.isArray(basalResult) && basalResult.length > 0) {
+      snapshot.basalCaloriesToday = Math.round(
+        basalResult.reduce((sum: number, r: any) => sum + (r.value || 0), 0)
+      );
+    }
+
+    // Blood Pressure (was requested but never queried — iOS gap fix)
+    const bpResult = await readPromise('getBloodPressureSamples', {
+      startDate: getStartOfDay(30).toISOString(), endDate: now.toISOString(),
+    });
+    if (Array.isArray(bpResult) && bpResult.length > 0) {
+      const lastBp = bpResult[bpResult.length - 1];
+      snapshot.bloodPressureSystolic = lastBp?.bloodPressureSystolicValue ?? null;
+      snapshot.bloodPressureDiastolic = lastBp?.bloodPressureDiastolicValue ?? null;
+    }
+
     // Weight
     const wResult = await readPromise('getLatestWeight', {});
     snapshot.latestWeight = wResult?.value ? Math.round(wResult.value) : null;
@@ -436,8 +488,13 @@ export function HealthProvider({ children }: PropsWithChildren) {
       } else if (Platform.OS === 'ios') {
         await connectIOS();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[HealthContext] Connect failed:', err);
+      Alert.alert(
+        'Connection Failed',
+        err?.message || 'Could not connect to health services. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsLoading(false);
     }

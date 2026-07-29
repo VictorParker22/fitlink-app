@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import Card from '../components/Card';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -13,115 +12,139 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function AnalyticsScreen() {
   const router = useRouter();
-  const { clients, sessions, referrals, activeClients, totalMonthlyRevenue, refreshData } = useApp();
+  const { clients, sessions, referrals, activeClients, totalMonthlyRevenue, refreshData, fetchAnalytics } = useApp();
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [analyticsData, setAnalyticsData] = useState<{
+    growth: any[];
+    sessionStats: any[];
+    sessionTypes: any[];
+    revenue: any;
+  } | null>(null);
+
+  useEffect(() => {
+    fetchAnalytics().then(setAnalyticsData);
+  }, [fetchAnalytics]);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    try { await refreshData(); } finally { setRefreshing(false); }
+    try { 
+      await refreshData();
+      const data = await fetchAnalytics();
+      setAnalyticsData(data);
+    } finally { setRefreshing(false); }
   };
 
-  // Session stats
-  const completedSessions = sessions.filter((s) => s.status === 'completed').length;
-  const cancelledSessions = sessions.filter((s) => s.status === 'cancelled').length;
-  const upcomingSessions = sessions.filter((s) => s.status === 'upcoming' && new Date(s.date) > new Date()).length;
-  const completionRate = sessions.length > 0 ? Math.round((completedSessions / sessions.length) * 100) : 0;
+  // Session stats from DB view
+  const completedSessions = analyticsData?.sessionStats.find((s: any) => s.status === 'completed')?.session_count || 0;
+  const cancelledSessions = analyticsData?.sessionStats.find((s: any) => s.status === 'cancelled')?.session_count || 0;
+  const upcomingSessions = analyticsData?.sessionStats.find((s: any) => s.status === 'upcoming')?.session_count || 0;
+  const totalSessions = completedSessions + cancelledSessions + upcomingSessions;
+  const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
-  // Session type breakdown
+  // Session type breakdown from DB view
   const sessionTypes = useMemo(() => {
-    const counts: Record<string, number> = {};
-    sessions.forEach((s) => { counts[s.type] = (counts[s.type] || 0) + 1; });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [sessions]);
+    if (!analyticsData?.sessionTypes) return [];
+    return analyticsData.sessionTypes
+      .map((t: any) => [t.type, t.type_count])
+      .sort((a: any, b: any) => b[1] - a[1]);
+  }, [analyticsData]);
 
-  // Client growth — last 6 months
+  // Client growth from DB view
   const monthlyGrowth = useMemo(() => {
+    if (!analyticsData?.growth) return [];
+    // The DB returns actual months with counts. We need to fill in 0s for missing months in the last 6 months.
     const months: { label: string; count: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       const label = d.toLocaleDateString('en-US', { month: 'short' });
-      const count = clients.filter((c) => {
-        const cd = new Date(c.created_at);
-        return cd.getMonth() === d.getMonth() && cd.getFullYear() === d.getFullYear();
-      }).length;
-      months.push({ label, count });
+      
+      const dbMatch = analyticsData.growth.find((g: any) => {
+        const gd = new Date(g.month);
+        return gd.getMonth() === d.getMonth() && gd.getFullYear() === d.getFullYear();
+      });
+      months.push({ label, count: dbMatch ? parseInt(dbMatch.client_count) : 0 });
     }
     return months;
-  }, [clients]);
+  }, [analyticsData]);
 
   const maxGrowth = Math.max(...monthlyGrowth.map((m) => m.count), 1);
 
   // Revenue breakdown
-  const avgRevenuePerClient = activeClients.length > 0 ? Math.round(totalMonthlyRevenue / activeClients.length) : 0;
-  const totalSessionHours = Math.round(sessions.filter((s) => s.status === 'completed').reduce((sum, s) => sum + s.duration, 0) / 60);
+  const dbMrr = analyticsData?.revenue?.mrr ? parseInt(analyticsData.revenue.mrr) : 0;
+  const avgRevenuePerClient = activeClients.length > 0 ? Math.round(dbMrr / activeClients.length) : 0;
+  
+  const dbTotalMinutes = analyticsData?.sessionStats.find((s: any) => s.status === 'completed')?.total_minutes || 0;
+  const totalSessionHours = Math.round(dbTotalMinutes / 60);
 
   const typeColors: Record<string, string> = { '1-on-1': colors.accent, 'Group': colors.purple, 'Virtual': colors.blue };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Analytics</Text>
+        <Text style={styles.headerTitle}>ANALYTICS</Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} colors={[colors.textPrimary]} />}>
         {/* Overview Cards */}
         <View style={styles.overviewGrid}>
           {[
-            { label: 'Active Clients', value: activeClients.length.toString(), icon: 'people', color: colors.blue },
-            { label: 'Monthly Revenue', value: `$${totalMonthlyRevenue}`, icon: 'cash', color: colors.green },
-            { label: 'Completion Rate', value: `${completionRate}%`, icon: 'checkmark-circle', color: colors.accent },
-            { label: 'Total Hours', value: totalSessionHours.toString(), icon: 'time', color: colors.purple },
+            { label: 'ACTIVE CLIENTS', value: activeClients.length.toString(), icon: 'people-outline' },
+            { label: 'MONTHLY REVENUE', value: `$${totalMonthlyRevenue}`, icon: 'cash-outline' },
+            { label: 'COMPLETION RATE', value: `${completionRate}%`, icon: 'checkmark-circle-outline' },
+            { label: 'TOTAL HOURS', value: totalSessionHours.toString(), icon: 'time-outline' },
           ].map((item, i) => (
-            <Card key={i} style={styles.overviewCard}>
-              <View style={[styles.overviewIcon, { backgroundColor: `${item.color}18` }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+            <View key={i} style={styles.overviewCard}>
+              <View style={styles.overviewIcon}>
+                <Ionicons name={item.icon as any} size={16} color={colors.textPrimary} />
               </View>
               <Text style={styles.overviewValue}>{item.value}</Text>
               <Text style={styles.overviewLabel}>{item.label}</Text>
-            </Card>
+            </View>
           ))}
         </View>
 
         {/* Client Growth Chart */}
         <Text style={styles.sectionLabel}>CLIENT GROWTH</Text>
-        <Card>
+        <View style={styles.cardContainer}>
           <View style={styles.chartContainer}>
             {monthlyGrowth.map((m, i) => (
               <View key={i} style={styles.chartBar}>
                 <Text style={styles.chartCount}>{m.count}</Text>
-                <View style={[styles.bar, { height: Math.max((m.count / maxGrowth) * 80, 4), backgroundColor: i === monthlyGrowth.length - 1 ? colors.accent : colors.blue }]} />
-                <Text style={styles.chartLabel}>{m.label}</Text>
+                <View style={[styles.bar, { height: Math.max((m.count / maxGrowth) * 80, 4), backgroundColor: i === monthlyGrowth.length - 1 ? colors.textPrimary : colors.textTertiary }]} />
+                <Text style={styles.chartLabel}>{m.label.toUpperCase()}</Text>
               </View>
             ))}
           </View>
-        </Card>
+        </View>
 
         {/* Session Breakdown */}
         <Text style={styles.sectionLabel}>SESSION BREAKDOWN</Text>
-        <Card>
+        <View style={styles.cardContainer}>
           <View style={styles.breakdownHeader}>
-            <Text style={styles.breakdownTotal}>{sessions.length} total sessions</Text>
+            <Text style={styles.breakdownTotal}>{totalSessions} TOTAL SESSIONS</Text>
           </View>
           {[
-            { label: 'Completed', count: completedSessions, color: colors.green },
-            { label: 'Upcoming', count: upcomingSessions, color: colors.blue },
-            { label: 'Cancelled', count: cancelledSessions, color: colors.red },
+            { label: 'COMPLETED', count: completedSessions },
+            { label: 'UPCOMING', count: upcomingSessions },
+            { label: 'CANCELLED', count: cancelledSessions },
           ].map((item) => {
-            const pct = sessions.length > 0 ? (item.count / sessions.length) * 100 : 0;
+            const pct = totalSessions > 0 ? (item.count / totalSessions) * 100 : 0;
             return (
               <View key={item.label} style={styles.breakdownRow}>
-                <View style={[styles.breakdownDot, { backgroundColor: item.color }]} />
+                <View style={styles.breakdownDot} />
                 <Text style={styles.breakdownLabel}>{item.label}</Text>
                 <Text style={styles.breakdownCount}>{item.count}</Text>
                 <View style={styles.breakdownBarTrack}>
-                  <View style={[styles.breakdownBarFill, { width: `${pct}%`, backgroundColor: item.color }]} />
+                  <View style={[styles.breakdownBarFill, { width: `${pct}%` }]} />
                 </View>
               </View>
             );
@@ -129,33 +152,33 @@ export default function AnalyticsScreen() {
 
           {sessionTypes.length > 0 && (
             <View style={styles.typeSection}>
-              <Text style={styles.typeTitle}>By Type</Text>
+              <Text style={styles.typeTitle}>BY TYPE</Text>
               {sessionTypes.map(([type, count]) => (
                 <View key={type} style={styles.typeRow}>
-                  <View style={[styles.typeDot, { backgroundColor: typeColors[type] || colors.textTertiary }]} />
-                  <Text style={styles.typeLabel}>{type}</Text>
+                  <View style={styles.typeDot} />
+                  <Text style={styles.typeLabel}>{type.toUpperCase()}</Text>
                   <Text style={styles.typeCount}>{count}</Text>
                 </View>
               ))}
             </View>
           )}
-        </Card>
+        </View>
 
         {/* Revenue Insights */}
         <Text style={styles.sectionLabel}>REVENUE INSIGHTS</Text>
         <View style={styles.insightsRow}>
-          <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: colors.green }]}>${totalMonthlyRevenue}</Text>
+          <View style={styles.insightCard}>
+            <Text style={styles.insightValue}>${dbMrr}</Text>
             <Text style={styles.insightLabel}>MRR</Text>
-          </Card>
-          <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: colors.blue }]}>${avgRevenuePerClient}</Text>
-            <Text style={styles.insightLabel}>Avg/Client</Text>
-          </Card>
-          <Card style={styles.insightCard}>
-            <Text style={[styles.insightValue, { color: colors.purple }]}>{referrals.length}</Text>
-            <Text style={styles.insightLabel}>Referrals</Text>
-          </Card>
+          </View>
+          <View style={styles.insightCard}>
+            <Text style={styles.insightValue}>${avgRevenuePerClient}</Text>
+            <Text style={styles.insightLabel}>AVG/CLIENT</Text>
+          </View>
+          <View style={styles.insightCard}>
+            <Text style={styles.insightValue}>{referrals.length}</Text>
+            <Text style={styles.insightLabel}>REFERRALS</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -164,43 +187,106 @@ export default function AnalyticsScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
-  overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  overviewCard: { width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2 - 1, alignItems: 'center', paddingVertical: Spacing.lg },
-  overviewIcon: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  overviewValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: colors.textPrimary },
-  overviewLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
+  cardContainer: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.md,
+  },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.md },
+  overviewCard: {
+    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.xs) / 2 - 0.5,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  overviewIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  overviewValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: colors.textPrimary },
+  overviewLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 1, marginTop: 2 },
 
-  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingTop: Spacing.md },
+  sectionLabel: {
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
+  },
+
+  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingTop: Spacing.sm },
   chartBar: { alignItems: 'center', gap: 4 },
-  chartCount: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.textSecondary },
-  bar: { width: 28, borderRadius: 4 },
-  chartLabel: { fontFamily: FontFamily.body, fontSize: 10, color: colors.textTertiary },
+  chartCount: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textSecondary },
+  bar: { width: 24, borderRadius: Radius.xs },
+  chartLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 0.5 },
 
-  breakdownHeader: { marginBottom: Spacing.md },
-  breakdownTotal: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
-  breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 6 },
-  breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary, width: 80 },
-  breakdownCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, width: 30 },
-  breakdownBarTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.bgElevated },
-  breakdownBarFill: { height: 4, borderRadius: 2 },
+  breakdownHeader: { marginBottom: Spacing.xs },
+  breakdownTotal: { fontFamily: FontFamily.heading, fontSize: 11, color: colors.textTertiary, letterSpacing: 1 },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingVertical: 8 },
+  breakdownDot: { width: 6, height: 6, borderRadius: 1, backgroundColor: colors.textPrimary },
+  breakdownLabel: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: colors.textPrimary, width: 85, letterSpacing: 0.5 },
+  breakdownCount: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: colors.textPrimary, width: 30 },
+  breakdownBarTrack: { flex: 1, height: 3, borderRadius: Radius.xs, backgroundColor: colors.bgPrimary, borderWidth: 1, borderColor: colors.border },
+  breakdownBarFill: { height: '100%' as any, backgroundColor: colors.textPrimary },
 
-  typeSection: { marginTop: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  typeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, marginBottom: Spacing.sm },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 4 },
-  typeDot: { width: 8, height: 8, borderRadius: 4 },
-  typeLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary, flex: 1 },
-  typeCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  typeSection: { marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  typeTitle: { fontFamily: FontFamily.heading, fontSize: 10, color: colors.textTertiary, letterSpacing: 1, marginBottom: Spacing.xs },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingVertical: 4 },
+  typeDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: colors.textPrimary },
+  typeLabel: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: colors.textPrimary, flex: 1, letterSpacing: 0.5 },
+  typeCount: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: colors.textPrimary },
 
-  insightsRow: { flexDirection: 'row', gap: Spacing.sm },
-  insightCard: { flex: 1, alignItems: 'center', paddingVertical: Spacing.lg },
-  insightValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg },
-  insightLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
+  insightsRow: { flexDirection: 'row', gap: Spacing.xs },
+  insightCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+  },
+  insightValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: colors.textPrimary },
+  insightLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 1, marginTop: 2 },
 });

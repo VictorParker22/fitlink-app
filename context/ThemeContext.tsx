@@ -68,56 +68,56 @@ export const LightColors = {
 
 export const DarkColors: typeof LightColors = {
   // Surfaces
-  bgPrimary: '#111114',
-  bgSecondary: '#1A1A1F',
-  bgCard: '#1E1E24',
-  bgElevated: '#252530',
-  bgInput: '#1E1E24',
-  bgHover: '#2A2A35',
-  bgOverlay: 'rgba(0, 0, 0, 0.65)',
+  bgPrimary: '#000000',
+  bgSecondary: '#0C0C0E',
+  bgCard: '#0C0C0E',
+  bgElevated: '#1C1C1E',
+  bgInput: '#0C0C0E',
+  bgHover: '#1C1C1E',
+  bgOverlay: 'rgba(0, 0, 0, 0.75)',
 
   // Dark header (in dark mode, slightly elevated)
-  headerBg: '#1A1A1F',
-  headerBgAlt: '#252530',
-  headerSurface: 'rgba(255,255,255,0.08)',
-  headerSurfaceActive: '#374151',
+  headerBg: '#000000',
+  headerBgAlt: '#0C0C0E',
+  headerSurface: 'rgba(255,255,255,0.06)',
+  headerSurfaceActive: 'rgba(255,255,255,0.12)',
   headerTextMuted: 'rgba(255,255,255,0.5)',
 
   // Accent (stays warm)
   accent: '#FF6B35',
-  accentSoft: 'rgba(255,107,53,0.15)',
+  accentSoft: 'rgba(255,107,53,0.12)',
   accentHover: '#FF8255',
   accentText: '#FF8255',
 
   // Semantic (slightly brighter for dark bg)
-  green: '#34D369',
-  greenSoft: 'rgba(34,197,94,0.15)',
-  blue: '#7DAAFF',
-  blueSoft: 'rgba(108,155,242,0.15)',
-  yellow: '#FBBF24',
-  yellowSoft: 'rgba(245,158,11,0.15)',
-  red: '#F87171',
-  redSoft: 'rgba(239,68,68,0.15)',
-  purple: '#B8A4FF',
-  purpleSoft: 'rgba(167,139,250,0.15)',
-  teal: '#2DD4BF',
-  tealSoft: 'rgba(20,184,166,0.15)',
+  green: '#22C55E',
+  greenSoft: 'rgba(34,197,94,0.12)',
+  blue: '#4D94FF',
+  blueSoft: 'rgba(77,148,255,0.12)',
+  yellow: '#FFD700',
+  yellowSoft: 'rgba(255,215,0,0.12)',
+  red: '#EF4444',
+  redSoft: 'rgba(239,68,68,0.12)',
+  purple: '#A78BFA',
+  purpleSoft: 'rgba(167,139,250,0.12)',
+  teal: '#14B8A6',
+  tealSoft: 'rgba(20,184,166,0.12)',
 
-  // Pastel card fills (darker, muted versions)
-  peach: '#3D2E1F',
-  lavender: '#1F2638',
-  mint: '#1F2E18',
-  lilac: '#2A1F38',
+  // Pastel card fills (dimmed for dark mode)
+  peach: '#4A3219',
+  lavender: '#2A324A',
+  mint: '#324021',
+  lilac: '#392C4D',
 
   // Text
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  textInverse: '#111827',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#A1A1AA',
+  textTertiary: '#71717A',
+  textInverse: '#000000',
 
   // Borders
-  border: '#2A2A35',
-  borderStrong: '#3A3A45',
+  border: '#1C1C1E',
+  borderStrong: '#2C2C2E',
 
   white: '#F9FAFB',
   black: '#000000',

@@ -1,22 +1,36 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Dimensions, Animated, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Calendar, DateData } from 'react-native-calendars';
+import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
 import { useTheme } from '../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const DAY_CELL_W = (SCREEN_W - 48) / 7;
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function toDateString(date: Date) {
-  return date.toISOString().split('T')[0]; // YYYY-MM-DD
+function getWeekDays(anchor: Date): Date[] {
+  const d = new Date(anchor);
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    return date;
+  });
 }
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function ScheduleScreen() {
   const router = useRouter();
@@ -25,7 +39,6 @@ export default function ScheduleScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(true);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -33,43 +46,36 @@ export default function ScheduleScreen() {
     setRefreshing(false);
   }, [refreshData]);
 
+  // Auto-refresh when screen gains focus (e.g. after booking a session)
+  useFocusEffect(
+    useCallback(() => {
+      refreshData();
+    }, [refreshData])
+  );
+
   const today = new Date();
+  const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
   const daySessions = useMemo(() => getSessionsForDate(selectedDate), [selectedDate, sessions]);
 
-  // Build marked dates for the calendar
-  const markedDates = useMemo(() => {
-    const marks: Record<string, any> = {};
-
-    // Mark all dates with sessions
-    sessions.forEach((session) => {
-      const dateStr = new Date(session.date).toISOString().split('T')[0];
-      const typeColor = session.type === '1-on-1' ? Colors.accent
-        : session.type === 'Group' ? Colors.purple
-        : Colors.blue;
-
-      if (!marks[dateStr]) {
-        marks[dateStr] = { dots: [], marked: true };
-      }
-      // Add dot if not already same color
-      if (!marks[dateStr].dots.find((d: any) => d.color === typeColor)) {
-        marks[dateStr].dots.push({ key: session.id, color: typeColor });
-      }
+  // Count sessions per day in the current week
+  const sessionCountByDay = useMemo(() => {
+    const counts = new Map<string, number>();
+    weekDays.forEach(d => {
+      const dayStr = d.toISOString().split('T')[0];
+      counts.set(dayStr, getSessionsForDate(d).length);
     });
+    return counts;
+  }, [weekDays, sessions]);
 
-    // Mark selected date
-    const selectedStr = toDateString(selectedDate);
-    marks[selectedStr] = {
-      ...marks[selectedStr],
-      selected: true,
-      selectedColor: Colors.accent,
-      selectedTextColor: Colors.white,
-    };
+  const shiftWeek = (dir: number) => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + dir * 7);
+    setSelectedDate(next);
+    setExpandedSession(null);
+  };
 
-    return marks;
-  }, [sessions, selectedDate]);
-
-  const handleDayPress = (day: DateData) => {
-    setSelectedDate(new Date(day.dateString + 'T12:00:00'));
+  const goToToday = () => {
+    setSelectedDate(new Date());
     setExpandedSession(null);
   };
 
@@ -83,125 +89,129 @@ export default function ScheduleScreen() {
   };
 
   const typeColors: Record<string, string> = {
-    '1-on-1': Colors.accent,
-    'Group': Colors.purple,
-    'Virtual': Colors.blue,
+    '1-on-1': '#FF6B35',
+    'Group': '#A78BFA',
+    'Virtual': '#6C9BF2',
   };
 
+  const isCurrentWeek = weekDays.some(d => isSameDay(d, today));
+  const monthLabel = (() => {
+    const months = new Set(weekDays.map(d => MONTH_NAMES[d.getMonth()]));
+    const years = new Set(weekDays.map(d => d.getFullYear()));
+    const monthArr = Array.from(months);
+    const yearStr = years.size > 1 ? '' : ` ${weekDays[0].getFullYear()}`;
+    return monthArr.join(' – ') + yearStr;
+  })();
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Schedule</Text>
-          <Text style={styles.subtitle}>
-            {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </Text>
+    <SafeAreaView style={st.container} edges={['top']}>
+      {/* ── HEADER ── */}
+      <View style={st.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={st.headerTitle}>Schedule</Text>
+          <Text style={st.headerMonth}>{monthLabel}</Text>
         </View>
-        <View style={styles.headerActions}>
+        <View style={st.headerActions}>
+          {!isCurrentWeek && (
+            <TouchableOpacity style={st.todayBtn} onPress={goToToday} activeOpacity={0.7}>
+              <Text style={st.todayBtnText}>Today</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            style={styles.toggleBtn}
-            onPress={() => setShowCalendar(!showCalendar)}
-          >
-            <Ionicons
-              name={showCalendar ? 'chevron-up' : 'calendar-outline'}
-              size={18}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
+            style={st.addBtn}
             activeOpacity={0.8}
             onPress={() => router.push(`/book-session?date=${selectedDate.toISOString()}` as any)}
           >
-            <Ionicons name="add" size={22} color={Colors.white} />
+            <Ionicons name="add" size={22} color="#000" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Calendar */}
-      {showCalendar && (
-        <View style={styles.calendarWrapper}>
-          <Calendar
-            current={toDateString(selectedDate)}
-            onDayPress={handleDayPress}
-            markingType="multi-dot"
-            markedDates={markedDates}
-            enableSwipeMonths
-            hideExtraDays
-            theme={{
-              backgroundColor: 'transparent',
-              calendarBackground: 'transparent',
-              textSectionTitleColor: Colors.textTertiary,
-              textSectionTitleDisabledColor: Colors.border,
-              selectedDayBackgroundColor: Colors.accent,
-              selectedDayTextColor: Colors.white,
-              todayTextColor: Colors.accent,
-              todayBackgroundColor: Colors.accentSoft,
-              dayTextColor: Colors.textPrimary,
-              textDisabledColor: Colors.border,
-              arrowColor: Colors.textSecondary,
-              monthTextColor: Colors.textPrimary,
-              textMonthFontFamily: FontFamily.headingSemiBold,
-              textDayHeaderFontFamily: FontFamily.bodySemiBold,
-              textDayFontFamily: FontFamily.bodyMedium,
-              textMonthFontSize: FontSize.md,
-              textDayHeaderFontSize: 11,
-              textDayFontSize: FontSize.base,
-              'stylesheet.calendar.header': {
-                header: {
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingHorizontal: 4,
-                  marginBottom: 8,
-                },
-                dayTextAtIndex0: { color: Colors.accent },
-                dayTextAtIndex6: { color: Colors.accent },
-              },
-            }}
-          />
-        </View>
-      )}
+      {/* ── WEEK STRIP ── */}
+      <View style={st.weekStrip}>
+        <TouchableOpacity onPress={() => shiftWeek(-1)} style={st.weekArrow} activeOpacity={0.6}>
+          <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.4)" />
+        </TouchableOpacity>
 
-      {/* Day Label */}
-      <View style={styles.dayHeader}>
-        <View>
-          <Text style={styles.dayTitle}>
-            {isSameDay(selectedDate, today) ? 'Today' :
-              selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </Text>
-          <Text style={styles.dayCount}>
+        <View style={st.weekDays}>
+          {weekDays.map((d, i) => {
+            const isSelected = isSameDay(d, selectedDate);
+            const isToday = isSameDay(d, today);
+            const dayStr = d.toISOString().split('T')[0];
+            const count = sessionCountByDay.get(dayStr) || 0;
+
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[st.dayCell, isSelected && st.dayCellSelected]}
+                onPress={() => { setSelectedDate(d); setExpandedSession(null); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[st.dayName, isSelected && st.dayNameSelected, isToday && !isSelected && st.dayNameToday]}>
+                  {DAY_NAMES[i]}
+                </Text>
+                <View style={[st.dayNumber, isSelected && st.dayNumberSelected, isToday && !isSelected && st.dayNumberToday]}>
+                  <Text style={[st.dayNumberText, isSelected && st.dayNumberTextSelected, isToday && !isSelected && st.dayNumberTextToday]}>
+                    {d.getDate()}
+                  </Text>
+                </View>
+                {/* Dots for sessions */}
+                <View style={st.dayDots}>
+                  {count > 0 && (
+                    <View style={[st.dayDot, isSelected && st.dayDotSelected]} />
+                  )}
+                  {count > 1 && (
+                    <View style={[st.dayDot, isSelected && st.dayDotSelected]} />
+                  )}
+                  {count > 2 && (
+                    <View style={[st.dayDot, isSelected && st.dayDotSelected]} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <TouchableOpacity onPress={() => shiftWeek(1)} style={st.weekArrow} activeOpacity={0.6}>
+          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── DAY HEADER ── */}
+      <View style={st.dayHeader}>
+        <Text style={st.dayHeaderTitle}>
+          {isSameDay(selectedDate, today) ? 'Today' :
+            selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+        </Text>
+        <View style={st.sessionCount}>
+          <Text style={st.sessionCountText}>
             {daySessions.length} session{daySessions.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        {/* Session type legend */}
-        <View style={styles.legend}>
-          <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
-          <View style={[styles.legendDot, { backgroundColor: Colors.purple }]} />
-          <View style={[styles.legendDot, { backgroundColor: Colors.blue }]} />
-        </View>
       </View>
 
-      {/* Sessions Timeline */}
+      {/* ── SESSIONS TIMELINE ── */}
       <ScrollView
-        contentContainerStyle={styles.sessionList}
+        contentContainerStyle={st.sessionList}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B35" />}
       >
         {daySessions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="calendar-outline" size={32} color={Colors.accent} />
+          <View style={st.emptyState}>
+            <View style={st.emptyIcon}>
+              <Ionicons name="calendar-outline" size={36} color="rgba(255,255,255,0.15)" />
             </View>
-            <Text style={styles.emptyTitle}>No sessions</Text>
-            <Text style={styles.emptyText}>Nothing scheduled for this day</Text>
+            <Text style={st.emptyTitle}>No sessions scheduled</Text>
+            <Text style={st.emptySubtitle}>
+              {isSameDay(selectedDate, today) ? 'Enjoy your free day!' : 'Tap + to book a session'}
+            </Text>
             <TouchableOpacity
-              style={styles.emptyBtn}
+              style={st.emptyBtn}
               onPress={() => router.push(`/book-session?date=${selectedDate.toISOString()}` as any)}
+              activeOpacity={0.8}
             >
-              <Ionicons name="add" size={16} color={Colors.white} />
-              <Text style={styles.emptyBtnText}>Book Session</Text>
+              <Ionicons name="add" size={18} color="#000" />
+              <Text style={st.emptyBtnText}>Book Session</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -209,202 +219,445 @@ export default function ScheduleScreen() {
             const client = getClientById(session.client_id || '');
             const dt = new Date(session.date);
             const endTime = new Date(dt.getTime() + session.duration * 60000);
-            const typeColor = typeColors[session.type] || Colors.accent;
+            const typeColor = typeColors[session.type] || '#FF6B35';
             const isDone = session.status !== 'upcoming';
             const isExpanded = expandedSession === session.id;
+            const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            const endStr = endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
             return (
               <TouchableOpacity
                 key={session.id}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => setExpandedSession(isExpanded ? null : session.id)}
               >
-                <View style={styles.timelineItem}>
-                  {/* Timeline left column */}
-                  <View style={styles.timelineLeft}>
-                    <Text style={styles.timelineTime}>
-                      {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </Text>
-                    <View style={[styles.timelineLine, { backgroundColor: typeColor }]} />
-                    {index < daySessions.length - 1 && (
-                      <View style={styles.timelineConnector} />
-                    )}
+                <View style={[st.sessionCard, isDone && st.sessionDone]}>
+                  {/* Left accent bar */}
+                  <View style={[st.sessionAccent, { backgroundColor: typeColor }]} />
+
+                  {/* Time column */}
+                  <View style={st.timeCol}>
+                    <Text style={st.timeStart}>{timeStr}</Text>
+                    <Text style={st.timeEnd}>{endStr}</Text>
                   </View>
 
-                  {/* Session card */}
-                  <Card style={[styles.sessionCard, isDone && styles.sessionDone]}>
-                    <View style={[styles.sessionAccent, { backgroundColor: typeColor }]} />
-                    <View style={styles.sessionContent}>
-                      <View style={styles.sessionRow}>
-                        {client ? <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} /> : (
-                          <View style={[styles.groupAvatar, { backgroundColor: Colors.purple }]}>
-                            <Text style={styles.groupAvatarText}>G</Text>
-                          </View>
-                        )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.sessionName}>{client?.name || session.group_name}</Text>
-                          <View style={styles.sessionMeta}>
-                            <View style={[styles.badge, { backgroundColor: `${typeColor}15` }]}>
-                              <Text style={[styles.badgeText, { color: typeColor }]}>{session.type}</Text>
-                            </View>
-                            <Text style={styles.sessionDuration}>{session.duration}min</Text>
-                            <Text style={styles.sessionEndTime}>
-                              → {endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            </Text>
-                          </View>
+                  {/* Divider */}
+                  <View style={st.timeDivider} />
+
+                  {/* Content */}
+                  <View style={st.sessionBody}>
+                    <View style={st.sessionTopRow}>
+                      {client ? (
+                        <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} />
+                      ) : (
+                        <View style={[st.groupAvatar, { backgroundColor: typeColor + '25' }]}>
+                          <Ionicons name="people" size={14} color={typeColor} />
                         </View>
-                        {session.status === 'completed' && (
-                          <View style={[styles.statusChip, { backgroundColor: Colors.greenSoft }]}>
-                            <Ionicons name="checkmark-circle" size={12} color={Colors.green} />
+                      )}
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={st.sessionName} numberOfLines={1}>
+                          {client?.name || session.group_name || 'Session'}
+                        </Text>
+                        <View style={st.sessionMeta}>
+                          <View style={[st.typeBadge, { backgroundColor: typeColor + '18' }]}>
+                            <Text style={[st.typeBadgeText, { color: typeColor }]}>{session.type}</Text>
                           </View>
-                        )}
-                        {session.status === 'cancelled' && (
-                          <View style={[styles.statusChip, { backgroundColor: Colors.redSoft }]}>
-                            <Ionicons name="close-circle" size={12} color={Colors.red} />
-                          </View>
-                        )}
+                          <Text style={st.durationText}>{session.duration} min</Text>
+                        </View>
                       </View>
 
-                      {/* Expanded actions */}
-                      {isExpanded && session.status === 'upcoming' && (
-                        <View style={styles.actions}>
-                          <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: Colors.greenSoft }]}
-                            onPress={() => handleStatusChange(session.id, 'completed')}
-                          >
-                            <Ionicons name="checkmark" size={14} color={Colors.green} />
-                            <Text style={[styles.actionText, { color: Colors.green }]}>Complete</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: Colors.redSoft }]}
-                            onPress={() => handleStatusChange(session.id, 'cancelled')}
-                          >
-                            <Ionicons name="close" size={14} color={Colors.red} />
-                            <Text style={[styles.actionText, { color: Colors.red }]}>Cancel</Text>
-                          </TouchableOpacity>
+                      {/* Status */}
+                      {session.status === 'completed' && (
+                        <View style={[st.statusIcon, { backgroundColor: 'rgba(34,197,94,0.12)' }]}>
+                          <Ionicons name="checkmark" size={14} color="#22C55E" />
                         </View>
                       )}
-                      {isExpanded && session.status !== 'upcoming' && (
-                        <View style={styles.actions}>
-                          <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: colors.bgElevated, flex: 1 }]}
-                            onPress={() => handleStatusChange(session.id, 'upcoming')}
-                          >
-                            <Text style={[styles.actionText, { color: colors.textSecondary }]}>Undo</Text>
-                          </TouchableOpacity>
-                          {session.status === 'completed' && (
-                            <TouchableOpacity
-                              style={[styles.actionBtn, { backgroundColor: `${Colors.purple}15`, flex: 2, marginLeft: Spacing.sm }]}
-                              onPress={() => router.push(`/session-notes?sessionId=${session.id}` as any)}
-                            >
-                              <Ionicons name="document-text" size={14} color={Colors.purple} />
-                              <Text style={[styles.actionText, { color: Colors.purple }]}>{session.notes ? 'Edit Notes' : 'Add Notes'}</Text>
-                            </TouchableOpacity>
-                          )}
+                      {session.status === 'cancelled' && (
+                        <View style={[st.statusIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                          <Ionicons name="close" size={14} color="#EF4444" />
                         </View>
+                      )}
+                      {session.status === 'upcoming' && (
+                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
                       )}
                     </View>
-                  </Card>
+
+                    {/* Expanded actions */}
+                    {isExpanded && session.status === 'upcoming' && (
+                      <View style={st.expandedActions}>
+                        <TouchableOpacity
+                          style={[st.actionBtn, { backgroundColor: 'rgba(34,197,94,0.1)' }]}
+                          onPress={() => handleStatusChange(session.id, 'completed')}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                          <Text style={[st.actionText, { color: '#22C55E' }]}>Complete</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[st.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)' }]}
+                          onPress={() => handleStatusChange(session.id, 'cancelled')}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close-circle" size={16} color="#EF4444" />
+                          <Text style={[st.actionText, { color: '#EF4444' }]}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[st.actionBtn, { backgroundColor: 'rgba(108,155,242,0.1)' }]}
+                          onPress={() => router.push(`/session/${session.id}` as any)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="open-outline" size={14} color="#6C9BF2" />
+                          <Text style={[st.actionText, { color: '#6C9BF2' }]}>View</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {isExpanded && session.status !== 'upcoming' && (
+                      <View style={st.expandedActions}>
+                        <TouchableOpacity
+                          style={[st.actionBtn, { backgroundColor: 'rgba(255,255,255,0.06)', flex: 1 }]}
+                          onPress={() => handleStatusChange(session.id, 'upcoming')}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-undo" size={14} color="rgba(255,255,255,0.5)" />
+                          <Text style={[st.actionText, { color: 'rgba(255,255,255,0.5)' }]}>Undo</Text>
+                        </TouchableOpacity>
+                        {session.status === 'completed' && (
+                          <TouchableOpacity
+                            style={[st.actionBtn, { backgroundColor: 'rgba(167,139,250,0.1)', flex: 2 }]}
+                            onPress={() => router.push(`/session-notes?sessionId=${session.id}` as any)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="document-text" size={14} color="#A78BFA" />
+                            <Text style={[st.actionText, { color: '#A78BFA' }]}>
+                              {session.notes ? 'Edit Notes' : 'Add Notes'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
             );
           })
         )}
+
+        {/* Bottom spacer */}
+        <View style={{ height: 120 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000000' },
 
-  /* Header */
+  // Header
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], color: Colors.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  toggleBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center',
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 24,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
+  headerMonth: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  todayBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  todayBtnText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: '#FFFFFF', letterSpacing: 1, textTransform: 'uppercase' },
   addBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  /* Calendar */
-  calendarWrapper: {
-    marginHorizontal: Spacing.base,
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.xl,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-    marginBottom: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+  // Week Strip
+  weekStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    marginBottom: 4,
   },
+  weekArrow: {
+    width: 28,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekDays: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  dayCell: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: Radius.xs,
+    width: DAY_CELL_W,
+    gap: 4,
+  },
+  dayCellSelected: {
+    backgroundColor: '#0F0F0F',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dayName: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  dayNameSelected: { color: '#FFFFFF' },
+  dayNameToday: { color: '#FF6B35' },
+  dayNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNumberSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  dayNumberToday: {
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  dayNumberText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  dayNumberTextSelected: { color: '#000000' },
+  dayNumberTextToday: { color: '#FF6B35' },
+  dayDots: { flexDirection: 'row', gap: 3, height: 6, alignItems: 'center' },
+  dayDot: { width: 4, height: 4, borderRadius: Radius.xs, backgroundColor: 'rgba(255,255,255,0.25)' },
+  dayDotSelected: { backgroundColor: '#FF6B35' },
 
-  /* Day Header */
+  // Day Header
   dayHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, marginTop: Spacing.sm, marginBottom: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
-  dayTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  dayCount: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  legend: { flexDirection: 'row', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-
-  /* Timeline */
-  sessionList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
-  timelineItem: { flexDirection: 'row', marginBottom: Spacing.xs },
-  timelineLeft: { width: 56, alignItems: 'center', paddingTop: 14 },
-  timelineTime: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.textTertiary, marginBottom: 6 },
-  timelineLine: { width: 8, height: 8, borderRadius: 4 },
-  timelineConnector: {
-    width: 1.5, flex: 1, backgroundColor: Colors.border,
-    marginTop: 4, minHeight: 20,
+  dayHeaderTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  sessionCount: {
+    backgroundColor: '#0F0F0F',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  sessionCountText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 
-  /* Session Card */
-  sessionCard: { flex: 1, marginBottom: 0, overflow: 'hidden', paddingVertical: 0, paddingHorizontal: 0 },
-  sessionDone: { opacity: 0.55 },
-  sessionAccent: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, borderTopLeftRadius: Radius.md, borderBottomLeftRadius: Radius.md },
-  sessionContent: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.base, paddingLeft: Spacing.lg },
-  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  sessionName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: Colors.textPrimary },
-  sessionMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 3 },
-  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.xs },
-  badgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 9 },
-  sessionDuration: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  sessionEndTime: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: Colors.textTertiary },
-  groupAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  groupAvatarText: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: Colors.white },
-  statusChip: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  // Session List
+  sessionList: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xs },
 
-  /* Actions */
-  actions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: Radius.sm },
-  actionText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
-
-  /* Empty State */
-  emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyIconCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
-    marginBottom: Spacing.sm,
+  // Session Card
+  sessionCard: {
+    flexDirection: 'row',
+    backgroundColor: '#0A0A0A',
+    borderRadius: Radius.xs,
+    marginBottom: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: Colors.textPrimary },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textTertiary },
+  sessionDone: { opacity: 0.5 },
+  sessionAccent: {
+    width: 4,
+  },
+  timeCol: {
+    width: 70,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  timeStart: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  timeEnd: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+  },
+  timeDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 12,
+  },
+  sessionBody: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingRight: 16,
+  },
+  sessionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionName: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  sessionMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.xs,
+  },
+  typeBadgeText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  durationText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+  },
+  statusIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Expanded Actions
+  expandedActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: Radius.xs,
+  },
+  actionText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 80,
+    gap: 8,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.xs,
+    backgroundColor: '#0F0F0F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  emptyTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  emptySubtitle: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
   emptyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: Colors.accent, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    borderRadius: Radius.full, marginTop: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: Radius.xs,
+    marginTop: 16,
   },
-  emptyBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: Colors.white },
+  emptyBtnText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 12,
+    color: '#000000',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
 });

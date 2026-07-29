@@ -7,23 +7,28 @@ import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
 import type { ThemeColors } from '../../context/ThemeContext';
-import Card from '../../components/Card';
 import Button from '../../components/Button';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { useStripe } from '@stripe/stripe-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ClientRoute, SharedRoute } from '../../types/routes';
+import * as Haptics from 'expo-haptics';
+
+// ─── TIER ACCENT COLORS ────────────────────────────────────────
+const PLAN_ACCENTS = ['#FFD700', '#22D3EE', '#A78BFA', '#22C55E', '#FF6B35'];
 
 export default function MySubscriptionScreen() {
   const router = useRouter();
   const { clientData, subscription, paymentHistory, plans, cancelSubscription, setupPaymentMethod, refreshData } = useClient();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
-  const { initPaymentSheet, presentPaymentSheet, confirmSetupIntent } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const [refreshing, setRefreshing] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [managingCard, setManagingCard] = useState(false);
+
+  const memberYear = clientData?.created_at ? new Date(clientData.created_at).getFullYear() : new Date().getFullYear();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -62,10 +67,20 @@ export default function MySubscriptionScreen() {
   };
 
   const handleManageCard = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setManagingCard(true);
     try {
-      // Create SetupIntent
-      const { clientSecret } = await setupPaymentMethod();
+      // Create SetupIntent (with timeout so the button doesn't spin forever)
+      const timeoutMs = 15_000;
+      const setupPromise = setupPaymentMethod();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), timeoutMs)
+      );
+      const { clientSecret } = await Promise.race([setupPromise, timeoutPromise]);
+
+      if (!clientSecret) {
+        throw new Error('Unable to set up payment. The server returned an invalid response.');
+      }
       
       // Initialize Stripe UI
       const initRes = await initPaymentSheet({
@@ -89,6 +104,7 @@ export default function MySubscriptionScreen() {
       }
 
     } catch (err: any) {
+      console.error('[MySubscription] handleManageCard error:', err);
       showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to manage card.' });
     } finally {
       setManagingCard(false);
@@ -97,12 +113,18 @@ export default function MySubscriptionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
+      {/* ── HEADER ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(ClientRoute.myProfile); }}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          activeOpacity={0.6}
+        >
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Subscription</Text>
+        <Text style={styles.headerTitle} accessibilityRole="header">Membership</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -111,202 +133,464 @@ export default function MySubscriptionScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
       >
-        {/* Active Subscription */}
+        {/* ── HERO: ACTIVE PLAN ── */}
         {subscription && subscription.plans ? (
-          <LinearGradient
-            colors={isDark ? ['#1E1E28', '#252535'] : ['#FFF8F5', '#FFF0E8']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroTop}>
-              <View style={styles.heroIconBadge}>
-                <Ionicons name="star" size={24} color={colors.accent} />
+          <View style={styles.heroCard}>
+            {/* Accent top line */}
+            <View style={[styles.heroAccentLine, subscription.status === 'canceled' && { backgroundColor: colors.red }]} />
+
+            <View style={styles.heroContent}>
+              <View style={styles.heroTop}>
+                <View style={styles.heroIconBadge}>
+                  <Ionicons name="star" size={18} color={colors.accent} />
+                </View>
+                <View style={[styles.statusBadge, subscription.status === 'canceled' && styles.statusBadgeCanceled]}>
+                  <Text style={[styles.statusText, subscription.status === 'canceled' && styles.statusTextCanceled]}>
+                    {subscription.status.toUpperCase()}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.statusBadge, subscription.status === 'canceled' && styles.statusBadgeCanceled]}>
-                <Text style={[styles.statusText, subscription.status === 'canceled' && styles.statusTextCanceled]}>
-                  {subscription.status.toUpperCase()}
+
+              <Text style={styles.planName}>{subscription.plans.name}</Text>
+              <Text style={styles.planPrice}>
+                <Text style={styles.planPriceAccent}>${subscription.plans.price}</Text>
+                <Text style={styles.planInterval}> / month</Text>
+              </Text>
+
+              <View style={styles.heroDivider} />
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>NEXT BILLING</Text>
+                <Text style={styles.detailValue}>
+                  {subscription.status === 'canceled' ? 'Cancels ' : 'Renews '}
+                  {new Date(subscription.current_period_end).toLocaleDateString()}
                 </Text>
               </View>
-            </View>
-
-            <Text style={styles.planName}>{subscription.plans.name}</Text>
-            <Text style={styles.planPrice}>${subscription.plans.price} <Text style={styles.planInterval}>/ month</Text></Text>
-
-            <View style={styles.divider} />
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Next Billing Date</Text>
-              <Text style={styles.detailValue}>
-                {subscription.status === 'canceled' ? 'Cancels ' : 'Renews '}
-                {new Date(subscription.current_period_end).toLocaleDateString()}
-              </Text>
-            </View>
-          </LinearGradient>
-        ) : (
-          <Card style={styles.emptyCard}>
-            <View style={[styles.heroIconBadge, { backgroundColor: colors.bgPrimary, alignSelf: 'center', marginBottom: Spacing.md }]}>
-              <Ionicons name="information-circle-outline" size={32} color={colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyTitle}>No Active Subscription</Text>
-            <Text style={styles.emptyText}>You don't currently have an active coaching plan.</Text>
-          </Card>
-        )}
-
-        {/* Payment Method */}
-        {subscription && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            <Card style={styles.paymentMethodCard}>
-              <View style={styles.paymentMethodLeft}>
-                <Ionicons name="card" size={24} color={colors.textSecondary} />
-                <Text style={styles.paymentMethodText}>Card on file</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>MEMBER SINCE</Text>
+                <Text style={styles.detailValue}>{memberYear}</Text>
               </View>
-              <TouchableOpacity onPress={handleManageCard} disabled={managingCard}>
-                <Text style={styles.updateCardText}>{managingCard ? 'Updating...' : 'Update'}</Text>
-              </TouchableOpacity>
-            </Card>
+            </View>
+          </View>
+        ) : (
+          /* ── EMPTY STATE ── */
+          <View style={styles.emptySection}>
+            <Text style={styles.sectionLabel}>{'NO ACTIVE MEMBERSHIP'}</Text>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.emptyText}>You don't have an active coaching plan.</Text>
+            <Text style={styles.emptySubtext}>Browse available plans below to get started.</Text>
           </View>
         )}
 
-        {/* Payment History */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment History</Text>
-          {paymentHistory.length === 0 ? (
-            <Card style={styles.paymentMethodCard}>
-              <Text style={[styles.emptyText, { marginBottom: 0 }]}>No payment history yet.</Text>
-            </Card>
-          ) : (
-            paymentHistory.map((payment) => (
-              <Card key={payment.id} style={styles.historyCard}>
-                <View style={styles.historyLeft}>
-                  <Text style={styles.historyDate}>{new Date(payment.created_at).toLocaleDateString()}</Text>
-                  <Text style={styles.historyPlan}>{payment.plans?.name || 'Coaching Plan'}</Text>
+        {/* ── PAYMENT METHOD ── */}
+        {subscription && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>PAYMENT METHOD</Text>
+            <View style={styles.sectionDivider} />
+            <View style={styles.paymentCard}>
+              <View style={styles.paymentLeft}>
+                <View style={styles.paymentIconBox}>
+                  <Ionicons name="card" size={18} color="#A78BFA" />
                 </View>
-                <View style={styles.historyRight}>
-                  <Text style={styles.historyAmount}>${(payment.amount / 100).toFixed(2)}</Text>
-                  <View style={[
-                    styles.historyStatus, 
-                    payment.status === 'succeeded' && { backgroundColor: `${colors.green}18` },
-                    payment.status === 'failed' && { backgroundColor: `${colors.red}18` }
-                  ]}>
-                    <Text style={[
-                      styles.historyStatusText,
-                      payment.status === 'succeeded' && { color: colors.green },
-                      payment.status === 'failed' && { color: colors.red }
+                <View>
+                  <Text style={styles.paymentCardTitle}>Card on file</Text>
+                  <Text style={styles.paymentCardSub}>Managed by Stripe</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={handleManageCard}
+                disabled={managingCard}
+                accessibilityRole="button"
+                accessibilityLabel={managingCard ? 'Updating payment method' : 'Update payment method'}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.updateCardText}>{managingCard ? 'UPDATING...' : 'UPDATE'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ── PAYMENT HISTORY ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>PAYMENT HISTORY</Text>
+          <View style={styles.sectionDivider} />
+          {paymentHistory.length === 0 ? (
+            <Text style={styles.emptyText}>No payment history yet.</Text>
+          ) : (
+            <View style={styles.historyContainer}>
+              {paymentHistory.map((payment, index) => (
+                <View
+                  key={payment.id}
+                  style={[styles.historyRow, index < paymentHistory.length - 1 && styles.historyRowBorder]}
+                  accessibilityLabel={`Payment on ${new Date(payment.created_at).toLocaleDateString()}, $${(payment.amount / 100).toFixed(2)}, ${payment.status}`}
+                >
+                  <View style={styles.historyLeft}>
+                    <Text style={styles.historyDate}>{new Date(payment.created_at).toLocaleDateString()}</Text>
+                    <Text style={styles.historyPlan}>{payment.plans?.name || 'Coaching Plan'}</Text>
+                  </View>
+                  <View style={styles.historyRight}>
+                    <Text style={styles.historyAmount}>${(payment.amount / 100).toFixed(2)}</Text>
+                    <View style={[
+                      styles.historyStatusBadge, 
+                      payment.status === 'succeeded' && { backgroundColor: `${colors.green}18` },
+                      payment.status === 'failed' && { backgroundColor: `${colors.red}18` }
                     ]}>
-                      {payment.status.toUpperCase()}
-                    </Text>
+                      <Text style={[
+                        styles.historyStatusText,
+                        payment.status === 'succeeded' && { color: colors.green },
+                        payment.status === 'failed' && { color: colors.red }
+                      ]}>
+                        {payment.status.toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </Card>
-            ))
+              ))}
+            </View>
           )}
         </View>
 
-        {/* Available Plans (if no subscription) */}
+        {/* ── AVAILABLE PLANS (no subscription) ── */}
         {!subscription && plans && plans.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Plans</Text>
-            {plans.map((plan) => (
-              <Card key={plan.id} style={styles.planCard}>
-                <View style={styles.planTop}>
-                  <Text style={styles.planNameSmall}>{plan.name}</Text>
-                  <Text style={styles.planPriceSmall}>${plan.price}/mo</Text>
+            <Text style={styles.sectionLabel}>AVAILABLE PLANS</Text>
+            <View style={styles.sectionDivider} />
+            {plans.map((plan, index) => {
+              const accentColor = plan.color || PLAN_ACCENTS[index % PLAN_ACCENTS.length];
+              return (
+                <View
+                  key={plan.id}
+                  style={[styles.tierCard, { borderLeftColor: accentColor }]}
+                  accessibilityLabel={`${plan.name} plan, $${plan.price} per month`}
+                >
+                  <View style={styles.tierTop}>
+                    <Text style={styles.tierName}>{plan.name.toUpperCase()}</Text>
+                    <Text style={[styles.tierPrice, { color: accentColor }]}>${plan.price}<Text style={styles.tierInterval}>/mo</Text></Text>
+                  </View>
+                  {plan.description && <Text style={styles.tierDescription}>{plan.description}</Text>}
+                  {plan.features && plan.features.length > 0 && (
+                    <View style={styles.tierFeatures}>
+                      {plan.features.slice(0, 3).map((feature: string, fi: number) => (
+                        <View key={fi} style={styles.tierFeatureRow}>
+                          <View style={[styles.tierFeatureDot, { backgroundColor: accentColor }]} />
+                          <Text style={styles.tierFeatureText}>{feature}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.subscribeBtn, { backgroundColor: accentColor }]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: SharedRoute.checkout as any, params: { planId: plan.id } }); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.subscribeBtnText}>SUBSCRIBE</Text>
+                  </TouchableOpacity>
                 </View>
-                {plan.description && <Text style={styles.planDescription}>{plan.description}</Text>}
-                <Button 
-                  title="Subscribe" 
-                  onPress={() => router.push({ pathname: '/checkout', params: { planId: plan.id } } as any)} 
-                  style={{ marginTop: Spacing.md }}
-                />
-              </Card>
-            ))}
+              );
+            })}
           </View>
         )}
 
-        {/* Cancel Button */}
+        {/* ── DANGER ZONE: CANCEL ── */}
         {subscription && subscription.status === 'active' && (
-          <TouchableOpacity 
-            style={styles.cancelBtn} 
-            onPress={handleCancel}
-            disabled={canceling}
-          >
-            <Text style={styles.cancelBtnText}>{canceling ? 'Canceling...' : 'Cancel Subscription'}</Text>
-          </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: `${colors.red}99` }]}>DANGER ZONE</Text>
+            <View style={[styles.sectionDivider, { backgroundColor: `${colors.red}20` }]} />
+            <Text style={styles.dangerText}>
+              Cancel your subscription. You'll retain access until{' '}
+              {new Date(subscription.current_period_end).toLocaleDateString()}.
+            </Text>
+            <TouchableOpacity 
+              style={styles.cancelBtn} 
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleCancel(); }}
+              disabled={canceling}
+              accessibilityRole="button"
+              accessibilityLabel={canceling ? 'Canceling subscription' : 'Cancel subscription'}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.cancelBtnText}>{canceling ? 'CANCELING...' : 'CANCEL PLAN'}</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ─── STYLES ──────────────────────────────────────────────────────
+
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+  container: { flex: 1, backgroundColor: '#000' },
   
+  // ── Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    paddingHorizontal: 24, paddingVertical: 12,
   },
   backBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: '#1C1C1E',
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 18, color: '#FFFFFF', letterSpacing: 0.5,
+  },
   
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 24, paddingBottom: 100, paddingTop: 8 },
   
+  // ── Brutalist Section Pattern (matches my-profile.tsx)
+  section: { marginBottom: 32 },
+  sectionLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9, color: 'rgba(255,255,255,0.4)',
+    textTransform: 'uppercase', letterSpacing: 2,
+    marginBottom: 10,
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 16,
+  },
+
+  // ── Hero Card (Active Plan)
   heroCard: {
-    padding: Spacing.xl, borderRadius: Radius.xl, marginBottom: Spacing.xl,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1, borderColor: '#1C1C1E',
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    marginBottom: 32,
   },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.lg },
+  heroAccentLine: {
+    height: 2,
+    backgroundColor: colors.accent,
+  },
+  heroContent: {
+    padding: 20,
+  },
+  heroTop: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    marginBottom: 16,
+  },
   heroIconBadge: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: `${colors.accent}15`,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: `${colors.accent}15`,
     alignItems: 'center', justifyContent: 'center',
   },
   statusBadge: {
-    backgroundColor: `${colors.green}18`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full,
+    backgroundColor: `${colors.green}18`,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: Radius.xs,
   },
-  statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.green },
+  statusText: {
+    fontFamily: FontFamily.bodySemiBold, fontSize: 9,
+    color: colors.green, letterSpacing: 1.5,
+  },
   statusBadgeCanceled: { backgroundColor: `${colors.red}18` },
   statusTextCanceled: { color: colors.red },
   
-  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.xl, color: colors.textPrimary, marginBottom: 4 },
-  planPrice: { fontFamily: FontFamily.headingBold, fontSize: FontSize['2xl'], color: colors.textPrimary },
-  planInterval: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary },
+  planName: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 24, color: '#FFFFFF', marginBottom: 4,
+  },
+  planPrice: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 28, color: '#FFFFFF',
+  },
+  planPriceAccent: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 28, color: '#FFD700',
+  },
+  planInterval: {
+    fontFamily: FontFamily.body,
+    fontSize: 14, color: 'rgba(255,255,255,0.35)',
+  },
   
-  divider: { height: 1, backgroundColor: colors.borderStrong, marginVertical: Spacing.lg },
+  heroDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 16,
+  },
   
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  detailLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
-  detailValue: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary },
-  
-  emptyCard: { padding: Spacing.xl, alignItems: 'center', marginBottom: Spacing.xl },
-  emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary, marginBottom: Spacing.xs },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center' },
-  
-  section: { marginBottom: Spacing.xl },
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary, marginBottom: Spacing.md },
-  
-  paymentMethodCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg },
-  paymentMethodLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  paymentMethodText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  updateCardText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
-  
-  historyCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, marginBottom: Spacing.sm },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 10, color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.5,
+  },
+  detailValue: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 13, color: '#FFFFFF',
+  },
+
+  // ── Empty State
+  emptySection: {
+    marginBottom: 32,
+  },
+  emptyText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14, color: 'rgba(255,255,255,0.45)',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontFamily: FontFamily.body,
+    fontSize: 13, color: 'rgba(255,255,255,0.25)',
+  },
+
+  // ── Payment Method
+  paymentCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1, borderColor: '#1C1C1E',
+    borderRadius: Radius.lg,
+    padding: 16,
+  },
+  paymentLeft: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  paymentIconBox: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(167,139,250,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  paymentCardTitle: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 15, color: '#FFFFFF',
+  },
+  paymentCardSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 11, color: 'rgba(255,255,255,0.3)',
+    marginTop: 2,
+  },
+  updateCardText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 11, color: colors.accent,
+    letterSpacing: 1.5,
+    textDecorationLine: 'underline',
+  },
+
+  // ── Payment History (Timeline)
+  historyContainer: {
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1, borderColor: '#1C1C1E',
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  historyRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 16,
+  },
+  historyRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
   historyLeft: { flex: 1 },
-  historyDate: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  historyPlan: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, marginTop: 2 },
+  historyDate: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 14, color: '#FFFFFF',
+  },
+  historyPlan: {
+    fontFamily: FontFamily.body,
+    fontSize: 12, color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
+  },
   historyRight: { alignItems: 'flex-end', gap: 4 },
-  historyAmount: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  historyStatus: { backgroundColor: `${colors.accent}18`, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  historyStatusText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: colors.accent },
-  
-  planCard: { marginBottom: Spacing.md },
-  planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  planNameSmall: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  planPriceSmall: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  planDescription: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
-  
-  cancelBtn: { marginTop: Spacing.xl, paddingVertical: Spacing.md, alignItems: 'center' },
-  cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.red },
+  historyAmount: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 15, color: '#FFFFFF',
+  },
+  historyStatusBadge: {
+    backgroundColor: `${colors.accent}18`,
+    paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: Radius.xs,
+  },
+  historyStatusText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9, color: colors.accent,
+    letterSpacing: 1,
+  },
+
+  // ── Available Plan Tier Cards
+  tierCard: {
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1, borderColor: '#1C1C1E',
+    borderLeftWidth: 3,
+    borderRadius: Radius.lg,
+    padding: 20,
+    marginBottom: 12,
+  },
+  tierTop: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  tierName: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16, color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  tierPrice: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 22,
+  },
+  tierInterval: {
+    fontFamily: FontFamily.body,
+    fontSize: 12, color: 'rgba(255,255,255,0.35)',
+  },
+  tierDescription: {
+    fontFamily: FontFamily.body,
+    fontSize: 13, color: 'rgba(255,255,255,0.45)',
+    marginBottom: 12,
+  },
+  tierFeatures: {
+    marginBottom: 16,
+  },
+  tierFeatureRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: 6,
+  },
+  tierFeatureDot: {
+    width: 4, height: 4, borderRadius: 2,
+    marginRight: 10,
+  },
+  tierFeatureText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13, color: 'rgba(255,255,255,0.6)',
+  },
+  subscribeBtn: {
+    paddingVertical: 14,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  subscribeBtnText: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: 13, color: '#000',
+    letterSpacing: 1.5,
+  },
+
+  // ── Danger Zone (Cancel)
+  dangerText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13, color: 'rgba(255,255,255,0.4)',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    borderRadius: Radius.sm,
+    borderWidth: 1, borderColor: colors.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.red}08`,
+  },
+  cancelBtnText: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: 13, color: colors.red,
+    letterSpacing: 1.5,
+  },
 });

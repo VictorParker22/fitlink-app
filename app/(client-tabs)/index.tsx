@@ -1,118 +1,461 @@
-import { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Linking,
+  Animated as RNAnimated,
+  Image,
+  Modal,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  FadeInUp,
+} from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { ThemeColors } from '../../context/ThemeContext';
-import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
-import WeeklyRing from '../../components/WeeklyRing';
-import CountdownTimer from '../../components/CountdownTimer';
+import { useHealth } from '../../context/HealthContext';
+import GreetingHeader from '../../components/client-tabs/home/GreetingHeader';
+import CoachPulse from '../../components/client-tabs/home/CoachPulse';
+import TodayWorkoutCard from '../../components/client-tabs/home/TodayWorkoutCard';
+import QuickWeightLog from '../../components/client-tabs/home/QuickWeightLog';
+import DaySummaryCard from '../../components/client-tabs/home/DaySummaryCard';
+import TomorrowPreview from '../../components/client-tabs/home/TomorrowPreview';
+import ConsistencyRing from '../../components/client-tabs/home/ConsistencyRing';
+import WelcomeGuide from '../../components/client-tabs/home/WelcomeGuide';
+import NutritionWidget from '../../components/NutritionWidget';
+import ClientFAB from '../../components/ClientFAB';
+import CelebrationOverlay from '../../components/CelebrationOverlay';
+import { useCelebrations } from '../../hooks/useCelebrations';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { calculateXp, calculateLevel } from '../../utils/xp';
+import { ClientRoute } from '../../types/routes';
+import {
+  loginWithSpotify,
+  getNowPlaying,
+  getStoredToken,
+  spotifyPlay,
+  spotifyPause,
+  spotifyNext,
+  spotifyPrevious,
+  type NowPlayingTrack,
+} from '../../lib/spotify';
 
-const QUOTES = [
-  { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
-  { text: "Your body can stand almost anything. It's your mind you have to convince.", author: "Unknown" },
-  { text: "Success is what comes after you stop making excuses.", author: "Luis Galarza" },
-  { text: "The pain you feel today will be the strength you feel tomorrow.", author: "Arnold Schwarzenegger" },
-  { text: "Don't limit your challenges. Challenge your limits.", author: "Jerry Dunn" },
-  { text: "It never gets easier. You just get stronger.", author: "Unknown" },
-  { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln" },
-  { text: "The difference between try and triumph is a little umph.", author: "Marvin Phillips" },
-  { text: "Strength does not come from the body. It comes from the will.", author: "Gandhi" },
-  { text: "Wake up with determination. Go to bed with satisfaction.", author: "Unknown" },
-];
-
-function getGreeting() {
+function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
   const h = new Date().getHours();
-  if (h < 12) return { text: 'Good morning', emoji: '☀️' };
-  if (h < 17) return { text: 'Good afternoon', emoji: '💪' };
-  return { text: 'Good evening', emoji: '🌙' };
+  if (h >= 5 && h < 12) return 'morning';
+  if (h >= 12 && h < 17) return 'afternoon';
+  if (h >= 17 && h < 22) return 'evening';
+  return 'night';
 }
 
-function getDayOfYear() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  return Math.floor((now.getTime() - start.getTime()) / 86400000);
-}
+function GymCheckInWidget({
+  activeVisit,
+  checkIn,
+  checkOut,
+  activeCalories,
+}: {
+  activeVisit: any;
+  checkIn: () => void;
+  checkOut: () => void;
+  activeCalories: number;
+}) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isStale, setIsStale] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<{ duration: string; mins: number; cals: number } | null>(null);
 
-function getWeekDates() {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
+  // Format seconds to HH:MM:SS
+  const formatTime = (totalSec: number): string => {
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return hrs > 0 ? `${pad(hrs)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`;
+  };
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const elapsed = formatTime(elapsedSeconds);
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
 
-function GymCheckInWidget({ activeVisit, checkIn, checkOut, colors }: { activeVisit: any, checkIn: () => void, checkOut: () => void, colors: ThemeColors }) {
-  const [elapsed, setElapsed] = useState('');
+  // Spotify state
+  const [nowPlaying, setNowPlaying] = useState<NowPlayingTrack | null>(null);
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+
+  // Check if Spotify is already connected on mount
+  useEffect(() => {
+    getStoredToken().then(token => setSpotifyConnected(!!token));
+  }, []);
+
+  // Poll now playing every 10s when active + connected
+  useEffect(() => {
+    if (!activeVisit || !spotifyConnected) {
+      setNowPlaying(null);
+      return;
+    }
+    const poll = () => getNowPlaying().then(setNowPlaying);
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => clearInterval(id);
+  }, [activeVisit, spotifyConnected]);
+
+  const connectSpotify = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const success = await loginWithSpotify();
+    if (success) setSpotifyConnected(true);
+  };
+
+  // Pulsing animation for the active state
+  const pulseAnim = useRef(new RNAnimated.Value(1)).current;
+  const glowAnim = useRef(new RNAnimated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeVisit && !isStale) {
+      const pulse = RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(pulseAnim, { toValue: 1.08, duration: 1200, useNativeDriver: true }),
+          RNAnimated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        ])
+      );
+      const glow = RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: false }),
+          RNAnimated.timing(glowAnim, { toValue: 0, duration: 1500, useNativeDriver: false }),
+        ])
+      );
+      pulse.start();
+      glow.start();
+      return () => { pulse.stop(); glow.stop(); };
+    }
+  }, [activeVisit, isStale]);
 
   useEffect(() => {
     if (!activeVisit) {
-      setElapsed('');
+      setElapsedSeconds(0);
+      setIsStale(false);
       return;
     }
-    const updateElapsed = () => {
-      const diff = Date.now() - new Date(activeVisit.check_in_time).getTime();
-      const mins = Math.floor(diff / 60000);
-      const hrs = Math.floor(mins / 60);
-      const displayMins = mins % 60;
-      setElapsed(`${hrs > 0 ? hrs + 'h ' : ''}${displayMins}m`);
+    const update = () => {
+      const ms = Date.now() - new Date(activeVisit.check_in_time).getTime();
+      const totalSecs = Math.floor(ms / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      setElapsedSeconds(totalSecs);
+
+      if (hrs >= 4) {
+        setIsStale(true);
+        return;
+      }
+      setIsStale(false);
     };
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 60000);
-    return () => clearInterval(interval);
+    update();
+    const id = setInterval(update, 1000); // Update every second
+    return () => clearInterval(id);
   }, [activeVisit]);
 
-  if (activeVisit) {
+  // Auto-checkout stale visits
+  useEffect(() => {
+    if (isStale && activeVisit) {
+      checkOut();
+    }
+  }, [isStale, activeVisit, checkOut]);
+
+  // Music launcher helper
+  const openMusic = (platform: 'spotify' | 'apple') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const url = platform === 'spotify'
+      ? 'spotify:playlist:37i9dQZF1DX76Wlfdnj7AP' // Beast Mode playlist
+      : 'music://'; // Opens Apple Music
+    Linking.openURL(url).catch(() => {
+      // Fallback to web
+      const webUrl = platform === 'spotify'
+        ? 'https://open.spotify.com/playlist/37i9dQZF1DX76Wlfdnj7AP'
+        : 'https://music.apple.com';
+      Linking.openURL(webUrl);
+    });
+  };
+
+  // Real calories from health device, or 0 if not connected
+  const displayCals = activeCalories;
+
+  // Handle end session with summary
+  const handleEndSession = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSummaryData({
+      duration: elapsed,
+      mins: elapsedMinutes,
+      cals: displayCals,
+    });
+    setShowSummary(true);
+    // Don't checkOut yet — wait for user to dismiss the summary
+  };
+
+  // ─── IDLE STATE: Bold check-in button ───
+  if (!activeVisit && !showSummary) {
     return (
-      <View style={{ backgroundColor: `${Colors.accent}20`, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', borderColor: Colors.accent, borderWidth: 1 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="fitness" size={24} color="#FFF" />
-        </View>
-        <View style={{ flex: 1, marginLeft: Spacing.md }}>
-          <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary }}>At the Gym</Text>
-          <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary }}>Duration: <Text style={{ color: Colors.accent, fontFamily: FontFamily.headingSemiBold }}>{elapsed}</Text></Text>
-        </View>
-        <TouchableOpacity style={{ backgroundColor: Colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }} onPress={checkOut}>
-          <Text style={{ color: '#FFF', fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.sm }}>Check Out</Text>
+      <Animated.View entering={FadeInUp.delay(100)}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            checkIn();
+          }}
+          style={st.gymCheckInBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Check in to gym"
+        >
+          <LinearGradient
+            colors={['#22C55E', '#16A34A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={st.gymGradientIcon}
+          >
+            <Ionicons name="flash" size={22} color="#FFFFFF" />
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={st.gymCheckInTitle}>START GYM SESSION</Text>
+            <Text style={st.gymCheckInSub}>Check in · earn 50 XP · track your time</Text>
+          </View>
+          <View style={st.gymArrowCircle}>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
+          </View>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     );
   }
 
+  // ─── ACTIVE STATE: Live session card with Korean-style energy ───
+  const glowBorderColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(34,197,94,0.3)', 'rgba(34,197,94,0.7)'],
+  });
+
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={checkIn} style={{ backgroundColor: colors.bgElevated, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', borderColor: colors.border, borderWidth: 1 }}>
-      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${Colors.accent}15`, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name="scan" size={20} color={Colors.accent} />
+    <>
+    <Animated.View entering={FadeInUp.delay(100)}>
+      <RNAnimated.View style={[st.gymActiveContainer, { borderColor: isStale ? '#EF4444' : glowBorderColor }]}>
+        {/* Top bar: Status + Timer */}
+        <View style={st.gymActiveHeader}>
+          <View style={st.gymLiveBadge}>
+            <View style={st.gymLiveDot} />
+            <Text style={st.gymLiveText}>LIVE SESSION</Text>
+          </View>
+          <RNAnimated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Text style={st.gymTimerBig}>{elapsed}</Text>
+          </RNAnimated.View>
+        </View>
+
+        {/* Stats Row */}
+        <View style={st.gymStatsRow}>
+          <View style={st.gymStatBox}>
+            <Ionicons name="flame-outline" size={14} color="#FF6B35" />
+            <Text style={st.gymStatValue}>{displayCals}</Text>
+            <Text style={st.gymStatLabel}>CAL</Text>
+          </View>
+          <View style={st.gymStatDivider} />
+          <View style={st.gymStatBox}>
+            <Ionicons name="trophy-outline" size={14} color="#FFD700" />
+            <Text style={st.gymStatValue}>+50</Text>
+            <Text style={st.gymStatLabel}>XP</Text>
+          </View>
+          <View style={st.gymStatDivider} />
+          <View style={st.gymStatBox}>
+            <Ionicons name="time-outline" size={14} color="#22C55E" />
+            <Text style={st.gymStatValue}>{elapsedMinutes}</Text>
+            <Text style={st.gymStatLabel}>MIN</Text>
+          </View>
+        </View>
+        {/* Music Section */}
+        {!spotifyConnected ? (
+          <View style={st.gymMusicRow}>
+            <Text style={st.gymMusicLabel}>CONNECT MUSIC</Text>
+            <View style={st.gymMusicBtns}>
+              <TouchableOpacity
+                style={[st.gymMusicBtn, { backgroundColor: 'rgba(30,215,96,0.15)' }]}
+                onPress={connectSpotify}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="play-circle" size={16} color="#1ED760" />
+                <Text style={[st.gymMusicBtnText, { color: '#1ED760' }]}>Connect Spotify</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[st.gymMusicBtn, { backgroundColor: 'rgba(252,60,68,0.15)' }]}
+                onPress={() => openMusic('apple')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="musical-notes" size={16} color="#FC3C44" />
+                <Text style={[st.gymMusicBtnText, { color: '#FC3C44' }]}>Apple Music</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={st.nowPlayingContainer}>
+            {/* Album Art or Spotify icon placeholder */}
+            {nowPlaying?.albumArt ? (
+              <Image source={{ uri: nowPlaying.albumArt }} style={st.nowPlayingArt} />
+            ) : (
+              <View style={[st.nowPlayingArt, st.nowPlayingPlaceholder]}>
+                <Ionicons name="play-circle" size={24} color="#1ED760" />
+              </View>
+            )}
+
+            {/* Track info or placeholder */}
+            <View style={st.nowPlayingInfo}>
+              <Text style={st.nowPlayingTrack} numberOfLines={1}>
+                {nowPlaying?.trackName || 'Spotify Connected'}
+              </Text>
+              <Text style={st.nowPlayingArtist} numberOfLines={1}>
+                {nowPlaying?.artistName || 'Play something to see it here'}
+              </Text>
+            </View>
+
+            {/* Always-visible controls */}
+            <View style={st.nowPlayingControls}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  spotifyPrevious().then(() => setTimeout(() => getNowPlaying().then(setNowPlaying), 500));
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="play-skip-back" size={14} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  const action = nowPlaying?.isPlaying ? spotifyPause() : spotifyPlay();
+                  action.then(() => setTimeout(() => getNowPlaying().then(setNowPlaying), 300));
+                }}
+                style={st.playPauseBtn}
+              >
+                <Ionicons name={nowPlaying?.isPlaying ? 'pause' : 'play'} size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  spotifyNext().then(() => setTimeout(() => getNowPlaying().then(setNowPlaying), 500));
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="play-skip-forward" size={14} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Check Out Button */}
+        <TouchableOpacity
+          onPress={handleEndSession}
+          style={st.gymCheckOutBtn}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="stop-circle" size={18} color="#EF4444" />
+          <Text style={st.gymCheckOutText}>END SESSION</Text>
+        </TouchableOpacity>
+      </RNAnimated.View>
+    </Animated.View>
+
+    {/* Session Complete Summary Modal */}
+    <Modal
+      visible={showSummary}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowSummary(false)}
+    >
+      <View style={st.summaryOverlay}>
+        <Animated.View entering={FadeInUp.duration(400)} style={st.summaryCard}>
+          <View style={st.summaryIconCircle}>
+            <Ionicons name="checkmark-circle" size={48} color="#22C55E" />
+          </View>
+          <Text style={st.summaryTitle}>SESSION COMPLETE</Text>
+          <Text style={st.summarySubtitle}>Great work! Here's your recap.</Text>
+
+          <View style={st.summaryStatsRow}>
+            <View style={st.summaryStatItem}>
+              <Text style={st.summaryStatValue}>{summaryData?.duration || '00:00'}</Text>
+              <Text style={st.summaryStatLabel}>DURATION</Text>
+            </View>
+            <View style={st.summaryStatDivider} />
+            <View style={st.summaryStatItem}>
+              <Text style={st.summaryStatValue}>{summaryData?.cals || 0}</Text>
+              <Text style={st.summaryStatLabel}>CALORIES</Text>
+            </View>
+            <View style={st.summaryStatDivider} />
+            <View style={st.summaryStatItem}>
+              <Text style={[st.summaryStatValue, { color: '#FFD700' }]}>+50</Text>
+              <Text style={st.summaryStatLabel}>XP EARNED</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={st.summaryDoneBtn}
+            onPress={() => {
+              setShowSummary(false);
+              checkOut();
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={st.summaryDoneBtnText}>DONE</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
-      <View style={{ flex: 1, marginLeft: Spacing.md }}>
-        <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary }}>Gym Check-in</Text>
-        <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary }}>Tap here when you arrive at the gym.</Text>
-      </View>
-    </TouchableOpacity>
+    </Modal>
+    </>
   );
 }
 
 export default function ClientHomeScreen() {
   const router = useRouter();
-  const { clientData, trainer, upcomingSessions, todayWorkout, workouts, sessions, loading, refreshData, activeGymVisit, checkInGym, checkOutGym } = useClient();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  const insets = useSafeAreaInsets();
+  const {
+    clientData,
+    trainer,
+    todayWorkout,
+    workouts,
+    loading,
+    refreshData,
+    activeGymVisit,
+    checkInGym,
+    checkOutGym,
+    progressLogs,
+    completeTrackWorkout,
+    skipTrackWorkout,
+  } = useClient();
+
+  const { healthData } = useHealth();
+
+  // Derive latest weight from progress logs (most recent entry with a weight value)
+  const latestWeight = useMemo(() => {
+    if (!progressLogs || progressLogs.length === 0) return undefined;
+    const withWeight = progressLogs
+      .filter((log: any) => log.weight != null)
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return withWeight.length > 0 ? Number(withWeight[0].weight) : undefined;
+  }, [progressLogs]);
+
   const [refreshing, setRefreshing] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const scrollY = useSharedValue(0);
+
+  const { activeCelebration, dismissCelebration } = useCelebrations();
+
+  const timeOfDay = useMemo(() => getTimeOfDay(), []);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -120,413 +463,503 @@ export default function ClientHomeScreen() {
     setRefreshing(false);
   }, [refreshData]);
 
-  if (loading || !clientData) return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]}><View style={styles.loading}><ActivityIndicator size="large" color={colors.accent} /></View></SafeAreaView>
-  );
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) setAuthUser(user);
+    })();
+  }, []);
 
-  const firstName = clientData.name.split(' ')[0];
-  const greeting = getGreeting();
-  const quote = QUOTES[getDayOfYear() % QUOTES.length];
+  const clientName = clientData?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || 'Athlete';
+  const avatarUrl = clientData?.avatar_url;
+  const isWorkoutCompletedToday = todayWorkout?.status === 'completed';
 
-  // Weekly stats
-  const weekDates = getWeekDates();
-  const weekStart = weekDates[0];
-  const weekEnd = weekDates[6];
-  const thisWeekWorkouts = workouts.filter((w: any) => {
-    const d = new Date(w.assigned_date);
-    return d >= weekStart && d <= new Date(weekEnd.getTime() + 86400000);
-  });
-  const completedThisWeek = thisWeekWorkouts.filter((w: any) => w.status === 'completed').length;
-  const totalThisWeek = Math.max(thisWeekWorkouts.length, 5);
-
-  // Streak
-  const streak = clientData.progress?.streak || 0;
-
-  // XP
-  const totalCompleted = workouts.filter((w: any) => w.status === 'completed').length;
-  const xp = calculateXp(totalCompleted);
-  const level = calculateLevel(xp);
-
-  // Week day completion map
-  const completedDays = new Set<number>();
-  thisWeekWorkouts.forEach((w: any) => {
-    if (w.status === 'completed') {
-      const d = new Date(w.assigned_date).getDay();
-      completedDays.add(d === 0 ? 6 : d - 1);
-    }
-  });
-  const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
-
-  // Heatmap (last 4 weeks)
-  const heatmapData = useMemo(() => {
-    const grid: number[][] = [];
-    for (let w = 3; w >= 0; w--) {
-      const row: number[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = new Date();
-        const dayOfWeek = date.getDay();
-        const mondayOffset = (dayOfWeek + 6) % 7;
-        date.setDate(date.getDate() - mondayOffset - w * 7 + d);
-        date.setHours(0, 0, 0, 0);
-        const hasWorkout = workouts.some((wo: any) => {
-          const wd = new Date(wo.assigned_date);
-          wd.setHours(0, 0, 0, 0);
-          return wd.getTime() === date.getTime() && wo.status === 'completed';
-        });
-        row.push(hasWorkout ? 1 : 0);
-      }
-      grid.push(row);
-    }
-    return grid;
+  const tomorrowWorkout = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toDateString();
+    return workouts.find((w: any) => new Date(w.assigned_date).toDateString() === tomorrowStr && w.status === 'assigned');
   }, [workouts]);
 
-  // Next session
-  const nextSession = upcomingSessions.length > 0 ? upcomingSessions[0] : null;
+  const completedDays = useMemo(() => {
+    const set = new Set<number>();
+    workouts.forEach((w: any) => {
+      if (w.status === 'completed') {
+        const d = new Date(w.assigned_date).getDay();
+        set.add(d === 0 ? 6 : d - 1);
+      }
+    });
+    return Array.from(set);
+  }, [workouts]);
 
-  // Mission card exercises
-  const exercises = todayWorkout?.workouts?.workout_exercises || [];
+  const headerBgStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [40, 120], [0, 1], Extrapolation.CLAMP);
+    return { opacity };
+  });
+
+  if (loading) {
+    return (
+      <View style={st.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+    <View style={st.container}>
+      {/* Celebration Overlay */}
+      <CelebrationOverlay celebration={activeCelebration} onDismiss={dismissCelebration} />
 
-        {/* ── HERO ── */}
-        <View style={styles.heroRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greeting.text} {greeting.emoji}</Text>
-            <Text style={styles.heroName}>{firstName}</Text>
+      {/* Sticky Blur Header */}
+      <Animated.View style={[st.header, { paddingTop: insets.top }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, headerBgStyle]}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+        </Animated.View>
+      </Animated.View>
+
+      <Animated.ScrollView
+        style={st.scrollView}
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: insets.bottom + 100,
+        }}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={['#5B7FFF']}
+          />
+        }
+      >
+        {/* 1. Greeting Header */}
+        <GreetingHeader
+          clientName={clientName}
+          avatarUrl={avatarUrl}
+          timeOfDay={timeOfDay}
+          trainerName={trainer?.name}
+        />
+
+        {/* 2. Gym Check-In Widget */}
+        <GymCheckInWidget
+          activeVisit={activeGymVisit}
+          checkIn={checkInGym}
+          checkOut={checkOutGym}
+          activeCalories={healthData?.activeCaloriesToday || 0}
+        />
+
+        {/* 3. Coach Pulse Card (Surfaces coach presence) */}
+        <CoachPulse trainer={trainer} isOnline={!!trainer?.is_online} />
+
+        {/* Explore Widget */}
+        <TouchableOpacity 
+          style={st.exploreWidget} 
+          onPress={() => router.push('/workouts' as any)}
+          activeOpacity={0.8}
+        >
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={st.exploreTitle}>EXPLORE ROUTINES</Text>
+            <Text style={st.exploreSubtitle}>Discover new workouts and plans to add to your journey.</Text>
           </View>
-          <Avatar name={clientData.name} size="lg" imageUrl={clientData.avatar_url} />
-        </View>
-
-        {/* ── COACH CARD ── */}
-        {trainer && (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/(client-tabs)/my-messages' as any)}>
-            <LinearGradient colors={isDark ? ['#1E1E28', '#252535'] : ['#FFF5F0', '#FFFFFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.coachCard}>
-              <View style={styles.coachLeft}>
-                <Avatar name={trainer.name || 'Coach'} size="md" imageUrl={trainer.avatar_url} />
-                <View style={[styles.onlineDot, { borderColor: isDark ? '#1E1E28' : '#FFF5F0' }]} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.coachLabel}>Your Coach</Text>
-                <Text style={styles.coachName}>{trainer.name || 'Coach'}</Text>
-              </View>
-              <View style={styles.coachCTA}>
-                <Ionicons name="chatbubble" size={16} color={Colors.white} />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        {/* ── HEALTH DATA REQUEST BANNER ── */}
-        {(clientData as any).health_sharing_requested && !clientData.health_sharing_enabled && (
-          <View style={[styles.trialBanner, { backgroundColor: `${colors.accent}15`, borderColor: colors.accent, borderWidth: 1 }]}>
-            <View style={styles.trialTop}>
-              <Ionicons name="heart" size={22} color={colors.accent} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.trialTitle, { color: colors.textPrimary }]}>Health Access Request</Text>
-                <Text style={[styles.trialSub, { color: colors.textTertiary, marginBottom: Spacing.sm }]}>Your coach wants to see your health metrics (steps, heart rate, etc.) to tailor your plan.</Text>
-                <TouchableOpacity 
-                  activeOpacity={0.8} 
-                  style={[styles.missionBtn, { marginTop: 0, paddingVertical: 8 }]}
-                  onPress={async () => {
-                    try {
-                      await supabase.from('clients').update({ health_sharing_enabled: true }).eq('id', clientData.id);
-                      await refreshData();
-                      Alert.alert('Enabled', 'Health sharing enabled!');
-                    } catch (e) {
-                      Alert.alert('Error', 'Failed to enable health sharing.');
-                    }
-                  }}
-                >
-                  <Text style={styles.missionBtnText}>Enable Health Sharing</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <View style={st.exploreIconWrap}>
+            <Ionicons name="compass" size={24} color="#5B7FFF" />
           </View>
-        )}
-
-        {/* ── TRIAL BANNER ── */}
-        {clientData.status === 'trial' && (() => {
-          const trialEnd = clientData.trial_end_date ? new Date(clientData.trial_end_date) : new Date(new Date(clientData.created_at).getTime() + 20 * 86400000);
-          const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000));
-          const totalDays = Math.ceil((trialEnd.getTime() - new Date(clientData.created_at).getTime()) / 86400000);
-          const pct = Math.min(1, (totalDays - daysLeft) / totalDays);
-          const expired = daysLeft === 0;
-          return (
-            <View style={[styles.trialBanner, { backgroundColor: expired ? '#EF444418' : Colors.yellowSoft }]}>
-              <View style={styles.trialTop}>
-                <Ionicons name={expired ? 'alert-circle' : 'time'} size={22} color={expired ? '#EF4444' : Colors.yellow} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.trialTitle, { color: colors.textPrimary }]}>{expired ? 'Trial Expired' : `${daysLeft} Day${daysLeft !== 1 ? 's' : ''} Left`}</Text>
-                  <Text style={[styles.trialSub, { color: colors.textTertiary }]}>{expired ? 'Upgrade to continue.' : `Ends ${trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
-                </View>
-              </View>
-              <View style={[styles.trialTrack, { backgroundColor: colors.bgElevated }]}>
-                <View style={[styles.trialFill, { width: `${pct * 100}%`, backgroundColor: expired ? '#EF4444' : daysLeft <= 5 ? Colors.yellow : Colors.green }]} />
-              </View>
-            </View>
-          );
-        })()}
-
-        {/* ── GYM CHECK-IN ── */}
-        <GymCheckInWidget activeVisit={activeGymVisit} checkIn={checkInGym} checkOut={checkOutGym} colors={colors} />
-
-        {/* ── ASSESSMENT PROMPT ── */}
-        {!clientData.assessment_data && (
-          <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/client/assessment' as any)}>
-            <LinearGradient colors={[colors.accent, '#FF9F6B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.assessmentCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.assessmentTitle}>Complete your profile</Text>
-                <Text style={styles.assessmentDesc}>Help your coach build the perfect plan.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        {/* ── WEEKLY RING + STREAK ── */}
-        <View style={styles.ringSection}>
-          <WeeklyRing completed={completedThisWeek} total={totalThisWeek} accentColor={colors.accent} bgColor={colors.bgElevated} textColor={colors.textPrimary} subtextColor={colors.textTertiary} />
-          <View style={styles.streakRow}>
-            {DAY_LABELS.map((label, i) => {
-              const done = completedDays.has(i);
-              const isToday = i === todayIdx;
-              return (
-                <View key={i} style={styles.dayCol}>
-                  <View style={[styles.dayDot, done && styles.dayDotDone, isToday && !done && { borderWidth: 2, borderColor: colors.accent }]}>
-                    {done ? <Text style={{ fontSize: 12 }}>🔥</Text> : <Text style={[styles.dayDotText, { color: colors.textTertiary }]}>{label}</Text>}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-          <View style={styles.xpRow}>
-            <View style={[styles.xpBadge, { backgroundColor: `${colors.accent}15` }]}>
-              <Ionicons name="flash" size={12} color={colors.accent} />
-              <Text style={[styles.xpText, { color: colors.accent }]}>Level {level}</Text>
-            </View>
-            <Text style={[styles.xpDetail, { color: colors.textTertiary }]}>{xp} XP • {streak > 0 ? `${streak} day streak 🔥` : 'Start your streak!'}</Text>
-          </View>
-        </View>
-
-        {/* ── MISSION CARD ── */}
-        {todayWorkout && (
-          <>
-            <Text style={styles.sectionTitle}>Today's Mission</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(client-tabs)/workouts' as any); }}>
-              <LinearGradient colors={isDark ? ['#1A1A24', '#22222E'] : ['#1C1C21', '#2A2A32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.missionCard}>
-                <View style={[styles.missionAccent, { backgroundColor: colors.accent }]} />
-                <Text style={styles.missionLabel}>MISSION BRIEFING</Text>
-                <Text style={styles.missionName}>{todayWorkout.workouts?.name || 'Workout'}</Text>
-                <View style={styles.missionMeta}>
-                  <View style={styles.missionMetaItem}><Ionicons name="barbell" size={14} color={colors.accent} /><Text style={styles.missionMetaText}>{exercises.length} exercises</Text></View>
-                  <View style={styles.missionMetaItem}><Ionicons name="time" size={14} color={colors.accent} /><Text style={styles.missionMetaText}>{todayWorkout.workouts?.estimated_duration || 45}min</Text></View>
-                </View>
-                <View style={styles.missionExercises}>
-                  {exercises.slice(0, 2).map((ex: any, i: number) => (
-                    <View key={i} style={styles.missionExRow}>
-                      <Text style={styles.missionExName}>{ex.exercises?.name || 'Exercise'}</Text>
-                      <Text style={styles.missionExSets}>{ex.sets}×{ex.reps}</Text>
-                    </View>
-                  ))}
-                  {exercises.length > 2 && (
-                    <View style={styles.missionExRow}>
-                      <View style={styles.missionLockRow}><Ionicons name="lock-closed" size={11} color="rgba(255,255,255,0.35)" /><Text style={styles.missionLockText}>{exercises.length - 2} more exercises</Text></View>
-                      <Text style={styles.missionExSets}>???</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.missionBtn}><Text style={styles.missionBtnText}>Accept Mission →</Text></View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── COUNTDOWN ── */}
-        {nextSession && (
-          <>
-            <Text style={styles.sectionTitle}>Next Session</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => {
-              Alert.alert(
-                `${nextSession.type} Session`,
-                `${new Date(nextSession.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}\n${new Date(nextSession.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${nextSession.duration} min\n\nWith ${trainer?.name || 'your trainer'}`,
-                [{ text: 'OK' }]
-              );
-            }}>
-              <Card style={styles.countdownCard}>
-                <View style={styles.countdownTop}>
-                  <View style={[styles.countdownIcon, { backgroundColor: `${colors.accent}18` }]}>
-                    <Ionicons name="time" size={20} color={colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.countdownType, { color: colors.textPrimary }]}>{nextSession.type} Session</Text>
-                    <Text style={[styles.countdownDate, { color: colors.textTertiary }]}>
-                      {new Date(nextSession.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {new Date(nextSession.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ marginTop: Spacing.lg }}>
-                  <CountdownTimer targetDate={new Date(nextSession.date)} accentColor={colors.accent} bgColor={colors.bgElevated} textColor={colors.textPrimary} subtextColor={colors.textTertiary} />
-                </View>
-              </Card>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── HEATMAP ── */}
-        <Text style={styles.sectionTitle}>Activity</Text>
-        <Card>
-          <View style={styles.heatmapHeader}>
-            <Text style={[styles.heatmapTitle, { color: colors.textSecondary }]}>Last 4 Weeks</Text>
-            <Text style={[styles.heatmapCount, { color: colors.accent }]}>{workouts.filter((w: any) => w.status === 'completed').length} total</Text>
-          </View>
-          <View style={styles.heatmapGrid}>
-            {heatmapData.map((week, wi) => (
-              <View key={wi} style={styles.heatmapRow}>
-                {week.map((val, di) => (
-                  <View key={di} style={[styles.heatmapCell, { backgroundColor: val ? colors.accent : colors.bgElevated }]} />
-                ))}
-              </View>
-            ))}
-          </View>
-          <View style={styles.heatmapLabels}>
-            {DAY_LABELS.map((l, i) => <Text key={i} style={[styles.heatmapLabel, { color: colors.textTertiary }]}>{l}</Text>)}
-          </View>
-        </Card>
-
-        {/* ── UPCOMING SESSIONS ── */}
-        {upcomingSessions.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Upcoming</Text>
-            {upcomingSessions.slice(0, 3).map((session: any) => {
-              const dt = new Date(session.date);
-              return (
-                <Card key={session.id} style={styles.sessionCard}>
-                  <View style={styles.sessionRow}>
-                    <View style={[styles.sessionIcon, { backgroundColor: `${colors.accent}18` }]}>
-                      <Ionicons name="calendar" size={18} color={colors.accent} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.sessionType, { color: colors.textPrimary }]}>{session.type} Session</Text>
-                      <Text style={[styles.sessionMeta, { color: colors.textTertiary }]}>
-                        {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {session.duration}min
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
-              );
-            })}
-          </>
-        )}
-
-        {/* ── VIEW PROGRESS ── */}
-        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/my-progress' as any)}>
-          <Card style={[styles.sessionCard, { flexDirection: 'row', alignItems: 'center', gap: Spacing.md }]}>
-            <View style={[styles.sessionIcon, { backgroundColor: `${colors.green}18` }]}>
-              <Ionicons name="trending-up" size={20} color={colors.green} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sessionType, { color: colors.textPrimary }]}>View Your Progress</Text>
-              <Text style={[styles.sessionMeta, { color: colors.textTertiary }]}>Weight, measurements & photos</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </Card>
         </TouchableOpacity>
 
-        {/* ── QUOTE ── */}
-        <LinearGradient colors={isDark ? ['#1E1E28', '#252535'] : ['#FFF8F5', '#FFF0E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quoteCard}>
-          <Text style={styles.quoteLabel}>💡 Daily Motivation</Text>
-          <Text style={styles.quoteText}>"{quote.text}"</Text>
-          <Text style={styles.quoteAuthor}>— {quote.author}</Text>
-        </LinearGradient>
+        {/* Welcome Guide for Day 1 Clients */}
+        <WelcomeGuide visible={!todayWorkout} />
 
-      </ScrollView>
-    </SafeAreaView>
+        {/* 4. Today's Prescription / Workout Card */}
+        <TodayWorkoutCard
+          workout={todayWorkout}
+          trainerName={trainer?.name}
+          isCompleted={isWorkoutCompletedToday}
+          onSkip={skipTrackWorkout}
+        />
+
+        {/* 5. Quick Weight Log (Always Visible) */}
+        <QuickWeightLog latestWeight={latestWeight} unit="lbs" onLogComplete={refreshData} />
+
+        {/* 6. Context-Aware Layout Blocks */}
+        {timeOfDay === 'morning' || timeOfDay === 'afternoon' ? (
+          <>
+            {/* Morning/Afternoon focus: Nutrition & Consistency */}
+            <NutritionWidget />
+            <ConsistencyRing completedDays={completedDays} />
+          </>
+        ) : (
+          <>
+            {/* Evening/Post-Workout focus: Day Summary, Tomorrow's Plan & Rhythm */}
+            <DaySummaryCard
+              workoutCompleted={isWorkoutCompletedToday}
+              mealsLoggedCount={(clientData?.progress as any)?.mealsLoggedToday || 0}
+              totalMealsGoal={(clientData?.progress as any)?.totalMealsGoal || 4}
+              streakDays={clientData?.progress?.streak || 0}
+            />
+            <TomorrowPreview tomorrowWorkout={tomorrowWorkout} />
+            <NutritionWidget />
+          </>
+        )}
+      </Animated.ScrollView>
+
+      {/* Intelligent Contextual FAB */}
+      <ClientFAB />
+    </View>
   );
 }
 
-const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  scroll: { padding: Spacing.lg, paddingBottom: 120 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { fontFamily: FontFamily.body },
-
-  heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  greeting: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textSecondary },
-  heroName: { fontFamily: FontFamily.headingExtraBold, fontSize: 30, color: colors.textPrimary, letterSpacing: -0.5 },
-
-  coachCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.base, borderRadius: Radius.xl, marginBottom: Spacing.lg, borderWidth: 1, borderColor: colors.border },
-  coachLeft: { position: 'relative' },
-  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2 },
-  coachLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  coachName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  coachCTA: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-
-  trialBanner: { padding: Spacing.lg, borderRadius: Radius.xl, gap: Spacing.md, marginBottom: Spacing.lg },
-  trialTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trialTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base },
-  trialSub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
-  trialTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  trialFill: { height: '100%', borderRadius: 3 },
-
-  assessmentCard: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.lg },
-  assessmentTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: '#FFF' },
-  assessmentDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-
-  ringSection: { alignItems: 'center', marginBottom: Spacing.xl, gap: Spacing.lg },
-  streakRow: { flexDirection: 'row', gap: Spacing.md },
-  dayCol: { alignItems: 'center' },
-  dayDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  dayDotDone: { backgroundColor: 'transparent' },
-  dayDotText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10 },
-  xpRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  xpBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
-  xpText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
-  xpDetail: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
-
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary, marginTop: Spacing.xl, marginBottom: Spacing.md },
-
-  missionCard: { borderRadius: Radius.xl, padding: Spacing.lg, overflow: 'hidden' },
-  missionAccent: { position: 'absolute', top: 0, left: 0, width: 4, height: '100%', borderTopLeftRadius: Radius.xl, borderBottomLeftRadius: Radius.xl },
-  missionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 2 },
-  missionName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: '#FFF', marginTop: Spacing.xs },
-  missionMeta: { flexDirection: 'row', gap: Spacing.lg, marginTop: Spacing.md },
-  missionMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  missionMetaText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.6)' },
-  missionExercises: { marginTop: Spacing.lg, gap: Spacing.sm },
-  missionExRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  missionExName: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.7)' },
-  missionExSets: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)' },
-  missionLockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  missionLockText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' },
-  missionBtn: { backgroundColor: colors.accent, borderRadius: Radius.md, paddingVertical: 12, alignItems: 'center', marginTop: Spacing.lg },
-  missionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: '#FFF' },
-
-  countdownCard: { marginBottom: Spacing.sm },
-  countdownTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  countdownIcon: { width: 44, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  countdownType: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md },
-  countdownDate: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
-
-  heatmapHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
-  heatmapTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
-  heatmapCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
-  heatmapGrid: { gap: 4 },
-  heatmapRow: { flexDirection: 'row', gap: 4, justifyContent: 'space-around' },
-  heatmapCell: { flex: 1, aspectRatio: 1, borderRadius: 4, maxWidth: 36, maxHeight: 36 },
-  heatmapLabels: { flexDirection: 'row', justifyContent: 'space-around', marginTop: Spacing.xs },
-  heatmapLabel: { fontFamily: FontFamily.body, fontSize: 9, flex: 1, textAlign: 'center' },
-
-  sessionCard: { marginBottom: Spacing.sm },
-  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  sessionIcon: { width: 44, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  sessionType: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md },
-  sessionMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
-
-  quoteCard: { padding: Spacing.lg, borderRadius: Radius.xl, marginTop: Spacing.xl, borderWidth: 1, borderColor: colors.border },
-  quoteLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, marginBottom: Spacing.sm },
-  quoteText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary, lineHeight: 22, fontStyle: 'italic' },
-  quoteAuthor: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: Spacing.sm },
+const st = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreWidget: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.xl,
+    backgroundColor: '#1C1C1E',
+    borderRadius: Radius.sm,
+    padding: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  exploreTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 18,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  exploreSubtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  exploreIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2A2A2C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  gymCheckInBtn: {
+    backgroundColor: '#0C0C0E',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(34,197,94,0.3)',
+  },
+  gymGradientIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gymCheckInTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  gymCheckInSub: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  gymArrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // ── Active session card ──
+  gymActiveContainer: {
+    backgroundColor: '#0C0C0E',
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  gymActiveHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  gymLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(34,197,94,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  gymLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22C55E',
+  },
+  gymLiveText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 9,
+    color: '#22C55E',
+    letterSpacing: 2,
+  },
+  gymTimerBig: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 28,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  // ── Stats row ──
+  gymStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  gymStatBox: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  gymStatValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  gymStatLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 8,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.5,
+  },
+  gymStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  // ── Music row ──
+  gymMusicRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  gymMusicLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 2,
+  },
+  gymMusicBtns: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  gymMusicBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  gymMusicBtnText: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: 10,
+  },
+  // ── Check out ──
+  gymCheckOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    marginTop: 4,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+  },
+  gymCheckOutText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: '#EF4444',
+    letterSpacing: 1.5,
+  },
+  // ── Now Playing ──
+  nowPlayingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  nowPlayingArt: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    flexShrink: 0,
+  },
+  nowPlayingPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nowPlayingInfo: {
+    flexShrink: 1,
+    marginRight: 'auto',
+  },
+  nowPlayingTrack: {
+    fontFamily: FontFamily.headingSemiBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  nowPlayingArtist: {
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 1,
+  },
+  nowPlayingControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+    marginLeft: 4,
+  },
+  playPauseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1ED760',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // ── Session Summary Modal ──
+  summaryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  summaryCard: {
+    backgroundColor: '#0C0C0E',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    width: '100%',
+    alignItems: 'center',
+  },
+  summaryIconCircle: {
+    marginBottom: 12,
+  },
+  summaryTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 20,
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  summarySubtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 24,
+  },
+  summaryStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 24,
+  },
+  summaryStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  summaryStatValue: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 22,
+    color: '#FFFFFF',
+  },
+  summaryStatLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.5,
+  },
+  summaryStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  summaryDoneBtn: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  summaryDoneBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
+    color: '#000000',
+    letterSpacing: 1.5,
+  },
 });
+

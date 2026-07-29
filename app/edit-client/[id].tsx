@@ -68,7 +68,7 @@ export default function EditClientScreen() {
     { value: 'active', label: 'Active', color: colors.green },
     { value: 'trial', label: 'Trial', color: colors.yellow },
     { value: 'inactive', label: 'Inactive', color: colors.textTertiary },
-  ];
+  ] as const;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

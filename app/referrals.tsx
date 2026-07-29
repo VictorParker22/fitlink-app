@@ -5,9 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
-import Card from '../components/Card';
-import Button from '../components/Button';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme'
+import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -73,51 +71,55 @@ export default function ReferralsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Referrals</Text>
-        <TouchableOpacity onPress={handleInvite} style={[styles.backBtn, { backgroundColor: colors.accent }]}>
-          <Ionicons name="person-add" size={16} color={colors.white} />
+        <Text style={styles.headerTitle}>REFERRAL PROGRAM</Text>
+        <TouchableOpacity onPress={handleInvite} style={styles.inviteHeaderBtn} accessibilityRole="button" accessibilityLabel="Share referral link">
+          <Ionicons name="person-add-outline" size={18} color={colors.bgPrimary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} colors={[colors.textPrimary]} />}>
         {/* Tier Banner */}
-        <Card style={styles.tierCard}>
+        <View style={styles.tierCard}>
           <View style={styles.tierRow}>
             <Text style={styles.tierIcon}>{tier.icon}</Text>
             <View style={{ flex: 1 }}>
               <View style={styles.tierHeader}>
-                <Text style={[styles.tierName, { color: tier.color }]}>{tier.name} Tier</Text>
+                <Text style={styles.tierName}>{tier.name.toUpperCase()} TIER</Text>
                 {progress.percent < 100 && (
-                  <Text style={styles.tierProgress}>{progress.current}/{progress.target} to {progress.nextTier}</Text>
+                  <Text style={styles.tierProgress}>{progress.current}/{progress.target} TO {progress.nextTier.toUpperCase()}</Text>
                 )}
               </View>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.min(progress.percent, 100)}%`, backgroundColor: tier.color }]} />
+                <View style={[styles.progressFill, { width: `${Math.min(progress.percent, 100)}%` }]} />
               </View>
             </View>
           </View>
-        </Card>
+        </View>
 
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { value: totalReferrals.toString(), label: 'Total', color: colors.blue },
-            { value: `${conversionRate}%`, label: 'Conversion', color: colors.green },
-            { value: `$${totalEarnings}`, label: 'Earned', color: colors.accent },
+            { value: totalReferrals.toString(), label: 'TOTAL' },
+            { value: `${conversionRate}%`, label: 'CONVERSION' },
+            { value: `$${totalEarnings}`, label: 'EARNED' },
           ].map((s, i) => (
-            <Card key={i} style={styles.statCard}>
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+            <View key={i} style={styles.statCard}>
+              <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
-            </Card>
+            </View>
           ))}
         </View>
 
         {/* Invite CTA */}
-        <Button title="Share Referral Link" onPress={handleInvite} full icon={<Ionicons name="share-outline" size={18} color={colors.white} />} />
+        <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite} activeOpacity={0.8} accessibilityRole="button">
+          <Ionicons name="share-outline" size={18} color={colors.bgPrimary} />
+          <Text style={styles.inviteBtnText}>SHARE REFERRAL LINK</Text>
+        </TouchableOpacity>
 
         {/* Filter Tabs */}
         <Text style={styles.sectionLabel}>REFERRAL HISTORY</Text>
@@ -125,7 +127,7 @@ export default function ReferralsScreen() {
           {filters.map((f) => (
             <TouchableOpacity key={f} style={[styles.filterChip, filter === f && styles.filterChipActive]} onPress={() => setFilter(f)}>
               <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                {f === 'signed_up' ? 'Signed Up' : f.charAt(0).toUpperCase() + f.slice(1)}
+                {f === 'signed_up' ? 'SIGNED UP' : f.toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}
@@ -133,33 +135,34 @@ export default function ReferralsScreen() {
 
         {/* Referral List */}
         {filteredReferrals.length === 0 ? (
-          <Card>
+          <View style={styles.emptyCard}>
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={40} color={colors.textTertiary} />
+              <Ionicons name="people-outline" size={36} color={colors.textTertiary} />
+              <Text style={styles.emptyTitle}>NO REFERRALS YET</Text>
               <Text style={styles.emptyText}>No referrals {filter !== 'all' ? `with status "${filter}"` : 'yet'}</Text>
             </View>
-          </Card>
+          </View>
         ) : (
           filteredReferrals.map((ref) => {
             const sc = statusConfig[ref.status] || statusConfig.pending;
             return (
-              <Card key={ref.id} style={styles.refCard}>
+              <View key={ref.id} style={styles.refCard}>
                 <View style={styles.refRow}>
-                  <Avatar name={ref.name || 'Unknown'} size="sm" />
+                  <Avatar name={ref.name || 'Unknown'} size="sm" shape="square" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.refName}>{ref.name}</Text>
-                    <Text style={styles.refDate}>{new Date(ref.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                    <Text style={styles.refName}>{ref.name.toUpperCase()}</Text>
+                    <Text style={styles.refDate}>{new Date(ref.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <View style={[styles.statusBadge, { backgroundColor: `${sc.color}20` }]}>
-                      <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusText}>{sc.label.toUpperCase()}</Text>
                     </View>
                     {(ref.reward || 0) > 0 && (
                       <Text style={styles.rewardText}>+${ref.reward}</Text>
                     )}
                   </View>
                 </View>
-              </Card>
+              </View>
             );
           })
         )}
@@ -170,40 +173,146 @@ export default function ReferralsScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  inviteHeaderBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
-  tierCard: { marginBottom: Spacing.lg },
+  tierCard: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+  },
   tierRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  tierIcon: { fontSize: 32 },
+  tierIcon: { fontSize: 28 },
   tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tierName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
-  tierProgress: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.bgElevated, marginTop: 6 },
-  progressFill: { height: 6, borderRadius: 3 },
+  tierName: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1 },
+  tierProgress: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 0.8 },
+  progressTrack: { height: 4, borderRadius: Radius.xs, backgroundColor: colors.bgPrimary, borderWidth: 1, borderColor: colors.border, marginTop: 6 },
+  progressFill: { height: '100%' as any, backgroundColor: colors.textPrimary },
 
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  statCard: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl },
-  statLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 2 },
+  statsRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+  },
+  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: colors.textPrimary },
+  statLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 1, marginTop: 2 },
 
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.md },
+  inviteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    borderRadius: Radius.xs,
+    paddingVertical: 14,
+    marginBottom: Spacing.lg,
+  },
+  inviteBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 12,
+    color: colors.bgPrimary,
+    letterSpacing: 1.5,
+  },
+
+  sectionLabel: {
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginBottom: Spacing.xs,
+  },
   filterScroll: { marginBottom: Spacing.md },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, marginRight: Spacing.sm, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
-  filterText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  filterTextActive: { color: colors.accent },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: colors.bgSecondary,
+    marginRight: Spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  filterText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textTertiary, letterSpacing: 0.8 },
+  filterTextActive: { color: colors.bgPrimary },
 
-  refCard: { marginBottom: Spacing.sm },
+  refCard: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
   refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  refName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  refDate: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 1 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.xs },
-  statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10 },
-  rewardText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.green },
+  refName: { fontFamily: FontFamily.bodyBold, fontSize: 12, color: colors.textPrimary, letterSpacing: 0.5 },
+  refDate: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 0.5, marginTop: 2 },
+  statusBadge: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.xs,
+  },
+  statusText: { fontFamily: FontFamily.bodyBold, fontSize: 8, color: colors.textPrimary, letterSpacing: 0.8 },
+  rewardText: { fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: colors.green },
 
-  emptyState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
+  emptyCard: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.lg,
+  },
+  emptyState: { alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
+  emptyTitle: { fontFamily: FontFamily.heading, fontSize: 12, color: colors.textPrimary, letterSpacing: 1 },
+  emptyText: { fontFamily: FontFamily.body, fontSize: 11, color: colors.textTertiary },
 });

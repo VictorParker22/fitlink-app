@@ -6,11 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../context/AppContext';
 import { useTheme, type ThemeMode } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
-import Button from '../components/Button';
-import Card from '../components/Card';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
 
@@ -18,10 +17,12 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { trainer, updateTrainer } = useApp();
+  const { trainer, updateTrainer, createStripeConnectAccount } = useApp();
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
+
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
   const [name, setName] = useState(trainer?.name || '');
   const [email, setEmail] = useState(trainer?.email || '');
@@ -83,6 +84,24 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true);
+    try {
+      const { url } = await createStripeConnectAccount();
+      if (url) {
+        const result = await WebBrowser.openAuthSessionAsync(url, 'fitlink://stripe-return');
+        if (result.type === 'success') {
+          showAlert({ type: 'success', title: 'Success', message: 'Stripe onboarding completed!' });
+          // Note: AppContext will auto-refresh the trainer object via realtime or next load
+        }
+      }
+    } catch (err: any) {
+      showAlert({ type: 'error', title: 'Stripe Error', message: err.message || 'Failed to connect to Stripe.' });
+    } finally {
+      setIsConnectingStripe(false);
+    }
+  };
+
   const themeOptions: { label: string; value: ThemeMode; icon: string }[] = [
     { label: 'Light', value: 'light', icon: 'sunny' },
     { label: 'Dark', value: 'dark', icon: 'moon' },
@@ -94,70 +113,70 @@ export default function SettingsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
+          <Text style={styles.headerTitle}>SETTINGS</Text>
           <View style={{ width: 36 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
           {/* Appearance Section */}
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>APPEARANCE</Text>
-          <Card>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Text style={styles.sectionTitle}>APPEARANCE</Text>
+          <View style={styles.cardContainer}>
+            <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
               {themeOptions.map((opt) => (
                 <TouchableOpacity
                   key={opt.value}
                   style={[
                     styles.themeChip,
-                    { backgroundColor: colors.bgInput, borderColor: colors.border },
-                    mode === opt.value && { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+                    mode === opt.value && styles.themeChipActive,
                   ]}
                   onPress={() => setMode(opt.value)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${opt.label} theme${mode === opt.value ? ', selected' : ''}`}
                 >
                   <Ionicons
                     name={opt.icon as any}
-                    size={18}
-                    color={mode === opt.value ? colors.accent : colors.textTertiary}
+                    size={16}
+                    color={mode === opt.value ? colors.textPrimary : colors.textTertiary}
                   />
                   <Text style={[
                     styles.themeChipText,
-                    { color: colors.textSecondary },
-                    mode === opt.value && { color: colors.accent, fontFamily: FontFamily.bodySemiBold },
+                    mode === opt.value && styles.themeChipTextActive,
                   ]}>
-                    {opt.label}
+                    {opt.label.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </Card>
+          </View>
 
           {/* Personal Info */}
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>PERSONAL INFORMATION</Text>
-          <Card>
+          <Text style={styles.sectionTitle}>PERSONAL INFORMATION</Text>
+          <View style={styles.cardContainer}>
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>Name</Text>
-              <TextInput style={[styles.fieldInput, { color: colors.textPrimary }]} value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.textTertiary} />
+              <Text style={styles.fieldLabel}>FULL NAME</Text>
+              <TextInput style={styles.fieldInput} value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.textTertiary} accessibilityLabel="Name" />
             </View>
-            <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>Email</Text>
-              <TextInput style={[styles.fieldInput, { color: colors.textPrimary }]} value={email} onChangeText={setEmail} placeholder="your@email.com" placeholderTextColor={colors.textTertiary} keyboardType="email-address" autoCapitalize="none" />
+            <View style={[styles.fieldGroup, styles.fieldBorder]}>
+              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+              <TextInput style={styles.fieldInput} value={email} onChangeText={setEmail} placeholder="your@email.com" placeholderTextColor={colors.textTertiary} keyboardType="email-address" autoCapitalize="none" accessibilityLabel="Email address" />
             </View>
-            <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>Phone</Text>
-              <TextInput style={[styles.fieldInput, { color: colors.textPrimary }]} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={colors.textTertiary} keyboardType="phone-pad" />
+            <View style={[styles.fieldGroup, styles.fieldBorder]}>
+              <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+              <TextInput style={styles.fieldInput} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={colors.textTertiary} keyboardType="phone-pad" accessibilityLabel="Phone number" />
             </View>
-            <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>Specialization</Text>
-              <TextInput style={[styles.fieldInput, { color: colors.textPrimary }]} value={specialization} onChangeText={setSpecialization} placeholder="e.g. Strength Training, HIIT..." placeholderTextColor={colors.textTertiary} />
+            <View style={[styles.fieldGroup, styles.fieldBorder]}>
+              <Text style={styles.fieldLabel}>SPECIALIZATION</Text>
+              <TextInput style={styles.fieldInput} value={specialization} onChangeText={setSpecialization} placeholder="e.g. Strength Training, HIIT..." placeholderTextColor={colors.textTertiary} accessibilityLabel="Specialization" />
             </View>
-            <View style={[styles.fieldGroup, { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>Bio</Text>
+            <View style={[styles.fieldGroup, styles.fieldBorder]}>
+              <Text style={styles.fieldLabel}>BIO</Text>
               <TextInput
-                style={[styles.fieldInput, styles.textArea, { color: colors.textPrimary }]}
+                style={[styles.fieldInput, styles.textArea]}
                 value={bio}
                 onChangeText={setBio}
                 placeholder="Tell clients about yourself..."
@@ -165,58 +184,101 @@ export default function SettingsScreen() {
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                accessibilityLabel="Bio"
               />
             </View>
-          </Card>
+          </View>
 
           {/* Working Hours */}
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>WORKING HOURS</Text>
-          <Card noPadding>
+          <Text style={styles.sectionTitle}>WORKING HOURS</Text>
+          <View style={styles.cardContainerNoPadding}>
             {DAYS.map((day, i) => (
-              <View key={day} style={[styles.dayRow, i < DAYS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <Text style={[styles.dayName, { color: workingHours[day].enabled ? colors.textPrimary : colors.textTertiary }]}>{day}</Text>
+              <View key={day} style={[styles.dayRow, i < DAYS.length - 1 && styles.rowBorder]}>
+                <Text style={[styles.dayName, !workingHours[day].enabled && { color: colors.textTertiary }]}>{day.toUpperCase()}</Text>
                 {workingHours[day].enabled && (
-                  <Text style={[styles.dayHours, { color: colors.textSecondary }]}>{workingHours[day].start} — {workingHours[day].end}</Text>
+                  <Text style={styles.dayHours}>{workingHours[day].start} — {workingHours[day].end}</Text>
                 )}
                 <Switch
                   value={workingHours[day].enabled}
                   onValueChange={() => toggleDay(day)}
-                  trackColor={{ false: colors.bgElevated, true: colors.accentSoft }}
-                  thumbColor={workingHours[day].enabled ? colors.accent : colors.textTertiary}
+                  trackColor={{ false: colors.border, true: colors.textPrimary }}
+                  thumbColor={colors.bgPrimary}
+                  accessibilityLabel={`${day} working hours toggle`}
+                  accessibilityRole="switch"
                 />
               </View>
             ))}
-          </Card>
+          </View>
 
           {/* Notifications */}
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>NOTIFICATIONS</Text>
-          <Card noPadding>
+          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+          <View style={styles.cardContainerNoPadding}>
             {[
-              { label: 'Session Reminders', desc: '30 min before each session', value: sessionReminders, onToggle: setSessionReminders, icon: 'calendar' },
-              { label: 'New Client Alerts', desc: 'When a new client signs up', value: newClientAlerts, onToggle: setNewClientAlerts, icon: 'person-add' },
-              { label: 'Message Notifications', desc: 'New messages from clients', value: messageNotifs, onToggle: setMessageNotifs, icon: 'chatbubble' },
+              { label: 'SESSION REMINDERS', desc: '30 min before each session', value: sessionReminders, onToggle: setSessionReminders, icon: 'calendar-outline' },
+              { label: 'NEW CLIENT ALERTS', desc: 'When a new client signs up', value: newClientAlerts, onToggle: setNewClientAlerts, icon: 'person-add-outline' },
+              { label: 'MESSAGE NOTIFICATIONS', desc: 'New messages from clients', value: messageNotifs, onToggle: setMessageNotifs, icon: 'chatbubble-outline' },
             ].map((item, i) => (
-              <View key={i} style={[styles.notifRow, i < 2 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={[styles.notifIcon, { backgroundColor: `${colors.accent}18` }]}>
-                  <Ionicons name={item.icon as any} size={16} color={colors.accent} />
+              <View key={i} style={[styles.notifRow, i < 2 && styles.rowBorder]}>
+                <View style={styles.notifIcon}>
+                  <Ionicons name={item.icon as any} size={16} color={colors.textPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifLabel, { color: colors.textPrimary }]}>{item.label}</Text>
-                  <Text style={[styles.notifDesc, { color: colors.textTertiary }]}>{item.desc}</Text>
+                  <Text style={styles.notifLabel}>{item.label}</Text>
+                  <Text style={styles.notifDesc}>{item.desc}</Text>
                 </View>
                 <Switch
                   value={item.value}
                   onValueChange={item.onToggle}
-                  trackColor={{ false: colors.bgElevated, true: colors.accentSoft }}
-                  thumbColor={item.value ? colors.accent : colors.textTertiary}
+                  trackColor={{ false: colors.border, true: colors.textPrimary }}
+                  thumbColor={colors.bgPrimary}
+                  accessibilityLabel={`${item.label} toggle`}
+                  accessibilityRole="switch"
                 />
               </View>
             ))}
-          </Card>
+          </View>
+
+          {/* Monetization */}
+          <Text style={styles.sectionTitle}>MONETIZATION</Text>
+          <View style={styles.cardContainerNoPadding}>
+            <View style={styles.notifRow}>
+              <View style={styles.notifInfo}>
+                <View style={styles.notifIcon}>
+                  <Ionicons name="card-outline" size={16} color={colors.textPrimary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notifLabel}>STRIPE PAYMENTS</Text>
+                  <Text style={styles.notifDesc}>
+                    {trainer?.stripe_onboarding_complete 
+                      ? 'Your account is connected and ready to accept payments.' 
+                      : 'Connect Stripe to accept payments and manage subscriptions.'}
+                  </Text>
+                </View>
+              </View>
+              {!trainer?.stripe_onboarding_complete && (
+                <TouchableOpacity 
+                  style={[styles.stripeBtn, isConnectingStripe && { opacity: 0.5 }]} 
+                  onPress={handleConnectStripe}
+                  disabled={isConnectingStripe}
+                >
+                  <Text style={styles.stripeBtnText}>{isConnectingStripe ? 'CONNECTING...' : 'CONNECT'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
           {/* Save Button */}
           <View style={styles.saveSection}>
-            <Button title="Save Changes" onPress={handleSave} loading={saving} full size="lg" />
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Save settings changes"
+            >
+              <Text style={styles.saveBtnText}>{saving ? 'SAVING...' : 'SAVE SETTINGS'}</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -226,14 +288,55 @@ export default function SettingsScreen() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgSecondary,
+  },
+  headerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+  },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
   sectionTitle: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs,
-    letterSpacing: 0.8, marginTop: Spacing.xl, marginBottom: Spacing.sm,
+    fontFamily: FontFamily.heading,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 1.5,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+
+  cardContainer: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    padding: Spacing.md,
+  },
+  cardContainerNoPadding: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: Radius.xs,
+    overflow: 'hidden',
   },
 
   // Theme Picker
@@ -243,28 +346,82 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: Radius.lg,
+    paddingVertical: 10,
+    borderRadius: Radius.xs,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgPrimary,
+  },
+  themeChipActive: {
+    borderColor: colors.textPrimary,
+    backgroundColor: colors.textPrimary,
   },
   themeChipText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: FontSize.sm,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 0.8,
+  },
+  themeChipTextActive: {
+    color: colors.bgPrimary,
   },
 
-  fieldGroup: { paddingVertical: Spacing.sm },
-  fieldLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, marginBottom: 4 },
-  fieldInput: { fontFamily: FontFamily.body, fontSize: FontSize.md, paddingVertical: 4 },
+  fieldGroup: { paddingVertical: Spacing.xs },
+  fieldBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.sm,
+  },
+  fieldLabel: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    color: colors.textTertiary,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  fieldInput: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 4,
+  },
   textArea: { minHeight: 60 },
 
-  dayRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.base },
-  dayName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, width: 100 },
-  dayHours: { fontFamily: FontFamily.body, fontSize: FontSize.sm, flex: 1, textAlign: 'right', marginRight: Spacing.md },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dayName: { fontFamily: FontFamily.bodyBold, fontSize: 13, color: colors.textPrimary, width: 90, letterSpacing: 0.5 },
+  dayHours: { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: colors.textSecondary, flex: 1 },
 
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.base },
-  notifIcon: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  notifLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base },
-  notifDesc: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 1 },
+  notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.md },
+  notifInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1, paddingRight: Spacing.md },
+  notifIcon: { width: 32, height: 32, borderRadius: Radius.xs, backgroundColor: colors.bgPrimary, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  notifLabel: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: colors.textPrimary, letterSpacing: 0.5, marginBottom: 2 },
+  notifDesc: { fontFamily: FontFamily.bodyMedium, fontSize: 11, color: colors.textTertiary, lineHeight: 16 },
 
-  saveSection: { marginTop: Spacing['2xl'] },
+  stripeBtn: { backgroundColor: colors.textPrimary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.xs },
+  stripeBtnText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.bgPrimary, letterSpacing: 1 },
+
+  saveSection: {
+    marginTop: Spacing['2xl'],
+  },
+  saveBtn: {
+    backgroundColor: colors.textPrimary,
+    margin: Spacing.lg,
+    height: 48,
+    borderRadius: Radius.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: { fontFamily: FontFamily.heading, fontSize: 13, color: colors.bgPrimary, letterSpacing: 1.5 },
 });

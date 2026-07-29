@@ -1,4 +1,5 @@
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Radius, FontFamily, getAvatarColor } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -6,6 +7,8 @@ interface AvatarProps {
   name: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   imageUrl?: string | null;
+  shape?: 'circle' | 'square';
+  style?: any;
 }
 
 const SIZES = {
@@ -15,7 +18,7 @@ const SIZES = {
   xl: { container: 72, font: 24 },
 };
 
-export default function Avatar({ name, size = 'md', imageUrl }: AvatarProps) {
+export default function Avatar({ name, size = 'md', imageUrl, shape = 'circle', style }: AvatarProps) {
   const { colors } = useTheme();
 
   const initials = name
@@ -27,18 +30,21 @@ export default function Avatar({ name, size = 'md', imageUrl }: AvatarProps) {
 
   const { container, font } = SIZES[size];
   const bgColor = getAvatarColor(name);
+  const borderRadius = shape === 'square' ? Radius.xs : container / 2;
 
   if (imageUrl) {
     return (
       <Image
         source={{ uri: imageUrl }}
-        style={[styles.image, { width: container, height: container, borderRadius: container / 2, backgroundColor: colors.bgSecondary }]}
+        cachePolicy="memory-disk"
+        transition={200}
+        style={[styles.image, { width: container, height: container, borderRadius, backgroundColor: colors.bgSecondary }, style]}
       />
     );
   }
 
   return (
-    <View style={[styles.container, { width: container, height: container, backgroundColor: bgColor }]}>
+    <View style={[styles.container, { width: container, height: container, backgroundColor: bgColor, borderRadius }, style]}>
       <Text style={[styles.text, { fontSize: font }]}>{initials}</Text>
     </View>
   );
