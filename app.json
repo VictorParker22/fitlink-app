@@ -109,7 +109,7 @@
     "plugins": [
       "expo-router",
       [
-        "@layers/react-native/plugin",
+        "@layers/expo",
         {
           "ios": { "attUsageDescription": "Helps personalize your FitLink experience." },
           "enableDebug": true
