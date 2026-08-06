@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
+import { layers } from '../lib/layers';
 import type { User, Session } from '@supabase/supabase-js';
 
 Notifications.setNotificationHandler({
@@ -104,6 +105,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
         } catch (e) {
           console.warn('[AuthContext] Failed to register push token on DB:', e);
         }
+
+        // ── Layers: identify authenticated user ──────────────────────────────
+        try {
+          layers.identify(s.user.id, {
+            email: s.user.email,
+            phone: s.user.phone,
+            role,
+            name: s.user.user_metadata?.name,
+            signup_date: s.user.created_at,
+          });
+        } catch (e) {
+          if (__DEV__) console.warn('[Layers] identify error:', e);
+        }
       }
       
       setLoading(false);
@@ -144,6 +158,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    // Layers: login event (identify fires via onAuthStateChange)
+    layers.track('login', { method: 'email', role: 'trainer' });
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
@@ -153,6 +169,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       options: { data: { name } },
     });
     if (error) throw error;
+    layers.track('sign_up', { method: 'email', role: 'trainer', name });
   }, []);
 
   // --- Phone OTP (Shared) ---
@@ -174,6 +191,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await supabase.auth.updateUser({ data: metadata });
     }
 
+    // Layers: login via phone OTP
+    layers.track('login', { method: 'phone_otp', role: 'trainer' });
     return data;
   }, []);
 
@@ -185,6 +204,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       options: { data: { name, role: 'client' } },
     });
     if (error) throw error;
+    layers.track('sign_up', { method: 'email', role: 'client', name });
     // DB trigger on auth.users automatically links matching client row
   }, []);
 
@@ -203,6 +223,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await supabase.auth.updateUser({ data: meta });
       // DB trigger handles auto-linking by phone via raw_user_meta_data
     }
+
+    // Layers: new client signed up via phone OTP
+    layers.track(data.user?.created_at === data.user?.last_sign_in_at ? 'sign_up' : 'login', {
+      method: 'phone_otp',
+      role: 'client',
+      name,
+    });
 
     return data;
   }, []);

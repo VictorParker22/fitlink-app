@@ -27,6 +27,7 @@ import LottieView from 'lottie-react-native';
 import { StripeProvider } from '../lib/stripe-provider';
 import { NetworkProvider } from '../context/NetworkContext';
 import { RevenueCatProvider } from '../context/RevenueCatContext';
+import { LayersAnalyticsProvider } from '../context/LayersContext';
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -191,7 +192,8 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <LayersAnalyticsProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <StripeProvider
         publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""}
         merchantIdentifier="merchant.com.fitlink.app"
@@ -222,6 +224,7 @@ export default function RootLayout() {
         <AnimatedBootSplash onAnimationEnd={() => setBootSplashVisible(false)} />
       )}
     </GestureHandlerRootView>
+    </LayersAnalyticsProvider>
   );
 }
 

@@ -109,6 +109,13 @@
     "plugins": [
       "expo-router",
       [
+        "@layers/react-native/plugin",
+        {
+          "ios": { "attUsageDescription": "Helps personalize your FitLink experience." },
+          "enableDebug": true
+        }
+      ],
+      [
         "react-native-bootsplash",
         {
           "logo": "./assets/images/logo.png",

@@ -36,6 +36,7 @@ import {
   OFFERING_DEFAULT,
 } from '../lib/revenuecat';
 import { useAuth } from './AuthContext';
+import { layers } from '../lib/layers';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,8 +108,36 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const purchasePackage = useCallback(
     async (pkg: PurchasesPackage): Promise<{ success: boolean; error?: string }> => {
       try {
-        const { customerInfo: info } = await Purchases.purchasePackage(pkg);
+        const { customerInfo: info, transaction } = await Purchases.purchasePackage(pkg) as any;
         setCustomerInfo(info);
+
+        // ── Layers purchase events ───────────────────────────────────────────
+        const productId = pkg.product.identifier;
+        const revenue  = pkg.product.price;
+        const currency = pkg.product.currencyCode ?? 'USD';
+        const transactionId = transaction?.transactionIdentifier ?? transaction?.orderId ?? undefined;
+
+        // Determine if this is a fresh subscription, trial, or one-time purchase
+        const activeEntitlements = Object.values(info.entitlements.active);
+        const isTrial = activeEntitlements.some((e: any) => e?.periodType === 'trial');
+        const isSubscription = pkg.packageType !== 'LIFETIME' && pkg.packageType !== 'UNKNOWN';
+
+        layers.track('purchase_success', {
+          product_id: productId,
+          revenue,
+          currency,
+          transaction_id: transactionId,
+          is_trial: isTrial,
+          is_subscription: isSubscription,
+          package_type: pkg.packageType,
+        });
+
+        if (isTrial) {
+          layers.track('trial_start', { product_id: productId, currency });
+        } else if (isSubscription) {
+          layers.track('subscription_start', { product_id: productId, revenue, currency, transaction_id: transactionId });
+        }
+
         return { success: true };
       } catch (err: any) {
         // User cancelled — not an error we need to surface
