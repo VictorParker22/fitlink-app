@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Modal } fr
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Bolt } from '../../components/mascot/Bolt';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../context/ClientContext';
 import { supabase } from '../../lib/supabase';
@@ -90,7 +91,7 @@ export default function MyPassScreen() {
   }, [mealLogs]);
 
   // Claim Reward Modal State
-  const [claimedReward, setClaimedReward] = useState<{ title: string; type: string } | null>(null);
+  const [claimedReward, setClaimedReward] = useState<{ title: string; type: string; nodeId?: string } | null>(null);
 
   // ──── Handlers ────
   const handleClaim = async (node: TrackNode) => {
@@ -143,7 +144,12 @@ export default function MyPassScreen() {
     }
   };
 
-  if (!clientData) return null;
+  if (!clientData) return (
+    <View style={st.emptyContainer}>
+      <Bolt pose="resting" size={80} />
+      <Text style={st.emptyTitle}>NO ACTIVE PASS</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={st.container} edges={['top']}>
@@ -492,7 +498,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   claimDoneText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: FontFamily.headingBold,
     fontSize: 13,
     color: '#000000',
     letterSpacing: 1.5,

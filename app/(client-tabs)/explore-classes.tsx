@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
   Modal, ScrollView, TextInput,
@@ -10,10 +11,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { FontFamily, FontSize, Radius, Spacing } from '../../constants/theme';
+import { Bolt } from '../../components/mascot/Bolt';
+import { PrecisionIcons } from '../../components/icons/PrecisionIcons';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { FitnessClass, MOCK_CLASSES } from '../../data/classes';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useClient } from '../../context/ClientContext';
 
 type SortKey = 'newest' | 'duration' | 'level' | 'a-z';
 
@@ -28,6 +32,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 export default function ExploreClassesScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { clientData } = useClient();
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [showSortModal, setShowSortModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -39,52 +44,107 @@ export default function ExploreClassesScreen() {
   const [activeLiveStreams, setActiveLiveStreams] = useState<any[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
 
-  React.useEffect(() => {
-    async function fetchClasses() {
-      try {
-        const { data, error } = await supabase
-          .from('classes')
-          .select('*, trainers(name, avatar_url)')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false });
-        if (data && data.length > 0) {
-          setLiveClasses(data.map(c => ({
-            id: c.id,
-            title: c.title,
-            instructor: c.trainers?.name || 'Coach',
-            instructorAvatar: c.trainers?.avatar_url || '',
-            brand: c.brand || 'FitLink',
-            category: c.category,
-            durationMin: c.duration_minutes || 0,
-            level: c.difficulty || 'All Levels',
-            thumbnail: c.thumbnail_url || '',
-            description: c.description || '',
-            equipment: c.equipment || [],
-            tags: c.tags || [],
-            rating: c.avg_rating || 0,
-            takeCount: c.take_count || 0,
-            isFree: c.is_free || false,
-            videoUrl: c.video_url,
-          })));
-        }
-
-        const { data: liveData } = await supabase
-          .from('live_classes')
-          .select('*, trainers(name, avatar_url)')
-          .in('status', ['live', 'scheduled'])
-          .order('scheduled_for', { ascending: true });
-
-        if (liveData) {
-          setActiveLiveStreams(liveData);
-        }
-      } catch (e) {
-        console.log('[explore-classes] Supabase fetch error, falling back to mock:', e);
-      } finally {
-        setLoadingClasses(false);
+  // Refetch on every tab focus so new classes appear without a full app restart
+  const fetchLiveClasses = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*, trainers(name, avatar_url)')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+      if (data && data.length > 0) {
+        setLiveClasses(data.map(c => ({
+          id: c.id,
+          title: c.title,
+          instructor: c.trainers?.name || 'Coach',
+          instructorAvatar: c.trainers?.avatar_url || '',
+          brand: c.brand || 'FitLink',
+          category: c.category,
+          durationMin: c.duration_minutes || 0,
+          level: c.difficulty || 'All Levels',
+          thumbnail: c.thumbnail_url || '',
+          description: c.description || '',
+          equipment: c.equipment || [],
+          tags: c.tags || [],
+          rating: c.avg_rating || 0,
+          takeCount: c.take_count || 0,
+          isFree: c.is_free || false,
+          videoUrl: c.video_url,
+        })));
       }
+
+      // Use the client's trainer_id as an explicit filter.
+      // This bypasses the RLS EXISTS join and directly fetches the trainer's classes.
+      // Falls back to fetching all accessible classes if trainer_id isn't loaded yet.
+      const trainerId = clientData?.trainer_id;
+      let liveQuery = supabase
+        .from('live_classes')
+        .select('*, trainers(name, avatar_url)')
+        .in('status', ['live', 'scheduled'])
+        .order('scheduled_for', { ascending: true });
+
+      if (trainerId) {
+        liveQuery = liveQuery.eq('trainer_id', trainerId);
+      }
+
+      const { data: liveData, error: liveError } = await liveQuery;
+
+      console.log('[explore-classes] live_classes response:', {
+        trainerId,
+        count: liveData?.length ?? 0,
+        statuses: liveData?.map(s => ({ id: s.id, title: s.title, status: s.status })),
+        error: liveError?.message,
+      });
+
+      if (liveError) {
+        console.warn('[explore-classes] live_classes fetch failed:', liveError.message, liveError.code);
+      }
+
+      if (liveData) {
+        // Keep only the most recent active stream per trainer (prevents ghost old streams)
+        const latestPerTrainer = new Map<string, any>();
+        for (const stream of liveData) {
+          const existing = latestPerTrainer.get(stream.trainer_id);
+          if (!existing || new Date(stream.scheduled_for) > new Date(existing.scheduled_for)) {
+            latestPerTrainer.set(stream.trainer_id, stream);
+          }
+        }
+        setActiveLiveStreams(Array.from(latestPerTrainer.values()));
+      }
+    } catch (e) {
+      console.log('[explore-classes] Supabase fetch error:', e);
+    } finally {
+      setLoadingClasses(false);
     }
-    fetchClasses();
-  }, []);
+  }, [clientData?.trainer_id]);
+
+
+  // Clear stale data immediately on focus, then refetch fresh
+  useFocusEffect(
+    useCallback(() => {
+      setActiveLiveStreams([]);   // ← clear before fetch so old stream never lingers
+      setLoadingClasses(true);
+      fetchLiveClasses();
+    }, [fetchLiveClasses])
+  );
+
+  // Realtime: self-update when trainer starts, ends, or creates a stream
+  // Client never needs to navigate away and back — list updates instantly
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('explore-live-classes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_classes' },
+        () => {
+          // Re-run full fetch on any live_classes change (insert, update, delete)
+          fetchLiveClasses();
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchLiveClasses]);
 
   React.useEffect(() => {
     async function loadFavorites() {
@@ -288,7 +348,7 @@ export default function ExploreClassesScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity
-          onPress={() => router.push(ClientRoute.workouts)}
+          onPress={() => router.back()}
           style={s.backBtn}
           activeOpacity={0.6}
           accessibilityRole="button"
@@ -377,7 +437,7 @@ export default function ExploreClassesScreen() {
         ItemSeparatorComponent={() => <View style={s.separator} />}
         ListEmptyComponent={
           <View style={s.emptyState}>
-            <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.15)" />
+            <Bolt pose="Analyze" size={100} />
             <Text style={s.emptyTitle}>NO CLASSES FOUND</Text>
             <Text style={s.emptySubtitle}>Try adjusting or clearing your active filters</Text>
             {activeFilters.size > 0 && (
@@ -532,8 +592,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
+    paddingBottom: 8,
   },
   backBtn: {
     width: 44,
@@ -547,8 +608,8 @@ const s = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.md,
-    letterSpacing: 0.5,
+    fontSize: 26,
+    letterSpacing: -0.5,
     color: '#FFFFFF',
   },
 
@@ -562,7 +623,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: 44,
   },
   searchIcon: { marginRight: 8 },
@@ -613,7 +674,7 @@ const s = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    marginLeft: 0,
+    marginLeft: 20,
   },
 
   // Class row
@@ -624,8 +685,8 @@ const s = StyleSheet.create({
   },
   liveSectionTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
     paddingHorizontal: 16,
     marginBottom: 12,
@@ -639,7 +700,7 @@ const s = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   liveThumb: {
@@ -661,7 +722,7 @@ const s = StyleSheet.create({
     backgroundColor: '#EF4444',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: Radius.xs,
+    borderRadius: 6,
   },
   upcomingBadge: {
     backgroundColor: '#1C1C1E',
@@ -690,14 +751,14 @@ const s = StyleSheet.create({
   },
   classRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     gap: 14,
   },
   thumbWrap: {
-    width: 100,
-    height: 80,
-    borderRadius: Radius.xs,
+    width: 110,
+    height: 90,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#0C0C0E',
   },
@@ -710,7 +771,7 @@ const s = StyleSheet.create({
     bottom: 6,
     left: 6,
     backgroundColor: '#000000',
-    borderRadius: Radius.xs,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     paddingHorizontal: 6,
@@ -729,13 +790,14 @@ const s = StyleSheet.create({
   },
   classTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.base,
+    fontSize: 17,
+    letterSpacing: -0.3,
     color: '#FFFFFF',
     lineHeight: 21,
   },
   classTags: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 0.5,
     color: 'rgba(255,255,255,0.5)',
   },
@@ -744,12 +806,12 @@ const s = StyleSheet.create({
   },
   classInstructor: {
     fontFamily: FontFamily.body,
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.35)',
   },
   freeBadge: {
     backgroundColor: 'rgba(74, 222, 128, 0.15)',
-    borderRadius: Radius.xs,
+    borderRadius: 6,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderWidth: 1,
@@ -758,12 +820,12 @@ const s = StyleSheet.create({
   freeBadgeText: {
     color: '#4ADE80',
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1,
   },
   passBadge: {
     backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    borderRadius: Radius.xs,
+    borderRadius: 6,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderWidth: 1,
@@ -774,7 +836,7 @@ const s = StyleSheet.create({
   passBadgeText: {
     color: '#FFD700',
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1,
   },
   favBtn: {
@@ -792,16 +854,17 @@ const s = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
+    fontSize: 28,
     color: '#FFFFFF',
-    letterSpacing: 1,
-    marginTop: 8,
+    letterSpacing: -0.5,
+    marginTop: 12,
   },
   emptySubtitle: {
     fontFamily: FontFamily.body,
-    fontSize: 13,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.4)',
     textAlign: 'center',
+    lineHeight: 20,
   },
   emptyClearBtn: {
     marginTop: 8,
@@ -825,11 +888,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#0C0C0E',
-    borderRadius: Radius.xs,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#1C1C1E',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   filterFabText: {
     fontFamily: FontFamily.bodySemiBold,
@@ -870,9 +933,9 @@ const s = StyleSheet.create({
   },
   sortSheetTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
+    fontSize: 22,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
     marginBottom: 12,
   },
   sortSheetDivider: {
@@ -904,8 +967,8 @@ const s = StyleSheet.create({
   },
   filterSheet: {
     backgroundColor: '#0C0C0E',
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderTopWidth: 1,
     borderTopColor: '#1C1C1E',
     paddingHorizontal: 24,
@@ -915,7 +978,7 @@ const s = StyleSheet.create({
   filterDragHandle: {
     width: 36,
     height: 4,
-    borderRadius: 0,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignSelf: 'center',
     marginTop: 10,
@@ -956,7 +1019,7 @@ const s = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: Radius.xs,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#1C1C1E',
     backgroundColor: 'rgba(255,255,255,0.03)',
@@ -970,7 +1033,7 @@ const s = StyleSheet.create({
   },
   filterApplyBtn: {
     backgroundColor: '#FFD700',
-    borderRadius: Radius.xs,
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,

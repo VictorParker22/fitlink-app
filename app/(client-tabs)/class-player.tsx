@@ -140,7 +140,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
   };
 
   return (
-    <View style={cs.container}>
+    <View style={cs.container} renderToHardwareTextureAndroid>
       <Image source={{ uri: entry.thumbnail }} style={cs.bgImage} blurRadius={25} cachePolicy="memory-disk" transition={200} accessible={false} />
       <LinearGradient
         colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
@@ -344,7 +344,8 @@ function VideoClassPlayer({ params }: { params: any }) {
             blurRadius={2} 
             cachePolicy="memory-disk" 
             transition={200} 
-            accessible={false} 
+            accessible={false}
+            renderToHardwareTextureAndroid
             onError={() => setHasError(true)}
           />
           <LinearGradient
@@ -486,7 +487,7 @@ function RunningClassPlayer({ params }: { params: any }) {
     // STEP 1: Set Speed
     if (setupStep === 'setup-speed') {
       return (
-        <View style={rs.container}>
+        <View style={rs.container} renderToHardwareTextureAndroid>
           <Image source={{ uri: thumbnail }} style={rs.bgImage} blurRadius={20} cachePolicy="memory-disk" transition={200} accessible={false} />
           <LinearGradient colors={['rgba(75,60,130,0.85)', 'rgba(120,80,160,0.75)', 'rgba(75,60,130,0.9)']} style={StyleSheet.absoluteFill} accessible={false} />
           <SafeAreaView style={rs.safeArea} edges={['top', 'bottom']}>
@@ -536,7 +537,7 @@ function RunningClassPlayer({ params }: { params: any }) {
     // STEP 2: Difficulty
     if (setupStep === 'setup-difficulty') {
       return (
-        <View style={rs.container}>
+        <View style={rs.container} renderToHardwareTextureAndroid>
           <Image source={{ uri: thumbnail }} style={rs.bgImage} blurRadius={20} cachePolicy="memory-disk" transition={200} accessible={false} />
           <LinearGradient colors={['rgba(75,60,130,0.85)', 'rgba(120,80,160,0.75)', 'rgba(75,60,130,0.9)']} style={StyleSheet.absoluteFill} accessible={false} />
           <SafeAreaView style={rs.safeArea} edges={['top', 'bottom']}>
@@ -578,7 +579,7 @@ function RunningClassPlayer({ params }: { params: any }) {
     // STEP 3: PR Result
     if (setupStep === 'setup-result') {
       return (
-        <View style={rs.container}>
+        <View style={rs.container} renderToHardwareTextureAndroid>
           <Image source={{ uri: thumbnail }} style={rs.bgImage} blurRadius={20} cachePolicy="memory-disk" transition={200} accessible={false} />
           <LinearGradient colors={['rgba(75,60,130,0.85)', 'rgba(120,80,160,0.75)', 'rgba(75,60,130,0.9)']} style={StyleSheet.absoluteFill} accessible={false} />
           <SafeAreaView style={rs.safeArea} edges={['top', 'bottom']}>

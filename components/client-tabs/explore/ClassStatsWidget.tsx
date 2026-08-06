@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkout } from '../../../context/WorkoutContext';
-import { FontFamily, Radius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/theme';
 
 export function ClassStatsWidget() {
   const { workoutHistory } = useWorkout();
@@ -105,13 +105,14 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 9,
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   sectionTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
+    fontSize: 26,
+    letterSpacing: -0.5,
     color: '#FFF',
   },
   container: {
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderRadius: 16,
     padding: 16,
   },
   grid: {
@@ -136,6 +137,7 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 24,
+    letterSpacing: -0.5,
     color: '#FFD700',
     marginBottom: 4,
   },

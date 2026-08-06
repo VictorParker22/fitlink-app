@@ -29,6 +29,7 @@ export const ClientRoute = {
   healthInsights: '/(client-tabs)/health-insights' as const,
   myMessages: '/(client-tabs)/my-messages' as const,
   mySubscription: '/(client-tabs)/my-subscription' as const,
+  mySessions: '/(client-tabs)/my-sessions' as const,
   connectedTech: '/(client-tabs)/connected-tech' as const,
 
   // Param screens

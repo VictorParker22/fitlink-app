@@ -1,284 +1,390 @@
 import { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, Dimensions, Image, TouchableOpacity,
-  Animated, StatusBar,
+  View, Text, StyleSheet, Dimensions, TouchableOpacity,
+  Animated, StatusBar, ScrollView, Platform, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Spacing, FontFamily } from '../../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { FontFamily, Spacing, Radius } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Real fitness Unsplash photos — varied disciplines
+const PHOTO_CARDS = [
+  { id: '1', uri: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=500&q=85' },
+  { id: '2', uri: 'https://images.unsplash.com/photo-1534367507873-d2d7e24c797f?w=500&q=85' },
+  { id: '3', uri: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?w=500&q=85' },
+  { id: '4', uri: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=500&q=85' },
+];
+
+const CARD_W = SCREEN_WIDTH * 0.36;
+const TOP_H = SCREEN_HEIGHT * 0.50;
+
 export default function OnboardingScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // Animated values for staggered entrance
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoTranslateY = useRef(new Animated.Value(-20)).current;
-  const headlineOpacity = useRef(new Animated.Value(0)).current;
-  const headlineTranslateY = useRef(new Animated.Value(30)).current;
-  const buttonsOpacity = useRef(new Animated.Value(0)).current;
-  const buttonsTranslateY = useRef(new Animated.Value(40)).current;
-  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  // ── Animation values
+  const logoY = useRef(new Animated.Value(-24)).current;
+  const logoOp = useRef(new Animated.Value(0)).current;
+  const cardsOp = useRef(new Animated.Value(0)).current;
+  const cardsY = useRef(new Animated.Value(24)).current;
+  const sheetY = useRef(new Animated.Value(80)).current;
+  const sheetOp = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Staggered fade-in animation
     Animated.sequence([
-      // Logo fades in first
+      // 1. Logo drops in
       Animated.parallel([
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoTranslateY, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
+        Animated.timing(logoOp, { toValue: 1, duration: 550, useNativeDriver: true }),
+        Animated.timing(logoY, { toValue: 0, duration: 550, useNativeDriver: true }),
       ]),
-      // Headline slides up
+      // 2. Cards rise
       Animated.parallel([
-        Animated.timing(headlineOpacity, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(headlineTranslateY, {
-          toValue: 0,
-          duration: 700,
-          useNativeDriver: true,
-        }),
+        Animated.timing(cardsOp, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(cardsY, { toValue: 0, duration: 500, useNativeDriver: true }),
       ]),
-      // Buttons and tagline appear
+      // 3. Sheet slides up
       Animated.parallel([
-        Animated.timing(buttonsOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonsTranslateY, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(taglineOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
+        Animated.timing(sheetOp, { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.timing(sheetY, { toValue: 0, duration: 450, useNativeDriver: true }),
       ]),
     ]).start();
   }, []);
 
-  const handleSignIn = () => {
+  const goTrainer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(auth)/coach-signup' as any);
+  };
+
+  const goClient = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(auth)/client-signup' as any);
+  };
+
+  const goSignIn = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(auth)/login');
   };
 
-  const handleCreateAccount = () => {
-    router.push('/(auth)/create-account');
-  };
-
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Full-bleed background image */}
-      <Image
-        source={require('../../assets/images/auth-bg.png')}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      />
+      {/* ═══════════════════════════════════════════
+          TOP — Pure black with scrolling photo strip
+      ═══════════════════════════════════════════ */}
+      <View style={[styles.topSection, { height: TOP_H, paddingTop: insets.top + 8 }]}>
 
-      {/* Dark gradient overlay — heavier at bottom for text legibility */}
-      <LinearGradient
-        colors={[
-          'rgba(0,0,0,0.15)',
-          'rgba(0,0,0,0.05)',
-          'rgba(0,0,0,0.25)',
-          'rgba(0,0,0,0.70)',
-          'rgba(0,0,0,0.85)',
-        ]}
-        locations={[0, 0.25, 0.45, 0.72, 1]}
-        style={styles.overlay}
-      />
-
-      {/* Content — positioned absolute over the image */}
-      <View style={styles.content}>
-        {/* Logo at top */}
+        {/* Logo row */}
         <Animated.View
           style={[
-            styles.logoContainer,
-            {
-              opacity: logoOpacity,
-              transform: [{ translateY: logoTranslateY }],
-            },
+            styles.logoRow,
+            { opacity: logoOp, transform: [{ translateY: logoY }] },
           ]}
         >
-          <Text style={styles.logoText}>FITLINK</Text>
+          <Image
+            source={require('../../assets/images/icon.png')}
+            style={styles.logoMark}
+            resizeMode="contain"
+          />
+          <View style={styles.logoTextBlock}>
+            <Text style={styles.logoName}>FITLINK</Text>
+            <Text style={styles.logoTagline}>THE COACHING PLATFORM</Text>
+          </View>
         </Animated.View>
 
-        {/* Bottom section — headline + buttons */}
-        <View style={styles.bottomSection}>
-          {/* Bold headline */}
-          <Animated.View
-            style={{
-              opacity: headlineOpacity,
-              transform: [{ translateY: headlineTranslateY }],
-            }}
+        {/* Photo cards strip */}
+        <Animated.View
+          style={[styles.cardsArea, { opacity: cardsOp, transform: [{ translateY: cardsY }] }]}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardsRow}
+            decelerationRate="fast"
+            snapToInterval={CARD_W + 10}
           >
-            <Text style={styles.headline}>
-              ELEVATE YOUR{'\n'}COACHING.{'\n'}EMPOWER YOUR{'\n'}CLIENTS.
-            </Text>
-          </Animated.View>
+            {PHOTO_CARDS.map((card, i) => (
+              <View
+                key={card.id}
+                style={[
+                  styles.photoCard,
+                  i % 2 === 0 ? styles.cardLow : styles.cardHigh,
+                ]}
+              >
+                <Image
+                  source={{ uri: card.uri }}
+                  style={styles.photoImg}
+                  resizeMode="cover"
+                />
+                {/* Gold accent bar at top of each card */}
+                <View style={styles.cardAccentBar} />
+              </View>
+            ))}
+          </ScrollView>
+        </Animated.View>
 
-          {/* Buttons */}
-          <Animated.View
-            style={[
-              styles.buttonContainer,
-              {
-                opacity: buttonsOpacity,
-                transform: [{ translateY: buttonsTranslateY }],
-              },
-            ]}
-          >
-            {/* Sign In — solid white button */}
-            <TouchableOpacity
-              style={styles.signInButton}
-              activeOpacity={0.85}
-              onPress={handleSignIn}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in"
-            >
-              <Text style={styles.signInButtonText}>Sign in</Text>
-            </TouchableOpacity>
-
-            {/* Create Account — outlined button */}
-            <TouchableOpacity
-              style={styles.createAccountButton}
-              activeOpacity={0.85}
-              onPress={handleCreateAccount}
-              accessibilityRole="button"
-              accessibilityLabel="Create FitLink account"
-            >
-              <Text style={styles.createAccountButtonText}>Create FitLink account</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Tagline */}
-          <Animated.View style={{ opacity: taglineOpacity }}>
-            <Text style={styles.tagline}>The Coaching Platform</Text>
-          </Animated.View>
-        </View>
+        {/* Bottom fade into sheet */}
+        <LinearGradient
+          colors={['transparent', '#000000']}
+          style={styles.bottomFade}
+          pointerEvents="none"
+        />
       </View>
+
+      {/* ═══════════════════════════════════════════
+          BOTTOM — Brutalist luxury sheet
+      ═══════════════════════════════════════════ */}
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            opacity: sheetOp,
+            transform: [{ translateY: sheetY }],
+            paddingBottom: insets.bottom + 20,
+          },
+        ]}
+      >
+        {/* Section tag header */}
+        <Text style={styles.tagHeader}>// WHO ARE YOU?</Text>
+        <Text style={styles.sheetTitle}>Choose your path</Text>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Trainer row */}
+        <TouchableOpacity
+          style={styles.roleRow}
+          onPress={goTrainer}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="I'm a trainer — set up your business"
+        >
+          {/* Icon block */}
+          <View style={[styles.roleIcon, { borderColor: '#C9A96E' }]}>
+            <Ionicons name="barbell-outline" size={20} color="#C9A96E" />
+          </View>
+          <View style={styles.roleText}>
+            <Text style={styles.roleTitle}>I'M A TRAINER</Text>
+            <Text style={styles.roleSub}>Set up your business in 4 minutes</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.25)" />
+        </TouchableOpacity>
+
+        <View style={styles.rowDivider} />
+
+        {/* Client row */}
+        <TouchableOpacity
+          style={styles.roleRow}
+          onPress={goClient}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="I'm a client — join or find a trainer"
+        >
+          <View style={[styles.roleIcon, { borderColor: '#FFFFFF' }]}>
+            <Ionicons name="person-outline" size={20} color="#FFFFFF" />
+          </View>
+          <View style={styles.roleText}>
+            <Text style={styles.roleTitle}>I'M A CLIENT</Text>
+            <Text style={styles.roleSub}>Join or find your trainer</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.25)" />
+        </TouchableOpacity>
+
+        <View style={styles.rowDivider} />
+
+        {/* Already have account */}
+        <TouchableOpacity
+          style={styles.signInBtn}
+          onPress={goSignIn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Sign in to existing account"
+        >
+          <Text style={styles.signInText}>I ALREADY HAVE AN ACCOUNT</Text>
+          <Ionicons name="log-in-outline" size={15} color="#C9A96E" style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
   },
 
-  // Full-screen background image
-  backgroundImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+  // ── TOP SECTION ──────────────────────────────
+  topSection: {
+    backgroundColor: '#000000',
+    overflow: 'hidden',
   },
 
-  // Gradient overlay
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-
-  // Content overlay
-  content: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: SCREEN_HEIGHT * 0.12,
-    paddingBottom: SCREEN_HEIGHT * 0.06,
-    paddingHorizontal: Spacing.xl,
-  },
-
-  // Logo
-  logoContainer: {
+  logoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
   },
-  logoText: {
+  logoMark: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+  },
+  logoTextBlock: {
+    gap: 2,
+  },
+  logoName: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28,
+    fontSize: 20,
     color: '#FFFFFF',
-    letterSpacing: 8,
+    letterSpacing: 5,
+  },
+  logoTagline: {
+    fontFamily: FontFamily.body,
+    fontSize: 9,
+    color: '#C9A96E',
+    letterSpacing: 2.5,
   },
 
-  // Bottom section
-  bottomSection: {
-    gap: 28,
+  // ── PHOTO CARDS ──────────────────────────────
+  cardsArea: {
+    flex: 1,
+  },
+  cardsRow: {
+    paddingLeft: 20,
+    paddingRight: 12,
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  photoCard: {
+    width: CARD_W,
+    borderRadius: Radius.xs,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
+  },
+  cardLow: {
+    height: SCREEN_HEIGHT * 0.23,
+    marginBottom: 20,
+  },
+  cardHigh: {
+    height: SCREEN_HEIGHT * 0.29,
+    marginBottom: 0,
+  },
+  photoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  cardAccentBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#C9A96E',
   },
 
-  // Headline
-  headline: {
+  // Fades into the dark bottom
+  bottomFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+  },
+
+  // ── BOTTOM SHEET ─────────────────────────────
+  sheet: {
+    flex: 1,
+    backgroundColor: '#000000',
+    borderTopWidth: 1,
+    borderTopColor: '#1C1C1E',
+    paddingHorizontal: 24,
+    paddingTop: 32,
+  },
+
+  tagHeader: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: '#C9A96E',
+    letterSpacing: 2.5,
+    marginBottom: 10,
+  },
+  sheetTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 38,
+    fontSize: 30,
     color: '#FFFFFF',
-    lineHeight: 44,
     letterSpacing: -0.5,
+    marginBottom: 28,
   },
 
-  // Buttons
-  buttonContainer: {
-    gap: 14,
+  divider: {
+    height: 1,
+    backgroundColor: '#1C1C1E',
+    marginBottom: 0,
   },
 
-  // Sign In — white filled
-  signInButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
-    paddingVertical: 16,
+  // ── ROLE ROWS ────────────────────────────────
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 22,
+    gap: 18,
+  },
+  roleIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+    backgroundColor: '#0C0C0E',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  signInButtonText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 16,
-    color: '#000000',
-    letterSpacing: 0.5,
+  roleText: {
+    flex: 1,
+    gap: 5,
   },
-
-  // Create Account — outlined
-  createAccountButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.7)',
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createAccountButtonText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 16,
+  roleTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
-
-  // Tagline
-  tagline: {
+  roleSub: {
     fontFamily: FontFamily.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.2,
+  },
+
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#1C1C1E',
+  },
+
+  // ── SIGN IN ──────────────────────────────────
+  signInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 30,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
+    borderRadius: Radius.xs,
+    backgroundColor: '#0C0C0E',
+  },
+  signInText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.55)',
     letterSpacing: 2,
-    textTransform: 'uppercase',
   },
 });

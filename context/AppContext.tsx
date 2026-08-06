@@ -110,13 +110,16 @@ export interface LiveClassItem {
   title: string;
   description?: string;
   scheduled_for: string;
-  mux_stream_id?: string;
-  mux_stream_key?: string;
   mux_playback_id?: string;
   status: 'scheduled' | 'live' | 'ended' | 'cancelled';
+  went_live_at?: string;       // set by trigger when status → 'live'; used for stream_offset_ms
+  viewer_count?: number;       // atomic increment/decrement via RPC; reconciled by cron
+  category?: string;           // used when promoting stream recording to VOD
+  duration_minutes?: number;   // used when promoting stream recording to VOD
   created_at: string;
   updated_at: string;
 }
+
 
 interface Plan {
   id: string;
@@ -341,7 +344,7 @@ interface AppContextType {
   updateClass: (id: string, data: Partial<ClassItem>) => Promise<ClassItem>;
   deleteClass: (id: string) => Promise<void>;
   publishClass: (id: string) => Promise<void>;
-  createLiveClass: (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_stream_id' | 'mux_stream_key' | 'mux_playback_id' | 'created_at' | 'updated_at'>) => Promise<LiveClassItem>;
+  createLiveClass: (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_playback_id' | 'status' | 'went_live_at' | 'viewer_count' | 'created_at' | 'updated_at'>) => Promise<LiveClassItem>;
   updateLiveClass: (id: string, data: Partial<LiveClassItem>) => Promise<LiveClassItem>;
   deleteLiveClass: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -1566,7 +1569,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     setTrainerClasses((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'published' as const } : c)));
   }, []);
 
-  const createLiveClass = useCallback(async (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_stream_id' | 'mux_stream_key' | 'mux_playback_id' | 'created_at' | 'updated_at'>): Promise<LiveClassItem> => {
+  const createLiveClass = useCallback(async (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_playback_id' | 'status' | 'went_live_at' | 'viewer_count' | 'created_at' | 'updated_at'>): Promise<LiveClassItem> => {
     let streamId = `stream_${Date.now()}`;
     let streamKey = `key_${Date.now()}`;
     let playbackId = `playback_${Date.now()}`;
@@ -1589,14 +1592,19 @@ export function AppProvider({ children }: PropsWithChildren) {
     const payload = {
       ...data,
       trainer_id: user!.id,
-      mux_stream_id: streamId,
-      mux_stream_key: streamKey,
       mux_playback_id: playbackId,
       status: 'scheduled',
     };
     
     const { data: newClass, error } = await supabase.from('live_classes').insert(payload).select().single();
     if (error) throw error;
+
+    // Insert stream credentials into secrets table (trainer-only RLS)
+    await supabase.from('live_class_secrets').insert({
+      live_class_id: newClass.id,
+      mux_stream_id: streamId,
+      mux_stream_key: streamKey,
+    });
     
     setLiveClassesList((prev) => [newClass, ...prev].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
     return newClass;

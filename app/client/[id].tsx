@@ -1,5 +1,25 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Modal, ActivityIndicator, Dimensions, Image as RNImage } from 'react-native';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function toTitleCase(str: string): string {
+  return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+function formatPhone(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1') return `+1 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+  return raw;
+}
+function formatRelativeTime(date: Date): string {
+  const s = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Linking, Modal, ActivityIndicator, Dimensions, Image as RNImage } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +35,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { getWorkoutEmblem } from '../../utils/workoutEmblems';
+import ClientHabitGrid from '../../components/dashboard/ClientHabitGrid';
+import { LineChart } from 'react-native-gifted-charts';
 
 type AssignMode = 'enroll' | 'workout' | 'diet' | null;
 type TabType = 'overview' | 'health' | 'programs' | 'progress';
@@ -28,7 +50,7 @@ export default function ClientDetailScreen() {
   const { showAlert } = useAlert();
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets, getClientProgress,
-    workouts, diets, assignWorkout, assignDietPlan, plans,
+    workouts, diets, assignWorkout, assignDietPlan, plans, notifications,
     upgradeClientToPlan, extendClientTrial, getClientHealthSnapshot, requestHealthAccess,
   } = useApp();
 
@@ -36,6 +58,13 @@ export default function ClientDetailScreen() {
   const [assignMode, setAssignMode] = useState<AssignMode>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  // ── Coach Notes ──
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesText, setNotesText]       = useState('');
+  const [notesSaving, setNotesSaving]   = useState(false);
+  // ── Message Preview ──
+  const [lastMessage, setLastMessage]   = useState<{ text: string; time: string } | null>(null);
 
   const client = getClientById(id || '');
   const sessions = getClientSessions(id || '');
@@ -47,6 +76,84 @@ export default function ClientDetailScreen() {
   const upcomingSessions = sessions.filter((s) => s.status === 'upcoming' && new Date(s.date) > new Date());
   const completedSessions = sessions.filter((s) => s.status === 'completed');
   const planName = plans.find(p => p.id === client?.plan_id)?.name;
+
+  // ── Engagement Score: session attendance × 50% + progress recency × 50% ──
+  const engagementScore = useMemo(() => {
+    const thirtyDaysAgo  = new Date(Date.now() - 30 * 86400000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000);
+    const recentSessions = sessions.filter(s => {
+      const d = new Date(s.date);
+      return d > thirtyDaysAgo && d < new Date();
+    });
+    const sessionRate = recentSessions.length > 0
+      ? recentSessions.filter(s => s.status === 'completed').length / recentSessions.length
+      : 0;
+    const progressRate = progressLogs.some(l => new Date(l.date) > fourteenDaysAgo) ? 1 : 0;
+    const score = Math.round((sessionRate * 0.5 + progressRate * 0.5) * 100);
+    if (score >= 80) return { score, label: 'On track',      color: '#22C55E' };
+    if (score >= 50) return { score, label: 'Check in soon', color: '#F59E0B' };
+    return            { score, label: 'At risk',        color: '#EF4444' };
+  }, [sessions, progressLogs]);
+
+  // ── Unread message notifications for this specific client ──
+  const clientUnread = useMemo(() =>
+    notifications.filter(n => !n.is_read && n.type === 'message' && (n.metadata as any)?.client_id === client?.id).length,
+  [notifications, client?.id]);
+
+  // ── Weight chart data (chronological order for sparkline) ──
+  const weightChartData = useMemo(() =>
+    [...progressLogs].filter(l => l.weight != null).reverse().map(l => ({
+      value: l.weight as number,
+      label: new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+  [progressLogs]);
+  const weightDelta = weightChartData.length >= 2
+    ? (weightChartData[weightChartData.length - 1].value - weightChartData[0].value).toFixed(1)
+    : null;
+
+  // ── Save coach notes to Supabase ──
+  const saveNotes = useCallback(async () => {
+    setNotesSaving(true);
+    try {
+      await supabase.from('clients').update({ notes: notesText }).eq('id', client?.id || '');
+      setEditingNotes(false);
+    } catch {
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to save note.' });
+    } finally {
+      setNotesSaving(false);
+    }
+  }, [notesText, client?.id, showAlert]);
+
+  // Sync notesText with server value on mount / client change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (client?.notes) setNotesText(client.notes); }, [client?.id]);
+
+  // Fetch last message from this client's conversation thread (silent on failure)
+  useEffect(() => {
+    if (!client?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: convo } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('client_id', client.id)
+          .maybeSingle();
+        if (!convo || cancelled) return;
+        const { data: msg } = await supabase
+          .from('messages')
+          .select('content, created_at')
+          .eq('conversation_id', convo.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!cancelled && msg) {
+          setLastMessage({ text: msg.content, time: formatRelativeTime(new Date(msg.created_at)) });
+        }
+      } catch { /* Silent — message preview is enhancement, not critical path */ }
+    })();
+    return () => { cancelled = true; };
+  }, [client?.id]);
 
   if (!client) {
     return (
@@ -136,17 +243,28 @@ export default function ClientDetailScreen() {
         {/* Profile Hero Section */}
         <View style={st.profileHero}>
           <Avatar name={client.name} size="xl" imageUrl={client.avatar_url} />
-          <Text style={st.profileName}>{client.name}</Text>
+          <Text style={st.profileName}>{toTitleCase(client.name)}</Text>
           <View style={st.badgeRow}>
             <View style={[st.statusBadge, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[st.statusText, { color: statusStyle.text }]}>{client.status}</Text>
+              <Text style={[st.statusText, { color: statusStyle.text }]}>
+                {client.status === 'active' ? 'Active' : client.status === 'trial' ? 'Trial' : 'Inactive'}
+              </Text>
             </View>
             {planName && (
               <View style={[st.statusBadge, { backgroundColor: '#6C9BF21A' }]}>
-                <Text style={[st.statusText, { color: '#6C9BF2' }]}>{planName}</Text>
+                <Text style={[st.statusText, { color: '#6C9BF2' }]}>{toTitleCase(planName)}</Text>
               </View>
             )}
           </View>
+          {/* Engagement score — coaches see health at a glance without opening any tab */}
+          <TouchableOpacity
+            style={[st.engagementPill, { borderColor: `${engagementScore.color}35` }]}
+            onPress={() => setActiveTab('health')}
+            activeOpacity={0.8}
+          >
+            <View style={[st.engagementDot, { backgroundColor: engagementScore.color }]} />
+            <Text style={[st.engagementLabel, { color: engagementScore.color }]}>{engagementScore.label}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Dynamic Trial Banner */}
@@ -213,12 +331,15 @@ export default function ClientDetailScreen() {
 
         {/* Quick Messaging & Booking Icons */}
         <View style={st.quickActions}>
-          {[
-            { icon: 'chatbubble-ellipses', label: 'Message', color: '#6C9BF2', action: startConversation },
-            { icon: 'calendar-outline', label: 'Book Session', color: '#22C55E', action: () => router.push(`/book-session?clientId=${client.id}` as any) },
-            { icon: 'ribbon', label: 'Enroll', color: '#FF6B35', action: () => setAssignMode('enroll') },
-            { icon: 'trending-up', label: 'Progress', color: '#A78BFA', action: () => router.push(`/client/${client.id}/progress` as any) },
-          ].map((action, i) => (
+          {([
+            { icon: 'chatbubble-ellipses', label: 'Message',      color: '#6C9BF2', action: startConversation },
+            { icon: 'calendar-outline',    label: 'Book Session',  color: '#22C55E', action: () => router.push(`/book-session?clientId=${client.id}` as any) },
+            // Trial clients → Upgrade (match the banner CTA); others → Enroll
+            client.status === 'trial'
+              ? { icon: 'arrow-up-circle', label: 'Upgrade',  color: '#FF6B35', action: () => setShowUpgradeModal(true) }
+              : { icon: 'ribbon',          label: 'Enroll',   color: '#FF6B35', action: () => setAssignMode('enroll') },
+            { icon: 'trending-up',         label: 'Progress',     color: '#A78BFA', action: () => router.push(`/client/${client.id}/progress` as any) },
+          ] as { icon: string; label: string; color: string; action: () => void }[]).map((action, i) => (
             <TouchableOpacity key={i} style={st.quickAction} onPress={action.action} activeOpacity={0.7}>
               <View style={[st.quickActionIcon, { backgroundColor: `${action.color}14` }]}>
                 <Ionicons name={action.icon as any} size={22} color={action.color} />
@@ -237,7 +358,7 @@ export default function ClientDetailScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
             >
               <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
-                {tab.toUpperCase()}
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -246,12 +367,123 @@ export default function ClientDetailScreen() {
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <View style={st.tabContent}>
-            {/* Contacts details */}
+
+            {/* ── 1. Coach Notes (private, at the top — it's a coaching tool, not a client feature) ── */}
+            <View style={st.sectionHeader}>
+              <Text style={st.sectionTitle}>Coach Notes</Text>
+              {editingNotes ? (
+                <TouchableOpacity
+                  style={[st.addLogBtn, { borderColor: 'rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.08)' }]}
+                  onPress={saveNotes}
+                  disabled={notesSaving}
+                >
+                  <Text style={[st.addLogBtnText, { color: notesSaving ? 'rgba(255,255,255,0.3)' : '#22C55E' }]}>
+                    {notesSaving ? 'Saving…' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[st.addLogBtn, { borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.08)' }]}
+                  onPress={() => setEditingNotes(true)}
+                >
+                  <Ionicons name="pencil" size={11} color="#F59E0B" />
+                  <Text style={[st.addLogBtnText, { color: '#F59E0B' }]}>Edit</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Card style={[st.noteCard, st.notesCard]}>
+              {editingNotes ? (
+                <TextInput
+                  value={notesText}
+                  onChangeText={setNotesText}
+                  multiline
+                  style={st.notesInput}
+                  placeholder="Add a private note — clients can't see this"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  autoFocus
+                />
+              ) : notesText ? (
+                <TouchableOpacity onPress={() => setEditingNotes(true)} activeOpacity={0.8}>
+                  <Text style={st.noteText}>{notesText}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => setEditingNotes(true)} activeOpacity={0.8}>
+                  <Text style={st.notesEmpty}>Add a private note — clients can't see this</Text>
+                </TouchableOpacity>
+              )}
+            </Card>
+
+            {/* ── 2. Upcoming Session (forward-looking, not history) ── */}
+            <Text style={st.sectionTitle}>Upcoming</Text>
+            {upcomingSessions.length > 0 ? (
+              <Card noPadding style={st.sectionCard}>
+                {(() => {
+                  const sess = upcomingSessions[0];
+                  const dt = new Date(sess.date);
+                  return (
+                    <View style={[st.sessionRow, { paddingVertical: 14 }]}>
+                      <View style={[st.quickActionIcon, { backgroundColor: '#22C55E14', width: 42, height: 42, borderRadius: 12 }]}>
+                        <Ionicons name="calendar" size={18} color="#22C55E" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.sessionDate}>
+                          {dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {' · '}
+                          {dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </Text>
+                        <Text style={st.sessionTime}>{sess.type} · {sess.duration}m</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+              </Card>
+            ) : (
+              <TouchableOpacity
+                style={st.sessionBookPrompt}
+                onPress={() => router.push(`/book-session?clientId=${client.id}` as any)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="calendar-outline" size={18} color="rgba(255,255,255,0.2)" />
+                <Text style={st.sessionBookPromptText}>No upcoming sessions · Book next →</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* ── 3. Message Preview (replaces blind Message button) ── */}
+            <Text style={st.sectionTitle}>Messages</Text>
+            <TouchableOpacity activeOpacity={0.75} onPress={startConversation}>
+              <Card noPadding style={st.sectionCard}>
+                <View style={[st.sessionRow, { paddingVertical: 14 }]}>
+                  <View style={[st.quickActionIcon, { backgroundColor: '#6C9BF214', width: 42, height: 42, borderRadius: 12 }]}>
+                    <Ionicons name="chatbubble-ellipses" size={18} color="#6C9BF2" />
+                  </View>
+                  {lastMessage ? (
+                    <>
+                      <View style={{ flex: 1, marginRight: 6 }}>
+                        <Text style={st.assignedName} numberOfLines={1}>{lastMessage.text}</Text>
+                        <Text style={st.assignedMeta}>{lastMessage.time}</Text>
+                      </View>
+                      {clientUnread > 0 && (
+                        <View style={st.msgUnreadBadge}>
+                          <Text style={st.msgUnreadText}>{clientUnread > 9 ? '9+' : clientUnread}</Text>
+                        </View>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={[st.sessionBookPromptText, { flex: 1 }]}>
+                      No messages yet · Start conversation →
+                    </Text>
+                  )}
+                  <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.2)" style={{ marginLeft: 4 }} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+
+            {/* ── 4. Contact Info ── */}
             {(client.email || client.phone) && (
               <Card noPadding style={st.sectionCard}>
                 {[
                   client.email && { icon: 'mail-outline', value: client.email, action: contactActions.find(a => a.icon === 'mail') },
-                  client.phone && { icon: 'call-outline', value: client.phone, action: contactActions.find(a => a.icon === 'call') },
+                  client.phone && { icon: 'call-outline', value: formatPhone(client.phone), action: contactActions.find(a => a.icon === 'call') },
                 ].filter(Boolean).map((item: any, i, arr) => (
                   <TouchableOpacity key={i} style={[st.contactRow, i < arr.length - 1 && st.rowBorder]} onPress={item.action?.onPress} activeOpacity={0.7}>
                     <Ionicons name={item.icon} size={18} color="rgba(255,255,255,0.4)" />
@@ -407,20 +639,18 @@ export default function ClientDetailScreen() {
                 </Card>
               </>
             )}
-            {client.notes && (
-              <>
-                <Text style={st.sectionTitle}>Coach Notes</Text>
-                <Card style={st.noteCard}>
-                  <Text style={st.noteText}>{client.notes}</Text>
-                </Card>
-              </>
-            )}
+            {/* Coach Notes are now at the TOP of this tab (editable) — not here */}
           </View>
         )}
 
         {/* TAB 2: HEALTH */}
         {activeTab === 'health' && (
           <View style={st.tabContent}>
+
+            {/* ── HABIT GRID — only shown when health data is actually shared.
+                 Showing 0% for disconnected data is lying to the coach. ── */}
+            {healthSnapshot && <ClientHabitGrid clientId={id || ''} />}
+
             {healthSnapshot ? (
               <View style={{ gap: Spacing.md }}>
                 <Text style={st.sectionTitle}>Daily Health Snapshot</Text>
@@ -684,17 +914,92 @@ export default function ClientDetailScreen() {
         {/* TAB 4: PROGRESS */}
         {activeTab === 'progress' && (
           <View style={st.tabContent}>
+
+            {/* ── Weight Sparkline — visual first, list second ── */}
+            {weightChartData.length >= 2 && (
+              <>
+                <View style={st.sectionHeader}>
+                  <Text style={st.sectionTitle}>Weight Trend</Text>
+                  <TouchableOpacity onPress={() => router.push(`/client/${client.id}/progress` as any)}>
+                    <Text style={st.viewAllBtnText}>Full chart →</Text>
+                  </TouchableOpacity>
+                </View>
+                <Card style={[st.sectionCard, { paddingTop: Spacing.md, paddingBottom: 0, paddingHorizontal: 0, overflow: 'hidden' }]}>
+                  <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+                    <Text style={st.sessionDate}>
+                      {weightChartData[weightChartData.length - 1].value} lbs
+                      {weightDelta !== null && (
+                        <Text style={{ color: Number(weightDelta) <= 0 ? '#22C55E' : '#EF4444' }}>
+                          {'  '}{Number(weightDelta) >= 0 ? '+' : ''}{weightDelta} lbs
+                        </Text>
+                      )}
+                    </Text>
+                    <Text style={st.sessionTime}>Since first log</Text>
+                  </View>
+                  <LineChart
+                    data={weightChartData}
+                    width={SCREEN_WIDTH - 64}
+                    height={110}
+                    spacing={Math.max(30, Math.floor((SCREEN_WIDTH - 80) / weightChartData.length))}
+                    initialSpacing={12}
+                    color="#0A84FF"
+                    thickness={2.5}
+                    dataPointsColor="#0A84FF"
+                    dataPointsRadius={4}
+                    hideRules
+                    hideYAxisText
+                    xAxisColor="rgba(255,255,255,0.06)"
+                    yAxisColor="transparent"
+                    xAxisLabelTextStyle={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, fontFamily: FontFamily.body }}
+                    startFillColor="rgba(10,132,255,0.15)"
+                    endFillColor="transparent"
+                    areaChart
+                    pointerConfig={{
+                      pointerStripHeight: 90,
+                      pointerStripColor: 'rgba(255,255,255,0.1)',
+                      pointerStripWidth: 1,
+                      pointerColor: '#0A84FF',
+                      radius: 5,
+                      pointerLabelWidth: 72,
+                      pointerLabelHeight: 28,
+                      pointerLabelComponent: (items: any[]) => (
+                        <View style={{ backgroundColor: '#1C1C1E', padding: 5, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontFamily: FontFamily.bodySemiBold }}>{items[0]?.value} lbs</Text>
+                        </View>
+                      ),
+                    }}
+                  />
+                </Card>
+              </>
+            )}
+
+            {/* ── Client Logs ── */}
             <View style={st.sectionHeader}>
               <Text style={st.sectionTitle}>Client Logs</Text>
-              <TouchableOpacity onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
-                <Ionicons name="add-circle" size={24} color="#FF6B35" />
+              {/* Labeled so coaches know exactly what they're adding */}
+              <TouchableOpacity
+                style={st.addLogBtn}
+                onPress={() => router.push(`/client/${client.id}/log-progress` as any)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={14} color="#FF6B35" />
+                <Text style={st.addLogBtnText}>Add log</Text>
               </TouchableOpacity>
             </View>
 
             {progressLogs.length === 0 ? (
               <Card style={st.emptySection}>
                 <Ionicons name="trending-up-outline" size={28} color="rgba(255,255,255,0.3)" />
-                <Text style={st.emptyText}>No progress entries recorded yet</Text>
+                <Text style={st.emptyText}>No progress yet</Text>
+                <Text style={st.emptySub}>Track weight, body measurements, or photos to see how {toTitleCase(client.name)} is progressing.</Text>
+                <TouchableOpacity
+                  style={st.emptyActionBtn}
+                  onPress={() => router.push(`/client/${client.id}/log-progress` as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={14} color="#FF6B35" />
+                  <Text style={st.emptyActionBtnText}>Log first check-in</Text>
+                </TouchableOpacity>
               </Card>
             ) : (
               <Card noPadding style={st.sectionCard}>
@@ -725,9 +1030,9 @@ export default function ClientDetailScreen() {
             )}
 
             {/* Sessions list */}
-            {sessions.length > 0 && (
-              <>
-                <Text style={st.sectionTitle}>Recent Sessions</Text>
+            <>
+              <Text style={st.sectionTitle}>Recent Sessions</Text>
+              {sessions.length > 0 ? (
                 <Card noPadding style={st.sectionCard}>
                   {sessions.slice(0, 5).map((session, i) => {
                     const dt = new Date(session.date);
@@ -748,9 +1053,29 @@ export default function ClientDetailScreen() {
                       </View>
                     );
                   })}
+                  {/* Book next session CTA — shown when no upcoming sessions */}
+                  {upcomingSessions.length === 0 && (
+                    <TouchableOpacity
+                      style={[st.viewAllBtn, { flexDirection: 'row', gap: 6 }]}
+                      onPress={() => router.push(`/book-session?clientId=${client.id}` as any)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="calendar-outline" size={14} color="#FF6B35" />
+                      <Text style={st.viewAllBtnText}>Book next session →</Text>
+                    </TouchableOpacity>
+                  )}
                 </Card>
-              </>
-            )}
+              ) : (
+                <TouchableOpacity
+                  style={st.sessionBookPrompt}
+                  onPress={() => router.push(`/book-session?clientId=${client.id}` as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar-outline" size={20} color="rgba(255,255,255,0.25)" />
+                  <Text style={st.sessionBookPromptText}>No sessions yet · Book first session →</Text>
+                </TouchableOpacity>
+              )}
+            </>
           </View>
         )}
       </ScrollView>
@@ -1111,6 +1436,117 @@ const st = StyleSheet.create({
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
   emptyText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: '#FFFFFF' },
+
+  // ── New elements from renovation ──────────────────────────────────────────
+  addLogBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.3)',
+    backgroundColor: 'rgba(255,107,53,0.08)',
+  },
+  addLogBtnText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: '#FF6B35',
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.25)',
+    backgroundColor: 'rgba(255,107,53,0.08)',
+    marginTop: Spacing.xs,
+  },
+  emptyActionBtnText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: '#FF6B35',
+  },
+  sessionBookPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+  },
+  sessionBookPromptText: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.35)',
+  },
+
+  // ── Command Center — new in renovation ───────────────────────────────────────
+  // Engagement pill (in hero section)
+  engagementPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginTop: 8,
+  },
+  engagementDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  engagementLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+  // Coach Notes card (yellow-tinted left border signals "private")
+  notesCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(245,158,11,0.4)',
+    backgroundColor: 'rgba(245,158,11,0.04)',
+  },
+  notesInput: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.sm,
+    color: '#FFFFFF',
+    minHeight: 60,
+    textAlignVertical: 'top',
+    lineHeight: 20,
+  },
+  notesEmpty: {
+    fontFamily: FontFamily.body,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.2)',
+    fontStyle: 'italic',
+  },
+  // Message preview unread badge
+  msgUnreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    marginRight: 4,
+  },
+  msgUnreadText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 10,
+    color: '#FFFFFF',
+  },
+
 
   // ── Client Snapshot ──
   snapGrid: {

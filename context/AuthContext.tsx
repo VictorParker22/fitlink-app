@@ -109,13 +109,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false);
     };
 
-    // Get initial session from secure store
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    // Get initial session — catch stale/invalid refresh tokens and sign out cleanly
+    // instead of crashing with AuthApiError: Refresh Token Not Found
+    supabase.auth.getSession().then(({ data: { session: s }, error }) => {
+      if (error) {
+        console.warn('[AuthContext] Session restore failed (stale token), signing out:', error.message);
+        supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
       handleSession(s);
     });
 
+
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    // TOKEN_REFRESH_FAILURE fires when a background refresh fails (e.g. on reconnect with an
+    // expired token). Sign out immediately to clear the stale session rather than entering a
+    // broken half-authenticated state.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'TOKEN_REFRESHED' && !s) return; // shouldn't happen but guard anyway
+      if (event === 'SIGNED_OUT' || (event as string) === 'TOKEN_REFRESH_FAILURE') {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       handleSession(s);
     });
 
@@ -192,6 +210,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   // automatically sets auth_user_id on matching client rows at signup time.
 
   const signOut = useCallback(async () => {
+    try {
+      await SecureStore.deleteItemAsync('fitlink_wizard_complete');
+      await SecureStore.deleteItemAsync('fitlink_client_onboarded');
+    } catch (e) {
+      // Ignore SecureStore cleanup errors
+    }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);

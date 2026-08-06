@@ -48,8 +48,6 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
     }
   }, [celebration]);
 
-  if (!celebration) return null;
-
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
@@ -58,6 +56,8 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
   const backdropAnimStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
+
+  if (!celebration) return null;
 
   const handleShareWithCoach = () => {
     onDismiss();

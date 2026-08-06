@@ -41,3 +41,29 @@ app-example
 # generated native folders
 /ios
 /android
+
+# credentials & secrets
+credentials.json
+google-services.json
+.env
+.env.*
+!.env.example
+
+# scratch / debug scripts
+*.py
+*.patch
+*.cjs
+refactor.js
+fix_ts.js
+check_*.py
+search*.py
+find_*.py
+list_files.py
+extract.py
+color_check.py
+index_head.txt
+index_diff.patch
+
+# sensitive documents
+*.pdf
+medical-record.pdf

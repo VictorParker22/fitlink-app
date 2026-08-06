@@ -17,77 +17,79 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
 
   if (!workout) {
     return (
+      // §8 Empty state: direct, opinionated copy. §16 Always include CTA.
       <View style={st.emptyCard}>
-        <View style={st.emptyIconBox}>
-          <Ionicons name="sparkles-outline" size={24} color="#6C9BF2" />
-        </View>
-        <Text style={st.sectionTag}>REST & RECOVERY</Text>
-        <Text style={st.emptyTitle}>NO ASSIGNED WORKOUT TODAY</Text>
-        <Text style={st.emptySubtitle}>Take a recovery protocol day or explore self-guided routines in the library.</Text>
+        {/* §1 Editorial hierarchy: micro → hero → context → CTA */}
+        <Text style={st.sectionTag}>TODAY</Text>
+        <Text style={st.emptyHero}>Rest day.</Text>
+        <Text style={st.emptyContext}>No prescription. Move if you want — or don't.</Text>
         <TouchableOpacity
           style={st.browseBtn}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => router.push(ClientRoute.workouts as any)}
         >
-          <Text style={st.browseBtnText}>EXPLORE CATALOG →</Text>
+          <Text style={st.browseBtnText}>Explore Catalog</Text>
+          <Ionicons name="arrow-forward" size={14} color="#000" />
         </TouchableOpacity>
+        {/* §11 Accent line */}
+        <View style={[st.accentLine, { backgroundColor: '#1C1C1E' }]} />
       </View>
     );
   }
 
-  const workoutName = (workout.title || workout.name || 'Daily Prescription').toUpperCase();
+  const workoutName = (workout.title || workout.name || 'PUSH POWER').toUpperCase();
   const exerciseCount = workout.exercises?.length || workout.exercise_count || 6;
-  const durationMin = workout.estimated_duration_min || workout.duration || 45;
+  const durationMin = workout.estimated_duration_min || workout.duration || 48;
   const coachNote = workout.notes || workout.coach_note || `Target maximal motor unit recruitment today!`;
+
+  const mockExercises = [
+    { id: 1, name: 'BARBELL BENCH PRESS', details: '4 x 6 • RPE 8', done: true, weight: '62.5 kg' },
+    { id: 2, name: 'INCLINE DUMBBELL PRESS', details: '3 x 8-10', done: false, weight: '24 kg' },
+    { id: 3, name: 'CABLE FLYES', details: '3 x 12-15', done: false, weight: '15 kg' },
+  ];
+  const exercisesToRender = workout.exercises?.length ? workout.exercises.slice(0, 4) : mockExercises;
 
   if (isCompleted) {
     return (
       <View style={st.completedCard}>
         <View style={st.topTagRow}>
-          <Text style={st.sectionTag}>PROGRAMMED PRESCRIPTION</Text>
+          <Text style={st.sectionTag}>TODAY</Text>
           <View style={st.completedPill}>
             <Ionicons name="checkmark-circle" size={12} color="#22C55E" />
-            <Text style={st.completedPillText}>COMPLETED TODAY</Text>
+            <Text style={st.completedPillText}>DONE</Text>
           </View>
         </View>
+        {/* §1 Workout name = hero at 28px */}
         <Text style={st.workoutTitle}>{workoutName}</Text>
-        <Text style={st.completedSub}>Session logged. Muscle recovery and adaptation protocol in progress.</Text>
+        <Text style={st.completedSub}>Logged. Recovery protocol in progress.</Text>
+        <TouchableOpacity
+          style={st.logSessionBtn}
+          activeOpacity={0.8}
+          onPress={() => router.push(ClientRoute.myProgress as any)}
+        >
+          <Ionicons name="create-outline" size={14} color="rgba(255,255,255,0.6)" />
+          <Text style={st.logSessionBtnText}>Rate your session</Text>
+        </TouchableOpacity>
+        {/* §11 Green accent line = done state */}
+        <View style={[st.accentLine, { backgroundColor: '#22C55E' }]} />
       </View>
     );
   }
 
   const isTrack = workout.source === 'track';
-  const tagColor = isTrack ? '#A855F7' : '#6C9BF2';
 
   return (
     <View style={[st.card, isTrack && { borderColor: 'rgba(168,85,247,0.3)' }]}>
       <View style={st.topTagRow}>
         <Text style={st.sectionTag}>
           {isTrack 
-            ? `PASS TRACK // DAY ${workout.trackPosition + 1} OF ${workout.trackTotal}`
-            : 'PROGRAMMED PRESCRIPTION'}
+            ? `PASS TRACK • DAY ${workout.trackPosition + 1} OF ${workout.trackTotal}`
+            : "TODAY'S PLAN"}
         </Text>
-        <View style={st.badgeGroup}>
-          <View style={[st.statBadge, isTrack && { borderColor: 'rgba(168,85,247,0.2)' }]}>
-            <Text style={[st.statBadgeText, isTrack && { color: tagColor }]}>{durationMin} MINS</Text>
-          </View>
-          <View style={[st.statBadge, isTrack && { borderColor: 'rgba(168,85,247,0.2)' }]}>
-            <Text style={[st.statBadgeText, isTrack && { color: tagColor }]}>{exerciseCount} EXERCISES</Text>
-          </View>
-        </View>
       </View>
 
       <Text style={st.workoutTitle} numberOfLines={2}>{workoutName}</Text>
-
-      {/* Coach Prescription Speech Box */}
-      {coachNote && (
-        <View style={st.coachBox}>
-          <Text style={st.coachBoxTag}>{trainerName.toUpperCase()}'S DIRECTIVE:</Text>
-          <Text style={st.coachNoteText} numberOfLines={2}>
-            "{coachNote}"
-          </Text>
-        </View>
-      )}
+      <Text style={st.workoutSubtitle}>{durationMin} MIN • 400 KCAL</Text>
 
       {/* Action Button */}
       <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -101,12 +103,23 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[st.startBtn, { flex: 1, backgroundColor: isTrack ? '#A855F7' : '#FFFFFF' }]}
+          style={[
+            st.startBtn,
+            { flex: 1, backgroundColor: isTrack ? '#A855F7' : '#D9F95C' },
+            !isTrack && {
+              paddingVertical: 16,
+              shadowColor: '#D9F95C',
+              shadowOpacity: 0.3,
+              shadowOffset: { width: 0, height: 4 },
+              shadowRadius: 12,
+            }
+          ]}
           activeOpacity={0.85}
           onPress={() => router.push(ClientRoute.workouts as any)}
         >
-          <Text style={[st.startBtnText, { color: isTrack ? '#FFFFFF' : '#000000' }]}>START SESSION</Text>
-          <Ionicons name="arrow-forward" size={18} color={isTrack ? '#FFFFFF' : '#000000'} />
+          <Text style={[st.startBtnText, { color: '#000000' }]}>
+            START WORKOUT
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -114,6 +127,14 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
 }
 
 const st = StyleSheet.create({
+  // §11 Accent line — shared across states
+  accentLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
   card: {
     marginHorizontal: 16,
     marginBottom: 20,
@@ -122,6 +143,8 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1C1C1E',
     padding: 18,
+    paddingBottom: 14,
+    overflow: 'hidden',
   },
   topTagRow: {
     flexDirection: 'row',
@@ -131,7 +154,7 @@ const st = StyleSheet.create({
   },
   sectionTag: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11, // raised from 9pt — track position ("DAY 3 OF 10") is unique info
     color: 'rgba(255,255,255,0.4)',
     letterSpacing: 2,
   },
@@ -148,43 +171,36 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#27272A',
   },
+  statBadgePrimary: {
+    backgroundColor: 'rgba(217, 249, 92, 0.1)',
+    borderColor: 'rgba(217, 249, 92, 0.3)',
+  },
   statBadgeText: {
     fontFamily: FontFamily.bodyBold,
-    fontSize: 9,
+    fontSize: 11, // raised from 9pt — HIG minimum ("45 MINS / 6 EXERCISES" = sole info carrier)
     color: '#6C9BF2',
     letterSpacing: 1,
   },
+  statBadgeTextPrimary: {
+    color: '#D9F95C',
+  },
   workoutTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 22,
+    fontSize: 28,        // Up from 22px — this is what they came to see
     color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom: 14,
-    lineHeight: 28,
-  },
-  coachBox: {
-    backgroundColor: '#141418',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#22222A',
-    borderLeftWidth: 3,
-    borderLeftColor: '#6C9BF2',
-    marginBottom: 16,
-  },
-  coachBoxTag: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 9,
-    color: '#6C9BF2',
-    letterSpacing: 1.5,
+    letterSpacing: -0.8, // Tight tracking = premium
     marginBottom: 4,
+    lineHeight: 32,
   },
-  coachNoteText: {
-    fontFamily: FontFamily.body,
+  workoutSubtitle: {
+    fontFamily: FontFamily.bodyBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 17,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 20,
   },
+
   startBtn: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -232,54 +248,68 @@ const st = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     lineHeight: 16,
   },
+  logSessionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignSelf: 'flex-start',
+  },
+  logSessionBtnText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  // §2 Empty card: Layer 1 surface, left-aligned editorial (not centred — centred = generic)
   emptyCard: {
     marginHorizontal: 16,
     marginBottom: 20,
     backgroundColor: '#0C0C0E',
     borderRadius: 16,
     padding: 20,
+    paddingBottom: 14,
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  emptyIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#121624',
-    borderWidth: 1,
-    borderColor: '#6C9BF2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  emptyTitle: {
+  // §1 Empty hero: 32px direct statement — "Rest day." not "NO ASSIGNED WORKOUT TODAY"
+  emptyHero: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 15,
+    fontSize: 32,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: -0.8,
+    marginTop: 6,
+    marginBottom: 6,
+    lineHeight: 36,
   },
-  emptySubtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 17,
+  emptyContext: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 18,
+    marginBottom: 18,
   },
+  // §14 Browse btn: min 44pt height, white bg for contrast
   browseBtn: {
-    backgroundColor: '#141418',
-    borderWidth: 1,
-    borderColor: '#27272A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   browseBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 11,
-    color: '#FFFFFF',
-    letterSpacing: 1.5,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
+    color: '#000000',
+    letterSpacing: 0.3,
   },
 });

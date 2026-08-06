@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -7,19 +7,48 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { supabase } from '../../lib/supabase';
+import { useClient } from '../../context/ClientContext';
 import { FontFamily, Radius, Spacing } from '../../constants/theme';
 import { LiveClassItem } from '../../context/AppContext';
+
+interface ChatMessage {
+  id: string;
+  sender: string;
+  content: string;
+  isSystem?: boolean;
+}
 
 export default function LivePlayerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { clientData } = useClient();
   
   const [liveClass, setLiveClass] = useState<LiveClassItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatMessage, setChatMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: 'sys-welcome', sender: 'system', content: 'Welcome to the live session! 🎉', isSystem: true },
+  ]);
+  const [channelStatus, setChannelStatus] = useState<'connected' | 'reconnecting'>('connected');
+  // Auth readiness gate — prevents insert before auth.uid() is resolved (race condition fix)
+  const [authReady, setAuthReady] = useState(false);
+
+  const chatListRef = useRef<FlatList>(null);
+  // Store the Supabase channel in a ref so handleSendChat can broadcast on it
+  const channelRef = useRef<any>(null);
+  // Maps optimisticId → client-side timestamp for clock-skew-safe dedup
+  const optimisticTimestamps = useRef<Map<string, number>>(new Map());
+  // Auth user ID (auth.uid()) — distinct from clientData.id (clients table PK)
+  const authUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Resolve auth.uid() early — guards handleSendChat from inserting before auth resolves
+    supabase.auth.getUser().then(({ data }) => {
+      authUserRef.current = data.user?.id ?? null;
+      setAuthReady(true);
+    });
+
     async function fetchClass() {
       try {
         const { data, error } = await supabase
@@ -27,40 +56,104 @@ export default function LivePlayerScreen() {
           .select('*')
           .eq('id', id)
           .single();
-          
-        if (data && !error) {
-          setLiveClass(data);
-        }
+        if (data && !error) setLiveClass(data);
       } catch (err) {
         console.error('Error fetching live class:', err);
       } finally {
         setLoading(false);
       }
     }
-    
+
     fetchClass();
 
-    // Subscribe to realtime status updates for this live class
-    const subscription = supabase
-      .channel(`live_class_${id}`)
+    // Load message history — hydrates chat for reconnecting users
+    supabase
+      .from('live_class_messages')
+      .select('*')
+      .eq('live_class_id', id)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: true })
+      .limit(200)
+      .then(({ data }) => {
+        if (!data?.length) return;
+        setChatMessages(prev => {
+          const existing = new Set(prev.map(m => m.id));
+          const hydrated = data
+            .filter(r => !existing.has(r.id))
+            .map(r => ({
+              id: r.id,
+              sender: r.sender_name,
+              content: r.content,
+              isSystem: false,
+            }));
+          return [...prev, ...hydrated];
+        });
+      });
+
+    const channel = supabase
+      .channel(`live-class-${id}`)  // MUST match broadcast screen: live-class-{id}
+      // Status updates on live_classes (unchanged)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'live_classes',
-          filter: `id=eq.${id}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'live_classes', filter: `id=eq.${id}` },
         (payload) => {
           if (payload.new) {
-            setLiveClass((prev) => (prev ? { ...prev, ...payload.new } : (payload.new as LiveClassItem)));
+            setLiveClass(prev => prev ? { ...prev, ...payload.new } : (payload.new as LiveClassItem));
           }
         }
       )
-      .subscribe();
+      // Chat messages via postgres_changes INSERT (replaces broadcast — RLS-enforced)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'live_class_messages', filter: `live_class_id=eq.${id}` },
+        (payload) => {
+          setChatMessages(prev => {
+            // Find optimistic match by sender + content (clock-skew-safe dedup)
+            const optimisticMatch = prev.find(m =>
+              !m.isSystem &&
+              m.sender === payload.new.sender_name &&
+              m.content === payload.new.content
+            );
+
+            if (optimisticMatch) {
+              const sentAt = optimisticTimestamps.current.get(optimisticMatch.id);
+              if (sentAt && Date.now() - sentAt < 10000) {
+                // Replace optimistic bubble with real DB row (preserves order, gets real ID)
+                optimisticTimestamps.current.delete(optimisticMatch.id);
+                return prev.map(m =>
+                  m.id === optimisticMatch.id
+                    ? { id: payload.new.id, sender: payload.new.sender_name, content: payload.new.content, isSystem: false }
+                    : m
+                );
+              }
+            }
+
+            // New message from another viewer — append with FIFO cap
+            const next = [...prev, {
+              id: payload.new.id,
+              sender: payload.new.sender_name,
+              content: payload.new.content,
+              isSystem: false,
+            }];
+            return next.length > 200 ? next.slice(-200) : next;
+          });
+        }
+      )
+      // subscribe() callback is the correct Supabase v2 API for channel status
+      .subscribe((status) => {
+        if (status === 'CLOSED') return; // normal unmount — don't flash reconnecting
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setChannelStatus('reconnecting');
+        }
+        if (status === 'SUBSCRIBED') {
+          setChannelStatus('connected');
+        }
+      });
+
+    channelRef.current = channel;
 
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
   }, [id]);
 
@@ -87,6 +180,110 @@ export default function LivePlayerScreen() {
     return () => clearInterval(interval);
   }, [liveClass?.status, id]);
 
+  // Viewer count: increment on enter, decrement on leave (best-effort)
+  // Stale counts on crashed sessions are reconciled by a 5-min cron job
+  useEffect(() => {
+    if (!id || !liveClass) return;
+    supabase.rpc('increment_viewer_count', { class_id: id });
+    return () => {
+      supabase.rpc('decrement_viewer_count', { class_id: id });
+    };
+  }, [id, liveClass]);
+
+  // System message when stream status changes
+  const prevStatus = useRef<string | null>(null);
+  useEffect(() => {
+    if (!liveClass?.status) return;
+    if (liveClass.status === prevStatus.current) return;
+    prevStatus.current = liveClass.status;
+    if (liveClass.status === 'live') {
+      setChatMessages((prev) => [
+        ...prev,
+        { id: 'sys-live', sender: 'system', content: '🔴 Stream is now live — let’s go!', isSystem: true },
+      ]);
+    }
+    if (liveClass.status === 'ended') {
+      setChatMessages((prev) => [
+        ...prev,
+        { id: 'sys-ended', sender: 'system', content: 'Broadcast ended by your coach. Great session! 🏆', isSystem: true },
+      ]);
+    }
+  }, [liveClass?.status]);
+
+  // Auto-scroll: only scroll to bottom if the user is already near the bottom (~100px)
+  // Prevents scroll hijacking when 50+ viewers are chatting and user is reading up
+  const isNearBottom = useRef(true);
+  const lastSentAt = useRef(0); // moved above early returns — hooks must not follow conditional returns
+
+  useEffect(() => {
+    if (chatMessages.length > 0 && isNearBottom.current) {
+      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 80);
+    }
+  }, [chatMessages.length]);
+
+  const handleSendChat = useCallback(async () => {
+    const content = chatMessage.trim();
+    if (!content || liveClass?.status === 'ended') return;
+
+    // Rate limit: 1 message per second (client-side gate — server trigger is the real enforcer)
+    const now = Date.now();
+    if (now - lastSentAt.current < 1000) return;
+    lastSentAt.current = now;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Optimistic add — replaced by real DB row when postgres_changes fires
+    // crypto.randomUUID() is not available in Hermes — use a timestamp+random ID instead
+    const optimisticId = `opt_${now}_${Math.random().toString(36).slice(2, 9)}`;
+    optimisticTimestamps.current.set(optimisticId, now);
+
+    setChatMessages(prev => {
+      const next = [...prev, {
+        id: optimisticId,
+        sender: clientData?.name || 'Viewer',
+        content,
+        isSystem: false,
+      }];
+      return next.length > 200 ? next.slice(-200) : next;
+    });
+    setChatMessage('');
+
+    // stream_offset_ms uses went_live_at — not created_at (which is schedule time)
+    const streamOffset = liveClass?.went_live_at
+      ? now - new Date((liveClass as any).went_live_at).getTime()
+      : null;
+
+    const { error } = await supabase.from('live_class_messages').insert({
+      live_class_id: id,
+      sender_id: authUserRef.current,
+      sender_name: clientData?.name || 'Viewer',
+      content,
+      stream_offset_ms: streamOffset,
+    });
+
+    // Also broadcast on the shared channel so the coach sees it instantly
+    // (postgres_changes SELECT is blocked by RLS for the trainer)
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'chat_message',
+        payload: {
+          id: optimisticId,
+          sender: clientData?.name || 'Viewer',
+          content,
+        },
+      });
+    }
+
+    if (error) {
+      // Rollback optimistic on RLS rejection, rate-limit trigger, or network error
+      setChatMessages(prev => prev.filter(m => m.id !== optimisticId));
+      optimisticTimestamps.current.delete(optimisticId);
+      // TODO: show toast — "Message failed to send"
+    }
+  }, [chatMessage, liveClass?.status, liveClass?.went_live_at, clientData, id]);
+
+
   const playbackUrl = liveClass?.mux_playback_id 
     ? `https://stream.mux.com/${liveClass.mux_playback_id}.m3u8`
     : null;
@@ -95,13 +292,6 @@ export default function LivePlayerScreen() {
     p.loop = false;
     p.play();
   });
-
-  const handleSendChat = () => {
-    if (!chatMessage.trim()) return;
-    // Real chat implementation would push to Supabase realtime
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setChatMessage('');
-  };
 
   if (loading) {
     return (
@@ -123,7 +313,9 @@ export default function LivePlayerScreen() {
   }
 
   const isStreamEnded = liveClass.status === 'ended';
-  const isStreamStarting = liveClass.status === 'scheduled' || liveClass.status === 'starting';
+  const isStreamStarting = (liveClass.status as string) === 'scheduled' || (liveClass.status as string) === 'starting';
+  const hasFakeMuxId = !!liveClass?.mux_playback_id?.startsWith('playback_');
+
 
   return (
     <KeyboardAvoidingView 
@@ -144,7 +336,7 @@ export default function LivePlayerScreen() {
             </View>
             <View style={styles.viewersBadge}>
               <Ionicons name="eye" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-              <Text style={styles.viewersText}>48</Text>
+              <Text style={styles.viewersText}>{liveClass.viewer_count ?? '—'}</Text>
             </View>
           </View>
         </View>
@@ -171,10 +363,30 @@ export default function LivePlayerScreen() {
           <VideoView
             style={styles.videoView}
             player={player}
-            allowsFullscreen
+            fullscreenOptions={{ allowPictureInPicture: true }}
             allowsPictureInPicture
             contentFit="contain"
           />
+        ) : hasFakeMuxId ? (
+          <View style={styles.endedBanner}>
+            <Ionicons name="warning-outline" size={32} color="#F59E0B" style={{ marginBottom: 8 }} />
+            <Text style={styles.endedTitle}>STREAM NOT CONFIGURED</Text>
+            <Text style={styles.endedSub}>Coach may still be setting up. Try again in a moment.</Text>
+            <TouchableOpacity
+              style={styles.backToExploreBtn}
+              onPress={async () => {
+                setLoading(true);
+                try {
+                  const { data } = await supabase.from('live_classes').select('*').eq('id', id).single();
+                  if (data) setLiveClass(data);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              <Text style={styles.backToExploreText}>RETRY</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={styles.placeholderVideo}>
             <ActivityIndicator color="#EF4444" size="small" style={{ marginBottom: 8 }} />
@@ -185,14 +397,47 @@ export default function LivePlayerScreen() {
 
       {/* Chat Section */}
       <View style={styles.chatContainer}>
-        <View style={styles.chatList}>
-          <Text style={styles.systemMessage}>Welcome to the live session!</Text>
-          {isStreamEnded ? (
-            <Text style={[styles.systemMessage, { color: '#FFD700' }]}>
-              Broadcast ended by coach.
-            </Text>
-          ) : null}
-        </View>
+        {/* Reconnect banner — shown when broadcast channel is degraded */}
+        {channelStatus === 'reconnecting' && (
+          <View style={styles.reconnectBanner}>
+            <ActivityIndicator size="small" color="#F59E0B" style={{ marginRight: 8 }} />
+            <Text style={styles.reconnectText}>Reconnecting…</Text>
+          </View>
+        )}
+        <FlatList
+          ref={chatListRef}
+          data={chatMessages}
+          keyExtractor={(item) => item.id}
+          style={styles.chatList}
+          contentContainerStyle={{ padding: 12, paddingBottom: 4, justifyContent: 'flex-end' }}
+          showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => {
+            const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+            const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+            isNearBottom.current = distanceFromBottom < 100;
+          }}
+          scrollEventThrottle={100}
+          renderItem={({ item }) => {
+            if (item.isSystem) {
+              return (
+                <Text style={styles.systemMessage}>{item.content}</Text>
+              );
+            }
+            const isMe = item.sender === (clientData?.name || 'Viewer');
+            return (
+              <View style={[styles.chatBubbleRow, isMe && styles.chatBubbleRowRight]}>
+                {!isMe && (
+                  <Text style={styles.chatSender}>{item.sender}</Text>
+                )}
+                <View style={[styles.chatBubble, isMe && styles.chatBubbleMe]}>
+                  <Text style={[styles.chatBubbleText, isMe && styles.chatBubbleTextMe]}>
+                    {item.content}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
+        />
         
         <View style={[styles.chatInputRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           <TextInput
@@ -205,9 +450,9 @@ export default function LivePlayerScreen() {
             selectionColor="#EF4444"
           />
           <TouchableOpacity 
-            style={[styles.sendBtn, (!chatMessage.trim() || isStreamEnded) && { opacity: 0.5 }]} 
+            style={[styles.sendBtn, (!authReady || !chatMessage.trim() || isStreamEnded) && { opacity: 0.5 }]} 
             onPress={handleSendChat}
-            disabled={!chatMessage.trim() || isStreamEnded}
+            disabled={!authReady || !chatMessage.trim() || isStreamEnded}
           >
             <Ionicons name="send" size={18} color="#FFFFFF" />
           </TouchableOpacity>
@@ -332,11 +577,11 @@ const styles = StyleSheet.create({
   },
   chatList: {
     flex: 1,
-    padding: Spacing.md,
-    justifyContent: 'flex-end',
   },
+
   systemMessage: {
-    fontFamily: FontFamily.bodyItalic,
+    fontFamily: FontFamily.body,
+    fontStyle: 'italic',
     fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
     textAlign: 'center',
@@ -385,5 +630,54 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 12,
     color: '#FFFFFF',
-  }
+  },
+  chatBubbleRow: {
+    marginBottom: 6,
+    maxWidth: '80%',
+  },
+  chatBubbleRowRight: {
+    alignSelf: 'flex-end',
+  },
+  chatSender: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 2,
+    marginLeft: 4,
+  },
+  chatBubble: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 14,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  chatBubbleMe: {
+    backgroundColor: '#EF4444',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 4,
+  },
+  chatBubbleText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 18,
+  },
+  chatBubbleTextMe: {
+    color: '#FFFFFF',
+  },
+  reconnectBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245,158,11,0.3)',
+  },
+  reconnectText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: '#F59E0B',
+  },
 });

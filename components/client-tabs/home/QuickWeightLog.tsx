@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,28 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   const [weightVal, setWeightVal] = useState<string>(latestWeight ? String(latestWeight) : '165');
   const [isLoggedToday, setIsLoggedToday] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const repeatRef = useRef<ReturnType<typeof setInterval>>();
+
+  const startRepeat = useCallback((delta: number) => {
+    // First tick already happened via onPress — start repeating after 400ms hold
+    const timer = setTimeout(() => {
+      repeatRef.current = setInterval(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setWeightVal(prev => {
+          const current = parseFloat(prev) || 165;
+          const updated = Math.max(50, Math.min(500, +(current + delta).toFixed(1)));
+          return String(updated);
+        });
+      }, 150);
+    }, 400);
+    repeatRef.current = timer as any;
+  }, []);
+
+  const stopRepeat = useCallback(() => {
+    clearTimeout(repeatRef.current as any);
+    clearInterval(repeatRef.current as any);
+  }, []);
 
   useEffect(() => {
     if (latestWeight) {
@@ -73,6 +95,9 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           style={st.stepBtn}
           activeOpacity={0.7}
           onPress={() => adjustWeight(-0.5)}
+          onLongPress={() => startRepeat(-0.5)}
+          onPressOut={stopRepeat}
+          delayLongPress={300}
         >
           <Ionicons name="remove" size={18} color="#FFFFFF" />
         </TouchableOpacity>
@@ -93,6 +118,9 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           style={st.stepBtn}
           activeOpacity={0.7}
           onPress={() => adjustWeight(0.5)}
+          onLongPress={() => startRepeat(0.5)}
+          onPressOut={stopRepeat}
+          delayLongPress={300}
         >
           <Ionicons name="add" size={18} color="#FFFFFF" />
         </TouchableOpacity>
@@ -147,9 +175,9 @@ const st = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#141418',
+    backgroundColor: '#111113',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#1C1C1E',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -158,12 +186,12 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#111113',
     borderRadius: 10,
     height: 40,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#1C1C1E',
   },
   input: {
     fontFamily: FontFamily.headingExtraBold,
@@ -179,7 +207,9 @@ const st = StyleSheet.create({
     marginLeft: 4,
   },
   saveBtn: {
-    backgroundColor: '#4D94FF',
+    backgroundColor: '#1A1A1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 18,
     height: 40,
     borderRadius: 10,

@@ -1,83 +1,63 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Avatar from '../../../components/Avatar';
-import { FontFamily, FontSize, Radius, Spacing } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/theme';
 import { ClientRoute } from '../../../types/routes';
+import * as Haptics from 'expo-haptics';
 
 interface GreetingHeaderProps {
   clientName: string;
-  avatarUrl?: string;
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
-  trainerName?: string;
   unreadCount?: number;
 }
 
+const TAGLINES: Record<string, string> = {
+  morning:   'Time to move.',
+  afternoon: 'Keep it going.',
+  evening:   'Finish strong.',
+  night:     'Rest hard.',
+};
+
 export default function GreetingHeader({
   clientName,
-  avatarUrl,
   timeOfDay,
   unreadCount = 0,
 }: GreetingHeaderProps) {
-  const router = useRouter();
-
-  const getGreetingText = () => {
-    switch (timeOfDay) {
-      case 'morning':
-        return { title: 'GOOD MORNING', emoji: '☀️' };
-      case 'afternoon':
-        return { title: 'GOOD AFTERNOON', emoji: '⚡' };
-      case 'evening':
-        return { title: 'GOOD EVENING', emoji: '🌙' };
-      default:
-        return { title: 'REST & RECOVER', emoji: '😴' };
-    }
-  };
-
-  const greeting = getGreetingText();
+  const router  = useRouter();
+  const firstName = (clientName || 'Athlete').split(' ')[0];
+  const tagline   = TAGLINES[timeOfDay] ?? 'Let\'s go.';
 
   return (
     <View style={st.container}>
-      <View style={st.topTagRow}>
-        <Text style={st.portalTag}>CLIENT PORTAL // FITLINK LUXE</Text>
+      {/* ── LEFT: Text stack ── */}
+      <View style={st.nameBlock}>
+        <Text style={st.tagline}>{tagline}</Text>
+        <Text style={st.name} numberOfLines={1}>{firstName}</Text>
       </View>
 
-      <View style={st.mainRow}>
-        <View style={st.leftRow}>
-          <TouchableOpacity activeOpacity={0.8} onPress={() => router.push(ClientRoute.myProfile as any)}>
-            <View style={st.avatarBorder}>
-              <Avatar imageUrl={avatarUrl} name={clientName} size="lg" />
-            </View>
-          </TouchableOpacity>
-          
-          <View style={st.textCol}>
-            <View style={st.greetingRow}>
-              <Text style={st.greetingText}>{greeting.title}</Text>
-              <Text style={st.emoji}>{greeting.emoji}</Text>
-            </View>
-            <Text style={st.nameText} numberOfLines={1}>{clientName || 'ATHLETE'}</Text>
-          </View>
-        </View>
-
-        <View style={st.rightActions}>
-          <TouchableOpacity
-            style={st.iconBtn}
-            activeOpacity={0.8}
-            onPress={() => router.push(ClientRoute.myMessages as any)}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
-            {unreadCount > 0 && <View style={st.unreadBadge} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={st.iconBtn}
-            activeOpacity={0.8}
-            onPress={() => router.push(ClientRoute.myProfile as any)}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+      {/* ── RIGHT: Chat icon ── */}
+      <View style={st.right}>
+        <TouchableOpacity
+          style={st.iconBtn}
+          onPress={() => {
+            Haptics.selectionAsync();
+            router.push(ClientRoute.myMessages as any);
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-outline" size={20} color="rgba(255,255,255,0.7)" />
+          {unreadCount > 0 ? (
+             <View style={[st.dot, { backgroundColor: '#E0FF4F' }]} />
+          ) : (
+             <View style={[st.dot, { backgroundColor: '#E0FF4F' }]} /> // In the screenshot, there is a green/lime dot even without "unread" specifically. We will just always show it for now to match the screenshot or make it unread.
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -85,85 +65,54 @@ export default function GreetingHeader({
 
 const st = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: '#000000',
-  },
-  topTagRow: {
-    marginBottom: 8,
-  },
-  portalTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    backgroundColor: '#000000',
   },
-  leftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+  nameBlock: {
     flex: 1,
+    gap: 2,
   },
-  avatarBorder: {
-    borderWidth: 1,
-    borderColor: '#333333',
-    borderRadius: 28,
-    padding: 2,
-  },
-  textCol: {
-    justifyContent: 'center',
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  greetingText: {
-    fontFamily: FontFamily.bodySemiBold,
+  tagline: {
+    fontFamily: FontFamily.bodyBold,
     fontSize: 10,
-    color: '#6C9BF2',
-    letterSpacing: 1.5,
+    color: '#D9F95C',
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
   },
-  emoji: {
-    fontSize: 11,
-  },
-  nameText: {
+  name: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 26,
+    fontSize: 34,
     color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginTop: 2,
+    letterSpacing: -1.5,
+    lineHeight: 38,
+    textTransform: 'uppercase',
   },
-  rightActions: {
+  right: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
   iconBtn: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: '#0C0C0E',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  unreadBadge: {
+  dot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
+    top: 10,
+    right: 10,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E0FF4F',
   },
 });

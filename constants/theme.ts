@@ -29,12 +29,13 @@ export const Spacing = {
 };
 
 export const Radius = {
-  xs: 2,
-  sm: 4,
-  md: 6,
-  lg: 8,
-  xl: 12,
-  '2xl': 16,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  '2xl': 24,
+  '3xl': 32,
   full: 9999,
 };
 
@@ -54,9 +55,10 @@ export const FontFamily = {
   bodyMedium: 'Epilogue-Medium',
   bodySemiBold: 'Epilogue-SemiBold',
   bodyBold: 'Epilogue-Bold',
-  heading: 'Epilogue-Bold',
-  headingSemiBold: 'Epilogue-SemiBold',
-  headingExtraBold: 'Epilogue-ExtraBold',
+  heading: 'SpaceGrotesk_700Bold',
+  headingSemiBold: 'SpaceGrotesk_600SemiBold',
+  headingExtraBold: 'SpaceGrotesk_700Bold', // Fallback to bold
+  mono: 'JetBrainsMono_500Medium',
 };
 
 // Avatar color palette — warm pastels

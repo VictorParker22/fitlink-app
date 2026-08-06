@@ -1,0 +1,36 @@
+# Firebase Cloud Functions (server-side only)
+firebase-functions/
+firebase.json
+.firebaserc
+
+# Supabase functions (server-side only)
+supabase/
+
+# Git
+.git/
+.github/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+ios/build/
+ios/Pods/
+
+# Gemini/Antigravity
+.gemini/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Patches backup
+*.orig

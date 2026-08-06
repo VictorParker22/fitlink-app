@@ -1,50 +1,97 @@
-# Welcome to your Expo app 👋
+# FitLink — The Coaching Platform
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A premium multi-sport coaching platform built with Expo/React Native. Connects coaches with clients for workouts, nutrition, messaging, scheduling, health tracking, and payments — all in one app.
 
-## Get started
+## Tech Stack
 
-1. Install dependencies
+- **Frontend**: Expo 54 / React Native 0.81 / React 19 / TypeScript
+- **Backend**: Supabase (PostgreSQL, Auth, Storage, Edge Functions)
+- **Payments**: Stripe Connect Express (10% platform fee)
+- **Health**: Apple HealthKit / Google Health Connect
+- **Builds**: EAS Build
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting Started
 
 ```bash
-npm run reset-project
+# Install dependencies
+npm install
+
+# Start development server
+npx expo start
+
+# Start with tunnel (for device testing)
+npx expo start --tunnel
+
+# Start backend server (Supabase Edge Functions)
+supabase functions serve
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Project Structure
 
-## Learn more
+```
+app/              — Screens (file-based routing via Expo Router)
+  (auth)/         — Login, signup, onboarding
+  (tabs)/         — Coach tab screens
+  (client-tabs)/  — Client tab screens
+context/          — React contexts (App, Auth, Client, Theme, Network)
+components/       — Reusable UI components
+constants/        — Theme tokens, colors, typography
+lib/              — Supabase client config
+supabase/
+  functions/      — Deno edge functions (payments, webhooks, notifications)
+  migrations/     — SQL migrations
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Features
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### For Coaches
+- Client management & assessment
+- Custom workout builder with video demos
+- Diet/nutrition plan builder
+- Real-time messaging
+- Session scheduling
+- Subscription plans & payment collection
+- Earnings & payouts dashboard (Stripe Connect)
+- Push notifications
 
-## Join the community
+### For Clients
+- Active workout mode with set logging & rest timers
+- Exercise video demos
+- Diet plan viewer
+- Health dashboard (Apple Health / Health Connect)
+- Real-time messaging with coach
+- Progress tracking
 
-Join our community of developers creating universal apps.
+## Environment Variables
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_or_live_key
+```
+
+## Supabase Secrets (Edge Functions)
+
+```bash
+supabase secrets set STRIPE_SECRET=sk_test_or_live_key
+supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+```
+
+## Deploying
+
+```bash
+# Deploy edge functions
+supabase functions deploy create-subscription
+supabase functions deploy create-connect-account
+supabase functions deploy stripe-webhook --no-verify-jwt
+
+# Build for production
+eas build --platform ios --profile production
+
+# Submit to App Store
+eas submit --platform ios
+```
+
+## Website
+
+Landing page at [fitlink.coach](https://fitlink.coach) — Vite SPA on Vercel (separate repo at `c:\projects\fitlink`).

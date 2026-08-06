@@ -1,12 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { useClient } from '../context/ClientContext';
 import { FontFamily, FontSize, Radius, Spacing } from '../constants/theme';
-import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
+import { useHaptic } from '../hooks/useHaptic';
 
 const MEAL_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   breakfast: { icon: 'sunny', color: '#F59E0B' },
@@ -28,13 +28,14 @@ function MacroDonut({ size, cals, protein, carbs, fat, color }: { size: number; 
   const total = protein + carbs + fat || 1;
   const protPct = protein / total;
   const carbPct = carbs / total;
+  const hasCalorieData = cals > 0;
   
   return (
     <Svg width={size} height={size}>
-      <Circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.1)" strokeWidth={6} fill="none" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#FF6B35" strokeWidth={6} fill="none" strokeDasharray={`${c * protPct} ${c * (1 - protPct)}`} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#6C9BF2" strokeWidth={6} fill="none" strokeDasharray={`${c * carbPct} ${c * (1 - carbPct)}`} strokeDashoffset={-c * protPct} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#22C55E" strokeWidth={6} fill="none" strokeDasharray={`${c * (1 - protPct - carbPct)} ${c * (protPct + carbPct)}`} strokeDashoffset={-c * (protPct + carbPct)} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke="#2D2D2E" strokeWidth={6} fill="none" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#FF6B35" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * protPct} ${c * (1 - protPct)}`} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#6C9BF2" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * carbPct} ${c * (1 - carbPct)}`} strokeDashoffset={-c * protPct} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#22C55E" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * (1 - protPct - carbPct)} ${c * (protPct + carbPct)}`} strokeDashoffset={-c * (protPct + carbPct)} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -71,6 +72,15 @@ export default function NutritionWidget() {
     });
     return { cals, protein, carbs, fat };
   }, [diets, mealLogs]);
+
+  const { trigger } = useHaptic();
+
+  // Fire medium haptic on first meal logged — oncePerDay survives tab switches/remounts
+  useEffect(() => {
+    if ((consumedMacros?.cals ?? 0) > 0) {
+      trigger('medium', { oncePerDay: 'nutrition_first_log' });
+    }
+  }, [consumedMacros?.cals]);
 
   // Find next meal
   const nextMealInfo = useMemo(() => {
@@ -111,6 +121,28 @@ export default function NutritionWidget() {
     }
   };
 
+  // Derived flags — used for empty-state logic
+  const hasCalorieData = globalMacros.cals > 0;
+  const hasLoggedAnything = consumedMacros.cals > 0;
+
+  // No calorie data in the plan yet — show a helpful prompt instead of zeros
+  if (!hasCalorieData) {
+    return (
+      <View style={st.container}>
+        <Text style={st.sectionTitle}>NUTRITION PROTOCOL // DAILY MACROS</Text>
+        <View style={[st.card, { alignItems: 'center', paddingVertical: 24, gap: 8 }]}>
+          <Ionicons name="nutrition-outline" size={28} color="rgba(255,255,255,0.2)" />
+          <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>
+            Add calories to your meals
+          </Text>
+          <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 17 }}>
+            Set calorie & macro targets in your nutrition plan to start tracking here.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={st.container}>
       <Text style={st.sectionTitle}>NUTRITION PROTOCOL // DAILY MACROS</Text>
@@ -131,8 +163,16 @@ export default function NutritionWidget() {
               color="#FFFFFF" 
             />
             <View style={st.donutCenter}>
-              <Text style={st.donutCals}>{consumedMacros.cals}</Text>
-              <Text style={st.donutLabel}>kcal</Text>
+              {hasLoggedAnything ? (
+                <>
+                  <Text style={st.donutCals}>{consumedMacros.cals}</Text>
+                  <Text style={st.donutLabel}>kcal</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[st.donutCals, { fontSize: 10 }]}>Log{`\n`}meal</Text>
+                </>
+              )}
             </View>
           </View>
           
@@ -180,10 +220,17 @@ export default function NutritionWidget() {
               )}
             </TouchableOpacity>
           </Animated.View>
-        ) : (
-          <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center' }]}>
+        ) : hasLoggedAnything ? (
+          // All meals logged AND there were real calories — genuine completion
+          <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
             <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-            <Text style={[st.nextMealName, { marginLeft: 8 }]}>All meals logged today!</Text>
+            <Text style={[st.nextMealName, { marginLeft: 0 }]}>All meals logged today!</Text>
+          </Animated.View>
+        ) : (
+          // nextMealInfo is null but 0 cals — edge case: plan exists, meals have no data
+          <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
+            <Ionicons name="information-circle-outline" size={20} color="rgba(255,255,255,0.3)" />
+            <Text style={[st.nextMealName, { color: 'rgba(255,255,255,0.4)', fontSize: 13 }]}>Add meals to your plan to track progress</Text>
           </Animated.View>
         )}
       </LinearGradient>
@@ -253,20 +300,20 @@ const st = StyleSheet.create({
   },
   track: {
     flex: 1,
-    height: 4,
+    height: 10,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 5,
   },
   macroBarVal: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 10,
     color: '#FFFFFF',
-    width: 28,
+    width: 32,
     textAlign: 'right',
   },
   nextMealBox: {

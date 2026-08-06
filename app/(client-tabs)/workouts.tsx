@@ -23,6 +23,12 @@ export default function ClientWorkoutsScreen() {
   const [selectedCategoryLabel, setSelectedCategoryLabel] = useState<string | null>(null);
   const [selectedCoach, setSelectedCoach] = useState<any | null>(null);
   const [showBookModal, setShowBookModal] = useState(false);
+  // bookingCoach is SEPARATE from selectedCoach.
+  // selectedCoach drives CoachDetailModal visibility (cleared when detail modal closes).
+  // bookingCoach drives BookSessionModal and persists until the booking modal itself closes.
+  // Without this, BookSessionModal receives coach=null because CoachDetailModal
+  // clears selectedCoach when it dismisses, before BookSessionModal can open.
+  const [bookingCoach, setBookingCoach] = useState<any | null>(null);
   const [dbTrainers, setDbTrainers] = useState<any[]>([]);
 
   // Active workout state
@@ -171,6 +177,8 @@ export default function ClientWorkoutsScreen() {
           setSelectedCoach={setSelectedCoach}
           showBookModal={showBookModal}
           setShowBookModal={setShowBookModal}
+          bookingCoach={bookingCoach}
+          setBookingCoach={setBookingCoach}
           selectedCategoryLabel={selectedCategoryLabel}
           setSelectedCategoryLabel={setSelectedCategoryLabel}
           onWorkoutsListPress={() => setExploreView('workouts_list')}

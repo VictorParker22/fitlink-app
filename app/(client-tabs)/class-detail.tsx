@@ -19,7 +19,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const HERO_HEIGHT = 320;
+const HERO_HEIGHT = 380;
 
 
 
@@ -339,13 +339,15 @@ export default function ClassDetailScreen() {
             />
             <View style={{ flex: 1 }}>
               <Text style={s.instructorCardName}>{params.instructor}</Text>
-              <TouchableOpacity activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={`View bio for ${params.instructor}`}>
-                <Text style={s.viewBioLink}>View Bio</Text>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => router.push(ClientRoute.exploreClasses)}
+                accessibilityRole="button"
+                accessibilityLabel={`Find more classes by ${params.instructor}`}
+              >
+                <Text style={s.viewBioLink}>More classes →</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={`Favorite instructor ${params.instructor}`}>
-              <Ionicons name="star-outline" size={22} color="rgba(255,255,255,0.4)" />
-            </TouchableOpacity>
           </View>
 
           {/* Divider */}
@@ -355,7 +357,29 @@ export default function ClassDetailScreen() {
           <Text style={s.sectionTitle}>Related On-demand Classes</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.relatedScroll} contentContainerStyle={s.relatedContent}>
             {RELATED_CLASSES.map(rc => (
-              <TouchableOpacity key={rc.id} style={s.relatedCard} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`View related class: ${rc.title}, ${rc.duration}`}>
+              <TouchableOpacity
+                key={rc.id}
+                style={s.relatedCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({
+                    pathname: ClientRoute.classDetail as any,
+                    params: {
+                      id: rc.id,
+                      title: rc.title,
+                      category: params.category,
+                      durationMin: rc.duration,
+                      thumbnail: rc.image,
+                      instructor: params.instructor,
+                      level: params.level,
+                      tags: params.tags,
+                    },
+                  });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`View related class: ${rc.title}, ${rc.duration}`}
+              >
                 <Image source={{ uri: rc.image }} style={s.relatedImage} cachePolicy="memory-disk" transition={200} accessibilityLabel={`${rc.title} class thumbnail`} />
                 <View style={s.relatedDuration}>
                   <Text style={s.relatedDurationText}>{rc.duration}</Text>
@@ -429,8 +453,8 @@ const s = StyleSheet.create({
   },
   onDemandLabel: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
     marginBottom: 0,
   },
@@ -452,10 +476,11 @@ const s = StyleSheet.create({
   // Title
   classTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28,
+    fontSize: 32,
     color: '#FFFFFF',
     lineHeight: 34,
     marginBottom: 16,
+    letterSpacing: -0.8,
   },
 
   // Instructor row (small)
@@ -472,8 +497,8 @@ const s = StyleSheet.create({
     backgroundColor: '#222',
   },
   instructorName: {
-    fontFamily: FontFamily.body,
-    fontSize: 15,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
   },
 
@@ -510,12 +535,13 @@ const s = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 0,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
   },
   beginBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 15,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
     color: '#FFFFFF',
   },
   calBtn: {
@@ -524,12 +550,13 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 0,
+    borderColor: '#1C1C1E',
+    backgroundColor: '#111113',
+    borderRadius: 14,
   },
   calBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 15,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
     color: '#FFFFFF',
   },
   
@@ -537,17 +564,19 @@ const s = StyleSheet.create({
   premiumBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#111113',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFD700',
+    borderColor: '#1C1C1E',
     marginBottom: 32,
     marginTop: -20,
   },
   premiumText: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFF',
     marginLeft: 8,
     flex: 1,
@@ -555,8 +584,10 @@ const s = StyleSheet.create({
   premiumBtn: {
     backgroundColor: '#FFD700',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
+    height: 32,
+    paddingVertical: 0,
+    justifyContent: 'center',
+    borderRadius: 8,
   },
   premiumBtnText: {
     fontFamily: FontFamily.headingSemiBold,
@@ -567,9 +598,9 @@ const s = StyleSheet.create({
   // Description
   description: {
     fontFamily: FontFamily.body,
-    fontSize: 15,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
-    lineHeight: 23,
+    lineHeight: 22,
     marginBottom: 8,
   },
 
@@ -577,17 +608,19 @@ const s = StyleSheet.create({
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 28,
+    marginVertical: 24,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 16,
     color: '#FFFFFF',
     marginBottom: 12,
+    letterSpacing: 1.2,
   },
   sectionBody: {
     fontFamily: FontFamily.body,
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 22,
     color: 'rgba(255,255,255,0.55)',
   },
 
@@ -596,6 +629,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
+    borderRadius: 12,
+    padding: 14,
   },
   instructorAvatarLg: {
     width: 52,
@@ -604,8 +642,8 @@ const s = StyleSheet.create({
     backgroundColor: '#222',
   },
   instructorCardName: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 16,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 18,
     color: '#FFFFFF',
   },
   viewBioLink: {
@@ -625,12 +663,12 @@ const s = StyleSheet.create({
     gap: 12,
   },
   relatedCard: {
-    width: 150,
+    width: 170,
   },
   relatedImage: {
-    width: 150,
-    height: 100,
-    borderRadius: 8,
+    width: 170,
+    height: 120,
+    borderRadius: 12,
     backgroundColor: '#1A1A1A',
   },
   relatedDuration: {
@@ -676,10 +714,10 @@ const s = StyleSheet.create({
 
   // History card
   historyCard: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 10,
+    backgroundColor: '#0C0C0E',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: '#1C1C1E',
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginTop: 20,

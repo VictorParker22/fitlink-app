@@ -100,7 +100,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
         </View>
       </View>
 
-      <Text style={s.pageTitleTag}>ASSIGNED PROTOCOL // WORKOUT LOG</Text>
+      <Text style={s.pageTitleTag}>YOUR PROGRAM</Text>
       <Text style={s.pageTitle}>Workouts</Text>
 
       {/* Tab Bar */}
@@ -133,13 +133,28 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4D94FF" />}
         ListEmptyComponent={
           <View style={s.emptyState}>
-            <View style={s.emptyIcon}>
-              <Ionicons name={tab === 'completed' ? 'trophy-outline' : 'barbell-outline'} size={36} color="rgba(255,255,255,0.4)" />
-            </View>
-            <Text style={s.emptyTitle}>
-              {tab === 'completed' ? 'NO COMPLETED WORKOUTS' : tab === 'upcoming' ? 'NO UPCOMING WORKOUTS' : 'NO WORKOUTS YET'}
+            {/* §8 Opinionated empty copy, not all-caps generic label */}
+            <Text style={s.emptyHero}>
+              {tab === 'completed' ? 'Nothing yet.' : 'All clear.'}
             </Text>
-            <Text style={s.emptySub}>Your trainer will assign your custom routines</Text>
+            <Text style={s.emptySub}>
+              {tab === 'completed'
+                ? 'Complete your first session to see it here.'
+                : tab === 'upcoming'
+                  ? 'Your trainer will add workouts soon.'
+                  : 'No workouts assigned yet.'}
+            </Text>
+            {/* §16 CTA always present in empty state */}
+            {tab !== 'completed' && (
+              <TouchableOpacity
+                style={s.emptyCtaBtn}
+                onPress={onBackToExplore}
+                activeOpacity={0.85}
+              >
+                <Text style={s.emptyCtaText}>Browse Catalog</Text>
+                <Ionicons name="arrow-forward" size={14} color="#000" />
+              </TouchableOpacity>
+            )}
           </View>
         }
         renderSectionHeader={({ section: { title } }) => (
@@ -170,6 +185,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                   <Text style={s.exerciseCountTag}>{exercises.length} EXERCISES</Text>
                 </View>
 
+                {/* §1 Mission name = hero at 30px */}
                 <Text style={s.missionName}>{workout.workouts?.name || 'Workout'}</Text>
 
                 {isExpanded && exercises.length > 0 && (
@@ -205,7 +221,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
             );
           }
 
-          // Standard Brutalist Workout Card
+          // Standard card
           return (
             <TouchableOpacity
               activeOpacity={0.85}
@@ -259,6 +275,11 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                   )}
                 </View>
               )}
+              {/* §4 Accent line — client blue for assigned, green for done */}
+              <View style={[
+                s.accentLine,
+                { backgroundColor: workout.status === 'completed' ? '#22C55E' : workout.status === 'skipped' ? '#1C1C1E' : '#5B7FFF' }
+              ]} />
             </TouchableOpacity>
           );
         }}
@@ -268,7 +289,8 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 16 },
+  // §2 Layer 0 true black
+  container: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 20 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,9 +305,10 @@ const s = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    // §14 44pt min height
+    height: 44,
+    borderRadius: 12,
   },
   backBtnText: {
     fontFamily: FontFamily.bodyBold,
@@ -300,33 +323,37 @@ const s = StyleSheet.create({
     gap: 4,
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
+    // §14 44pt height
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
   },
-  miniStatText: { fontFamily: FontFamily.bodyBold, fontSize: 11 },
+  miniStatText: { fontFamily: FontFamily.bodyBold, fontSize: 13 },
   pageTitleTag: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
-    marginBottom: 2,
+    marginBottom: 4,
+    textTransform: 'uppercase',
   },
+  // §1 Hero page title: 32px, tight tracked
   pageTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 26,
+    fontSize: 32,
     color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 20,
+    lineHeight: 36,
   },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 3,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   tab: {
     flex: 1,
@@ -334,8 +361,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   tabActive: { backgroundColor: '#FFFFFF' },
   tabText: {
@@ -346,128 +373,147 @@ const s = StyleSheet.create({
   },
   tabTextActive: { color: '#000000' },
   tabBadge: {
-    backgroundColor: '#141418',
+    backgroundColor: '#111113',
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: 4,
   },
-  tabBadgeActive: { backgroundColor: 'rgba(0,0,0,0.1)' },
+  tabBadgeActive: { backgroundColor: 'rgba(0,0,0,0.12)' },
   tabBadgeText: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: '#FFFFFF' },
-  listContent: { paddingBottom: 100 },
+  listContent: { paddingBottom: 120 },
   sectionHeader: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
-    marginTop: 14,
+    textTransform: 'uppercase',
+    marginTop: 16,
     marginBottom: 8,
   },
+
+  // ── Mission Card (Today's workout) ──
   missionCard: {
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
-    borderColor: '#4D94FF',
+    borderColor: '#5B7FFF',    // §3 unified client blue
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
+    paddingBottom: 14,
     marginBottom: 12,
+    overflow: 'hidden',         // §4 for accent line
   },
   missionTagRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#4D94FF',
+    backgroundColor: '#5B7FFF',  // §3 client blue
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   activeBadgeText: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 9,
-    color: '#000000',
+    color: '#FFFFFF',
     letterSpacing: 1.2,
   },
   exerciseCountTag: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 1,
   },
+  // §1 Mission name: 30px hero, tight tracked
   missionName: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
+    fontSize: 30,
     color: '#FFFFFF',
-    letterSpacing: -0.3,
-    marginBottom: 14,
+    letterSpacing: -0.8,
+    marginBottom: 16,
+    lineHeight: 34,
   },
   missionActions: { flexDirection: 'row', gap: 10 },
   startBtn: {
     flex: 1,
-    height: 44,
+    height: 44,   // §14 exact 44pt
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   startBtnText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 12,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   completeQuickBtn: {
     width: 44,
-    height: 44,
-    backgroundColor: '#0C1C12',
+    height: 44,   // §14 exact 44pt
+    backgroundColor: 'rgba(34,197,94,0.08)',
     borderWidth: 1,
     borderColor: '#22C55E',
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // ── Standard Card ──
   standardCard: {
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
+    paddingBottom: 13,
     marginBottom: 10,
+    overflow: 'hidden',  // §4 for accent line
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // §1 Card workout name: 20px — elevated from 16px body-level
   cardWorkoutName: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
+    fontSize: 20,
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   cardDateText: {
-    fontFamily: FontFamily.body,
+    fontFamily: FontFamily.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 3,
   },
   statusPill: {
     borderWidth: 1,
-    borderColor: '#4D94FF',
-    backgroundColor: '#0C1420',
+    borderColor: '#5B7FFF',        // §3 unified client blue
+    backgroundColor: 'rgba(91,127,255,0.06)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   statusPillText: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 9,
-    color: '#4D94FF',
+    color: '#5B7FFF',              // §3 unified client blue
     letterSpacing: 1,
+  },
+  // §4 Accent line — shared
+  accentLine: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 3,
   },
   exListContainer: {
     marginTop: 12,
@@ -485,19 +531,19 @@ const s = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 4,
-    backgroundColor: '#141418',
+    backgroundColor: '#111113',   // §11 Layer 2
     justifyContent: 'center',
     alignItems: 'center',
   },
   exNumText: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.4)',
   },
   exNameText: {
     flex: 1,
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13,
     color: '#FFFFFF',
   },
   exSetsText: {
@@ -505,60 +551,74 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
   },
+  // §14 44pt minimum
   startBtnSmall: {
-    height: 38,
+    height: 44,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   startBtnSmallText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 12,
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   skipBtnSmall: {
-    height: 38,
+    height: 44,   // §14
     paddingHorizontal: 16,
-    backgroundColor: '#141418',
+    backgroundColor: '#111113',  // §11 Layer 2
     borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 8,
+    borderColor: '#1C1C1E',
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   skipBtnSmallText: {
     fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
+
+  // ── Empty State — §8 opinionated, §16 always CTA ──
   emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
+    alignItems: 'flex-start',
+    paddingTop: 32,
+    paddingBottom: 40,
   },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  emptyTitle: {
+  emptyHero: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
+    fontSize: 32,
     color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: -0.8,
+    marginBottom: 8,
+    lineHeight: 36,
   },
   emptySub: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.4)',
+    lineHeight: 18,
+    marginBottom: 20,
   },
+  // §14 min 44pt CTA
+  emptyCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyCtaText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
+    color: '#000000',
+  },
+  // Legacy — kept for compatibility, now unused visually
+  emptyIcon: { display: 'none' },
+  emptyTitle: { display: 'none' },
 });

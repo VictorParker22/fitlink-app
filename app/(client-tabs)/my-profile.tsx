@@ -183,12 +183,13 @@ export default function ClientProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── MEMBERSHIP & PERFORMANCE ── */}
         <SectionBlock title="Membership & Performance">
           <MenuItem icon="nutrition-outline" label="My Diet Plan" onPress={() => router.push(ClientRoute.myDiet)} />
+          <MenuItem icon="calendar-outline" label="My Sessions & Bookings" onPress={() => router.push(ClientRoute.mySessions)} />
           <MenuItem icon="card-outline" label="Membership & Billing" onPress={() => router.push(ClientRoute.mySubscription)} />
           <MenuItem icon="body-outline" label="Fitness Profile & Biometrics" onPress={() => router.push(ClientRoute.healthInsights)} />
         </SectionBlock>
+
 
         {/* ── SETTINGS & HARDWARE ── */}
         <SectionBlock title="Settings & Hardware">

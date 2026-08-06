@@ -88,7 +88,7 @@ export default function FeaturedContent({ searchQuery }: FeaturedContentProps) {
                 </View>
                 <Text style={s.articleTitle} numberOfLines={2}>{art.title}</Text>
                 <View style={s.articleReadRow}>
-                  <Ionicons name="document-text-outline" size={12} color="#4D94FF" />
+                  <Ionicons name="document-text-outline" size={12} color="#5B7FFF" />
                   <Text style={s.articleReadLabel}>READ ESSAY →</Text>
                 </View>
               </View>
@@ -105,18 +105,18 @@ const s = StyleSheet.create({
   tagHeader: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
     paddingHorizontal: 16,
     marginBottom: 4,
   },
   featuredTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
+    fontSize: 26,
     color: '#FFFFFF',
     paddingHorizontal: 16,
     marginBottom: 14,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   noResultsText: {
     fontFamily: FontFamily.body,
@@ -141,9 +141,9 @@ const s = StyleSheet.create({
   articleCardGradient: { ...StyleSheet.absoluteFillObject },
   articleCardContent: { zIndex: 1 },
   catBadge: {
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: '#111113',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#1C1C1E',
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -158,16 +158,17 @@ const s = StyleSheet.create({
   },
   articleTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 17,
+    fontSize: 22,
     color: '#FFFFFF',
-    lineHeight: 22,
+    lineHeight: 27,
+    letterSpacing: -0.5,
     marginBottom: 10,
   },
   articleReadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   articleReadLabel: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 10,
-    color: '#4D94FF',
+    color: '#5B7FFF',
     letterSpacing: 1.2,
   },
   topBadgeRow: {

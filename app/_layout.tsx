@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Animated, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as SplashScreen from 'expo-splash-screen';
 import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
+import BootSplash from 'react-native-bootsplash';
+import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider, useApp } from '../context/AppContext';
 import { ClientProvider } from '../context/ClientContext';
@@ -18,11 +20,13 @@ import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { ErrorBoundaryProps } from 'expo-router';
 import Button from '../components/Button';
+import LottieView from 'lottie-react-native';
 
 // Platform-specific: .native.ts re-exports @stripe/stripe-react-native,
 // .web.tsx provides a passthrough wrapper
 import { StripeProvider } from '../lib/stripe-provider';
 import { NetworkProvider } from '../context/NetworkContext';
+import { RevenueCatProvider } from '../context/RevenueCatContext';
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -46,8 +50,6 @@ try {
 }
 
 
-// Keep splash visible until we know exactly where to go
-SplashScreen.preventAutoHideAsync();
 
 function AuthGuard() {
   const { isAuthenticated, loading, userRole } = useAuth();
@@ -55,7 +57,6 @@ function AuthGuard() {
   const router = useRouter();
   const { updatePushToken } = useApp();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
-  const [hasWizard, setHasWizard] = useState<boolean | null>(null);
   const [hasClientOnboarded, setHasClientOnboarded] = useState<boolean | null>(null);
   const hasNavigated = useRef(false);
 
@@ -63,23 +64,14 @@ function AuthGuard() {
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
 
-  // Check onboarding + wizard flags once on mount
+  // Check onboarding flags once on mount
   useEffect(() => {
     Promise.all([
       SecureStore.getItemAsync('fitlink_onboarded'),
-      SecureStore.getItemAsync('fitlink_wizard_complete'),
       SecureStore.getItemAsync('fitlink_client_onboarded'),
-    ]).then(([onboarded, wizard, clientOnboarded]) => {
+    ]).then(([onboarded, clientOnboarded]) => {
       setHasOnboarded(onboarded === 'true');
       setHasClientOnboarded(clientOnboarded === 'true');
-      // Only set hasWizard to true if SecureStore says so.
-      // If it's null/false, keep hasWizard as null and let the
-      // auth-based DB check (below) make the final determination.
-      if (wizard === 'true') {
-        setHasWizard(true);
-      }
-      // If wizard is not 'true', don't set hasWizard yet —
-      // the isAuthenticated effect will handle it after checking the DB
     });
 
     if (Notifications) {
@@ -104,9 +96,6 @@ function AuthGuard() {
 
   useEffect(() => {
     if (loading || hasOnboarded === null) return;
-    // For unauthenticated users, hasWizard doesn't matter — route to login.
-    // For authenticated users, wait until hasWizard is determined.
-    if (isAuthenticated && hasWizard === null) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
@@ -124,10 +113,8 @@ function AuthGuard() {
           router.replace('/(client-tabs)');
         }
         // If isOnboardingScreen, let them stay — they're updating their profile
-      } else if (!hasWizard) {
-        // First-time trainer → send to wizard
-        router.replace('/(auth)/trainer-wizard' as any);
       } else {
+        // Trainers go straight to dashboard — onboarding handled by in-dashboard setup cards
         router.replace('/(tabs)');
       }
     } else if (isAuthenticated && userRole === 'client' && inTrainerGroup) {
@@ -139,59 +126,12 @@ function AuthGuard() {
     // Hide splash after initial navigation (or if already on correct screen)
     if (!hasNavigated.current) {
       hasNavigated.current = true;
-      // Small delay to let the target screen mount before hiding splash
-      setTimeout(() => SplashScreen.hideAsync(), 150);
+      // Fade out the native splash screen
+      setTimeout(() => BootSplash.hide({ fade: true }), 150);
     }
-  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasWizard]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
 
-  // Re-check wizard flag when auth state changes
-  // Priority: 1) trainers table exists → returning coach, skip wizard
-  //           2) user_metadata.wizard_complete → skip wizard
-  //           3) SecureStore fallback
-  useEffect(() => {
-    if (isAuthenticated) {
-      (async () => {
-        try {
-          // PRIORITY 1: Check if a trainer record exists in the database
-          // This is the definitive source of truth — if the row exists, they're not new
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: trainerRow } = await supabase
-              .from('trainers')
-              .select('id')
-              .eq('id', user.id)
-              .maybeSingle();
 
-            if (trainerRow) {
-              // Returning coach — sync wizard flag everywhere and skip wizard
-              await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
-              if (!user.user_metadata?.wizard_complete) {
-                await supabase.auth.updateUser({ data: { wizard_complete: true } });
-              }
-              setHasWizard(true);
-              return;
-            }
-          }
-
-          // PRIORITY 2: Check Supabase user_metadata (survives cache clears)
-          const metaWizard = user?.user_metadata?.wizard_complete === true;
-          if (metaWizard) {
-            await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
-            setHasWizard(true);
-          } else {
-            // PRIORITY 3: Fallback to SecureStore
-            const val = await SecureStore.getItemAsync('fitlink_wizard_complete');
-            setHasWizard(val === 'true');
-          }
-        } catch (err) {
-          if (__DEV__) console.warn('Wizard check error:', err);
-          // Fallback to SecureStore on error
-          const val = await SecureStore.getItemAsync('fitlink_wizard_complete');
-          setHasWizard(val === 'true');
-        }
-      })();
-    }
-  }, [isAuthenticated]);
 
   // Handle push token when authenticated
   useEffect(() => {
@@ -203,12 +143,8 @@ function AuthGuard() {
   }, [isAuthenticated, updatePushToken]);
 
   // Keep splash visible — don't render Stack until we're ready to navigate
-  if (loading || hasOnboarded === null || (isAuthenticated && hasWizard === null)) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-      </View>
-    );
+  if (loading || hasOnboarded === null) {
+    return null;
   }
 
   return (
@@ -237,12 +173,16 @@ function AuthGuard() {
 }
 
 export default function RootLayout() {
+  const [bootSplashVisible, setBootSplashVisible] = useState(true);
   const [fontsLoaded] = useFonts({
     'Epilogue-Regular': require('../assets/fonts/Epilogue-Regular.ttf'),
     'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
     'Epilogue-SemiBold': require('../assets/fonts/Epilogue-SemiBold.ttf'),
     'Epilogue-Bold': require('../assets/fonts/Epilogue-Bold.ttf'),
     'Epilogue-ExtraBold': require('../assets/fonts/Epilogue-ExtraBold.ttf'),
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    JetBrainsMono_500Medium,
   });
 
   // DON'T hide splash here — AuthGuard handles it after navigation
@@ -261,21 +201,26 @@ export default function RootLayout() {
           <ThemeProvider>
             <AlertProvider>
               <AuthProvider>
-                <AppProvider>
-                  <ClientProvider>
-                    <WorkoutProvider>
-                      <HealthProvider>
-                        <ThemedStatusBar />
-                        <AuthGuard />
-                      </HealthProvider>
-                    </WorkoutProvider>
-                  </ClientProvider>
-                </AppProvider>
+                <RevenueCatProvider>
+                  <AppProvider>
+                    <ClientProvider>
+                      <WorkoutProvider>
+                        <HealthProvider>
+                          <ThemedStatusBar />
+                          <AuthGuard />
+                        </HealthProvider>
+                      </WorkoutProvider>
+                    </ClientProvider>
+                  </AppProvider>
+                </RevenueCatProvider>
               </AuthProvider>
             </AlertProvider>
           </ThemeProvider>
         </NetworkProvider>
       </StripeProvider>
+      {bootSplashVisible && (
+        <AnimatedBootSplash onAnimationEnd={() => setBootSplashVisible(false)} />
+      )}
     </GestureHandlerRootView>
   );
 }
@@ -283,6 +228,65 @@ export default function RootLayout() {
 function ThemedStatusBar() {
   const { isDark } = useTheme();
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
+function AnimatedBootSplash({ onAnimationEnd }: { onAnimationEnd: () => void }) {
+  const [opacity] = useState(() => new Animated.Value(1));
+  const [scale] = useState(() => new Animated.Value(1));
+
+  const { container, logo } = BootSplash.useHideAnimation({
+    manifest: require('../assets/bootsplash/manifest.json'),
+    logo: require('../assets/bootsplash/logo.png'),
+    animate: () => {
+      // 1. Subtle scale-up pulse on the logo
+      Animated.sequence([
+        Animated.spring(scale, {
+          toValue: 1.08,
+          useNativeDriver: true,
+          speed: 30,
+          bounciness: 10,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          speed: 30,
+          bounciness: 5,
+        }),
+        // 2. Fade the entire splash out
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start(onAnimationEnd);
+    },
+  });
+
+  return (
+    <Animated.View
+      {...container}
+      style={[
+        container.style,
+        {
+          opacity,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#111114',
+        },
+      ]}
+    >
+      <Animated.Image
+        {...logo}
+        style={[
+          logo.style,
+          {
+            borderRadius: 28,
+            transform: [{ scale }],
+          },
+        ]}
+      />
+    </Animated.View>
+  );
 }
 
 const styles = StyleSheet.create({

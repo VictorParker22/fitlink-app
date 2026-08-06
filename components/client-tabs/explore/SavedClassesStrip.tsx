@@ -69,7 +69,7 @@ export function SavedClassesStrip() {
           router.push({ pathname: ClientRoute.classDetail, params: { id: classData.id, title: classData.title, category: classData.category, thumbnail: classData.thumbnail_url } } as any);
         }}
       >
-        <Image source={{ uri: classData.thumbnail }} style={styles.thumbnail} />
+        <Image source={{ uri: classData.thumbnail_url }} style={styles.thumbnail} />
         <View style={styles.gradientOverlay} />
         
         <View style={styles.topRow}>
@@ -81,7 +81,7 @@ export function SavedClassesStrip() {
 
         <View style={styles.bottomContent}>
           <Text style={styles.title} numberOfLines={2}>{classData.title}</Text>
-          <Text style={styles.duration}>{classData.duration_min} MIN</Text>
+          <Text style={styles.duration}>{classData.duration_minutes} MIN</Text>
         </View>
       </TouchableOpacity>
     );
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderRadius: 12,
     overflow: 'hidden',
     justifyContent: 'space-between',
   },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderRadius: 12,
     paddingVertical: 24,
     paddingHorizontal: 20,
     alignItems: 'center',

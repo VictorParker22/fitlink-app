@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Bolt } from '../../components/mascot/Bolt';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -227,7 +228,7 @@ export default function GlobalStudioScreen() {
           <Text style={styles.sectionTitle}>TRENDING CLASSES</Text>
           {vodClasses.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="film-outline" size={32} color="rgba(255,255,255,0.2)" />
+              <Bolt pose="Analyze" size={80} />
               <Text style={styles.emptyText}>No classes available yet.</Text>
             </View>
           ) : (
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
   },
   section: {
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing['2xl'],
   },
   sectionTitle: {
     fontFamily: FontFamily.headingExtraBold,

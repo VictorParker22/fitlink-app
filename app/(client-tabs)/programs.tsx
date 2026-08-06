@@ -14,7 +14,7 @@ import { ClientRoute } from '../../types/routes';
 import { ProgramData, PROGRAMS } from '../../data/programs';
 
 const SCREEN_W = Dimensions.get('window').width;
-const HERO_H = 320;
+const HERO_H = 400;
 
 // ─── PROGRAMS LIST SCREEN ────────────────────────────────
 export default function ProgramsScreen() {
@@ -53,7 +53,7 @@ export default function ProgramsScreen() {
           {/* Back button */}
           <SafeAreaView style={s.heroNav} edges={['top']}>
             <TouchableOpacity
-              onPress={() => router.push(ClientRoute.workouts)}
+              onPress={() => router.back()}
               style={s.navBtn}
               activeOpacity={0.6}
               accessibilityRole="button"
@@ -65,7 +65,9 @@ export default function ProgramsScreen() {
 
           {/* Title overlay */}
           <View style={s.heroContent}>
-            <Text style={s.heroTitle} accessibilityRole="header">Programs{'\n'}by FitLink</Text>
+            <Text style={s.heroTagLabel}>FITLINK</Text>
+            <Text style={s.heroTitle} accessibilityRole="header">{`Programs\nby Coaches`}</Text>
+            <Text style={s.heroSub}>Curated week-by-week progressions</Text>
           </View>
         </View>
 
@@ -85,26 +87,31 @@ export default function ProgramsScreen() {
 
         {/* Program list */}
         <View style={s.sectionPad}>
-          <Text style={s.selectTitle}>Select a Self-Guided Program to Start</Text>
+          <Text style={s.selectTagLabel}>SELF-GUIDED</Text>
+          <Text style={s.selectTitle}>Choose a Program</Text>
         </View>
 
-        {PROGRAMS.map((program) => (
-          <TouchableOpacity
-            key={program.id}
-            style={s.programRow}
-            activeOpacity={0.85}
-            onPress={() => handleProgramPress(program)}
-            accessibilityRole="button"
-            accessibilityLabel={`View program: ${program.title}, ${program.subtitle}`}
-          >
-            <Image source={{ uri: program.thumbnail }} style={s.programThumb} contentFit="cover" cachePolicy="memory-disk" transition={200} accessibilityLabel={`${program.title} thumbnail`} />
-            <View style={s.programMeta}>
-              <Text style={s.programName}>{program.title}</Text>
-              <Text style={s.programSub}>{program.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
-          </TouchableOpacity>
-        ))}
+        <View style={s.programList}>
+          {PROGRAMS.map((program) => (
+            <TouchableOpacity
+              key={program.id}
+              style={s.programCard}
+              activeOpacity={0.85}
+              onPress={() => handleProgramPress(program)}
+              accessibilityRole="button"
+              accessibilityLabel={`View program: ${program.title}, ${program.subtitle}`}
+            >
+              <Image source={{ uri: program.thumbnail }} style={s.programThumb} contentFit="cover" cachePolicy="memory-disk" transition={200} accessibilityLabel={`${program.title} thumbnail`} />
+              <View style={s.programMeta}>
+                <Text style={s.programName}>{program.title}</Text>
+                <Text style={s.programSub}>{program.subtitle}</Text>
+              </View>
+              <View style={s.programChevron}>
+                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -114,7 +121,7 @@ export default function ProgramsScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#000000' },
   scroll: { flex: 1 },
 
   // Hero
@@ -122,39 +129,118 @@ const s = StyleSheet.create({
   heroImage: { width: '100%', height: '100%' },
   heroGradient: { ...StyleSheet.absoluteFillObject },
   heroNav: { position: 'absolute', top: 0, left: 12, right: 12 },
-  navBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  heroContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
+  navBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 22,
+  },
+  heroContent: { position: 'absolute', bottom: 28, left: 20, right: 20 },
+  heroTagLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 3,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
   heroTitle: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 34, color: '#FFFFFF', lineHeight: 40,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 44,
+    color: '#FFFFFF',
+    lineHeight: 48,
+    letterSpacing: -1.5,
+    marginBottom: 8,
+  },
+  heroSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: 0.2,
   },
 
   divider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.1)',
-    marginHorizontal: 20, marginVertical: 28,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: 20,
+    marginVertical: 28,
   },
 
   sectionPad: { paddingHorizontal: 20 },
   subtitle: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 20, color: '#FFFFFF',
-    lineHeight: 28, marginBottom: 16,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 22,
+    color: '#FFFFFF',
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    marginBottom: 10,
   },
   description: {
-    fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.5)',
-    lineHeight: 22,
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 21,
+  },
+
+  selectTagLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   selectTitle: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFFFFF',
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 26,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
     marginBottom: 20,
   },
 
-  // Program row
-  programRow: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20,
-    paddingVertical: 16, gap: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)',
+  // Program cards
+  programList: {
+    paddingHorizontal: 20,
+    gap: 12,
   },
-  programThumb: { width: 72, height: 72, borderRadius: 6, backgroundColor: '#1A1A1A' },
-  programMeta: { flex: 1 },
-  programName: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF', marginBottom: 4 },
-  programSub: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.45)' },
+  programCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
+    borderRadius: 14,
+    overflow: 'hidden',
+    gap: 0,
+  },
+  programThumb: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#111113',
+    borderRadius: 0,
+  },
+  programMeta: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  programName: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+    marginBottom: 4,
+  },
+  programSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: 17,
+  },
+  programChevron: {
+    paddingRight: 14,
+    paddingLeft: 4,
+  },
 });

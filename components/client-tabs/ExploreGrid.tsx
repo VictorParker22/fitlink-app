@@ -32,7 +32,7 @@ export default function ExploreGrid() {
           <Image source={{ uri: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300' }} style={s.gridCardBg} cachePolicy="memory-disk" transition={200} />
           <View style={s.gridCardOverlay} />
           <View style={s.cardBadge}>
-            <Ionicons name="play" size={10} color="#4D94FF" />
+            <Ionicons name="play" size={10} color="#5B7FFF" />
             <Text style={s.cardBadgeText}>CLASSES</Text>
           </View>
           <Text style={s.gridCardTitle}>On-Demand</Text>
@@ -100,22 +100,22 @@ const s = StyleSheet.create({
   tagHeader: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
     marginBottom: 4,
   },
   sectionTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
+    fontSize: 26,
     color: '#FFFFFF',
-    marginBottom: 14,
-    letterSpacing: -0.3,
+    marginBottom: 16,
+    letterSpacing: -0.5,
   },
   gridRow: { flexDirection: 'row', gap: 12 },
   gridCard: {
     flex: 1,
-    height: 120,
-    borderRadius: 14,
+    height: 140,
+    borderRadius: 16,
     overflow: 'hidden',
     justifyContent: 'flex-end',
     padding: 14,
@@ -138,19 +138,19 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#1C1C1E',
     marginBottom: 6,
   },
   cardBadgeText: {
     fontFamily: FontFamily.bodyBold,
     fontSize: 9,
-    color: '#4D94FF',
+    color: '#5B7FFF',
     letterSpacing: 1.2,
   },
   gridCardTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
+    fontSize: 22,
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
 });

@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C0E',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   topLine: {

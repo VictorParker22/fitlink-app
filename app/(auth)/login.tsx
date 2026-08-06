@@ -73,15 +73,6 @@ export default function LoginScreen() {
     try {
       await signInWithPhone(formatted);
       setPhone(formatted);
-
-      const phonesToCheck = [formatted, formatted.replace('+1', ''), formatted.replace('+', '')];
-      const { data: existing } = await supabase
-        .from('trainers')
-        .select('id')
-        .in('phone', phonesToCheck)
-        .maybeSingle();
-      setIsNewUser(!existing);
-
       setPhoneStep('otp');
       setSuccess('Code sent! Check your phone.');
     } catch (err: any) {
@@ -200,12 +191,19 @@ export default function LoginScreen() {
     setConfirmPassword('');
   };
 
-  // Dynamic title
+  // Dynamic title & subtitle
   const getTitle = () => {
     if (authMode === 'phone') {
-      return phoneStep === 'otp' ? 'Verify Code' : 'Sign in';
+      return phoneStep === 'otp' ? 'Welcome back.' : 'Welcome back.';
     }
-    return isSignUp ? 'Create account' : 'Sign in';
+    return isSignUp ? 'Create account' : 'Welcome back.';
+  };
+
+  const getSubtitle = () => {
+    if (authMode === 'phone') {
+      return phoneStep === 'otp' ? 'Enter the code we sent to your phone.' : 'Sign in with your phone number.';
+    }
+    return isSignUp ? 'Create your FitLink account.' : 'Sign in to your account.';
   };
 
   return (
@@ -239,8 +237,9 @@ export default function LoginScreen() {
               <Text style={styles.headerLogo}>FITLINK</Text>
             </View>
 
-            {/* Title */}
+            {/* Title + Subtitle */}
             <Text style={styles.title}>{getTitle()}</Text>
+            <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
             {/* Auth Mode Tabs */}
             <View style={styles.authTabs}>
@@ -570,8 +569,15 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 34,
     color: '#FFFFFF',
-    marginBottom: Spacing['2xl'],
+    marginBottom: 6,
     marginTop: Spacing.lg,
+  },
+  subtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: Spacing['2xl'],
+    letterSpacing: 0.2,
   },
 
   // Auth Tabs

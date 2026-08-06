@@ -1,15 +1,25 @@
+/**
+ * ClientFAB — iOS-native quick actions sheet
+ *
+ * Replaces the Material Design overlay FAB with an iOS-native bottom sheet.
+ * A small, unobtrusive trigger button (bottom-right, above the tab bar) opens
+ * a pageSheet modal containing 3 contextual action rows.
+ *
+ * Why: Apple HIG doesn't use FABs. Sheet presentations are the idiomatic
+ * iOS pattern for contextual quick-actions. This also removes the
+ * "two bottom anchors" visual tension with the tab bar.
+ */
+
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  interpolate,
-  Extrapolation,
-  Easing,
-  type SharedValue,
-} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../types/routes';
@@ -17,221 +27,277 @@ import { FontFamily } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../context/ClientContext';
 import { useWorkout } from '../context/WorkoutContext';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 
-const TIMING_CONFIG = { duration: 250, easing: Easing.bezier(0.4, 0, 0.2, 1) };
-const BTN_SIZE = 56;
-const ACTION_SIZE = 44;
-const ACTION_GAP = 56;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface QuickAction {
+  label: string;
+  sub: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  route: string;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientFAB() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const progress = useSharedValue(0);
-
   const { todayWorkout, trainer } = useClient();
   const { activeSession } = useWorkout();
 
-  // Hide FAB during active workout session so WorkoutMiniPlayer takes center stage
+  // Hide during active workout — WorkoutMiniPlayer takes center stage
   const isWorkoutActive = activeSession?.isActive && activeSession.setupComplete;
 
-  const bottomPadding = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 16 : 8);
-  const tabBarHeight = 8 + 40 + bottomPadding;
-  const fabBottom = tabBarHeight + 16;
+  const tabBarHeight = 80 + (insets.bottom > 0 ? insets.bottom : Platform.OS === 'android' ? 16 : 8) + 16;
+  const fabBottom = tabBarHeight + 12;
 
-  // Determine dynamic contextual actions based on client state
-  const actions = useMemo(() => {
+  const actions: QuickAction[] = useMemo(() => {
     const hour = new Date().getHours();
-    const result = [];
-
-    // Action 1: Today's Workout or Catalog
-    if (todayWorkout) {
-      result.push({
-        label: `START: ${(todayWorkout.title || 'WORKOUT').toUpperCase()}`,
-        icon: 'play-circle-outline' as const,
-        route: ClientRoute.workouts,
-      });
-    } else {
-      result.push({
-        label: 'WORKOUT CATALOG',
-        icon: 'barbell-outline' as const,
-        route: ClientRoute.workouts,
-      });
-    }
-
-    // Action 2: Diet Plan or Meal Log
-    result.push({
-      label: hour >= 18 ? 'LOG DINNER' : 'NUTRITION PLAN',
-      icon: 'restaurant-outline' as const,
-      route: ClientRoute.myDiet,
-    });
-
-    // Action 3: Message Coach (if paired) or Log Progress
-    if (trainer) {
-      result.push({
-        label: `MESSAGE ${(trainer.name?.split(' ')[0] || 'COACH').toUpperCase()}`,
-        icon: 'chatbubble-outline' as const,
-        route: ClientRoute.myMessages,
-      });
-    } else {
-      result.push({
-        label: 'PERFORMANCE LOG',
-        icon: 'stats-chart-outline' as const,
-        route: ClientRoute.myProgress,
-      });
-    }
-
-    return result;
+    return [
+      todayWorkout
+        ? {
+            label: `Start: ${todayWorkout.title || 'Today\'s Workout'}`,
+            sub: 'Your coach\'s prescription for today',
+            icon: 'play-circle-outline',
+            color: '#22C55E',
+            route: ClientRoute.workouts,
+          }
+        : {
+            label: 'Workout Catalog',
+            sub: 'Browse and start a workout',
+            icon: 'barbell-outline',
+            color: '#FF6B35',
+            route: ClientRoute.workouts,
+          },
+      {
+        label: hour >= 18 ? 'Log Dinner' : 'Nutrition Plan',
+        sub: 'Track your meals and macros',
+        icon: 'restaurant-outline',
+        color: '#A855F7',
+        route: ClientRoute.myDiet,
+      },
+      trainer
+        ? {
+            label: `Message ${trainer.name?.split(' ')[0] || 'Coach'}`,
+            sub: 'Send your coach a message',
+            icon: 'chatbubble-ellipses-outline',
+            color: '#5B7FFF',
+            route: ClientRoute.myMessages,
+          }
+        : {
+            label: 'Performance Log',
+            sub: 'Record your progress',
+            icon: 'stats-chart-outline',
+            color: '#5B7FFF',
+            route: ClientRoute.myProgress,
+          },
+    ];
   }, [todayWorkout, trainer]);
 
-  const toggleOpen = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const next = !isOpen;
-    setIsOpen(next);
-    progress.value = withTiming(next ? 1 : 0, TIMING_CONFIG);
-  }, [isOpen]);
-
   const handleAction = useCallback((route: string) => {
-    setIsOpen(false);
-    progress.value = withTiming(0, { duration: 150 });
-    setTimeout(() => {
-      router.push(route as any);
-    }, 160);
+    setSheetOpen(false);
+    setTimeout(() => router.push(route as any), 300);
+  }, [router]);
+
+  const openSheet = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSheetOpen(true);
   }, []);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1]),
-    pointerEvents: progress.value > 0.1 ? 'auto' : 'none',
-  }));
+  const closeSheet = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetOpen(false);
+  }, []);
 
-  const mainBtnStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg` }],
-  }));
-
-  if (isWorkoutActive) {
-    return null;
-  }
+  if (isWorkoutActive) return null;
 
   return (
     <>
-      <Animated.View style={[StyleSheet.absoluteFill, overlayStyle, { backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 99 }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={toggleOpen} />
-      </Animated.View>
-
-      <View style={[st.container, { bottom: fabBottom }]} pointerEvents="box-none">
-        {actions.map((action, index) => (
-          <ActionItem
-            key={action.label}
-            label={action.label}
-            icon={action.icon}
-            index={index}
-            progress={progress}
-            onPress={() => handleAction(action.route)}
-          />
-        ))}
-
-        <Pressable onPress={toggleOpen} hitSlop={0} style={st.mainBtnPressable}>
-          <Animated.View style={[st.mainBtnBg, mainBtnStyle]}>
-            <Ionicons name="add" size={28} color="#000000" />
-          </Animated.View>
-        </Pressable>
+      {/* ── Trigger button ── */}
+      <View style={[s.trigger, { bottom: fabBottom }]} pointerEvents="box-none">
+        <TouchableOpacity
+          style={s.triggerBtn}
+          onPress={openSheet}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Quick actions"
+          accessibilityHint="Opens a menu with quick actions for workouts, nutrition, and messaging"
+        >
+          <Ionicons name="add" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
+
+      {/* ── Sheet modal ── */}
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={closeSheet}
+      >
+        {/* Scrim */}
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={s.scrim}
+        >
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeSheet} activeOpacity={1} />
+        </Animated.View>
+
+        {/* Sheet */}
+        <Animated.View
+          entering={SlideInDown.springify().damping(24).stiffness(260)}
+          exiting={SlideOutDown.duration(220)}
+          style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}
+        >
+          {/* Handle */}
+          <View style={s.handle} />
+
+          {/* Header */}
+          <View style={s.sheetHeader}>
+            <Text style={s.sheetTitle}>Quick Actions</Text>
+            <TouchableOpacity style={s.closeBtn} onPress={closeSheet}>
+              <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Action rows */}
+          {actions.map((action, i) => (
+            <TouchableOpacity
+              key={action.label}
+              style={[s.actionRow, i < actions.length - 1 && s.actionRowBorder]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                handleAction(action.route);
+              }}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+            >
+              <View style={[s.actionIcon, { backgroundColor: `${action.color}18` }]}>
+                <Ionicons name={action.icon} size={22} color={action.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.actionLabel}>{action.label}</Text>
+                <Text style={s.actionSub}>{action.sub}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
+      </Modal>
     </>
   );
 }
 
-function ActionItem({
-  label,
-  icon,
-  index,
-  progress,
-  onPress,
-}: {
-  label: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  index: number;
-  progress: SharedValue<number>;
-  onPress: () => void;
-}) {
-  const animStyle = useAnimatedStyle(() => {
-    const offset = ACTION_GAP * (index + 1) + BTN_SIZE / 2 - ACTION_SIZE / 2;
-    const translateY = interpolate(progress.value, [0, 1], [offset, 0], Extrapolation.CLAMP);
-    const opacity = interpolate(progress.value, [0, 0.4, 1], [0, 0, 1], Extrapolation.CLAMP);
-    const scale = interpolate(progress.value, [0, 0.4, 1], [0.6, 0.6, 1], Extrapolation.CLAMP);
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-    return {
-      opacity,
-      transform: [{ translateY }, { scale }],
-      pointerEvents: progress.value > 0.5 ? 'auto' : 'none',
-    };
-  });
-
-  return (
-    <Animated.View style={[st.actionRow, animStyle]}>
-      <View style={st.labelCard}>
-        <Text style={st.actionLabel}>{label}</Text>
-      </View>
-      <Pressable style={st.actionBtn} onPress={onPress} hitSlop={4}>
-        <Ionicons name={icon} size={20} color="#FFFFFF" />
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-const st = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  // Trigger
+  trigger: {
     position: 'absolute',
     right: 20,
-    alignItems: 'flex-end',
     zIndex: 100,
   },
-  mainBtnPressable: {
-    width: BTN_SIZE,
-    height: BTN_SIZE,
-  },
-  mainBtnBg: {
-    width: BTN_SIZE,
-    height: BTN_SIZE,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+  triggerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1E',
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
+
+  // Scrim
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+
+  // Sheet
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#111113',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderColor: '#1C1C1E',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  sheetTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 17,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  closeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Action rows
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    minHeight: 68,
   },
-  labelCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    marginRight: 10,
+  actionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   actionLabel: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 10,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 15,
     color: '#FFFFFF',
-    letterSpacing: 1.2,
+    letterSpacing: -0.2,
+    marginBottom: 2,
   },
-  actionBtn: {
-    width: ACTION_SIZE,
-    height: ACTION_SIZE,
-    borderRadius: 12,
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#4D94FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+  actionSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
   },
 });

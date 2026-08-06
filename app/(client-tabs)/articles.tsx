@@ -18,7 +18,7 @@ import { ArticleData, ARTICLES } from '../../data/articles';
 // ─── ARTICLES LIST SCREEN ────────────────────────────────
 export default function ArticlesScreen() {
   const router = useRouter();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const handleArticlePress = (article: ArticleData) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -35,24 +35,28 @@ export default function ArticlesScreen() {
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity
-            onPress={() => router.push(ClientRoute.workouts)}
+            onPress={() => router.back()}
             style={s.headerBtn}
             activeOpacity={0.6}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Articles & Insights</Text>
           <View style={s.headerRight}>
             <TouchableOpacity
               style={s.headerBtn}
               activeOpacity={0.6}
-              onPress={() => { setIsFavorite(!isFavorite); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              onPress={() => { 
+                const next = new Set(favoriteIds);
+                if (favoriteIds.size === 0) next.add('all'); // placeholder toggle
+                setFavoriteIds(next);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
+              }}
               accessibilityRole="button"
-              accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              accessibilityLabel="Favorites"
             >
-              <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? '#FFCA28' : '#FFFFFF'} />
+              <Ionicons name={favoriteIds.size > 0 ? 'star' : 'star-outline'} size={22} color={favoriteIds.size > 0 ? '#FFCA28' : '#FFFFFF'} />
             </TouchableOpacity>
             <TouchableOpacity style={s.headerBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share articles">
               <Ionicons name="share-outline" size={22} color="#FFFFFF" />
@@ -65,10 +69,15 @@ export default function ArticlesScreen() {
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Section header */}
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle} accessibilityRole="header">Articles & Insights</Text>
-            <Text style={s.sectionCount}>{ARTICLES.length}</Text>
+          {/* Editorial hero header */}
+          <View style={s.editorialHero}>
+            <Text style={s.editorialTagLabel}>FITLINK EDITORIAL</Text>
+            <Text style={s.editorialTitle} accessibilityRole="header">Articles{`\n`}&amp; Insights</Text>
+            <View style={s.editorialMeta}>
+              <Text style={s.editorialCount}>{ARTICLES.length} ARTICLES</Text>
+              <View style={s.editorialDot} />
+              <Text style={s.editorialSubLabel}>Expert-curated content</Text>
+            </View>
           </View>
 
           <View style={s.divider} />
@@ -86,15 +95,13 @@ export default function ArticlesScreen() {
               <View style={s.articleContent}>
                 {/* Type label */}
                 <View style={s.typeRow}>
-                  <Ionicons name="document-text-outline" size={14} color="rgba(255,255,255,0.4)" />
                   <Text style={s.typeLabel}>READ</Text>
+                  <Text style={s.typeDot}>·</Text>
+                  <Text style={s.readTime}>{article.readMin} MIN</Text>
                 </View>
 
                 {/* Title */}
-                <Text style={s.articleTitle} numberOfLines={2}>{article.title}</Text>
-
-                {/* Read time */}
-                <Text style={s.readTime}>{article.readMin} mins</Text>
+                <Text style={s.articleTitle} numberOfLines={3}>{article.title}</Text>
               </View>
 
               {/* Thumbnail */}
@@ -111,53 +118,129 @@ export default function ArticlesScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
 
   // Header
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFFFFF' },
-  headerRight: { flexDirection: 'row', gap: 4 },
+  headerBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRight: { flexDirection: 'row', gap: 0 },
 
   // Scroll
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20 },
 
-  // Section header
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'baseline', gap: 10,
-    marginTop: 12, marginBottom: 16,
+  // Editorial hero
+  editorialHero: {
+    paddingTop: 20,
+    paddingBottom: 4,
   },
-  sectionTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: '#FFFFFF' },
-  sectionCount: { fontFamily: FontFamily.body, fontSize: 17, color: 'rgba(255,255,255,0.35)' },
+  editorialTagLabel: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 3,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  editorialTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 38,
+    color: '#FFFFFF',
+    letterSpacing: -1.2,
+    lineHeight: 42,
+    marginBottom: 14,
+  },
+  editorialMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editorialCount: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1.5,
+  },
+  editorialDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  editorialSubLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.3)',
+  },
 
   divider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)',
-    marginBottom: 8,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 4,
+    marginTop: 20,
   },
 
   // Article row
   articleRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 24,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  articleContent: { flex: 1, paddingRight: 16 },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  articleContent: { flex: 1 },
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
   typeLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  typeDot: {
+    fontFamily: FontFamily.body,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.2)',
   },
   articleTitle: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF',
-    lineHeight: 22, marginBottom: 6,
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 17,
+    color: '#FFFFFF',
+    lineHeight: 23,
+    letterSpacing: -0.3,
+    marginBottom: 8,
   },
-  readTime: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.35)' },
+  readTime: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
   articleThumb: {
-    width: 72, height: 72, borderRadius: 4, backgroundColor: '#1A1A1A',
+    width: 88,
+    height: 88,
+    borderRadius: 12,
+    backgroundColor: '#111113',
+    flexShrink: 0,
   },
 });
