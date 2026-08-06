@@ -5,7 +5,6 @@ import { View, Text, Animated, TouchableOpacity, StyleSheet, Image } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
-import BootSplash from 'react-native-bootsplash';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -28,6 +27,16 @@ import { StripeProvider } from '../lib/stripe-provider';
 import { NetworkProvider } from '../context/NetworkContext';
 import { RevenueCatProvider } from '../context/RevenueCatContext';
 import { LayersAnalyticsProvider } from '../context/LayersContext';
+
+// react-native-bootsplash requires a native build (EAS dev client or production).
+// Guard it so Expo Go / environments without the native module don't hard-crash.
+let BootSplash: any = null;
+try {
+  BootSplash = require('react-native-bootsplash').default;
+} catch {
+  // Not available in Expo Go — BootSplash animations will be skipped.
+  if (__DEV__) console.warn('[BootSplash] Native module not available. Use an EAS dev client build.');
+}
 
 let Notifications: any = null;
 let registerForPushNotificationsAsync: (() => Promise<string | null>) | null = null;
@@ -127,8 +136,8 @@ function AuthGuard() {
     // Hide splash after initial navigation (or if already on correct screen)
     if (!hasNavigated.current) {
       hasNavigated.current = true;
-      // Fade out the native splash screen
-      setTimeout(() => BootSplash.hide({ fade: true }), 150);
+      // Fade out the native splash screen (no-op if running in Expo Go)
+      setTimeout(() => BootSplash?.hide({ fade: true }), 150);
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
 
@@ -236,6 +245,12 @@ function ThemedStatusBar() {
 function AnimatedBootSplash({ onAnimationEnd }: { onAnimationEnd: () => void }) {
   const [opacity] = useState(() => new Animated.Value(1));
   const [scale] = useState(() => new Animated.Value(1));
+
+  // BootSplash is unavailable in Expo Go — skip the animation entirely
+  if (!BootSplash?.useHideAnimation) {
+    onAnimationEnd();
+    return null;
+  }
 
   const { container, logo } = BootSplash.useHideAnimation({
     manifest: require('../assets/bootsplash/manifest.json'),
