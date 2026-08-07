@@ -162,17 +162,17 @@ class LayersClient {
   private async flush(): Promise<void> {
     if (this.queue.length === 0) return;
 
-    const batch       = this.queue.splice(0, this.queue.length);
-    const url         = `${this.baseUrl}/events`;
-    const debugHeader = this.config.enableDebug ? { 'X-Debug-Token': '1' } : {};
+    const batch = this.queue.splice(0, this.queue.length);
+    const url   = `${this.baseUrl}/events`;
 
     try {
       const res = await fetch(url, {
         method:  'POST',
         headers: {
           'Content-Type':  'application/json',
-          'X-App-Id':      this.config.appId,
-          ...debugHeader,
+          // Layers REST API uses Bearer token auth — the appId IS the token
+          'Authorization': `Bearer ${this.config.appId}`,
+          ...(this.config.enableDebug ? { 'X-Debug-Token': '1' } : {}),
         },
         body: JSON.stringify({ events: batch }),
       });
@@ -182,17 +182,26 @@ class LayersClient {
       }
 
       if (!res.ok) {
-        // Re-queue on server error so we don't lose events permanently
-        this.queue.unshift(...batch);
-        if (this.config.enableDebug) {
-          console.warn('[Layers] Flush failed, re-queued:', res.status);
+        if (res.status >= 500) {
+          // 5xx = transient server error → re-queue to retry next flush
+          this.queue.unshift(...batch);
+          if (this.config.enableDebug) {
+            console.warn('[Layers] Server error, re-queued for retry:', res.status);
+          }
+        } else {
+          // 4xx = permanent client error (bad payload, wrong auth, etc.)
+          // DO NOT re-queue — it will keep failing forever
+          if (this.config.enableDebug) {
+            const body = await res.text().catch(() => '(unreadable)');
+            console.warn(`[Layers] Flush rejected ${res.status} — dropped ${batch.length} events. Response:`, body);
+          }
         }
       }
     } catch (e) {
-      // Offline — re-queue silently
+      // Network error / offline — re-queue to retry when connection returns
       this.queue.unshift(...batch);
       if (this.config.enableDebug) {
-        console.warn('[Layers] Flush error (offline?):', e);
+        console.warn('[Layers] Flush error (offline?), re-queued:', e);
       }
     }
   }
@@ -202,14 +211,18 @@ class LayersClient {
     properties: Record<string, unknown>,
   ): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/users/properties`, {
+      const res = await fetch(`${this.baseUrl}/users/properties`, {
         method:  'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-App-Id':     this.config.appId,
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${this.config.appId}`,
         },
         body: JSON.stringify({ userId, anonymousId: this.anonymousId, properties }),
       });
+      if (!res.ok && this.config.enableDebug) {
+        const body = await res.text().catch(() => '(unreadable)');
+        console.warn('[Layers] sendUserProperties failed:', res.status, body);
+      }
     } catch (e) {
       if (this.config.enableDebug) {
         console.warn('[Layers] sendUserProperties error:', e);
