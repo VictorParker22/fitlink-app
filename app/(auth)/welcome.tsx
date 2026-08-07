@@ -90,7 +90,7 @@ export default function WelcomeScreen() {
       {/* ── Full-screen background with Ken Burns ── */}
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: bgScale }] }]}>
         <ImageBackground
-          source={require('../../assets/images/welcome-bg.png')}
+          source={require('../../assets/images/welcome-bg.jpg')}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />
