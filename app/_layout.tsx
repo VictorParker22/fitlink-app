@@ -112,7 +112,7 @@ function AuthGuard() {
     const inTrainerGroup = segments[0] === '(tabs)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/onboarding');
+      router.replace('/(auth)/welcome');
     } else if (isAuthenticated && inAuthGroup) {
       // Allow clients to re-enter onboarding to update their profile
       const isOnboardingScreen = segments[1] === 'client-onboarding';
