@@ -246,17 +246,67 @@ function AnimatedBootSplash({ onAnimationEnd }: { onAnimationEnd: () => void }) 
   const [opacity] = useState(() => new Animated.Value(1));
   const [scale] = useState(() => new Animated.Value(1));
 
-  // BootSplash is unavailable in Expo Go — skip the animation entirely
-  if (!BootSplash?.useHideAnimation) {
-    onAnimationEnd();
-    return null;
+  // ── Native path (EAS dev client / production) ───────────────────────────
+  if (BootSplash?.useHideAnimation) {
+    const { container, logo } = BootSplash.useHideAnimation({
+      manifest: require('../assets/bootsplash/manifest.json'),
+      logo: require('../assets/bootsplash/logo.png'),
+      animate: () => {
+        Animated.sequence([
+          Animated.spring(scale, {
+            toValue: 1.08,
+            useNativeDriver: true,
+            speed: 30,
+            bounciness: 10,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 30,
+            bounciness: 5,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]).start(onAnimationEnd);
+      },
+    });
+
+    return (
+      <Animated.View
+        {...container}
+        style={[
+          container.style,
+          { opacity, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111114' },
+        ]}
+      >
+        <Animated.Image
+          {...logo}
+          style={[logo.style, { borderRadius: 28, transform: [{ scale }] }]}
+        />
+      </Animated.View>
+    );
   }
 
-  const { container, logo } = BootSplash.useHideAnimation({
-    manifest: require('../assets/bootsplash/manifest.json'),
-    logo: require('../assets/bootsplash/logo.png'),
-    animate: () => {
-      // 1. Subtle scale-up pulse on the logo
+  // ── JS fallback (Expo Go) ────────────────────────────────────────────────
+  // Same visual: dark background + centered logo, fades out after a brief hold.
+  return <JSSplashFallback opacity={opacity} scale={scale} onAnimationEnd={onAnimationEnd} />;
+}
+
+function JSSplashFallback({
+  opacity,
+  scale,
+  onAnimationEnd,
+}: {
+  opacity: Animated.Value;
+  scale: Animated.Value;
+  onAnimationEnd: () => void;
+}) {
+  useEffect(() => {
+    // Hold for 700 ms then run the same pulse + fade animation
+    const timer = setTimeout(() => {
       Animated.sequence([
         Animated.spring(scale, {
           toValue: 1.08,
@@ -270,38 +320,38 @@ function AnimatedBootSplash({ onAnimationEnd }: { onAnimationEnd: () => void }) 
           speed: 30,
           bounciness: 5,
         }),
-        // 2. Fade the entire splash out
         Animated.timing(opacity, {
           toValue: 0,
           duration: 500,
           useNativeDriver: true,
         }),
       ]).start(onAnimationEnd);
-    },
-  });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <Animated.View
-      {...container}
       style={[
-        container.style,
+        StyleSheet.absoluteFill,
         {
           opacity,
+          backgroundColor: '#111114',
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#111114',
+          zIndex: 9999,
         },
       ]}
     >
       <Animated.Image
-        {...logo}
-        style={[
-          logo.style,
-          {
-            borderRadius: 28,
-            transform: [{ scale }],
-          },
-        ]}
+        source={require('../assets/images/logo.png')}
+        style={{
+          width: 130,
+          height: 130,
+          borderRadius: 28,
+          transform: [{ scale }],
+        }}
+        resizeMode="contain"
       />
     </Animated.View>
   );
