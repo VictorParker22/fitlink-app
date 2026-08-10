@@ -2,10 +2,11 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  FlatList, Modal, TouchableWithoutFeedback,
+  FlatList, Modal, TouchableWithoutFeedback, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../context/AppContext';
@@ -15,10 +16,13 @@ import { supabase } from '../lib/supabase';
 import Avatar from '../components/Avatar';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 
+const { width: W } = Dimensions.get('window');
+
+// Session type accent colors — match schedule screen exactly
 const SESSION_TYPES = [
-  { key: '1-on-1' as const, label: '1-on-1', icon: 'person' as const, color: '#FF6B35' },
-  { key: 'Group' as const, label: 'Group', icon: 'people' as const, color: '#A78BFA' },
-  { key: 'Virtual' as const, label: 'Virtual', icon: 'videocam' as const, color: '#6C9BF2' },
+  { key: '1-on-1' as const, label: '1-on-1', icon: 'person' as const,   color: '#C8F135' },
+  { key: 'Group'  as const, label: 'Group',   icon: 'people' as const,   color: '#A78BFA' },
+  { key: 'Virtual'as const, label: 'Virtual', icon: 'videocam' as const,  color: '#60A5FA' },
 ];
 const DURATIONS = [
   { value: 30, label: '30', sub: 'min' },
@@ -180,8 +184,13 @@ export default function BookSessionScreen() {
   };
 
   return (
-    <SafeAreaView style={st.container} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={st.root}>
+      <LinearGradient
+        colors={['#0D0D12', '#111118', '#0A0A0F']}
+        style={StyleSheet.absoluteFill}
+      />
+      <SafeAreaView style={st.container} edges={['top']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* HEADER */}
         <View style={st.header}>
           <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
@@ -469,7 +478,7 @@ export default function BookSessionScreen() {
             </View>
           </View>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: insets.bottom + 20 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -515,95 +524,158 @@ export default function BookSessionScreen() {
               ))}
             </View>
           </ScrollView>
-          <View style={{ height: insets.bottom }} />
+          <View style={{ height: insets.bottom + 12 }} />
         </View>
       </Modal>
     </SafeAreaView>
+  </View>
   );
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  scroll: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
+  // Root wraps everything so LinearGradient covers the full screen
+  root:      { flex: 1, backgroundColor: '#0D0D12' },
+  container: { flex: 1 },
+  scroll:    { paddingHorizontal: W * 0.05, paddingBottom: 100 },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  // Header
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: W * 0.05, paddingVertical: Spacing.md },
+  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFFFFF' },
-  headerSubtitle: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  headerTitle: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.047), color: '#FFFFFF' },
+  headerSubtitle: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.4)', marginTop: 2 },
 
+  // Sections
   section: { marginBottom: 24 },
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 10, letterSpacing: 0.3 },
+  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: 'rgba(255,255,255,0.45)', marginBottom: 10, letterSpacing: 0.3 },
 
+  // Session type cards
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  typeCard: { flex: 1, alignItems: 'center', paddingVertical: 18, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 8 },
+  typeCard: {
+    flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.045),
+    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 8,
+  },
   typeIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  typeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  typeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: 'rgba(255,255,255,0.4)' },
   typeCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  input: { flex: 1, fontFamily: FontFamily.body, fontSize: 15, color: '#FFFFFF', paddingVertical: 12 },
+  // Inputs
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
+  input: { flex: 1, fontFamily: FontFamily.body, fontSize: Math.round(W * 0.038), color: '#FFFFFF', paddingVertical: 12 },
 
-  selectedClient: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,53,0.06)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,107,53,0.15)' },
-  selectedName: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFFFFF' },
-  selectedSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 1 },
-  removeClient: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  clientList: { marginTop: 8, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
-  clientOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
+  // Selected client
+  selectedClient: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(200,241,53,0.05)', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: 'rgba(200,241,53,0.15)',
+  },
+  selectedName: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.038), color: '#FFFFFF' },
+  selectedSub:  { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.3)', marginTop: 1 },
+  removeClient: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
+  clientList: { marginTop: 8, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
+  clientOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, minHeight: 52 },
   clientBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
-  clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFFFFF' },
-  clientEmail: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 1 },
+  clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.036), color: '#FFFFFF' },
+  clientEmail: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.3)', marginTop: 1 },
   noClients: { alignItems: 'center', padding: 24, gap: 8 },
-  noClientsText: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.25)' },
+  noClientsText: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.033), color: 'rgba(255,255,255,0.25)' },
 
-  dayCell: { width: 64, alignItems: 'center', paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 4 },
-  dayCellActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
-  dayName: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  dayNameActive: { color: 'rgba(0,0,0,0.4)' },
-  dayNum: { fontFamily: FontFamily.headingExtraBold, fontSize: 20, color: '#FFFFFF' },
-  dayNumActive: { color: '#000000' },
-  dayMonth: { fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.25)' },
-  dayMonthActive: { color: 'rgba(0,0,0,0.35)' },
-  todayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#FF6B35', marginTop: 2 },
+  // Day strip
+  dayCell: {
+    width: Math.round(W * 0.163), alignItems: 'center', paddingVertical: 12,
+    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 4, minHeight: 88,
+  },
+  dayCellActive:   { backgroundColor: '#C8F135', borderColor: '#C8F135' },
+  dayName:         { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  dayNameActive:   { color: 'rgba(13,13,18,0.55)' },
+  dayNum:          { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.052), color: '#FFFFFF' },
+  dayNumActive:    { color: '#0D0D12' },
+  dayMonth:        { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.025), color: 'rgba(255,255,255,0.25)' },
+  dayMonthActive:  { color: 'rgba(13,13,18,0.45)' },
+  todayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#C8F135', marginTop: 2 },
 
-  timeBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  dateTimeIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
-  timeValue: { flex: 1, fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF' },
+  // Time
+  timeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', minHeight: 56,
+  },
+  dateTimeIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  timeValue: { flex: 1, fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
 
+  // Duration chips
   durationRow: { flexDirection: 'row', gap: 10 },
-  durationCard: { flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 2 },
-  durationCardActive: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#FFFFFF' },
-  durationValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: 'rgba(255,255,255,0.5)' },
-  durationValueActive: { color: '#000000' },
-  durationSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.25)' },
-  durationSubActive: { color: 'rgba(0,0,0,0.4)' },
+  durationCard: {
+    flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.04),
+    borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 2, minHeight: 70,
+  },
+  durationCardActive: { backgroundColor: '#C8F135', borderColor: '#C8F135' },
+  durationValue:      { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.058), color: 'rgba(255,255,255,0.4)' },
+  durationValueActive:{ color: '#0D0D12' },
+  durationSub:        { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.25)' },
+  durationSubActive:  { color: 'rgba(13,13,18,0.5)' },
 
-  repeatChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  repeatChipActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
-  repeatChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
-  repeatChipTextActive: { color: '#FFFFFF' },
-  repeatNote: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 10, paddingLeft: 4 },
+  // Repeat chips
+  repeatChip: {
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    minHeight: 44, justifyContent: 'center',
+  },
+  repeatChipActive:     { backgroundColor: 'rgba(200,241,53,0.12)', borderColor: 'rgba(200,241,53,0.35)' },
+  repeatChipText:       { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.033), color: 'rgba(255,255,255,0.5)' },
+  repeatChipTextActive: { color: '#C8F135' },
+  repeatNote: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.3)', marginTop: 10, paddingLeft: 4 },
 
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: Radius.full, paddingVertical: 16, marginBottom: 20 },
-  submitText: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#000000' },
+  // Submit button — full-width lime CTA
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: '#C8F135', borderRadius: Radius.full,
+    paddingVertical: 16, marginBottom: 20, minHeight: 54,
+  },
+  submitText: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#0D0D12' },
 
-  preview: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  // Session preview card
+  preview: {
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
   previewAccent: { width: 3 },
-  previewBody: { flex: 1, padding: 16, gap: 4 },
-  previewLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: 1, textTransform: 'uppercase' },
-  previewTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF' },
-  previewMeta: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
+  previewBody:   { flex: 1, padding: 16, gap: 4 },
+  previewLabel:  { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.025), color: 'rgba(255,255,255,0.25)', letterSpacing: 1, textTransform: 'uppercase' },
+  previewTitle:  { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
+  previewMeta:   { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.35)', marginTop: 2 },
 
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheetContainer: { backgroundColor: '#1A1A1A', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: Spacing.lg },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  sheetTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF' },
-  sheetDone: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FF6B35' },
-  timeGrid: { paddingVertical: Spacing.md, gap: 12 },
-  timeGroupLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 6, letterSpacing: 0.5 },
-  timeSlotRow: { flexDirection: 'row', gap: 8 },
-  timeSlot: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  timeSlotActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
-  timeSlotText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
-  timeSlotTextActive: { color: '#FFFFFF' },
+  // Time picker bottom sheet
+  sheetOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheetContainer: {
+    backgroundColor: '#111118', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: W * 0.05,
+  },
+  sheetHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  sheetTitle:       { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
+  sheetDone:        { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.038), color: '#C8F135' },
+  timeGrid:         { paddingVertical: Spacing.md, gap: 12 },
+  timeGroupLabel:   { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.3)', marginBottom: 6, letterSpacing: 0.5 },
+  timeSlotRow:      { flexDirection: 'row', gap: 8 },
+  timeSlot: {
+    flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', minHeight: 44,
+  },
+  timeSlotActive:     { backgroundColor: '#C8F135', borderColor: '#C8F135' },
+  timeSlotText:       { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.5)' },
+  timeSlotTextActive: { color: '#0D0D12' },
 });

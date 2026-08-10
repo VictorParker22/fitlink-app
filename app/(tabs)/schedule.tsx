@@ -29,7 +29,7 @@ import {
 } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, Alert, Dimensions, Animated, Platform, UIManager,
+  RefreshControl, Alert, Dimensions, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,11 +40,6 @@ import { Calendar } from 'react-native-calendars';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
 import { FontFamily } from '../../constants/theme';
-
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -181,15 +176,12 @@ export default function ScheduleScreen() {
       selectedTextColor: '#0D0D12',
     };
     // Today (if not selected)
+    // Note: todayTextColor in the Calendar theme handles lime styling for today.
+    // We add marked:true so the session dot (if any) still shows on today.
     const todayKey = toDateKey(today);
-    if (todayKey !== selKey) {
-      marks[todayKey] = {
-        ...(marks[todayKey] || {}),
-        customStyles: {
-          container: { borderWidth: 1.5, borderColor: '#C8F135', borderRadius: 20 },
-          text: { color: '#C8F135' },
-        },
-      };
+    if (todayKey !== selKey && !marks[todayKey]) {
+      // No session today — still mark so theme's todayTextColor applies.
+      marks[todayKey] = { dots: [], marked: false };
     }
     return marks;
   }, [sessions, selectedDate]);
@@ -197,7 +189,6 @@ export default function ScheduleScreen() {
   // Month header label
   const monthLabel = (() => {
     const months = [...new Set(weekDays.map(d => MONTH_NAMES[d.getMonth()]))];
-    const year   = weekDays[0].getFullYear();
     return months.join(' / ');
   })();
   const yearLabel = weekDays[0].getFullYear().toString();
