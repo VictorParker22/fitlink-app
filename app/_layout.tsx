@@ -116,6 +116,7 @@ function AuthGuard() {
     } else if (isAuthenticated && inAuthGroup) {
       // Allow clients to re-enter onboarding to update their profile
       const isOnboardingScreen = segments[1] === 'client-onboarding';
+      const isWizardScreen = segments[1] === 'trainer-wizard';
       if (userRole === 'client') {
         if (!hasClientOnboarded && !isOnboardingScreen) {
           router.replace('/(auth)/client-onboarding' as any);
@@ -124,8 +125,13 @@ function AuthGuard() {
         }
         // If isOnboardingScreen, let them stay — they're updating their profile
       } else {
-        // Trainers go straight to dashboard — onboarding handled by in-dashboard setup cards
-        router.replace('/(tabs)');
+        // New trainers must complete the setup wizard before reaching the dashboard
+        if (!hasOnboarded && !isWizardScreen) {
+          router.replace('/(auth)/trainer-wizard' as any);
+        } else if (hasOnboarded && !isWizardScreen) {
+          router.replace('/(tabs)');
+        }
+        // If isWizardScreen, let them stay
       }
     } else if (isAuthenticated && userRole === 'client' && inTrainerGroup) {
       router.replace('/(client-tabs)');
@@ -139,7 +145,7 @@ function AuthGuard() {
       // Fade out the native splash screen (no-op if running in Expo Go)
       setTimeout(() => BootSplash?.hide({ fade: true }), 150);
     }
-  }, [isAuthenticated, loading, segments, userRole, hasOnboarded]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded]);
 
 
 
@@ -167,6 +173,8 @@ function AuthGuard() {
       <Stack.Screen name="add-client" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="create-plan" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="book-session" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="session/[id]" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="session/complete" options={{ animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="edit-client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="certifications" options={{ animation: 'slide_from_right' }} />

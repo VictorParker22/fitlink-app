@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, Alert, Share,
-  Animated, Dimensions, Linking, ActivityIndicator,
+  Dimensions, Linking, ActivityIndicator, Image,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -33,12 +36,50 @@ export default function TrainerWizardScreen() {
   const { colors, isDark } = useTheme();
 
   const [step, setStep] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useSharedValue(0);
+
+  const [completionVisible, setCompletionVisible] = useState(false);
+  const progressAnim = useSharedValue(1 / STEPS.length);
+
+  useEffect(() => {
+    progressAnim.value = withTiming((step + 1) / STEPS.length, { duration: 350 });
+  }, [step]);
+
+  useEffect(() => {
+    if (!completionVisible) return;
+    const timer = setTimeout(() => {
+      router.replace('/(tabs)');
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [completionVisible]);
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value * 100}%`,
+  }));
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideAnim.value }],
+  }));
 
   // Step 1 — Profile
   const [name, setName] = useState(trainer?.name || '');
   const [bio, setBio] = useState(trainer?.bio || '');
   const [specialization, setSpecialization] = useState(trainer?.specialization || '');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const handlePickAvatar = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
 
   // Step 2 — Availability
   const [activeDays, setActiveDays] = useState<Record<string, boolean>>(
@@ -61,20 +102,13 @@ export default function TrainerWizardScreen() {
 
   const animateToStep = (nextStep: number) => {
     const direction = nextStep > step ? 1 : -1;
-    // Slide current out
-    Animated.timing(slideAnim, {
-      toValue: -direction * SCREEN_WIDTH,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setStep(nextStep);
-      slideAnim.setValue(direction * SCREEN_WIDTH);
-      // Slide new in
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+    // Slide current step out, swap step, then slide new step in
+    slideAnim.value = withTiming(-direction * SCREEN_WIDTH, { duration: 200 }, (finished) => {
+      if (finished) {
+        runOnJS(setStep)(nextStep);
+        slideAnim.value = direction * SCREEN_WIDTH;
+        slideAnim.value = withTiming(0, { duration: 250 });
+      }
     });
   };
 
@@ -83,11 +117,36 @@ export default function TrainerWizardScreen() {
       // Validate & save profile
       if (!name.trim()) return Alert.alert('Required', 'Please enter your name.');
       setSaving(true);
+      
+      // Upload avatar if selected
+      let avatarUrl: string | undefined;
+      if (avatarUri) {
+        try {
+          setAvatarUploading(true);
+          const ext = avatarUri.split('.').pop() || 'jpg';
+          const fileName = `${user!.id}/avatar.${ext}`;
+          const response = await fetch(avatarUri);
+          const blob = await response.blob();
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, blob, { upsert: true, contentType: `image/${ext}` });
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+            avatarUrl = urlData.publicUrl;
+          }
+        } catch (e) {
+          // Avatar upload failure is non-critical — proceed without
+        } finally {
+          setAvatarUploading(false);
+        }
+      }
+      
       try {
         await updateTrainer({
           name: name.trim(),
           bio: bio.trim() || undefined,
           specialization: specialization.trim() || undefined,
+          ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         });
       } catch (err: any) {
         Alert.alert('Error', err.message || 'Failed to save profile');
@@ -189,17 +248,18 @@ export default function TrainerWizardScreen() {
   };
 
   const completeWizard = async () => {
+    // Write BOTH keys — fitlink_onboarded is what AuthGuard reads
+    await SecureStore.setItemAsync('fitlink_onboarded', 'true');
     await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
     // Also persist to Supabase user_metadata so it survives cache clears
     try {
-      await supabase.auth.updateUser({ data: { wizard_complete: true } });
+      await supabase.auth.updateUser({ data: { wizard_complete: true, onboarded: true } });
     } catch (e) {
       // Non-critical — SecureStore fallback still works
     }
-    router.replace('/(tabs)');
+    // Show completion animation before navigating (handled by completionVisible state)
+    setCompletionVisible(true);
   };
-
-  const progress = (step + 1) / STEPS.length;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
@@ -218,11 +278,11 @@ export default function TrainerWizardScreen() {
 
       {/* Progress Bar */}
       <View style={[styles.progressTrack, { backgroundColor: colors.bgElevated }]}>
-        <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        <Animated.View style={[styles.progressFill, progressStyle]} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
+        <Animated.View style={[styles.stepContainer, slideStyle]}>
           {/* Step Title */}
           <View style={styles.titleBlock}>
             <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>{STEPS[step].title}</Text>
@@ -237,6 +297,28 @@ export default function TrainerWizardScreen() {
             {/* ============ STEP 1: Profile ============ */}
             {step === 0 && (
               <>
+                {/* Avatar Picker */}
+                <TouchableOpacity
+                  onPress={handlePickAvatar}
+                  activeOpacity={0.8}
+                  style={styles.avatarPickerContainer}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upload profile photo"
+                >
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Ionicons name="camera-outline" size={28} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.avatarPlaceholderText}>Add Photo</Text>
+                    </View>
+                  )}
+                  {avatarUploading && (
+                    <View style={styles.avatarOverlay}>
+                      <ActivityIndicator color="#FFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
                 <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
                   <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Your Name *</Text>
                   <TextInput
@@ -446,13 +528,13 @@ export default function TrainerWizardScreen() {
         {/* Footer */}
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           {step === 2 && !clientAdded && (
-            <TouchableOpacity onPress={() => animateToStep(3)} style={styles.skipBtn} accessibilityRole="button" accessibilityLabel="Skip adding client for now">
-              <Text style={[styles.skipText, { color: colors.textTertiary }]}>Skip for now</Text>
+            <TouchableOpacity onPress={() => animateToStep(3)} style={[styles.skipBtn, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Skip adding client for now">
+              <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip for now</Text>
             </TouchableOpacity>
           )}
           {step === 3 && (
-            <TouchableOpacity onPress={completeWizard} style={styles.skipBtn} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
-              <Text style={[styles.skipText, { color: colors.textTertiary }]}>Skip for now</Text>
+            <TouchableOpacity onPress={completeWizard} style={[styles.skipBtn, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
+              <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip for now</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -470,12 +552,93 @@ export default function TrainerWizardScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Completion overlay — shown after wizard finishes, before navigation */}
+      {completionVisible && (
+        <View style={styles.completionOverlay}>
+          <View style={styles.completionCheckCircle}>
+            <Ionicons name="checkmark" size={64} color="#FF6B35" />
+          </View>
+          <Text style={styles.completionTitle}>You're all set!</Text>
+          <Text style={styles.completionSub}>Your coaching profile is ready. Let's build your business.</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  avatarPickerContainer: {
+    alignSelf: 'center',
+    marginBottom: 28,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderStyle: 'dashed',
+  },
+  avatarPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    gap: 4,
+  },
+  avatarPlaceholderText: {
+    fontFamily: FontFamily.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.5,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  completionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0D0D12',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    gap: 16,
+    paddingHorizontal: 40,
+  },
+  completionCheckCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,107,53,0.12)',
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  completionTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 28,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  completionSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -545,8 +708,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg, paddingBottom: Spacing.xl,
     borderTopWidth: 1, alignItems: 'center', gap: Spacing.md,
   },
-  skipBtn: { paddingVertical: Spacing.xs },
-  skipText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
+  skipBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    width: '100%',
+  },
+  skipText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.5,
+  },
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 15,

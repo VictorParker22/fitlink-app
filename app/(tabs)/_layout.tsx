@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   interpolate,
   Extrapolation,
+  type SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { FontFamily } from '../../constants/theme';
@@ -107,7 +108,7 @@ interface TabButtonProps {
   config: typeof VISIBLE_TABS[number];
   isFocused: boolean;
   tabIndex: number;
-  activeIndex: Animated.SharedValue<number>;
+  activeIndex: SharedValue<number>;
   onPress: () => void;
 }
 

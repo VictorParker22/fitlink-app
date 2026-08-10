@@ -137,6 +137,40 @@ function PickerSheet({ visible, onDone, title, leftToggle, children }: {
   );
 }
 
+function CompletionBurst({ name }: { name: string }) {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      // Circle bursts in
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 12 }),
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]),
+      // Text fades in
+      Animated.timing(textOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <>
+      <Animated.View style={[completionStyles.checkRing, { transform: [{ scale }], opacity }]}>
+        <View style={completionStyles.checkInner}>
+          <Ionicons name="checkmark" size={56} color="#FF6B35" />
+        </View>
+      </Animated.View>
+      <Animated.Text style={[completionStyles.title, { opacity: textOpacity }]}>
+        {name ? `You're all set,\n${name}!` : "You're all set!"}
+      </Animated.Text>
+      <Animated.Text style={[completionStyles.sub, { opacity: textOpacity }]}>
+        Your profile is ready. Get matched with your coach and start your journey.
+      </Animated.Text>
+    </>
+  );
+}
+
 export default function ClientOnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -145,6 +179,16 @@ export default function ClientOnboardingScreen() {
   const [userName, setUserName] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  const [showCompletion, setShowCompletion] = useState(false);
+
+  useEffect(() => {
+    if (!showCompletion) return;
+    const timer = setTimeout(() => {
+      router.replace('/(client-tabs)');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [showCompletion]);
 
   // Step 1: About You
   const [birthday, setBirthday] = useState<Date | null>(null);
@@ -234,63 +278,48 @@ export default function ClientOnboardingScreen() {
   const heightDisplay = heightSet ? `${heightFt}'${heightIn}"` : '';
 
   const completeOnboarding = async () => {
-    setSaving(true);
-    startDotAnimation();
+    // Save all data to Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      setSaving(true);
+      // Find the user's client row and update with all collected data
+      const updatePayload: Record<string, any> = {};
+      
+      if (selectedGoals.length > 0) updatePayload.goals = selectedGoals.join(', ');
+      if (selectedActivities.length > 0) updatePayload.preferred_activities = selectedActivities;
+      if (birthday) updatePayload.birthday = birthday.toISOString().split('T')[0];
+      if (weightSet) updatePayload.weight_lbs = weightUnit === 'lbs' ? weightLbs : Math.round(weightLbs * 2.20462);
+      if (heightSet) updatePayload.height_inches = heightUnit === 'ft' ? (heightFt * 12 + heightIn) : Math.round(heightIn / 2.54);
+      if (gender) updatePayload.gender = gender;
+      updatePayload.weekly_goal = weeklyGoal;
+      updatePayload.fitness_goals = selectedGoals;
+      updatePayload.training_preferences = selectedStyles;
 
-      // Build the complete onboarding profile
-      const onboardingProfile: Record<string, any> = {};
-      if (birthday) {
-        onboardingProfile.birthday = birthday.toISOString().split('T')[0];
-        // Coach screen reads 'age'
-        const ageDiff = Date.now() - birthday.getTime();
-        onboardingProfile.age = Math.floor(ageDiff / (365.25 * 24 * 60 * 60 * 1000));
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase
+          .from('clients')
+          .update(updatePayload)
+          .eq('user_id', user.id);
       }
-      if (weightSet) onboardingProfile.weight = weightDisplay;
-      if (heightSet) onboardingProfile.height = heightDisplay;
-      if (gender) onboardingProfile.gender = gender;
-      if (selectedGoals.length) {
-        onboardingProfile.fitness_goals = selectedGoals;
-        // Coach screen reads 'fitness_goal' (singular, first goal)
-        onboardingProfile.fitness_goal = selectedGoals[0];
-      }
-      if (selectedStyles.length) onboardingProfile.training_styles = selectedStyles;
-      if (selectedActivities.length) onboardingProfile.activities = selectedActivities;
-      onboardingProfile.weekly_workout_goal = weeklyGoal;
-      // Coach screen reads 'commit_days'
-      onboardingProfile.commit_days = weeklyGoal;
-
-      // 1. Save to auth metadata (for routing / auth checks)
-      await supabase.auth.updateUser({ data: { ...onboardingProfile, onboarding_complete: true } });
-
-      // 2. Save to clients table via edge function (bypasses RLS)
-      // Coach-added clients have no auth_user_id, so direct queries fail due to RLS
-      const { data: claimResult, error: claimErr } = await supabase.functions.invoke('search-unassigned-clients', {
-        body: {
-          action: 'claim',
-          authUserId: user.id,
-          email: user.email,
-          assessmentData: onboardingProfile,
-        }
-      });
-
-      if (claimErr) {
-        console.error('[ClientOnboarding] Claim error:', claimErr);
-      } else if (claimResult?.success) {
-        if (__DEV__) console.log('[ClientOnboarding] Claimed client row', claimResult.clientId);
-      } else {
-        // No client row found — assessment saved to auth metadata only (line 190)
-        if (__DEV__) console.log('[ClientOnboarding] No client row found — assessment saved to auth metadata only');
-      }
-
-      await SecureStore.setItemAsync('fitlink_client_onboarded', 'true');
-    } catch (err) {
-      console.error('[ClientOnboarding] Save error:', err);
+    } catch (e) {
+      // Non-critical — proceed to completion anyway
+      console.warn('[ClientOnboarding] Failed to save profile data:', e);
+    } finally {
+      setSaving(false);
     }
-    // Brief delay so user sees the loading animation
-    setTimeout(() => router.replace('/(client-tabs)'), 1200);
+
+    // Mark onboarded
+    await SecureStore.setItemAsync('fitlink_client_onboarded', 'true');
+    try {
+      await supabase.auth.updateUser({ data: { client_onboarded: true } });
+    } catch (e) {
+      // Non-critical
+    }
+
+    // Show completion screen, then navigate
+    setShowCompletion(true);
   };
 
   const toggleArrayItem = (arr: string[], setArr: (v: string[]) => void, item: string, max?: number) => {
@@ -637,6 +666,16 @@ export default function ClientOnboardingScreen() {
           <Text style={step === 5 ? s.whiteBtnText : s.nextBtnText}>{step < 5 ? 'Next Step' : 'Next'}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ══════════════════════════════════════════════════════
+          COMPLETION OVERLAY — slides up over everything after step 5
+      ═══════════════════════════════════════════════════════ */}
+      {showCompletion && (
+        <View style={[StyleSheet.absoluteFill, completionStyles.container]}>
+          {/* Animated checkmark circle */}
+          <CompletionBurst name={userName} />
+        </View>
+      )}
     </View>
   );
 }
@@ -730,4 +769,49 @@ const rv = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12, marginBottom: 6 },
   rowKey: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', width: 55 },
   rowVal: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF', flex: 1 },
+});
+
+const completionStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    gap: 20,
+    zIndex: 200,
+  },
+  checkRing: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 3,
+    borderColor: '#FF6B35',
+    backgroundColor: 'rgba(255,107,53,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  checkInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,107,53,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 32,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 38,
+    letterSpacing: -0.5,
+  },
+  sub: {
+    fontFamily: FontFamily.body,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 });

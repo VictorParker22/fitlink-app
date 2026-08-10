@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
-  Platform,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, Dimensions, StatusBar } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withRepeat,
+  withSequence,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,54 +40,117 @@ const SLIDES = [
 
 const SLIDE_INTERVAL = 3800;
 
+function DotIndicator({ isActive }: { isActive: boolean }) {
+  const width = useSharedValue(isActive ? 22 : 7);
+  const color = useSharedValue(isActive ? '#FF6B35' : 'rgba(255,255,255,0.30)');
+
+  useEffect(() => {
+    width.value = withSpring(isActive ? 22 : 7);
+    color.value = withTiming(isActive ? '#FF6B35' : 'rgba(255,255,255,0.30)', { duration: 300 });
+  }, [isActive]);
+
+  const style = useAnimatedStyle(() => {
+    return {
+      width: width.value,
+      backgroundColor: color.value,
+    };
+  });
+
+  return <Animated.View style={[styles.dot, style]} />;
+}
+
+function AnimatedButton({
+  title,
+  onPress,
+  isPrimary,
+}: {
+  title: string;
+  onPress: () => void;
+  isPrimary?: boolean;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[isPrimary ? styles.btnSignUp : styles.btnLogin, animatedStyle]}>
+      <Pressable
+        style={styles.btnPressable}
+        onPressIn={() => (scale.value = withSpring(0.95))}
+        onPressOut={() => (scale.value = withSpring(1))}
+        onPress={onPress}
+      >
+        <Text style={isPrimary ? styles.btnSignUpText : styles.btnLoginText}>{title}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Animated values
-  const textOpacity = useRef(new Animated.Value(1)).current;
-  const textY = useRef(new Animated.Value(0)).current;
-  const bgScale = useRef(new Animated.Value(1)).current;
+  // Animated values for Carousel
+  const textOpacity = useSharedValue(1);
+  const textY = useSharedValue(0);
 
-  // Auto-advance carousel
+  // Animated background scale (Ken Burns)
+  const bgScale = useSharedValue(1);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Fade out current text
-      Animated.parallel([
-        Animated.timing(textOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(textY, { toValue: -12, duration: 300, useNativeDriver: true }),
-      ]).start(() => {
-        setActiveIndex(i => (i + 1) % SLIDES.length);
-        textY.setValue(12);
-        // Fade new text in
-        Animated.parallel([
-          Animated.timing(textOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(textY, { toValue: 0, duration: 400, useNativeDriver: true }),
-        ]).start();
-      });
-    }, SLIDE_INTERVAL);
+    // Ken Burns effect
+    bgScale.value = withRepeat(
+      withSequence(
+        withTiming(1.07, { duration: 12000 }),
+        withTiming(1.0, { duration: 12000 })
+      ),
+      -1,
+      false
+    );
 
-    // Subtle Ken Burns on background
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgScale, { toValue: 1.06, duration: SLIDE_INTERVAL * SLIDES.length / 2, useNativeDriver: true }),
-        Animated.timing(bgScale, { toValue: 1.0, duration: SLIDE_INTERVAL * SLIDES.length / 2, useNativeDriver: true }),
-      ])
-    ).start();
+    // Auto-advance carousel
+    const interval = setInterval(() => {
+      // Fade out and move up current text
+      textOpacity.value = withTiming(0, { duration: 300 });
+      textY.value = withTiming(-12, { duration: 300 });
+
+      setTimeout(() => {
+        setActiveIndex((i) => (i + 1) % SLIDES.length);
+        // Move to bottom for incoming text
+        textY.value = 12;
+        // Fade in and move to normal position
+        textOpacity.value = withTiming(1, { duration: 400 });
+        textY.value = withTiming(0, { duration: 400 });
+      }, 300); // wait for fade out to complete
+    }, SLIDE_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);
 
   const slide = SLIDES[activeIndex];
 
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: textOpacity.value,
+      transform: [{ translateY: textY.value }],
+    };
+  });
+
+  const animatedBgStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: bgScale.value }],
+    };
+  });
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* ── Full-screen background with Ken Burns ── */}
-      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: bgScale }] }]}>
-        <ImageBackground
+      <Animated.View style={[StyleSheet.absoluteFill, animatedBgStyle]}>
+        <Image
           source={require('../../assets/images/welcome-bg.jpg')}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
@@ -98,13 +159,7 @@ export default function WelcomeScreen() {
 
       {/* ── Multi-stop gradient overlay ── */}
       <LinearGradient
-        colors={[
-          'rgba(0,0,0,0.15)',
-          'rgba(0,0,0,0.05)',
-          'rgba(0,0,0,0.50)',
-          'rgba(0,0,0,0.88)',
-        ]}
-        locations={[0, 0.35, 0.65, 1]}
+        colors={['transparent', 'rgba(0,0,0,0.92)']}
         style={StyleSheet.absoluteFill}
       />
 
@@ -113,11 +168,10 @@ export default function WelcomeScreen() {
         <Text style={styles.brand}>FITLINK</Text>
       </View>
 
-      {/* ── Content area (bottom) ── */}
+      {/* ── Content area (bottom 45%) ── */}
       <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 24 }]}>
-
         {/* Animated headline + sub */}
-        <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textY }] }}>
+        <Animated.View style={animatedTextStyle}>
           <Text style={styles.headline}>{slide.headline}</Text>
           <Text style={styles.sub}>{slide.sub}</Text>
         </Animated.View>
@@ -125,35 +179,19 @@ export default function WelcomeScreen() {
         {/* Dot indicators */}
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.dot,
-                i === activeIndex && styles.dotActive,
-              ]}
-            />
+            <DotIndicator key={i} isActive={i === activeIndex} />
           ))}
         </View>
 
         {/* CTA buttons */}
-        <View style={styles.buttons}>
-          <TouchableOpacity
-            style={styles.btnSignUp}
-            activeOpacity={0.85}
+        <View style={styles.buttonsContainer}>
+          <AnimatedButton
+            title="SIGN UP"
+            isPrimary
             onPress={() => router.push('/(auth)/create-account')}
-          >
-            <Text style={styles.btnSignUpText}>SIGN UP</Text>
-          </TouchableOpacity>
-
+          />
           <View style={styles.divider} />
-
-          <TouchableOpacity
-            style={styles.btnLogin}
-            activeOpacity={0.85}
-            onPress={() => router.push('/(auth)/login')}
-          >
-            <Text style={styles.btnLoginText}>LOG IN</Text>
-          </TouchableOpacity>
+          <AnimatedButton title="LOG IN" onPress={() => router.push('/(auth)/login')} />
         </View>
       </View>
     </View>
@@ -191,7 +229,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    height: '45%',
     paddingHorizontal: 28,
+    justifyContent: 'flex-end',
   },
   headline: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -220,19 +260,12 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   dot: {
-    width: 7,
     height: 7,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  dotActive: {
-    backgroundColor: '#FFFFFF',
-    width: 20,
     borderRadius: 4,
   },
 
   // ── Buttons ──
-  buttons: {
+  buttonsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -240,12 +273,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     overflow: 'hidden',
-    backdropFilter: 'blur(12px)', // web hint, RN ignores gracefully
   },
   btnSignUp: {
     flex: 1,
+    backgroundColor: '#FF6B35',
+  },
+  btnLogin: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  btnPressable: {
     paddingVertical: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSignUpText: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -257,11 +297,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 22,
     backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  btnLogin: {
-    flex: 1,
-    paddingVertical: 18,
-    alignItems: 'center',
   },
   btnLoginText: {
     fontFamily: 'SpaceGrotesk_700Bold',
