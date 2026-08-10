@@ -132,6 +132,11 @@ export default function StudioScreen() {
     router.push(`/broadcast/${classItem.id}` as any);
   };
 
+  const handleGoLiveInstantly = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    router.push('/broadcast/setup' as any);
+  };
+
   const handleScheduleNew = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/create-live-class' as any);
@@ -364,6 +369,14 @@ export default function StudioScreen() {
               <Text style={styles.emptyCommandSub}>
                 Schedule a virtual class to provision a Mux stream key and broadcast live to your clients.
               </Text>
+              <TouchableOpacity
+                style={styles.goLiveInstantBtn}
+                onPress={handleGoLiveInstantly}
+                activeOpacity={0.85}
+              >
+                <View style={styles.goLiveInstantDot} />
+                <Text style={styles.goLiveInstantBtnText}>GO LIVE INSTANTLY</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.scheduleBtnLarge}
                 onPress={handleScheduleNew}
@@ -612,7 +625,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   scheduleHeaderBtn: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#FF6B35',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -623,7 +636,7 @@ const styles = StyleSheet.create({
   scheduleHeaderBtnText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 10,
-    color: '#000000',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   scrollContent: {
@@ -666,7 +679,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   abruptSaveBtn: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#C8F135',
     paddingVertical: 12,
     borderRadius: Radius.xs,
     flexDirection: 'row',
@@ -833,10 +846,37 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     paddingHorizontal: Spacing.md,
   },
+  goLiveInstantBtn: {
+    backgroundColor: '#C8F135',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: Radius.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    shadowColor: '#C8F135',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  goLiveInstantDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#000000',
+  },
+  goLiveInstantBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
+    color: '#000000',
+    letterSpacing: 1,
+  },
   scheduleBtnLarge: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: Radius.xs,
@@ -844,7 +884,7 @@ const styles = StyleSheet.create({
   scheduleBtnLargeText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 11,
-    color: '#FFD700',
+    color: 'rgba(255,255,255,0.5)',
     letterSpacing: 1,
   },
 
@@ -880,7 +920,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#1C1C1E',
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: 'rgba(255, 107, 53, 0.3)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
@@ -888,7 +928,7 @@ const styles = StyleSheet.create({
   realBadgeText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 8,
-    color: '#FFD700',
+    color: '#FF6B35',
     letterSpacing: 1,
   },
   chartWrapper: {

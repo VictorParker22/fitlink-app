@@ -186,6 +186,9 @@ function AuthGuard() {
       <Stack.Screen name="contact-support" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="terms-privacy" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="broadcast/setup" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="broadcast/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
+      <Stack.Screen name="create-live-class" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }
