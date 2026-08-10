@@ -314,9 +314,9 @@ export default function SessionCompleteScreen() {
   const handleBookNext = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const params = new URLSearchParams({
-      date:        nextDate.toISOString(),
-      type:        session?.type ?? '1-on-1',
-      client_id:   session?.client_id ?? '',
+      date:     nextDate.toISOString(),
+      type:     session?.type ?? '1-on-1',
+      clientId: session?.client_id ?? '',   // camelCase — matches book-session.tsx useLocalSearchParams
     });
     router.push(`/book-session?${params.toString()}` as any);
   }, [nextDate, session, router]);

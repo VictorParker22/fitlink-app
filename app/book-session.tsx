@@ -59,7 +59,7 @@ function isSameDay(a: Date, b: Date) {
 
 export default function BookSessionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ date?: string; clientId?: string }>();
+  const params = useLocalSearchParams<{ date?: string; clientId?: string; type?: string }>();
   const { clients, refreshSessions } = useApp();
   const { user } = useAuth();
   const { showAlert } = useAlert();
@@ -79,7 +79,13 @@ export default function BookSessionScreen() {
     return d;
   };
 
-  const [sessionType, setSessionType] = useState<'1-on-1' | 'Group' | 'Virtual'>('1-on-1');
+  const VALID_TYPES = ['1-on-1', 'Group', 'Virtual'] as const;
+  const [sessionType, setSessionType] = useState<'1-on-1' | 'Group' | 'Virtual'>(() => {
+    const t = params.type as string;
+    return (VALID_TYPES as readonly string[]).includes(t)
+      ? (t as '1-on-1' | 'Group' | 'Virtual')
+      : '1-on-1';
+  });
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [groupName, setGroupName] = useState('');
   const [selectedDay, setSelectedDay] = useState<Date>(() => {

@@ -530,4 +530,62 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing['2xl'],
   },
+
+  // Stat grid — dashboard stat cards
+  statGrid: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    gap: 12,
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statCell: {
+    flex: 1,
+    backgroundColor: '#111118',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    paddingTop: 18,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  statMicro: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  statHero: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 44,
+    color: '#FFFFFF',
+    letterSpacing: -2,
+    lineHeight: 46,
+  },
+  statUnit: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 0,
+  },
+  statSub: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 6,
+  },
+  accentLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderRadius: 1.5,
+  },
 });

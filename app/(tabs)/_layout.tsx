@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,9 +12,38 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { FontFamily } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ── Unread Messages Hook ──
+function useUnreadMessageCount() {
+  const { user } = useAuth();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('conversations')
+        .select('unread_count')
+        .eq('trainer_id', user.id)
+        .gt('unread_count', 0);
+      setCount(data ? data.reduce((s, c) => s + (c.unread_count || 0), 0) : 0);
+    };
+    load();
+    // Realtime subscription for conversation updates
+    const channel = supabase
+      .channel('tab-unread-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  return count;
+}
 
 // ── Tab config — Research-backed order ──
 // Order rationale:
@@ -53,6 +82,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
   const insets     = useSafeAreaInsets();
   const bottomPad  = Math.max(insets.bottom, 12);
   const activeIndex = useSharedValue(state.index);
+  const unreadMessages = useUnreadMessageCount();
 
   const circleStyle = useAnimatedStyle(() => {
     const targetX = activeIndex.value * TAB_WIDTH + (TAB_WIDTH - ACTIVE_SIZE) / 2;
@@ -84,6 +114,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
           const globalIndex = state.routes.findIndex((r: any) => r.name === route.name);
           const isFocused   = state.index === globalIndex;
           const tabIndex    = VISIBLE_TABS.findIndex(t => t.name === route.name);
+          const badge = tabConfig.name === 'messages' && unreadMessages > 0 ? unreadMessages : 0;
 
           return (
             <TabButton
@@ -92,6 +123,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
               isFocused={isFocused}
               tabIndex={tabIndex}
               activeIndex={activeIndex}
+              badge={badge}
               onPress={() => handlePress(route.name, route.key, tabIndex)}
             />
           );
@@ -109,10 +141,11 @@ interface TabButtonProps {
   isFocused: boolean;
   tabIndex: number;
   activeIndex: SharedValue<number>;
+  badge?: number;
   onPress: () => void;
 }
 
-function TabButton({ config, isFocused, tabIndex, activeIndex, onPress }: TabButtonProps) {
+function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, onPress }: TabButtonProps) {
 
   const animatedContainer = useAnimatedStyle(() => {
     const distance   = Math.abs(activeIndex.value - tabIndex);
@@ -156,6 +189,12 @@ function TabButton({ config, isFocused, tabIndex, activeIndex, onPress }: TabBut
           size={24}
           color={isFocused ? '#FFFFFF' : 'rgba(255,255,255,0.4)'}
         />
+        {/* Unread badge */}
+        {badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
       </Animated.View>
 
       {/* Micro-label — fades out when active (icon lifts to show it is selected) */}
@@ -278,5 +317,27 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginTop: -4,
+  },
+
+  // ── Unread badge ──
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF6B35',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#0C0C0E',
+  },
+  badgeText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: '#FFFFFF',
+    lineHeight: 14,
   },
 });

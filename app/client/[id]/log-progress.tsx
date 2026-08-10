@@ -1,30 +1,47 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../../../context/AppContext';
 import { useTheme } from '../../../context/ThemeContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../../constants/theme';
+import { Colors, Spacing, FontFamily, FontSize, Radius, getAvatarColor } from '../../../constants/theme';
 import Button from '../../../components/Button';
+
+const ORANGE = '#FF6B35';
 
 export default function LogProgressScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { addProgressLog, getClientById } = useApp();
 
   const client = getClientById(id || '');
 
   const [weight, setWeight] = useState('');
+  const [unit, setUnit] = useState<'lbs' | 'kg'>('lbs');
   const [bodyFat, setBodyFat] = useState('');
   const [chest, setChest] = useState('');
   const [waist, setWaist] = useState('');
   const [arms, setArms] = useState('');
   const [notes, setNotes] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   
   const [showMeasurements, setShowMeasurements] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
 
   const handleSave = async () => {
     if (!weight) {
@@ -39,14 +56,18 @@ export default function LogProgressScreen() {
       if (waist) measurements.waist = parseFloat(waist);
       if (arms) measurements.arms = parseFloat(arms);
 
+      // Convert weight to lbs for storage if entered in kg
+      const weightValue = parseFloat(weight);
+      const finalWeight = unit === 'kg' ? weightValue * 2.20462 : weightValue;
+
       await addProgressLog({
         client_id: id as string,
         date: new Date().toISOString().split('T')[0],
-        weight: parseFloat(weight),
+        weight: parseFloat(finalWeight.toFixed(1)),
         body_fat: bodyFat ? parseFloat(bodyFat) : null,
         measurements: Object.keys(measurements).length > 0 ? measurements : null,
         notes: notes || null,
-        photos: [], // Placeholder for future photo upload feature
+        photos: photoUri ? [photoUri] : [], // Use local URI for now, would be uploaded to storage in production
       });
 
       router.back();
@@ -66,7 +87,7 @@ export default function LogProgressScreen() {
         <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.bgElevated }]}>
           <Ionicons name="close" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Log Check-in</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Log Progress</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -74,19 +95,35 @@ export default function LogProgressScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
           <View style={styles.clientBadge}>
-            <Ionicons name="person-circle" size={24} color={Colors.purple} />
+            {client.avatar_url ? (
+              <View style={[styles.clientAvatar, { backgroundColor: '#333' }]} />
+            ) : (
+              <View style={[styles.clientAvatar, { backgroundColor: getAvatarColor(client.name) }]}>
+                <Text style={styles.clientAvatarText}>{client.name.charAt(0)}</Text>
+              </View>
+            )}
             <Text style={[styles.clientName, { color: colors.textSecondary }]}>{client.name}</Text>
           </View>
 
-          {/* Core Metrics */}
+          {/* Weight Field with Unit Toggle */}
           <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Weight (lbs)</Text>
+            <View style={styles.inputHeader}>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Weight</Text>
+              <View style={styles.unitToggle}>
+                <TouchableOpacity onPress={() => setUnit('lbs')} style={[styles.unitBtn, unit === 'lbs' && { backgroundColor: ORANGE }]}>
+                  <Text style={[styles.unitText, unit === 'lbs' ? { color: '#000' } : { color: colors.textTertiary }]}>lbs</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setUnit('kg')} style={[styles.unitBtn, unit === 'kg' && { backgroundColor: ORANGE }]}>
+                  <Text style={[styles.unitText, unit === 'kg' ? { color: '#000' } : { color: colors.textTertiary }]}>kg</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <TextInput
               style={[styles.input, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
               value={weight}
               onChangeText={setWeight}
               keyboardType="decimal-pad"
-              placeholder="e.g. 185.5"
+              placeholder={`e.g. ${unit === 'lbs' ? '185.5' : '84.1'}`}
               placeholderTextColor={colors.textTertiary}
               autoFocus
             />
@@ -110,7 +147,7 @@ export default function LogProgressScreen() {
             onPress={() => setShowMeasurements(!showMeasurements)}
             activeOpacity={0.7}
           >
-            <Ionicons name="body-outline" size={20} color={Colors.purple} />
+            <Ionicons name="body-outline" size={20} color={ORANGE} />
             <Text style={[styles.measurementsToggleText, { color: colors.textPrimary }]}>Add Body Measurements</Text>
             <Ionicons name={showMeasurements ? "chevron-up" : "chevron-down"} size={20} color={colors.textTertiary} />
           </TouchableOpacity>
@@ -155,6 +192,25 @@ export default function LogProgressScreen() {
             </View>
           )}
 
+          {/* Photos */}
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginTop: Spacing.md }]}>Progress Photo</Text>
+          <TouchableOpacity 
+            style={[styles.photoContainer, { backgroundColor: colors.bgElevated, borderColor: colors.border, borderStyle: photoUri ? 'solid' : 'dashed' }]}
+            onPress={handlePickImage}
+          >
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.photoImage} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <View style={styles.photoIconRing}>
+                  <Ionicons name="camera" size={24} color={ORANGE} />
+                </View>
+                <Text style={[styles.photoTitle, { color: colors.textPrimary }]}>Add Photo</Text>
+                <Text style={[styles.photoSub, { color: colors.textTertiary }]}>Front, side, or back view</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           {/* Notes */}
           <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border, marginTop: Spacing.lg }]}>
             <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Notes (Optional)</Text>
@@ -170,21 +226,12 @@ export default function LogProgressScreen() {
             />
           </View>
 
-          {/* Photos Placeholder */}
-          <View style={[styles.photosPlaceholder, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}>
-            <View style={styles.photoIconRing}>
-              <Ionicons name="camera" size={24} color={Colors.purple} />
-            </View>
-            <Text style={[styles.photoTitle, { color: colors.textPrimary }]}>Progress Photos</Text>
-            <Text style={[styles.photoSub, { color: colors.textTertiary }]}>Cloud storage configuration required.</Text>
-          </View>
-
           <View style={{ height: Spacing['4xl'] }} />
         </ScrollView>
 
         <View style={[styles.footer, { backgroundColor: colors.bgPrimary, borderTopColor: colors.border }]}>
           <Button 
-            title="Save Progress" 
+            title={saving ? "Saving..." : "Save Progress"} 
             onPress={handleSave} 
             loading={saving}
           />
@@ -203,10 +250,17 @@ const styles = StyleSheet.create({
   scrollContent: { padding: Spacing.lg },
   
   clientBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xl, alignSelf: 'center' },
+  clientAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  clientAvatarText: { color: '#FFF', fontSize: 12, fontFamily: FontFamily.bodyBold },
   clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
 
   inputGroup: { padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginBottom: Spacing.md },
-  inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, marginBottom: Spacing.sm },
+  inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
+  unitToggle: { flexDirection: 'row', backgroundColor: '#111', borderRadius: Radius.sm, overflow: 'hidden' },
+  unitBtn: { paddingHorizontal: Spacing.md, paddingVertical: 4 },
+  unitText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
+  
   input: { height: 48, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, fontFamily: FontFamily.body, fontSize: FontSize.base },
   textArea: { minHeight: 100, borderRadius: Radius.sm, padding: Spacing.md, fontFamily: FontFamily.body, fontSize: FontSize.base },
 
@@ -218,8 +272,11 @@ const styles = StyleSheet.create({
   measInputWrap: { flex: 1 },
   measLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginBottom: 4 },
 
-  photosPlaceholder: { alignItems: 'center', padding: Spacing.xl, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed', marginTop: Spacing.lg },
-  photoIconRing: { width: 48, height: 48, borderRadius: 24, backgroundColor: `${Colors.purple}20`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, marginBottom: Spacing.sm },
+  photoContainer: { height: 200, borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden' },
+  photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  photoIconRing: { width: 48, height: 48, borderRadius: 24, backgroundColor: `${ORANGE}20`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   photoTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
   photoSub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 4, textAlign: 'center' },
 

@@ -617,8 +617,8 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   bubbleRow: { flexDirection: 'row', marginBottom: Spacing.sm },
   bubbleRowRight: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.xs },
-  bubbleSent: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FFFFFF' },
-  bubbleReceived: { backgroundColor: '#0A0A0A', borderWidth: 1, borderColor: colors.borderStrong },
+  bubbleSent: { backgroundColor: '#C8F135', borderWidth: 1, borderColor: '#C8F135' },
+  bubbleReceived: { backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: colors.borderStrong },
   bubbleText: { fontFamily: FontFamily.body, fontSize: FontSize.base, lineHeight: 21 },
   bubbleTextSent: { color: '#000000', fontFamily: FontFamily.bodyMedium },
   bubbleTextReceived: { color: colors.textPrimary },
@@ -644,7 +644,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.borderStrong,
     alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
+  sendBtnActive: { backgroundColor: '#C8F135', borderColor: '#C8F135' },
 
   attachBtn: {
     width: 44, height: 42, borderRadius: Radius.xs,
@@ -696,7 +696,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   workoutPickerTitle: { fontFamily: FontFamily.bodyBold, fontSize: FontSize.sm, color: colors.textPrimary },
   workoutPickerSub: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, marginTop: 1 },
   attachBadge: {
-    backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.xs
+    backgroundColor: '#C8F135', paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.xs
   },
   attachBadgeText: { fontFamily: FontFamily.heading, fontSize: 10, color: '#000000', letterSpacing: 0.8 },
 });
