@@ -143,36 +143,52 @@ export default function ClientsScreen() {
     return { text: 'Complete profile →', color: '#C8F135' };
   }
 
-  // ─── Swipe right-actions ─────────────────────────────────────────────────────
-  const renderRightActions = (item: Client) => (
-    <View style={styles.swipeActions}>
-      {[
-        { id: 'message',  icon: 'chatbubble',  color: '#60A5FA', label: 'Message',
-          onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/messages'); } },
-        { id: 'schedule', icon: 'calendar',    color: '#A78BFA', label: 'Schedule',
-          onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/schedule'); } },
-        { id: 'call',     icon: 'call',        color: '#334155', label: 'Call',
-          onPress: () => {
-            haptic.trigger('medium');
-            if (item.phone) { Linking.openURL(`tel:${item.phone}`); }
-            else Alert.alert('No phone number', `${toTitleCase(item.name)} has no phone on file.`);
-          }},
-      ].map(a => (
-        <TouchableOpacity
-          key={a.id}
-          style={[styles.swipeBtn, { backgroundColor: a.color }]}
-          onPress={a.onPress}
-          activeOpacity={0.8}
-          // HIG: minimum 44pt touch targets via height on swipeBtn
-          accessibilityRole="button"
-          accessibilityLabel={`${a.label} ${toTitleCase(item.name)}`}
-        >
-          <Ionicons name={a.icon as any} size={18} color="#FFFFFF" />
-          <Text style={styles.swipeBtnLabel}>{a.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  // ─── Swipe right-actions ──────────────────────────────────────────────────────
+  // Width of the 3-button panel (3×64 + 2×6 gap + 8 paddingLeft)
+  const ACTIONS_WIDTH = 214;
+
+  const renderRightActions = (
+    item: Client,
+    _progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>,
+  ) => {
+    // Tie translateX directly to the drag position so the panel
+    // always moves frame-perfectly in sync with the card — no lag on close.
+    const translateX = dragX.interpolate({
+      inputRange:  [-ACTIONS_WIDTH, 0],
+      outputRange: [0, ACTIONS_WIDTH],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <Animated.View style={[styles.swipeActions, { transform: [{ translateX }] }]}>
+        {[
+          { id: 'message',  icon: 'chatbubble',  color: '#60A5FA', label: 'Message',
+            onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/messages'); } },
+          { id: 'schedule', icon: 'calendar',    color: '#A78BFA', label: 'Schedule',
+            onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/schedule'); } },
+          { id: 'call',     icon: 'call',        color: '#334155', label: 'Call',
+            onPress: () => {
+              haptic.trigger('medium');
+              if (item.phone) { Linking.openURL(`tel:${item.phone}`); }
+              else Alert.alert('No phone number', `${toTitleCase(item.name)} has no phone on file.`);
+            }},
+        ].map(a => (
+          <TouchableOpacity
+            key={a.id}
+            style={[styles.swipeBtn, { backgroundColor: a.color }]}
+            onPress={a.onPress}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`${a.label} ${toTitleCase(item.name)}`}
+          >
+            <Ionicons name={a.icon as any} size={18} color="#FFFFFF" />
+            <Text style={styles.swipeBtnLabel}>{a.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </Animated.View>
+    );
+  };
 
   // ─── Client card ─────────────────────────────────────────────────────────────
   const renderClient = ({ item, index }: { item: Client; index: number }) => {
@@ -188,9 +204,10 @@ export default function ClientsScreen() {
     return (
       <Swipeable
         ref={index === 0 ? firstItemRef : undefined}
-        renderRightActions={() => renderRightActions(item)}
+        renderRightActions={(progress, dragX) => renderRightActions(item, progress, dragX)}
         friction={2}
         rightThreshold={40}
+        overshootRight={false}  /* prevents card bouncing past x=0 on close → no overlap flash */
         containerStyle={{ overflow: 'visible' }}
       >
         <TouchableOpacity
