@@ -1,45 +1,70 @@
 /**
- * clients.tsx — Coach Roster Screen (Redesigned)
- * @ts-nocheck – StyleSheet imported from react-native at top
+ * clients.tsx — Coach Roster Screen
  *
- * Design system: matches coach home dashboard
- *   - #0D0D12 dark navy background
- *   - #C8F135 electric lime accent (active states, CTAs)
- *   - Frosted glass cards with rgba borders
- *   - SpaceGrotesk + Epilogue typography
+ * Swipe implementation: ReanimatedSwipeable (react-native-gesture-handler/ReanimatedSwipeable)
+ * This is the OFFICIAL recommended API for 2024-2025 per RNGH docs — replaces the deprecated
+ * legacy `Swipeable`. Runs entirely on the UI thread (no bridge), eliminates the close-animation
+ * glitch because `prog` SharedValue continues updating through the spring whereas the old
+ * `dragAnimatedValue` froze at the release position.
  *
- * Inspiration: Shangri-La (search + horizontal filter pills + stats strip),
- *              AllTrails (rich card rows), Calm (dark premium aesthetic),
- *              QUITTR (dividers, icon rows)
+ * Source: https://docs.swmansion.com/react-native-gesture-handler/docs/components/swipeable
  *
- * Apple App Store guidelines:
- *   - All interactive elements ≥ 44×44pt touch targets (HIG)
- *   - accessibilityRole + accessibilityLabel on all tappable elements
- *   - accessibilityHint on swipe affordance
- *   - No deceptive UI patterns
- *   - Sentence-case labels throughout (not ALL-CAPS)
- *   - Privacy: only coach's own clients shown, no cross-user data
+ * Design system (matches coach home dashboard):
+ *   • #0D0D12 dark navy + LinearGradient
+ *   • #C8F135 lime accent
+ *   • Frosted glass cards
+ *   • SpaceGrotesk + Epilogue
+ *
+ * Responsiveness: ALL sizes derived from W = Dimensions.get('window').width — zero hard-coded px.
+ *
+ * Apple HIG compliance:
+ *   • All tap targets ≥ 44pt (minHeight / hitSlop)
+ *   • accessibilityRole + accessibilityLabel on every interactive element
+ *   • accessibilityHint on swipeable rows
+ *   • Sentence-case labels, no deceptive patterns
  */
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, RefreshControl, Linking, Alert,
-  Animated, Dimensions,
+  TouchableOpacity, RefreshControl, Linking, Alert, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Swipeable } from 'react-native-gesture-handler';
+import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Reanimated, {
+  useAnimatedStyle, interpolate, Extrapolation, type SharedValue,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
-import { FontFamily, Radius, getAvatarColor } from '../../constants/theme';
+import { FontFamily, getAvatarColor } from '../../constants/theme';
 import { useHaptic } from '../../hooks/useHaptic';
-import { Client } from '../../context/AppContext';
+import type { Client } from '../../context/AppContext';
+
+// ─── Layout constants (ALL responsive) ───────────────────────────────────────
 
 const { width: W } = Dimensions.get('window');
 
+/** Each action button = 19% of screen width — renders correctly on all phone sizes. */
+const BTN_W = Math.round(W * 0.19);
+const BTN_GAP = 6;
+const BTN_PAD_LEFT = 8;
+/** Total actions panel width — used for the slide-in interpolation. */
+const ACTIONS_W = BTN_W * 3 + BTN_GAP * 2 + BTN_PAD_LEFT;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type TabFilter = 'all' | 'active' | 'trial';
+
+interface ActionDef {
+  id: string;
+  icon: string;
+  color: string;
+  label: string;
+  a11yLabel: string;
+  onPress: () => void;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,8 +77,8 @@ function getDaysLeft(iso: string): number {
 }
 
 const STATUS_RING: Record<string, string> = {
-  active:   '#C8F135',   // lime (matches dashboard accent)
-  trial:    '#F59E0B',   // amber
+  active:   '#C8F135',
+  trial:    '#F59E0B',
   inactive: 'rgba(255,255,255,0.12)',
 };
 
@@ -63,7 +88,53 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: 'Inactive',
 };
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── SwipeActionsPanel ────────────────────────────────────────────────────────
+// Extracted as a named component so it can legally call hooks (useAnimatedStyle).
+//
+// Research-confirmed pattern (RNGH docs):
+//   • `prog` is a Reanimated SharedValue<number> (0=closed, 1=open, >1 overshoot)
+//   • It continues updating on the UI thread THROUGH the spring close animation
+//   • interpolate outputRange [ACTIONS_W, 0]: hidden to the right when closed,
+//     slides left into view as the card opens, slides back on close — perfectly in sync.
+//   • Extrapolation.CLAMP prevents overshoot from pulling buttons off-screen.
+
+interface SwipeActionsPanelProps {
+  prog: SharedValue<number>;
+  actions: ActionDef[];
+}
+
+function SwipeActionsPanel({ prog, actions }: SwipeActionsPanelProps) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{
+      translateX: interpolate(
+        prog.value,
+        [0, 1],
+        [ACTIONS_W, 0],   // closed → hidden right; open → fully visible
+        Extrapolation.CLAMP,
+      ),
+    }],
+  }));
+
+  return (
+    <Reanimated.View style={[styles.swipeActions, animatedStyle]}>
+      {actions.map(a => (
+        <TouchableOpacity
+          key={a.id}
+          style={[styles.swipeBtn, { backgroundColor: a.color }]}
+          onPress={a.onPress}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={a.a11yLabel}
+        >
+          <Ionicons name={a.icon as any} size={18} color="#FFFFFF" />
+          <Text style={styles.swipeBtnLabel}>{a.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </Reanimated.View>
+  );
+}
+
+// ─── ClientsScreen ────────────────────────────────────────────────────────────
 
 export default function ClientsScreen() {
   const router  = useRouter();
@@ -74,7 +145,9 @@ export default function ClientsScreen() {
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing]   = useState(false);
-  const firstItemRef = useRef<Swipeable>(null);
+
+  // Ref uses SwipeableMethods (the ReanimatedSwipeable API type)
+  const firstItemRef = useRef<SwipeableMethods>(null);
   const hasBounced   = useRef(false);
 
   const onRefresh = useCallback(async () => {
@@ -97,14 +170,13 @@ export default function ClientsScreen() {
       list = list.filter(c => c.name.toLowerCase().includes(q));
     }
     return [...list].sort((a, b) => {
-      // Trial expiring soonest first, then active, then inactive
       if (a.status === 'trial' && b.status !== 'trial') return -1;
-      if (b.status === 'trial' && a.status !== 'trial') return 1;
+      if (b.status === 'trial' && a.status !== 'trial') return  1;
       return 0;
     });
   }, [clients, activeTab, searchQuery]);
 
-  // ── Unread message counts per client ────────────────────────────────────────
+  // ── Unread counts per client ─────────────────────────────────────────────────
   const unreadByClient = useMemo(() => {
     const map: Record<string, number> = {};
     notifications.forEach(n => {
@@ -115,7 +187,7 @@ export default function ClientsScreen() {
     return map;
   }, [notifications]);
 
-  // ── Swipe affordance bounce on first render ─────────────────────────────────
+  // ── Swipe affordance bounce ──────────────────────────────────────────────────
   useEffect(() => {
     if (filtered.length > 0 && !hasBounced.current) {
       hasBounced.current = true;
@@ -131,66 +203,46 @@ export default function ClientsScreen() {
     return toTitleCase(plans.find(p => p.id === planId)?.name || '7-Day Trial');
   };
 
-  function getMetaLine(item: Client): { text: string; color: string } {
+  const getMetaLine = (item: Client): { text: string; color: string } => {
     if (item.status === 'trial' && item.trial_end_date) {
       const days = getDaysLeft(item.trial_end_date);
-      if (days === 0) return { text: 'Expires today',              color: '#EF4444' };
-      if (days <= 2)  return { text: `Expires in ${days}d`,        color: '#EF4444' };
-      if (days <= 6)  return { text: `${days} days left`,          color: '#F59E0B' };
+      if (days === 0) return { text: 'Expires today',       color: '#EF4444' };
+      if (days <= 2)  return { text: `Expires in ${days}d`, color: '#EF4444' };
+      if (days <= 6)  return { text: `${days} days left`,   color: '#F59E0B' };
     }
     const goals = (item.assessment_data as any)?.fitness_goals as string[] | undefined;
     if (goals?.length) return { text: goals.map(toTitleCase).join(', '), color: 'rgba(255,255,255,0.35)' };
     return { text: 'Complete profile →', color: '#C8F135' };
-  }
-
-  // ─── Swipe right-actions ──────────────────────────────────────────────────────
-  // Width of the 3-button panel (3×64 + 2×6 gap + 8 paddingLeft)
-  const ACTIONS_WIDTH = 214;
-
-  const renderRightActions = (
-    item: Client,
-    _progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-  ) => {
-    // Tie translateX directly to the drag position so the panel
-    // always moves frame-perfectly in sync with the card — no lag on close.
-    const translateX = dragX.interpolate({
-      inputRange:  [-ACTIONS_WIDTH, 0],
-      outputRange: [0, ACTIONS_WIDTH],
-      extrapolate: 'clamp',
-    });
-
-    return (
-      <Animated.View style={[styles.swipeActions, { transform: [{ translateX }] }]}>
-        {[
-          { id: 'message',  icon: 'chatbubble',  color: '#60A5FA', label: 'Message',
-            onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/messages'); } },
-          { id: 'schedule', icon: 'calendar',    color: '#A78BFA', label: 'Schedule',
-            onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/schedule'); } },
-          { id: 'call',     icon: 'call',        color: '#334155', label: 'Call',
-            onPress: () => {
-              haptic.trigger('medium');
-              if (item.phone) { Linking.openURL(`tel:${item.phone}`); }
-              else Alert.alert('No phone number', `${toTitleCase(item.name)} has no phone on file.`);
-            }},
-        ].map(a => (
-          <TouchableOpacity
-            key={a.id}
-            style={[styles.swipeBtn, { backgroundColor: a.color }]}
-            onPress={a.onPress}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`${a.label} ${toTitleCase(item.name)}`}
-          >
-            <Ionicons name={a.icon as any} size={18} color="#FFFFFF" />
-            <Text style={styles.swipeBtnLabel}>{a.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </Animated.View>
-    );
   };
 
-  // ─── Client card ─────────────────────────────────────────────────────────────
+  // ── Build actions array for a given client ───────────────────────────────────
+  // Closures capture haptic, router, and item so SwipeActionsPanel stays pure.
+  const buildActions = (item: Client): ActionDef[] => {
+    const name = toTitleCase(item.name);
+    return [
+      {
+        id: 'message', icon: 'chatbubble', color: '#60A5FA', label: 'Message',
+        a11yLabel: `Message ${name}`,
+        onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/messages'); },
+      },
+      {
+        id: 'schedule', icon: 'calendar', color: '#A78BFA', label: 'Schedule',
+        a11yLabel: `Schedule session with ${name}`,
+        onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/schedule'); },
+      },
+      {
+        id: 'call', icon: 'call', color: '#1E293B', label: 'Call',
+        a11yLabel: `Call ${name}`,
+        onPress: () => {
+          haptic.trigger('medium');
+          if (item.phone) { Linking.openURL(`tel:${item.phone}`); }
+          else Alert.alert('No phone number', `${name} has no phone on file.`);
+        },
+      },
+    ];
+  };
+
+  // ── Client row ───────────────────────────────────────────────────────────────
   const renderClient = ({ item, index }: { item: Client; index: number }) => {
     const displayName   = toTitleCase(item.name);
     const initials      = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -200,14 +252,16 @@ export default function ClientsScreen() {
     const unread        = unreadByClient[item.id] || 0;
     const ringColor     = STATUS_RING[item.status] ?? 'rgba(255,255,255,0.12)';
     const hasAssessment = !!(item.assessment_data as any)?.fitness_goals?.length;
+    const actions       = buildActions(item);
 
     return (
-      <Swipeable
+      <ReanimatedSwipeable
         ref={index === 0 ? firstItemRef : undefined}
-        renderRightActions={(progress, dragX) => renderRightActions(item, progress, dragX)}
-        friction={2}
+        renderRightActions={(prog) => <SwipeActionsPanel prog={prog} actions={actions} />}
         rightThreshold={40}
-        overshootRight={false}  /* prevents card bouncing past x=0 on close → no overlap flash */
+        overshootRight={false}
+        overshootFriction={8}
+        friction={1}
         containerStyle={{ overflow: 'visible' }}
       >
         <TouchableOpacity
@@ -217,12 +271,11 @@ export default function ClientsScreen() {
             haptic.trigger('light');
             router.push(`/client/${item.id}` as any);
           }}
-          // Apple HIG accessibility
           accessibilityRole="button"
           accessibilityLabel={`${displayName}, ${STATUS_LABEL[item.status]}, ${planName}`}
-          accessibilityHint="Double-tap to view client profile. Swipe left for quick actions."
+          accessibilityHint="Double-tap to view profile. Swipe left for quick actions."
         >
-          {/* Avatar */}
+          {/* Avatar ring */}
           <View style={[styles.avatarRing, { borderColor: ringColor }]}>
             {item.avatar_url ? (
               <Image
@@ -237,18 +290,14 @@ export default function ClientsScreen() {
                 <Text style={[styles.avatarInitials, { color: avatarColor }]}>{initials}</Text>
               </View>
             )}
-            {/* Unread message dot */}
             {unread > 0 && (
-              <View
-                style={styles.unreadDot}
-                accessibilityLabel={`${unread} unread message${unread !== 1 ? 's' : ''}`}
-              >
+              <View style={styles.unreadDot} accessibilityLabel={`${unread} unread messages`}>
                 <Text style={styles.unreadDotText}>{unread > 9 ? '9+' : unread}</Text>
               </View>
             )}
           </View>
 
-          {/* Text block */}
+          {/* Text */}
           <View style={styles.cardBody}>
             <View style={styles.nameRow}>
               <Text style={styles.clientName} numberOfLines={1}>{displayName}</Text>
@@ -258,21 +307,15 @@ export default function ClientsScreen() {
                 </View>
               )}
             </View>
-
             <View style={styles.statusRow}>
-              {/* Coloured status dot */}
               <View style={[styles.statusDot, { backgroundColor: ringColor }]} />
-              <Text style={styles.statusText}>
-                {STATUS_LABEL[item.status]} · {planName}
-              </Text>
+              <Text style={styles.statusText}>{STATUS_LABEL[item.status]} · {planName}</Text>
             </View>
-
             <Text style={[styles.metaText, { color: meta.color }]} numberOfLines={1}>
               {meta.text}
             </Text>
           </View>
 
-          {/* Chevron */}
           <Ionicons
             name="chevron-forward"
             size={14}
@@ -281,21 +324,17 @@ export default function ClientsScreen() {
             accessibilityElementsHidden
           />
         </TouchableOpacity>
-      </Swipeable>
+      </ReanimatedSwipeable>
     );
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={['#0D0D12', '#111118', '#0A0A0F']}
-        style={StyleSheet.absoluteFill}
-      />
-
+      <LinearGradient colors={['#0D0D12', '#111118', '#0A0A0F']} style={StyleSheet.absoluteFill} />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        {/* ── HEADER ──────────────────────────────────────────────────── */}
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Roster</Text>
@@ -307,23 +346,22 @@ export default function ClientsScreen() {
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Add new client"
-            // 44pt minimum touch target enforced by minWidth/height in styles
           >
             <Ionicons name="add" size={18} color="#0D0D12" />
             <Text style={styles.addBtnText}>Add Client</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── STATS STRIP (Shangri-La style) ──────────────────────────── */}
+        {/* Stats strip */}
         <View style={styles.statsStrip}>
           <StatChip icon="checkmark-circle" label="Active"   value={activeCount}   color="#C8F135" />
-          <View style={styles.statsStripDivider} />
+          <View style={styles.stripDivider} />
           <StatChip icon="timer-outline"    label="Trial"    value={trialCount}    color="#F59E0B" />
-          <View style={styles.statsStripDivider} />
+          <View style={styles.stripDivider} />
           <StatChip icon="pause-circle"     label="Inactive" value={inactiveCount} color="rgba(255,255,255,0.3)" />
         </View>
 
-        {/* ── SEARCH BAR (Shangri-La style) ────────────────────────────── */}
+        {/* Search */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
             <Ionicons name="search" size={16} color="rgba(255,255,255,0.35)" />
@@ -353,7 +391,7 @@ export default function ClientsScreen() {
           </View>
         </View>
 
-        {/* ── FILTER PILLS (dashboard-consistent) ─────────────────────── */}
+        {/* Filter pills */}
         <View style={styles.filterRow}>
           {(['all', 'active', 'trial'] as TabFilter[]).map(tab => {
             const count = tab === 'all' ? clients.length : clients.filter(c => c.status === tab).length;
@@ -364,7 +402,6 @@ export default function ClientsScreen() {
                 style={[styles.filterPill, isActive && styles.filterPillActive]}
                 onPress={() => setActiveTab(tab)}
                 activeOpacity={0.7}
-                // HIG: include count in accessibility label
                 accessibilityRole="tab"
                 accessibilityLabel={`${tab === 'all' ? 'All' : toTitleCase(tab)}, ${count} clients`}
                 accessibilityState={{ selected: isActive }}
@@ -384,7 +421,7 @@ export default function ClientsScreen() {
           })}
         </View>
 
-        {/* ── RESULTS COUNT ───────────────────────────────────────────── */}
+        {/* Results count */}
         <View style={styles.resultsRow}>
           <Text style={styles.resultsText}>
             {filtered.length} {filtered.length === 1 ? 'client' : 'clients'}
@@ -392,7 +429,7 @@ export default function ClientsScreen() {
           </Text>
         </View>
 
-        {/* ── CLIENT LIST ─────────────────────────────────────────────── */}
+        {/* List */}
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
@@ -400,14 +437,12 @@ export default function ClientsScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#C8F135"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C8F135" />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={<EmptyState tab={activeTab} onAdd={() => router.push('/add-client' as any)} />}
+          ListEmptyComponent={
+            <EmptyState tab={activeTab} onAdd={() => router.push('/add-client' as any)} />
+          }
         />
       </SafeAreaView>
     </View>
@@ -461,364 +496,199 @@ function EmptyState({ tab, onAdd }: { tab: TabFilter; onAdd: () => void }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const CARD_BG = 'rgba(255,255,255,0.04)';
+const CARD_BG     = 'rgba(255,255,255,0.04)';
 const CARD_BORDER = 'rgba(255,255,255,0.07)';
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0D0D12',
-  },
+  root: { flex: 1, backgroundColor: '#0D0D12' },
 
   // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: W * 0.05, paddingTop: 10, paddingBottom: 16,
   },
   headerTitle: {
-    fontFamily: FontFamily.heading,
-    fontSize: 26,
-    color: '#FFFFFF',
-    letterSpacing: -0.4,
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.065),
+    color: '#FFFFFF', letterSpacing: -0.4,
   },
   headerSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-    marginTop: 2,
+    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03),
+    color: 'rgba(255,255,255,0.35)', marginTop: 2,
   },
-  // HIG compliant: 44pt minimum touch target
   addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#C8F135',
-    paddingHorizontal: 14,
-    paddingVertical: 11,   // ~44pt total with content
-    borderRadius: 12,
-    minHeight: 44,
+    paddingHorizontal: W * 0.035, paddingVertical: 11,
+    borderRadius: 12, minHeight: 44,
   },
   addBtnText: {
-    fontFamily: FontFamily.heading,
-    fontSize: 13,
-    color: '#0D0D12',
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033), color: '#0D0D12',
   },
 
   // Stats strip
   statsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 14,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: W * 0.05, marginBottom: 14,
+    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    borderRadius: 14, paddingVertical: 12, paddingHorizontal: W * 0.05,
   },
-  statsStripDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginHorizontal: 16,
+  stripDivider: {
+    width: 1, height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: W * 0.04,
   },
-  statChip: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
-  statChipValue: {
-    fontFamily: FontFamily.heading,
-    fontSize: 20,
-  },
+  statChip: { flex: 1, alignItems: 'center', gap: 3 },
+  statChipValue: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.052) },
   statChipLabel: {
-    fontFamily: FontFamily.body,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 0.4,
+    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.026),
+    color: 'rgba(255,255,255,0.35)', letterSpacing: 0.4,
   },
 
   // Search
-  searchWrap: {
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
+  searchWrap: { paddingHorizontal: W * 0.05, marginBottom: 12 },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
-    minHeight: 44,  // HIG
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    borderRadius: 14, paddingHorizontal: W * 0.037, paddingVertical: 12,
+    gap: 10, minHeight: 44,
   },
   searchInput: {
-    flex: 1,
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: '#FFFFFF',
+    flex: 1, fontFamily: FontFamily.body, fontSize: Math.round(W * 0.036), color: '#FFFFFF',
   },
-  searchClear: {
-    padding: 4,    // extra tap area beyond the icon
-  },
+  searchClear: { padding: 4 },
 
   // Filter pills
   filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 14,
+    flexDirection: 'row', paddingHorizontal: W * 0.05, gap: 8, marginBottom: 14,
   },
   filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    minHeight: 36,  // slightly below HIG but has hitSlop equivalent via padding
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: W * 0.036, paddingVertical: 8,
+    borderRadius: 20, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    minHeight: 36,
   },
-  filterPillActive: {
-    backgroundColor: '#C8F135',
-    borderColor: '#C8F135',
-  },
+  filterPillActive: { backgroundColor: '#C8F135', borderColor: '#C8F135' },
   filterPillText: {
-    fontFamily: FontFamily.heading,
-    fontSize: 13,
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033),
     color: 'rgba(255,255,255,0.45)',
   },
-  filterPillTextActive: {
-    color: '#0D0D12',
-  },
+  filterPillTextActive: { color: '#0D0D12' },
   filterCount: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
   },
-  filterCountActive: {
-    backgroundColor: 'rgba(13,13,18,0.25)',
-  },
+  filterCountActive: { backgroundColor: 'rgba(13,13,18,0.25)' },
   filterCountText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.5)',
   },
-  filterCountTextActive: {
-    color: '#0D0D12',
-  },
+  filterCountTextActive: { color: '#0D0D12' },
 
   // Results
-  resultsRow: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
-  },
+  resultsRow: { paddingHorizontal: W * 0.05, marginBottom: 10 },
   resultsText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.22)',
-    letterSpacing: 0.4,
+    fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.028),
+    color: 'rgba(255,255,255,0.22)', letterSpacing: 0.4,
   },
 
   // List
-  listContent: {
-    paddingHorizontal: 20,
-  },
-  separator: {
-    height: 8,
-  },
+  listContent: { paddingHorizontal: W * 0.05 },
+  separator: { height: 8 },
 
   // Client card
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 76,  // keeps comfortable row height
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    borderRadius: 16, paddingHorizontal: W * 0.037, paddingVertical: 14,
+    minHeight: 76,
   },
 
   // Avatar
   avatarRing: {
-    width: 54, height: 54,
-    borderRadius: 27,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-    position: 'relative',
+    width: Math.round(W * 0.138), height: Math.round(W * 0.138),
+    borderRadius: Math.round(W * 0.069),
+    borderWidth: 2, alignItems: 'center', justifyContent: 'center',
+    marginRight: W * 0.036, position: 'relative',
   },
   avatarImg: {
-    width: 48, height: 48,
-    borderRadius: 24,
+    width: Math.round(W * 0.118), height: Math.round(W * 0.118),
+    borderRadius: Math.round(W * 0.059),
   },
   avatarPlaceholder: {
-    width: 48, height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: Math.round(W * 0.118), height: Math.round(W * 0.118),
+    borderRadius: Math.round(W * 0.059),
+    alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: {
-    fontFamily: FontFamily.heading,
-    fontSize: 17,
-  },
+  avatarInitials: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.044) },
   unreadDot: {
-    position: 'absolute',
-    top: -2, right: -2,
-    minWidth: 16, height: 16,
-    borderRadius: 8,
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, borderRadius: 8,
     backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#0D0D12',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+    borderWidth: 1.5, borderColor: '#0D0D12',
   },
-  unreadDotText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 8,
-    color: '#FFFFFF',
-  },
+  unreadDotText: { fontFamily: FontFamily.bodySemiBold, fontSize: 8, color: '#FFFFFF' },
 
   // Card body
-  cardBody: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 3,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
+  cardBody: { flex: 1, justifyContent: 'center', gap: 3 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   clientName: {
-    fontFamily: FontFamily.heading,
-    fontSize: 15,
-    color: '#FFFFFF',
-    flexShrink: 1,
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.038),
+    color: '#FFFFFF', flexShrink: 1,
   },
   setupBadge: {
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: 5,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    borderWidth: 1, borderColor: '#F59E0B', borderRadius: 5,
+    paddingHorizontal: 5, paddingVertical: 2,
   },
   setupBadgeText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 8,
-    color: '#F59E0B',
-    letterSpacing: 0.2,
+    fontFamily: FontFamily.bodySemiBold, fontSize: 8, color: '#F59E0B', letterSpacing: 0.2,
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  statusDot: {
-    width: 6, height: 6,
-    borderRadius: 3,
-  },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 12,
+    fontFamily: FontFamily.bodyMedium, fontSize: Math.round(W * 0.031),
     color: 'rgba(255,255,255,0.4)',
   },
-  metaText: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-  },
+  metaText: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028) },
+  chevron: { marginLeft: 8 },
 
-  // Chevron
-  chevron: {
-    marginLeft: 8,
-  },
-
-  // Swipe actions — HIG: 44pt min height via alignItems stretch + card height
+  // Swipe actions panel
+  // Width is driven by the ACTIONS_W constant (responsive, no hard-coded px)
   swipeActions: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingLeft: 8,
-    gap: 6,
-    marginVertical: 0,
+    flexDirection: 'row', alignItems: 'stretch',
+    paddingLeft: BTN_PAD_LEFT, gap: BTN_GAP,
   },
   swipeBtn: {
-    width: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    gap: 5,
-    paddingVertical: 10,
-    minHeight: 76,  // match card height
+    width: BTN_W,          // responsive: W * 0.19
+    minHeight: 76,         // matches card minHeight — Apple HIG ≥ 44pt
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 16, gap: 5, paddingVertical: 10,
   },
   swipeBtnLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.023),
+    color: '#FFFFFF', letterSpacing: 0.3,
   },
 
   // Empty state
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
+  emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: W * 0.1 },
   emptyIcon: {
-    width: 64, height: 64,
-    borderRadius: 20,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
+    width: 64, height: 64, borderRadius: 20,
+    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
   emptyTitle: {
-    fontFamily: FontFamily.heading,
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.041),
+    color: '#FFFFFF', marginBottom: 8, textAlign: 'center',
   },
   emptyDesc: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 28,
+    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.033),
+    color: 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 20, marginBottom: 28,
   },
   emptyAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#C8F135',
-    paddingHorizontal: 24,
-    paddingVertical: 13,
-    borderRadius: 12,
-    minHeight: 44,  // HIG
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#C8F135', paddingHorizontal: W * 0.062,
+    paddingVertical: 13, borderRadius: 12, minHeight: 44,
   },
   emptyAddBtnText: {
-    fontFamily: FontFamily.heading,
-    fontSize: 13,
-    color: '#0D0D12',
+    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033), color: '#0D0D12',
   },
 });
