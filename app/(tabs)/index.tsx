@@ -15,7 +15,6 @@ import { Client } from '../../context/AppContext';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = W * 0.72;
-const QUICK_W = (W - 48) / 4;
 
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
@@ -151,24 +150,32 @@ export default function CoachHomeScreen() {
           )}
         </ScrollView>
 
-        {/* ── QUICK ACTIONS GRID ──────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-        <View style={styles.quickGrid}>
-          {QUICK_ACTIONS.map((a) => (
-            <TouchableOpacity
-              key={a.label}
-              style={styles.quickItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(a.route as any)}
-            >
-              <View style={styles.quickIconWrap}>
-                <Ionicons name={a.icon as any} size={24} color="#C8F135" />
-              </View>
-              <Text style={styles.quickLabel}>{a.label}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── QUICK ACTIONS — QUITTR style divider row ────────────── */}
+        <View style={styles.quickRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickRowInner}
+          >
+            {QUICK_ACTIONS.map((a, index) => (
+              <React.Fragment key={a.label}>
+                <TouchableOpacity
+                  style={styles.quickItem}
+                  activeOpacity={0.65}
+                  onPress={() => router.push(a.route as any)}
+                >
+                  <View style={styles.quickIconWrap}>
+                    <Ionicons name={a.icon as any} size={22} color="#C8F135" />
+                  </View>
+                  <Text style={styles.quickLabel}>{a.label}</Text>
+                </TouchableOpacity>
+                {/* Vertical divider between items, not after last */}
+                {index < QUICK_ACTIONS.length - 1 && (
+                  <View style={styles.quickDivider} />
+                )}
+              </React.Fragment>
+            ))}
+          </ScrollView>
         </View>
 
         {/* ── HERO BANNER ─────────────────────────────────────────── */}
@@ -468,33 +475,57 @@ const styles = StyleSheet.create({
     color: '#C8F135',
   },
 
-  // Quick Actions
-  quickGrid: {
+  // Quick Actions — QUITTR divider row
+  quickRow: {
+    marginHorizontal: 20,
+    marginTop: 22,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.045)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    overflow: 'hidden',
+  },
+  quickRowInner: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 0,
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   quickItem: {
-    width: QUICK_W,
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
   },
   quickIconWrap: {
-    width: 52, height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(200,241,53,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(200,241,53,0.15)',
+    width: 50, height: 50,
+    borderRadius: 25,
+    // Subtle lime glow ring
+    backgroundColor: 'rgba(200,241,53,0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(200,241,53,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    // Inner shadow feel
+    shadowColor: '#C8F135',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   quickLabel: {
     fontFamily: FontFamily.regular,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.2,
+    textAlign: 'center',
+  },
+  // Vertical divider between quick action items
+  quickDivider: {
+    width: 1,
+    height: 52,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'center',
   },
 
   // Hero Banner
