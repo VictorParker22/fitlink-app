@@ -40,6 +40,7 @@ import { Calendar } from 'react-native-calendars';
 import { useApp } from '../../context/AppContext';
 import Avatar from '../../components/Avatar';
 import { FontFamily } from '../../constants/theme';
+import CancelSessionSheet, { type SheetSession } from '../../components/sessions/CancelSessionSheet';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -97,12 +98,16 @@ function typeColor(type: string): string {
 export default function ScheduleScreen() {
   const router   = useRouter();
   const insets   = useSafeAreaInsets();
-  const { sessions, getClientById, getSessionsForDate, updateSession, refreshData } = useApp();
+  const { sessions, getClientById, getSessionsForDate, updateSession, addSession, refreshData } = useApp();
 
-  const [selectedDate, setSelectedDate]   = useState(new Date());
+  const [selectedDate, setSelectedDate]       = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
-  const [showFullCal, setShowFullCal]     = useState(false);
-  const [refreshing, setRefreshing]       = useState(false);
+  const [showFullCal, setShowFullCal]         = useState(false);
+  const [refreshing, setRefreshing]           = useState(false);
+
+  // ── Cancel sheet state ──
+  const [cancelSheetSession, setCancelSheetSession] = useState<SheetSession | null>(null);
+  const showCancelSheet = cancelSheetSession !== null;
 
   // Animated height for calendar expand/collapse
   // height cannot use the native driver — Animated.timing on maxHeight is the correct RN pattern
@@ -213,6 +218,26 @@ export default function ScheduleScreen() {
     }
     setExpandedSession(null);
   };
+
+  /** Complete → navigate to smart summary screen instead of bare status update */
+  const handleComplete = useCallback((session: any) => {
+    setExpandedSession(null);
+    router.push(`/session/complete?sessionId=${session.id}` as any);
+  }, [router]);
+
+  /** Cancel → open reason sheet (not a bare updateSession call) */
+  const handleOpenCancel = useCallback((session: any) => {
+    const sheetSession: SheetSession = {
+      id:         session.id,
+      date:       session.date,
+      type:       session.type,
+      duration:   session.duration,
+      client_id:  session.client_id,
+      group_name: session.group_name,
+    };
+    setCancelSheetSession(sheetSession);
+    setExpandedSession(null);
+  }, []);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -509,9 +534,10 @@ export default function ScheduleScreen() {
                       {/* ── Expanded actions ── */}
                       {isExpanded && session.status === 'upcoming' && (
                         <View style={s.expandedRow}>
+                          {/* Complete → smart summary screen */}
                           <TouchableOpacity
                             style={[s.actionBtn, { backgroundColor: 'rgba(200,241,53,0.08)', borderColor: 'rgba(200,241,53,0.2)' }]}
-                            onPress={() => handleStatus(session.id, 'completed')}
+                            onPress={() => handleComplete(session)}
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel="Mark session as completed"
@@ -519,9 +545,10 @@ export default function ScheduleScreen() {
                             <Ionicons name="checkmark-circle" size={15} color="#C8F135" />
                             <Text style={[s.actionText, { color: '#C8F135' }]}>Complete</Text>
                           </TouchableOpacity>
+                          {/* Cancel → reason sheet with inline reschedule */}
                           <TouchableOpacity
                             style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)' }]}
-                            onPress={() => handleStatus(session.id, 'cancelled')}
+                            onPress={() => handleOpenCancel(session)}
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel="Cancel session"
@@ -529,9 +556,10 @@ export default function ScheduleScreen() {
                             <Ionicons name="close-circle" size={15} color="#EF4444" />
                             <Text style={[s.actionText, { color: '#EF4444' }]}>Cancel</Text>
                           </TouchableOpacity>
+                          {/* Details → Tonal-style read-only detail view */}
                           <TouchableOpacity
                             style={[s.actionBtn, { backgroundColor: 'rgba(96,165,250,0.08)', borderColor: 'rgba(96,165,250,0.2)' }]}
-                            onPress={() => router.push(`/session/${session.id}` as any)}
+                            onPress={() => router.push(`/session/${session.id}?mode=detail` as any)}
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel="View session details"
@@ -578,6 +606,17 @@ export default function ScheduleScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* ── Cancel Session Sheet — rendered outside SafeAreaView so it covers full screen ── */}
+      <CancelSessionSheet
+        visible={showCancelSheet}
+        session={cancelSheetSession}
+        onDismiss={() => setCancelSheetSession(null)}
+        onDone={() => {
+          setCancelSheetSession(null);
+          refreshData();        // re-fetch so the schedule reflects the change
+        }}
+      />
     </View>
   );
 }
