@@ -21,7 +21,15 @@ import GreetingHeader from '../../components/client-tabs/home/GreetingHeader';
 import CoachPulse from '../../components/client-tabs/home/CoachPulse';
 import ContextHeroCard from '../../components/client-tabs/home/ContextHeroCard';
 import DashboardSummaryCard from '../../components/client-tabs/home/DashboardSummaryCard';
+import HabitTracker from '../../components/client-tabs/home/HabitTracker';
 import { Spacing } from '../../constants/theme';
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
+type HabitSummary = {
+  completedCount: number;
+  totalCount: number;
+  topIncomplete?: { key: string; label: string; cutoffHour: number | null };
+};
 
 function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
   const h = new Date().getHours();
@@ -46,6 +54,12 @@ export default function ClientHomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
+  // Lifted from HabitTracker via onHabitsChange — drives ContextHeroCard hero state
+  const [habitSummary, setHabitSummary] = useState<HabitSummary>({
+    completedCount: 0,
+    totalCount: 5,
+    topIncomplete: undefined,
+  });
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<any>(null);
 
@@ -149,11 +163,18 @@ export default function ClientHomeScreen() {
           todayWorkout={todayWorkout}
           isCompleted={isWorkoutCompletedToday}
           trainerName={trainer?.name}
-          habitsDone={0}
+          habitsDone={habitSummary.completedCount}
+          topIncompleteHabit={habitSummary.topIncomplete?.label}
           onSkip={skipTrackWorkout}
         />
 
-        {/* ④ COACH PULSE */}
+        {/* ④ HABIT TRACKER — renders habit rows; fires onHabitsChange → habitSummary */}
+        <HabitTracker
+          clientId={clientData?.id}
+          onHabitsChange={setHabitSummary}
+        />
+
+        {/* ⑤ COACH PULSE */}
         <CoachPulse trainer={trainer} isOnline={!!trainer?.is_online} />
       </Animated.ScrollView>
     </View>

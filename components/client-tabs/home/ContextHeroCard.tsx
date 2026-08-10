@@ -43,7 +43,7 @@ interface ContextHeroCardProps {
   todayWorkout: any;
   isCompleted: boolean;
   trainerName?: string;
-  habitsDone: number;             // 0–5, lifted from HabitTracker via onCompletionChange
+  habitsDone: number;             // 0–5, lifted from HabitTracker via onHabitsChange
   topIncompleteHabit?: string;    // label of highest-priority unchecked habit (excl. sleep)
   onSkip?: () => void;
 }
