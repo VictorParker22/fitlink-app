@@ -150,14 +150,11 @@ export default function CoachHomeScreen() {
           )}
         </ScrollView>
 
-        {/* ── QUICK ACTIONS — QUITTR style divider row ────────────── */}
+        {/* ── QUICK ACTIONS — 2×4 visible grid with dividers ──────── */}
         <View style={styles.quickRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickRowInner}
-          >
-            {QUICK_ACTIONS.map((a, index) => (
+          {/* Row 1 */}
+          <View style={styles.quickGridRow}>
+            {QUICK_ACTIONS.slice(0, 4).map((a, index) => (
               <React.Fragment key={a.label}>
                 <TouchableOpacity
                   style={styles.quickItem}
@@ -169,13 +166,32 @@ export default function CoachHomeScreen() {
                   </View>
                   <Text style={styles.quickLabel}>{a.label}</Text>
                 </TouchableOpacity>
-                {/* Vertical divider between items, not after last */}
-                {index < QUICK_ACTIONS.length - 1 && (
-                  <View style={styles.quickDivider} />
-                )}
+                {index < 3 && <View style={styles.quickDivider} />}
               </React.Fragment>
             ))}
-          </ScrollView>
+          </View>
+
+          {/* Horizontal divider between rows */}
+          <View style={styles.quickRowDivider} />
+
+          {/* Row 2 */}
+          <View style={styles.quickGridRow}>
+            {QUICK_ACTIONS.slice(4).map((a, index) => (
+              <React.Fragment key={a.label}>
+                <TouchableOpacity
+                  style={styles.quickItem}
+                  activeOpacity={0.65}
+                  onPress={() => router.push(a.route as any)}
+                >
+                  <View style={styles.quickIconWrap}>
+                    <Ionicons name={a.icon as any} size={22} color="#C8F135" />
+                  </View>
+                  <Text style={styles.quickLabel}>{a.label}</Text>
+                </TouchableOpacity>
+                {index < 3 && <View style={styles.quickDivider} />}
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
         {/* ── HERO BANNER ─────────────────────────────────────────── */}
@@ -475,7 +491,7 @@ const styles = StyleSheet.create({
     color: '#C8F135',
   },
 
-  // Quick Actions — QUITTR divider row
+  // Quick Actions — 2×4 visible grid with dividers
   quickRow: {
     marginHorizontal: 20,
     marginTop: 22,
@@ -485,28 +501,30 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.09)',
     overflow: 'hidden',
   },
-  quickRowInner: {
+  quickGridRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+  },
+  // Horizontal divider between the two rows
+  quickRowDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginHorizontal: 0,
   },
   quickItem: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    paddingVertical: 18,
   },
   quickIconWrap: {
     width: 50, height: 50,
     borderRadius: 25,
-    // Subtle lime glow ring
     backgroundColor: 'rgba(200,241,53,0.07)',
     borderWidth: 1.5,
     borderColor: 'rgba(200,241,53,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    // Inner shadow feel
     shadowColor: '#C8F135',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.25,
@@ -520,7 +538,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
   },
-  // Vertical divider between quick action items
+  // Vertical divider between columns
   quickDivider: {
     width: 1,
     height: 52,
