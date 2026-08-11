@@ -352,7 +352,8 @@ export default function StudioScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom + 100, 120) }]}
+        style={s.scrollFlex}
+        contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}
         showsVerticalScrollIndicator={false}
       >
 
@@ -609,8 +610,16 @@ export default function StudioScreen() {
 
       </ScrollView>
 
-      {/* ── Sticky CTA (Peloton-style bottom bar) ────────────────────── */}
-      <View style={[s.stickyBottom, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+      {/* ── Sticky CTA ─────────────────────────────────────────────── */}
+      {/*
+        TAB BAR CLEARANCE:
+        The custom AnimatedTabBar is position:absolute at bottom:0.
+        Its total height = BAR_H(80) + Math.max(insets.bottom, 12).
+        This stickyBottom must sit ABOVE that entirely.
+      */}
+      <View style={[s.stickyBottom, {
+        paddingBottom: Math.max(insets.bottom, 12) + 80 + 12,
+      }]}>
         {activeStream ? (
           /* Active stream: re-enter */
           <TouchableOpacity
@@ -682,6 +691,8 @@ const s = StyleSheet.create({
   },
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
+  // flex: 1 is CRITICAL — without it, ScrollView doesn't bound properly above stickyBottom
+  scrollFlex: { flex: 1 },
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
 
   // ── Alert card ──────────────────────────────────────────────────────────────
