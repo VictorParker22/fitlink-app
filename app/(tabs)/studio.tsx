@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,10 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Animated,
+  Switch,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +19,101 @@ import * as Haptics from 'expo-haptics';
 import { LineChart } from 'react-native-gifted-charts';
 
 import { useApp, LiveClassItem } from '../../context/AppContext';
-import { FontFamily, FontSize, Radius, Spacing } from '../../constants/theme';
+import { FontFamily, Radius, Spacing } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
+
+// ── Toggle row (Twitch stream-setup style) ────────────────────────────────────
+function SettingRow({
+  icon,
+  label,
+  sublabel,
+  value,
+  onChange,
+  isLast = false,
+}: {
+  icon: any;
+  label: string;
+  sublabel?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  isLast?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      style={[s.settingRow, !isLast && s.settingRowBorder]}
+      onPress={() => onChange(!value)}
+      activeOpacity={0.7}
+    >
+      <View style={[s.settingIconBox, value && s.settingIconBoxActive]}>
+        <Ionicons name={icon} size={15} color={value ? '#ffffff' : 'rgba(255,255,255,0.4)'} />
+      </View>
+      <View style={s.settingLabelWrap}>
+        <Text style={s.settingLabel}>{label}</Text>
+        {sublabel ? <Text style={s.settingSubLabel}>{sublabel}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(239,68,68,0.55)' }}
+        thumbColor="#ffffff"
+        ios_backgroundColor="rgba(255,255,255,0.1)"
+      />
+    </TouchableOpacity>
+  );
+}
+
+// ── Queue card (Peloton "upcoming live" style) ────────────────────────────────
+function QueueCard({
+  item,
+  onLaunch,
+  onDelete,
+}: {
+  item: LiveClassItem;
+  onLaunch: () => void;
+  onDelete: () => void;
+}) {
+  const d = new Date(item.scheduled_for);
+  const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <TouchableOpacity style={s.queueCard} onPress={onLaunch} activeOpacity={0.9}>
+      {/* Layered gradient background */}
+      <View style={s.queueCardBg} />
+      <View style={s.queueCardGradientTop} />
+      <View style={s.queueCardGradientBottom} />
+
+      {/* Content */}
+      <View style={s.queueCardContent}>
+        {/* Top: badge + delete */}
+        <View style={s.queueCardTop}>
+          <View style={s.scheduledBadge}>
+            <View style={s.scheduledBadgeDot} />
+            <Text style={s.scheduledBadgeText}>SCHEDULED</Text>
+          </View>
+          <TouchableOpacity
+            onPress={onDelete}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={13} color="rgba(255,255,255,0.35)" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom: date + title */}
+        <View style={s.queueCardBottom}>
+          <Text style={s.queueCardTime}>{dateStr} · {timeStr}</Text>
+          <Text style={s.queueCardTitle} numberOfLines={2}>{item.title}</Text>
+          {item.category ? (
+            <Text style={s.queueCardCategory}>{item.category.toUpperCase()}</Text>
+          ) : null}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function StudioScreen() {
   const router = useRouter();
@@ -27,11 +121,24 @@ export default function StudioScreen() {
   const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass } = useApp();
   const { showAlert } = useAlert();
 
-  // Abrupt Stream Disconnect Modal state
+  // Pulsing live dot
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.2, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
+
+  // Abrupt stream disconnect
   const [abruptEndedClass, setAbruptEndedClass] = useState<LiveClassItem | null>(null);
   const [isSavingVod, setIsSavingVod] = useState(false);
 
-  // Interactive Pre-Flight Checklist state (Purely visual guide)
+  // Tech check
   const [checklist, setChecklist] = useState({
     cameraReady: true,
     micReady: true,
@@ -39,1067 +146,1022 @@ export default function StudioScreen() {
     doNotDisturb: true,
   });
 
-  // State for real class completions / view trends fetched from Supabase
+  // Analytics
   const [realAnalytics, setRealAnalytics] = useState<any[]>([]);
 
   useEffect(() => {
-    async function fetchRealAnalytics() {
+    async function fetchAnalytics() {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('classes')
-          .select('id, title, take_count, total_watch_minutes, created_at')
+          .select('id, take_count, created_at')
           .order('created_at', { ascending: true })
           .limit(8);
-
-        if (data && data.length > 0) {
-          setRealAnalytics(data);
-        }
-      } catch (err) {
-        console.log('[Studio] Error fetching analytics:', err);
+        if (data && data.length > 0) setRealAnalytics(data);
+      } catch (e) {
+        console.log('[Studio] analytics error:', e);
       }
     }
-    fetchRealAnalytics();
+    fetchAnalytics();
   }, []);
 
-  // Monitor active live stream for 60s Reconnect Expiry vs Active Live Stream
+  // Abrupt end detection
   useEffect(() => {
     const liveStream = liveClasses.find((c) => c.status === 'live');
     if (!liveStream) return;
-
     const lastUpdated = new Date(liveStream.updated_at || liveStream.scheduled_for).getTime();
-    const now = Date.now();
-    const elapsedSeconds = Math.floor((now - lastUpdated) / 1000);
-
-    // If 60 seconds passed without reconnection/heartbeat, mark as abruptly ended
-    if (elapsedSeconds > 60) {
+    const elapsed = Math.floor((Date.now() - lastUpdated) / 1000);
+    if (elapsed > 60) {
       (async () => {
         try {
           await updateLiveClass(liveStream.id, { status: 'ended' });
           setAbruptEndedClass(liveStream);
-        } catch (e) {
-          console.warn('[Studio] Error marking abrupt stream end:', e);
-        }
+        } catch (e) {}
       })();
     }
   }, [liveClasses, updateLiveClass]);
 
-  const toggleChecklistItem = (key: keyof typeof checklist) => {
+  const toggleCheck = (key: keyof typeof checklist) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Active / Upcoming / Past Stream Filtering for this Coach
-  const activeOrLiveStream = useMemo(() => {
-    return (
-      liveClasses.find((c) => c.status === 'live') ||
-      liveClasses.find((c) => c.status === 'scheduled')
-    );
-  }, [liveClasses]);
-
-  const upcomingStreams = useMemo(() => {
-    return liveClasses.filter((c) => c.status === 'scheduled');
-  }, [liveClasses]);
-
-  const pastStreams = useMemo(() => {
-    return liveClasses.filter((c) => c.status === 'ended' || c.status === 'cancelled');
-  }, [liveClasses]);
-
-  // Real Lifetime Metrics computation
-  const totalLifetimeViews = useMemo(() => {
-    const classViews = classes.reduce((sum, c) => sum + (c.take_count || 0), 0);
-    return classViews + pastStreams.length * 12;
-  }, [classes, pastStreams]);
-
-  // Sparkline Chart Data
+  // Derived
+  const activeStream = useMemo(
+    () => liveClasses.find((c) => c.status === 'live') || liveClasses.find((c) => c.status === 'scheduled'),
+    [liveClasses]
+  );
+  const upcomingStreams = useMemo(() => liveClasses.filter((c) => c.status === 'scheduled'), [liveClasses]);
+  const pastStreams = useMemo(
+    () => liveClasses.filter((c) => c.status === 'ended' || c.status === 'cancelled'),
+    [liveClasses]
+  );
+  const totalViews = useMemo(
+    () => classes.reduce((sum, c) => sum + (c.take_count || 0), 0) + pastStreams.length * 12,
+    [classes, pastStreams]
+  );
   const sparklineData = useMemo(() => {
-    if (realAnalytics.length > 0) {
-      return realAnalytics.map((c, i) => ({
-        value: Math.max(c.take_count || 0, 1),
-        label: `C${i + 1}`,
-      }));
-    }
-    if (classes && classes.length > 0) {
-      return classes.slice(-6).map((c, i) => ({
-        value: Math.max(c.take_count || 0, 1),
-        label: `C${i + 1}`,
-      }));
-    }
-    return [{ value: 0, label: 'Start' }];
+    const src = realAnalytics.length > 0 ? realAnalytics : classes.slice(-6);
+    if (src.length === 0) return [{ value: 1, label: '' }];
+    return src.map((c, i) => ({ value: Math.max(c.take_count || 0, 1), label: `${i + 1}` }));
   }, [realAnalytics, classes]);
 
-  const handleEnterStudio = (classItem: LiveClassItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/broadcast/${classItem.id}` as any);
-  };
+  const isLive = activeStream?.status === 'live';
+  const isScheduled = activeStream?.status === 'scheduled';
+  const allReady = Object.values(checklist).every(Boolean);
 
-  const handleGoLiveInstantly = () => {
+  // Handlers
+  const handleEnterStudio = (cls: LiveClassItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/broadcast/${cls.id}` as any);
+  };
+  const handleGoLive = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.push('/broadcast/setup' as any);
   };
-
   const handleScheduleNew = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/create-live-class' as any);
   };
-
-  const handleDeleteStream = (id: string, title: string) => {
+  const handleDelete = (id: string, title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showAlert({
       type: 'warning',
       title: 'Delete Stream',
-      message: `Are you sure you want to delete "${title}"?`,
+      message: `Delete "${title}"?`,
       buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await deleteLiveClass(id);
-            } catch (err: any) {
-              showAlert({
-                type: 'error',
-                title: 'Error',
-                message: err.message || 'Failed to delete stream',
-              });
+            try { await deleteLiveClass(id); } catch (err: any) {
+              showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to delete' });
             }
           },
         },
       ],
     });
   };
-
-  const handleSaveAbruptVod = async () => {
+  const handleSaveVod = async () => {
     if (!abruptEndedClass) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSavingVod(true);
-
     try {
-      let vodPlaybackUrl = abruptEndedClass.mux_playback_id && !abruptEndedClass.mux_playback_id.startsWith('playback_')
+      const vodUrl = abruptEndedClass.mux_playback_id && !abruptEndedClass.mux_playback_id.startsWith('playback_')
         ? `https://stream.mux.com/${abruptEndedClass.mux_playback_id}.m3u8`
         : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-
       await createClass({
         title: abruptEndedClass.title,
-        description: abruptEndedClass.description || `Live stream recording from ${new Date().toLocaleDateString()}`,
+        description: abruptEndedClass.description || `Live recording from ${new Date().toLocaleDateString()}`,
         category: abruptEndedClass.category || 'Strength',
         tags: ['Live Recording', 'VOD'],
         difficulty: 'Intermediate',
         duration_minutes: abruptEndedClass.duration_minutes || 45,
-        video_url: vodPlaybackUrl,
+        video_url: vodUrl,
         equipment: [],
         is_free: false,
         status: 'draft',
       });
-
-      showAlert({
-        type: 'success',
-        title: 'Saved to Library!',
-        message: 'Your broadcast recording has been saved to your On-Demand Class library as a Draft.',
-      });
-
+      showAlert({ type: 'success', title: 'Saved!', message: 'Recording saved to your library as a Draft.' });
       setAbruptEndedClass(null);
     } catch (err: any) {
-      showAlert({
-        type: 'error',
-        title: 'Save Failed',
-        message: err.message || 'Could not save class to library.',
-      });
+      showAlert({ type: 'error', title: 'Save Failed', message: err.message || 'Could not save.' });
     } finally {
       setIsSavingVod(false);
     }
   };
 
-  const isChecklistComplete =
-    checklist.cameraReady &&
-    checklist.micReady &&
-    checklist.lightingChecked &&
-    checklist.doNotDisturb;
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.tagHeader}>BROADCAST COMMAND CENTER</Text>
-          <Text style={styles.headerTitle}>LIVE STUDIO</Text>
+    <SafeAreaView style={s.container} edges={['top']}>
+
+      {/* ── Header (Twitch-style: title centered, action right) ─────── */}
+      <View style={s.header}>
+        <View style={s.headerLeft}>
+          <View style={[s.headerStatusDot, isLive && s.headerStatusDotLive]} />
         </View>
-        <TouchableOpacity
-          style={styles.scheduleHeaderBtn}
-          onPress={handleScheduleNew}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={18} color="#000000" />
-          <Text style={styles.scheduleHeaderBtnText}>SCHEDULE</Text>
+        <Text style={s.headerTitle}>Live Studio</Text>
+        <TouchableOpacity style={s.headerRightBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
+          <Ionicons name="calendar-outline" size={20} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 90, Spacing.xxl * 2) }]}
+        contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom + 100, 120) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Abrupt Disconnect Feedback Modal / Card */}
-        {abruptEndedClass ? (
-          <View style={styles.abruptBannerCard}>
-            <View style={styles.abruptHeader}>
-              <Ionicons name="warning-outline" size={24} color="#FFD700" />
-              <Text style={styles.abruptTag}>STREAM ENDED ABRUPTLY</Text>
-            </View>
-            <Text style={styles.abruptTitle}>{abruptEndedClass.title}</Text>
-            <Text style={styles.abruptSub}>
-              Your live stream timed out while you were away. You can save the recording to your On-Demand library or start a new broadcast.
-            </Text>
 
+        {/* ── Abrupt disconnect alert ─────────────────────────────────── */}
+        {abruptEndedClass && (
+          <View style={s.alertCard}>
+            <View style={s.alertCardLeft} />
+            <View style={s.alertCardBody}>
+              <View style={s.alertCardTitleRow}>
+                <Ionicons name="warning" size={14} color="#FF6B35" />
+                <Text style={s.alertCardTitle}>Stream Ended Abruptly</Text>
+              </View>
+              <Text style={s.alertCardSub} numberOfLines={1}>{abruptEndedClass.title}</Text>
+              <View style={s.alertCardActions}>
+                <TouchableOpacity style={s.alertSaveBtn} onPress={handleSaveVod} disabled={isSavingVod}>
+                  {isSavingVod
+                    ? <ActivityIndicator color="#000" size="small" />
+                    : <Text style={s.alertSaveBtnText}>Save to Library</Text>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity style={s.alertDismissBtn} onPress={() => setAbruptEndedClass(null)} disabled={isSavingVod}>
+                  <Text style={s.alertDismissBtnText}>Dismiss</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Hero (Tonal-inspired: tall card with gradient + overlay text) */}
+        <View style={[s.hero, isLive && s.heroLive]}>
+          {/* Background layers creating depth */}
+          <View style={s.heroBgBase} />
+          <View style={s.heroBgMid} />
+          <View style={s.heroBgBottom} />
+
+          {/* Decorative dot grid */}
+          <View style={s.heroDotGrid}>
+            {Array.from({ length: 48 }).map((_, i) => (
+              <View key={i} style={s.heroDot} />
+            ))}
+          </View>
+
+          {/* Content overlay */}
+          <View style={s.heroContent}>
+            {/* Status pill */}
+            <View style={[s.heroStatusPill, isLive && s.heroStatusPillLive, isScheduled && s.heroStatusPillScheduled]}>
+              <Animated.View style={[s.heroStatusDot, isLive && s.heroStatusDotLive, isLive && { opacity: pulseAnim }]} />
+              <Text style={[s.heroStatusText, isLive && s.heroStatusTextLive, isScheduled && s.heroStatusTextScheduled]}>
+                {isLive ? 'LIVE IN PROGRESS' : isScheduled ? 'NEXT UP' : 'OFFLINE'}
+              </Text>
+            </View>
+
+            {/* Main headline */}
+            <Text style={s.heroTitle} numberOfLines={2}>
+              {activeStream ? activeStream.title : 'Standing By'}
+            </Text>
+            <Text style={s.heroSub}>
+              {activeStream
+                ? (isLive
+                  ? 'Currently broadcasting via Mux'
+                  : new Date(activeStream.scheduled_for).toLocaleString(undefined, {
+                    weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  }))
+                : 'Mux Ultra-Low Latency · RTMP Ingest'
+              }
+            </Text>
+          </View>
+
+          {/* Bottom bar: if active stream, show enter button */}
+          {activeStream && (
             <TouchableOpacity
-              style={styles.abruptSaveBtn}
-              onPress={handleSaveAbruptVod}
-              disabled={isSavingVod}
+              style={[s.heroEnterBtn, isLive && s.heroEnterBtnLive]}
+              onPress={() => handleEnterStudio(activeStream)}
               activeOpacity={0.85}
             >
-              {isSavingVod ? (
-                <ActivityIndicator color="#000000" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="library" size={16} color="#000000" />
-                  <Text style={styles.abruptSaveBtnText}>SAVE RECORDING TO VOD LIBRARY</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.abruptDismissBtn}
-              onPress={() => setAbruptEndedClass(null)}
-              disabled={isSavingVod}
-            >
-              <Text style={styles.abruptDismissBtnText}>DISMISS & START NEW LIVE</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* At-a-Glance Operational KPI Header */}
-        <View style={styles.kpiRow}>
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeaderRow}>
-              <Ionicons name="eye-outline" size={16} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.kpiTag}>VIEWS</Text>
-            </View>
-            <Text style={styles.kpiValue}>{totalLifetimeViews}</Text>
-            <Text style={styles.kpiSubtext}>REAL CLIENT VIEWS</Text>
-          </View>
-
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeaderRow}>
-              <Ionicons name="radio-outline" size={16} color="#EF4444" />
-              <Text style={styles.kpiTag}>STREAMS</Text>
-            </View>
-            <Text style={styles.kpiValue}>{pastStreams.length + (activeOrLiveStream ? 1 : 0)}</Text>
-            <Text style={styles.kpiSubtext}>TOTAL BROADCASTS</Text>
-          </View>
-
-          <View style={styles.kpiCard}>
-            <View style={styles.kpiHeaderRow}>
-              <Ionicons name="flash-outline" size={16} color="#FFD700" />
-              <Text style={styles.kpiTag}>LATENCY</Text>
-            </View>
-            <Text style={[styles.kpiValue, { color: '#4ADE80' }]}>0.8s</Text>
-            <Text style={styles.kpiSubtext}>MUX LL-HLS HEALTHY</Text>
-          </View>
-        </View>
-
-        {/* Primary Command Center Module: Active / Next Up Stream */}
-        <View style={styles.commandCard}>
-          <View style={styles.commandHeader}>
-            <View style={styles.statusBadge}>
-              <View
-                style={[
-                  styles.statusDot,
-                  activeOrLiveStream?.status === 'live' && { backgroundColor: '#EF4444' },
-                ]}
-              />
-              <Text style={styles.statusBadgeText}>
-                {activeOrLiveStream?.status === 'live'
-                  ? 'LIVE IN PROGRESS'
-                  : activeOrLiveStream?.status === 'scheduled'
-                  ? 'NEXT UPCOMING'
-                  : 'STUDIO IDLE'}
+              <Ionicons name={isLive ? 'videocam' : 'radio-outline'} size={16} color={isLive ? '#fff' : 'rgba(255,255,255,0.8)'} />
+              <Text style={s.heroEnterBtnText}>
+                {isLive ? 'Re-enter Live Studio' : 'Enter Broadcast Studio'}
               </Text>
-            </View>
-            <Text style={styles.muxServerBadge}>MUX RTMP INGEST</Text>
-          </View>
-
-          {activeOrLiveStream ? (
-            <View style={styles.activeStreamContent}>
-              <Text style={styles.activeStreamTitle}>{activeOrLiveStream.title}</Text>
-              {activeOrLiveStream.description ? (
-                <Text style={styles.activeStreamDesc} numberOfLines={2}>
-                  {activeOrLiveStream.description}
-                </Text>
-              ) : null}
-              <View style={styles.activeStreamMeta}>
-                <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.5)" />
-                <Text style={styles.activeStreamMetaText}>
-                  Scheduled: {new Date(activeOrLiveStream.scheduled_for).toLocaleString()}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.launchStudioBtn,
-                  activeOrLiveStream.status === 'live' && { backgroundColor: '#EF4444' },
-                ]}
-                onPress={() => handleEnterStudio(activeOrLiveStream)}
-                activeOpacity={0.85}
-              >
-                <Ionicons
-                  name={activeOrLiveStream.status === 'live' ? 'videocam' : 'radio'}
-                  size={20}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.launchStudioBtnText}>
-                  {activeOrLiveStream.status === 'live'
-                    ? 'RE-ENTER LIVE STUDIO'
-                    : 'ENTER BROADCAST STUDIO'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.emptyCommandContent}>
-              <Ionicons name="videocam-off-outline" size={36} color="rgba(255,255,255,0.2)" />
-              <Text style={styles.emptyCommandTitle}>NO LIVE STREAM SCHEDULED</Text>
-              <Text style={styles.emptyCommandSub}>
-                Schedule a virtual class to provision a Mux stream key and broadcast live to your clients.
-              </Text>
-              <TouchableOpacity
-                style={styles.goLiveInstantBtn}
-                onPress={handleGoLiveInstantly}
-                activeOpacity={0.85}
-              >
-                <View style={styles.goLiveInstantDot} />
-                <Text style={styles.goLiveInstantBtnText}>GO LIVE INSTANTLY</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.scheduleBtnLarge}
-                onPress={handleScheduleNew}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.scheduleBtnLargeText}>+ SCHEDULE LIVE CLASS</Text>
-              </TouchableOpacity>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* Real Data Sparkline Viewership Analytics Module */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTag}>ANALYTICS // ENGAGEMENT</Text>
-          <Text style={styles.sectionTitle}>Stream & Class Viewership Trend</Text>
+        {/* ── Stats (Peloton metadata bar) ─────────────────────────────── */}
+        <View style={s.statsRow}>
+          <View style={s.statBlock}>
+            <Text style={s.statNum}>{totalViews.toLocaleString()}</Text>
+            <Text style={s.statLabel}>Total Views</Text>
+          </View>
+          <View style={s.statSep} />
+          <View style={s.statBlock}>
+            <Text style={s.statNum}>{pastStreams.length + (activeStream ? 1 : 0)}</Text>
+            <Text style={s.statLabel}>Broadcasts</Text>
+          </View>
+          <View style={s.statSep} />
+          <View style={s.statBlock}>
+            <Text style={[s.statNum, { color: '#4ADE80' }]}>0.8s</Text>
+            <Text style={s.statLabel}>Mux Latency</Text>
+          </View>
+        </View>
 
-          <View style={styles.chartCard}>
-            <View style={styles.chartHeader}>
-              <View>
-                <Text style={styles.chartHeaderSub}>TOTAL COMPLETED TAKES</Text>
-                <Text style={styles.chartHeaderVal}>
-                  {sparklineData.reduce((a, b) => a + b.value, 0)} Total Views
-                </Text>
+        {/* ── Tech Check (Twitch stream-setup toggle rows) ─────────────── */}
+        <View style={s.section}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionTitle}>Pre-Flight Check</Text>
+            {allReady && (
+              <View style={s.allReadyBadge}>
+                <Ionicons name="checkmark-circle" size={12} color="#4ADE80" />
+                <Text style={s.allReadyText}>All good</Text>
               </View>
-              <View style={styles.realBadge}>
-                <Ionicons name="sparkles" size={10} color="#FFD700" />
-                <Text style={styles.realBadgeText}>VERIFIED AUDIENCE DATA</Text>
-              </View>
+            )}
+          </View>
+
+          <View style={s.settingsCard}>
+            <SettingRow
+              icon="videocam-outline"
+              label="Camera & Framing"
+              sublabel="Position and resolution verified"
+              value={checklist.cameraReady}
+              onChange={(v) => toggleCheck('cameraReady')}
+            />
+            <SettingRow
+              icon="mic-outline"
+              label="Microphone"
+              sublabel="Audio gain and clarity checked"
+              value={checklist.micReady}
+              onChange={(v) => toggleCheck('micReady')}
+            />
+            <SettingRow
+              icon="sunny-outline"
+              label="Studio Lighting"
+              sublabel="High-contrast illumination"
+              value={checklist.lightingChecked}
+              onChange={(v) => toggleCheck('lightingChecked')}
+            />
+            <SettingRow
+              icon="moon-outline"
+              label="Do Not Disturb"
+              sublabel="Silence notifications during broadcast"
+              value={checklist.doNotDisturb}
+              onChange={(v) => toggleCheck('doNotDisturb')}
+              isLast
+            />
+          </View>
+        </View>
+
+        {/* ── Viewership trend ─────────────────────────────────────────── */}
+        <View style={s.section}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionTitle}>Viewership Trend</Text>
+            <Text style={s.sectionSeeAll}>Last {sparklineData.length} classes</Text>
+          </View>
+
+          <View style={s.chartCard}>
+            <View style={s.chartCardTop}>
+              <Text style={s.chartBigNum}>{sparklineData.reduce((a, b) => a + b.value, 0).toLocaleString()}</Text>
+              <Text style={s.chartBigLabel}>total takes</Text>
             </View>
-
-            <View style={styles.chartWrapper}>
+            <View style={s.chartWrapper}>
               <LineChart
                 data={sparklineData}
-                height={120}
-                width={width - 80}
+                height={90}
+                width={width - 96}
                 color="#EF4444"
                 thickness={2.5}
-                startFillColor="rgba(239, 68, 68, 0.3)"
-                endFillColor="rgba(239, 68, 68, 0.0)"
+                startFillColor="rgba(239,68,68,0.15)"
+                endFillColor="rgba(239,68,68,0)"
                 areaChart
                 hideRules
                 hideYAxisText
-                xAxisColor="#1C1C1E"
+                xAxisColor="rgba(255,255,255,0.05)"
                 yAxisColor="transparent"
                 initialSpacing={10}
                 spacing={45}
-                dataPointsColor="#FFD700"
+                dataPointsColor="#FF6B35"
                 dataPointsRadius={4}
               />
             </View>
           </View>
         </View>
 
-        {/* Pre-Flight Checklist Card (Purely Visual Guide) */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTag}>PRE-FLIGHT CHECKLIST (VISUAL GUIDE)</Text>
-          <Text style={styles.sectionTitle}>Studio Setup Checklist</Text>
-
-          <View style={styles.checklistCard}>
-            <View style={styles.checkItem}>
-              <TouchableOpacity
-                style={styles.checkRow}
-                onPress={() => toggleChecklistItem('cameraReady')}
-              >
-                <Ionicons
-                  name={checklist.cameraReady ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={checklist.cameraReady ? '#4ADE80' : 'rgba(255,255,255,0.3)'}
-                />
-                <View style={styles.checkTextWrap}>
-                  <Text style={styles.checkTitle}>Camera Framing & Resolution</Text>
-                  <Text style={styles.checkDesc}>Front/Back camera positioned (Visual Reminder)</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.checkItem}>
-              <TouchableOpacity
-                style={styles.checkRow}
-                onPress={() => toggleChecklistItem('micReady')}
-              >
-                <Ionicons
-                  name={checklist.micReady ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={checklist.micReady ? '#4ADE80' : 'rgba(255,255,255,0.3)'}
-                />
-                <View style={styles.checkTextWrap}>
-                  <Text style={styles.checkTitle}>Microphone & Audio Gain</Text>
-                  <Text style={styles.checkDesc}>Verify room acoustics & audio clarity</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.checkItem}>
-              <TouchableOpacity
-                style={styles.checkRow}
-                onPress={() => toggleChecklistItem('lightingChecked')}
-              >
-                <Ionicons
-                  name={checklist.lightingChecked ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={checklist.lightingChecked ? '#4ADE80' : 'rgba(255,255,255,0.3)'}
-                />
-                <View style={styles.checkTextWrap}>
-                  <Text style={styles.checkTitle}>Studio Lighting</Text>
-                  <Text style={styles.checkDesc}>High contrast illumination on trainer</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.checkItemNoBorder}>
-              <TouchableOpacity
-                style={styles.checkRow}
-                onPress={() => toggleChecklistItem('doNotDisturb')}
-              >
-                <Ionicons
-                  name={checklist.doNotDisturb ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={checklist.doNotDisturb ? '#4ADE80' : 'rgba(255,255,255,0.3)'}
-                />
-                <View style={styles.checkTextWrap}>
-                  <Text style={styles.checkTitle}>Do Not Disturb Mode</Text>
-                  <Text style={styles.checkDesc}>Silence notifications during live stream</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {isChecklistComplete ? (
-              <View style={styles.checklistReadyBanner}>
-                <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
-                <Text style={styles.checklistReadyText}>VISUAL GUIDE COMPLETE — ALL READY</Text>
-              </View>
-            ) : null}
+        {/* ── Upcoming streams (Peloton "Upcoming Live Workouts") ─────── */}
+        <View style={s.section}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionTitle}>Stream Queue</Text>
+            <TouchableOpacity style={s.sectionAddBtn} onPress={handleScheduleNew}>
+              <Ionicons name="add" size={16} color="#EF4444" />
+              <Text style={s.sectionAddBtnText}>Schedule</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Upcoming Scheduled Streams Strip */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTag}>QUEUE // UPCOMING</Text>
-          <Text style={styles.sectionTitle}>Scheduled Classes</Text>
 
           {upcomingStreams.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.upcomingScroll}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.queueScroll}>
               {upcomingStreams.map((item) => (
-                <View key={item.id} style={styles.upcomingCard}>
-                  <View style={styles.upcomingCardHeader}>
-                    <Text style={styles.upcomingCardBadge}>SCHEDULED</Text>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteStream(item.id, item.title)}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="rgba(239, 68, 68, 0.7)" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={styles.upcomingCardTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.upcomingCardDate}>
-                    {new Date(item.scheduled_for).toLocaleDateString(undefined, {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-
-                  <TouchableOpacity
-                    style={styles.upcomingLaunchBtn}
-                    onPress={() => handleEnterStudio(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.upcomingLaunchBtnText}>LAUNCH STUDIO</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
+                <QueueCard
+                  key={item.id}
+                  item={item}
+                  onLaunch={() => handleEnterStudio(item)}
+                  onDelete={() => handleDelete(item.id, item.title)}
+                />
               ))}
             </ScrollView>
           ) : (
-            <View style={styles.noQueueCard}>
-              <Text style={styles.noQueueText}>No upcoming classes in queue.</Text>
+            <View style={s.emptyQueueCard}>
+              <Ionicons name="calendar-outline" size={32} color="rgba(255,255,255,0.12)" />
+              <Text style={s.emptyQueueTitle}>No scheduled broadcasts</Text>
+              <Text style={s.emptyQueueSub}>Schedule a class to build your broadcast queue.</Text>
+              <TouchableOpacity style={s.emptyQueueBtn} onPress={handleScheduleNew}>
+                <Text style={s.emptyQueueBtnText}>+ Schedule a Class</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Stream Health & Ingest Diagnostics */}
-        <View style={[styles.sectionContainer, { marginBottom: Spacing.xl }]}>
-          <Text style={styles.sectionTag}>DIAGNOSTICS // ARCHIVE</Text>
-          <Text style={styles.sectionTitle}>Stream Architecture</Text>
+        {/* ── Broadcast Archive ─────────────────────────────────────────── */}
+        {pastStreams.length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionTitle}>Broadcast Archive</Text>
+              <Text style={s.sectionSeeAll}>{pastStreams.length} streams</Text>
+            </View>
 
-          <View style={styles.diagCard}>
-            <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>INGEST PROTOCOL</Text>
-              <Text style={styles.diagVal}>RTMP / RTMPS</Text>
-            </View>
-            <View style={styles.diagDivider} />
-            <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>CDN PROVIDER</Text>
-              <Text style={styles.diagVal}>MUX STREAMING</Text>
-            </View>
-            <View style={styles.diagDivider} />
-            <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>TARGET LATENCY</Text>
-              <Text style={[styles.diagVal, { color: '#4ADE80' }]}>ULTRA-LOW (&lt; 1.5S)</Text>
-            </View>
-            <View style={styles.diagDivider} />
-            <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>PLAYBACK FORMAT</Text>
-              <Text style={styles.diagVal}>HLS (.M3U8)</Text>
+            <View style={s.archiveCard}>
+              {pastStreams.slice(0, 4).map((item, idx) => (
+                <View
+                  key={item.id}
+                  style={[s.archiveRow, idx === Math.min(pastStreams.length, 4) - 1 && { borderBottomWidth: 0 }]}
+                >
+                  <View style={s.archiveIconBox}>
+                    <Ionicons name="videocam" size={14} color="rgba(255,255,255,0.3)" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.archiveTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={s.archiveMeta}>
+                      {new Date(item.scheduled_for).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {item.category ? ` · ${item.category}` : ''}
+                    </Text>
+                  </View>
+                  <View style={[s.archiveBadge, item.status === 'cancelled' && s.archiveBadgeCancelled]}>
+                    <Text style={[s.archiveBadgeText, item.status === 'cancelled' && s.archiveBadgeTextCancelled]}>
+                      {item.status === 'cancelled' ? 'Cancelled' : 'Ended'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
-        </View>
+        )}
+
       </ScrollView>
+
+      {/* ── Sticky CTA (Peloton-style bottom bar) ────────────────────── */}
+      <View style={[s.stickyBottom, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+        {activeStream ? (
+          /* Active stream: big red re-enter + small schedule */
+          <TouchableOpacity
+            style={[s.goLiveBtn, isLive && s.goLiveBtnActive]}
+            onPress={() => handleEnterStudio(activeStream)}
+            activeOpacity={0.85}
+          >
+            <View style={s.goLiveDot} />
+            <Text style={s.goLiveBtnText}>{isLive ? 'RE-ENTER STUDIO' : 'ENTER STUDIO'}</Text>
+          </TouchableOpacity>
+        ) : (
+          /* Idle: GO LIVE NOW primary + Schedule secondary */
+          <View style={s.stickyBtnRow}>
+            <TouchableOpacity style={s.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
+              <View style={s.goLiveDot} />
+              <Text style={s.goLiveBtnText}>GO LIVE NOW</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.scheduleBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
+              <Ionicons name="calendar-outline" size={18} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
+// ── Styles ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0A0A10' },
+
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  tagHeader: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
+  headerLeft: {
+    width: 40,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  headerStatusDotLive: {
+    backgroundColor: '#EF4444',
   },
   headerTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
+    fontSize: 17,
     color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
-  scheduleHeaderBtn: {
-    backgroundColor: '#FF6B35',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.xs,
-    gap: 4,
-  },
-  scheduleHeaderBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: 100,
+  headerRightBtn: {
+    width: 40,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
 
-  // Abrupt Disconnect Banner Card
-  abruptBannerCard: {
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: '#FFD700',
-    borderRadius: Radius.xs,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  abruptHeader: {
+  // ── Scroll ──────────────────────────────────────────────────────────────────
+  scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
+
+  // ── Alert card ──────────────────────────────────────────────────────────────
+  alertCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    backgroundColor: 'rgba(255,107,53,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.3)',
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
   },
-  abruptTag: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: '#FFD700',
-    letterSpacing: 1.5,
+  alertCardLeft: {
+    width: 4,
+    backgroundColor: '#FF6B35',
   },
-  abruptTitle: {
+  alertCardBody: { flex: 1, padding: Spacing.md },
+  alertCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  alertCardTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
+    fontSize: 13,
     color: '#FFFFFF',
-    marginBottom: 4,
   },
-  abruptSub: {
+  alertCardSub: {
     fontFamily: FontFamily.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: Spacing.md,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 10,
   },
-  abruptSaveBtn: {
+  alertCardActions: { flexDirection: 'row', gap: 8 },
+  alertSaveBtn: {
     backgroundColor: '#C8F135',
-    paddingVertical: 12,
     borderRadius: Radius.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  abruptSaveBtnText: {
+  alertSaveBtnText: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
+    fontSize: 11,
     color: '#000000',
-    letterSpacing: 1,
+    letterSpacing: 0.3,
   },
-  abruptDismissBtn: {
-    alignItems: 'center',
-    paddingVertical: 6,
+  alertDismissBtn: {
+    borderRadius: Radius.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  abruptDismissBtnText: {
+  alertDismissBtnText: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
   },
 
-  // KPI Row
-  kpiRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: Spacing.lg,
-  },
-  kpiCard: {
-    flex: 1,
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: 10,
-  },
-  kpiHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  kpiTag: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
-  },
-  kpiValue: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
-  kpiSubtext: {
-    fontFamily: FontFamily.body,
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.3)',
-    marginTop: 2,
-  },
-
-  // Command Center Card
-  commandCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-  commandHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  // ── Hero card ───────────────────────────────────────────────────────────────
+  hero: {
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
+    minHeight: 210,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
-  statusBadge: {
+  heroLive: {
+    borderColor: 'rgba(239,68,68,0.4)',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  heroBgBase: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0F0D1E', // deep navy-purple
+  },
+  heroBgMid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+    backgroundColor: 'rgba(80,50,140,0.12)', // subtle purple tint at top
+  },
+  heroBgBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  heroDotGrid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 18,
+    opacity: 0.4,
+  },
+  heroDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  heroContent: {
+    padding: Spacing.lg,
+    flex: 1,
+    paddingBottom: 0,
+  },
+  heroStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1C1C1E',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.xs,
+    alignSelf: 'flex-start',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    marginBottom: 14,
   },
-  statusDot: {
+  heroStatusPillLive: {
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    borderColor: 'rgba(239,68,68,0.4)',
+  },
+  heroStatusPillScheduled: {
+    backgroundColor: 'rgba(255,107,53,0.12)',
+    borderColor: 'rgba(255,107,53,0.3)',
+  },
+  heroStatusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#4ADE80',
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
-  statusBadgeText: {
+  heroStatusDotLive: { backgroundColor: '#EF4444' },
+  heroStatusText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 9,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  muxServerBadge: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1,
-  },
-  activeStreamContent: {},
-  activeStreamTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  activeStreamDesc: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
     color: 'rgba(255,255,255,0.6)',
-    marginBottom: 12,
+    letterSpacing: 1.2,
   },
-  activeStreamMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: Spacing.lg,
+  heroStatusTextLive: { color: '#EF4444' },
+  heroStatusTextScheduled: { color: '#FF6B35' },
+  heroTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 26,
+    color: '#FFFFFF',
+    lineHeight: 30,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  activeStreamMetaText: {
+  heroSub: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: Spacing.lg,
   },
-  launchStudioBtn: {
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 14,
-    borderRadius: Radius.xs,
+  heroEnterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-  launchStudioBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  emptyCommandContent: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  emptyCommandTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  emptyCommandSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.md,
-  },
-  goLiveInstantBtn: {
-    backgroundColor: '#C8F135',
-    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
     paddingVertical: 14,
-    borderRadius: Radius.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-    shadowColor: '#C8F135',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    paddingHorizontal: Spacing.lg,
   },
-  goLiveInstantDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#000000',
+  heroEnterBtnLive: {
+    backgroundColor: '#EF4444',
+    borderTopColor: 'transparent',
   },
-  goLiveInstantBtnText: {
+  heroEnterBtnText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 13,
-    color: '#000000',
-    letterSpacing: 1,
-  },
-  scheduleBtnLarge: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: Radius.xs,
-  },
-  scheduleBtnLargeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
-  },
-
-  // Chart
-  chartCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  chartHeaderSub: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
-  },
-  chartHeaderVal: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
     color: '#FFFFFF',
-    marginTop: 2,
-  },
-  realBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.xs,
-  },
-  realBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 8,
-    color: '#FF6B35',
-    letterSpacing: 1,
-  },
-  chartWrapper: {
-    alignItems: 'center',
-    marginTop: 8,
-    overflow: 'hidden',
+    letterSpacing: 0.3,
+    flex: 1,
+    textAlign: 'center',
   },
 
-  // Sections
-  sectionContainer: {
+  // ── Stats row ───────────────────────────────────────────────────────────────
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: Radius.sm,
     marginBottom: Spacing.xl,
+    paddingVertical: 12,
   },
-  sectionTag: {
+  statBlock: { flex: 1, alignItems: 'center', gap: 3 },
+  statSep: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 6,
+  },
+  statNum: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    marginBottom: 2,
+    fontSize: 21,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  statLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+  },
+
+  // ── Section ─────────────────────────────────────────────────────────────────
+  section: { marginBottom: Spacing.xl },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   sectionTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
+    fontSize: 15,
     color: '#FFFFFF',
-    marginBottom: Spacing.md,
+    letterSpacing: -0.1,
   },
-
-  // Checklist
-  checklistCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
+  sectionSeeAll: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
   },
-  checkItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
-    paddingVertical: 10,
-  },
-  checkItemNoBorder: {
-    paddingVertical: 10,
-  },
-  checkRow: {
+  sectionAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+  },
+  sectionAddBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 12,
+    color: '#EF4444',
+    letterSpacing: 0.2,
+  },
+  allReadyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
+  allReadyText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 10,
+    color: '#4ADE80',
+  },
+
+  // ── Settings card (Twitch stream-setup style) ────────────────────────────────
+  settingsCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: Spacing.md,
     gap: 12,
   },
-  checkTextWrap: {
-    flex: 1,
+  settingRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
-  checkTitle: {
-    fontFamily: FontFamily.bodyBold,
+  settingIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingIconBoxActive: {
+    backgroundColor: 'rgba(239,68,68,0.15)',
+  },
+  settingLabelWrap: { flex: 1, gap: 1 },
+  settingLabel: {
+    fontFamily: FontFamily.bodySemiBold,
     fontSize: 14,
     color: '#FFFFFF',
   },
-  checkDesc: {
+  settingSubLabel: {
     fontFamily: FontFamily.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  checklistReadyBanner: {
-    marginTop: 10,
-    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.3)',
-    borderRadius: Radius.xs,
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  checklistReadyText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: '#4ADE80',
-    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.35)',
+    lineHeight: 15,
   },
 
-  // Upcoming Scroll Strip
-  upcomingScroll: {
-    gap: 12,
-  },
-  upcomingCard: {
-    width: 220,
-    backgroundColor: '#0C0C0E',
+  // ── Chart ───────────────────────────────────────────────────────────────────
+  chartCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: Radius.sm,
     padding: Spacing.md,
   },
-  upcomingCardHeader: {
+  chartCardTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 10,
+  },
+  chartBigNum: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 26,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  chartBigLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.35)',
+  },
+  chartWrapper: { alignItems: 'center', overflow: 'hidden' },
+
+  // ── Queue cards (Peloton upcoming live workouts) ─────────────────────────────
+  queueScroll: { gap: 10 },
+  queueCard: {
+    width: 168,
+    height: 210,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+  },
+  queueCardBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#12101E',
+  },
+  queueCardGradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+    backgroundColor: 'rgba(60,30,100,0.25)',
+  },
+  queueCardGradientBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  queueCardContent: {
+    flex: 1,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  queueCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  upcomingCardBadge: {
+  scheduledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,107,53,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.35)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  scheduledBadgeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#FF6B35',
+  },
+  scheduledBadgeText: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
+    fontSize: 7,
+    color: '#FF6B35',
+    letterSpacing: 0.8,
   },
-  upcomingCardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  upcomingCardDate: {
-    fontFamily: FontFamily.body,
+  queueCardBottom: { gap: 3 },
+  queueCardTime: {
+    fontFamily: FontFamily.bodySemiBold,
     fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
-    marginBottom: 14,
   },
-  upcomingLaunchBtn: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+  queueCardTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+    lineHeight: 18,
+  },
+  queueCardCategory: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1,
+  },
+  emptyQueueCard: {
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: Radius.sm,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyQueueTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 4,
+  },
+  emptyQueueSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.22)',
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  emptyQueueBtn: {
+    marginTop: 8,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.35)',
+  },
+  emptyQueueBtnText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: '#EF4444',
+    letterSpacing: 0.3,
+  },
+
+  // ── Archive ──────────────────────────────────────────────────────────────────
+  archiveCard: {
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+  },
+  archiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  archiveIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  archiveTitle: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+  },
+  archiveMeta: {
+    fontFamily: FontFamily.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    marginTop: 1,
+  },
+  archiveBadge: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  archiveBadgeCancelled: { borderColor: 'rgba(239,68,68,0.3)' },
+  archiveBadgeText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 0.5,
+  },
+  archiveBadgeTextCancelled: { color: '#EF4444' },
+
+  // ── Sticky bottom CTA (Peloton-style) ───────────────────────────────────────
+  stickyBottom: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: '#0A0A10',
+  },
+  stickyBtnRow: { flexDirection: 'row', gap: 10 },
+  goLiveBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 16,
+    borderRadius: Radius.sm,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  upcomingLaunchBtnText: {
+  goLiveBtnActive: {
+    backgroundColor: '#EF4444',
+  },
+  goLiveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  goLiveBtnText: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
+    fontSize: 14,
     color: '#FFFFFF',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  noQueueCard: {
-    backgroundColor: '#0C0C0E',
+  scheduleBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
-  },
-  noQueueText: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
-  // Diagnostics
-  diagCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
-  },
-  diagRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  diagLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
-  },
-  diagVal: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 12,
-    color: '#FFFFFF',
-  },
-  diagDivider: {
-    height: 1,
-    backgroundColor: '#1C1C1E',
+    justifyContent: 'center',
   },
 });
