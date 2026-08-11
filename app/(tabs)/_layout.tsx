@@ -7,6 +7,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   interpolate,
   Extrapolation,
   type SharedValue,
@@ -68,21 +69,51 @@ const BAR_WIDTH    = SCREEN_WIDTH - BAR_MARGIN * 2;
 const TAB_WIDTH    = BAR_WIDTH / TAB_COUNT;
 
 const ACTIVE_SIZE  = 58;
-const ACTIVE_LIFT  = -16;                              // Float higher — more dramatic isolation
 const WELL_SIZE    = 46;
 
+// The Studio tab triggers a "compact mode" — bar shrinks to give the GO LIVE CTA full attention.
+// When the user taps any other tab, the bar springs back to normal.
+const STUDIO_TAB_NAME   = 'studio';
+const BAR_COMPACT_SCALE = 0.42;  // ~147px wide — visible but clearly receded
+const BAR_COMPACT_SLIDE = 8;     // drift slightly downward
+const BAR_COMPACT_ALPHA = 0.48;  // semi-transparent
+
 // Spring config — water-like flow
-const FLOW_SPRING = { damping: 24, stiffness: 130, mass: 0.8, overshootClamping: false };
-const ICON_SPRING = { damping: 18, stiffness: 200 };
+const FLOW_SPRING    = { damping: 24, stiffness: 130, mass: 0.8, overshootClamping: false };
+const ICON_SPRING    = { damping: 18, stiffness: 200 };
+const COMPACT_SPRING = { damping: 18, stiffness: 110, mass: 0.85, overshootClamping: false };
 
 // ════════════════════════════════════
 //  Custom Tab Bar
 // ════════════════════════════════════
 function AnimatedTabBar({ state, descriptors, navigation }: any) {
-  const insets     = useSafeAreaInsets();
-  const bottomPad  = Math.max(insets.bottom, 12);
-  const activeIndex = useSharedValue(state.index);
+  const insets         = useSafeAreaInsets();
+  const bottomPad      = Math.max(insets.bottom, 12);
+  const activeIndex    = useSharedValue(state.index);
   const unreadMessages = useUnreadMessageCount();
+
+  // ── Studio compact mode ──────────────────────────────────────────────────────
+  // When on Studio tab: bar shrinks to give the GO LIVE CTA full visual priority.
+  // On any other tab: bar springs back to full size.
+  const barScale   = useSharedValue(1);
+  const barOpacity = useSharedValue(1);
+  const barSlideY  = useSharedValue(0);
+
+  useEffect(() => {
+    const isStudio = state.routes[state.index]?.name === STUDIO_TAB_NAME;
+    barScale.value   = withSpring(isStudio ? BAR_COMPACT_SCALE : 1, COMPACT_SPRING);
+    barOpacity.value = withTiming(isStudio ? BAR_COMPACT_ALPHA : 1, { duration: 280 });
+    barSlideY.value  = withSpring(isStudio ? BAR_COMPACT_SLIDE : 0, COMPACT_SPRING);
+  }, [state.index]);
+
+  const barAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale:      barScale.value  },
+      { translateY: barSlideY.value },
+    ],
+    opacity: barOpacity.value,
+  }));
+  // ────────────────────────────────────────────────────────────────────────────
 
   const circleStyle = useAnimatedStyle(() => {
     const targetX = activeIndex.value * TAB_WIDTH + (TAB_WIDTH - ACTIVE_SIZE) / 2;
@@ -104,7 +135,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
 
   return (
     <View style={[styles.outerContainer, { paddingBottom: bottomPad }]}>
-      <View style={styles.bar}>
+      <Animated.View style={[styles.bar, barAnimStyle]}>
         {/* Floating active circle */}
         <Animated.View style={[styles.activeCircle, circleStyle]} />
 
@@ -128,7 +159,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
             />
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -148,14 +179,13 @@ interface TabButtonProps {
 function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, onPress }: TabButtonProps) {
 
   const animatedContainer = useAnimatedStyle(() => {
-    const distance   = Math.abs(activeIndex.value - tabIndex);
-    const translateY = interpolate(distance, [0, 0.5, 1], [ACTIVE_LIFT, -4, 0], Extrapolation.CLAMP);
-    const scale      = interpolate(distance, [0, 0.5, 1], [1.1, 1.05, 1],      Extrapolation.CLAMP);
+    // No vertical lift — flat design.
+    // Active state is communicated via the circle background + white icon.
+    // Subtle scale-up on active gives just enough "alive" feeling without the pop.
+    const distance = Math.abs(activeIndex.value - tabIndex);
+    const scale    = interpolate(distance, [0, 1], [1.07, 1], Extrapolation.CLAMP);
     return {
-      transform: [
-        { translateY: withSpring(translateY, FLOW_SPRING) },
-        { scale:      withSpring(scale,      ICON_SPRING) },
-      ],
+      transform: [{ scale: withSpring(scale, ICON_SPRING) }],
     };
   });
 
@@ -259,23 +289,24 @@ const styles = StyleSheet.create({
     }),
   },
 
-  // ── Floating active circle — glass chip (was neon green, too heavy) ──
+  // ── Floating active circle — glass chip ──
+  // top is centred inside the bar; no ACTIVE_LIFT offset since we removed the icon float.
   activeCircle: {
     position: 'absolute',
     width: ACTIVE_SIZE,
     height: ACTIVE_SIZE,
     borderRadius: ACTIVE_SIZE / 2,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.11)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    top: (BAR_H - ACTIVE_SIZE) / 2 + ACTIVE_LIFT,
+    borderColor: 'rgba(255,255,255,0.16)',
+    top: (BAR_H - ACTIVE_SIZE) / 2,  // centred — no float offset
     left: 0,
     ...Platform.select({
       ios: {
         shadowColor: '#FFFFFF',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
       },
       android: { elevation: 3 },
     }),
