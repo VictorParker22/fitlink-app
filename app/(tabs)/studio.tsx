@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,6 @@ import {
   ActivityIndicator,
   Animated,
   Switch,
-  TextInput,
-  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +55,7 @@ function SettingRow({
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(239,68,68,0.55)' }}
+        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(74,222,128,0.6)' }}
         thumbColor="#ffffff"
         ios_backgroundColor="rgba(255,255,255,0.1)"
       />
@@ -68,10 +66,12 @@ function SettingRow({
 // ── Queue card (Peloton "upcoming live" style) ────────────────────────────────
 function QueueCard({
   item,
+  relativeTime,
   onLaunch,
   onDelete,
 }: {
   item: LiveClassItem;
+  relativeTime: string;
   onLaunch: () => void;
   onDelete: () => void;
 }) {
@@ -102,9 +102,12 @@ function QueueCard({
           </TouchableOpacity>
         </View>
 
-        {/* Bottom: date + title */}
+        {/* Bottom: date + relative time + title */}
         <View style={s.queueCardBottom}>
-          <Text style={s.queueCardTime}>{dateStr} · {timeStr}</Text>
+          <View style={s.queueRelativeRow}>
+            <Text style={s.queueCardTime}>{dateStr} · {timeStr}</Text>
+            <Text style={s.queueRelativeTime}>{relativeTime}</Text>
+          </View>
           <Text style={s.queueCardTitle} numberOfLines={2}>{item.title}</Text>
           {item.category ? (
             <Text style={s.queueCardCategory}>{item.category.toUpperCase()}</Text>
@@ -146,6 +149,9 @@ export default function StudioScreen() {
     doNotDisturb: true,
   });
 
+  // Countdown timer for next scheduled stream
+  const [countdown, setCountdown] = useState<string>('');
+
   // Analytics
   const [realAnalytics, setRealAnalytics] = useState<any[]>([]);
 
@@ -186,6 +192,34 @@ export default function StudioScreen() {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Real-time countdown to next scheduled stream
+  const nextScheduledStream = useMemo(
+    () => liveClasses.find((c) => c.status === 'scheduled'),
+    [liveClasses]
+  );
+
+  useEffect(() => {
+    if (!nextScheduledStream) { setCountdown(''); return; }
+    const tick = () => {
+      const diff = new Date(nextScheduledStream.scheduled_for).getTime() - Date.now();
+      if (diff <= 0) { setCountdown('Starting now'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (h >= 24) {
+        const d = Math.floor(h / 24);
+        setCountdown(`in ${d}d ${h % 24}h`);
+      } else if (h > 0) {
+        setCountdown(`in ${h}h ${String(m).padStart(2, '0')}m`);
+      } else {
+        setCountdown(`in ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [nextScheduledStream]);
+
   // Derived
   const activeStream = useMemo(
     () => liveClasses.find((c) => c.status === 'live') || liveClasses.find((c) => c.status === 'scheduled'),
@@ -200,11 +234,42 @@ export default function StudioScreen() {
     () => classes.reduce((sum, c) => sum + (c.take_count || 0), 0) + pastStreams.length * 12,
     [classes, pastStreams]
   );
+  const totalClassesTaught = useMemo(
+    () => classes.length + pastStreams.length,
+    [classes, pastStreams]
+  );
+  const lastStreamDate = useMemo(() => {
+    if (pastStreams.length === 0) return null;
+    const sorted = [...pastStreams].sort(
+      (a, b) => new Date(b.scheduled_for).getTime() - new Date(a.scheduled_for).getTime()
+    );
+    const d = new Date(sorted[0].scheduled_for);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, [pastStreams]);
   const sparklineData = useMemo(() => {
     const src = realAnalytics.length > 0 ? realAnalytics : classes.slice(-6);
     if (src.length === 0) return [{ value: 1, label: '' }];
     return src.map((c, i) => ({ value: Math.max(c.take_count || 0, 1), label: `${i + 1}` }));
   }, [realAnalytics, classes]);
+
+  // Relative time helper for queue cards
+  const getRelativeTime = useCallback((dateStr: string) => {
+    const d = new Date(dateStr);
+    const diffMs = d.getTime() - Date.now();
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffD = Math.floor(diffMs / 86400000);
+    if (diffMs < 0) return 'Overdue';
+    if (diffH < 1) return 'Starting soon';
+    if (diffH < 24) return `in ${diffH}h ${String(Math.floor((diffMs % 3600000) / 60000)).padStart(2,'0')}m`;
+    if (diffD === 1) return 'Tomorrow';
+    if (diffD < 7) return `in ${diffD} days`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, []);
 
   const isLive = activeStream?.status === 'live';
   const isScheduled = activeStream?.status === 'scheduled';
@@ -318,19 +383,12 @@ export default function StudioScreen() {
 
         {/* ── Hero (Tonal-inspired: tall card with gradient + overlay text) */}
         <View style={[s.hero, isLive && s.heroLive]}>
-          {/* Background layers creating depth */}
+          {/* Background layers */}
           <View style={s.heroBgBase} />
           <View style={s.heroBgMid} />
           <View style={s.heroBgBottom} />
 
-          {/* Decorative dot grid */}
-          <View style={s.heroDotGrid}>
-            {Array.from({ length: 48 }).map((_, i) => (
-              <View key={i} style={s.heroDot} />
-            ))}
-          </View>
-
-          {/* Content overlay */}
+          {/* Content */}
           <View style={s.heroContent}>
             {/* Status pill */}
             <View style={[s.heroStatusPill, isLive && s.heroStatusPillLive, isScheduled && s.heroStatusPillScheduled]}>
@@ -340,18 +398,23 @@ export default function StudioScreen() {
               </Text>
             </View>
 
+            {/* Countdown (scheduled only) */}
+            {isScheduled && countdown ? (
+              <Text style={s.heroCountdown}>{countdown}</Text>
+            ) : null}
+
             {/* Main headline */}
             <Text style={s.heroTitle} numberOfLines={2}>
-              {activeStream ? activeStream.title : 'Standing By'}
+              {activeStream ? activeStream.title : 'Ready to Broadcast'}
             </Text>
             <Text style={s.heroSub}>
               {activeStream
                 ? (isLive
-                  ? 'Currently broadcasting via Mux'
+                  ? 'Your community is watching live right now'
                   : new Date(activeStream.scheduled_for).toLocaleString(undefined, {
                     weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                   }))
-                : 'Mux Ultra-Low Latency · RTMP Ingest'
+                : 'Your community is waiting — go live or schedule your next class.'
               }
             </Text>
           </View>
@@ -380,17 +443,56 @@ export default function StudioScreen() {
           </View>
           <View style={s.statSep} />
           <View style={s.statBlock}>
-            <Text style={s.statNum}>{pastStreams.length + (activeStream ? 1 : 0)}</Text>
-            <Text style={s.statLabel}>Broadcasts</Text>
+            <Text style={s.statNum}>{totalClassesTaught}</Text>
+            <Text style={s.statLabel}>Classes Taught</Text>
           </View>
           <View style={s.statSep} />
           <View style={s.statBlock}>
-            <Text style={[s.statNum, { color: '#4ADE80' }]}>0.8s</Text>
-            <Text style={s.statLabel}>Mux Latency</Text>
+            <Text style={[s.statNum, { color: '#4ADE80', fontSize: lastStreamDate && lastStreamDate.length > 5 ? 15 : 21 }]}>
+              {lastStreamDate || '—'}
+            </Text>
+            <Text style={s.statLabel}>Last Stream</Text>
           </View>
         </View>
 
-        {/* ── Tech Check (Twitch stream-setup toggle rows) ─────────────── */}
+        {/* ── Upcoming streams — moved above tech check (more actionable) ── */}
+        <View style={s.section}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionTitle}>Stream Queue</Text>
+            <TouchableOpacity style={s.sectionAddBtn} onPress={handleScheduleNew}>
+              <Ionicons name="add" size={16} color="#C8F135" />
+              <Text style={[s.sectionAddBtnText, { color: '#C8F135' }]}>Schedule</Text>
+            </TouchableOpacity>
+          </View>
+
+          {upcomingStreams.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.queueScroll}>
+              {upcomingStreams.map((item) => (
+                <QueueCard
+                  key={item.id}
+                  item={item}
+                  relativeTime={getRelativeTime(item.scheduled_for)}
+                  onLaunch={() => handleEnterStudio(item)}
+                  onDelete={() => handleDelete(item.id, item.title)}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={s.emptyQueueCard}>
+              <Ionicons name="radio-outline" size={36} color="rgba(255,255,255,0.1)" />
+              <Text style={s.emptyQueueTitle}>No upcoming broadcasts</Text>
+              <Text style={s.emptyQueueSub}>
+                Schedule a live class to connect with your community in real time.
+              </Text>
+              <TouchableOpacity style={s.emptyQueueBtn} onPress={handleScheduleNew}>
+                <Ionicons name="add" size={13} color="#C8F135" />
+                <Text style={s.emptyQueueBtnText}>Schedule a Class</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* ── Pre-Flight Check (Twitch stream-setup toggle rows) ────────── */}
         <View style={s.section}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionTitle}>Pre-Flight Check</Text>
@@ -435,10 +537,10 @@ export default function StudioScreen() {
           </View>
         </View>
 
-        {/* ── Viewership trend ─────────────────────────────────────────── */}
+        {/* ── Student Engagement (chart) ────────────────────────────────── */}
         <View style={s.section}>
           <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Viewership Trend</Text>
+            <Text style={s.sectionTitle}>Student Engagement</Text>
             <Text style={s.sectionSeeAll}>Last {sparklineData.length} classes</Text>
           </View>
 
@@ -452,10 +554,10 @@ export default function StudioScreen() {
                 data={sparklineData}
                 height={90}
                 width={width - 96}
-                color="#EF4444"
+                color="#C8F135"
                 thickness={2.5}
-                startFillColor="rgba(239,68,68,0.15)"
-                endFillColor="rgba(239,68,68,0)"
+                startFillColor="rgba(200,241,53,0.12)"
+                endFillColor="rgba(200,241,53,0)"
                 areaChart
                 hideRules
                 hideYAxisText
@@ -468,39 +570,6 @@ export default function StudioScreen() {
               />
             </View>
           </View>
-        </View>
-
-        {/* ── Upcoming streams (Peloton "Upcoming Live Workouts") ─────── */}
-        <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Stream Queue</Text>
-            <TouchableOpacity style={s.sectionAddBtn} onPress={handleScheduleNew}>
-              <Ionicons name="add" size={16} color="#EF4444" />
-              <Text style={s.sectionAddBtnText}>Schedule</Text>
-            </TouchableOpacity>
-          </View>
-
-          {upcomingStreams.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.queueScroll}>
-              {upcomingStreams.map((item) => (
-                <QueueCard
-                  key={item.id}
-                  item={item}
-                  onLaunch={() => handleEnterStudio(item)}
-                  onDelete={() => handleDelete(item.id, item.title)}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={s.emptyQueueCard}>
-              <Ionicons name="calendar-outline" size={32} color="rgba(255,255,255,0.12)" />
-              <Text style={s.emptyQueueTitle}>No scheduled broadcasts</Text>
-              <Text style={s.emptyQueueSub}>Schedule a class to build your broadcast queue.</Text>
-              <TouchableOpacity style={s.emptyQueueBtn} onPress={handleScheduleNew}>
-                <Text style={s.emptyQueueBtnText}>+ Schedule a Class</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* ── Broadcast Archive ─────────────────────────────────────────── */}
@@ -543,21 +612,23 @@ export default function StudioScreen() {
       {/* ── Sticky CTA (Peloton-style bottom bar) ────────────────────── */}
       <View style={[s.stickyBottom, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
         {activeStream ? (
-          /* Active stream: big red re-enter + small schedule */
+          /* Active stream: re-enter */
           <TouchableOpacity
-            style={[s.goLiveBtn, isLive && s.goLiveBtnActive]}
+            style={[s.goLiveBtn, isLive ? s.goLiveBtnLive : s.goLiveBtnScheduled]}
             onPress={() => handleEnterStudio(activeStream)}
             activeOpacity={0.85}
           >
-            <View style={s.goLiveDot} />
-            <Text style={s.goLiveBtnText}>{isLive ? 'RE-ENTER STUDIO' : 'ENTER STUDIO'}</Text>
+            <View style={[s.goLiveDot, isLive && s.goLiveDotLive]} />
+            <Text style={[s.goLiveBtnText, isLive && s.goLiveBtnTextLive]}>
+              {isLive ? 'Re-enter Live Studio' : `Enter Studio · ${countdown || 'Scheduled'}`}
+            </Text>
           </TouchableOpacity>
         ) : (
-          /* Idle: GO LIVE NOW primary + Schedule secondary */
+          /* Idle: GO LIVE NOW lime + Schedule calendar icon */
           <View style={s.stickyBtnRow}>
             <TouchableOpacity style={s.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
               <View style={s.goLiveDot} />
-              <Text style={s.goLiveBtnText}>GO LIVE NOW</Text>
+              <Text style={s.goLiveBtnText}>Go Live Now</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.scheduleBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
               <Ionicons name="calendar-outline" size={18} color="rgba(255,255,255,0.7)" />
@@ -685,7 +756,7 @@ const s = StyleSheet.create({
   },
   heroBgBase: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F0D1E', // deep navy-purple
+    backgroundColor: '#0F0D1E',
   },
   heroBgMid: {
     position: 'absolute',
@@ -693,7 +764,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: '55%',
-    backgroundColor: 'rgba(80,50,140,0.12)', // subtle purple tint at top
+    backgroundColor: 'rgba(80,50,140,0.1)',
   },
   heroBgBottom: {
     position: 'absolute',
@@ -701,25 +772,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: '45%',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  heroDotGrid: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 18,
-    opacity: 0.4,
-  },
-  heroDot: {
-    width: 2,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   heroContent: {
     padding: Spacing.lg,
@@ -770,11 +823,19 @@ const s = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: -0.3,
   },
+  heroCountdown: {
+    fontFamily: FontFamily.mono,
+    fontSize: 32,
+    color: '#FF6B35',
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
   heroSub: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
     marginBottom: Spacing.lg,
+    lineHeight: 17,
   },
   heroEnterBtn: {
     flexDirection: 'row',
@@ -903,7 +964,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   settingIconBoxActive: {
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: 'rgba(74,222,128,0.12)',
   },
   settingLabelWrap: { flex: 1, gap: 1 },
   settingLabel: {
@@ -1008,11 +1069,23 @@ const s = StyleSheet.create({
     color: '#FF6B35',
     letterSpacing: 0.8,
   },
-  queueCardBottom: { gap: 3 },
+  queueCardBottom: { gap: 4 },
+  queueRelativeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
   queueCardTime: {
     fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255,255,255,0.5)',
+  },
+  queueRelativeTime: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 9,
+    color: '#FF6B35',
+    letterSpacing: 0.3,
   },
   queueCardTitle: {
     fontFamily: FontFamily.headingExtraBold,
@@ -1038,28 +1111,33 @@ const s = StyleSheet.create({
   emptyQueueTitle: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 8,
   },
   emptyQueueSub: {
     fontFamily: FontFamily.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.22)',
+    color: 'rgba(255,255,255,0.25)',
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 18,
+    paddingHorizontal: 8,
   },
   emptyQueueBtn: {
-    marginTop: 8,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.35)',
+    borderColor: 'rgba(200,241,53,0.35)',
+    backgroundColor: 'rgba(200,241,53,0.06)',
   },
   emptyQueueBtnText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 11,
-    color: '#EF4444',
+    color: '#C8F135',
     letterSpacing: 0.3,
   },
 
@@ -1130,29 +1208,44 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C8F135',
     paddingVertical: 16,
     borderRadius: Radius.sm,
-    shadowColor: '#EF4444',
+    shadowColor: '#C8F135',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
     elevation: 6,
   },
-  goLiveBtnActive: {
+  // Scheduled state: muted, less shadow
+  goLiveBtnScheduled: {
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  // LIVE state: red with glow
+  goLiveBtnLive: {
     backgroundColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOpacity: 0.35,
   },
   goLiveDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  goLiveDotLive: {
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
   goLiveBtnText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 14,
+    color: '#000000',
+    letterSpacing: 0.3,
+  },
+  goLiveBtnTextLive: {
     color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
   scheduleBtn: {
     width: 52,
