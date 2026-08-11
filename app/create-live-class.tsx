@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TextInput,
+  TouchableOpacity, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Modal, Pressable,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,368 +11,489 @@ import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useApp } from '../context/AppContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { Spacing, FontFamily, Radius } from '../constants/theme';
 import { useAlert } from '../context/AlertContext';
 
+// ── Constants ────────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  'HIIT', 'Strength', 'Yoga', 'Cycling', 'Pilates',
+  'Running', 'Dance', 'Boxing', 'Meditation', 'Stretching',
+];
+
+const DURATIONS = [20, 30, 45, 60, 75, 90];
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function CreateLiveClassScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  
+  const router  = useRouter();
+  const insets  = useSafeAreaInsets();
   const { createLiveClass } = useApp();
-  const { showAlert } = useAlert();
+  const { showAlert }       = useAlert();
 
-  const [saving, setSaving] = useState(false);
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  
-  // Schedule state
-  const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  // Form state
+  const [title,    setTitle]    = useState('');
+  const [desc,     setDesc]     = useState('');
+  const [category, setCategory] = useState<string | null>(null);
+  const [duration, setDuration] = useState<number | null>(45);
+  const [date,     setDate]     = useState<Date>(() => {
+    // Default to tomorrow at 7:00 AM
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(7, 0, 0, 0);
+    return d;
+  });
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    if (selectedDate) {
-      const currentDate = new Date(date);
-      selectedDate.setHours(currentDate.getHours());
-      selectedDate.setMinutes(currentDate.getMinutes());
-      setDate(selectedDate);
-    }
-  };
+  // UI state
+  const [saving,          setSaving]          = useState(false);
+  const [showDatePicker,  setShowDatePicker]  = useState(false);
+  const [showTimePicker,  setShowTimePicker]  = useState(false);
+  const [titleFocused,    setTitleFocused]    = useState(false);
+  const [descFocused,     setDescFocused]     = useState(false);
 
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-    }
-    if (selectedTime) {
-      const currentDate = new Date(date);
-      currentDate.setHours(selectedTime.getHours());
-      currentDate.setMinutes(selectedTime.getMinutes());
-      setDate(currentDate);
+  // ── Date/Time handlers ────────────────────────────────────────────────────
+  const handleDateChange = (_: any, selected?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (selected) {
+      const merged = new Date(selected);
+      merged.setHours(date.getHours(), date.getMinutes(), 0, 0);
+      setDate(merged);
     }
   };
 
-  const handleCreate = async () => {
+  const handleTimeChange = (_: any, selected?: Date) => {
+    if (Platform.OS === 'android') setShowTimePicker(false);
+    if (selected) {
+      const merged = new Date(date);
+      merged.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      setDate(merged);
+    }
+  };
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  const handleSchedule = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     if (!title.trim()) {
-      showAlert({ type: 'warning', title: 'Missing Title', message: 'Please enter a title for the live class.' });
+      showAlert({ type: 'warning', title: 'Missing Title', message: 'Give your class a name so attendees know what to expect.' });
       return;
     }
-    
-    if (date < new Date()) {
-      showAlert({ type: 'warning', title: 'Invalid Time', message: 'Live class cannot be scheduled in the past.' });
+    if (date <= new Date()) {
+      showAlert({ type: 'warning', title: 'Invalid Time', message: 'Please pick a time in the future.' });
       return;
     }
-    
+
     setSaving(true);
     try {
-      const payload = {
-        title: title.trim(),
-        description: description.trim(),
-        scheduled_for: date.toISOString(),
-      };
-      
-      const newClass = await createLiveClass(payload);
-      showAlert({ type: 'success', title: 'Created', message: 'Live class scheduled successfully.' });
-      
-      router.replace(`/broadcast/${newClass.id}` as any);
+      await createLiveClass({
+        title:            title.trim(),
+        description:      desc.trim() || undefined,
+        scheduled_for:    date.toISOString(),
+        category:         category ?? undefined,
+        duration_minutes: duration ?? undefined,
+      });
+      showAlert({ type: 'success', title: 'Class Scheduled!', message: 'Your class has been added to the Studio queue.' });
+      router.back();
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to create live class.' });
+      showAlert({ type: 'error', title: 'Failed', message: err.message || 'Could not schedule the class.' });
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Date/time display ─────────────────────────────────────────────────────
+  const isToday     = new Date().toDateString() === date.toDateString();
+  const isTomorrow  = (() => { const t = new Date(); t.setDate(t.getDate()+1); return t.toDateString() === date.toDateString(); })();
+  const dateLabel   = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeLabel   = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
+
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>SCHEDULE LIVE CLASS</Text>
+          <Text style={s.headerTitle}>Schedule a Class</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          
-          <View style={styles.stepContainer}>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.tagHeader}>TITLE</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Saturday Morning HIIT Live"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={title}
-                onChangeText={setTitle}
-                selectionColor="#EF4444"
-              />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+
+          {/* ── Title ─────────────────────────────────────────────────── */}
+          <Section label="CLASS TITLE">
+            <TextInput
+              style={[s.input, titleFocused && s.inputFocused]}
+              placeholder="e.g. Saturday Morning HIIT"
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              value={title}
+              onChangeText={setTitle}
+              onFocus={() => setTitleFocused(true)}
+              onBlur={() => setTitleFocused(false)}
+              selectionColor="#FF6B35"
+              returnKeyType="done"
+            />
+          </Section>
+
+          {/* ── Category ──────────────────────────────────────────────── */}
+          <Section label="CATEGORY">
+            <View style={s.chipGrid}>
+              {CATEGORIES.map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[s.chip, category === cat && s.chipActive]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setCategory(prev => prev === cat ? null : cat);
+                  }}
+                >
+                  <Text style={[s.chipText, category === cat && s.chipTextActive]}>{cat}</Text>
+                </Pressable>
+              ))}
             </View>
+          </Section>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.tagHeader}>DESCRIPTION (OPTIONAL)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="What will users experience in this live class?"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                textAlignVertical="top"
-                selectionColor="#EF4444"
-              />
+          {/* ── Date & Time ───────────────────────────────────────────── */}
+          <Section label="DATE & TIME">
+            <View style={s.dateRow}>
+              <TouchableOpacity style={s.dateBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                <Ionicons name="calendar-outline" size={18} color="#FF6B35" />
+                <Text style={s.dateBtnText}>{dateLabel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.dateBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
+                <Ionicons name="time-outline" size={18} color="#FF6B35" />
+                <Text style={s.dateBtnText}>{timeLabel}</Text>
+              </TouchableOpacity>
             </View>
+          </Section>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.tagHeader}>SCHEDULE (DATE & TIME)</Text>
-              <View style={styles.datePickerContainer}>
-                
-                <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-                  <Ionicons name="calendar-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-                  <Text style={styles.dateBtnText}>{date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.dateBtn} onPress={() => setShowTimePicker(true)}>
-                  <Ionicons name="time-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-                  <Text style={styles.dateBtnText}>{date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.helperText}>A Mux live stream will be created immediately.</Text>
+          {/* ── Duration ──────────────────────────────────────────────── */}
+          <Section label="DURATION (MINUTES)">
+            <View style={s.durationRow}>
+              {DURATIONS.map(min => (
+                <Pressable
+                  key={min}
+                  style={[s.durationBtn, duration === min && s.durationBtnActive]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setDuration(min);
+                  }}
+                >
+                  <Text style={[s.durationText, duration === min && s.durationTextActive]}>{min}</Text>
+                </Pressable>
+              ))}
             </View>
+          </Section>
 
-          </View>
+          {/* ── Description ───────────────────────────────────────────── */}
+          <Section label="DESCRIPTION  ·  OPTIONAL">
+            <TextInput
+              style={[s.input, s.textArea, descFocused && s.inputFocused]}
+              placeholder="What should attendees expect? Intensity, equipment, any warm-up required..."
+              placeholderTextColor="rgba(255,255,255,0.2)"
+              value={desc}
+              onChangeText={setDesc}
+              onFocus={() => setDescFocused(true)}
+              onBlur={() => setDescFocused(false)}
+              multiline
+              textAlignVertical="top"
+              selectionColor="#FF6B35"
+            />
+          </Section>
 
         </ScrollView>
-        
-        {/* Footer Navigation */}
-        <View style={[styles.footerRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-          <TouchableOpacity 
-            style={[styles.createBtn, saving && { opacity: 0.7 }]} 
-            onPress={handleCreate}
+
+        {/* ── Footer CTA ───────────────────────────────────────────────── */}
+        <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 80 + 12 }]}>
+          <TouchableOpacity
+            style={[s.ctaBtn, saving && s.ctaBtnDisabled]}
+            onPress={handleSchedule}
             disabled={saving}
+            activeOpacity={0.88}
           >
-            {saving ? <ActivityIndicator color="#FFFFFF" /> : (
+            {saving ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
               <>
-                <Text style={styles.createBtnText}>CREATE & ENTER STUDIO</Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                <Ionicons name="radio" size={18} color="#000000" />
+                <Text style={s.ctaBtnText}>SCHEDULE CLASS</Text>
+                <Ionicons name="arrow-forward" size={16} color="#000000" />
               </>
             )}
           </TouchableOpacity>
         </View>
 
-        {showDatePicker && (
-          Platform.OS === 'ios' ? (
-            <Modal transparent animationType="fade" visible={showDatePicker}>
-              <TouchableOpacity 
-                style={styles.modalOverlay} 
-                activeOpacity={1} 
-                onPress={() => setShowDatePicker(false)}
-              >
-                <View style={styles.modalPickerContainer}>
-                  <View style={styles.modalPickerHeader}>
-                    <Text style={styles.modalPickerTitle}>Select Date</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.modalDoneText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display="spinner"
-                    onChange={handleDateChange}
-                    minimumDate={new Date()}
-                    textColor="#FFFFFF"
-                    themeVariant="dark"
-                  />
-                </View>
-              </TouchableOpacity>
-            </Modal>
-          ) : (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              minimumDate={new Date()}
-            />
-          )
-        )}
-
-        {showTimePicker && (
-          Platform.OS === 'ios' ? (
-            <Modal transparent animationType="fade" visible={showTimePicker}>
-              <TouchableOpacity 
-                style={styles.modalOverlay} 
-                activeOpacity={1} 
-                onPress={() => setShowTimePicker(false)}
-              >
-                <View style={styles.modalPickerContainer}>
-                  <View style={styles.modalPickerHeader}>
-                    <Text style={styles.modalPickerTitle}>Select Time</Text>
-                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text style={styles.modalDoneText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={date}
-                    mode="time"
-                    display="spinner"
-                    onChange={handleTimeChange}
-                    textColor="#FFFFFF"
-                    themeVariant="dark"
-                  />
-                </View>
-              </TouchableOpacity>
-            </Modal>
-          ) : (
-            <DateTimePicker
-              value={date}
-              mode="time"
-              display="default"
-              onChange={handleTimeChange}
-            />
-          )
-        )}
       </KeyboardAvoidingView>
+
+      {/* ── iOS Date Picker Modal ─────────────────────────────────────────── */}
+      {showDatePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide" visible>
+          <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
+            <View style={s.pickerSheet}>
+              <PickerHeader title="Select Date" onDone={() => setShowDatePicker(false)} />
+              <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} minimumDate={new Date()} textColor="#FFFFFF" themeVariant="dark" />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* ── Android Date Picker ───────────────────────────────────────────── */}
+      {showDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker value={date} mode="date" display="default" onChange={handleDateChange} minimumDate={new Date()} />
+      )}
+
+      {/* ── iOS Time Picker Modal ─────────────────────────────────────────── */}
+      {showTimePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide" visible>
+          <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
+            <View style={s.pickerSheet}>
+              <PickerHeader title="Select Time" onDone={() => setShowTimePicker(false)} />
+              <DateTimePicker value={date} mode="time" display="spinner" onChange={handleTimeChange} textColor="#FFFFFF" themeVariant="dark" />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* ── Android Time Picker ───────────────────────────────────────────── */}
+      {showTimePicker && Platform.OS === 'android' && (
+        <DateTimePicker value={date} mode="time" display="default" onChange={handleTimeChange} />
+      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+// ── Sub-components ────────────────────────────────────────────────────────────
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function PickerHeader({ title, onDone }: { title: string; onDone: () => void }) {
+  return (
+    <View style={s.pickerHeader}>
+      <Text style={s.pickerTitle}>{title}</Text>
+      <TouchableOpacity onPress={onDone}>
+        <Text style={s.pickerDone}>Done</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#0A0A10',
   },
+
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
-  backBtn: {
-    padding: 8,
+  headerBack: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
+    fontSize: 17,
     color: '#FFFFFF',
-    letterSpacing: 1,
+    letterSpacing: -0.2,
   },
-  scrollContent: {
+
+  // ── Scroll ──────────────────────────────────────────────────────────────────
+  scroll: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
+    paddingBottom: 16,
+    gap: 4,
   },
-  stepContainer: {
-    flex: 1,
+
+  // ── Section ─────────────────────────────────────────────────────────────────
+  section: {
+    marginBottom: Spacing['2xl'],
   },
-  inputGroup: {
-    marginBottom: Spacing.xl,
-  },
-  tagHeader: {
+  sectionLabel: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.38)',
+    letterSpacing: 1.8,
     marginBottom: Spacing.sm,
   },
+
+  // ── Text Input ──────────────────────────────────────────────────────────────
   input: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: '#0F0F18',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
     fontFamily: FontFamily.bodySemiBold,
     fontSize: 16,
     color: '#FFFFFF',
   },
-  textArea: {
-    height: 100,
+  inputFocused: {
+    borderColor: 'rgba(255,107,53,0.45)',
+    backgroundColor: '#12121C',
   },
-  datePickerContainer: {
+  textArea: {
+    height: 110,
+    paddingTop: 14,
+  },
+
+  // ── Category chips ──────────────────────────────────────────────────────────
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+  },
+  chipActive: {
+    backgroundColor: 'rgba(255,107,53,0.16)',
+    borderColor: '#FF6B35',
+  },
+  chipText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  chipTextActive: {
+    color: '#FF6B35',
+  },
+
+  // ── Date & Time ─────────────────────────────────────────────────────────────
+  dateRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 8,
   },
   dateBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0C0C0E',
+    gap: 8,
+    backgroundColor: '#0F0F18',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: Radius.md,
+    paddingVertical: 14,
   },
   dateBtnText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 14,
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 15,
     color: '#FFFFFF',
   },
-  helperText: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 4,
+
+  // ── Duration ────────────────────────────────────────────────────────────────
+  durationRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  footerRow: {
-    padding: Spacing.md,
+  durationBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: Radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+  },
+  durationBtnActive: {
+    backgroundColor: 'rgba(255,107,53,0.16)',
+    borderColor: '#FF6B35',
+  },
+  durationText: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+  },
+  durationTextActive: {
+    color: '#FF6B35',
+  },
+
+  // ── Footer CTA ──────────────────────────────────────────────────────────────
+  footer: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
-    backgroundColor: '#000000',
+    borderTopColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: '#0A0A10',
   },
-  createBtn: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 16,
-    borderRadius: Radius.xs,
+  ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    backgroundColor: '#C8F135',
+    borderRadius: Radius.xl,
+    paddingVertical: 17,
   },
-  createBtnText: {
+  ctaBtnDisabled: {
+    opacity: 0.6,
+  },
+  ctaBtnText: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    color: '#000000',
+    letterSpacing: 0.8,
   },
-  modalOverlay: {
+
+  // ── Picker modal ────────────────────────────────────────────────────────────
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
-  modalPickerContainer: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: Radius.md,
-    borderTopRightRadius: Radius.md,
-    paddingBottom: Spacing.xl,
+  pickerSheet: {
+    backgroundColor: '#111118',
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  modalPickerHeader: {
+  pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
-  modalPickerTitle: {
+  pickerTitle: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 16,
     color: '#FFFFFF',
   },
-  modalDoneText: {
-    fontFamily: FontFamily.bodyBold,
+  pickerDone: {
+    fontFamily: FontFamily.bodySemiBold,
     fontSize: 16,
-    color: '#EF4444',
+    color: '#FF6B35',
   },
 });
