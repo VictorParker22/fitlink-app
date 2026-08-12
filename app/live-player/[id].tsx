@@ -363,7 +363,6 @@ export default function LivePlayerScreen() {
           <VideoView
             style={styles.videoView}
             player={player}
-            fullscreenOptions={{ allowPictureInPicture: true }}
             allowsPictureInPicture
             contentFit="contain"
           />

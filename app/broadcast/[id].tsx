@@ -34,9 +34,12 @@ if (Platform.OS === 'ios') {
     requestCameraPermissionsAsync = RtmpModule.requestCameraPermissionsAsync;
     requestMicrophonePermissionsAsync = RtmpModule.requestMicrophonePermissionsAsync;
   } catch (e) {
-    console.warn('[Broadcast Studio] Native RTMP module load error:', e);
+    // Expected in Expo Go — the native RTMP module requires a dev/production build.
+    // Run `npx expo run:ios` to get a build that includes this module.
+    console.log('[Broadcast Studio] RTMP native module unavailable (Expo Go or missing pod). Use a dev build.');
   }
 }
+
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const MSG_VISIBLE_MS = 7000;
@@ -111,6 +114,22 @@ export default function BroadcastStudioScreen() {
   const markerToastAnim = useRef(new Animated.Value(0)).current;
 
   const publisherRef = useRef<any>(null);
+
+  // ── Unmount safety ────────────────────────────────────────────────────────
+  const isMountedRef = useRef(true);
+  // Stores the 8-second timeout that marks the class as 'live' so we can cancel it if user leaves early
+  const liveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Cancel the deferred 'live' status update — prevents a ghost stream appearing in studio
+      if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
+      // Clear all pending fade-out animations so there are no post-unmount state updates
+      opacityMap.clear();
+    };
+  }, []);
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -302,14 +321,18 @@ export default function BroadcastStudioScreen() {
 
     if (!activeStreamKey || activeStreamKey.startsWith('key_')) {
       try {
+        // NOTE: supabase.functions.invoke puts HTTP error bodies in `data`, not in `error`
         const { data: muxData, error: muxError } = await supabase.functions.invoke('create-mux-stream');
-        if (!muxError && muxData?.stream_key) {
+        if (!muxError && muxData?.stream_key && !muxData?.error) {
           activeStreamKey = muxData.stream_key;
           await updateLiveClass(liveClass.id, { mux_playback_id: muxData.playback_id });
           await supabase.from('live_class_secrets').update({
             mux_stream_id: muxData.stream_id,
             mux_stream_key: muxData.stream_key,
           }).eq('live_class_id', liveClass.id);
+        } else {
+          const reason = muxError?.message ?? muxData?.error ?? 'no stream_key in response';
+          console.warn('[Broadcast] create-mux-stream inline retry failed:', reason);
         }
       } catch (err: any) {
         showAlert({ type: 'error', title: 'Mux Setup Error', message: err.message || 'Could not reach Mux Edge Function.' });
@@ -317,7 +340,11 @@ export default function BroadcastStudioScreen() {
     }
 
     if (!activeStreamKey || activeStreamKey.startsWith('key_')) {
-      showAlert({ type: 'error', title: 'Invalid Stream Key', message: 'A valid Mux stream key is required.' });
+      showAlert({
+        type: 'error',
+        title: 'Mux Not Configured',
+        message: 'Live streaming requires valid Mux credentials. Check that the MuxAccessToken and MuxSecret environment variables are set in your Supabase project.',
+      });
       return;
     }
 
@@ -332,7 +359,9 @@ export default function BroadcastStudioScreen() {
         });
       }
 
-      setTimeout(async () => {
+      liveTimeoutRef.current = setTimeout(async () => {
+        // Guard: don't update if the coach has already navigated away
+        if (!isMountedRef.current) return;
         try { await updateLiveClass(liveClass.id, { status: 'live' }); } catch (e) {}
       }, 8000);
     } catch (e: any) {
@@ -402,15 +431,24 @@ export default function BroadcastStudioScreen() {
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  if (Platform.OS !== 'ios' || !ExpoCameraRtmpPublisherView) {
+  const isIosNativeModuleMissing = Platform.OS === 'ios' && !ExpoCameraRtmpPublisherView;
+  if (Platform.OS !== 'ios' || isIosNativeModuleMissing) {
+    const isAndroid = Platform.OS !== 'ios';
     return (
       <SafeAreaView style={[s.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl }]}>
         <View style={s.recapCard}>
-          <Ionicons name="radio" size={48} color="#C8F135" style={{ marginBottom: 12 }} />
-          <Text style={s.recapTag}>IOS BROADCAST STUDIO</Text>
-          <Text style={s.recapTitle}>Camera Streaming</Text>
+          <Ionicons
+            name={isAndroid ? 'phone-portrait-outline' : 'construct-outline'}
+            size={48}
+            color="#C8F135"
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={s.recapTag}>{isAndroid ? 'ANDROID' : 'DEV BUILD REQUIRED'}</Text>
+          <Text style={s.recapTitle}>{isAndroid ? 'Coming Soon' : 'Native Build Needed'}</Text>
           <Text style={s.recapSub}>
-            Mobile camera live broadcasting via RTMP is supported on iOS devices. Android support coming soon!
+            {isAndroid
+              ? 'Live broadcasting via RTMP is currently iOS only. Android support is on the roadmap!'
+              : 'You are running Expo Go, which does not include the native RTMP camera module.\n\nRun \`npx expo run:ios\` to build a development client and unlock live broadcasting.'}
           </Text>
           <TouchableOpacity style={s.saveVodBtn} onPress={() => router.back()}>
             <Text style={s.saveVodBtnText}>RETURN TO STUDIO</Text>
@@ -422,12 +460,20 @@ export default function BroadcastStudioScreen() {
 
   if (hasPermission === null || !liveClass) {
     return (
-      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView style={[s.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
         <ActivityIndicator color="#C8F135" size="large" />
         <Text style={{ color: 'rgba(255,255,255,0.4)', fontFamily: FontFamily.body, fontSize: 12, marginTop: 12 }}>
-          Loading broadcast studio…
+          {hasPermission === null ? 'Checking permissions…' : 'Loading broadcast studio…'}
         </Text>
-      </View>
+        {/* Cancel button so the user is never trapped on the loading screen */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginTop: 32, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }}
+          activeOpacity={0.7}
+        >
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: FontFamily.body, fontSize: 14 }}>Cancel</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 

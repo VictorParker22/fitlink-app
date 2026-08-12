@@ -17,7 +17,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   const [isLoggedToday, setIsLoggedToday] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const repeatRef = useRef<ReturnType<typeof setInterval>>();
+  const repeatRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   const startRepeat = useCallback((delta: number) => {
     // First tick already happened via onPress — start repeating after 400ms hold

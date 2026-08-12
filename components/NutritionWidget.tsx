@@ -7,6 +7,7 @@ import { useClient } from '../context/ClientContext';
 import { FontFamily, FontSize, Radius, Spacing } from '../constants/theme';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useHaptic } from '../hooks/useHaptic';
+import * as Haptics from 'expo-haptics';
 
 const MEAL_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   breakfast: { icon: 'sunny', color: '#F59E0B' },

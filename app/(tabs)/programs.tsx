@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage, Switch, Alert as RNAlert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,8 @@ import { useAlert } from '../../context/AlertContext';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 import { getCategoryColor } from '../../data/categoryColors';
+import { supabase } from '../../lib/supabase';
+
 
 type TabType = 'workouts' | 'exercises' | 'diets' | 'plans' | 'classes';
 
@@ -18,8 +20,251 @@ const stripHtml = (html?: string) => {
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 };
 
+// ─── PlanRow — Plan card with Autoflow configuration ─────────────────────────
+
+function PlanRow({
+  item,
+  workouts,
+  onRefresh,
+}: {
+  item: any;
+  workouts: any[];
+  onRefresh: () => void;
+}) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
+  const [enabled, setEnabled] = useState<boolean>(item.autoflow_enabled !== false);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(item.autoflow_workout_id ?? null);
+  const [welcomeMsg, setWelcomeMsg] = useState<string>(item.autoflow_welcome_message ?? '');
+  const [saving, setSaving] = useState(false);
+  const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
+
+  const selectedWorkout = workouts.find(w => w.id === selectedWorkoutId);
+  const subtitle = `${(item.period || 'monthly').toUpperCase()} • $${item.price}`;
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('plans')
+      .update({
+        autoflow_enabled: enabled,
+        autoflow_workout_id: selectedWorkoutId,
+        autoflow_welcome_message: welcomeMsg.trim() || null,
+      })
+      .eq('id', item.id);
+    setSaving(false);
+    if (error) {
+      RNAlert.alert('Save failed', error.message);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onRefresh();
+    }
+  };
+
+  const autoflowActive = enabled && !!selectedWorkoutId;
+
+  return (
+    <View style={{ backgroundColor: '#000', borderRadius: Radius.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+      {/* ── Main row tap → plan detail ── */}
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/plan/${item.id}` as any)}
+      >
+        <View style={[styles.thumbnailContainer, { borderColor: item.color || 'rgba(255,255,255,0.2)' }]}>
+          <Ionicons name="card-outline" size={22} color="#FFFFFF" />
+        </View>
+        <View style={styles.textContainer}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <Text style={styles.rowTitle} numberOfLines={1}>{item.name.toUpperCase()}</Text>
+            {item.is_popular && (
+              <View style={styles.popularBadge}>
+                <Text style={styles.popularBadgeText}>POPULAR</Text>
+              </View>
+            )}
+            {/* Autoflow status badge */}
+            <View style={{
+              paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.xs,
+              backgroundColor: autoflowActive ? 'rgba(200,241,53,0.12)' : 'rgba(255,255,255,0.05)',
+              borderWidth: 1,
+              borderColor: autoflowActive ? 'rgba(200,241,53,0.4)' : 'rgba(255,255,255,0.1)',
+            }}>
+              <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 8, color: autoflowActive ? '#C8F135' : 'rgba(255,255,255,0.3)', letterSpacing: 0.8 }}>
+                {autoflowActive ? '⚡ AUTOFLOW ON' : 'AUTOFLOW OFF'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.rowSubtitle} numberOfLines={1}>{subtitle}</Text>
+          <Text style={styles.rowDescription} numberOfLines={1}>
+            {item.features?.join(', ') || 'Membership plan'}
+          </Text>
+        </View>
+
+        {/* Expand/collapse autoflow config button */}
+        <TouchableOpacity
+          style={{ padding: 10 }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpanded(v => !v); }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name={expanded ? 'chevron-up' : 'flash-outline'} size={16} color={autoflowActive ? '#C8F135' : 'rgba(255,255,255,0.3)'} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      {/* ── Inline Autoflow Config Panel ── */}
+      {expanded && (
+        <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', padding: 16, gap: 14 }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View>
+              <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, marginBottom: 2 }}>AUTOFLOW</Text>
+              <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: 14, color: '#FFFFFF' }}>When client subscribes →</Text>
+            </View>
+            <Switch
+              value={enabled}
+              onValueChange={setEnabled}
+              trackColor={{ false: '#1A1A1A', true: 'rgba(200,241,53,0.4)' }}
+              thumbColor={enabled ? '#C8F135' : '#555'}
+              ios_backgroundColor="#1A1A1A"
+            />
+          </View>
+
+          {/* Step 1: Workout assign */}
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2 }}>① AUTO-ASSIGN WORKOUT</Text>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: '#111', borderRadius: Radius.xs, borderWidth: 1,
+                borderColor: selectedWorkout ? 'rgba(200,241,53,0.3)' : 'rgba(255,255,255,0.1)',
+                padding: 12,
+              }}
+              onPress={() => setShowWorkoutPicker(true)}
+              activeOpacity={0.8}
+            >
+              {selectedWorkout ? (
+                <>
+                  <RNImage source={getWorkoutEmblem(selectedWorkout.id, selectedWorkout.name, [])} style={{ width: 32, height: 32, borderRadius: 4 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#FFFFFF' }} numberOfLines={1}>{selectedWorkout.name}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{selectedWorkout.workout_exercises?.length || 0} exercises</Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.3)" />
+                </>
+              ) : (
+                <>
+                  <View style={{ width: 32, height: 32, borderRadius: 4, backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="barbell-outline" size={16} color="rgba(255,255,255,0.3)" />
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>Pick a workout to assign…</Text>
+                  <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.3)" />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Step 2: Welcome message */}
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2 }}>② WELCOME MESSAGE</Text>
+            <TextInput
+              style={{
+                backgroundColor: '#111', borderRadius: Radius.xs, borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)', padding: 12, minHeight: 80,
+                fontFamily: FontFamily.body, fontSize: 12, color: '#FFFFFF', lineHeight: 18,
+              }}
+              placeholder="Leave blank to use the default welcome message…"
+              placeholderTextColor="rgba(255,255,255,0.2)"
+              value={welcomeMsg}
+              onChangeText={setWelcomeMsg}
+              multiline
+              textAlignVertical="top"
+              maxLength={400}
+            />
+            {!welcomeMsg.trim() && (
+              <Text style={{ fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.2)', lineHeight: 14 }}>
+                Default: "Hey [Client]! 👋 Welcome to [Plan]. Your first workout has been assigned — let's get to work! 💪"
+              </Text>
+            )}
+          </View>
+
+          {/* Step 3: Coach notification — always on, just informational */}
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 10,
+            backgroundColor: '#111', borderRadius: Radius.xs,
+            borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', padding: 12,
+          }}>
+            <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: 'rgba(91,127,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="notifications-outline" size={14} color="#5B7FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: '#FFFFFF' }}>③ NOTIFY YOU</Text>
+              <Text style={{ fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>Always on — push + dashboard alert</Text>
+            </View>
+            <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+          </View>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: saving ? 'rgba(200,241,53,0.3)' : '#C8F135',
+              borderRadius: Radius.xs, paddingVertical: 14,
+              alignItems: 'center',
+            }}
+            onPress={save}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000', letterSpacing: 0.5 }}>
+              {saving ? 'SAVING…' : 'SAVE AUTOFLOW'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Workout Picker Sheet ── */}
+      <Modal visible={showWorkoutPicker} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowWorkoutPicker(false)} />
+          <View style={{ backgroundColor: '#0A0A0A', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 20, paddingBottom: 40, maxHeight: '70%' }}>
+            <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, textAlign: 'center', marginBottom: 16 }}>SELECT WORKOUT TO AUTO-ASSIGN</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {workouts.map(w => (
+                <TouchableOpacity
+                  key={w.id}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    backgroundColor: selectedWorkoutId === w.id ? 'rgba(200,241,53,0.08)' : '#111',
+                    borderWidth: 1,
+                    borderColor: selectedWorkoutId === w.id ? 'rgba(200,241,53,0.3)' : 'rgba(255,255,255,0.06)',
+                    borderRadius: Radius.xs, padding: 14, marginBottom: 10,
+                  }}
+                  onPress={() => { setSelectedWorkoutId(w.id); setShowWorkoutPicker(false); }}
+                >
+                  <RNImage source={getWorkoutEmblem(w.id, w.name, [])} style={{ width: 40, height: 40, borderRadius: 6 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 13, color: '#FFFFFF' }} numberOfLines={1}>{w.name}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{w.workout_exercises?.length || 0} exercises</Text>
+                  </View>
+                  {selectedWorkoutId === w.id && <Ionicons name="checkmark-circle" size={18} color="#C8F135" />}
+                </TouchableOpacity>
+              ))}
+              {workouts.length === 0 && (
+                <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center', paddingVertical: 24 }}>
+                  No workouts in library yet.{'\n'}Create one in the Workouts tab first.
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+
+
 export default function ProgramsScreen() {
   const router = useRouter();
+
   const { workouts, exercises, diets, plans, classes, refreshData, deleteWorkout, deleteDietPlan, deleteClass } = useApp();
   const { colors } = useTheme();
   const { showAlert } = useAlert();
@@ -278,34 +523,7 @@ export default function ProgramsScreen() {
   };
 
   const renderPlanItem = ({ item }: { item: typeof plans[0] }) => {
-    const subtitle = `${item.period.toUpperCase()} • $${item.price}`;
-    const desc = item.features && item.features.length > 0 
-      ? item.features.join(', ') 
-      : 'Membership subscription plan features.';
-
-    return (
-      <TouchableOpacity 
-        style={styles.row}
-        activeOpacity={0.7}
-        onPress={() => router.push(`/plan/${item.id}` as any)}
-      >
-        <View style={[styles.thumbnailContainer, { borderColor: item.color || 'rgba(255,255,255,0.2)' }]}>
-          <Ionicons name="card-outline" size={22} color="#FFFFFF" />
-        </View>
-        <View style={styles.textContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.rowTitle} numberOfLines={1}>{item.name.toUpperCase()}</Text>
-            {item.is_popular && (
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularBadgeText}>POPULAR</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.rowSubtitle} numberOfLines={1}>{subtitle.toUpperCase()}</Text>
-          <Text style={styles.rowDescription} numberOfLines={2}>{desc.toUpperCase()}</Text>
-        </View>
-      </TouchableOpacity>
-    );
+    return <PlanRow item={item} workouts={workouts} onRefresh={refreshData} />;
   };
 
   const renderClassItem = ({ item }: { item: ClassItem }) => {

@@ -51,7 +51,7 @@ interface HydrationCellProps {
 export default function HydrationCell({ style }: HydrationCellProps) {
   const [oz, setOz] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Flash animation — visual confirm when +8oz is tapped
   const flashAnim = useRef(new Animated.Value(1)).current;

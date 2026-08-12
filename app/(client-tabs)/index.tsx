@@ -47,6 +47,7 @@ export default function ClientHomeScreen() {
     trainer,
     todayWorkout,
     workouts,
+    mealLogs,
     loading,
     refreshData,
     skipTrackWorkout,
@@ -156,6 +157,9 @@ export default function ClientHomeScreen() {
         <DashboardSummaryCard
           completedDays={completedDays}
           todayIdx={new Date().getDay() === 0 ? 6 : new Date().getDay() - 1}
+          mealsLoggedToday={Object.keys(mealLogs).length}
+          completedWeekWorkouts={completedDays.length}
+          xp={clientData?.xp ?? 0}
         />
 
         {/* ③ TODAY'S WORKOUT HERO */}

@@ -206,6 +206,13 @@ const st = StyleSheet.create({
     gap: 4,
   },
   // §1 "No coach" empty state: micro → punchy statement → sub
+  micro: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
   noCoachHero: {
     fontFamily: FontFamily.headingExtraBold,
     fontSize: 20,

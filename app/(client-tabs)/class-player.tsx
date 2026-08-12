@@ -16,6 +16,7 @@ import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { useWorkout, RUN_PHASES, TOTAL_RUN_DURATION } from '../../context/WorkoutContext';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 

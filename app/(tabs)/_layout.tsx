@@ -26,22 +26,34 @@ function useUnreadMessageCount() {
 
   useEffect(() => {
     if (!user) return;
+    let alive = true;
+
     const load = async () => {
+      if (!alive) return;
       const { data } = await supabase
         .from('conversations')
         .select('unread_count')
         .eq('trainer_id', user.id)
         .gt('unread_count', 0);
-      setCount(data ? data.reduce((s, c) => s + (c.unread_count || 0), 0) : 0);
+      if (alive) setCount(data ? data.reduce((s, c) => s + (c.unread_count || 0), 0) : 0);
     };
+
     load();
-    // Realtime subscription for conversation updates
+
+    // Use a unique channel name per mount so we never try to attach
+    // postgres_changes listeners to an already-subscribed channel
+    // (removeChannel is async, so a hardcoded name races on remount).
+    const channelName = `tab-unread-badge-${user.id}-${Date.now()}`;
     const channel = supabase
-      .channel('tab-unread-badge')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, load)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   return count;
 }

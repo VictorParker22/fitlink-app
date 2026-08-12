@@ -11,6 +11,8 @@ import { useClient } from '../../../context/ClientContext';
 import ExerciseThumbnail from '../../../components/shared/exercise/ExerciseThumbnail';
 import ExerciseMediaDemo from '../../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../../components/shared/exercise/ExerciseInstructions';
+import PRCelebrationModal from './PRCelebrationModal';
+import { supabase } from '../../../lib/supabase';
 
 interface SetLog {
   weight: string;
@@ -57,12 +59,14 @@ export default function ActiveWorkoutPlayer({
   onFinishWorkout,
   onCancelWorkout,
 }: ActiveWorkoutPlayerProps) {
-  const { logExerciseSet, clearExerciseLogs } = useClient();
+  const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer } = useClient();
 
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
+  // PR celebration state — null when no PR, populated when a new PR is hit mid-set
+  const [pendingPr, setPendingPr] = useState<{ exerciseName: string; weight: number } | null>(null);
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -163,13 +167,47 @@ export default function ActiveWorkoutPlayer({
     const set = exercise.sets[setIdx];
 
     if (set.completed && activeWorkout) {
+      const weight = parseFloat(set.weight) || 0;
       logExerciseSet(
         activeWorkout.id,
         exercise.exerciseId,
         setIdx,
-        parseFloat(set.weight) || 0,
+        weight,
         parseInt(set.reps) || 0
       );
+
+      // ── PR Detection ──────────────────────────────────────────────────
+      // Only check when a positive weight is entered; bodyweight exercises
+      // (weight === 0) intentionally skip PR checking.
+      if (weight > 0 && checkAndUpdatePr(exercise.exerciseId, weight)) {
+        setPendingPr({ exerciseName: exercise.exerciseName, weight });
+        // Notify coach — fire-and-forget, never block the workout UI
+        if (clientData?.trainer_id) {
+          // Insert notification row for the coach dashboard
+          (async () => {
+            const { error } = await supabase.from('notifications').insert({
+              trainer_id: clientData.trainer_id,
+              type: 'score',
+              title: '🏆 New Personal Record!',
+              description: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
+              metadata: { client_id: clientData.id, exercise: exercise.exerciseName, weight },
+              is_read: false,
+            });
+            if (error && __DEV__) console.warn('[ActiveWorkoutPlayer] PR notification insert failed:', error);
+          })();
+          // Push notification to trainer's device
+          if (trainer?.expo_push_token) {
+            supabase.functions.invoke('send-push-notification', {
+              body: {
+                pushToken: trainer.expo_push_token,
+                title: '🏆 New PR!',
+                body: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
+                data: { url: `/client/${clientData.id}` },
+              },
+            }).catch(() => { /* silent fail */ });
+          }
+        }
+      }
       if (exercise.restSeconds > 0) {
         setRestTimeLeft(exercise.restSeconds);
         setShowRestTimer(true);
@@ -451,9 +489,19 @@ export default function ActiveWorkoutPlayer({
           </View>
         </View>
       </Modal>
+
+      {/* ── PR Celebration Overlay ─────────────────────────────────────────── */}
+      {/* Rendered inside the player so it sits on top of everything mid-workout */}
+      <PRCelebrationModal
+        visible={pendingPr !== null}
+        exerciseName={pendingPr?.exerciseName ?? ''}
+        weight={pendingPr?.weight ?? 0}
+        onDismiss={() => setPendingPr(null)}
+      />
     </View>
   );
 }
+
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
@@ -764,4 +812,9 @@ const s = StyleSheet.create({
     borderColor: '#1C1C1E',
   },
   videoPlayer: { flex: 1 },
+  expandedContent: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
 });

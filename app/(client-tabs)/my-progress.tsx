@@ -1,12 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, Dimensions,
+  TouchableOpacity, Dimensions, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { useClient } from '../../context/ClientContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
@@ -52,6 +53,7 @@ export default function ClientProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   
   const [habitSummary, setHabitSummary] = useState<{
     completedCount: number;
@@ -449,13 +451,113 @@ export default function ClientProgressScreen() {
 
         <View style={s.divider} />
 
+        {/* ── PROGRESS PHOTOS TIMELINE ── */}
+        {(() => {
+          const photologs = progressLogs
+            .filter((p: any) => p.photos && p.photos.length > 0)
+            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          if (photologs.length === 0) return null;
+          return (
+            <>
+              <View style={s.divider} />
+              <View style={s.section}>
+                <View style={s.photoTimelineHeader}>
+                  <Text style={s.photoTimelineTitle}>PROGRESS PHOTOS</Text>
+                  <Text style={s.photoTimelineCount}>{photologs.length} entries</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.photoTimelineScroll}
+                >
+                  {photologs.map((log: any, idx: number) => {
+                    const photoUrl = log.photos[0];
+                    const dateLabel = new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const isFirst = idx === 0;
+                    const isLatest = idx === photologs.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={log.id}
+                        style={s.photoCard}
+                        onPress={() => setViewerPhoto(photoUrl)}
+                        activeOpacity={0.85}
+                      >
+                        <Image
+                          source={{ uri: photoUrl }}
+                          style={s.photoCardImg}
+                          contentFit="cover"
+                          transition={200}
+                        />
+                        {/* Gradient overlay */}
+                        <LinearGradient
+                          colors={['transparent', 'rgba(0,0,0,0.75)']}
+                          style={s.photoCardGradient}
+                        />
+                        {/* Date label */}
+                        <View style={s.photoCardFooter}>
+                          <Text style={s.photoCardDate}>{dateLabel}</Text>
+                          {log.weight ? (
+                            <Text style={s.photoCardWeight}>{Number(log.weight).toFixed(1)} lbs</Text>
+                          ) : null}
+                        </View>
+                        {/* Badge */}
+                        {isLatest && (
+                          <View style={s.photoLatestBadge}>
+                            <Text style={s.photoLatestBadgeText}>LATEST</Text>
+                          </View>
+                        )}
+                        {isFirst && !isLatest && (
+                          <View style={[s.photoLatestBadge, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+                            <Text style={s.photoLatestBadgeText}>START</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </>
+          );
+        })()}
+
         {/* ── BODY PROGRESS ── */}
         <View style={s.sectionLast}>
           <ActivityBodyProgress
             progressLogs={progressLogs}
           />
         </View>
+
       </ScrollView>
+
+      {/* ── FULLSCREEN PHOTO VIEWER ── */}
+      <Modal
+        visible={!!viewerPhoto}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setViewerPhoto(null)}
+      >
+        <View style={s.viewerOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setViewerPhoto(null)}
+            activeOpacity={1}
+          />
+          {viewerPhoto && (
+            <Image
+              source={{ uri: viewerPhoto }}
+              style={s.viewerImage}
+              contentFit="contain"
+            />
+          )}
+          <TouchableOpacity
+            style={s.viewerClose}
+            onPress={() => setViewerPhoto(null)}
+          >
+            <Ionicons name="close" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* ── ADD ACTIVITY MODAL ── */}
       <AddActivityModal
@@ -587,5 +689,102 @@ const s = StyleSheet.create({
     right: 0,
     height: 3,
     borderRadius: 1.5,
+  },
+
+  // ── Progress Photo Timeline ──
+  photoTimelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  photoTimelineTitle: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+  },
+  photoTimelineCount: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.2)',
+  },
+  photoTimelineScroll: {
+    gap: 10,
+    paddingRight: 8,
+  },
+  photoCard: {
+    width: 130,
+    height: 185,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#111118',
+  },
+  photoCardImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoCardGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+  },
+  photoCardFooter: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+  },
+  photoCardDate: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  photoCardWeight: {
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  photoLatestBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  photoLatestBadgeText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 8,
+    color: '#000000',
+    letterSpacing: 0.5,
+  },
+
+  // ── Fullscreen Photo Viewer ──
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 1.4,
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 56,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -168,7 +168,7 @@ const r = StyleSheet.create({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function WeeklyCheckIn() {
-  const { clientData } = useClient();
+  const { clientData, trainer } = useClient();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -181,6 +181,7 @@ export default function WeeklyCheckIn() {
   const [goalsNextWeek, setGoalsNextWeek] = useState('');
   const [bodyWeight, setBodyWeight] = useState('');
   const [success, setSuccess] = useState(false);
+  const [coachNote, setCoachNote] = useState<string | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -209,6 +210,8 @@ export default function WeeklyCheckIn() {
         setRowId(data.id);
         if (data.submitted_at) {
           setAlreadySubmitted(true);
+          // Show coach reply if one exists
+          if (data.coach_note) setCoachNote(data.coach_note);
         } else {
           // Restore draft
           setRatings({
@@ -278,6 +281,21 @@ export default function WeeklyCheckIn() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
+
+      // Notify trainer that a new check-in is waiting for review
+      if (trainer?.expo_push_token) {
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            pushToken: trainer.expo_push_token,
+            title: `New Check-In from ${clientData.name}`,
+            body: `${clientData.name} just submitted their weekly check-in. Tap to review.`,
+            data: { url: '/index' },
+          }
+        }).catch((err: unknown) => {
+          if (__DEV__) console.log('[WeeklyCheckIn] push error:', err);
+        });
+      }
+
       setTimeout(() => {
         setOpen(false);
         setAlreadySubmitted(true);
@@ -289,7 +307,27 @@ export default function WeeklyCheckIn() {
     }
   };
 
-  if (loading || alreadySubmitted) return null;
+  if (loading) return null;
+
+  // Once submitted, show coach reply if one exists — otherwise stay invisible
+  // until the form prompt is relevant again next week.
+  if (alreadySubmitted) {
+    if (!coachNote) return null;
+    const weekLabel = (() => {
+      const d = new Date(WEEK_START + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    })();
+    return (
+      <View style={s.coachReplyCard}>
+        <View style={s.coachReplyHeader}>
+          <Text style={s.coachReplyTag}>COACH REPLY · WEEK OF {weekLabel.toUpperCase()}</Text>
+          <Text style={s.coachReplyTitle}>Your Coach Responded ✅</Text>
+        </View>
+        <Text style={s.coachReplyBody}>{coachNote}</Text>
+        <View style={s.coachReplyAccent} />
+      </View>
+    );
+  }
 
   const weekLabel = (() => {
     const d = new Date(WEEK_START + 'T00:00:00');
@@ -616,11 +654,10 @@ const s = StyleSheet.create({
   section: { gap: 14 },
   sectionTitle: {
     fontFamily: FontFamily.headingExtraBold,
-    fontSize: 13,
+    fontSize: 10,
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    fontSize: 10,
+    textTransform: 'uppercase' as const,
   },
   ratingsStack: { gap: 20 },
 
@@ -713,5 +750,50 @@ const s = StyleSheet.create({
     fontFamily: FontFamily.body,
     fontSize: 14,
     color: 'rgba(255,255,255,0.4)',
+  },
+
+  // Coach reply card (shown when alreadySubmitted && coach has replied)
+  coachReplyCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#0C0C0E',
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 16,
+    overflow: 'hidden' as const,
+  },
+  coachReplyHeader: {
+    marginBottom: 10,
+  },
+  coachReplyTag: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+    textTransform: 'uppercase' as const,
+    marginBottom: 3,
+  },
+  coachReplyTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  coachReplyBody: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+    lineHeight: 20,
+  },
+  coachReplyAccent: {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#5B7FFF',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
 });

@@ -168,7 +168,9 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
   const overallPct = pct(totalLogged, totalPossible);
 
   const scoreColor =
-    overallPct >= 80 ? '#22C55E' : overallPct >= 50 ? '#FFD700' : '#FF6B35';
+    overallPct === 0   ? '#8E8E93' :
+    overallPct >= 80   ? '#22C55E' :
+    overallPct >= 50   ? '#FFD700' : '#FF6B35';
 
   return (
     <View style={s.container}>
@@ -201,6 +203,10 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
           {loading ? (
             <View style={s.loadingRow}>
               <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+            </View>
+          ) : totalLogged === 0 ? (
+            <View style={s.noDataRow}>
+              <Text style={s.noDataText}>No habits logged this week</Text>
             </View>
           ) : (
             <>
@@ -347,6 +353,16 @@ const s = StyleSheet.create({
   loadingRow: {
     paddingVertical: 24,
     alignItems: 'center',
+  },
+  noDataRow: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  noDataText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.25)',
   },
 
   // Day header row

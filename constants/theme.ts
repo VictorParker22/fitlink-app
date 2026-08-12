@@ -40,14 +40,14 @@ export const Radius = {
 };
 
 export const FontSize = {
-  xs: 12,
-  sm: 14,
-  base: 16,
-  md: 17,
-  lg: 20,
-  xl: 24,
-  '2xl': 30,
-  '3xl': 38,
+  xs: 13,
+  sm: 15,
+  base: 17,
+  md: 18,
+  lg: 22,
+  xl: 26,
+  '2xl': 32,
+  '3xl': 42,
 };
 
 export const FontFamily = {
@@ -57,8 +57,12 @@ export const FontFamily = {
   bodyBold: 'Epilogue-Bold',
   heading: 'SpaceGrotesk_700Bold',
   headingSemiBold: 'SpaceGrotesk_600SemiBold',
-  headingExtraBold: 'SpaceGrotesk_700Bold', // Fallback to bold
+  headingExtraBold: 'SpaceGrotesk_700Bold',
   mono: 'JetBrainsMono_500Medium',
+  // Shorthand aliases used across coach dashboard
+  regular: 'Epilogue-Regular',
+  bold: 'Epilogue-Bold',
+  headingBold: 'SpaceGrotesk_700Bold',
 };
 
 // Avatar color palette — warm pastels

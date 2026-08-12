@@ -28,6 +28,11 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { FontFamily } from '../../constants/theme';
 
+function toTitleCase(str: string): string {
+  if (!str) return '';
+  return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CheckIn {
@@ -49,6 +54,7 @@ interface CheckIn {
   clients: {
     name: string;
     avatar_url: string | null;
+    expo_push_token: string | null;
   };
 }
 
@@ -144,7 +150,7 @@ function CheckInCard({
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={c.clientName}>{item.clients.name}</Text>
+          <Text style={c.clientName}>{toTitleCase(item.clients.name)}</Text>
           <Text style={c.weekLabel}>Week of {weekLabel}</Text>
         </View>
 
@@ -266,7 +272,7 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
 
       const { data, error } = await supabase
         .from('client_checkins')
-        .select('*, clients(name, avatar_url)')
+        .select('*, clients(name, avatar_url, expo_push_token)')
         .eq('trainer_id', trainerId)
         .not('submitted_at', 'is', null)
         .gte('week_start', fromDate)
@@ -289,6 +295,21 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
       .update({ coach_note: note, coach_replied_at: new Date().toISOString() })
       .eq('id', id);
 
+    // Notify the client that their coach has replied
+    const checkin = checkIns.find((ci) => ci.id === id);
+    if (checkin?.clients.expo_push_token) {
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          pushToken: checkin.clients.expo_push_token,
+          title: 'Your Coach Replied ✅',
+          body: note.length > 80 ? note.slice(0, 77) + '…' : note,
+          data: { url: '/my-progress' },
+        }
+      }).catch((err: unknown) => {
+        if (__DEV__) console.log('[CheckInInbox] push error:', err);
+      });
+    }
+
     setCheckIns((prev) =>
       prev.map((ci) =>
         ci.id === id
@@ -296,7 +317,7 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
           : ci
       )
     );
-  }, []);
+  }, [checkIns]);
 
   if (loading) {
     return (

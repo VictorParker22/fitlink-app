@@ -60,7 +60,9 @@ interface ClientContextType {
   subscription: any;
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
+  exercisePrs: Record<string, number>; // exerciseId → max weight ever lifted (kg or lb, whichever client uses)
   logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => void;
+  checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
   completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<void>;
   markWorkoutComplete: (id: string) => Promise<void>;
@@ -103,6 +105,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
+  const [exercisePrs, setExercisePrs] = useState<Record<string, number>>({});
   const [healthSharingEnabled, setHealthSharingEnabled] = useState(false);
   const [activeGymVisit, setActiveGymVisit] = useState<any>(null);
   const [mealLogs, setMealLogs] = useState<Record<string, boolean>>({});
@@ -125,7 +128,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       setHealthSharingEnabled(!!client.health_sharing_enabled);
 
       const [
-        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes
+        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes
       ] = await Promise.all([
         supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
@@ -147,7 +150,9 @@ export function ClientProvider({ children }: PropsWithChildren) {
         supabase.from('gym_visits').select('*').eq('client_id', client.id).is('check_out_time', null).maybeSingle(),
         supabase.from('client_meal_logs').select('*').eq('client_id', client.id).eq('logged_date', new Date().toISOString().split('T')[0]),
         supabase.from('client_plan_enrollments').select('*').eq('client_id', client.id).eq('status', 'active').order('started_at', { ascending: false }).limit(1),
-        supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', client.trainer_id)
+        supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', client.trainer_id),
+        // Fetch only the exercises JSONB column — avoids pulling full log rows (notes, duration, etc)
+        supabase.from('client_workout_logs').select('exercises').eq('client_id', client.id)
       ]);
 
       if (__DEV__) console.log('[ClientContext] Related data:', JSON.stringify({
@@ -178,6 +183,25 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (enrollmentRes?.data && enrollmentRes.data.length > 0) setEnrollment(enrollmentRes.data[0]);
       else setEnrollment(null);
       if (trainerWorkoutsRes?.data) setAllTrainerWorkouts(trainerWorkoutsRes.data);
+
+      // ── Build exercise PR map from historical logs ───────────────────────────
+      // Scan all past workout logs and keep the max weight per exercise ID.
+      // This runs once on load; individual PRs are updated in-memory via checkAndUpdatePr.
+      if (workoutLogsRes.data && workoutLogsRes.data.length > 0) {
+        const prMap: Record<string, number> = {};
+        workoutLogsRes.data.forEach((row: any) => {
+          const exercises: Array<{ id: string; sets: Array<{ weight: number | string; completed: boolean }> }> = row.exercises || [];
+          exercises.forEach(ex => {
+            if (!ex?.id) return;
+            ex.sets?.forEach(set => {
+              if (!set?.completed) return;
+              const w = parseFloat(String(set.weight)) || 0;
+              if (w > (prMap[ex.id] ?? 0)) prMap[ex.id] = w;
+            });
+          });
+        });
+        setExercisePrs(prMap);
+      }
       
       // Auto-expire stale gym visits (older than 4 hours)
       const MAX_GYM_VISIT_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -212,6 +236,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
   }, [fetchClientData]);
 
   // Realtime Subscriptions
+  const refreshData = useCallback(async () => {
+    await fetchClientData(true);
+  }, [fetchClientData]);
+
   useEffect(() => {
     if (!clientData?.id) return;
 
@@ -255,9 +283,6 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setSubscription(null);
   }, [clientData, plans]);
 
-  const refreshData = useCallback(async () => {
-    await fetchClientData(true);
-  }, [fetchClientData]);
 
   // Log individual exercise set completion (in-memory only)
   const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => {
@@ -686,12 +711,25 @@ export function ClientProvider({ children }: PropsWithChildren) {
     refreshData();
   }, [clientData, activeGymVisit, refreshData]);
 
+  // Returns true if this weight is a new all-time PR for the given exercise.
+  // Immediately updates the in-memory PR map so the same exercise can't trigger twice in one session.
+  const checkAndUpdatePr = useCallback((exerciseId: string, weight: number): boolean => {
+    if (!exerciseId || weight <= 0) return false;
+    const current = exercisePrs[exerciseId] ?? 0;
+    if (weight > current) {
+      setExercisePrs(prev => ({ ...prev, [exerciseId]: weight }));
+      return true;
+    }
+    return false;
+  }, [exercisePrs]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
-      conversation, plans, upcomingSessions, todayWorkout, enrollment, exerciseLogs,
+      conversation, plans, upcomingSessions, todayWorkout, enrollment, exerciseLogs, exercisePrs,
       subscription, paymentHistory, healthSharingEnabled, activeGymVisit,
         logExerciseSet,
+        checkAndUpdatePr,
         clearExerciseLogs,
         completeWorkoutWithLog,
         markWorkoutComplete,

@@ -17,6 +17,8 @@ import { CLASS_DESCRIPTIONS, CLASS_EQUIPMENT, RELATED_CLASSES } from '../../data
 import React from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useRevenueCat } from '../../context/RevenueCatContext';
+import ClientPaywall from '../../components/paywalls/ClientPaywall';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_HEIGHT = 380;
@@ -44,8 +46,10 @@ export default function ClassDetailScreen() {
 
   const { user } = useAuth();
   const { activeSession, startWorkout, getSavedProgress, resumeSavedWorkout, getClassHistory, getClassTakeCount } = useWorkout();
+  const { isClientPremium } = useRevenueCat();
   const [isFavorite, setIsFavorite] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
 
   const requiresPass = params.is_free === 'false';
 
@@ -119,6 +123,14 @@ export default function ClassDetailScreen() {
 
   const handleBeginClass = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // ── Paywall gate: non-premium clients can't start PASS-required classes ──
+    if (requiresPass && !isClientPremium) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setPaywallVisible(true);
+      return;
+    }
+
     if (isThisClassActive) {
       // Already playing — just navigate to the player
       router.push(ClientRoute.classPlayer);
@@ -175,6 +187,7 @@ export default function ClassDetailScreen() {
   };
 
   return (
+    <>
     <View style={s.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
@@ -393,6 +406,13 @@ export default function ClassDetailScreen() {
         </View>
       </ScrollView>
     </View>
+
+    {/* FitLink Pass paywall — shown when non-premium taps a PASS-required class */}
+    <ClientPaywall
+      visible={paywallVisible}
+      onDismiss={() => setPaywallVisible(false)}
+    />
+  </>
   );
 }
 

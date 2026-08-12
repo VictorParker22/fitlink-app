@@ -82,6 +82,17 @@ const STATUS_RING: Record<string, string> = {
   inactive: 'rgba(255,255,255,0.12)',
 };
 
+// Engagement ring: based on completed_workouts instead of subscription status.
+// A coach needs to know who is actually showing up, not just who is paying.
+// Thresholds: ≥10 sessions = on track (green), ≥4 = check-in-soon (amber), <4 = at risk (red).
+function getEngagementColor(client: Client): string {
+  if (client.status === 'inactive') return 'rgba(255,255,255,0.12)';
+  const count = client.completed_workouts ?? 0;
+  if (count >= 10) return '#22C55E'; // on track
+  if (count >= 4)  return '#F59E0B'; // check in soon
+  return '#EF4444';                  // at risk
+}
+
 const STATUS_LABEL: Record<string, string> = {
   active:   'Active',
   trial:    'Trial',
@@ -250,7 +261,8 @@ export default function ClientsScreen() {
     const planName      = getPlanName(item.plan_id);
     const meta          = getMetaLine(item);
     const unread        = unreadByClient[item.id] || 0;
-    const ringColor     = STATUS_RING[item.status] ?? 'rgba(255,255,255,0.12)';
+    const ringColor     = getEngagementColor(item);
+    const statusDotColor = STATUS_RING[item.status] ?? 'rgba(255,255,255,0.12)';
     const hasAssessment = !!(item.assessment_data as any)?.fitness_goals?.length;
     const actions       = buildActions(item);
 
@@ -308,7 +320,7 @@ export default function ClientsScreen() {
               )}
             </View>
             <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: ringColor }]} />
+              <View style={[styles.statusDot, { backgroundColor: statusDotColor }]} />
               <Text style={styles.statusText}>{STATUS_LABEL[item.status]} · {planName}</Text>
             </View>
             <Text style={[styles.metaText, { color: meta.color }]} numberOfLines={1}>

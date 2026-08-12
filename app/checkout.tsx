@@ -95,6 +95,19 @@ export default function CheckoutScreen() {
 
       // Payment succeeded!
       setPaymentStatus('success');
+
+      // Fire autoflow (assign welcome workout + send welcome message + notify coach).
+      // The Stripe webhook also triggers this, but we call it directly here so the
+      // demo works instantly even if webhook delivery is delayed or not configured.
+      // The autoflow function is idempotent — a double-fire is harmless.
+      if (plan && client && trainer) {
+        supabase.functions.invoke('client-autoflow', {
+          body: { clientId: client.id, trainerId: trainer.id, planId: plan.id },
+        }).then(({ error: afErr }) => {
+          if (__DEV__ && afErr) console.warn('[Checkout] autoflow invoke error:', afErr);
+        });
+      }
+
       await refreshData();
 
       // Show success and navigate back after delay

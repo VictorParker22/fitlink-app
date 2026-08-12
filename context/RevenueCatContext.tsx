@@ -99,9 +99,9 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
 
     const listener = Purchases.addCustomerInfoUpdateListener((info) => {
       setCustomerInfo(info);
-    });
+    }) as any;
 
-    return () => listener.remove();
+    return () => { if (listener?.remove) listener.remove(); };
   }, [user?.id]);
 
   // ── Purchase a package ──

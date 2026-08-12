@@ -8,6 +8,8 @@ import { useApp } from '../../../context/AppContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { Colors, Spacing, FontFamily, FontSize, Radius, getAvatarColor } from '../../../constants/theme';
 import Button from '../../../components/Button';
+import { supabase } from '../../../lib/supabase';
+import { decode } from 'base64-arraybuffer';
 
 const ORANGE = '#FF6B35';
 
@@ -27,6 +29,7 @@ export default function LogProgressScreen() {
   const [arms, setArms] = useState('');
   const [notes, setNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   
   const [showMeasurements, setShowMeasurements] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,10 +39,27 @@ export default function LogProgressScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 ?? null);
+    }
+  };
+
+  const uploadProgressPhoto = async (base64: string, ext: string): Promise<string | null> => {
+    try {
+      const fileName = `${id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from('progress-photos')
+        .upload(fileName, decode(base64), { contentType: `image/${ext}`, upsert: false });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('progress-photos').getPublicUrl(fileName);
+      return urlData.publicUrl;
+    } catch (err) {
+      if (__DEV__) console.warn('[log-progress] photo upload failed, saving without photo:', err);
+      return null;
     }
   };
 
@@ -60,6 +80,13 @@ export default function LogProgressScreen() {
       const weightValue = parseFloat(weight);
       const finalWeight = unit === 'kg' ? weightValue * 2.20462 : weightValue;
 
+      // Upload photo to Supabase Storage if one was picked
+      let photoUrl: string | null = null;
+      if (photoBase64 && photoUri) {
+        const ext = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
+        photoUrl = await uploadProgressPhoto(photoBase64, ext);
+      }
+
       await addProgressLog({
         client_id: id as string,
         date: new Date().toISOString().split('T')[0],
@@ -67,7 +94,7 @@ export default function LogProgressScreen() {
         body_fat: bodyFat ? parseFloat(bodyFat) : null,
         measurements: Object.keys(measurements).length > 0 ? measurements : null,
         notes: notes || null,
-        photos: photoUri ? [photoUri] : [], // Use local URI for now, would be uploaded to storage in production
+        photos: photoUrl ? [photoUrl] : [],
       });
 
       router.back();

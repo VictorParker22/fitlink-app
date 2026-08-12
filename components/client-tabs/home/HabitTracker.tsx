@@ -284,7 +284,7 @@ function HabitItem({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerProps) {
-  const { healthData } = useHealth();
+  const { healthData, isConnected } = useHealth();
   const { diets, mealLogs } = useClient();
 
   const [habits, setHabits] = useState<DailyHabits>(DEFAULT_HABITS);
@@ -353,7 +353,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
   const autoValues = useMemo(() => {
     // Steps from HealthContext
     const stepsAutoCheck =
-      healthData?.isConnected !== false &&
+      isConnected !== false &&
       (healthData?.stepsToday ?? 0) >= STEPS_GOAL;
 
     // Hydration is read async — handled separately

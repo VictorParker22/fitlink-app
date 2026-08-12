@@ -133,6 +133,10 @@ interface Plan {
   stripe_price_id?: string;
   stripe_product_id?: string;
   track?: TrackNode[];
+  // Autoflow
+  autoflow_enabled?: boolean;
+  autoflow_workout_id?: string | null;
+  autoflow_welcome_message?: string | null;
 }
 
 interface Referral {
@@ -1574,15 +1578,18 @@ export function AppProvider({ children }: PropsWithChildren) {
     let streamKey = `key_${Date.now()}`;
     let playbackId = `playback_${Date.now()}`;
 
-    // 1. Try calling the Supabase Edge Function to get real Mux stream details
+    // 1. Try calling the Supabase Edge Function to get real Mux stream details.
+    //    NOTE: supabase.functions.invoke returns { data, error: null } even on non-2xx responses —
+    //    the HTTP error body is placed inside `data`, not `error`. We must check data?.error too.
     try {
       const { data: muxData, error: muxError } = await supabase.functions.invoke('create-mux-stream');
-      if (!muxError && muxData?.stream_key) {
+      if (!muxError && muxData?.stream_key && !muxData?.error) {
         streamId = muxData.stream_id;
         streamKey = muxData.stream_key;
         playbackId = muxData.playback_id;
-      } else if (muxError) {
-        console.warn('[AppContext] Edge Function create-mux-stream error, using fallback stream values:', muxError);
+      } else {
+        const reason = muxError?.message ?? muxData?.error ?? 'unknown';
+        console.warn('[AppContext] create-mux-stream failed, using fallback placeholder keys:', reason);
       }
     } catch (e) {
       console.warn('[AppContext] Edge Function not deployed or unreachable, using fallback values:', e);
@@ -1599,12 +1606,16 @@ export function AppProvider({ children }: PropsWithChildren) {
     const { data: newClass, error } = await supabase.from('live_classes').insert(payload).select().single();
     if (error) throw error;
 
-    // Insert stream credentials into secrets table (trainer-only RLS)
-    await supabase.from('live_class_secrets').insert({
+    // Insert stream credentials into secrets table (trainer-only RLS).
+    // If this fails (e.g. RLS rejection) we log it but don't throw — the class row was already created.
+    const { error: secretsError } = await supabase.from('live_class_secrets').insert({
       live_class_id: newClass.id,
       mux_stream_id: streamId,
       mux_stream_key: streamKey,
     });
+    if (secretsError) {
+      console.error('[AppContext] live_class_secrets insert failed — GO LIVE will not work:', secretsError.message);
+    }
     
     setLiveClassesList((prev) => [newClass, ...prev].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
     return newClass;

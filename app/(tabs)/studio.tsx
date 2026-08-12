@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Animated,
   Switch,
+  Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useApp, LiveClassItem } from '../../context/AppContext';
 import { FontFamily, Radius, Spacing } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { useRevenueCat } from '../../context/RevenueCatContext';
 
 const { width } = Dimensions.get('window');
 
@@ -118,11 +120,149 @@ function QueueCard({
   );
 }
 
+// ── Coach Elite Paywall Modal ─────────────────────────────────────────────────
+function CoachElitePaywallModal({
+  visible,
+  onClose,
+  onUpgrade,
+  isPurchasing,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onUpgrade: () => void;
+  isPurchasing: boolean;
+}) {
+  const { restorePurchases } = useRevenueCat();
+  const [restoring, setRestoring] = useState(false);
+  const slideAnim = useRef(new Animated.Value(600)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  const handleRestore = async () => {
+    setRestoring(true);
+    const { success, restored, error } = await restorePurchases();
+    setRestoring(false);
+    if (restored) {
+      onClose();
+    } else if (success) {
+      // nothing found — Alert is shown inside restorePurchases via the context
+    } else if (error) {
+      // error already surfaced inside restorePurchases
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 60, friction: 12 }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 600, duration: 220, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+
+  const PERKS = [
+    { icon: 'radio-outline',       text: 'Unlimited live broadcasts to all clients' },
+    { icon: 'people-outline',      text: 'Real-time viewer chat + reactions' },
+    { icon: 'videocam-outline',    text: 'Auto-save replays to your class library' },
+    { icon: 'flash-outline',       text: 'Autoflow — auto-assign workouts on subscribe' },
+    { icon: 'ribbon-outline',      text: 'Elite badge on your public coach profile' },
+    { icon: 'trending-up-outline', text: 'Advanced engagement analytics' },
+  ];
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <Animated.View style={[pw.overlay, { opacity: fadeAnim }]}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+        <Animated.View style={[pw.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          {/* Handle */}
+          <View style={pw.handle} />
+
+          {/* Hero */}
+          <View style={pw.hero}>
+            <View style={pw.eliteBadge}>
+              <Ionicons name="ribbon" size={18} color="#FFD700" />
+              <Text style={pw.eliteBadgeText}>COACH ELITE</Text>
+            </View>
+            <Text style={pw.heroTitle}>Unlock Go Live</Text>
+            <Text style={pw.heroSub}>
+              Go Live is a Coach Elite feature. Upgrade to broadcast to your clients in real time.
+            </Text>
+          </View>
+
+          {/* Perks list */}
+          <View style={pw.perks}>
+            {PERKS.map((p, i) => (
+              <View key={i} style={pw.perkRow}>
+                <View style={pw.perkIcon}>
+                  <Ionicons name={p.icon as any} size={15} color="#FFD700" />
+                </View>
+                <Text style={pw.perkText}>{p.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Pricing badge */}
+          <View style={pw.pricing}>
+            <Text style={pw.priceAmount}>$29</Text>
+            <Text style={pw.pricePer}>/mo · cancel anytime · 7-day free trial</Text>
+          </View>
+
+          {/* CTA */}
+          <TouchableOpacity
+            style={[pw.cta, isPurchasing && pw.ctaLoading]}
+            onPress={onUpgrade}
+            activeOpacity={0.85}
+            disabled={isPurchasing}
+          >
+            {isPurchasing ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <>
+                <Ionicons name="ribbon" size={16} color="#000" style={{ marginRight: 8 }} />
+                <Text style={pw.ctaText}>Start Free Trial</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleRestore}
+            disabled={restoring || isPurchasing}
+            style={pw.restoreBtn}
+          >
+            {restoring ? (
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+            ) : (
+              <Text style={pw.restoreText}>Restore purchases</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onClose} style={pw.skipBtn}>
+            <Text style={pw.skipText}>Maybe later</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
 export default function StudioScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass } = useApp();
   const { showAlert } = useAlert();
+  const { isCoachElite, offerings, purchasePackage } = useRevenueCat();
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   // Pulsing live dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -140,6 +280,8 @@ export default function StudioScreen() {
   // Abrupt stream disconnect
   const [abruptEndedClass, setAbruptEndedClass] = useState<LiveClassItem | null>(null);
   const [isSavingVod, setIsSavingVod] = useState(false);
+  // Prevents parallel updateLiveClass calls if liveClasses changes rapidly
+  const isEndingStreamRef = useRef(false);
 
   // Tech check
   const [checklist, setChecklist] = useState({
@@ -174,18 +316,25 @@ export default function StudioScreen() {
   // Abrupt end detection
   useEffect(() => {
     const liveStream = liveClasses.find((c) => c.status === 'live');
-    if (!liveStream) return;
+    if (!liveStream || isEndingStreamRef.current) return;
     const lastUpdated = new Date(liveStream.updated_at || liveStream.scheduled_for).getTime();
     const elapsed = Math.floor((Date.now() - lastUpdated) / 1000);
     if (elapsed > 60) {
+      isEndingStreamRef.current = true;
       (async () => {
         try {
           await updateLiveClass(liveStream.id, { status: 'ended' });
           setAbruptEndedClass(liveStream);
-        } catch (e) {}
+        } catch (e) {
+          if (__DEV__) console.warn('[Studio] abrupt-end update failed:', e);
+        } finally {
+          isEndingStreamRef.current = false;
+        }
       })();
     }
-  }, [liveClasses, updateLiveClass]);
+  // updateLiveClass is a stable useCallback(…, []) — excluding it from deps avoids spurious re-runs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveClasses]);
 
   const toggleCheck = (key: keyof typeof checklist) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -277,17 +426,41 @@ export default function StudioScreen() {
 
   // Handlers
   const handleEnterStudio = (cls: LiveClassItem) => {
+    if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/broadcast/${cls.id}` as any);
   };
   const handleGoLive = () => {
+    if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.push('/broadcast/setup' as any);
   };
   const handleScheduleNew = () => {
+    if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/create-live-class' as any);
   };
+
+  // Paywall purchase handler
+  const handleUpgrade = useCallback(async () => {
+    const pkg = offerings?.availablePackages?.[0];
+    if (!pkg) {
+      // RC not available (e.g., dev/Android without native module) — skip to broadcast
+      setShowPaywall(false);
+      router.push('/broadcast/setup' as any);
+      return;
+    }
+    setIsPurchasing(true);
+    const { success, error } = await purchasePackage(pkg);
+    setIsPurchasing(false);
+    if (success) {
+      setShowPaywall(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push('/broadcast/setup' as any);
+    } else if (error) {
+      showAlert({ type: 'error', title: 'Purchase Failed', message: error });
+    }
+  }, [offerings, purchasePackage, router, showAlert]);
   const handleDelete = (id: string, title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showAlert({
@@ -338,6 +511,7 @@ export default function StudioScreen() {
   };
 
   return (
+    <>
     <SafeAreaView style={s.container} edges={['top']}>
 
       {/* ── Header (Twitch-style: title centered, action right) ─────── */}
@@ -647,6 +821,14 @@ export default function StudioScreen() {
       </View>
 
     </SafeAreaView>
+
+      <CoachElitePaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onUpgrade={handleUpgrade}
+        isPurchasing={isPurchasing}
+      />
+    </>
   );
 }
 
@@ -1269,3 +1451,148 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+// ── Paywall styles ────────────────────────────────────────────────────────────
+const pw = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#111118',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,215,0,0.15)',
+  },
+  handle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  hero: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  eliteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,215,0,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.3)',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 16,
+  },
+  eliteBadgeText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 11,
+    color: '#FFD700',
+    letterSpacing: 1.2,
+  },
+  heroTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 26,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  heroSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  perks: {
+    marginBottom: 24,
+    gap: 10,
+  },
+  perkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  perkIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,215,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  perkText: {
+    fontFamily: FontFamily.bodyMedium,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    flex: 1,
+  },
+  pricing: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 20,
+    justifyContent: 'center',
+  },
+  priceAmount: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 36,
+    color: '#FFFFFF',
+  },
+  pricePer: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFD700',
+    borderRadius: Radius.md,
+    height: 54,
+    marginBottom: 12,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  ctaLoading: {
+    opacity: 0.7,
+  },
+  ctaText: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 15,
+    color: '#000000',
+  },
+  restoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  restoreText: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    textDecorationLine: 'underline',
+  },
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  skipText: {
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+  },
+});
+

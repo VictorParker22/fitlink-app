@@ -6,11 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Bolt } from '../../components/mascot/Bolt';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../context/ClientContext';
+import { useRevenueCat } from '../../context/RevenueCatContext';
 import { supabase } from '../../lib/supabase';
 import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { calculateLevel, calculateProgressToNextLevel } from '../../utils/xp';
 import { ClientRoute } from '../../types/routes';
 import type { TrackNode } from '../../context/AppContext';
+import ClientPaywall from '../../components/paywalls/ClientPaywall';
+import FitLinkPassPreview from '../../components/client-tabs/explore/FitLinkPassPreview';
 
 // Pass section components
 import { PassMembershipCard } from '../../components/client-tabs/pass/PassMembershipCard';
@@ -34,7 +37,9 @@ export default function MyPassScreen() {
     mealLogs,
     activeGymVisit,
   } = useClient();
+  const { isClientPremium } = useRevenueCat();
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [paywallVisible, setPaywallVisible] = useState(false);
 
   // ──── Derived data ────
   const activePlan = useMemo(() => {
@@ -44,7 +49,7 @@ export default function MyPassScreen() {
 
   const currentXp = clientData?.xp || 0;
   const currentLevel = calculateLevel(currentXp);
-  const progressPct = calculateProgressToNextLevel(currentXp);
+  const progressPct = calculateProgressToNextLevel(currentXp) / 100; // PassQuickStats expects 0-1
   const currentStreak = clientData?.progress?.streak || 0;
   const workoutsThisMonth = clientData?.progress?.workoutsThisMonth || 0;
   const totalWorkouts = clientData?.completed_workouts || 0;
@@ -146,10 +151,40 @@ export default function MyPassScreen() {
 
   if (!clientData) return (
     <View style={st.emptyContainer}>
-      <Bolt pose="resting" size={80} />
-      <Text style={st.emptyTitle}>NO ACTIVE PASS</Text>
+      <Bolt pose="Concerned" size={80} />
+      <Text style={st.emptyContainerTitle}>NO ACTIVE PASS</Text>
     </View>
   );
+
+  // ── Paywall gate: non-premium clients see the FitLink Pass teaser ──────────
+  if (!isClientPremium) {
+    return (
+      <SafeAreaView style={st.container} edges={['top']}>
+        <View style={st.header}>
+          <View>
+            <Text style={st.tagHeader}>FITLINK // SEASON PASS</Text>
+            <Text style={st.title}>Pass</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingTop: 24, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <FitLinkPassPreview
+            hasActivePlan={!!activePlan}
+            onExplorePlansPress={() => router.push(ClientRoute.mySubscription as any)}
+            onSubscribePress={() => setPaywallVisible(true)}
+          />
+        </ScrollView>
+
+        <ClientPaywall
+          visible={paywallVisible}
+          onDismiss={() => setPaywallVisible(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={st.container} edges={['top']}>
@@ -446,6 +481,20 @@ const st = StyleSheet.create({
     fontSize: 10,
     color: 'rgba(255,255,255,0.5)',
     marginTop: 1,
+  },
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#09090B',
+  },
+  emptyContainerTitle: {
+    fontFamily: FontFamily.headingExtraBold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
   },
   // Claim modal
   claimOverlay: {

@@ -1,3 +1,8 @@
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+// Silence Reanimated strict-mode warnings (not needed in production builds)
+configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
+
+
 import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

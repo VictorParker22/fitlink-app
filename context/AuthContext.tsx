@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';

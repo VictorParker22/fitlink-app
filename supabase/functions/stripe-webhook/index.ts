@@ -50,7 +50,8 @@ serve(async (req) => {
         const planId = pi.metadata?.fitlink_plan_id
         const trainerId = pi.metadata?.fitlink_trainer_id
 
-        if (clientId && planId) {
+        if (clientId && planId && trainerId) {
+
           await supabaseAdmin
             .from('clients')
             .update({
@@ -72,8 +73,32 @@ serve(async (req) => {
               current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             }, { onConflict: 'client_id,plan_id' })
+
+          // ── AUTOFLOW: background task — assign workout + welcome msg + notify coach ──
+          // EdgeRuntime.waitUntil() keeps the worker alive after the Response returns.
+          // Plain fetch().catch() would be silently killed by the Deno runtime.
+          const autoflowTask = async () => {
+            try {
+              const autoflowUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/client-autoflow`
+              const res = await fetch(autoflowUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                },
+                body: JSON.stringify({ clientId, trainerId, planId }),
+              })
+              console.log('[webhook] autoflow response:', res.status)
+            } catch (err) {
+              // Must catch inside waitUntil — errors are silent to the webhook caller
+              console.error('[webhook] autoflow invoke failed:', err)
+            }
+          }
+          EdgeRuntime.waitUntil(autoflowTask())
         }
         break
+
+
       }
 
       case 'payment_intent.payment_failed': {

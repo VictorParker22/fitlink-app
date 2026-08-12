@@ -3,17 +3,28 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { FontFamily } from '../../../constants/theme';
+import { calculateLevel, calculateProgressToNextLevel, XP_PER_LEVEL } from '../../../utils/xp';
 
 interface DashboardSummaryCardProps {
-  completedDays?: number[]; // indices 0-6 (Mon-Sun)
+  completedDays?: number[];   // indices 0-6 (Mon-Sun)
   todayIdx?: number;
+  mealsLoggedToday?: number;  // how many meals logged today
+  targetMeals?: number;       // daily meal target
+  completedWeekWorkouts?: number; // workouts completed this week
+  targetWeekWorkouts?: number;    // weekly workout target
+  xp?: number;                // client total XP
 }
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function DashboardSummaryCard({
-  completedDays = [0, 3], // Mock M and T(hu) as done
-  todayIdx = 2,           // Mock W as today
+  completedDays = [],
+  todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1,
+  mealsLoggedToday = 0,
+  targetMeals = 3,
+  completedWeekWorkouts = 0,
+  targetWeekWorkouts = 5,
+  xp = 0,
 }: DashboardSummaryCardProps) {
 
   // SVG dimensions and colors
@@ -23,19 +34,24 @@ export default function DashboardSummaryCard({
   const radius1 = center - strokeWidth;
   const radius2 = radius1 - strokeWidth - 2;
   const radius3 = radius2 - strokeWidth - 2;
-  
+
   const moveColor = '#E0FF4F';
   const trainColor = '#38BDF8';
   const recoverColor = '#F43F5E';
-  
+
   const circumference1 = 2 * Math.PI * radius1;
   const circumference2 = 2 * Math.PI * radius2;
   const circumference3 = 2 * Math.PI * radius3;
-  
-  // Mock progress
-  const progress1 = 0.78; // 624 / 800
-  const progress2 = 0.20; // 1 / 5
-  const progress3 = 0.77; // 6h 12m / 8h
+
+  // Real progress values derived from props
+  const progress1 = Math.min(mealsLoggedToday / Math.max(targetMeals, 1), 1);
+  const progress2 = Math.min(completedWeekWorkouts / Math.max(targetWeekWorkouts, 1), 1);
+  // XP progress within current level (0–1)
+  const levelProgress = calculateProgressToNextLevel(xp) / 100;
+  const progress3 = Math.min(Math.max(levelProgress, 0), 1);
+  const currentLevel = calculateLevel(xp);
+  const xpInLevel = xp - (currentLevel - 1) * XP_PER_LEVEL;
+  const xpToNext = XP_PER_LEVEL;
 
   return (
     <View style={st.card}>
@@ -96,22 +112,22 @@ export default function DashboardSummaryCard({
           <View style={st.statBlock}>
             <Text style={st.statLabel}>MOVE</Text>
             <Text style={st.statValue}>
-              <Text style={[st.statHero, { color: moveColor }]}>624</Text>
-              <Text style={st.statSub}> / 800 kcal</Text>
+              <Text style={[st.statHero, { color: moveColor }]}>{mealsLoggedToday}</Text>
+              <Text style={st.statSub}> / {targetMeals} meals</Text>
             </Text>
           </View>
           <View style={st.statBlock}>
             <Text style={st.statLabel}>TRAIN</Text>
             <Text style={st.statValue}>
-              <Text style={[st.statHero, { color: trainColor }]}>1</Text>
-              <Text style={st.statSub}> / 5 lifts</Text>
+              <Text style={[st.statHero, { color: trainColor }]}>{completedWeekWorkouts}</Text>
+              <Text style={st.statSub}> / {targetWeekWorkouts} lifts</Text>
             </Text>
           </View>
           <View style={st.statBlock}>
-            <Text style={st.statLabel}>RECOVERY</Text>
+            <Text style={st.statLabel}>XP LEVEL</Text>
             <Text style={st.statValue}>
-              <Text style={[st.statHero, { color: recoverColor }]}>6h 12m</Text>
-              <Text style={st.statSub}> / 8h sleep</Text>
+              <Text style={[st.statHero, { color: recoverColor }]}>{xpInLevel}</Text>
+              <Text style={st.statSub}> / {xpToNext}</Text>
             </Text>
           </View>
         </View>

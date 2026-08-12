@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
@@ -107,6 +108,25 @@ export default function BookSessionScreen() {
   const [clientSearch, setClientSearch] = useState('');
   const dayListRef = useRef<FlatList>(null);
 
+  // ── Inline validation errors ──────────────────────────────────────────────
+  const [errors, setErrors] = useState<{ client?: string; groupName?: string; location?: string }>({});
+  const clearError = (key: keyof typeof errors) =>
+    setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+
+  // Shake animation for the submit button on validation failure
+  const shakeX = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
+  const triggerShake = () => {
+    shakeX.value = withSequence(
+      withTiming(-8, { duration: 55 }),
+      withTiming( 8, { duration: 55 }),
+      withTiming(-6, { duration: 50 }),
+      withTiming( 6, { duration: 50 }),
+      withTiming(-3, { duration: 45 }),
+      withTiming( 0, { duration: 45 }),
+    );
+  };
+
   // Pre-select client from params
   useEffect(() => {
     if (params.clientId) {
@@ -147,11 +167,20 @@ export default function BookSessionScreen() {
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async () => {
-    if (sessionType !== 'Group' && !selectedClient) {
-      return showAlert({ type: 'warning', title: 'Select a Client', message: 'Please pick a client for this session.' });
-    }
-    if (sessionType === 'Group' && !groupName.trim()) {
-      return showAlert({ type: 'warning', title: 'Group Name Required', message: 'Please enter a name for the group session.' });
+    // ── Field-level validation — show inline errors, not a modal ─────────────
+    const newErrors: typeof errors = {};
+    if (sessionType !== 'Group' && !selectedClient)
+      newErrors.client = 'Please select a client for this session.';
+    if (sessionType === 'Group' && !groupName.trim())
+      newErrors.groupName = 'Please enter a name for this group session.';
+    if (sessionType !== 'Virtual' && !location.trim())
+      newErrors.location = 'Please enter a location for this session.';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
     }
 
     setLoading(true);
@@ -243,22 +272,32 @@ export default function BookSessionScreen() {
           {sessionType === 'Group' ? (
             <View style={st.section}>
               <Text style={st.sectionLabel}>Group Name</Text>
-              <View style={st.inputRow}>
-                <Ionicons name="people" size={18} color="rgba(255,255,255,0.3)" />
+              <View style={[st.inputRow, !!errors.groupName && st.inputRowError]}>
+                <Ionicons name="people" size={18} color={errors.groupName ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Evening HIIT"
                   placeholderTextColor="rgba(255,255,255,0.25)"
                   value={groupName}
-                  onChangeText={setGroupName}
+                  onChangeText={v => { setGroupName(v); if (errors.groupName) clearError('groupName'); }}
                 />
               </View>
+              {!!errors.groupName && (
+                <View style={st.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                  <Text style={st.errorText}>{errors.groupName}</Text>
+                </View>
+              )}
             </View>
           ) : (
             <View style={st.section}>
-              <Text style={st.sectionLabel}>Client</Text>
+              <Text style={[st.sectionLabel, !!errors.client && { color: '#EF4444' }]}>Client</Text>
               {selectedClientObj ? (
-                <TouchableOpacity style={st.selectedClient} onPress={() => setSelectedClient(null)} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[st.selectedClient, !!errors.client && st.selectedClientError]}
+                  onPress={() => { setSelectedClient(null); clearError('client'); }}
+                  activeOpacity={0.7}
+                >
                   <Avatar name={selectedClientObj.name} size="sm" imageUrl={(selectedClientObj as any).avatar_url} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={st.selectedName}>{selectedClientObj.name}</Text>
@@ -270,17 +309,23 @@ export default function BookSessionScreen() {
                 </TouchableOpacity>
               ) : (
                 <>
-                  <View style={st.inputRow}>
-                    <Ionicons name="search" size={16} color="rgba(255,255,255,0.3)" />
+                  <View style={[st.inputRow, !!errors.client && st.inputRowError]}>
+                    <Ionicons name="search" size={16} color={errors.client ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
                     <TextInput
                       style={st.input}
                       placeholder="Search clients..."
                       placeholderTextColor="rgba(255,255,255,0.25)"
                       value={clientSearch}
-                      onChangeText={setClientSearch}
+                      onChangeText={v => { setClientSearch(v); if (errors.client) clearError('client'); }}
                     />
                   </View>
-                  <View style={st.clientList}>
+                  {!!errors.client && (
+                    <View style={st.errorRow}>
+                      <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                      <Text style={st.errorText}>{errors.client}</Text>
+                    </View>
+                  )}
+                  <View style={[st.clientList, !!errors.client && { borderColor: 'rgba(239,68,68,0.3)' }]}>
                     {filteredClients.length === 0 ? (
                       <View style={st.noClients}>
                         <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.15)" />
@@ -292,7 +337,12 @@ export default function BookSessionScreen() {
                           <TouchableOpacity
                             key={client.id}
                             style={[st.clientOption, i < filteredClients.length - 1 && st.clientBorder]}
-                            onPress={() => { setSelectedClient(client.id); setClientSearch(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                            onPress={() => {
+                              setSelectedClient(client.id);
+                              setClientSearch('');
+                              clearError('client');
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            }}
                             activeOpacity={0.7}
                           >
                             <Avatar name={client.name} size="sm" imageUrl={(client as any).avatar_url} />
@@ -382,20 +432,29 @@ export default function BookSessionScreen() {
             </View>
           </View>
 
-          {/* LOCATION (not for Virtual) */}
+          {/* LOCATION (required for in-person sessions) */}
           {sessionType !== 'Virtual' && (
             <View style={st.section}>
-              <Text style={st.sectionLabel}>Location</Text>
-              <View style={st.inputRow}>
-                <Ionicons name="location-outline" size={16} color="rgba(255,255,255,0.3)" />
+              <View style={st.sectionLabelRow}>
+                <Text style={[st.sectionLabel, { marginBottom: 0 }, !!errors.location && { color: '#EF4444' }]}>Location</Text>
+                <Text style={st.requiredStar}>*</Text>
+              </View>
+              <View style={[st.inputRow, !!errors.location && st.inputRowError, { marginTop: 10 }]}>
+                <Ionicons name="location-outline" size={16} color={errors.location ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Downtown Gym, Studio B"
                   placeholderTextColor="rgba(255,255,255,0.25)"
                   value={location}
-                  onChangeText={setLocation}
+                  onChangeText={v => { setLocation(v); if (errors.location) clearError('location'); }}
                 />
               </View>
+              {!!errors.location && (
+                <View style={st.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                  <Text style={st.errorText}>{errors.location}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -443,28 +502,30 @@ export default function BookSessionScreen() {
           </View>
 
           {/* SUBMIT */}
-          <TouchableOpacity
-            style={[st.submitBtn, (loading || success) && { opacity: success ? 1 : 0.6 }, success && { backgroundColor: '#22C55E' }, { marginBottom: Math.max(insets.bottom, 16) }]}
-            onPress={handleSubmit}
-            disabled={loading || success}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : success ? (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                <Text style={[st.submitText, { color: '#FFFFFF' }]}>Booked!</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="calendar-outline" size={20} color="#000" />
-                <Text style={st.submitText}>
-                  {repeatWeeks > 0 ? `Book ${repeatWeeks} Sessions` : 'Book Session'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <Animated.View style={[shakeStyle, { marginBottom: Math.max(insets.bottom, 16) }]}>
+            <TouchableOpacity
+              style={[st.submitBtn, (loading || success) && { opacity: success ? 1 : 0.6 }, success && { backgroundColor: '#22C55E' }]}
+              onPress={handleSubmit}
+              disabled={loading || success}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : success ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                  <Text style={[st.submitText, { color: '#FFFFFF' }]}>Booked!</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="calendar-outline" size={20} color="#000" />
+                  <Text style={st.submitText}>
+                    {repeatWeeks > 0 ? `Book ${repeatWeeks} Sessions` : 'Book Session'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Preview summary */}
           <View style={st.preview}>
@@ -566,6 +627,10 @@ const st = StyleSheet.create({
   typeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: 'rgba(255,255,255,0.4)' },
   typeCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
+  // Section label row (for label + required star)
+  sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  requiredStar:    { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: '#EF4444', lineHeight: 20 },
+
   // Inputs
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -573,13 +638,25 @@ const st = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 4,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
+  inputRowError: {
+    borderColor: 'rgba(239,68,68,0.55)',
+    backgroundColor: 'rgba(239,68,68,0.05)',
+  },
   input: { flex: 1, fontFamily: FontFamily.body, fontSize: Math.round(W * 0.038), color: '#FFFFFF', paddingVertical: 12 },
+
+  // Inline error message
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, paddingLeft: 4 },
+  errorText: { fontFamily: FontFamily.bodyMedium, fontSize: Math.round(W * 0.03), color: '#EF4444', flex: 1 },
 
   // Selected client
   selectedClient: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(200,241,53,0.05)', borderRadius: 14,
     padding: 14, borderWidth: 1, borderColor: 'rgba(200,241,53,0.15)',
+  },
+  selectedClientError: {
+    borderColor: 'rgba(239,68,68,0.45)',
+    backgroundColor: 'rgba(239,68,68,0.04)',
   },
   selectedName: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.038), color: '#FFFFFF' },
   selectedSub:  { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.3)', marginTop: 1 },

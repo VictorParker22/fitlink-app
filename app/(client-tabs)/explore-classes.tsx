@@ -18,6 +18,9 @@ import { FitnessClass, MOCK_CLASSES } from '../../data/classes';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useRevenueCat } from '../../context/RevenueCatContext';
+import ClientPaywall from '../../components/paywalls/ClientPaywall';
+import FitLinkPassPreview from '../../components/client-tabs/explore/FitLinkPassPreview';
 
 type SortKey = 'newest' | 'duration' | 'level' | 'a-z';
 
@@ -32,7 +35,9 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 export default function ExploreClassesScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { clientData } = useClient();
+  const { clientData, subscription } = useClient();
+  const { isClientPremium } = useRevenueCat();
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [showSortModal, setShowSortModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -281,6 +286,7 @@ export default function ExploreClassesScreen() {
               brand: item.brand,
               durationMin: String(item.durationMin),
               thumbnail: item.thumbnail,
+              is_free: String(item.isFree),   // ← required for class-detail paywall gate
             },
           });
         }}
@@ -435,6 +441,13 @@ export default function ExploreClassesScreen() {
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={s.separator} />}
+        ListHeaderComponent={
+          <FitLinkPassPreview
+            hasActivePlan={isClientPremium || !!subscription}
+            onExplorePlansPress={() => router.push(ClientRoute.mySubscription as any)}
+            onSubscribePress={() => setPaywallVisible(true)}
+          />
+        }
         ListEmptyComponent={
           <View style={s.emptyState}>
             <Bolt pose="Analyze" size={100} />
@@ -456,6 +469,12 @@ export default function ExploreClassesScreen() {
             )}
           </View>
         }
+      />
+
+      {/* FitLink Pass Paywall modal */}
+      <ClientPaywall
+        visible={paywallVisible}
+        onDismiss={() => setPaywallVisible(false)}
       />
 
       {/* Brutalist Floating Filter Button (FAB) */}

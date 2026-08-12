@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 
 import { useGlobalStudio } from '../../hooks/useGlobalStudio';
 import { FontFamily, Radius, Spacing } from '../../constants/theme';
@@ -32,7 +33,7 @@ export default function GlobalStudioScreen() {
   const upcomingLive = useMemo(() => {
     const now = Date.now();
     return liveClasses?.filter(c => {
-        if (c.status !== 'scheduled' && c.status !== 'starting') return false;
+    if (c.status !== 'scheduled' && c.status !== 'live') return false;
         // Hide ghost streams that were scheduled more than 1 hour ago but never went live/ended
         const schedTime = new Date(c.scheduled_for).getTime();
         return schedTime > now - 60 * 60 * 1000;
@@ -87,7 +88,7 @@ export default function GlobalStudioScreen() {
         body: `${classItem.trainer?.name} is going live in 15 minutes! Tap to join.`,
         data: { url: `/live-player/${classItem.id}` },
       },
-      trigger: { date: reminderDate },
+      trigger: { type: SchedulableTriggerInputTypes.DATE, date: reminderDate },
     });
 
     Alert.alert('Reminder Set!', `We'll remind you 15 minutes before ${classItem.trainer?.name} goes live.`);
@@ -110,7 +111,7 @@ export default function GlobalStudioScreen() {
 
       <ScrollView 
         showsVerticalScrollIndicator={false} 
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 90, Spacing.xxl * 2) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 90, Spacing['2xl'] * 2) }]}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -475,6 +476,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.5)',
   },
+  upcomingActions: {
+    marginTop: 10,
+  },
   remindBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -580,7 +584,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
   },
   loadingContainer: {
-    padding: Spacing.xxl,
+    padding: Spacing['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,

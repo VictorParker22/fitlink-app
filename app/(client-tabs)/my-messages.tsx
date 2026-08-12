@@ -6,8 +6,10 @@ import {
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
+import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import Avatar from '../../components/Avatar';
@@ -30,6 +32,7 @@ interface Message {
 export default function ClientMessagesScreen() {
   const router = useRouter();
   const { conversation, trainer, clientData } = useClient();
+  const { isClientPremium } = useRevenueCat();
   const { colors } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -91,11 +94,17 @@ export default function ClientMessagesScreen() {
     setNewMessage('');
     try {
       await supabase.from('messages').insert({ conversation_id: conversation.id, sender_type: 'client', content });
-      await supabase.from('conversations').update({ last_message: content, last_message_at: new Date().toISOString() }).eq('id', conversation.id);
-      
+      // Update last_message preview AND atomically increment trainer's unread badge.
+      // Using raw SQL increment via rpc avoids the stale-closure race where the
+      // in-memory conversation.unread_count is boot-time stale and multiple sends
+      // in the same session would always write unread_count=1 instead of +1.
+      await supabase.rpc('increment_conversation_unread', {
+        conv_id: conversation.id,
+        new_last_message: content,
+      });
+
       // Trigger push notification to trainer
       if (trainer?.expo_push_token) {
-        console.log('Sending push to trainer:', trainer.expo_push_token);
         const pushBody = content.startsWith('[WORKOUT_CARD:') 
           ? 'Client sent an attachment' 
           : content;
@@ -109,11 +118,11 @@ export default function ClientMessagesScreen() {
           }
         }).catch(err => console.log('Push error:', err));
       } else {
-        console.log('Trainer has NO push token saved!');
+        if (__DEV__) console.log('[Messages] Trainer has no push token — push skipped');
       }
     } catch { setNewMessage(content); }
     finally { setSending(false); }
-  }, [newMessage, sending, conversation]);
+  }, [newMessage, sending, conversation, trainer, clientData]);
 
   const handleImagePick = async () => {
     try {
@@ -306,29 +315,54 @@ export default function ClientMessagesScreen() {
           />
         )}
 
-        <View style={[styles.inputBar, { borderTopColor: colors.border, backgroundColor: colors.bgSecondary }]}>
-          <TouchableOpacity onPress={handleImagePick} style={{ padding: Spacing.sm }} activeOpacity={0.7}>
-            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
-          </TouchableOpacity>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.bgInput, borderColor: colors.borderStrong, color: colors.textPrimary }]}
-            placeholder="Type a message..."
-            placeholderTextColor={colors.textTertiary}
-            value={newMessage}
-            onChangeText={(text) => { setNewMessage(text); startTyping(); }}
-            maxLength={2000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-            accessibilityLabel="Type a message to your coach"
-            accessibilityRole="text"
-          />
-          <TouchableOpacity style={[styles.sendBtn, { backgroundColor: newMessage.trim() ? colors.accent : colors.bgElevated }]} onPress={handleSend} disabled={!newMessage.trim() || sending} accessibilityLabel="Send message" accessibilityRole="button">
-            <Ionicons name="send" size={18} color={newMessage.trim() ? Colors.white : colors.textTertiary} />
-          </TouchableOpacity>
+        <View style={[styles.inputBar, {
+          borderTopColor: colors.border,
+          backgroundColor: colors.bgSecondary,
+          paddingBottom: isKeyboardVisible ? Spacing.md : Math.max(insets.bottom, Spacing.md),
+        }]}>
+          {isClientPremium ? (
+            <>
+              <TouchableOpacity onPress={handleImagePick} style={{ padding: Spacing.sm }} activeOpacity={0.7}>
+                <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.bgInput, borderColor: colors.borderStrong, color: colors.textPrimary }]}
+                placeholder="Type a message..."
+                placeholderTextColor={colors.textTertiary}
+                value={newMessage}
+                onChangeText={(text) => { setNewMessage(text); startTyping(); }}
+                maxLength={2000}
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+                accessibilityLabel="Type a message to your coach"
+                accessibilityRole="text"
+              />
+              <TouchableOpacity style={[styles.sendBtn, { backgroundColor: newMessage.trim() ? colors.accent : colors.bgElevated }]} onPress={handleSend} disabled={!newMessage.trim() || sending} accessibilityLabel="Send message" accessibilityRole="button">
+                <Ionicons name="send" size={18} color={newMessage.trim() ? Colors.white : colors.textTertiary} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={styles.premiumGateCta}
+              onPress={() => router.push('/upgrade' as any)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#5B7FFF', '#A855F7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.premiumGateGradient}
+              >
+                <Ionicons name="lock-closed" size={15} color="#FFFFFF" />
+                <Text style={styles.premiumGateText}>Upgrade to message your coach</Text>
+                <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </View>
-        {/* Spacer for floating tab bar */}
-        {!isKeyboardVisible && <View style={{ height: Platform.OS === 'ios' ? 88 : (72 + insets.bottom), backgroundColor: colors.bgSecondary }} />}
+        {/* Spacer to clear the floating glass tab bar (BAR_H=84 + MARGIN=14 + device inset) */}
+        <View style={{ height: insets.bottom + 100, backgroundColor: colors.bgSecondary }} />
       </KeyboardAvoidingView>
     </View>
   );
@@ -356,6 +390,9 @@ const styles = StyleSheet.create({
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderTopWidth: 1 },
   input: { flex: 1, borderWidth: 1, borderRadius: Radius.xl, paddingHorizontal: 16, paddingVertical: 10, fontFamily: FontFamily.body, fontSize: FontSize.base, maxHeight: 100 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  premiumGateCta: { flex: 1, borderRadius: Radius.lg, overflow: 'hidden' },
+  premiumGateGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 16 },
+  premiumGateText: { flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: '#FFFFFF', textAlign: 'center' as const },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing['4xl'] },
   emptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },

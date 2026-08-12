@@ -10,6 +10,7 @@ export interface FitnessClass {
   brand: string;
   durationMin: number;
   thumbnail: string;
+  isFree?: boolean;
 }
 
 export const MOCK_CLASSES: FitnessClass[] = [
