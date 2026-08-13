@@ -41,6 +41,7 @@ import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import WeeklyCheckIn from '../../components/client-tabs/home/WeeklyCheckIn';
 import { ClientRoute } from '../../types/routes';
+import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -229,15 +230,30 @@ export default function AthleteProgressScreen() {
   const latestPhotoLog = photoLogs.length > 1 ? photoLogs[photoLogs.length - 1] : null;
 
   // ── Header context line ────────────────────────────────────────────────────
+  // Week number comes from lib/passWeeks (track position), the same math as
+  // Train and Pass — never from elapsed calendar time.
   const headerSub = useMemo(() => {
-    if (enrollment?.started_at) {
-      const week = Math.max(1, Math.floor((Date.now() - new Date(enrollment.started_at).getTime()) / (7 * 24 * 3600 * 1000)) + 1);
-      return `Week ${week} of your plan`;
+    if (
+      enrollment?.status === 'active' &&
+      Array.isArray(enrollment.track_snapshot) &&
+      enrollment.track_snapshot.length > 0
+    ) {
+      const track = [...enrollment.track_snapshot].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+      const plan = (plans || []).find((p: any) => p.id === enrollment.plan_id);
+      const dw = plan?.duration_weeks ?? null;
+      const weeks = totalWeeks(track, dw);
+      const week = Math.min(
+        weekOfPosition(Math.min(enrollment.track_position || 0, track.length - 1), track, dw),
+        weeks
+      );
+      return `Week ${week} of ${weeks} on your plan`;
     }
     const plan = plans?.find((p: any) => p.id === clientData?.plan_id);
     if (plan?.name) return plan.name;
     return 'Everything you have logged, in one place';
-  }, [enrollment?.started_at, plans, clientData?.plan_id]);
+  }, [enrollment, plans, clientData?.plan_id]);
 
   // ── Four-week summary (real counts only) ───────────────────────────────────
   const fourWeekSessions = useMemo(() => {
@@ -312,7 +328,7 @@ export default function AthleteProgressScreen() {
             style={s.avatarBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(ClientRoute.myProfile as any);
+              router.push(ClientRoute.myProfile);
             }}
             hitSlop={8}
           >

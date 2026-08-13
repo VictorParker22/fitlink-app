@@ -219,8 +219,17 @@ export default function AthleteFoodScreen() {
       if (row.diet_plan_meal_id) next[row.diet_plan_meal_id] = { swapMealId: row.swapped_meal_id || null };
       else if (row.swapped_meal_id) restRows.push(row);
     });
-    // Attribute rest-day rows (dpm id null) back to today's rest slots by meal id
+    // Attribute rest-day rows (dpm id null) back to today's rest slots by meal id.
+    // Deterministic tie-break for duplicate identical meals: rows sorted by
+    // created_at (id as fallback) claim slots in list order, so the same rows
+    // light up the same slots on every reload.
     if (restRows.length > 0) {
+      restRows.sort((a: any, b: any) => {
+        const ta = new Date(a.created_at || 0).getTime();
+        const tb = new Date(b.created_at || 0).getTime();
+        if (ta !== tb) return ta - tb;
+        return String(a.id).localeCompare(String(b.id));
+      });
       const claimed = new Set<string>();
       restRows.forEach((row: any) => {
         const slot = dayMeals.find((m) => m.dpmId === null && m.mealId === row.swapped_meal_id && !claimed.has(m.key));
@@ -308,13 +317,31 @@ export default function AthleteFoodScreen() {
     const prevEntry = logs[m.key];
     setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
     const today = new Date().toISOString().split('T')[0];
-    let q = supabase.from('client_meal_logs').delete()
-      .eq('client_id', clientData.id)
-      .eq('logged_date', today);
-    if (m.dpmId) q = q.eq('diet_plan_meal_id', m.dpmId);
-    else if (m.mealId) q = q.is('diet_plan_meal_id', null).eq('swapped_meal_id', m.mealId);
-    else return;
-    const { error } = await q;
+    let error: any = null;
+    if (m.dpmId) {
+      ({ error } = await supabase.from('client_meal_logs').delete()
+        .eq('client_id', clientData.id)
+        .eq('logged_date', today)
+        .eq('diet_plan_meal_id', m.dpmId));
+    } else if (m.mealId) {
+      // Rest-day slot: duplicate identical meals share swapped_meal_id, so a
+      // blanket delete would wipe every duplicate's log. Pick exactly one row
+      // (newest first — the inverse of the claim order) and delete it by id.
+      const { data: rows, error: selError } = await supabase.from('client_meal_logs')
+        .select('id')
+        .eq('client_id', clientData.id)
+        .eq('logged_date', today)
+        .is('diet_plan_meal_id', null)
+        .eq('swapped_meal_id', m.mealId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (selError) error = selError;
+      else if (rows && rows.length > 0) {
+        ({ error } = await supabase.from('client_meal_logs').delete().eq('id', rows[0].id));
+      }
+    } else {
+      return;
+    }
     if (error) {
       if (__DEV__) console.warn('[Food] Failed to unlog meal:', error);
       setLogs((prev) => ({ ...prev, [m.key]: prevEntry || { swapMealId: null } }));

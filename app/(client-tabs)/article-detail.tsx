@@ -9,7 +9,7 @@ import { ClientRoute } from '../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ARTICLES } from '../../data/articles';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -25,12 +25,12 @@ export default function ArticleDetailScreen() {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={s.safeArea} edges={['top']}>
         <TouchableOpacity onPress={() => router.push(ClientRoute.articles)} style={{ paddingHorizontal: 16, paddingVertical: 12 }} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>
-          <Ionicons name="document-text-outline" size={48} color="rgba(255,255,255,0.2)" />
-          <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFFFFF', marginTop: 16 }}>Article Not Found</Text>
-          <Text style={{ fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>This article may have been removed.</Text>
+          <Ionicons name="document-text-outline" size={48} color={CoachColors.textFaint} />
+          <Text style={{ fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, marginTop: 16 }}>Article not found</Text>
+          <Text style={{ fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8 }}>This article may have been removed.</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -52,7 +52,7 @@ export default function ArticleDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={s.headerRight}>
             <TouchableOpacity
@@ -62,10 +62,10 @@ export default function ArticleDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
-              <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? '#FFCA28' : '#FFFFFF'} />
+              <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity style={s.headerBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share article">
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -121,7 +121,7 @@ export default function ArticleDetailScreen() {
           {/* Series tag */}
           {article.series && (
             <View style={s.seriesTag}>
-              <Ionicons name="layers-outline" size={14} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="layers-outline" size={14} color={CoachColors.textMuted} />
               <Text style={s.seriesText}>Part of the {article.series} series</Text>
             </View>
           )}
@@ -135,7 +135,7 @@ export default function ArticleDetailScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   safeArea: { flex: 1 },
 
   // Header
@@ -156,26 +156,26 @@ const s = StyleSheet.create({
     marginTop: 4, marginBottom: 12,
   },
   readLabelText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.4)',
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },
   readDot: {
-    width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 4, height: 4, borderRadius: 2, backgroundColor: CoachColors.textMuted,
   },
 
   // Title
   title: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 32, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.textPrimary,
     lineHeight: 38, marginBottom: 16,
   },
 
   // Author & date
   author: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: 'rgba(255,255,255,0.7)',
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary,
     marginBottom: 4,
   },
   date: {
-    fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted,
     marginBottom: 24,
   },
 
@@ -184,31 +184,31 @@ const s = StyleSheet.create({
     width: SCREEN_W, height: SCREEN_W * 0.6,
     marginLeft: -20,
     marginBottom: 28,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.surface,
   },
 
   // Headline
   headline: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 24, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 24, color: CoachColors.textPrimary,
     lineHeight: 32, marginBottom: 20,
   },
 
   // Intro (italic style)
   intro: {
-    fontFamily: FontFamily.body, fontSize: 16, color: 'rgba(255,255,255,0.6)',
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textSecondary,
     lineHeight: 24, fontStyle: 'italic', marginBottom: 24,
-    borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.15)',
+    borderLeftWidth: 2, borderLeftColor: CoachColors.border,
     paddingLeft: 16,
   },
 
   // Body
   bodyText: {
-    fontFamily: FontFamily.body, fontSize: 16, color: 'rgba(255,255,255,0.75)',
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
     lineHeight: 26, marginBottom: 20,
   },
 
   subheading: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary,
     marginBottom: 12, marginTop: 8,
   },
 
@@ -216,7 +216,7 @@ const s = StyleSheet.create({
     marginBottom: 20, gap: 6,
   },
   bulletItem: {
-    fontFamily: FontFamily.body, fontSize: 16, color: 'rgba(255,255,255,0.75)',
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
     lineHeight: 24, paddingLeft: 4,
   },
 
@@ -225,10 +225,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 20,
     paddingVertical: 12, paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface,
+    borderRadius: 8, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   seriesText: {
-    fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary,
   },
 });

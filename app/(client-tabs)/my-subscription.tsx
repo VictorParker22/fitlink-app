@@ -1,26 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useClient } from '../../context/ClientContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
-import type { ThemeColors } from '../../context/ThemeContext';
-import Button from '../../components/Button';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useStripe } from '@stripe/stripe-react-native';
 import { ClientRoute, SharedRoute } from '../../types/routes';
 import * as Haptics from 'expo-haptics';
 
-// ─── TIER ACCENT COLORS ────────────────────────────────────────
-const PLAN_ACCENTS = ['#FFD700', '#22D3EE', '#A78BFA', '#22C55E', '#FF6B35'];
-
 export default function MySubscriptionScreen() {
   const router = useRouter();
   const { clientData, subscription, paymentHistory, plans, cancelSubscription, setupPaymentMethod, refreshData } = useClient();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
@@ -47,8 +40,8 @@ export default function MySubscriptionScreen() {
       `Are you sure you want to cancel? You will retain access until the end of your current billing period (${new Date(subscription.current_period_end).toLocaleDateString()}).`,
       [
         { text: 'Keep Subscription', style: 'cancel' },
-        { 
-          text: 'Cancel', 
+        {
+          text: 'Cancel',
           style: 'destructive',
           onPress: async () => {
             setCanceling(true);
@@ -81,7 +74,7 @@ export default function MySubscriptionScreen() {
       if (!clientSecret) {
         throw new Error('Unable to set up payment. The server returned an invalid response.');
       }
-      
+
       // Initialize Stripe UI
       const initRes = await initPaymentSheet({
         setupIntentClientSecret: clientSecret,
@@ -94,7 +87,7 @@ export default function MySubscriptionScreen() {
 
       // Present Stripe UI
       const presentRes = await presentPaymentSheet();
-      
+
       if (presentRes.error) {
         if (presentRes.error.code !== 'Canceled') {
           throw new Error(presentRes.error.message);
@@ -122,27 +115,27 @@ export default function MySubscriptionScreen() {
           accessibilityLabel="Go back"
           activeOpacity={0.6}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} accessibilityRole="header">Membership</Text>
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} colors={[CoachColors.accent]} />}
       >
         {/* ── HERO: ACTIVE PLAN ── */}
         {subscription && subscription.plans ? (
           <View style={styles.heroCard}>
             {/* Accent top line */}
-            <View style={[styles.heroAccentLine, subscription.status === 'canceled' && { backgroundColor: colors.red }]} />
+            <View style={[styles.heroAccentLine, subscription.status === 'canceled' && { backgroundColor: CoachColors.danger }]} />
 
             <View style={styles.heroContent}>
               <View style={styles.heroTop}>
                 <View style={styles.heroIconBadge}>
-                  <Ionicons name="star" size={18} color={colors.accent} />
+                  <Ionicons name="star" size={18} color={CoachColors.accent} />
                 </View>
                 <View style={[styles.statusBadge, subscription.status === 'canceled' && styles.statusBadgeCanceled]}>
                   <Text style={[styles.statusText, subscription.status === 'canceled' && styles.statusTextCanceled]}>
@@ -190,7 +183,7 @@ export default function MySubscriptionScreen() {
             <View style={styles.paymentCard}>
               <View style={styles.paymentLeft}>
                 <View style={styles.paymentIconBox}>
-                  <Ionicons name="card" size={18} color="#A78BFA" />
+                  <Ionicons name="card" size={18} color={CoachColors.textSecondary} />
                 </View>
                 <View>
                   <Text style={styles.paymentCardTitle}>Card on file</Text>
@@ -204,7 +197,7 @@ export default function MySubscriptionScreen() {
                 accessibilityLabel={managingCard ? 'Updating payment method' : 'Update payment method'}
                 activeOpacity={0.6}
               >
-                <Text style={styles.updateCardText}>{managingCard ? 'UPDATING...' : 'UPDATE'}</Text>
+                <Text style={styles.updateCardText}>{managingCard ? 'Updating…' : 'Update'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -231,14 +224,14 @@ export default function MySubscriptionScreen() {
                   <View style={styles.historyRight}>
                     <Text style={styles.historyAmount}>${(payment.amount / 100).toFixed(2)}</Text>
                     <View style={[
-                      styles.historyStatusBadge, 
-                      payment.status === 'succeeded' && { backgroundColor: `${colors.green}18` },
-                      payment.status === 'failed' && { backgroundColor: `${colors.red}18` }
+                      styles.historyStatusBadge,
+                      payment.status === 'succeeded' && { backgroundColor: CoachColors.accentSoft },
+                      payment.status === 'failed' && { backgroundColor: CoachColors.dangerSoft }
                     ]}>
                       <Text style={[
                         styles.historyStatusText,
-                        payment.status === 'succeeded' && { color: colors.green },
-                        payment.status === 'failed' && { color: colors.red }
+                        payment.status === 'succeeded' && { color: CoachColors.accent },
+                        payment.status === 'failed' && { color: CoachColors.danger }
                       ]}>
                         {payment.status.toUpperCase()}
                       </Text>
@@ -255,60 +248,61 @@ export default function MySubscriptionScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>AVAILABLE PLANS</Text>
             <View style={styles.sectionDivider} />
-            {plans.map((plan, index) => {
-              const accentColor = plan.color || PLAN_ACCENTS[index % PLAN_ACCENTS.length];
-              return (
-                <View
-                  key={plan.id}
-                  style={[styles.tierCard, { borderLeftColor: accentColor }]}
-                  accessibilityLabel={`${plan.name} plan, $${plan.price} per month`}
-                >
-                  <View style={styles.tierTop}>
-                    <Text style={styles.tierName}>{plan.name.toUpperCase()}</Text>
-                    <Text style={[styles.tierPrice, { color: accentColor }]}>${plan.price}<Text style={styles.tierInterval}>/mo</Text></Text>
-                  </View>
-                  {plan.description && <Text style={styles.tierDescription}>{plan.description}</Text>}
-                  {plan.features && plan.features.length > 0 && (
-                    <View style={styles.tierFeatures}>
-                      {plan.features.slice(0, 3).map((feature: string, fi: number) => (
-                        <View key={fi} style={styles.tierFeatureRow}>
-                          <View style={[styles.tierFeatureDot, { backgroundColor: accentColor }]} />
-                          <Text style={styles.tierFeatureText}>{feature}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.subscribeBtn, { backgroundColor: accentColor }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: SharedRoute.checkout as any, params: { planId: plan.id } }); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.subscribeBtnText}>SUBSCRIBE</Text>
-                  </TouchableOpacity>
+            {plans.map((plan) => (
+              <View
+                key={plan.id}
+                style={styles.tierCard}
+                accessibilityLabel={`${plan.name} plan, $${plan.price} per month`}
+              >
+                <View style={styles.tierTop}>
+                  <Text style={styles.tierName}>{plan.name}</Text>
+                  <Text style={styles.tierPrice}>${plan.price}<Text style={styles.tierInterval}>/mo</Text></Text>
                 </View>
-              );
-            })}
+                {plan.description && <Text style={styles.tierDescription}>{plan.description}</Text>}
+                {plan.features && plan.features.length > 0 && (
+                  <View style={styles.tierFeatures}>
+                    {plan.features.slice(0, 3).map((feature: string, fi: number) => (
+                      <View key={fi} style={styles.tierFeatureRow}>
+                        <View style={styles.tierFeatureDot} />
+                        <Text style={styles.tierFeatureText}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.subscribeBtn}
+                  onPress={() => {
+                    if (!clientData) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push({ pathname: SharedRoute.checkout as any, params: { planId: plan.id, clientId: clientData.id } });
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.subscribeBtnText}>Subscribe</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         )}
 
         {/* ── DANGER ZONE: CANCEL ── */}
         {subscription && subscription.status === 'active' && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: `${colors.red}99` }]}>DANGER ZONE</Text>
-            <View style={[styles.sectionDivider, { backgroundColor: `${colors.red}20` }]} />
+            <Text style={[styles.sectionLabel, { color: CoachColors.danger }]}>DANGER ZONE</Text>
+            <View style={[styles.sectionDivider, { backgroundColor: CoachColors.dangerSoft }]} />
             <Text style={styles.dangerText}>
               Cancel your subscription. You'll retain access until{' '}
               {new Date(subscription.current_period_end).toLocaleDateString()}.
             </Text>
-            <TouchableOpacity 
-              style={styles.cancelBtn} 
+            <TouchableOpacity
+              style={styles.cancelBtn}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleCancel(); }}
               disabled={canceling}
               accessibilityRole="button"
               accessibilityLabel={canceling ? 'Canceling subscription' : 'Cancel subscription'}
               activeOpacity={0.6}
             >
-              <Text style={styles.cancelBtnText}>{canceling ? 'CANCELING...' : 'CANCEL PLAN'}</Text>
+              <Text style={styles.cancelBtnText}>{canceling ? 'Canceling…' : 'Cancel plan'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -319,9 +313,9 @@ export default function MySubscriptionScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────────────
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+
   // ── Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -329,42 +323,42 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   backBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18, color: '#FFFFFF', letterSpacing: 0.5,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 18, color: CoachColors.textPrimary, letterSpacing: 0.5,
   },
-  
+
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100, paddingTop: 8 },
-  
+
   // ── Brutalist Section Pattern (matches my-profile.tsx)
   section: { marginBottom: 32 },
   sectionLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9, color: 'rgba(255,255,255,0.4)',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 9, color: CoachColors.textMuted,
     textTransform: 'uppercase', letterSpacing: 2,
     marginBottom: 10,
   },
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 16,
   },
 
   // ── Hero Card (Active Plan)
   heroCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1, borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.xl,
     overflow: 'hidden',
     marginBottom: 32,
   },
   heroAccentLine: {
     height: 2,
-    backgroundColor: colors.accent,
+    backgroundColor: CoachColors.accent,
   },
   heroContent: {
     padding: 20,
@@ -375,56 +369,56 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   heroIconBadge: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: `${colors.accent}15`,
+    backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
   statusBadge: {
-    backgroundColor: `${colors.green}18`,
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: Radius.xs,
   },
   statusText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 9,
-    color: colors.green, letterSpacing: 1.5,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 9,
+    color: CoachColors.accent, letterSpacing: 1.5,
   },
-  statusBadgeCanceled: { backgroundColor: `${colors.red}18` },
-  statusTextCanceled: { color: colors.red },
-  
+  statusBadgeCanceled: { backgroundColor: CoachColors.dangerSoft },
+  statusTextCanceled: { color: CoachColors.danger },
+
   planName: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 24, color: '#FFFFFF', marginBottom: 4,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 24, color: CoachColors.textPrimary, marginBottom: 4,
   },
   planPrice: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 28, color: CoachColors.textPrimary,
   },
   planPriceAccent: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28, color: '#FFD700',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 28, color: CoachColors.accent,
   },
   planInterval: {
-    fontFamily: FontFamily.body,
-    fontSize: 14, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body,
+    fontSize: 14, color: CoachColors.textMuted,
   },
-  
+
   heroDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 16,
   },
-  
+
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 8,
   },
   detailLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 10, color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },
   detailValue: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13, color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13, color: CoachColors.textPrimary,
   },
 
   // ── Empty State
@@ -432,20 +426,20 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 32,
   },
   emptyText: {
-    fontFamily: FontFamily.body,
-    fontSize: 14, color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.body,
+    fontSize: 14, color: CoachColors.textSecondary,
     marginBottom: 4,
   },
   emptySubtext: {
-    fontFamily: FontFamily.body,
-    fontSize: 13, color: 'rgba(255,255,255,0.25)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13, color: CoachColors.textFaint,
   },
 
   // ── Payment Method
   paymentCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1, borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.lg,
     padding: 16,
   },
@@ -454,29 +448,29 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   paymentIconBox: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(167,139,250,0.12)',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   paymentCardTitle: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 15, color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15, color: CoachColors.textPrimary,
   },
   paymentCardSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 11, color: 'rgba(255,255,255,0.3)',
+    fontFamily: CoachFonts.body,
+    fontSize: 11, color: CoachColors.textMuted,
     marginTop: 2,
   },
   updateCardText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11, color: colors.accent,
-    letterSpacing: 1.5,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12, color: CoachColors.accent,
+    letterSpacing: 0.3,
     textDecorationLine: 'underline',
   },
 
   // ── Payment History (Timeline)
   historyContainer: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1, borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
@@ -486,39 +480,40 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   historyRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   historyLeft: { flex: 1 },
   historyDate: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14, color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14, color: CoachColors.textPrimary,
   },
   historyPlan: {
-    fontFamily: FontFamily.body,
-    fontSize: 12, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body,
+    fontSize: 12, color: CoachColors.textMuted,
     marginTop: 2,
   },
   historyRight: { alignItems: 'flex-end', gap: 4 },
   historyAmount: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 15, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 15, color: CoachColors.textPrimary,
   },
   historyStatusBadge: {
-    backgroundColor: `${colors.accent}18`,
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: Radius.xs,
   },
   historyStatusText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9, color: colors.accent,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 9, color: CoachColors.accent,
     letterSpacing: 1,
   },
 
   // ── Available Plan Tier Cards
   tierCard: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1, borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderLeftWidth: 3,
+    borderLeftColor: CoachColors.border,
     borderRadius: Radius.lg,
     padding: 20,
     marginBottom: 12,
@@ -528,21 +523,21 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 6,
   },
   tierName: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16, color: '#FFFFFF',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 16, color: CoachColors.textPrimary,
   },
   tierPrice: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
+    color: CoachColors.accent,
   },
   tierInterval: {
-    fontFamily: FontFamily.body,
-    fontSize: 12, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body,
+    fontSize: 12, color: CoachColors.textMuted,
   },
   tierDescription: {
-    fontFamily: FontFamily.body,
-    fontSize: 13, color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13, color: CoachColors.textSecondary,
     marginBottom: 12,
   },
   tierFeatures: {
@@ -555,10 +550,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   tierFeatureDot: {
     width: 4, height: 4, borderRadius: 2,
     marginRight: 10,
+    backgroundColor: CoachColors.textMuted,
   },
   tierFeatureText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13, color: 'rgba(255,255,255,0.6)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13, color: CoachColors.textSecondary,
   },
   subscribeBtn: {
     paddingVertical: 14,
@@ -566,31 +562,31 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+    backgroundColor: CoachColors.accent,
   },
   subscribeBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 13, color: '#000',
-    letterSpacing: 1.5,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 14, color: CoachColors.onAccent,
   },
 
   // ── Danger Zone (Cancel)
   dangerText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13, color: 'rgba(255,255,255,0.4)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13, color: CoachColors.textMuted,
     marginBottom: 16,
     lineHeight: 20,
   },
   cancelBtn: {
     paddingVertical: 14,
     borderRadius: Radius.sm,
-    borderWidth: 1, borderColor: colors.red,
+    borderWidth: 1, borderColor: CoachColors.danger,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: `${colors.red}08`,
+    backgroundColor: CoachColors.dangerSoft,
   },
   cancelBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 13, color: colors.red,
-    letterSpacing: 1.5,
+    fontFamily: CoachFonts.headingSemiBold,
+    fontSize: 13, color: CoachColors.danger,
+    letterSpacing: 0.3,
   },
 });

@@ -21,7 +21,7 @@ export default function ContactSupportScreen() {
     if (!message.trim()) return Alert.alert('Empty message', 'Please describe your issue.');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const subject = `FitLink coach support — ${selectedTopic}`;
+    const subject = `FitLink support — ${selectedTopic}`;
     const body = `${message.trim()}\n\n—\nAccount: ${user?.email || 'unknown'}\nPlatform: ${Platform.OS}`;
     const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 

@@ -25,11 +25,10 @@ import {
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 
@@ -70,22 +69,22 @@ interface SessionRequest {
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const TYPE_COLORS: Record<string, string> = {
-  '1-on-1':    '#FF6B35',
-  'Group':     '#A855F7',
-  'Virtual':   '#5B7FFF',
-  'Assessment': '#22C55E',
+  '1-on-1':    CoachColors.textSecondary,
+  'Group':     CoachColors.textSecondary,
+  'Virtual':   CoachColors.textSecondary,
+  'Assessment': CoachColors.textSecondary,
 };
 
 const STATUS_CONFIG = {
-  upcoming:  { label: 'UPCOMING',  color: '#5B7FFF',  bg: 'rgba(91,127,255,0.12)'  },
-  completed: { label: 'DONE',      color: '#22C55E',  bg: 'rgba(34,197,94,0.12)'   },
-  cancelled: { label: 'CANCELLED', color: '#EF4444',  bg: 'rgba(239,68,68,0.12)'   },
+  upcoming:  { label: 'UPCOMING',  color: CoachColors.accent,        bg: CoachColors.accentSoft  },
+  completed: { label: 'DONE',      color: CoachColors.textSecondary, bg: CoachColors.borderMuted },
+  cancelled: { label: 'CANCELLED', color: CoachColors.danger,        bg: CoachColors.dangerSoft  },
 };
 
 const REQ_STATUS_CONFIG = {
-  pending:  { label: 'PENDING',  color: '#FFD700', bg: 'rgba(255,215,0,0.10)'  },
-  accepted: { label: 'ACCEPTED', color: '#22C55E', bg: 'rgba(34,197,94,0.12)' },
-  declined: { label: 'DECLINED', color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
+  pending:  { label: 'PENDING',  color: CoachColors.warning,       bg: CoachColors.warningSoft },
+  accepted: { label: 'ACCEPTED', color: CoachColors.accent,        bg: CoachColors.accentSoft  },
+  declined: { label: 'DECLINED', color: CoachColors.danger,        bg: CoachColors.dangerSoft  },
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -127,7 +126,7 @@ function formatDate(iso: string): string {
 // ─── Session Card ────────────────────────────────────────────────────────────
 
 function SessionCard({ session }: { session: Session }) {
-  const typeColor = TYPE_COLORS[session.type] || '#FF6B35';
+  const typeColor = TYPE_COLORS[session.type] || CoachColors.textSecondary;
   const statusCfg = STATUS_CONFIG[session.status] || STATUS_CONFIG.upcoming;
   const dt = new Date(session.date);
   const endDt = new Date(dt.getTime() + session.duration * 60000);
@@ -135,7 +134,7 @@ function SessionCard({ session }: { session: Session }) {
   return (
     <View style={s.sessionCard}>
       {/* Left accent bar */}
-      <View style={[s.accentBar, { backgroundColor: typeColor }]} />
+      <View style={s.accentBar} />
 
       {/* Time column */}
       <View style={s.timeCol}>
@@ -173,7 +172,7 @@ function SessionCard({ session }: { session: Session }) {
             />
           ) : (
             <View style={s.coachAvatarPlaceholder}>
-              <Ionicons name="person" size={14} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="person" size={14} color={CoachColors.textMuted} />
             </View>
           )}
           <View style={s.coachInfo}>
@@ -207,11 +206,11 @@ function RequestCard({
   onCancel: (id: string) => void;
 }) {
   const statusCfg = REQ_STATUS_CONFIG[req.status] || REQ_STATUS_CONFIG.pending;
-  const typeColor = TYPE_COLORS[req.session_type] || '#FF6B35';
+  const typeColor = TYPE_COLORS[req.session_type] || CoachColors.textSecondary;
 
   return (
     <View style={s.requestCard}>
-      <View style={[s.accentBar, { backgroundColor: '#FFD700' }]} />
+      <View style={s.accentBar} />
       <View style={s.cardBody}>
         {/* Header */}
         <View style={s.cardTopRow}>
@@ -243,7 +242,7 @@ function RequestCard({
             />
           ) : (
             <View style={s.coachAvatarPlaceholder}>
-              <Ionicons name="person" size={14} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="person" size={14} color={CoachColors.textMuted} />
             </View>
           )}
           <View style={s.coachInfo}>
@@ -272,7 +271,7 @@ function RequestCard({
             accessibilityRole="button"
             accessibilityLabel="Cancel booking request"
           >
-            <Text style={s.cancelBtnText}>Cancel Request</Text>
+            <Text style={s.cancelBtnText}>Cancel request</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -286,7 +285,7 @@ function EmptyState({ onExplore }: { onExplore: () => void }) {
   return (
     <View style={s.emptyWrap}>
       <View style={s.emptyIconWrap}>
-        <Ionicons name="calendar-outline" size={36} color="rgba(255,255,255,0.15)" />
+        <Ionicons name="calendar-outline" size={36} color={CoachColors.textFaint} />
       </View>
       <Text style={s.emptyTitle}>No sessions yet</Text>
       <Text style={s.emptySub}>
@@ -299,15 +298,10 @@ function EmptyState({ onExplore }: { onExplore: () => void }) {
         accessibilityRole="button"
         accessibilityLabel="Find a coach"
       >
-        <LinearGradient
-          colors={['#FFD700', '#FF9500']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={s.emptyBtnGrad}
-        >
-          <Ionicons name="search" size={14} color="#000000" />
-          <Text style={s.emptyBtnText}>FIND A COACH</Text>
-        </LinearGradient>
+        <View style={s.emptyBtnInner}>
+          <Ionicons name="search" size={14} color={CoachColors.onAccent} />
+          <Text style={s.emptyBtnText}>Find a coach</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -442,7 +436,7 @@ export default function MySessionsScreen() {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color="#5B7FFF" />
+          <ActivityIndicator size="large" color={CoachColors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -461,7 +455,7 @@ export default function MySessionsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={s.headerText}>
           <Text style={s.headerTag}>COACHING</Text>
@@ -479,7 +473,7 @@ export default function MySessionsScreen() {
         {/* Week nav */}
         <View style={s.weekNav}>
           <TouchableOpacity onPress={() => shiftWeek(-1)} style={s.weekArrow}>
-            <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="chevron-back" size={16} color={CoachColors.textMuted} />
           </TouchableOpacity>
           <Text style={s.weekLabel}>
             {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -487,7 +481,7 @@ export default function MySessionsScreen() {
             {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </Text>
           <TouchableOpacity onPress={() => shiftWeek(1)} style={s.weekArrow}>
-            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -600,7 +594,7 @@ export default function MySessionsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#5B7FFF"
+            tintColor={CoachColors.accent}
           />
         }
       >
@@ -695,7 +689,7 @@ export default function MySessionsScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   loadingWrap: {
     flex: 1,
@@ -715,38 +709,38 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerText: { flex: 1 },
   headerTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
     marginBottom: 2,
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.6,
   },
   pendingBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pendingBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
 
   // Calendar
@@ -767,9 +761,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   weekLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
   weekRow: {
@@ -785,18 +779,18 @@ const s = StyleSheet.create({
     gap: 4,
   },
   dayCellSelected: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
   },
   dayName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
-  dayNameActive: { color: '#FFFFFF' },
-  dayNameToday: { color: '#5B7FFF' },
+  dayNameActive: { color: CoachColors.textPrimary },
+  dayNameToday: { color: CoachColors.accent },
   dayNumWrap: {
     width: 30,
     height: 30,
@@ -804,27 +798,27 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayNumWrapActive: { backgroundColor: '#5B7FFF' },
-  dayNumWrapToday: { borderWidth: 1, borderColor: '#5B7FFF' },
+  dayNumWrapActive: { backgroundColor: CoachColors.accent },
+  dayNumWrapToday: { borderWidth: 1, borderColor: CoachColors.accent },
   dayNum: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
-  dayNumActive: { color: '#FFFFFF' },
-  dayNumToday: { color: '#5B7FFF' },
+  dayNumActive: { color: CoachColors.onAccent },
+  dayNumToday: { color: CoachColors.accent },
   dotsRow: { flexDirection: 'row', gap: 2, height: 5 },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.textFaint,
   },
-  dotActive: { backgroundColor: '#5B7FFF' },
+  dotActive: { backgroundColor: CoachColors.accent },
   daySessionCount: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 4,
     textAlign: 'center',
@@ -845,37 +839,37 @@ const s = StyleSheet.create({
     gap: 6,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
   },
   tabActive: {
-    backgroundColor: '#111113',
-    borderColor: '#5B7FFF',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.accent,
   },
   tabText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
-  tabTextActive: { color: '#FFFFFF' },
+  tabTextActive: { color: CoachColors.textPrimary },
   tabBadge: {
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  tabBadgeActive: { backgroundColor: '#5B7FFF' },
+  tabBadgeActive: { backgroundColor: CoachColors.accent },
   tabBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
-  tabBadgeTextActive: { color: '#FFFFFF' },
+  tabBadgeTextActive: { color: CoachColors.onAccent },
 
   // Scroll
   scroll: { flex: 1 },
@@ -884,27 +878,27 @@ const s = StyleSheet.create({
   // Section
   sectionHeader: { marginBottom: 8, marginTop: 4 },
   sectionTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
   },
 
   // Session card
   sessionCard: {
     flexDirection: 'row',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: 14,
     marginBottom: 10,
     overflow: 'hidden',
   },
   requestCard: {
     flexDirection: 'row',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.2)',
+    borderColor: CoachColors.border,
     borderRadius: 14,
     marginBottom: 10,
     overflow: 'hidden',
@@ -912,6 +906,7 @@ const s = StyleSheet.create({
   accentBar: {
     width: 3,
     alignSelf: 'stretch',
+    backgroundColor: CoachColors.border,
   },
   timeCol: {
     width: 58,
@@ -921,19 +916,19 @@ const s = StyleSheet.create({
     gap: 2,
   },
   timeStart: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   timeEnd: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   timeDivider: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.border,
     marginVertical: 12,
   },
   cardBody: {
@@ -953,7 +948,7 @@ const s = StyleSheet.create({
     borderRadius: 20,
   },
   typeBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
     letterSpacing: 1.2,
   },
@@ -965,7 +960,7 @@ const s = StyleSheet.create({
     borderRadius: 20,
   },
   statusBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
     letterSpacing: 1.2,
   },
@@ -983,43 +978,43 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   coachInfo: { flex: 1, gap: 2 },
   coachName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   sessionMeta: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   notesPreview: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     fontStyle: 'italic',
   },
   cancelBtn: {
     height: 36,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.4)',
+    borderColor: CoachColors.danger,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 4,
   },
   cancelBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#EF4444',
+    color: CoachColors.danger,
     letterSpacing: 0.5,
   },
 
@@ -1033,23 +1028,23 @@ const s = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   emptySub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 260,
@@ -1058,8 +1053,9 @@ const s = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginTop: 8,
+    backgroundColor: CoachColors.accent,
   },
-  emptyBtnGrad: {
+  emptyBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -1067,9 +1063,9 @@ const s = StyleSheet.create({
     paddingVertical: 14,
   },
   emptyBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#000000',
-    letterSpacing: 0.5,
+    color: CoachColors.onAccent,
+    letterSpacing: 0.2,
   },
 });

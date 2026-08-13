@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { PROGRAMS, ProgramData, ProgramLevel, ProgramSession } from '../../data/programs';
 import { ClientRoute } from '../../types/routes';
@@ -25,15 +25,15 @@ export default function ProgramDetailScreen() {
 
   const program = PROGRAMS.find(p => p.id === params.programId);
   if (!program) return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: CoachColors.bg }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <TouchableOpacity onPress={() => router.push(ClientRoute.programs)} style={{ paddingHorizontal: 16, paddingVertical: 12 }} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>
-          <Ionicons name="barbell-outline" size={48} color="rgba(255,255,255,0.2)" />
-          <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFFFFF', marginTop: 16 }}>Program Not Found</Text>
-          <Text style={{ fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>This program may no longer be available.</Text>
+          <Ionicons name="barbell-outline" size={48} color={CoachColors.textFaint} />
+          <Text style={{ fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, marginTop: 16 }}>Program not found</Text>
+          <Text style={{ fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8 }}>This program may no longer be available.</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -90,7 +90,7 @@ export default function ProgramDetailScreen() {
         <View style={lp.sheet}>
           {/* Drag handle */}
           <View style={lp.handle} />
-          <Text style={lp.sheetLabel}>Select Program Level</Text>
+          <Text style={lp.sheetLabel}>Select program level</Text>
 
           <View style={lp.divider} />
 
@@ -111,12 +111,12 @@ export default function ProgramDetailScreen() {
                 <Text style={lp.levelLabel}>{level.label}</Text>
                 <Text style={lp.levelDesc}>{level.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
+              <Ionicons name="chevron-forward" size={20} color={CoachColors.textMuted} />
             </TouchableOpacity>
           ))}
 
           <TouchableOpacity style={lp.helpBtn} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Help me pick a level">
-            <Text style={lp.helpText}>Help Me Pick</Text>
+            <Text style={lp.helpText}>Help me pick</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -133,20 +133,20 @@ export default function ProgramDetailScreen() {
           <View style={s.hero}>
             <Image source={{ uri: program.heroImage }} style={s.heroImage} contentFit="cover" cachePolicy="memory-disk" transition={200} accessibilityLabel={`${program.title} hero image`} />
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.85)', '#000']}
+              colors={['transparent', 'rgba(0,0,0,0.85)', CoachColors.bg]}
               locations={[0.3, 0.75, 1]}
               style={StyleSheet.absoluteFill}
             />
             <SafeAreaView style={s.heroNav} edges={['top']}>
               <TouchableOpacity onPress={() => router.push(ClientRoute.programs)} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to programs">
-                <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <View style={s.navRight}>
                 <TouchableOpacity style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Edit program">
-                  <Ionicons name="create-outline" size={22} color="#FFFFFF" />
+                  <Ionicons name="create-outline" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="View calendar">
-                  <Ionicons name="calendar-outline" size={22} color="#FFFFFF" />
+                  <Ionicons name="calendar-outline" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
               </View>
             </SafeAreaView>
@@ -163,20 +163,20 @@ export default function ProgramDetailScreen() {
 
             <View style={s.divider} />
 
-            <Text style={s.detailsHeader}>Program Details</Text>
+            <Text style={s.detailsHeader}>Program details</Text>
             <Text style={s.detailsText} numberOfLines={showFullDetails ? undefined : 4}>
               {program.programDetails}
             </Text>
             <TouchableOpacity onPress={() => setShowFullDetails(!showFullDetails)} style={s.readMoreRow} accessibilityRole="button" accessibilityLabel={showFullDetails ? 'Read less program details' : 'Read more program details'}>
-              <Text style={s.readMoreText}>{showFullDetails ? 'Read Less' : 'Read More'}</Text>
-              <Ionicons name={showFullDetails ? 'chevron-up' : 'chevron-down'} size={16} color="#FFFFFF" />
+              <Text style={s.readMoreText}>{showFullDetails ? 'Read less' : 'Read more'}</Text>
+              <Ionicons name={showFullDetails ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textPrimary} />
             </TouchableOpacity>
 
             <View style={s.divider} />
 
             {/* Select Level CTA */}
             <TouchableOpacity style={s.enrollBtn} activeOpacity={0.85} onPress={handleStart} accessibilityRole="button" accessibilityLabel="Select level to start program">
-              <Text style={s.enrollText}>Select Level to Start</Text>
+              <Text style={s.enrollText}>Select level to start</Text>
             </TouchableOpacity>
           </View>
 
@@ -203,15 +203,15 @@ export default function ProgramDetailScreen() {
           />
           <SafeAreaView style={s.heroNav} edges={['top']}>
             <TouchableOpacity onPress={() => router.push(ClientRoute.programs)} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to programs">
-              <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.navTitle}>{program.title}</Text>
             <View style={s.navRight}>
               <TouchableOpacity style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Edit program">
-                <Ionicons name="create-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="create-outline" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <TouchableOpacity style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="View calendar">
-                <Ionicons name="calendar-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="calendar-outline" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -237,7 +237,7 @@ export default function ProgramDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Previous week"
               >
-                <Ionicons name="chevron-back" size={20} color={currentWeek === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)'} />
+                <Ionicons name="chevron-back" size={20} color={currentWeek === 0 ? CoachColors.textFaint : CoachColors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => { if (currentWeek < totalWeeks - 1) { setCurrentWeek(currentWeek + 1); Haptics.selectionAsync(); } }}
@@ -246,23 +246,23 @@ export default function ProgramDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Next week"
               >
-                <Ionicons name="chevron-forward" size={20} color={currentWeek === totalWeeks - 1 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)'} />
+                <Ionicons name="chevron-forward" size={20} color={currentWeek === totalWeeks - 1 ? CoachColors.textFaint : CoachColors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Program details (collapsible) */}
-          <Text style={s.detailsHeader}>Program Details</Text>
+          <Text style={s.detailsHeader}>Program details</Text>
           <Text style={s.detailsText} numberOfLines={showFullDetails ? undefined : 3}>
             {program.programDetails}
           </Text>
           <TouchableOpacity onPress={() => setShowFullDetails(!showFullDetails)} style={s.readMoreRow} accessibilityRole="button" accessibilityLabel={showFullDetails ? 'Read less program details' : 'Read more program details'}>
-            <Text style={s.readMoreText}>{showFullDetails ? 'Read Less' : 'Read More'}</Text>
-            <Ionicons name={showFullDetails ? 'chevron-up' : 'chevron-down'} size={16} color="#FFFFFF" />
+            <Text style={s.readMoreText}>{showFullDetails ? 'Read less' : 'Read more'}</Text>
+            <Ionicons name={showFullDetails ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textPrimary} />
           </TouchableOpacity>
 
           {/* Required Sessions */}
-          <Text style={s.sectionTitle}>Required Sessions</Text>
+          <Text style={s.sectionTitle}>Required sessions</Text>
 
           {weekData?.requiredSessions.map((session) => (
             <View key={session.id} style={s.sessionCard}>
@@ -270,7 +270,7 @@ export default function ProgramDetailScreen() {
               <View style={s.sessionMeta}>
                 <Text style={s.sessionName} numberOfLines={2}>{session.title}</Text>
                 <Text style={s.sessionInfo}>
-                  <Text style={{ color: CATEGORY_COLORS[session.category] || '#5B7FFF' }}>{session.category}</Text>
+                  <Text style={{ color: CATEGORY_COLORS[session.category] || CoachColors.textSecondary }}>{session.category}</Text>
                   {'  •  '}{session.instructor}
                 </Text>
               </View>
@@ -285,7 +285,7 @@ export default function ProgramDetailScreen() {
             <>
               <View style={s.divider} />
               <Text style={s.optionalTitle}>Optional</Text>
-              <Text style={s.optionalDesc}>Add on Sessions for an extra boost.</Text>
+              <Text style={s.optionalDesc}>Add on sessions for an extra boost.</Text>
 
               {weekData.optionalSessions.map((session) => (
                 <View key={session.id} style={s.sessionCard}>
@@ -293,7 +293,7 @@ export default function ProgramDetailScreen() {
                   <View style={s.sessionMeta}>
                     <Text style={s.sessionName} numberOfLines={2}>{session.title}</Text>
                     <Text style={s.sessionInfo}>
-                      <Text style={{ color: CATEGORY_COLORS[session.category] || '#5B7FFF' }}>{session.category}</Text>
+                      <Text style={{ color: CATEGORY_COLORS[session.category] || CoachColors.textSecondary }}>{session.category}</Text>
                       {'  •  '}{session.instructor}
                     </Text>
                   </View>
@@ -315,13 +315,13 @@ export default function ProgramDetailScreen() {
             accessibilityLabel={enrolled ? 'Enrolled in program' : 'Enroll in program'}
           >
             <Text style={[s.enrollText, enrolled && s.enrolledText]}>
-              {enrolled ? 'Enrolled ✓' : 'Enroll now'}
+              {enrolled ? 'Enrolled' : 'Enroll now'}
             </Text>
           </TouchableOpacity>
 
           {/* Change level */}
           <TouchableOpacity style={s.changeLevelBtn} activeOpacity={0.85} onPress={handleStart} accessibilityRole="button" accessibilityLabel={`Change level, currently ${selectedLevel.label}`}>
-            <Text style={s.changeLevelText}>Change Level ({selectedLevel.label})</Text>
+            <Text style={s.changeLevelText}>Change level ({selectedLevel.label})</Text>
           </TouchableOpacity>
         </View>
 
@@ -335,7 +335,7 @@ export default function ProgramDetailScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   scroll: { flex: 1 },
 
   // Hero
@@ -347,23 +347,23 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   navRight: { flexDirection: 'row', gap: 4 },
-  navTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF', flex: 1, textAlign: 'center' },
+  navTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, flex: 1, textAlign: 'center' },
   heroContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   programLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted,
     letterSpacing: 2, marginBottom: 8,
   },
-  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 30, color: '#FFFFFF', lineHeight: 36 },
+  heroTitle: { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary, lineHeight: 36 },
 
   // Body
   body: { paddingHorizontal: 20, paddingTop: 20 },
   bodySubtitle: {
-    fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.55)',
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary,
     lineHeight: 22, marginBottom: 8,
   },
 
   divider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.1)',
+    height: StyleSheet.hairlineWidth, backgroundColor: CoachColors.borderMuted,
     marginVertical: 24,
   },
 
@@ -372,85 +372,85 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 20,
   },
-  weekLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.5)', letterSpacing: 2 },
+  weekLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 2 },
   weekArrows: { flexDirection: 'row', gap: 8 },
   weekArrowBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   weekArrowDisabled: { opacity: 0.4 },
 
   // Details
-  detailsHeader: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFFFFF', marginBottom: 10 },
-  detailsText: { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.55)', lineHeight: 22 },
+  detailsHeader: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 10 },
+  detailsText: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22 },
   readMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, marginBottom: 24 },
-  readMoreText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFFFFF', textDecorationLine: 'underline' },
+  readMoreText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, textDecorationLine: 'underline' },
 
   // Sessions
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFFFFF', marginBottom: 16 },
+  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 16 },
   sessionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CoachColors.borderMuted,
   },
-  sessionThumb: { width: 80, height: 60, borderRadius: 6, backgroundColor: '#1A1A1A' },
+  sessionThumb: { width: 80, height: 60, borderRadius: 6, backgroundColor: CoachColors.surface },
   sessionMeta: { flex: 1 },
-  sessionName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF', lineHeight: 20, marginBottom: 4 },
-  sessionInfo: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
+  sessionName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 20, marginBottom: 4 },
+  sessionInfo: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
   viewBtn: {
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 6,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 6,
     paddingHorizontal: 16, paddingVertical: 7,
   },
-  viewBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FFFFFF' },
+  viewBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
 
   // Optional
-  optionalTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFFFFF', marginBottom: 6 },
-  optionalDesc: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 14 },
+  optionalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 6 },
+  optionalDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 14 },
 
   // Enroll
   enrollBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 0,
+    backgroundColor: CoachColors.accent, paddingVertical: 16, alignItems: 'center',
+    borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 999,
     marginTop: 28,
   },
-  enrollText: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF' },
-  enrolledBtn: { backgroundColor: 'rgba(102,187,106,0.15)', borderColor: '#66BB6A' },
-  enrolledText: { color: '#66BB6A' },
+  enrollText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.onAccent },
+  enrolledBtn: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  enrolledText: { color: CoachColors.accent },
 
   changeLevelBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8 },
-  changeLevelText: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.35)', textDecorationLine: 'underline' },
+  changeLevelText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textDecorationLine: 'underline' },
 });
 
 // ─── LEVEL PICKER STYLES ─────────────────────────────────
 const lp = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#111', borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    backgroundColor: CoachColors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingTop: 12,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border,
     alignSelf: 'center', marginBottom: 20,
   },
   sheetLabel: {
-    fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
     textAlign: 'center', marginBottom: 8,
   },
   divider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.08)',
+    height: StyleSheet.hairlineWidth, backgroundColor: CoachColors.borderMuted,
     marginHorizontal: 20, marginVertical: 20,
   },
   programName: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 24, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
     textAlign: 'center',
   },
   levelRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 18,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CoachColors.borderMuted,
   },
-  levelLabel: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF', marginBottom: 4 },
-  levelDesc: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  levelLabel: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary, marginBottom: 4 },
+  levelDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   helpBtn: {
     marginHorizontal: 20, marginTop: 24, paddingVertical: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: CoachColors.border,
   },
-  helpText: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: '#FFFFFF' },
+  helpText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
 });

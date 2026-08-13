@@ -246,9 +246,9 @@ export default function ClientProfileScreen() {
           <MenuRow label="My sessions and bookings" onPress={() => router.push(ClientRoute.mySessions)} />
           <MenuRow label="My diet plan" onPress={() => router.push(ClientRoute.myDiet)} />
           <MenuRow label="Membership and billing" onPress={() => router.push(ClientRoute.mySubscription)} />
-          <MenuRow label="Notifications" onPress={() => router.push(SharedRoute.notifications)} />
-          <MenuRow label="Help and support" onPress={() => router.push(SharedRoute.helpCenter)} />
-          <MenuRow label="Terms and privacy" onPress={() => router.push(SharedRoute.termsPrivacy)} />
+          {/* Notifications + help-center + terms-privacy are coach-oriented rewrites —
+              clients get the neutral contact-support flow instead. */}
+          <MenuRow label="Help and support" onPress={() => router.push(SharedRoute.contactSupport)} />
         </View>
 
         {/* Sign out · leave */}

@@ -9,7 +9,7 @@ import { ClientRoute } from '../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -41,7 +41,7 @@ export default function ArticlesScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={s.headerRight}>
             <TouchableOpacity
@@ -56,10 +56,10 @@ export default function ArticlesScreen() {
               accessibilityRole="button"
               accessibilityLabel="Favorites"
             >
-              <Ionicons name={favoriteIds.size > 0 ? 'star' : 'star-outline'} size={22} color={favoriteIds.size > 0 ? '#FFCA28' : '#FFFFFF'} />
+              <Ionicons name={favoriteIds.size > 0 ? 'star' : 'star-outline'} size={22} color={favoriteIds.size > 0 ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity style={s.headerBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share articles">
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -72,7 +72,7 @@ export default function ArticlesScreen() {
           {/* Editorial hero header */}
           <View style={s.editorialHero}>
             <Text style={s.editorialTagLabel}>FITLINK EDITORIAL</Text>
-            <Text style={s.editorialTitle} accessibilityRole="header">Articles{`\n`}&amp; Insights</Text>
+            <Text style={s.editorialTitle} accessibilityRole="header">Articles{`\n`}&amp; insights</Text>
             <View style={s.editorialMeta}>
               <Text style={s.editorialCount}>{ARTICLES.length} ARTICLES</Text>
               <View style={s.editorialDot} />
@@ -118,7 +118,7 @@ export default function ArticlesScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   safeArea: { flex: 1 },
 
   // Header
@@ -147,17 +147,17 @@ const s = StyleSheet.create({
     paddingBottom: 4,
   },
   editorialTagLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 3,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
   editorialTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 38,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -1.2,
     lineHeight: 42,
     marginBottom: 14,
@@ -168,26 +168,26 @@ const s = StyleSheet.create({
     gap: 10,
   },
   editorialCount: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },
   editorialDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.textFaint,
   },
   editorialSubLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
 
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 4,
     marginTop: 20,
   },
@@ -200,7 +200,7 @@ const s = StyleSheet.create({
     paddingVertical: 20,
     gap: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   articleContent: { flex: 1 },
   typeRow: {
@@ -210,29 +210,29 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   typeLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   typeDot: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
   },
   articleTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 23,
     letterSpacing: -0.3,
     marginBottom: 8,
   },
   readTime: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
@@ -240,7 +240,7 @@ const s = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 12,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     flexShrink: 0,
   },
 });

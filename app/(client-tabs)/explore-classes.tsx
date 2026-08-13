@@ -10,7 +10,8 @@ import { ClientRoute } from '../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, FontSize, Radius, Spacing } from '../../constants/theme';
+import { FontSize, Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Bolt } from '../../components/mascot/Bolt';
 import { PrecisionIcons } from '../../components/icons/PrecisionIcons';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
@@ -325,7 +326,7 @@ export default function ExploreClassesScreen() {
               </View>
             ) : (
               <View style={s.passBadge}>
-                <Ionicons name="lock-closed" size={8} color="#FFD700" style={{ marginRight: 2 }} />
+                <Ionicons name="lock-closed" size={8} color={CoachColors.textSecondary} style={{ marginRight: 2 }} />
                 <Text style={s.passBadgeText}>PASS</Text>
               </View>
             )}
@@ -342,7 +343,7 @@ export default function ExploreClassesScreen() {
           <Ionicons 
             name={favoriteIds.has(item.id) ? 'heart' : 'heart-outline'} 
             size={20} 
-            color={favoriteIds.has(item.id) ? '#FFD700' : 'rgba(255,255,255,0.4)'} 
+            color={favoriteIds.has(item.id) ? CoachColors.accent : CoachColors.textMuted} 
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -360,26 +361,26 @@ export default function ExploreClassesScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back to workouts"
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={s.headerTitle} accessibilityRole="header">Explore Classes</Text>
+        <Text style={s.headerTitle} accessibilityRole="header">Explore classes</Text>
         <View style={{ width: 44 }} />
       </View>
 
       {/* Search Input Box */}
       <View style={s.searchBarContainer}>
-        <Ionicons name="search" size={16} color="rgba(255,255,255,0.4)" style={s.searchIcon} />
+        <Ionicons name="search" size={16} color={CoachColors.textMuted} style={s.searchIcon} />
         <TextInput
           style={s.searchInputField}
           placeholder="Search classes, instructors..."
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={CoachColors.textFaint}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={s.searchClearBtn}>
-            <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
+            <Ionicons name="close-circle" size={16} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -398,7 +399,7 @@ export default function ExploreClassesScreen() {
           accessibilityLabel="Sort classes"
         >
           <Text style={s.sortText}>SORT BY</Text>
-          <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.4)" />
+          <Ionicons name="chevron-down" size={14} color={CoachColors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -451,7 +452,7 @@ export default function ExploreClassesScreen() {
         ListEmptyComponent={
           <View style={s.emptyState}>
             <Bolt pose="Analyze" size={100} />
-            <Text style={s.emptyTitle}>NO CLASSES FOUND</Text>
+            <Text style={s.emptyTitle}>No classes found</Text>
             <Text style={s.emptySubtitle}>Try adjusting or clearing your active filters</Text>
             {activeFilters.size > 0 && (
               <TouchableOpacity
@@ -488,7 +489,7 @@ export default function ExploreClassesScreen() {
         accessibilityRole="button"
         accessibilityLabel={`Filter classes${activeFilters.size > 0 ? `, ${activeFilters.size} active` : ''}`}
       >
-        <Ionicons name="options-outline" size={18} color="#FF6B35" />
+        <Ionicons name="options-outline" size={18} color={CoachColors.accent} />
         <Text style={s.filterFabText}>FILTER</Text>
         {activeFilters.size > 0 && (
           <View style={s.filterBadge}>
@@ -505,7 +506,7 @@ export default function ExploreClassesScreen() {
           onPress={() => setShowSortModal(false)}
         >
           <TouchableOpacity activeOpacity={1} style={s.sortSheet}>
-            <Text style={s.sortSheetTitle}>SORT BY</Text>
+            <Text style={s.sortSheetTitle}>Sort by</Text>
             <View style={s.sortSheetDivider} />
             {SORT_OPTIONS.map(opt => (
               <TouchableOpacity
@@ -521,7 +522,7 @@ export default function ExploreClassesScreen() {
                 accessibilityLabel={`Sort by ${opt.label}${sortKey === opt.key ? ', selected' : ''}`}
               >
                 <Text style={[s.sortOptionText, sortKey === opt.key && s.sortOptionActive]}>{opt.label}</Text>
-                {sortKey === opt.key && <Ionicons name="checkmark" size={20} color="#FFD700" />}
+                {sortKey === opt.key && <Ionicons name="checkmark" size={20} color={CoachColors.accent} />}
               </TouchableOpacity>
             ))}
           </TouchableOpacity>
@@ -534,7 +535,7 @@ export default function ExploreClassesScreen() {
           <View style={s.filterSheet}>
             <View style={s.filterDragHandle} />
             <View style={s.filterHeader}>
-              <Text style={s.filterTitle}>FILTER</Text>
+              <Text style={s.filterTitle}>Filter</Text>
               {activeFilters.size > 0 && (
                 <TouchableOpacity
                   onPress={() => {
@@ -545,7 +546,7 @@ export default function ExploreClassesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Clear all filters"
                 >
-                  <Text style={s.filterClear}>Clear All</Text>
+                  <Text style={s.filterClear}>Clear all</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -564,7 +565,7 @@ export default function ExploreClassesScreen() {
                     key={cat}
                     style={[
                       s.filterChip,
-                      isActive && { backgroundColor: catColor, borderColor: catColor }
+                      isActive && { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent }
                     ]}
                     onPress={() => {
                       toggleFilter(cat);
@@ -574,7 +575,7 @@ export default function ExploreClassesScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${isActive ? 'Remove' : 'Add'} ${cat} filter`}
                   >
-                    <Text style={[s.filterChipText, isActive && { color: '#000000' }]}>{cat}</Text>
+                    <Text style={[s.filterChipText, isActive && { color: CoachColors.onAccent }]}>{cat}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -590,7 +591,7 @@ export default function ExploreClassesScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Apply filters, show ${sortedClasses.length} classes`}
             >
-              <Text style={s.filterApplyText}>SHOW {sortedClasses.length} CLASSES</Text>
+              <Text style={s.filterApplyText}>Show {sortedClasses.length} classes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -603,7 +604,7 @@ export default function ExploreClassesScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
 
   // Header
@@ -620,25 +621,25 @@ const s = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
     letterSpacing: -0.5,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
   // Search Bar
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -648,9 +649,9 @@ const s = StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInputField: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   searchClearBtn: { padding: 4 },
 
@@ -663,11 +664,11 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   classCount: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   sortBtn: {
     flexDirection: 'row',
@@ -675,15 +676,15 @@ const s = StyleSheet.create({
     gap: 4,
   },
   sortText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
 
   // List
@@ -692,7 +693,7 @@ const s = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginLeft: 20,
   },
 
@@ -700,12 +701,12 @@ const s = StyleSheet.create({
   liveSection: {
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   liveSectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     paddingHorizontal: 16,
     marginBottom: 12,
@@ -716,15 +717,15 @@ const s = StyleSheet.create({
   },
   liveCard: {
     width: 200,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: 14,
     overflow: 'hidden',
   },
   liveThumb: {
     height: 100,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -738,35 +739,35 @@ const s = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.danger,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   upcomingBadge: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: CoachColors.border,
   },
   liveBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
   liveInfo: {
     padding: 12,
   },
   liveTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   liveInstructor: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   classRow: {
     flexDirection: 'row',
@@ -779,7 +780,7 @@ const s = StyleSheet.create({
     height: 90,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
   },
   thumb: {
     width: '100%',
@@ -789,18 +790,18 @@ const s = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     left: 6,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: CoachColors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   durationText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
     letterSpacing: 1,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   classInfo: {
     flex: 1,
@@ -808,53 +809,53 @@ const s = StyleSheet.create({
     gap: 4,
   },
   classTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
     letterSpacing: -0.3,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 21,
   },
   classTags: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
     letterSpacing: 0.5,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   classTagDot: {
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
   classInstructor: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   freeBadge: {
-    backgroundColor: 'rgba(74, 222, 128, 0.15)',
+    backgroundColor: CoachColors.accentSoft,
     borderRadius: 6,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.3)',
+    borderColor: CoachColors.accent,
   },
   freeBadgeText: {
-    color: '#4ADE80',
-    fontFamily: FontFamily.bodySemiBold,
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     letterSpacing: 1,
   },
   passBadge: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    backgroundColor: CoachColors.surface,
     borderRadius: 6,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: CoachColors.border,
     flexDirection: 'row',
     alignItems: 'center',
   },
   passBadgeText: {
-    color: '#FFD700',
-    fontFamily: FontFamily.bodySemiBold,
+    color: CoachColors.textSecondary,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     letterSpacing: 1,
   },
@@ -872,16 +873,16 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginTop: 12,
   },
   emptySubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -891,9 +892,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
   },
   emptyClearText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#FF6B35',
+    color: CoachColors.accent,
     letterSpacing: 1.5,
     textDecorationLine: 'underline',
   },
@@ -906,22 +907,22 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
   filterFabText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
   filterBadge: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: CoachColors.accent,
     borderRadius: Radius.xs,
     width: 20,
     height: 20,
@@ -930,9 +931,9 @@ const s = StyleSheet.create({
     marginLeft: 2,
   },
   filterBadgeText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
   },
 
   // Sort modal
@@ -944,22 +945,22 @@ const s = StyleSheet.create({
   },
   sortSheet: {
     width: '85%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     padding: 20,
   },
   sortSheetTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 12,
   },
   sortSheetDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 8,
   },
   sortOption: {
@@ -969,13 +970,13 @@ const s = StyleSheet.create({
     paddingVertical: 14,
   },
   sortOptionText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   sortOptionActive: {
-    color: '#FFD700',
-    fontFamily: FontFamily.headingSemiBold,
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.headingSemiBold,
   },
 
   // Filter modal
@@ -985,11 +986,11 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
   },
   filterSheet: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.border,
     paddingHorizontal: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     maxHeight: '75%',
@@ -998,7 +999,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 16,
@@ -1010,20 +1011,20 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   filterTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.lg,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   filterClear: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#EF4444',
+    color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
   },
   filterSectionTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginTop: 16,
@@ -1040,28 +1041,27 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.bg,
   },
   filterChipText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   filterApplyBtn: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
   },
   filterApplyText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 14,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1.5,
-    textTransform: 'uppercase',
   },
 });

@@ -59,6 +59,14 @@ function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
 }
 
+/** Monday of the current week, ISO date — same week key WeeklyCheckIn writes. */
+function mondayOfWeekISO(): string {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+  return d.toISOString().split('T')[0];
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 type SentState =
@@ -94,6 +102,8 @@ export default function AthleteTodayScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sentState, setSentState] = useState<SentState>(null);
   const [latestCoachMsg, setLatestCoachMsg] = useState<{ content: string; created_at: string } | null>(null);
+  // Coach asked for a check-in this week and no submitted row exists yet.
+  const [checkinWaiting, setCheckinWaiting] = useState(false);
   // Conversation created on this screen (when context has none yet)
   const [localConversation, setLocalConversation] = useState<any>(null);
 
@@ -123,6 +133,33 @@ export default function AthleteTodayScreen() {
     })();
     return () => { alive = false; };
   }, [conv?.id]);
+
+  // ── Check-in waiting chip — only when cheaply derivable and true ──────────
+  // Requested = a [CHECKIN_REQUEST] from the coach this week; answered = a
+  // submitted client_checkins row for this week. Chip shows only for the gap.
+  useEffect(() => {
+    if (!conv?.id || !clientData?.id) { setCheckinWaiting(false); return; }
+    let alive = true;
+    (async () => {
+      const monday = mondayOfWeekISO();
+      const { count: requested } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conv.id)
+        .eq('sender_type', 'trainer')
+        .eq('content', '[CHECKIN_REQUEST]')
+        .gte('created_at', monday);
+      if (!alive || !requested) { if (alive) setCheckinWaiting(false); return; }
+      const { count: submitted } = await supabase
+        .from('client_checkins')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', clientData.id)
+        .eq('week_start', monday)
+        .not('submitted_at', 'is', null);
+      if (alive) setCheckinWaiting((submitted ?? 0) === 0);
+    })();
+    return () => { alive = false; };
+  }, [conv?.id, clientData?.id]);
 
   // ── Resolve the current track node (for non-workout node phrasings) ──────
   const trackNode = useMemo(() => {
@@ -520,7 +557,7 @@ export default function AthleteTodayScreen() {
 
           {/* 26a: no coach yet — the self-serve path */}
           {instruction.kind === 'no-coach' && (
-            <Pressable style={st.primaryBtn} onPress={() => router.push('/(client-tabs)/find-coach' as any)} accessibilityRole="button">
+            <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button">
               <Text style={st.primaryBtnText}>Find a coach</Text>
             </Pressable>
           )}
@@ -677,6 +714,22 @@ export default function AthleteTodayScreen() {
           )}
         </View>
 
+        {/* ── Check-in waiting — coach asked this week, not answered yet ── */}
+        {trainer && checkinWaiting && (
+          <Pressable
+            style={st.checkinChip}
+            onPress={() => router.push(ClientRoute.myProgress)}
+            accessibilityRole="button"
+            accessibilityLabel="Answer this week's check-in"
+          >
+            <View style={st.checkinDot} />
+            <Text style={st.checkinChipText}>
+              {coachFirst} asked for your check-in this week
+            </Text>
+            <Text style={st.checkinChipCta}>Answer</Text>
+          </Pressable>
+        )}
+
         {/* ── Latest word from the coach ── */}
         {trainer && coachPreviewText && (
           <Pressable style={st.card} onPress={openThread} accessibilityRole="button" accessibilityLabel="Open coach thread">
@@ -828,6 +881,14 @@ const st = StyleSheet.create({
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 18, padding: 15, marginTop: 14,
   },
+  checkinChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 9,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
+    borderRadius: 13, paddingVertical: 11, paddingHorizontal: 13, marginTop: 14,
+  },
+  checkinDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
+  checkinChipText: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textPrimary },
+  checkinChipCta: { fontFamily: F.bodyBold, fontSize: 12, color: C.accent },
   coachRow: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   coachAvatar: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: '#2A3320',

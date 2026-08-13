@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useWorkout, ClassInfo } from '../../context/WorkoutContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { CLASS_DESCRIPTIONS, CLASS_EQUIPMENT, RELATED_CLASSES } from '../../data/classDetails';
 import React from 'react';
@@ -203,11 +203,11 @@ export default function ClassDetailScreen() {
           {/* Overlay nav */}
           <SafeAreaView style={s.heroNav} edges={['top']}>
             <TouchableOpacity onPress={() => router.push(ClientRoute.exploreClasses)} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to explore classes">
-              <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <View style={s.navRight}>
               <TouchableOpacity onPress={handleShare} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share this class">
-                <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={toggleFavorite}
@@ -216,7 +216,7 @@ export default function ClassDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               >
-                <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? '#FFD700' : '#FFFFFF'} />
+                <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -253,7 +253,7 @@ export default function ClassDetailScreen() {
           {/* Meta rows */}
           <View style={s.metaSection}>
             <View style={s.metaRow}>
-              <Ionicons name="layers-outline" size={20} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="layers-outline" size={20} color={CoachColors.textSecondary} />
               <Text style={s.metaText}>
                 <Text style={{ color: catColor }}>{params.category}</Text>
                 {tags.map((tag, i) => (
@@ -262,35 +262,35 @@ export default function ClassDetailScreen() {
               </Text>
             </View>
             <View style={s.metaRow}>
-              <Ionicons name="time-outline" size={20} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="time-outline" size={20} color={CoachColors.textSecondary} />
               <Text style={s.metaText}>{params.durationMin} minutes</Text>
             </View>
             <View style={s.metaRow}>
-              <Ionicons name="bar-chart-outline" size={20} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="bar-chart-outline" size={20} color={CoachColors.textSecondary} />
               <Text style={s.metaText}>{params.level}</Text>
             </View>
           </View>
 
           {/* Action buttons */}
           <View style={s.actionRow}>
-            <TouchableOpacity style={[s.beginBtn, isThisClassActive && { borderColor: '#66BB6A' }]} onPress={handleBeginClass} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={isThisClassActive ? 'Return to class' : savedProgress ? 'Resume class' : 'Begin class'}>
+            <TouchableOpacity style={[s.beginBtn, isThisClassActive && { borderColor: CoachColors.textPrimary }]} onPress={handleBeginClass} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={isThisClassActive ? 'Return to class' : savedProgress ? 'Resume class' : 'Begin class'}>
               <Text style={s.beginBtnText}>
-                {isThisClassActive ? 'Return to Class' : savedProgress ? 'Resume Class' : 'Begin Class'}
+                {isThisClassActive ? 'Return to class' : savedProgress ? 'Resume class' : 'Begin class'}
               </Text>
-              <Ionicons name={isThisClassActive ? 'arrow-forward' : savedProgress ? 'refresh' : 'play'} size={14} color="#FFFFFF" />
+              <Ionicons name={isThisClassActive ? 'arrow-forward' : savedProgress ? 'refresh' : 'play'} size={14} color={CoachColors.onAccent} />
             </TouchableOpacity>
             <TouchableOpacity style={s.calBtn} onPress={handleAddToCal} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add to calendar">
-              <Text style={s.calBtnText}>Add to Cal</Text>
+              <Text style={s.calBtnText}>Add to cal</Text>
             </TouchableOpacity>
           </View>
 
           {/* Premium gate placeholder */}
           {requiresPass && (
             <View style={s.premiumBanner}>
-              <Ionicons name="lock-closed" size={16} color="#FFD700" />
-              <Text style={s.premiumText}>Requires ON-DEMAND PASS</Text>
+              <Ionicons name="lock-closed" size={16} color={CoachColors.warning} />
+              <Text style={s.premiumText}>Requires On-Demand Pass</Text>
               <TouchableOpacity style={s.premiumBtn} onPress={handleSubscribe} disabled={subscribing}>
-                <Text style={s.premiumBtnText}>{subscribing ? 'UPGRADING...' : 'UPGRADE'}</Text>
+                <Text style={s.premiumBtnText}>{subscribing ? 'Upgrading...' : 'Upgrade'}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -304,7 +304,7 @@ export default function ClassDetailScreen() {
           )}
           {savedProgress && !isThisClassActive && (
             <View style={s.inProgressBadge}>
-              <Ionicons name="bookmark" size={12} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="bookmark" size={12} color={CoachColors.textSecondary} />
               <Text style={s.inProgressText}>Saved progress available</Text>
             </View>
           )}
@@ -316,7 +316,7 @@ export default function ClassDetailScreen() {
           {takeCount > 0 && !isThisClassActive && (
             <View style={s.historyCard}>
               <View style={s.historyCardRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#66BB6A" />
+                <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
                 <Text style={s.historyCardTitle}>
                   Taken {takeCount} time{takeCount > 1 ? 's' : ''}
                 </Text>
@@ -367,7 +367,7 @@ export default function ClassDetailScreen() {
           <View style={s.sectionDivider} />
 
           {/* Related classes */}
-          <Text style={s.sectionTitle}>Related On-demand Classes</Text>
+          <Text style={s.sectionTitle}>Related on-demand classes</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.relatedScroll} contentContainerStyle={s.relatedContent}>
             {RELATED_CLASSES.map(rc => (
               <TouchableOpacity
@@ -420,7 +420,7 @@ export default function ClassDetailScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: CoachColors.bg,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -430,7 +430,7 @@ const s = StyleSheet.create({
   heroWrap: {
     width: SCREEN_W,
     height: HERO_HEIGHT,
-    backgroundColor: '#111',
+    backgroundColor: CoachColors.surface,
   },
   heroImage: {
     width: '100%',
@@ -472,32 +472,32 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   onDemandLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 0,
   },
   passBadge: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: CoachColors.surface,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: CoachColors.border,
   },
   passBadgeText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#FFD700',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
   },
 
   // Title
   classTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 34,
     marginBottom: 16,
     letterSpacing: -0.8,
@@ -514,12 +514,12 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#222',
+    backgroundColor: CoachColors.surface,
   },
   instructorName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
 
   // Meta section
@@ -533,12 +533,12 @@ const s = StyleSheet.create({
     gap: 12,
   },
   metaText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
   metaDot: {
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
 
   // Action buttons
@@ -555,14 +555,14 @@ const s = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accent,
     borderRadius: 14,
   },
   beginBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
   },
   calBtn: {
     flex: 1,
@@ -570,39 +570,39 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#111113',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface,
     borderRadius: 14,
   },
   calBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   
   // Premium Gate
   premiumBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderLeftWidth: 3,
-    borderLeftColor: '#FFD700',
-    borderColor: '#1C1C1E',
+    borderLeftColor: CoachColors.warning,
+    borderColor: CoachColors.border,
     marginBottom: 32,
     marginTop: -20,
   },
   premiumText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginLeft: 8,
     flex: 1,
   },
   premiumBtn: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 12,
     height: 32,
     paddingVertical: 0,
@@ -610,16 +610,16 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   premiumBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 12,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
 
   // Description
   description: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     lineHeight: 22,
     marginBottom: 8,
   },
@@ -627,21 +627,21 @@ const s = StyleSheet.create({
   // Section
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 24,
   },
   sectionTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 12,
     letterSpacing: 1.2,
   },
   sectionBody: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
     lineHeight: 22,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
   },
 
   // Instructor card
@@ -649,9 +649,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     padding: 14,
   },
@@ -659,17 +659,17 @@ const s = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#222',
+    backgroundColor: CoachColors.borderMuted,
   },
   instructorCardName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   viewBioLink: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
     marginTop: 2,
   },
@@ -689,7 +689,7 @@ const s = StyleSheet.create({
     width: 170,
     height: 120,
     borderRadius: 12,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.surface,
   },
   relatedDuration: {
     position: 'absolute',
@@ -701,14 +701,14 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   relatedDurationText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   relatedTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginTop: 6,
   },
 
@@ -724,20 +724,20 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#66BB6A',
+    backgroundColor: CoachColors.accent,
   },
   inProgressText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
 
   // History card
   historyCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginTop: 20,
@@ -748,14 +748,14 @@ const s = StyleSheet.create({
     gap: 8,
   },
   historyCardTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   historyCardSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
     marginTop: 4,
     marginLeft: 24,
   },

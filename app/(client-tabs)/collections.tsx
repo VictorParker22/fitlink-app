@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -22,25 +22,25 @@ const COLLECTIONS = [
     title: 'Built for Her',
     image: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?w=600',
     classCount: 8,
-    label: '8 Classes & Insights',
+    label: '8 classes & insights',
   },
   {
     id: 'power-endurance',
     title: 'Power &\nEndurance',
     image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600',
     classCount: 7,
-    label: '7 Classes & Insights',
+    label: '7 classes & insights',
   },
   {
     id: 'trending-digital',
     title: 'Trending Digital\nClasses',
     image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600',
     classCount: 25,
-    label: '25 Classes',
-    accent: '#C62828',
+    label: '25 classes',
+    accent: CoachColors.surface,
     categories: [
-      { name: 'Strength', color: '#5B7FFF' },
-      { name: 'Meditation', color: '#5B7FFF' },
+      { name: 'Strength', color: CoachColors.textSecondary },
+      { name: 'Meditation', color: CoachColors.textSecondary },
     ],
     moreCount: 8,
   },
@@ -49,28 +49,28 @@ const COLLECTIONS = [
     title: 'The Marathon\nReady Series',
     image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=600',
     classCount: 6,
-    label: '6 Workouts',
+    label: '6 workouts',
   },
   {
     id: 'metabolic-reset',
     title: 'Metabolic\nConditioning',
     image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=600',
     classCount: 4,
-    label: '4 Workouts',
+    label: '4 workouts',
   },
   {
     id: 'recovery-mobility',
     title: 'Recovery &\nMobility',
     image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600',
     classCount: 5,
-    label: '5 Classes & Insights',
+    label: '5 classes & insights',
   },
   {
     id: 'post-injury',
     title: 'Post-Injury\nReturn to Play',
     image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600',
     classCount: 5,
-    label: '5 Workouts',
+    label: '5 workouts',
   },
 ];
 
@@ -99,7 +99,7 @@ export default function CollectionsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Collections</Text>
           <View style={s.backBtn} />
@@ -157,7 +157,7 @@ export default function CollectionsScreen() {
                       </View>
                     ))}
                     {collection.moreCount && (
-                      <Text style={s.moreText}>+ {collection.moreCount} More</Text>
+                      <Text style={s.moreText}>+ {collection.moreCount} more</Text>
                     )}
                   </View>
                 )}
@@ -180,7 +180,7 @@ export default function CollectionsScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: CoachColors.bg,
   },
   safeArea: {
     flex: 1,
@@ -199,9 +199,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   scrollView: {
     flex: 1,
@@ -239,15 +239,15 @@ const s = StyleSheet.create({
     padding: 20,
   },
   cardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 32,
   },
   cardLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     alignSelf: 'flex-end',
   },
 
@@ -267,14 +267,14 @@ const s = StyleSheet.create({
     borderRadius: 3,
   },
   categoryName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
+    color: CoachColors.textPrimary,
   },
   moreText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
 });

@@ -8,8 +8,11 @@
  * seeks the inline player to that second.
  *
  * Preserved from the previous version: realtime subscription, typing
- * indicator, image upload, read marking, unread increment RPC, premium gate,
- * and the keyboard behavior (padding + inset-aware input bar).
+ * indicator, image upload, read marking, unread increment RPC, and the
+ * keyboard behavior (padding + inset-aware input bar).
+ *
+ * Policy: messaging is never paywalled on the athlete side — no premium gate
+ * belongs in this thread.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -22,7 +25,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
-import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
@@ -47,7 +49,6 @@ function initials(name: string) {
 export default function ClientMessagesScreen() {
   const router = useRouter();
   const { conversation, trainer, clientData } = useClient();
-  const { isClientPremium } = useRevenueCat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -256,7 +257,7 @@ export default function ClientMessagesScreen() {
           </View>
           <TouchableOpacity
             style={[styles.attachCta, { backgroundColor: isMine ? CoachColors.bg : CoachColors.accent }]}
-            onPress={() => router.push('/workouts' as any)}
+            onPress={() => router.push(ClientRoute.workouts)}
             activeOpacity={0.8}
           >
             <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open workout</Text>
@@ -285,7 +286,7 @@ export default function ClientMessagesScreen() {
           </View>
           <TouchableOpacity
             style={[styles.attachCta, { backgroundColor: isMine ? CoachColors.bg : CoachColors.accent }]}
-            onPress={() => router.push('/my-diet' as any)}
+            onPress={() => router.push(ClientRoute.myDiet)}
             activeOpacity={0.8}
           >
             <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open meal plan</Text>
@@ -306,7 +307,7 @@ export default function ClientMessagesScreen() {
           {!isMine && (
             <TouchableOpacity
               style={[styles.attachCta, { backgroundColor: CoachColors.accent }]}
-              onPress={() => router.push('/my-progress' as any)}
+              onPress={() => router.push(ClientRoute.myProgress)}
               activeOpacity={0.8}
             >
               <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent }}>Answer it</Text>
@@ -440,45 +441,31 @@ export default function ClientMessagesScreen() {
         <View style={[styles.inputBar, {
           paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 6, 22),
         }]}>
-          {isClientPremium ? (
-            <>
-              <TouchableOpacity onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
-                <Ionicons name="image-outline" size={20} color={CoachColors.textSecondary} />
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder={`Message ${coachFirst}…`}
-                placeholderTextColor={CoachColors.textFaint}
-                value={newMessage}
-                onChangeText={(text) => { setNewMessage(text); startTyping(); }}
-                maxLength={2000}
-                returnKeyType="send"
-                onSubmitEditing={handleSend}
-                blurOnSubmit={false}
-                accessibilityLabel="Type a message to your coach"
-                accessibilityRole="text"
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, newMessage.trim() && styles.sendBtnActive]}
-                onPress={handleSend}
-                disabled={!newMessage.trim() || sending}
-                accessibilityLabel="Send message"
-                accessibilityRole="button"
-              >
-                <Ionicons name="send" size={15} color={newMessage.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity
-              style={styles.premiumGateCta}
-              onPress={() => router.push('/upgrade' as any)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="lock-closed" size={15} color={CoachColors.onAccent} />
-              <Text style={styles.premiumGateText}>Upgrade to message your coach</Text>
-              <Ionicons name="arrow-forward" size={14} color={CoachColors.onAccent} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
+            <Ionicons name="image-outline" size={20} color={CoachColors.textSecondary} />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder={`Message ${coachFirst}…`}
+            placeholderTextColor={CoachColors.textFaint}
+            value={newMessage}
+            onChangeText={(text) => { setNewMessage(text); startTyping(); }}
+            maxLength={2000}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            blurOnSubmit={false}
+            accessibilityLabel="Type a message to your coach"
+            accessibilityRole="text"
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, newMessage.trim() && styles.sendBtnActive]}
+            onPress={handleSend}
+            disabled={!newMessage.trim() || sending}
+            accessibilityLabel="Send message"
+            accessibilityRole="button"
+          >
+            <Ionicons name="send" size={15} color={newMessage.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
+          </TouchableOpacity>
         </View>
         {/* Spacer to clear the floating glass tab bar (BAR_H=84 + MARGIN=14 + device inset) */}
         <View style={{ height: insets.bottom + 100, backgroundColor: CoachColors.surface }} />
@@ -553,13 +540,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnActive: { backgroundColor: CoachColors.accent },
-
-  premiumGateCta: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: CoachColors.accent, borderRadius: 999,
-    paddingVertical: 12, paddingHorizontal: 16,
-  },
-  premiumGateText: { flex: 1, fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent, textAlign: 'center' },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 64, paddingHorizontal: 40 },
   emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },

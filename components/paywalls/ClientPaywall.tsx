@@ -5,6 +5,9 @@
  * "client_premium" entitlement. Presents monthly and annual packages with
  * a clear value proposition, feature list, and restore link.
  *
+ * Styled with the shared CoachColors/CoachFonts tokens (dark, single lime
+ * accent) so gated content matches the rebuilt athlete surface.
+ *
  * Usage:
  *   const { isClientPremium } = useRevenueCat();
  *   if (!isClientPremium) return <ClientPaywall onDismiss={...} />;
@@ -22,22 +25,21 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { PACKAGE_TYPE, PurchasesPackage } from 'react-native-purchases';
 import { useRevenueCat } from '../../context/RevenueCatContext';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // ─── Feature list ─────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  { icon: 'barbell-outline',    color: '#FF6B35', text: 'Unlimited workout access' },
-  { icon: 'nutrition-outline',  color: '#22C55E', text: 'Personalised nutrition plans' },
-  { icon: 'heart-outline',      color: '#FF6B35', text: 'Apple Health & Google Fit sync' },
-  { icon: 'chatbubble-outline', color: '#5B7FFF', text: 'Direct messaging with your coach' },
-  { icon: 'trending-up',        color: '#A855F7', text: 'Progress tracking & analytics' },
-  { icon: 'checkmark-circle',   color: '#22C55E', text: 'Daily habit tracker & streaks' },
-  { icon: 'calendar-outline',   color: '#FFD700', text: 'Session booking & scheduling' },
+  { icon: 'barbell-outline',    text: 'Unlimited workout access' },
+  { icon: 'nutrition-outline',  text: 'Personalised nutrition plans' },
+  { icon: 'heart-outline',      text: 'Apple Health and Google Fit sync' },
+  { icon: 'chatbubble-outline', text: 'Direct messaging with your coach' },
+  { icon: 'trending-up',        text: 'Progress tracking and analytics' },
+  { icon: 'checkmark-circle',   text: 'Daily habit tracker and streaks' },
+  { icon: 'calendar-outline',   text: 'Session booking and scheduling' },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -85,7 +87,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onDismiss();
     } else if (error) {
-      Alert.alert('Purchase Failed', error);
+      Alert.alert('Purchase failed', error);
     }
   };
 
@@ -95,11 +97,11 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
     setRestoring(false);
     if (restored) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Restored! 🎉', 'Your subscription has been restored.', [
+      Alert.alert('Restored', 'Your subscription has been restored.', [
         { text: 'Continue', onPress: onDismiss },
       ]);
     } else if (success) {
-      Alert.alert('Nothing to Restore', 'No previous purchases found for this account.');
+      Alert.alert('Nothing to restore', 'No previous purchases found for this account.');
     } else {
       Alert.alert('Error', error || 'Could not restore purchases.');
     }
@@ -110,8 +112,8 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
       <View style={s.container}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity style={s.closeBtn} onPress={onDismiss}>
-            <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
+          <TouchableOpacity style={s.closeBtn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close paywall">
+            <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -121,15 +123,11 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
           bounces={false}
         >
           {/* Hero */}
-          <LinearGradient
-            colors={['rgba(91,127,255,0.2)', 'transparent']}
-            style={s.heroBg}
-          />
           <View style={s.hero}>
             <View style={s.heroIconWrap}>
-              <Text style={{ fontSize: 40 }}>⚡</Text>
+              <Ionicons name="flash" size={32} color={CoachColors.accent} />
             </View>
-            <Text style={s.heroTag}>FITLINK PREMIUM</Text>
+            <Text style={s.heroTag}>FitLink premium</Text>
             <Text style={s.heroTitle}>Train smarter.{'\n'}Every day.</Text>
             <Text style={s.heroSub}>
               Everything you need to hit your goals — on one platform with your coach.
@@ -140,8 +138,8 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
           <View style={s.features}>
             {FEATURES.map((f, i) => (
               <View key={i} style={s.featureRow}>
-                <View style={[s.featureIcon, { backgroundColor: `${f.color}18` }]}>
-                  <Ionicons name={f.icon as any} size={18} color={f.color} />
+                <View style={s.featureIcon}>
+                  <Ionicons name={f.icon as any} size={18} color={CoachColors.accent} />
                 </View>
                 <Text style={s.featureText}>{f.text}</Text>
               </View>
@@ -150,7 +148,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
 
           {/* Plan toggle */}
           {isLoading ? (
-            <ActivityIndicator color="rgba(255,255,255,0.4)" style={{ marginVertical: 24 }} />
+            <ActivityIndicator color={CoachColors.textMuted} style={{ marginVertical: 24 }} />
           ) : (
             <>
               <View style={s.planToggle}>
@@ -162,7 +160,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
                 >
                   {annualSavings && (
                     <View style={s.saveBadge}>
-                      <Text style={s.saveBadgeText}>SAVE {annualSavings}%</Text>
+                      <Text style={s.saveBadgeText}>Save {annualSavings}%</Text>
                     </View>
                   )}
                   <Text style={[s.planLabel, selectedType === 'annual' && s.planLabelSelected]}>
@@ -200,24 +198,15 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
                 onPress={handlePurchase}
                 disabled={!selectedPkg || purchasing}
                 activeOpacity={0.88}
+                accessibilityRole="button"
               >
-                <LinearGradient
-                  colors={['#5B7FFF', '#4A6FEF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={s.ctaGradient}
-                >
-                  {purchasing ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="sparkles" size={18} color="#FFF" />
-                      <Text style={s.ctaText}>
-                        Start {selectedType === 'annual' ? 'Annual' : 'Monthly'} Plan
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
+                {purchasing ? (
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                ) : (
+                  <Text style={s.ctaText}>
+                    Start {selectedType === 'annual' ? 'annual' : 'monthly'} plan
+                  </Text>
+                )}
               </TouchableOpacity>
 
               {/* Legal + restore */}
@@ -232,7 +221,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
                 disabled={restoring}
               >
                 {restoring ? (
-                  <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+                  <ActivityIndicator size="small" color={CoachColors.textMuted} />
                 ) : (
                   <Text style={s.restoreText}>Restore purchases</Text>
                 )}
@@ -248,7 +237,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0C' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -259,53 +248,48 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scroll: { paddingHorizontal: 24, paddingBottom: 48 },
-  heroBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
-  },
 
   // Hero
   hero: { alignItems: 'center', paddingTop: 16, paddingBottom: 32 },
   heroIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: 'rgba(91,127,255,0.15)',
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(91,127,255,0.3)',
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   heroTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   heroTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 32,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 30,
+    color: CoachColors.textPrimary,
     textAlign: 'center',
-    letterSpacing: -1,
-    lineHeight: 38,
+    letterSpacing: -0.5,
+    lineHeight: 36,
     marginBottom: 12,
   },
   heroSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -321,14 +305,15 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    backgroundColor: CoachColors.accentSofter,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   featureText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: CoachColors.textPrimary,
   },
 
   // Plan toggle
@@ -339,9 +324,9 @@ const s = StyleSheet.create({
   },
   planOption: {
     flex: 1,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: 14,
     padding: 16,
     alignItems: 'center',
@@ -349,75 +334,75 @@ const s = StyleSheet.create({
     position: 'relative',
   },
   planOptionSelected: {
-    borderColor: '#5B7FFF',
-    backgroundColor: 'rgba(91,127,255,0.1)',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSofter,
   },
   saveBadge: {
     position: 'absolute',
     top: -10,
-    backgroundColor: '#22C55E',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   saveBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   planLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  planLabelSelected: { color: '#5B7FFF' },
+  planLabelSelected: { color: CoachColors.accent },
   planPrice: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     letterSpacing: -0.5,
   },
-  planPriceSelected: { color: '#FFFFFF' },
+  planPriceSelected: { color: CoachColors.textPrimary },
   planPeriod: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
-  planPeriodSelected: { color: 'rgba(255,255,255,0.5)' },
+  planPeriodSelected: { color: CoachColors.textSecondary },
 
   // CTA
-  ctaBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 16 },
-  ctaGradient: {
-    flexDirection: 'row',
+  ctaBtn: {
+    borderRadius: 14,
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
     height: 54,
+    marginBottom: 16,
   },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     letterSpacing: -0.3,
   },
 
   // Legal
   legal: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.25)',
+    color: CoachColors.textFaint,
     textAlign: 'center',
     lineHeight: 16,
     marginBottom: 12,
   },
   restoreBtn: { alignItems: 'center', paddingVertical: 10 },
   restoreText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
   },
 });

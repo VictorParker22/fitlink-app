@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { CollectionClass, COLLECTIONS_DATA } from '../../data/collections';
 
@@ -62,7 +62,7 @@ export default function CollectionDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={s.headerRight}>
             <TouchableOpacity
@@ -72,10 +72,10 @@ export default function CollectionDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
-              <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? '#FFCA28' : '#FFFFFF'} />
+              <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity style={s.headerBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share collection">
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -110,7 +110,7 @@ export default function CollectionDetailScreen() {
             <View style={s.categoryCol}>
               {leftCats.map(cat => (
                 <View key={cat} style={s.categoryRow}>
-                  <View style={[s.categoryDot, { backgroundColor: CATEGORY_COLORS[cat] || '#5B7FFF' }]} />
+                  <View style={[s.categoryDot, { backgroundColor: CATEGORY_COLORS[cat] || CoachColors.textSecondary }]} />
                   <Text style={s.categoryName}>{cat}</Text>
                 </View>
               ))}
@@ -118,7 +118,7 @@ export default function CollectionDetailScreen() {
             <View style={s.categoryCol}>
               {rightCats.map(cat => (
                 <View key={cat} style={s.categoryRow}>
-                  <View style={[s.categoryDot, { backgroundColor: CATEGORY_COLORS[cat] || '#5B7FFF' }]} />
+                  <View style={[s.categoryDot, { backgroundColor: CATEGORY_COLORS[cat] || CoachColors.textSecondary }]} />
                   <Text style={s.categoryName}>{cat}</Text>
                 </View>
               ))}
@@ -151,7 +151,7 @@ export default function CollectionDetailScreen() {
                 <Text style={s.classType}>On-demand</Text>
                 <Text style={s.className} numberOfLines={2}>{cls.title}</Text>
                 <Text style={s.classInfo}>
-                  <Text style={{ color: CATEGORY_COLORS[cls.category] || '#5B7FFF' }}>{cls.category}</Text>
+                  <Text style={{ color: CATEGORY_COLORS[cls.category] || CoachColors.textSecondary }}>{cls.category}</Text>
                   {'  •  '}{cls.level}
                 </Text>
                 <Text style={s.classInstructor}>{cls.instructor}  •  {cls.studio}</Text>
@@ -169,7 +169,7 @@ export default function CollectionDetailScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   safeArea: { flex: 1 },
 
   // Header
@@ -190,7 +190,7 @@ const s = StyleSheet.create({
   coverWrap: { alignItems: 'center', marginTop: 16, marginBottom: 24 },
   coverCard: {
     width: COVER_SIZE, height: COVER_SIZE, borderRadius: 12,
-    overflow: 'hidden', backgroundColor: '#1A1A1A',
+    overflow: 'hidden', backgroundColor: CoachColors.surface,
   },
   coverImage: { width: '100%', height: '100%' },
   coverGradient: {
@@ -199,15 +199,15 @@ const s = StyleSheet.create({
 
   // Text
   collectionLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.4)',
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted,
     letterSpacing: 2, marginBottom: 8,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 34, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold, fontSize: 34, color: CoachColors.textPrimary,
     lineHeight: 40, marginBottom: 20,
   },
   description: {
-    fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.65)',
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary,
     lineHeight: 22, marginBottom: 24,
   },
 
@@ -221,21 +221,21 @@ const s = StyleSheet.create({
   },
   categoryDot: { width: 7, height: 7, borderRadius: 4 },
   categoryName: {
-    fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.75)',
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
   },
 
   // Classes section header
   classesHeader: {
     flexDirection: 'row', alignItems: 'baseline', gap: 10,
     marginBottom: 20, paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CoachColors.borderMuted,
   },
   classesTitle: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary,
     paddingTop: 16,
   },
   classesCount: {
-    fontFamily: FontFamily.body, fontSize: 17, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textMuted,
     paddingTop: 16,
   },
 
@@ -245,7 +245,7 @@ const s = StyleSheet.create({
   },
   classThumbWrap: {
     width: 100, height: 72, borderRadius: 6, overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.surface,
   },
   classThumb: { width: '100%', height: '100%' },
   classDuration: {
@@ -254,22 +254,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 5, paddingVertical: 1,
   },
   classDurationText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textPrimary,
   },
   classMeta: { flex: 1, justifyContent: 'center' },
   classType: {
-    fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted,
     marginBottom: 2,
   },
   className: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF',
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary,
     lineHeight: 20, marginBottom: 3,
   },
   classInfo: {
-    fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textSecondary,
     marginBottom: 2,
   },
   classInstructor: {
-    fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted,
   },
 });

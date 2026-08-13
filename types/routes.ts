@@ -31,6 +31,7 @@ export const ClientRoute = {
   mySubscription: '/(client-tabs)/my-subscription' as const,
   mySessions: '/(client-tabs)/my-sessions' as const,
   connectedTech: '/(client-tabs)/connected-tech' as const,
+  findCoach: '/(client-tabs)/find-coach' as const,
 
   // Param screens
   classDetail: '/(client-tabs)/class-detail' as const,

@@ -189,6 +189,13 @@ export default function StrengthSessionScreen() {
     return () => clearInterval(t);
   }, [mode, restLeft != null && restLeft > 0]);
 
+  // Rest over — one buzz so the athlete can put the phone face down between sets.
+  useEffect(() => {
+    if (mode !== 'live' || restLeft !== 0) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setRestLeft(null);
+  }, [mode, restLeft]);
+
   // ── Actions ──
   const startLive = () => {
     if (exercises.length === 0) return;
@@ -482,6 +489,7 @@ export default function StrengthSessionScreen() {
                       {lastTime!.sets.length}×{lastTop.reps} at {fmtKg(lastTop.weight)} kg
                     </Text>
                     {lastTop.feel ? `, and ${FEEL_PHRASE[lastTop.feel]}.` : '.'}
+                    {lastTop.feel === 'easy' ? ' Room for +2.5 today?' : ''}
                   </Text>
                 </View>
               )}

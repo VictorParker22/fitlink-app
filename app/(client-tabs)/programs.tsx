@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { ProgramData, PROGRAMS } from '../../data/programs';
 
@@ -44,7 +44,7 @@ export default function ProgramsScreen() {
             accessible={false}
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.85)', '#000'] as const}
+            colors={['transparent', 'rgba(0,0,0,0.85)', CoachColors.bg] as const}
             locations={[0.3, 0.75, 1]}
             style={s.heroGradient}
             accessible={false}
@@ -59,7 +59,7 @@ export default function ProgramsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back to workouts"
             >
-              <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </SafeAreaView>
 
@@ -88,7 +88,7 @@ export default function ProgramsScreen() {
         {/* Program list */}
         <View style={s.sectionPad}>
           <Text style={s.selectTagLabel}>SELF-GUIDED</Text>
-          <Text style={s.selectTitle}>Choose a Program</Text>
+          <Text style={s.selectTitle}>Choose a program</Text>
         </View>
 
         <View style={s.programList}>
@@ -107,7 +107,7 @@ export default function ProgramsScreen() {
                 <Text style={s.programSub}>{program.subtitle}</Text>
               </View>
               <View style={s.programChevron}>
-                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+                <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
               </View>
             </TouchableOpacity>
           ))}
@@ -121,7 +121,7 @@ export default function ProgramsScreen() {
 
 // ─── STYLES ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   scroll: { flex: 1 },
 
   // Hero
@@ -139,63 +139,63 @@ const s = StyleSheet.create({
   },
   heroContent: { position: 'absolute', bottom: 28, left: 20, right: 20 },
   heroTagLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 3,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   heroTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 44,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 48,
     letterSpacing: -1.5,
     marginBottom: 8,
   },
   heroSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.2,
   },
 
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: 20,
     marginVertical: 28,
   },
 
   sectionPad: { paddingHorizontal: 20 },
   subtitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 28,
     letterSpacing: -0.5,
     marginBottom: 10,
   },
   description: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
     lineHeight: 21,
   },
 
   selectTagLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   selectTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 20,
   },
@@ -208,9 +208,9 @@ const s = StyleSheet.create({
   programCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     overflow: 'hidden',
     gap: 0,
@@ -218,7 +218,7 @@ const s = StyleSheet.create({
   programThumb: {
     width: 80,
     height: 80,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 0,
   },
   programMeta: {
@@ -227,16 +227,16 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   programName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
     marginBottom: 4,
   },
   programSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     lineHeight: 17,
   },
   programChevron: {
