@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import type { SetFeel } from './WorkoutContext';
 import * as Notifications from 'expo-notifications';
 import { decode } from 'base-64';
 
@@ -18,6 +19,7 @@ export interface ExerciseLogEntry {
   weight: number;
   reps: number;
   completed: boolean;
+  feel?: SetFeel; // optional — how the set felt; older logs won't have it
 }
 
 interface ClientData {
@@ -61,7 +63,7 @@ interface ClientContextType {
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
   exercisePrs: Record<string, number>; // exerciseId → max weight ever lifted (kg or lb, whichever client uses)
-  logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => void;
+  logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => void;
   checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
   completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<void>;
@@ -285,11 +287,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
 
   // Log individual exercise set completion (in-memory only)
-  const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number) => {
+  const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => {
     const key = `${workoutId}-${exerciseId}-${setIndex}`;
     setExerciseLogs((prev) => ({
       ...prev,
-      [key]: { weight, reps, completed: true },
+      [key]: { weight, reps, completed: true, ...(feel ? { feel } : {}) },
     }));
   }, []);
 
@@ -315,7 +317,8 @@ export function ClientProvider({ children }: PropsWithChildren) {
         exercisesData[exerciseId].sets[setIndex] = {
            weight: entry.weight,
            reps: entry.reps,
-           completed: entry.completed
+           completed: entry.completed,
+           ...(entry.feel ? { feel: entry.feel } : {})
         };
       });
 

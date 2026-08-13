@@ -1,329 +1,841 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
-import { useClient } from '../../context/ClientContext';
-import { useTheme } from '../../context/ThemeContext';
-import type { ThemeColors } from '../../context/ThemeContext';
-import Card from '../../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-import { ClientRoute } from '../../types/routes';
-import * as Haptics from 'expo-haptics';
+/**
+ * (client-tabs)/my-diet.tsx — Food (design turn 23a + 23b).
+ *
+ * The swap list from the coach's diet builder, seen from the other end:
+ * today's actual day variant (training vs rest, resolved from week_structure),
+ * how much room is left against the plan's targets, and — on meals the coach
+ * opened up — a swap sheet listing ONLY the coach-approved alternatives, with
+ * the bounds visible.
+ *
+ * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
+ * Every number on this screen is real or omitted.
+ *
+ * Swap storage: client_meal_logs.swapped_meal_id (supabase/migrations/
+ * add_meal_log_swap.sql). Writes are 42703/PGRST204-resilient — if the column
+ * isn't deployed yet, a training-day swap degrades to a plain log row and
+ * rest-day logs stay in-memory for the session.
+ */
 
-const MEAL_ICONS: Record<string, { icon: string; color: string }> = {
-  breakfast: { icon: 'sunny', color: '#F59E0B' },
-  lunch: { icon: 'restaurant', color: '#22C55E' },
-  dinner: { icon: 'moon', color: '#6C9BF2' },
-  snack: { icon: 'cafe', color: '#A78BFA' },
-  'pre-workout': { icon: 'flash', color: '#FF6B35' },
-  'post-workout': { icon: 'fitness', color: '#14B8A6' },
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { supabase } from '../../lib/supabase';
+import { useClient } from '../../context/ClientContext';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { ClientRoute } from '../../types/routes';
+import { useFoodImage } from '../../lib/foodImages';
+
+const C = CoachColors;
+const F = CoachFonts;
+
+const CARB_GREY = '#7A8072';
+const FAT_GREY = '#4A4F45';
+
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const DAY_NAMES: Record<string, string> = {
+  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
+  fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 };
 
-function getMealIcon(time: string) {
-  const key = (time || '').toLowerCase().trim();
-  return MEAL_ICONS[key] || { icon: 'nutrition', color: '#22C55E' };
-}
+const TIME_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  breakfast: 'sunny-outline',
+  lunch: 'restaurant-outline',
+  dinner: 'moon-outline',
+  snack: 'cafe-outline',
+};
+const iconForTime = (t?: string | null): keyof typeof Ionicons.glyphMap =>
+  TIME_ICONS[(t || '').toLowerCase().trim()] || 'restaurant-outline';
 
-// Mini donut for macro breakdown
-function MacroDonut({ size, cals, protein, carbs, fat, color }: { size: number; cals: number; protein: number; carbs: number; fat: number; color: ThemeColors }) {
-  const r = (size - 6) / 2;
-  const c = 2 * Math.PI * r;
-  const total = protein + carbs + fat || 1;
-  const protPct = protein / total;
-  const carbPct = carbs / total;
-  // fat is the remainder
+const MISSING_COLUMN = (code?: string) => code === '42703' || code === 'PGRST204';
+
+// ─── Meal thumbnail (photo → Spoonacular → time-of-day icon) ─────────────────
+
+function MealThumb({
+  name, imageUrl, mealId, mealTime, dimmed,
+}: {
+  name: string; imageUrl?: string | null; mealId?: string; mealTime?: string | null; dimmed?: boolean;
+}) {
+  const url = useFoodImage(name, imageUrl, mealId);
+  if (url) {
+    return <Image source={{ uri: url }} style={[st.thumb, dimmed && { opacity: 0.55 }]} contentFit="cover" transition={150} />;
+  }
   return (
-    <Svg width={size} height={size}>
-      <Circle cx={size/2} cy={size/2} r={r} stroke={color.bgElevated} strokeWidth={6} fill="none" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#FF6B35" strokeWidth={6} fill="none" strokeDasharray={`${c * protPct} ${c * (1 - protPct)}`} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#6C9BF2" strokeWidth={6} fill="none" strokeDasharray={`${c * carbPct} ${c * (1 - carbPct)}`} strokeDashoffset={-c * protPct} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#22C55E" strokeWidth={6} fill="none" strokeDasharray={`${c * (1 - protPct - carbPct)} ${c * (protPct + carbPct)}`} strokeDashoffset={-c * (protPct + carbPct)} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-    </Svg>
+    <View style={[st.thumbIcon, dimmed && { opacity: 0.55 }]}>
+      <Ionicons name={iconForTime(mealTime)} size={19} color={C.textSecondary} />
+    </View>
   );
 }
 
-export default function ClientDietScreen() {
+// ─── Shapes ───────────────────────────────────────────────────────────────────
+
+interface DayMeal {
+  key: string;              // dpm.id (training) or `rest-{idx}` (rest variant)
+  dpmId: string | null;     // null on rest days — no diet_plan_meals row exists
+  mealId: string | null;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servings: number;
+  mealTime: string | null;
+  slotLabel: string | null;
+  imageUrl: string | null;
+  swapEntry: { allowedMealIds: string[]; allowOwnLog: boolean } | null;
+}
+
+interface LogEntry { swapMealId: string | null }
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+export default function AthleteFoodScreen() {
   const router = useRouter();
-  const { diets, refreshData, mealLogs, logMealEaten, unlogMeal } = useClient();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  const insets = useSafeAreaInsets();
+  const { clientData, trainer, diets, conversation, loading, refreshData } = useClient();
+
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<Record<string, LogEntry>>({});
+  const [swapMealsById, setSwapMealsById] = useState<Record<string, any>>({});
+  const [swapSheetKey, setSwapSheetKey] = useState<string | null>(null);
+  const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null);
+  const [ownLogOpen, setOwnLogOpen] = useState(false);
+  const [ownLogText, setOwnLogText] = useState('');
+  const [ownLogState, setOwnLogState] = useState<null | 'sending' | 'sent' | 'failed'>(null);
+  const [localConversation, setLocalConversation] = useState<any>(null);
+
+  const conv = conversation || localConversation;
+  const coachFirst = (trainer?.name || '').split(' ')[0] || 'your coach';
+
+  const activeDiet = (diets || [])[0];
+  const plan = activeDiet?.diet_plans || null;
+  const week = plan?.week_structure || null;
+  const swaps = plan?.swaps || null;
+
+  const todayKey = DAY_KEYS[new Date().getDay()];
+  const isTrainingDay = week ? (week.trainingDays || []).includes(todayKey) : true;
+  const isFreeMealDay = !!(week?.freeMeal?.enabled && week.freeMeal.day === todayKey);
+  const weekdayLine = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+
+  // ── Today's meal list — the actual day variant ────────────────────────────
+  const dayMeals: DayMeal[] = useMemo(() => {
+    if (!plan) return [];
+    if (isTrainingDay || !week) {
+      const dpms = [...(plan.diet_plan_meals || [])].sort(
+        (a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)
+      );
+      return dpms
+        .filter((dpm: any) => dpm.meals)
+        .map((dpm: any) => {
+          const m = dpm.meals;
+          const s = dpm.servings || 1;
+          const entry = swaps?.[String(dpm.order_index)];
+          return {
+            key: dpm.id,
+            dpmId: dpm.id,
+            mealId: m.id,
+            name: m.name,
+            calories: (m.calories || 0) * s,
+            protein: (m.protein || 0) * s,
+            carbs: (m.carbs || 0) * s,
+            fat: (m.fat || 0) * s,
+            servings: s,
+            mealTime: dpm.meal_time || null,
+            slotLabel: week?.slotLabels?.[dpm.order_index] || null,
+            imageUrl: m.image_url || null,
+            swapEntry: entry && ((entry.allowedMealIds || []).length > 0 || entry.allowOwnLog)
+              ? { allowedMealIds: entry.allowedMealIds || [], allowOwnLog: !!entry.allowOwnLog }
+              : null,
+          };
+        });
+    }
+    // Rest day — restVariant carries the macros inline
+    return (week.restVariant?.mealList || []).map((m: any, idx: number) => {
+      const s = m.servings || 1;
+      return {
+        key: `rest-${idx}`,
+        dpmId: null,
+        mealId: m.meal_id || null,
+        name: m.name,
+        calories: (m.calories || 0) * s,
+        protein: (m.protein || 0) * s,
+        carbs: (m.carbs || 0) * s,
+        fat: (m.fat || 0) * s,
+        servings: s,
+        mealTime: m.meal_time || null,
+        slotLabel: m.slotLabel || null,
+        imageUrl: null,
+        swapEntry: null, // swaps are keyed to training-day slots only
+      };
+    });
+  }, [plan, week, swaps, isTrainingDay]);
+
+  // ── Resolve coach-approved swap meals (context has no meals library) ──────
+  useEffect(() => {
+    if (!swaps) return;
+    const ids = Array.from(
+      new Set(Object.values(swaps).flatMap((e: any) => e?.allowedMealIds || []))
+    ).filter(Boolean);
+    if (ids.length === 0) return;
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from('meals').select('*').in('id', ids as string[]);
+      if (alive && data) {
+        const map: Record<string, any> = {};
+        data.forEach((m: any) => { map[m.id] = m; });
+        setSwapMealsById(map);
+      }
+    })();
+    return () => { alive = false; };
+  }, [swaps]);
+
+  // ── Today's logs — fetched directly so swap info is visible ──────────────
+  const fetchTodayLogs = useCallback(async () => {
+    if (!clientData?.id) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('client_meal_logs')
+      .select('*')
+      .eq('client_id', clientData.id)
+      .eq('logged_date', today);
+    if (!data) return;
+    const next: Record<string, LogEntry> = {};
+    const restRows: any[] = [];
+    data.forEach((row: any) => {
+      if (row.diet_plan_meal_id) next[row.diet_plan_meal_id] = { swapMealId: row.swapped_meal_id || null };
+      else if (row.swapped_meal_id) restRows.push(row);
+    });
+    // Attribute rest-day rows (dpm id null) back to today's rest slots by meal id
+    if (restRows.length > 0) {
+      const claimed = new Set<string>();
+      restRows.forEach((row: any) => {
+        const slot = dayMeals.find((m) => m.dpmId === null && m.mealId === row.swapped_meal_id && !claimed.has(m.key));
+        if (slot) { claimed.add(slot.key); next[slot.key] = { swapMealId: null }; }
+      });
+    }
+    setLogs(next);
+  }, [clientData?.id, dayMeals]);
+
+  useEffect(() => { fetchTodayLogs(); }, [fetchTodayLogs]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshData();
+    await Promise.all([refreshData(), fetchTodayLogs()]);
     setRefreshing(false);
-  }, [refreshData]);
+  }, [refreshData, fetchTodayLogs]);
 
-  // Compute total macros across all active plans
-  const globalMacros = useMemo(() => {
-    let cals = 0, protein = 0, carbs = 0, fat = 0;
-    diets.forEach((d: any) => {
-      (d.diet_plans?.diet_plan_meals || []).forEach((m: any) => {
-        cals += m.meals?.calories || 0;
-        protein += m.meals?.protein || 0;
-        carbs += m.meals?.carbs || 0;
-        fat += m.meals?.fat || 0;
-      });
+  // ── Room-left math — targets from the plan, consumed from actual logs ────
+  const dayTotals = useMemo(() => dayMeals.reduce(
+    (acc, m) => ({ kcal: acc.kcal + m.calories, p: acc.p + m.protein, c: acc.c + m.carbs, f: acc.f + m.fat }),
+    { kcal: 0, p: 0, c: 0, f: 0 }
+  ), [dayMeals]);
+
+  const hasTargets = !!(plan?.target_calories && plan.target_calories > 0);
+  const target = {
+    kcal: hasTargets ? plan.target_calories : Math.round(dayTotals.kcal),
+    p: hasTargets ? (plan.target_protein || 0) : Math.round(dayTotals.p),
+    c: hasTargets ? (plan.target_carbs || 0) : Math.round(dayTotals.c),
+    f: hasTargets ? (plan.target_fat || 0) : Math.round(dayTotals.f),
+  };
+
+  const consumed = useMemo(() => {
+    let kcal = 0, p = 0, c = 0, f = 0;
+    dayMeals.forEach((m) => {
+      const entry = logs[m.key];
+      if (!entry) return;
+      const sw = entry.swapMealId ? swapMealsById[entry.swapMealId] : null;
+      if (sw) {
+        kcal += sw.calories || 0; p += sw.protein || 0; c += sw.carbs || 0; f += sw.fat || 0;
+      } else {
+        kcal += m.calories; p += m.protein; c += m.carbs; f += m.fat;
+      }
     });
-    return { cals, protein, carbs, fat };
-  }, [diets]);
+    return { kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f) };
+  }, [dayMeals, logs, swapMealsById]);
 
-  // Compute consumed macros based on mealLogs
-  const consumedMacros = useMemo(() => {
-    let cals = 0, protein = 0, carbs = 0, fat = 0;
-    diets.forEach((d: any) => {
-      (d.diet_plans?.diet_plan_meals || []).forEach((m: any) => {
-        if (mealLogs[m.id]) {
-          cals += m.meals?.calories || 0;
-          protein += m.meals?.protein || 0;
-          carbs += m.meals?.carbs || 0;
-          fat += m.meals?.fat || 0;
-        }
-      });
-    });
-    return { cals, protein, carbs, fat };
-  }, [diets, mealLogs]);
+  const kcalLeft = target.kcal - consumed.kcal;
+  const pct = (v: number, t: number) => (t > 0 ? Math.min(100, Math.round((v / t) * 100)) : 0);
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Back button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
-        <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+  // ── Log / unlog ───────────────────────────────────────────────────────────
+  const logMeal = useCallback(async (m: DayMeal, swapMealId: string | null) => {
+    if (!clientData || !plan) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLogs((prev) => ({ ...prev, [m.key]: { swapMealId } }));
+    const today = new Date().toISOString().split('T')[0];
+    const base: any = {
+      client_id: clientData.id,
+      diet_plan_id: plan.id,
+      diet_plan_meal_id: m.dpmId, // null for rest-variant slots
+      logged_date: today,
+    };
+    const wantSwapCol = swapMealId || m.dpmId === null;
+    const payload = wantSwapCol ? { ...base, swapped_meal_id: swapMealId || m.mealId } : base;
+    let { error } = await supabase.from('client_meal_logs').insert(payload);
+    if (error && wantSwapCol && MISSING_COLUMN(error.code)) {
+      if (m.dpmId === null) {
+        // Column not deployed: a rest-day row would be unattributable — keep in-memory only.
+        return;
+      }
+      // Training-day swap degrades to a plain log of the slot.
+      setLogs((prev) => ({ ...prev, [m.key]: { swapMealId: null } }));
+      ({ error } = await supabase.from('client_meal_logs').insert(base));
+    }
+    if (error) {
+      if (__DEV__) console.warn('[Food] Failed to log meal:', error);
+      setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
+      return;
+    }
+    await supabase.from('clients').update({ xp: (clientData.xp || 0) + 10 }).eq('id', clientData.id);
+  }, [clientData, plan]);
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Nutrition</Text>
-          <Text style={styles.subtitle}>{diets.length} plan{diets.length !== 1 ? 's' : ''} from your coach</Text>
+  const unlogMeal = useCallback(async (m: DayMeal) => {
+    if (!clientData) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const prevEntry = logs[m.key];
+    setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
+    const today = new Date().toISOString().split('T')[0];
+    let q = supabase.from('client_meal_logs').delete()
+      .eq('client_id', clientData.id)
+      .eq('logged_date', today);
+    if (m.dpmId) q = q.eq('diet_plan_meal_id', m.dpmId);
+    else if (m.mealId) q = q.is('diet_plan_meal_id', null).eq('swapped_meal_id', m.mealId);
+    else return;
+    const { error } = await q;
+    if (error) {
+      if (__DEV__) console.warn('[Food] Failed to unlog meal:', error);
+      setLogs((prev) => ({ ...prev, [m.key]: prevEntry || { swapMealId: null } }));
+    }
+  }, [clientData, logs]);
+
+  // ── "Suggest my own" → a real message to the coach ────────────────────────
+  const sendOwnLog = useCallback(async (m: DayMeal) => {
+    if (!clientData || !ownLogText.trim()) return;
+    setOwnLogState('sending');
+    try {
+      let target2 = conv;
+      if (!target2) {
+        const { data, error } = await supabase
+          .from('conversations')
+          .insert({ client_id: clientData.id, trainer_id: clientData.trainer_id })
+          .select()
+          .single();
+        if (error || !data) { setOwnLogState('failed'); return; }
+        target2 = data;
+        setLocalConversation(data);
+      }
+      const content = `Instead of ${m.name} today, I'd like to have: ${ownLogText.trim()}. OK to log it?`;
+      const { error: msgError } = await supabase
+        .from('messages')
+        .insert({ conversation_id: target2.id, sender_type: 'client', content });
+      if (msgError) { setOwnLogState('failed'); return; }
+      await supabase.rpc('increment_conversation_unread', { conv_id: target2.id, new_last_message: content });
+      setOwnLogState('sent');
+      setOwnLogText('');
+    } catch {
+      setOwnLogState('failed');
+    }
+  }, [clientData, conv, ownLogText]);
+
+  const closeSheet = useCallback(() => {
+    setSwapSheetKey(null);
+    setSelectedSwapId(null);
+    setOwnLogOpen(false);
+    setOwnLogText('');
+    setOwnLogState(null);
+  }, []);
+
+  // First unlogged meal = "next up"
+  const nextKey = dayMeals.find((m) => !logs[m.key])?.key || null;
+  const sheetMeal = swapSheetKey ? dayMeals.find((m) => m.key === swapSheetKey) || null : null;
+
+  if (loading && !clientData) {
+    return (
+      <View style={[st.container, st.center]}>
+        <ActivityIndicator size="large" color={C.accent} />
+      </View>
+    );
+  }
+
+  // ── Empty state — no plan → the coach thread is the answer ───────────────
+  if (!plan || dayMeals.length === 0) {
+    return (
+      <View style={st.container}>
+        <View style={{ paddingTop: insets.top + 14, paddingHorizontal: 20 }}>
+          <Text style={st.title}>Food</Text>
+          <Text style={st.subtitle}>{weekdayLine}</Text>
+        </View>
+        <View style={[st.center, { flex: 1, paddingHorizontal: 32, paddingBottom: 120 }]}>
+          <View style={st.emptyIcon}>
+            <Ionicons name="restaurant-outline" size={26} color={C.textFaint} />
+          </View>
+          <Text style={st.emptyTitle}>No meal plan yet</Text>
+          <Text style={st.emptyText}>
+            {trainer
+              ? `${coachFirst} hasn't put a plan on your account. Once one lands, today's meals — and how much room you have left — show up here.`
+              : 'Once a coach takes you on and writes a meal plan, it shows up here.'}
+          </Text>
+          {trainer && (
+            <Pressable style={st.emptyBtn} onPress={() => router.push(ClientRoute.myMessages)} accessibilityRole="button">
+              <Text style={st.emptyBtnText}>Ask {coachFirst} about food</Text>
+            </Pressable>
+          )}
         </View>
       </View>
+    );
+  }
 
-      <FlatList
-        data={diets}
-        keyExtractor={(item: any) => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        ListHeaderComponent={diets.length > 0 ? (
-          <>
-            {/* Daily Macros Summary Card */}
-            <LinearGradient colors={isDark ? ['#1A1A24', '#22222E'] : ['#1C1C21', '#2A2A32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.macroSummary}>
-              <View style={styles.macroSummaryLeft}>
-                <MacroDonut size={80} cals={consumedMacros.cals} protein={consumedMacros.protein} carbs={consumedMacros.carbs} fat={consumedMacros.fat} color={colors} />
-                <View style={styles.macroCenter}>
-                  <Text style={styles.macroCenterVal}>{consumedMacros.cals}</Text>
-                  <Text style={styles.macroCenterLabel}>of {globalMacros.cals}</Text>
-                </View>
-              </View>
-              <View style={styles.macroBreakdown}>
-                <View style={styles.macroItem}>
-                  <View style={[styles.macroDot, { backgroundColor: '#FF6B35' }]} />
-                  <View>
-                    <Text style={styles.macroItemVal}>{consumedMacros.protein}g <Text style={{fontSize: 10, color: 'rgba(255,255,255,0.4)'}}>/ {globalMacros.protein}g</Text></Text>
-                    <Text style={styles.macroItemLabel}>Protein Eaten</Text>
-                  </View>
-                </View>
-                <View style={styles.macroItem}>
-                  <View style={[styles.macroDot, { backgroundColor: '#6C9BF2' }]} />
-                  <View>
-                    <Text style={styles.macroItemVal}>{consumedMacros.carbs}g <Text style={{fontSize: 10, color: 'rgba(255,255,255,0.4)'}}>/ {globalMacros.carbs}g</Text></Text>
-                    <Text style={styles.macroItemLabel}>Carbs Eaten</Text>
-                  </View>
-                </View>
-                <View style={styles.macroItem}>
-                  <View style={[styles.macroDot, { backgroundColor: '#22C55E' }]} />
-                  <View>
-                    <Text style={styles.macroItemVal}>{consumedMacros.fat}g <Text style={{fontSize: 10, color: 'rgba(255,255,255,0.4)'}}>/ {globalMacros.fat}g</Text></Text>
-                    <Text style={styles.macroItemLabel}>Fat Eaten</Text>
-                  </View>
-                </View>
-              </View>
-            </LinearGradient>
-            <Text style={styles.sectionTitle}>Your Plans</Text>
-          </>
-        ) : null}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="nutrition-outline" size={40} color={colors.textTertiary} />
+  return (
+    <View style={st.container}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130, paddingHorizontal: 20 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
+      >
+        {/* Header */}
+        <Text style={st.title}>Food</Text>
+        <Text style={st.subtitle}>
+          {weekdayLine}
+          {week ? ` · ${isTrainingDay ? 'training day' : 'rest day'}` : ''}
+        </Text>
+
+        {/* ── Room left ── */}
+        <View style={st.roomCard}>
+          <View style={st.roomTopRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text style={st.roomBig}>{Math.abs(kcalLeft).toLocaleString()}</Text>
+              <Text style={st.roomBigLabel}>{kcalLeft >= 0 ? 'kcal left' : 'kcal over'}</Text>
             </View>
-            <Text style={styles.emptyTitle}>No diet plans yet</Text>
-            <Text style={styles.emptyText}>Your trainer will assign a nutrition plan to you</Text>
+            <Text style={st.roomOf}>of {target.kcal.toLocaleString()}</Text>
           </View>
-        }
-        renderItem={({ item: diet }) => {
-          const plan = diet.diet_plans;
-          if (!plan) return null;
-          const meals = plan.diet_plan_meals || [];
-          const isExpanded = expandedId === diet.id;
-          const totalCals = meals.reduce((s: number, m: any) => s + (m.meals?.calories || 0), 0);
-          const totalProtein = meals.reduce((s: number, m: any) => s + (m.meals?.protein || 0), 0);
-
-          return (
-            <Card style={styles.dietCard}>
-              <TouchableOpacity onPress={() => setExpandedId(isExpanded ? null : diet.id)} activeOpacity={0.8} accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} diet plan ${plan.name}`} accessibilityRole="button">
-                <View style={styles.dietHeader}>
-                  <View style={[styles.dietIconBox, { backgroundColor: `${colors.green}15` }]}>
-                    <Ionicons name="nutrition" size={20} color={colors.green} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.dietName}>{plan.name}</Text>
-                    <Text style={styles.dietMeta}>{meals.length} meals · ~{totalCals} cal · {totalProtein}g protein</Text>
-                  </View>
-                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
+          <View style={st.roomBarTrack}>
+            <View style={[st.roomBarFill, { width: `${pct(consumed.kcal, target.kcal)}%` }, kcalLeft < 0 && { backgroundColor: C.warning }]} />
+          </View>
+          <View style={st.macroRow}>
+            {([
+              ['Protein', consumed.p, target.p, C.accent],
+              ['Carbs', consumed.c, target.c, CARB_GREY],
+              ['Fat', consumed.f, target.f, FAT_GREY],
+            ] as const).map(([label, val, tgt, color]) => (
+              <View key={label} style={{ flex: 1 }}>
+                <View style={st.macroLabelRow}>
+                  <Text style={st.macroLabel}>{label}</Text>
+                  <Text style={st.macroVal}>
+                    {val}
+                    <Text style={st.macroValMuted}>/{tgt}</Text>
+                  </Text>
                 </View>
+                <View style={st.macroBarTrack}>
+                  <View style={[st.macroBarFill, { width: `${pct(val, tgt)}%`, backgroundColor: color }]} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
 
-                {/* Quick macro pills */}
-                {!isExpanded && (
-                  <View style={styles.quickMacros}>
-                    {meals.slice(0, 3).map((dpm: any, i: number) => {
-                      const mi = getMealIcon(dpm.meal_time);
-                      return (
-                        <View key={i} style={[styles.quickMealPill, { backgroundColor: `${mi.color}12` }]}>
-                          <Ionicons name={mi.icon as any} size={12} color={mi.color} />
-                          <Text style={[styles.quickMealText, { color: mi.color }]}>{dpm.meal_time || 'Meal'}</Text>
-                        </View>
-                      );
-                    })}
-                    {meals.length > 3 && <Text style={styles.quickMore}>+{meals.length - 3}</Text>}
+        {/* ── Free-meal day callout ── */}
+        {isFreeMealDay && (
+          <View style={st.freeCard}>
+            <Ionicons name="pizza-outline" size={16} color={C.warning} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={st.freeTitle}>{DAY_NAMES[todayKey]} dinner is off the books</Text>
+              <Text style={st.freeText}>
+                One free meal a week — {coachFirst}'s orders. Eat it, enjoy it, don't log it.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── Meals ── */}
+        <View style={{ gap: 9, marginTop: 15 }}>
+          {dayMeals.map((m) => {
+            const logged = !!logs[m.key];
+            const swapMeal = logs[m.key]?.swapMealId ? swapMealsById[logs[m.key].swapMealId!] : null;
+            const isNext = m.key === nextKey;
+            const resolvedSwaps = (m.swapEntry?.allowedMealIds || []).filter((id) => swapMealsById[id]);
+            const canSwap = !!m.swapEntry && (resolvedSwaps.length > 0 || m.swapEntry.allowOwnLog);
+            const slotName = m.slotLabel || m.mealTime || 'Meal';
+
+            if (isNext) {
+              return (
+                <View key={m.key} style={st.nextCard}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <MealThumb name={swapMeal?.name || m.name} imageUrl={swapMeal?.image_url || m.imageUrl} mealId={swapMeal?.id || m.mealId || undefined} mealTime={m.mealTime} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.nextEyebrow}>Next up · {slotName}</Text>
+                      <Text style={st.nextName}>{swapMeal?.name || m.name}</Text>
+                      <Text style={st.nextMacros}>
+                        {Math.round(swapMeal?.calories ?? m.calories)} kcal · {Math.round(swapMeal?.protein ?? m.protein)}P / {Math.round(swapMeal?.carbs ?? m.carbs)}C / {Math.round(swapMeal?.fat ?? m.fat)}F
+                      </Text>
+                    </View>
                   </View>
-                )}
-              </TouchableOpacity>
+                  <View style={st.nextBtnRow}>
+                    {canSwap && (
+                      <Pressable
+                        style={st.swapBtn}
+                        onPress={() => setSwapSheetKey(m.key)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Swap ${m.name}`}
+                      >
+                        <Text style={st.swapBtnText}>
+                          Swap it{resolvedSwaps.length > 0 ? ` · ${resolvedSwaps.length} option${resolvedSwaps.length === 1 ? '' : 's'}` : ''}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[st.ateBtn, !canSwap && { flex: 1 }]}
+                      onPress={() => logMeal(m, null)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Log ${m.name} as eaten`}
+                    >
+                      <Text style={st.ateBtnText}>Ate it</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
 
-              {/* Expanded meal timeline */}
-              {isExpanded && meals.length > 0 && (
-                <View style={styles.mealsTimeline}>
-                  {meals.map((dpm: any, i: number) => {
-                    const meal = dpm.meals;
-                    if (!meal) return null;
-                    const mi = getMealIcon(dpm.meal_time);
-                    const isLast = i === meals.length - 1;
+            return (
+              <Pressable
+                key={m.key}
+                style={[st.mealCard, logged && { opacity: 0.62 }]}
+                onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
+                accessibilityRole="button"
+                accessibilityLabel={`${logged ? 'Unlog' : 'Log'} ${m.name}`}
+              >
+                {logged ? (
+                  <Ionicons name="checkmark" size={17} color={C.accent} />
+                ) : (
+                  <View style={st.emptyCheck} />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={st.mealSlot}>{slotName}</Text>
+                  <Text style={[st.mealName, logged && swapMeal && { color: C.textSecondary }]}>
+                    {swapMeal ? swapMeal.name : m.name}
+                    {swapMeal ? '  ·  swapped' : ''}
+                  </Text>
+                  <Text style={st.mealSub}>
+                    {Math.round(swapMeal?.calories ?? m.calories)} kcal · {Math.round(swapMeal?.protein ?? m.protein)}P / {Math.round(swapMeal?.carbs ?? m.carbs)}C / {Math.round(swapMeal?.fat ?? m.fat)}F
+                  </Text>
+                </View>
+                <MealThumb name={swapMeal?.name || m.name} imageUrl={swapMeal?.image_url || m.imageUrl} mealId={swapMeal?.id || m.mealId || undefined} mealTime={m.mealTime} dimmed={logged} />
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* ── 23b: swap sheet — the coach's bounds, from the inside ── */}
+      {sheetMeal && (() => {
+        const entry = sheetMeal.swapEntry!;
+        const alternatives = (entry.allowedMealIds || [])
+          .map((id) => swapMealsById[id])
+          .filter(Boolean);
+        const maxKcalDelta = alternatives.length > 0
+          ? Math.max(...alternatives.map((a: any) => Math.abs(Math.round((a.calories || 0) - sheetMeal.calories))))
+          : 0;
+        const maxPDelta = alternatives.length > 0
+          ? Math.max(...alternatives.map((a: any) => Math.abs(Math.round((a.protein || 0) - sheetMeal.protein))))
+          : 0;
+        const selected = selectedSwapId ? swapMealsById[selectedSwapId] : null;
+
+        return (
+          <View style={StyleSheet.absoluteFill}>
+            <Pressable style={st.backdrop} onPress={closeSheet} accessibilityLabel="Close swap sheet" />
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ flex: 1, justifyContent: 'flex-end' }}
+              pointerEvents="box-none"
+            >
+              <View style={[st.sheet, { paddingBottom: insets.bottom + 16 }]}>
+                <View style={st.grabber} />
+                <Text style={st.sheetTitle}>Instead of {sheetMeal.name.toLowerCase()}</Text>
+                <Text style={st.sheetSub}>
+                  {alternatives.length > 0
+                    ? `${coachFirst} picked these himself. Anything here lands within ${maxKcalDelta} kcal and ${maxPDelta}g protein of the plan.`
+                    : `${coachFirst} left this one open — suggest your own and he'll sign off.`}
+                </Text>
+
+                <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 9, paddingTop: 15 }} showsVerticalScrollIndicator={false}>
+                  {alternatives.map((a: any) => {
+                    const dKcal = Math.round((a.calories || 0) - sheetMeal.calories);
+                    const dP = Math.round((a.protein || 0) - sheetMeal.protein);
+                    const isSel = selectedSwapId === a.id;
                     return (
-                      <View key={i} style={styles.timelineRow}>
-                        {/* Timeline left */}
-                        <View style={styles.timelineLeft}>
-                          <View style={[styles.timelineDot, { backgroundColor: mi.color }]}>
-                            <Ionicons name={mi.icon as any} size={14} color="#FFF" />
-                          </View>
-                          {!isLast && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
+                      <Pressable
+                        key={a.id}
+                        style={[st.altRow, isSel && st.altRowSelected]}
+                        onPress={() => setSelectedSwapId(isSel ? null : a.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Choose ${a.name}`}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.altName}>{a.name}</Text>
+                          <Text style={st.altMacros}>
+                            {Math.round(a.calories || 0)} kcal · {Math.round(a.protein || 0)}P / {Math.round(a.carbs || 0)}C / {Math.round(a.fat || 0)}F
+                          </Text>
                         </View>
-                        {/* Content */}
-                        <View style={[styles.timelineContent, !isLast && { paddingBottom: Spacing.lg }]}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.timelineMealTime}>{dpm.meal_time || 'Meal'}</Text>
-                              <Text style={[styles.timelineMealName, mealLogs[dpm.id] && { textDecorationLine: 'line-through', opacity: 0.6 }]}>{meal.name}</Text>
-                            </View>
-                            
-                            <TouchableOpacity 
-                              style={[
-                                styles.checkBtn, 
-                                { borderColor: mealLogs[dpm.id] ? colors.green : colors.border },
-                                mealLogs[dpm.id] && { backgroundColor: `${colors.green}20` }
-                              ]}
-                              onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                if (mealLogs[dpm.id]) {
-                                  unlogMeal(plan.id, dpm.id);
-                                } else {
-                                  logMealEaten(plan.id, dpm.id);
-                                }
-                              }}
-                            >
-                              {mealLogs[dpm.id] && <Ionicons name="checkmark" size={18} color={colors.green} />}
-                            </TouchableOpacity>
-                          </View>
-                          
-                          {meal.description && <Text style={styles.timelineMealDesc}>{meal.description}</Text>}
-                          <View style={styles.timelineMacros}>
-                            {meal.calories > 0 && (
-                              <View style={[styles.tinyMacro, { backgroundColor: colors.bgElevated }]}>
-                                <Text style={[styles.tinyMacroText, { color: colors.textSecondary }]}>🔥 {meal.calories} cal</Text>
-                              </View>
-                            )}
-                            {meal.protein > 0 && (
-                              <View style={[styles.tinyMacro, { backgroundColor: colors.bgElevated }]}>
-                                <Text style={[styles.tinyMacroText, { color: colors.textSecondary }]}>💪 {meal.protein}g</Text>
-                              </View>
-                            )}
-                            {(meal.carbs > 0) && (
-                              <View style={[styles.tinyMacro, { backgroundColor: colors.bgElevated }]}>
-                                <Text style={[styles.tinyMacroText, { color: colors.textSecondary }]}>🍞 {meal.carbs}g</Text>
-                              </View>
-                            )}
-                          </View>
+                        <View style={st.deltaPill}>
+                          <Text style={st.deltaPillText}>
+                            {dKcal === 0 ? 'same kcal' : `${dKcal > 0 ? '+' : '−'}${Math.abs(dKcal)} kcal`}
+                            {dP !== 0 ? ` · ${dP > 0 ? '+' : '−'}${Math.abs(dP)}g protein` : ''}
+                          </Text>
                         </View>
-                      </View>
+                      </Pressable>
                     );
                   })}
+
+                  {entry.allowOwnLog && (
+                    ownLogState === 'sent' ? (
+                      <View style={st.ownSent}>
+                        <Text style={st.ownSentText}>
+                          Sent to {coachFirst}. He'll see it in the thread — log the meal once he gives the nod.
+                        </Text>
+                      </View>
+                    ) : ownLogOpen ? (
+                      <View style={st.ownBox}>
+                        <Text style={st.ownBoxLabel}>What are you having instead?</Text>
+                        <TextInput
+                          style={st.ownInput}
+                          placeholder="e.g. chicken burrito bowl, no rice"
+                          placeholderTextColor={C.textFaint}
+                          value={ownLogText}
+                          onChangeText={setOwnLogText}
+                          selectionColor={C.accent}
+                          autoFocus
+                          multiline
+                        />
+                        {ownLogState === 'failed' && (
+                          <Text style={st.ownFailed}>That didn't send — try again.</Text>
+                        )}
+                        <Pressable
+                          style={[st.ownSendBtn, !ownLogText.trim() && { opacity: 0.4 }]}
+                          disabled={!ownLogText.trim() || ownLogState === 'sending'}
+                          onPress={() => sendOwnLog(sheetMeal)}
+                          accessibilityRole="button"
+                        >
+                          {ownLogState === 'sending' ? (
+                            <ActivityIndicator size="small" color={C.onAccent} />
+                          ) : (
+                            <Text style={st.ownSendBtnText}>Send to {coachFirst}</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable style={st.ownRow} onPress={() => setOwnLogOpen(true)} accessibilityRole="button">
+                        <View style={st.ownPlus}>
+                          <Ionicons name="add" size={16} color={C.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.ownRowTitle}>Suggest something of my own</Text>
+                          <Text style={st.ownRowSub}>Goes to {coachFirst} for approval</Text>
+                        </View>
+                      </Pressable>
+                    )
+                  )}
+                </ScrollView>
+
+                <View style={st.sheetFooter}>
+                  <Pressable style={st.cancelBtn} onPress={closeSheet} accessibilityRole="button">
+                    <Text style={st.cancelBtnText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[st.useBtn, !selected && { opacity: 0.4 }]}
+                    disabled={!selected}
+                    onPress={() => {
+                      if (!selected) return;
+                      logMeal(sheetMeal, selected.id);
+                      closeSheet();
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={st.useBtnText} numberOfLines={1}>
+                      {selected ? `Use ${selected.name.toLowerCase()}` : 'Pick a swap'}
+                    </Text>
+                  </Pressable>
                 </View>
-              )}
-            </Card>
-          );
-        }}
-      />
-    </SafeAreaView>
+                <Text style={st.sheetFootnote}>Swapped for today only — tomorrow goes back to the plan.</Text>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        );
+      })()}
+    </View>
   );
 }
 
-const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
-  backBtn: { paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
-  header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, marginBottom: Spacing.md },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize['2xl'], letterSpacing: -0.5, color: '#FFFFFF' },
-  subtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  list: { paddingHorizontal: Spacing.lg, paddingBottom: 120 },
-  sectionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 2, marginTop: Spacing.lg, marginBottom: Spacing.md },
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-  // Macro summary hero
-  macroSummary: { borderRadius: Radius.lg, padding: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.xl, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  macroSummaryLeft: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  macroCenter: { position: 'absolute', alignItems: 'center' },
-  macroCenterVal: { fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: '#FFF' },
-  macroCenterLabel: { fontFamily: FontFamily.body, fontSize: 9, color: 'rgba(255,255,255,0.5)' },
-  macroBreakdown: { flex: 1, gap: Spacing.md },
-  macroItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  macroDot: { width: 8, height: 8, borderRadius: 2 },
-  macroItemVal: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.base, color: '#FFF' },
-  macroItemLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)' },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
 
-  // Diet card
-  dietCard: { marginBottom: Spacing.md, backgroundColor: '#0F0F0F', borderRadius: Radius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  dietHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  dietIconBox: { width: 44, height: 44, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  dietName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.md, color: '#FFFFFF' },
-  dietMeta: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  title: { fontFamily: F.headingBold, fontSize: 25, color: C.textPrimary },
+  subtitle: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
 
-  quickMacros: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
-  quickMealPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.xs },
-  quickMealText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, textTransform: 'capitalize' },
-  quickMore: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', alignSelf: 'center' },
+  // Room-left card
+  roomCard: {
+    marginTop: 18, backgroundColor: C.surface, borderRadius: 20,
+    borderWidth: 1, borderColor: C.borderMuted, padding: 17,
+  },
+  roomTopRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  roomBig: { fontFamily: F.headingBold, fontSize: 31, color: C.textPrimary },
+  roomBigLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted },
+  roomOf: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
+  roomBarTrack: { height: 7, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 13, overflow: 'hidden' },
+  roomBarFill: { height: '100%', backgroundColor: C.accent },
+  macroRow: { flexDirection: 'row', gap: 9, marginTop: 15 },
+  macroLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  macroLabel: { fontFamily: F.body, fontSize: 11, color: C.textMuted },
+  macroVal: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.textPrimary },
+  macroValMuted: { fontFamily: F.body, color: C.textFaint },
+  macroBarTrack: { height: 4, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 6, overflow: 'hidden' },
+  macroBarFill: { height: '100%' },
 
-  // Timeline
-  mealsTimeline: { marginTop: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
-  timelineRow: { flexDirection: 'row' },
-  timelineLeft: { width: 36, alignItems: 'center' },
-  timelineDot: { width: 28, height: 28, borderRadius: Radius.xs, alignItems: 'center', justifyContent: 'center' },
-  timelineLine: { width: 2, flex: 1, marginVertical: 4 },
-  timelineContent: { flex: 1, marginLeft: Spacing.md },
-  timelineMealTime: { fontFamily: FontFamily.bodySemiBold, fontSize: 9, color: colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
-  timelineMealName: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.base, color: '#FFFFFF', marginTop: 2 },
-  timelineMealDesc: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 16 },
-  timelineMacros: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm, flexWrap: 'wrap' },
-  tinyMacro: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.xs },
-  tinyMacroText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10 },
+  // Free-meal callout
+  freeCard: {
+    flexDirection: 'row', gap: 11, alignItems: 'flex-start',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: '#3B3227',
+    borderRadius: 16, padding: 14, marginTop: 15,
+  },
+  freeTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
+  freeText: { fontFamily: F.body, fontSize: 12, color: C.textSecondary, marginTop: 3, lineHeight: 17 },
 
-  // Empty
-  emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyIcon: { width: 80, height: 80, borderRadius: Radius.lg, backgroundColor: '#0F0F0F', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: '#FFFFFF' },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)' },
+  // Meal rows
+  mealCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 16, padding: 14,
+  },
+  emptyCheck: { width: 17, height: 17, borderRadius: 5, borderWidth: 1.5, borderColor: C.border },
+  mealSlot: { fontFamily: F.bodyBold, fontSize: 10, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
+  mealName: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary, marginTop: 2 },
+  mealSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  thumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: C.bg },
+  thumbIcon: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: C.bg,
+    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
+  },
 
-  checkBtn: { width: 32, height: 32, borderRadius: Radius.xs, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md },
+  // Next-up card
+  nextCard: {
+    backgroundColor: '#1A2213', borderWidth: 1.5, borderColor: 'rgba(198,242,78,0.5)',
+    borderRadius: 18, padding: 15,
+  },
+  nextEyebrow: { fontFamily: F.bodyBold, fontSize: 10.5, color: C.accent, letterSpacing: 1, textTransform: 'uppercase' },
+  nextName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary, marginTop: 5 },
+  nextMacros: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
+  nextBtnRow: { flexDirection: 'row', gap: 7, marginTop: 13 },
+  swapBtn: {
+    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 11,
+    paddingVertical: 10, alignItems: 'center',
+  },
+  swapBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  ateBtn: {
+    flex: 1, backgroundColor: C.accent, borderRadius: 11,
+    paddingVertical: 10, alignItems: 'center',
+  },
+  ateBtnText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.onAccent },
+
+  // Swap sheet
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,11,9,0.66)' },
+  sheet: {
+    backgroundColor: C.surface, borderTopWidth: 1, borderColor: '#2E322B',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingTop: 12, maxHeight: '82%',
+  },
+  grabber: { width: 38, height: 4, borderRadius: 999, backgroundColor: C.border, alignSelf: 'center', marginBottom: 15 },
+  sheetTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
+  sheetSub: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted, marginTop: 5, lineHeight: 18 },
+
+  altRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 11,
+    backgroundColor: '#1E211D', borderWidth: 1, borderColor: '#2E322B',
+    borderRadius: 14, padding: 13,
+  },
+  altRowSelected: { borderWidth: 1.5, borderColor: C.accent },
+  altName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
+  altMacros: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 3 },
+  deltaPill: {
+    borderRadius: 999, backgroundColor: C.accentSoft,
+    paddingVertical: 5, paddingHorizontal: 10,
+  },
+  deltaPillText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent },
+
+  ownRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 11,
+    backgroundColor: '#1E211D', borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    borderRadius: 14, padding: 13,
+  },
+  ownPlus: {
+    width: 26, height: 26, borderRadius: 8, backgroundColor: C.borderMuted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ownRowTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
+  ownRowSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  ownBox: {
+    backgroundColor: '#1E211D', borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 13,
+  },
+  ownBoxLabel: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  ownInput: {
+    fontFamily: F.body, fontSize: 14, color: C.textPrimary,
+    marginTop: 8, minHeight: 44, textAlignVertical: 'top', padding: 0,
+  },
+  ownFailed: { fontFamily: F.body, fontSize: 11.5, color: C.danger, marginTop: 6 },
+  ownSendBtn: {
+    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 11,
+    alignItems: 'center', marginTop: 11,
+  },
+  ownSendBtnText: { fontFamily: F.bodyBold, fontSize: 13, color: C.onAccent },
+  ownSent: {
+    backgroundColor: C.accentSofter, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
+    borderRadius: 14, padding: 13,
+  },
+  ownSentText: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary, lineHeight: 18 },
+
+  sheetFooter: {
+    flexDirection: 'row', gap: 9, marginTop: 14, paddingTop: 14,
+    borderTopWidth: 1, borderTopColor: '#2E322B',
+  },
+  cancelBtn: {
+    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    paddingVertical: 14, paddingHorizontal: 22, alignItems: 'center',
+  },
+  cancelBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
+  useBtn: {
+    flex: 1, backgroundColor: C.accent, borderRadius: 999,
+    paddingVertical: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+  },
+  useBtnText: { fontFamily: F.bodyBold, fontSize: 14, color: C.onAccent },
+  sheetFootnote: { fontFamily: F.body, fontSize: 11, color: C.textFaint, textAlign: 'center', marginTop: 9 },
+
+  // Empty state
+  emptyIcon: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
+  },
+  emptyTitle: { fontFamily: F.headingBold, fontSize: 18, color: C.textPrimary, marginTop: 16 },
+  emptyText: {
+    fontFamily: F.body, fontSize: 13, color: C.textSecondary,
+    textAlign: 'center', marginTop: 8, lineHeight: 19,
+  },
+  emptyBtn: {
+    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    paddingVertical: 12, paddingHorizontal: 24, marginTop: 18,
+  },
+  emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textSecondary },
 });

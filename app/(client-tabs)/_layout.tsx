@@ -1,212 +1,123 @@
 /**
- * (client-tabs)/_layout.tsx — Glassmorphism Tab Bar (Klarna-style)
+ * (client-tabs)/_layout.tsx — Athlete tab bar (design turn 22).
  *
- * Key decisions matching Klarna's execution:
- *  1. Bar is tall (~85px) — not a thin strip
- *  2. Active chip is a LARGE white-glass oval, nearly fills the bar height
- *     (NOT a colored tint — a brighter frosted glass within the darker glass)
- *  3. BlurView at high intensity with very low ambient fill — content bleeds through
- *  4. Active icon = white at full opacity, inactive = white at ~35%
- *  5. Chip has a white-ish glass background (rgba white ~13%) + brighter border
- *  6. Chip slides smoothly on tab switch
+ * IA from mockup 22a: Today / Train / Food / Progress / Coach.
+ * Flat bar on the app background with a hairline top border — no glass,
+ * no floating pill. One lime accent for the active tab; a lime dot on
+ * Coach when there are unread trainer messages.
+ *
+ * All previously registered routes stay registered (href: null) so
+ * nothing deep-linked 404s.
  */
 
-import React, { useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Dimensions,
-  Platform,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  interpolate,
-  Extrapolation,
-  type SharedValue,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { supabase } from '../../lib/supabase';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import WorkoutMiniPlayer from '../../components/WorkoutMiniPlayer';
 import OfflineBanner from '../../components/OfflineBanner';
 import { useClient } from '../../context/ClientContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ─── Tab config ───────────────────────────────────────────────────────────────
+// ─── Tab config — mockup 22a bottom bar ──────────────────────────────────────
 const VISIBLE_TABS = [
-  { name: 'index',           label: 'Home',     icon: 'home-outline',        iconFocused: 'home',        hint: 'Your daily command centre' },
-  { name: 'workouts',        label: 'Train',    icon: 'barbell-outline',     iconFocused: 'barbell',     hint: 'Browse and start your workouts' },
-  { name: 'explore-classes', label: 'Explore',  icon: 'compass-outline',     iconFocused: 'compass',     hint: 'Discover classes, programs, coaches' },
-  { name: 'my-progress',     label: 'Progress', icon: 'trending-up-outline', iconFocused: 'trending-up', hint: 'Track your fitness progress' },
-  { name: 'my-messages',     label: 'Coach',    icon: 'chatbubble-outline',  iconFocused: 'chatbubble',  hint: 'Message your coach' },
+  { name: 'index',       label: 'Today',    icon: 'home-outline',        iconFocused: 'home',        hint: "Today's session and your coach" },
+  { name: 'workouts',    label: 'Train',    icon: 'barbell-outline',     iconFocused: 'barbell',     hint: 'Your workouts' },
+  { name: 'my-diet',     label: 'Food',     icon: 'restaurant-outline',  iconFocused: 'restaurant',  hint: 'Your meal plan' },
+  { name: 'my-progress', label: 'Progress', icon: 'trending-up-outline', iconFocused: 'trending-up', hint: 'Your progress' },
+  { name: 'my-messages', label: 'Coach',    icon: 'chatbubble-outline',  iconFocused: 'chatbubble',  hint: 'Message your coach' },
 ] as const;
 
-const TAB_COUNT = VISIBLE_TABS.length;
-const BAR_H     = 84;                            // tall — Klarna-style
-const MARGIN    = 14;
-const BAR_WIDTH = SCREEN_WIDTH - MARGIN * 2;
-const TAB_WIDTH = BAR_WIDTH / TAB_COUNT;
+// ─── Unread trainer messages → lime dot on Coach tab ─────────────────────────
+function useUnreadFromCoach() {
+  const { conversation } = useClient();
+  const [hasUnread, setHasUnread] = useState(false);
 
-// Chip — white-glass oval, nearly fills bar height
-const CHIP_H = 66;
-const CHIP_W = TAB_WIDTH - 10;
+  useEffect(() => {
+    if (!conversation?.id) { setHasUnread(false); return; }
+    let alive = true;
 
-const SPRING = { damping: 20, stiffness: 260, mass: 0.7 };
+    const load = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conversation.id)
+        .eq('sender_type', 'trainer')
+        .eq('read', false);
+      if (alive) setHasUnread((count ?? 0) > 0);
+    };
+    load();
 
-// ─── Glass Tab Bar ────────────────────────────────────────────────────────────
-function GlassTabBar({ state, navigation }: any) {
-  const insets    = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
-  const activeIdx = useSharedValue(state.index);
-  const { todayWorkout, progressLogs } = useClient();
+    const channelName = `client-tab-unread-${conversation.id}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversation.id}` }, load)
+      .subscribe();
 
-  // Derive workout completion from progressLogs — same logic as index.tsx
-  const isWorkoutCompletedToday = useMemo(() => {
-    if (!todayWorkout) return false;
-    const today = new Date().toISOString().split('T')[0];
-    // Check if todayWorkout status is completed OR if there's a progress log for today
-    if (todayWorkout.status === 'completed') return true;
-    if (!progressLogs || progressLogs.length === 0) return false;
-    // Check for a workout log entry dated today
-    return progressLogs.some((log: any) => {
-      const logDate = (log.created_at || log.date || '').split('T')[0];
-      return logDate === today && log.workout_id === todayWorkout.id;
-    });
-  }, [todayWorkout, progressLogs]);
+    return () => {
+      alive = false;
+      supabase.removeChannel(channel);
+    };
+  }, [conversation?.id]);
 
-  // White-glass chip slides across
-  const chipStyle = useAnimatedStyle(() => {
-    const x = activeIdx.value * TAB_WIDTH + (TAB_WIDTH - CHIP_W) / 2;
-    return { transform: [{ translateX: withSpring(x, SPRING) }] };
-  });
+  return hasUnread;
+}
 
-  const visibleRoutes = state.routes.filter((r: any) =>
-    VISIBLE_TABS.some(t => t.name === r.name)
-  );
+// ─── Tab bar ──────────────────────────────────────────────────────────────────
+function AthleteTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 14);
+  const unreadFromCoach = useUnreadFromCoach();
 
   const handlePress = useCallback(
-    (routeName: string, routeKey: string, tabIndex: number) => {
-      activeIdx.value = tabIndex;
+    (routeName: string, routeKey: string) => {
       Haptics.selectionAsync();
       const event = navigation.emit({ type: 'tabPress', target: routeKey, canPreventDefault: true });
       if (!event.defaultPrevented) navigation.navigate(routeName);
     },
-    [navigation, activeIdx]
+    [navigation]
   );
 
   return (
-    <View style={[styles.outerContainer, { paddingBottom: bottomPad }]}>
+    <View style={[styles.barWrap, { paddingBottom: bottomPad }]}>
       <WorkoutMiniPlayer />
-
-      {/* THE PILL — overflow:hidden clips BlurView + chip to pill shape */}
-      <View style={styles.pill}>
-
-        {/* ① Dark frosted glass — high intensity, low fill = content bleeds through */}
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 82 : 95}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        {/* ② Ambient fill — very light on iOS (blur does the work), heavier on Android */}
-        <View style={styles.ambientFill} />
-
-        {/* ③ 1px top-edge highlight — Apple's glass light-catch signature */}
-        <View style={styles.topEdge} />
-
-        {/*
-          ④ White-glass chip — brighter frosted oval, slides with active tab.
-             This IS the active indicator. Not colored — just brighter glass.
-             Renders before tab buttons so icons paint on top.
-        */}
-        <Animated.View style={[styles.chip, chipStyle]} />
-
-        {/* ⑤ Tab buttons */}
-        {visibleRoutes.map((route: any) => {
-          const tabConfig   = VISIBLE_TABS.find(t => t.name === route.name);
-          if (!tabConfig) return null;
-          const globalIndex = state.routes.findIndex((r: any) => r.name === route.name);
-          const isFocused   = state.index === globalIndex;
-          const tabIndex    = VISIBLE_TABS.findIndex(t => t.name === route.name);
+      <View style={styles.bar}>
+        {VISIBLE_TABS.map((tab) => {
+          const route = state.routes.find((r: any) => r.name === tab.name);
+          if (!route) return null;
+          const globalIndex = state.routes.findIndex((r: any) => r.name === tab.name);
+          const isFocused = state.index === globalIndex;
+          const showDot = tab.name === 'my-messages' && unreadFromCoach && !isFocused;
 
           return (
-            <GlassTabButton
+            <Pressable
               key={route.key}
-              config={tabConfig}
-              isFocused={isFocused}
-              tabIndex={tabIndex}
-              activeIdx={activeIdx}
-              hasBadge={tabConfig.name === 'workouts' && !!todayWorkout && isWorkoutCompletedToday === false && !isFocused}
-              onPress={() => handlePress(route.name, route.key, tabIndex)}
-            />
+              onPress={() => handlePress(route.name, route.key)}
+              style={styles.tabButton}
+              accessibilityRole="tab"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={`${tab.label} tab`}
+              accessibilityHint={tab.hint}
+            >
+              <View>
+                <Ionicons
+                  name={isFocused ? (tab.iconFocused as any) : (tab.icon as any)}
+                  size={21}
+                  color={isFocused ? CoachColors.accent : CoachColors.textFaint}
+                />
+                {showDot && <View style={styles.dot} />}
+              </View>
+              <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
           );
         })}
       </View>
     </View>
-  );
-}
-
-// ─── Tab Button ───────────────────────────────────────────────────────────────
-interface TabButtonProps {
-  config: typeof VISIBLE_TABS[number];
-  isFocused: boolean;
-  tabIndex: number;
-  activeIdx: SharedValue<number>;
-  hasBadge?: boolean;
-  onPress: () => void;
-}
-
-function GlassTabButton({ config, isFocused, tabIndex, activeIdx, hasBadge, onPress }: TabButtonProps) {
-  // Icon: gentle scale up when active
-  const iconAnim = useAnimatedStyle(() => {
-    const dist  = Math.abs(activeIdx.value - tabIndex);
-    const scale = interpolate(dist, [0, 1], [1.1, 1], Extrapolation.CLAMP);
-    return { transform: [{ scale: withSpring(scale, SPRING) }] };
-  });
-
-  // Everything fades to 35% when inactive — matches Klarna
-  const fadeAnim = useAnimatedStyle(() => {
-    const dist    = Math.abs(activeIdx.value - tabIndex);
-    const opacity = interpolate(dist, [0, 0.8, 1], [1, 0.5, 0.35], Extrapolation.CLAMP);
-    return { opacity: withSpring(opacity, SPRING) };
-  });
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.tabButton}
-      accessibilityRole="tab"
-      accessibilityState={isFocused ? { selected: true } : {}}
-      accessibilityLabel={`${config.label} tab`}
-      accessibilityHint={config.hint}
-    >
-      <Animated.View style={[styles.tabInner, fadeAnim]}>
-        {/* Icon + optional badge dot */}
-        <Animated.View style={[iconAnim, { position: 'relative' }]}>
-          <Ionicons
-            name={isFocused ? config.iconFocused : config.icon}
-            size={isFocused ? 27 : 24}
-            color="#FFFFFF"
-          />
-          {hasBadge && (
-            <View style={styles.badgeDot} />
-          )}
-        </Animated.View>
-
-        {/* Label */}
-        <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
-          {config.label}
-        </Text>
-      </Animated.View>
-    </Pressable>
   );
 }
 
@@ -216,18 +127,19 @@ export default function ClientTabsLayout() {
     <>
       <OfflineBanner />
       <Tabs
-        tabBar={(props) => <GlassTabBar {...props} />}
+        tabBar={(props) => <AthleteTabBar {...props} />}
         screenOptions={{ headerShown: false }}
       >
+        {/* Bar tabs — mockup 22a order */}
         <Tabs.Screen name="index" />
         <Tabs.Screen name="workouts" />
-        <Tabs.Screen name="explore-classes" />
+        <Tabs.Screen name="my-diet" />
         <Tabs.Screen name="my-progress" />
         <Tabs.Screen name="my-messages" />
 
-        {/* Hidden screens — deep-linked, not in tab bar */}
+        {/* Hidden screens — deep-linked, not in the bar. Nothing may 404. */}
+        <Tabs.Screen name="explore-classes"   options={{ href: null }} />
         <Tabs.Screen name="studio"            options={{ href: null }} />
-        <Tabs.Screen name="my-diet"           options={{ href: null }} />
         <Tabs.Screen name="health-insights"   options={{ href: null }} />
         <Tabs.Screen name="my-pass"           options={{ href: null }} />
         <Tabs.Screen name="my-subscription"   options={{ href: null }} />
@@ -250,102 +162,44 @@ export default function ClientTabsLayout() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  outerContainer: {
+  barWrap: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: CoachColors.bg,
+    borderTopWidth: 1,
+    borderTopColor: '#1E211D',
   },
-
-  // Pill — overflow:hidden is required for BlurView clipping
-  pill: {
+  bar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    width: BAR_WIDTH,
-    height: BAR_H,
-    borderRadius: BAR_H / 2,       // full pill (half the height)
-    overflow: 'hidden',             // clips BlurView + chip to pill shape
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.55,
-        shadowRadius: 28,
-      },
-      android: { elevation: 20 },
-    }),
+    paddingTop: 11,
+    paddingHorizontal: 8,
   },
-
-  // Very light ambient fill — let the blur breathe
-  ambientFill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: Platform.OS === 'ios'
-      ? 'rgba(8,8,12,0.18)'    // iOS: barely-there — blur carries legibility
-      : 'rgba(8,8,12,0.78)',   // Android: compensation for weaker blur
-  },
-
-  // 1px top-edge — Apple glass signature
-  topEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 24,
-    right: 24,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.20)',
-  },
-
-  // White-glass chip — brighter glass oval within the darker pill
-  chip: {
-    position: 'absolute',
-    left: 0,
-    top: (BAR_H - CHIP_H) / 2,
-    width: CHIP_W,
-    height: CHIP_H,
-    borderRadius: CHIP_H / 2,         // oval (fully rounded ends)
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-
   tabButton: {
-    width: TAB_WIDTH,
-    height: BAR_H,
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 2,
   },
-
-  tabInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-
   tabLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
-    letterSpacing: 0.1,
+    color: CoachColors.textFaint,
   },
-
   tabLabelActive: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10.5,
+    fontFamily: CoachFonts.bodyBold,
+    color: CoachColors.accent,
   },
-
-  // Red dot badge — appears on Train tab when todayWorkout is assigned
-  badgeDot: {
+  dot: {
     position: 'absolute',
     top: -2,
     right: -4,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.accent,
     borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.6)',
+    borderColor: CoachColors.bg,
   },
 });

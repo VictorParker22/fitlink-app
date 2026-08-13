@@ -59,6 +59,20 @@ interface SavedProgress {
   savedAt: number;
 }
 
+// ─── SET LOGGING (strength sessions) ─────────────────────
+// How a set felt, chosen by the athlete right after logging the number.
+// Optional on every set so existing history entries stay valid.
+export type SetFeel = 'easy' | 'right' | 'grind' | 'failed';
+
+export interface StrengthSetLog {
+  exerciseId: string;
+  exerciseName: string;
+  setIndex: number;      // 0-based within the exercise
+  weight: number;        // kg
+  reps: number;
+  feel?: SetFeel;
+}
+
 // ─── WORKOUT HISTORY ─────────────────────────────────────
 export interface WorkoutHistoryEntry {
   id: string;                   // unique id
@@ -78,6 +92,9 @@ export interface WorkoutHistoryEntry {
   pr: number | null;
   // Computed
   caloriesEstimate: number;     // rough estimate
+  // Strength-specific — per-set logs including how each set felt.
+  // Absent on older entries and on class/running workouts.
+  sets?: StrengthSetLog[];
 }
 
 interface WorkoutContextType {
@@ -102,6 +119,16 @@ interface WorkoutContextType {
   markSetupComplete: () => void;
   clearLastCompleted: () => void;
   
+  // Strength session logging (set-by-set, outside the class timer machinery)
+  recordStrengthWorkout: (info: {
+    workoutId: string;
+    title: string;
+    instructor?: string;
+    startedAt: number;
+    durationSec: number;
+    sets: StrengthSetLog[];
+  }) => WorkoutHistoryEntry;
+
   // History
   workoutHistory: WorkoutHistoryEntry[];
   getClassHistory: (classId: string) => WorkoutHistoryEntry[];
@@ -397,6 +424,40 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     setLastCompletedWorkout(null);
   }, []);
 
+  // ── Record a strength session (set-by-set logs, incl. feel) ──
+  const recordStrengthWorkout = useCallback((info: {
+    workoutId: string;
+    title: string;
+    instructor?: string;
+    startedAt: number;
+    durationSec: number;
+    sets: StrengthSetLog[];
+  }): WorkoutHistoryEntry => {
+    const entry: WorkoutHistoryEntry = {
+      id: `wh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      classId: info.workoutId,
+      classTitle: info.title,
+      category: 'Strength',
+      instructor: info.instructor || '',
+      thumbnail: '',
+      level: '',
+      startedAt: info.startedAt,
+      completedAt: Date.now(),
+      durationSec: info.durationSec,
+      targetDurationSec: info.durationSec,
+      completed: true,
+      pr: null,
+      caloriesEstimate: Math.round((info.durationSec / 60) * 6),
+      sets: info.sets,
+    };
+    setWorkoutHistory(prev => {
+      const updated = [entry, ...prev].slice(0, 200);
+      SecureStore.setItemAsync(HISTORY_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+    return entry;
+  }, []);
+
   // ── Saved session helpers ──
   const saveProgress = (session: WorkoutSession) => {
     const progress: SavedProgress = {
@@ -502,6 +563,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
       setPr: setPrValue,
       markSetupComplete,
       clearLastCompleted,
+      recordStrengthWorkout,
       workoutHistory,
       getClassHistory,
       getClassTakeCount,

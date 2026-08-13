@@ -13,6 +13,7 @@ import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
+import FormReviewMessage, { FORM_REVIEW_PREFIX, parseFormReview } from '../../components/chat/FormReviewMessage';
 
 interface Message {
   id: string;
@@ -289,6 +290,21 @@ export default function ChatScreen() {
           resizeMode="cover"
         />
       );
+    }
+
+    // Form review — a comment pinned to a second of the video under review
+    if (content.startsWith(FORM_REVIEW_PREFIX)) {
+      const parsed = parseFormReview(content);
+      if (parsed) {
+        return (
+          <FormReviewMessage
+            seconds={parsed.seconds}
+            comment={parsed.comment}
+            videoUrl={msg.attachment_type === 'video' ? msg.attachment_url : undefined}
+            isMine={isMine}
+          />
+        );
+      }
     }
 
     if (content.startsWith('[WORKOUT_CARD:')) {

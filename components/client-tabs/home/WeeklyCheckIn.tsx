@@ -1,16 +1,19 @@
 /**
- * WeeklyCheckIn — Client-side weekly progress check-in form
+ * WeeklyCheckIn — the Sunday check-in, built as a conversation (design 22d).
  *
- * Surfaces once per week as a prompt card on the client home screen.
- * Clients rate 5 dimensions (1–5), add a highlight, struggle, and
- * optional body weight. Submits directly to coach's inbox.
+ * One question at a time, asked in the coach's actual name. If the coach has
+ * written questions for this athlete (clients.checkin_questions JSONB), those
+ * are asked; otherwise the standard rating set is asked, phrased
+ * conversationally, and still writes the fixed client_checkins columns so the
+ * coach-side CheckInInbox keeps working unchanged.
  *
- * Design: Slides open from a compact prompt card into a full form.
- * Matches the "Editorial Precision" aesthetic — dark, tight typography,
- * accent-colored interactive elements.
+ * Custom answers are written to client_checkins.custom_answers JSONB with a
+ * 42703 (column missing) retry so the app works pre-migration.
+ *
+ * The summary step is framed as a message to the coach, not a form submit.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +21,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -28,38 +30,85 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useClient } from '../../../context/ClientContext';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Question model ───────────────────────────────────────────────────────────
 
-interface RatingField {
-  key: 'energy_level' | 'sleep_quality' | 'stress_level' | 'workout_adherence' | 'diet_adherence';
-  label: string;
-  emoji: string;
-  color: string;
-  lowLabel: string;
-  highLabel: string;
+type RatingColumn =
+  | 'energy_level'
+  | 'sleep_quality'
+  | 'stress_level'
+  | 'workout_adherence'
+  | 'diet_adherence';
+
+type TextColumn = 'highlight' | 'struggle' | 'goals_next_week';
+
+interface Question {
+  id: string;
+  prompt: string;
+  context?: string;
+  kind: 'rating' | 'choice' | 'scale' | 'text';
+  // rating
+  column?: RatingColumn;
+  lowLabel?: string;
+  highLabel?: string;
+  // choice
+  options?: string[];
+  // scale
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  // text
+  textColumn?: TextColumn;
+  optional?: boolean;
 }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+/** Coach-authored question as stored in clients.checkin_questions JSONB. */
+interface CoachQuestion {
+  id: string;
+  prompt: string;
+  context?: string;
+  type: 'choice' | 'scale' | 'text';
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}
 
-const RATING_FIELDS: RatingField[] = [
-  { key: 'energy_level',      label: 'Energy',           emoji: '⚡', color: '#FFD700', lowLabel: 'Drained',  highLabel: 'Charged' },
-  { key: 'sleep_quality',     label: 'Sleep Quality',    emoji: '😴', color: '#A855F7', lowLabel: 'Poor',     highLabel: 'Great' },
-  { key: 'stress_level',      label: 'Stress',           emoji: '🧠', color: '#FF6B35', lowLabel: 'Relaxed',  highLabel: 'Maxed out' },
-  { key: 'workout_adherence', label: 'Workout Adherence',emoji: '💪', color: '#22C55E', lowLabel: 'Skipped',  highLabel: 'Nailed it' },
-  { key: 'diet_adherence',    label: 'Diet Adherence',   emoji: '🥗', color: '#5B7FFF', lowLabel: 'Off track', highLabel: 'Spot on' },
+type AnswerValue = string | number;
+
+const STANDARD_QUESTIONS: Question[] = [
+  { id: 'std_energy', prompt: 'How was your energy this week?', kind: 'rating', column: 'energy_level', lowLabel: 'Drained', highLabel: 'Charged' },
+  { id: 'std_sleep', prompt: 'How did you sleep, most nights?', kind: 'rating', column: 'sleep_quality', lowLabel: 'Poor', highLabel: 'Great' },
+  { id: 'std_stress', prompt: 'How stressed were you outside the gym?', kind: 'rating', column: 'stress_level', lowLabel: 'Relaxed', highLabel: 'Maxed out' },
+  { id: 'std_training', prompt: 'Did the training happen as planned?', kind: 'rating', column: 'workout_adherence', lowLabel: 'Skipped a lot', highLabel: 'Nailed it' },
+  { id: 'std_diet', prompt: 'How did the eating go?', kind: 'rating', column: 'diet_adherence', lowLabel: 'Off track', highLabel: 'Spot on' },
+  { id: 'std_highlight', prompt: 'Best thing that happened this week?', kind: 'text', textColumn: 'highlight', optional: true },
+  { id: 'std_struggle', prompt: 'What made the week hard?', kind: 'text', textColumn: 'struggle', optional: true },
+  { id: 'std_goals', prompt: 'Anything you want changed next week?', kind: 'text', textColumn: 'goals_next_week', optional: true },
 ];
 
-type Ratings = Record<RatingField['key'], number>;
-
-const DEFAULT_RATINGS: Ratings = {
-  energy_level: 0,
-  sleep_quality: 0,
-  stress_level: 0,
-  workout_adherence: 0,
-  diet_adherence: 0,
-};
+function coachToQuestion(q: CoachQuestion): Question | null {
+  if (!q || typeof q.prompt !== 'string' || !q.prompt.trim()) return null;
+  if (q.type === 'choice' && Array.isArray(q.options) && q.options.length > 0) {
+    return { id: q.id, prompt: q.prompt, context: q.context, kind: 'choice', options: q.options };
+  }
+  if (q.type === 'scale') {
+    return {
+      id: q.id, prompt: q.prompt, context: q.context, kind: 'scale',
+      min: typeof q.min === 'number' ? q.min : 1,
+      max: typeof q.max === 'number' ? q.max : 10,
+      step: typeof q.step === 'number' && q.step > 0 ? q.step : 1,
+      unit: q.unit,
+    };
+  }
+  if (q.type === 'text') {
+    return { id: q.id, prompt: q.prompt, context: q.context, kind: 'text', optional: true };
+  }
+  return null;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,129 +122,45 @@ function getMondayOfWeek(date = new Date()): string {
 
 const WEEK_START = getMondayOfWeek();
 
-// ─── Rating Row ───────────────────────────────────────────────────────────────
-
-function RatingRow({
-  field,
-  value,
-  onChange,
-}: {
-  field: RatingField;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <View style={r.container}>
-      <View style={r.header}>
-        <Text style={r.emoji}>{field.emoji}</Text>
-        <Text style={r.label}>{field.label}</Text>
-        {value > 0 && (
-          <View style={[r.valueBadge, { borderColor: `${field.color}50` }]}>
-            <Text style={[r.valueText, { color: field.color }]}>{value}/5</Text>
-          </View>
-        )}
-      </View>
-      <View style={r.dotsRow}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity
-            key={n}
-            style={[
-              r.dot,
-              value >= n
-                ? { backgroundColor: field.color }
-                : { backgroundColor: 'rgba(255,255,255,0.08)' },
-              value === n && { transform: [{ scale: 1.15 }] },
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onChange(n);
-            }}
-            activeOpacity={0.8}
-            accessibilityRole="radio"
-            accessibilityLabel={`${field.label} ${n} out of 5`}
-          />
-        ))}
-        <View style={r.scaleLabels}>
-          <Text style={r.scaleLabel}>{field.lowLabel}</Text>
-          <Text style={r.scaleLabel}>{field.highLabel}</Text>
-        </View>
-      </View>
-    </View>
-  );
+function ratingWord(q: Question, v: number) {
+  if (v <= 1) return q.lowLabel || String(v);
+  if (v >= 5) return q.highLabel || String(v);
+  return `${v} of 5`;
 }
 
-const r = StyleSheet.create({
-  container: { gap: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  emoji: { fontSize: 16 },
-  label: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 13,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  valueBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  valueText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    letterSpacing: 0.3,
-  },
-  dotsRow: { gap: 6 },
-  dot: {
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 0,
-  },
-  scaleLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  scaleLabel: {
-    fontFamily: FontFamily.body,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
-  },
-});
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function WeeklyCheckIn() {
   const { clientData, trainer } = useClient();
+  const coachFirst = (trainer?.name || 'Your coach').split(' ')[0];
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [rowId, setRowId] = useState<string | null>(null);
-
-  const [ratings, setRatings] = useState<Ratings>({ ...DEFAULT_RATINGS });
-  const [highlight, setHighlight] = useState('');
-  const [struggle, setStruggle] = useState('');
-  const [goalsNextWeek, setGoalsNextWeek] = useState('');
-  const [bodyWeight, setBodyWeight] = useState('');
-  const [success, setSuccess] = useState(false);
   const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [step, setStep] = useState(0); // index into questions; questions.length = summary
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+  const [textDraft, setTextDraft] = useState('');
+  const [bodyWeight, setBodyWeight] = useState('');
 
-  // Pulse the prompt card
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.01, duration: 1800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
+  const coachQuestions: CoachQuestion[] = Array.isArray((clientData as any)?.checkin_questions)
+    ? (clientData as any).checkin_questions
+    : [];
+  const usingCustom = coachQuestions.length > 0;
 
-  // Check if already submitted this week
+  const questions = useMemo<Question[]>(() => {
+    if (usingCustom) {
+      return coachQuestions.map(coachToQuestion).filter((q): q is Question => q !== null);
+    }
+    return STANDARD_QUESTIONS;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usingCustom, JSON.stringify(coachQuestions)]);
+
+  // Existing row / already submitted this week
   useEffect(() => {
     if (!clientData?.id) { setLoading(false); return; }
     (async () => {
@@ -205,92 +170,97 @@ export default function WeeklyCheckIn() {
         .eq('client_id', clientData.id)
         .eq('week_start', WEEK_START)
         .maybeSingle();
-
       if (data) {
         setRowId(data.id);
         if (data.submitted_at) {
           setAlreadySubmitted(true);
-          // Show coach reply if one exists
           if (data.coach_note) setCoachNote(data.coach_note);
-        } else {
-          // Restore draft
-          setRatings({
-            energy_level: data.energy_level || 0,
-            sleep_quality: data.sleep_quality || 0,
-            stress_level: data.stress_level || 0,
-            workout_adherence: data.workout_adherence || 0,
-            diet_adherence: data.diet_adherence || 0,
-          });
-          setHighlight(data.highlight || '');
-          setStruggle(data.struggle || '');
-          setGoalsNextWeek(data.goals_next_week || '');
-          setBodyWeight(data.body_weight ? String(data.body_weight) : '');
         }
       }
       setLoading(false);
     })();
   }, [clientData?.id]);
 
-  const isComplete = Object.values(ratings).every((v) => v > 0);
+  const answered = questions.filter((q) => answers[q.id] !== undefined).length;
+  const onSummary = step >= questions.length;
+  const current = onSummary ? null : questions[step];
 
-  // Auto-save draft on changes
-  const saveDraft = useCallback(
-    async (newRatings: Ratings, newHighlight: string, newStruggle: string, newGoals: string, newWeight: string) => {
-      if (!clientData?.id) return;
-      const payload = {
+  const goNext = (nextAnswers?: Record<string, AnswerValue>) => {
+    const a = nextAnswers || answers;
+    if (nextAnswers) setAnswers(nextAnswers);
+    const nextIdx = step + 1;
+    setStep(nextIdx);
+    const nq = questions[nextIdx];
+    setTextDraft(nq && nq.kind === 'text' && typeof a[nq.id] === 'string' ? String(a[nq.id]) : '');
+  };
+
+  const answerAndAdvance = (q: Question, value: AnswerValue) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    goNext({ ...answers, [q.id]: value });
+  };
+
+  const goBack = () => {
+    if (step === 0) { setOpen(false); return; }
+    const prevIdx = step - 1;
+    setStep(prevIdx);
+    const pq = questions[prevIdx];
+    setTextDraft(pq && pq.kind === 'text' && typeof answers[pq.id] === 'string' ? String(answers[pq.id]) : '');
+  };
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!clientData?.id || submitting) return;
+    setSubmitting(true);
+    try {
+      const base: Record<string, any> = {
+        ...(rowId ? { id: rowId } : {}),
         client_id: clientData.id,
         trainer_id: clientData.trainer_id,
         week_start: WEEK_START,
-        ...newRatings,
-        highlight: newHighlight || null,
-        struggle: newStruggle || null,
-        goals_next_week: newGoals || null,
-        body_weight: newWeight ? parseFloat(newWeight) : null,
+        body_weight: bodyWeight ? parseFloat(bodyWeight) : null,
+        submitted_at: new Date().toISOString(),
       };
-      const { data } = await supabase
-        .from('client_checkins')
-        .upsert({ ...(rowId ? { id: rowId } : {}), ...payload }, { onConflict: 'client_id,week_start' })
-        .select()
-        .single();
-      if (data && !rowId) setRowId(data.id);
-    },
-    [clientData, rowId]
-  );
 
-  const handleSubmit = async () => {
-    if (!clientData?.id || !isComplete) return;
-    setSubmitting(true);
-    try {
-      await supabase
+      let customAnswers: Record<string, { prompt: string; answer: AnswerValue }> | null = null;
+
+      if (usingCustom) {
+        customAnswers = {};
+        for (const q of questions) {
+          if (answers[q.id] !== undefined) {
+            customAnswers[q.id] = { prompt: q.prompt, answer: answers[q.id] };
+          }
+        }
+      } else {
+        for (const q of STANDARD_QUESTIONS) {
+          const v = answers[q.id];
+          if (q.column) base[q.column] = typeof v === 'number' ? v : null;
+          if (q.textColumn) base[q.textColumn] = typeof v === 'string' && v.trim() ? v.trim() : null;
+        }
+      }
+
+      const payload = customAnswers ? { ...base, custom_answers: customAnswers } : base;
+      let { error } = await supabase
         .from('client_checkins')
-        .upsert(
-          {
-            ...(rowId ? { id: rowId } : {}),
-            client_id: clientData.id,
-            trainer_id: clientData.trainer_id,
-            week_start: WEEK_START,
-            ...ratings,
-            highlight: highlight || null,
-            struggle: struggle || null,
-            goals_next_week: goalsNextWeek || null,
-            body_weight: bodyWeight ? parseFloat(bodyWeight) : null,
-            submitted_at: new Date().toISOString(),
-          },
-          { onConflict: 'client_id,week_start' }
-        );
+        .upsert(payload, { onConflict: 'client_id,week_start' });
+      // Pre-migration resilience: retry without the new JSONB column if missing.
+      if (error && error.code === '42703' && customAnswers) {
+        ({ error } = await supabase
+          .from('client_checkins')
+          .upsert(base, { onConflict: 'client_id,week_start' }));
+      }
+      if (error) throw error;
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
 
-      // Notify trainer that a new check-in is waiting for review
       if (trainer?.expo_push_token) {
         supabase.functions.invoke('send-push-notification', {
           body: {
             pushToken: trainer.expo_push_token,
-            title: `New Check-In from ${clientData.name}`,
-            body: `${clientData.name} just submitted their weekly check-in. Tap to review.`,
+            title: `Check-in from ${clientData.name}`,
+            body: `${clientData.name} answered this week's questions. Tap to review.`,
             data: { url: '/index' },
-          }
+          },
         }).catch((err: unknown) => {
           if (__DEV__) console.log('[WeeklyCheckIn] push error:', err);
         });
@@ -299,7 +269,7 @@ export default function WeeklyCheckIn() {
       setTimeout(() => {
         setOpen(false);
         setAlreadySubmitted(true);
-      }, 2000);
+      }, 1800);
     } catch (err) {
       if (__DEV__) console.log('[WeeklyCheckIn] submit error:', err);
     } finally {
@@ -309,65 +279,47 @@ export default function WeeklyCheckIn() {
 
   if (loading) return null;
 
-  // Once submitted, show coach reply if one exists — otherwise stay invisible
-  // until the form prompt is relevant again next week.
+  // ── Already submitted: show the coach's reply if there is one ──────────────
   if (alreadySubmitted) {
     if (!coachNote) return null;
-    const weekLabel = (() => {
-      const d = new Date(WEEK_START + 'T00:00:00');
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    })();
     return (
-      <View style={s.coachReplyCard}>
-        <View style={s.coachReplyHeader}>
-          <Text style={s.coachReplyTag}>COACH REPLY · WEEK OF {weekLabel.toUpperCase()}</Text>
-          <Text style={s.coachReplyTitle}>Your Coach Responded ✅</Text>
-        </View>
-        <Text style={s.coachReplyBody}>{coachNote}</Text>
-        <View style={s.coachReplyAccent} />
+      <View style={s.replyCard}>
+        <Text style={s.replyTag}>From {coachFirst}</Text>
+        <Text style={s.replyBody}>{coachNote}</Text>
       </View>
     );
   }
 
-  const weekLabel = (() => {
-    const d = new Date(WEEK_START + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  })();
-
+  // ── Prompt card ─────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Prompt Card (compact, always visible) ── */}
-      <Animated.View style={[s.promptCard, { transform: [{ scale: pulseAnim }] }]}>
-        <TouchableOpacity
-          style={s.promptInner}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setOpen(true);
-          }}
-          activeOpacity={0.88}
-        >
-          <View style={s.promptLeft}>
-            <View style={s.promptIconWrap}>
-              <Text style={{ fontSize: 20 }}>📋</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.promptTag}>WEEKLY CHECK-IN</Text>
-              <Text style={s.promptTitle}>How was your week?</Text>
-              <Text style={s.promptSub}>
-                Week of {weekLabel} · Your coach is waiting
-              </Text>
-            </View>
-          </View>
-          <View style={s.promptCta}>
-            <Text style={s.promptCtaText}>START</Text>
-            <Ionicons name="arrow-forward" size={12} color="#5B7FFF" />
-          </View>
-        </TouchableOpacity>
-        {/* Left accent */}
-        <View style={s.promptAccent} />
-      </Animated.View>
+      <TouchableOpacity
+        style={s.promptCard}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setOpen(true);
+        }}
+        activeOpacity={0.88}
+      >
+        <View style={s.promptAvatar}>
+          <Text style={s.promptAvatarText}>
+            {coachFirst.slice(0, 1).toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.promptTitle}>
+            {usingCustom
+              ? `${coachFirst} has ${questions.length} question${questions.length === 1 ? '' : 's'} for you`
+              : `${coachFirst} wants to hear about your week`}
+          </Text>
+          <Text style={s.promptSub}>Weekly check-in · takes about two minutes</Text>
+        </View>
+        <View style={s.promptCta}>
+          <Text style={s.promptCtaText}>Answer</Text>
+        </View>
+      </TouchableOpacity>
 
-      {/* ── Full Form Modal ── */}
+      {/* ── Conversation modal ── */}
       <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView
           style={s.modal}
@@ -375,150 +327,233 @@ export default function WeeklyCheckIn() {
         >
           {/* Header */}
           <View style={s.modalHeader}>
-            <TouchableOpacity onPress={() => setOpen(false)} style={s.closeBtn}>
-              <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
+            <TouchableOpacity onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+              <Ionicons name={step === 0 ? 'close' : 'chevron-back'} size={20} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={s.modalTag}>WEEKLY CHECK-IN // WEEK OF {weekLabel.toUpperCase()}</Text>
-              <Text style={s.modalTitle}>How did it go?</Text>
+              <Text style={s.modalTitle}>Weekly check-in</Text>
+              <Text style={s.modalSub}>
+                {onSummary
+                  ? `Ready to send to ${coachFirst}`
+                  : `Takes about two minutes · ${answered} of ${questions.length} done`}
+              </Text>
             </View>
           </View>
 
+          {/* Progress */}
+          <View style={s.progressRow}>
+            {questions.map((q, i) => (
+              <View
+                key={q.id}
+                style={[
+                  s.progressSeg,
+                  (answers[q.id] !== undefined || i < step) && s.progressSegDone,
+                  i === step && !onSummary && s.progressSegActive,
+                ]}
+              />
+            ))}
+          </View>
+
           <ScrollView
-            contentContainerStyle={s.form}
+            contentContainerStyle={s.body}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {success ? (
               <View style={s.successState}>
-                <Text style={{ fontSize: 48 }}>🎉</Text>
-                <Text style={s.successTitle}>Check-in submitted!</Text>
-                <Text style={s.successSub}>Your coach will review it shortly.</Text>
+                <View style={s.successRing}>
+                  <Ionicons name="checkmark" size={30} color={CoachColors.accent} />
+                </View>
+                <Text style={s.successTitle}>Sent to {coachFirst}</Text>
+                <Text style={s.successSub}>Replies usually come within a day.</Text>
               </View>
-            ) : (
-              <>
-                {/* ── Ratings ── */}
-                <View style={s.section}>
-                  <Text style={s.sectionTitle}>Rate your week</Text>
-                  <View style={s.ratingsStack}>
-                    {RATING_FIELDS.map((field) => (
-                      <RatingRow
-                        key={field.key}
-                        field={field}
-                        value={ratings[field.key]}
-                        onChange={(v) => {
-                          const next = { ...ratings, [field.key]: v };
-                          setRatings(next);
-                          saveDraft(next, highlight, struggle, goalsNextWeek, bodyWeight);
-                        }}
-                      />
+            ) : current ? (
+              <View style={s.questionCard}>
+                <Text style={s.askedBy}>{coachFirst} asks</Text>
+                <Text style={s.questionPrompt}>{current.prompt}</Text>
+                {!!current.context && (
+                  <Text style={s.questionContext}>{current.context}</Text>
+                )}
+
+                {/* Rating: five chips, low/high anchored */}
+                {current.kind === 'rating' && (
+                  <>
+                    <View style={s.chipRow}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <TouchableOpacity
+                          key={n}
+                          style={[s.numChip, answers[current.id] === n && s.chipSelected]}
+                          onPress={() => answerAndAdvance(current, n)}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${current.prompt} — ${n} out of 5`}
+                        >
+                          <Text style={[s.numChipText, answers[current.id] === n && s.chipTextSelected]}>{n}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={s.anchorRow}>
+                      <Text style={s.anchorText}>{current.lowLabel}</Text>
+                      <Text style={s.anchorText}>{current.highLabel}</Text>
+                    </View>
+                  </>
+                )}
+
+                {/* Choice: coach-authored options */}
+                {current.kind === 'choice' && (
+                  <View style={s.chipRow}>
+                    {(current.options || []).map((opt) => (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[s.optChip, answers[current.id] === opt && s.chipSelected]}
+                        onPress={() => answerAndAdvance(current, opt)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={opt}
+                      >
+                        <Text style={[s.optChipText, answers[current.id] === opt && s.chipTextSelected]}>{opt}</Text>
+                      </TouchableOpacity>
                     ))}
                   </View>
+                )}
+
+                {/* Scale: stepper */}
+                {current.kind === 'scale' && (() => {
+                  const min = current.min ?? 1;
+                  const max = current.max ?? 10;
+                  const stepSize = current.step ?? 1;
+                  const val = typeof answers[current.id] === 'number'
+                    ? (answers[current.id] as number)
+                    : Math.round(((min + max) / 2) / stepSize) * stepSize;
+                  const setVal = (v: number) => setAnswers({ ...answers, [current.id]: Math.min(max, Math.max(min, v)) });
+                  return (
+                    <>
+                      <View style={s.scaleRow}>
+                        <TouchableOpacity style={s.scaleBtn} onPress={() => setVal(val - stepSize)} accessibilityRole="button" accessibilityLabel="Decrease">
+                          <Ionicons name="remove" size={18} color={CoachColors.textPrimary} />
+                        </TouchableOpacity>
+                        <View style={s.scaleValueWrap}>
+                          <Text style={s.scaleValue}>{Number.isInteger(val) ? val : val.toFixed(1)}</Text>
+                          {!!current.unit && <Text style={s.scaleUnit}>{current.unit}</Text>}
+                        </View>
+                        <TouchableOpacity style={s.scaleBtn} onPress={() => setVal(val + stepSize)} accessibilityRole="button" accessibilityLabel="Increase">
+                          <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity
+                        style={s.nextBtn}
+                        onPress={() => answerAndAdvance(current, val)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={s.nextBtnText}>That's about right</Text>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })()}
+
+                {/* Text */}
+                {current.kind === 'text' && (
+                  <>
+                    <TextInput
+                      style={s.textInput}
+                      placeholder="Say it how you'd text it…"
+                      placeholderTextColor={CoachColors.textFaint}
+                      value={textDraft}
+                      onChangeText={setTextDraft}
+                      multiline
+                      maxLength={280}
+                    />
+                    <View style={s.textActions}>
+                      <TouchableOpacity
+                        style={[s.nextBtn, { flex: 1 }, !textDraft.trim() && s.nextBtnDisabled]}
+                        onPress={() => textDraft.trim() && answerAndAdvance(current, textDraft.trim())}
+                        disabled={!textDraft.trim()}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[s.nextBtnText, !textDraft.trim() && s.nextBtnTextDisabled]}>Next</Text>
+                      </TouchableOpacity>
+                      {current.optional && (
+                        <TouchableOpacity
+                          style={s.skipBtn}
+                          onPress={() => {
+                            const next = { ...answers };
+                            delete next[current.id];
+                            setAnswers(next);
+                            goNext(next);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={s.skipBtnText}>Skip</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : (
+              /* ── Summary: framed as a message, not a form ── */
+              <View style={{ gap: 12 }}>
+                <Text style={s.summaryLead}>
+                  This goes to {coachFirst} as a message, not a form.
+                </Text>
+                <View style={s.summaryCard}>
+                  {questions.map((q) =>
+                    answers[q.id] === undefined ? null : (
+                      <View key={q.id} style={s.summaryRow}>
+                        <Text style={s.summaryQ}>{q.prompt}</Text>
+                        <Text style={s.summaryA}>
+                          {q.kind === 'rating'
+                            ? ratingWord(q, answers[q.id] as number)
+                            : String(answers[q.id])}
+                          {q.kind === 'scale' && q.unit ? ` ${q.unit}` : ''}
+                        </Text>
+                      </View>
+                    )
+                  )}
+                  {answered === 0 && (
+                    <Text style={s.summaryQ}>You skipped everything — go back and answer at least one.</Text>
+                  )}
                 </View>
 
-                {/* ── Text Fields ── */}
-                <View style={s.section}>
-                  <Text style={s.sectionTitle}>Tell your coach</Text>
-
-                  <View style={s.inputGroup}>
-                    <Text style={s.inputLabel}>🏆 Best thing this week</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder="A win, a PR, a breakthrough..."
-                      placeholderTextColor="rgba(255,255,255,0.2)"
-                      value={highlight}
-                      onChangeText={(t) => {
-                        setHighlight(t);
-                        saveDraft(ratings, t, struggle, goalsNextWeek, bodyWeight);
-                      }}
-                      multiline
-                      maxLength={280}
-                    />
-                  </View>
-
-                  <View style={s.inputGroup}>
-                    <Text style={s.inputLabel}>😤 Biggest challenge</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder="What made it tough this week?"
-                      placeholderTextColor="rgba(255,255,255,0.2)"
-                      value={struggle}
-                      onChangeText={(t) => {
-                        setStruggle(t);
-                        saveDraft(ratings, highlight, t, goalsNextWeek, bodyWeight);
-                      }}
-                      multiline
-                      maxLength={280}
-                    />
-                  </View>
-
-                  <View style={s.inputGroup}>
-                    <Text style={s.inputLabel}>🎯 Focus for next week</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder="What do you want to nail next week?"
-                      placeholderTextColor="rgba(255,255,255,0.2)"
-                      value={goalsNextWeek}
-                      onChangeText={(t) => {
-                        setGoalsNextWeek(t);
-                        saveDraft(ratings, highlight, struggle, t, bodyWeight);
-                      }}
-                      multiline
-                      maxLength={280}
-                    />
-                  </View>
-                </View>
-
-                {/* ── Optional body weight ── */}
-                <View style={s.section}>
-                  <Text style={s.sectionTitle}>Body weight (optional)</Text>
+                <View style={s.weightCard}>
+                  <Text style={s.weightLabel}>Body weight, if you tracked it</Text>
                   <View style={s.weightRow}>
                     <TextInput
-                      style={[s.input, s.weightInput]}
-                      placeholder="e.g. 175"
-                      placeholderTextColor="rgba(255,255,255,0.2)"
+                      style={s.weightInput}
+                      placeholder="—"
+                      placeholderTextColor={CoachColors.textFaint}
                       value={bodyWeight}
-                      onChangeText={(t) => {
-                        setBodyWeight(t.replace(/[^0-9.]/g, ''));
-                        saveDraft(ratings, highlight, struggle, goalsNextWeek, t);
-                      }}
+                      onChangeText={(t) => setBodyWeight(t.replace(/[^0-9.]/g, ''))}
                       keyboardType="decimal-pad"
                       maxLength={6}
                     />
                     <Text style={s.weightUnit}>lbs</Text>
                   </View>
                 </View>
-
-                {/* ── Submit ── */}
-                <TouchableOpacity
-                  style={[
-                    s.submitBtn,
-                    !isComplete && s.submitBtnDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!isComplete || submitting}
-                  activeOpacity={0.88}
-                >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#000" />
-                  ) : (
-                    <>
-                      <Ionicons name="send" size={16} color={isComplete ? '#000' : 'rgba(255,255,255,0.3)'} />
-                      <Text style={[s.submitText, !isComplete && s.submitTextDisabled]}>
-                        {isComplete ? 'Submit to Coach' : 'Rate all 5 fields to submit'}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {!isComplete && (
-                  <Text style={s.completionHint}>
-                    {Object.values(ratings).filter((v) => v > 0).length}/5 rated
-                  </Text>
-                )}
-              </>
+              </View>
             )}
           </ScrollView>
+
+          {/* Footer: send */}
+          {onSummary && !success && (
+            <View style={s.footer}>
+              <TouchableOpacity
+                style={[s.sendBtn, (answered === 0 || submitting) && s.sendBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={answered === 0 || submitting}
+                activeOpacity={0.88}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                ) : (
+                  <Text style={[s.sendBtnText, answered === 0 && s.sendBtnTextDisabled]}>
+                    Send to {coachFirst}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <Text style={s.footerHint}>Replies usually come within a day</Text>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </Modal>
     </>
@@ -532,268 +567,310 @@ const s = StyleSheet.create({
   promptCard: {
     marginHorizontal: 16,
     marginBottom: 10,
-    borderRadius: 16,
-    backgroundColor: '#0C0C0E',
+    borderRadius: 18,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(91,127,255,0.3)',
-    overflow: 'hidden',
-  },
-  promptAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: '#5B7FFF',
-  },
-  promptInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingLeft: 18,
-    paddingRight: 14,
-    gap: 12,
-  },
-  promptLeft: {
-    flex: 1,
+    borderColor: 'rgba(198,242,78,0.22)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    padding: 15,
   },
-  promptIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(91,127,255,0.12)',
+  promptAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  promptTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: '#5B7FFF',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 2,
+  promptAvatarText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13,
+    color: CoachColors.accent,
   },
   promptTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13.5,
+    color: CoachColors.textPrimary,
   },
   promptSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
     marginTop: 2,
   },
   promptCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(91,127,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(91,127,255,0.3)',
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   promptCtaText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: '#5B7FFF',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 12,
+    color: CoachColors.onAccent,
   },
 
   // Modal
-  modal: {
-    flex: 1,
-    backgroundColor: '#0C0C0E',
-  },
+  modal: { flex: 1, backgroundColor: CoachColors.bg },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    paddingTop: 18,
+    paddingBottom: 14,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
-  },
-  modalTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: '#5B7FFF',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 4,
   },
   modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 22,
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 17,
+    color: CoachColors.textPrimary,
   },
+  modalSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+    marginTop: 1,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: CoachColors.borderMuted,
+  },
+  progressSeg: { flex: 1, height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted },
+  progressSegDone: { backgroundColor: CoachColors.accent },
+  progressSegActive: { backgroundColor: 'rgba(198,242,78,0.45)' },
 
-  // Form
-  form: {
-    padding: 20,
-    gap: 24,
-    paddingBottom: 60,
-  },
-  section: { gap: 14 },
-  sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase' as const,
-  },
-  ratingsStack: { gap: 20 },
+  body: { padding: 20, paddingBottom: 40 },
 
-  // Text inputs
-  inputGroup: { gap: 8 },
-  inputLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 13,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  input: {
-    backgroundColor: '#111113',
+  // Question card
+  questionCard: {
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: '#FFFFFF',
-    minHeight: 48,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 18,
+    padding: 18,
+  },
+  askedBy: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: CoachColors.accent,
+    marginBottom: 8,
+  },
+  questionPrompt: {
+    fontFamily: CoachFonts.headingSemiBold,
+    fontSize: 17,
+    lineHeight: 24,
+    color: CoachColors.textPrimary,
+  },
+  questionContext: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textFaint,
+    marginTop: 6,
+    lineHeight: 16,
   },
 
-  // Weight
-  weightRow: {
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 16 },
+  numChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 11,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  numChipText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textSecondary },
+  optChip: {
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 11,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  optChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  chipSelected: {
+    borderColor: CoachColors.accent,
+    backgroundColor: 'rgba(198,242,78,0.1)',
+    borderWidth: 1.5,
+  },
+  chipTextSelected: { color: CoachColors.accent },
+  anchorRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  anchorText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
+
+  // Scale stepper
+  scaleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    marginTop: 16,
   },
-  weightInput: {
-    flex: 1,
-    minHeight: 48,
-    textAlign: 'center',
-    fontSize: 22,
-    fontFamily: FontFamily.headingExtraBold,
-  },
-  weightUnit: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
-  // Submit
-  submitBtn: {
-    flexDirection: 'row',
+  scaleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: '#5B7FFF',
   },
-  submitBtnDisabled: {
-    backgroundColor: '#111113',
+  scaleValueWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  scaleValue: { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary },
+  scaleUnit: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+
+  // Text input
+  textInput: {
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
+    borderRadius: 13,
+    padding: 13,
+    marginTop: 14,
+    minHeight: 84,
+    textAlignVertical: 'top',
+    fontFamily: CoachFonts.body,
+    fontSize: 13.5,
+    color: CoachColors.textPrimary,
+    lineHeight: 19,
   },
-  submitText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 15,
-    color: '#000000',
-    letterSpacing: -0.2,
+  textActions: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
+
+  nextBtn: {
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 14,
   },
-  submitTextDisabled: {
-    color: 'rgba(255,255,255,0.3)',
+  nextBtnDisabled: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
+  nextBtnTextDisabled: { color: CoachColors.textFaint },
+  skipBtn: {
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    marginTop: 14,
   },
-  completionHint: {
-    fontFamily: FontFamily.bodySemiBold,
+  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textMuted },
+
+  // Summary
+  summaryLead: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    lineHeight: 18,
+  },
+  summaryCard: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 18,
+    padding: 16,
+    gap: 14,
+  },
+  summaryRow: { gap: 3 },
+  summaryQ: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+  summaryA: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
+  weightCard: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 18,
+    padding: 16,
+  },
+  weightLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  weightRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
+  weightInput: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 26,
+    color: CoachColors.textPrimary,
+    minWidth: 80,
+    padding: 0,
+  },
+  weightUnit: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+
+  // Footer
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: CoachColors.borderMuted,
+  },
+  sendBtn: {
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  sendBtnDisabled: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  sendBtnTextDisabled: { color: CoachColors.textFaint },
+  footerHint: {
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
     textAlign: 'center',
-    marginTop: -16,
+    marginTop: 9,
   },
 
   // Success
-  successState: {
+  successState: { alignItems: 'center', paddingVertical: 56, gap: 12 },
+  successRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 1.5,
+    borderColor: 'rgba(198,242,78,0.4)',
+    backgroundColor: CoachColors.accentSofter,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    gap: 12,
   },
-  successTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 24,
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  successSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-  },
+  successTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
+  successSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
-  // Coach reply card (shown when alreadySubmitted && coach has replied)
-  coachReplyCard: {
+  // Coach reply card
+  replyCard: {
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: 'rgba(198,242,78,0.22)',
     borderRadius: 16,
     padding: 16,
-    overflow: 'hidden' as const,
+    gap: 8,
   },
-  coachReplyHeader: {
-    marginBottom: 10,
+  replyTag: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: CoachColors.accent,
   },
-  coachReplyTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 2,
-    textTransform: 'uppercase' as const,
-    marginBottom: 3,
-  },
-  coachReplyTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  coachReplyBody: {
-    fontFamily: FontFamily.body,
+  replyBody: {
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    color: CoachColors.textPrimary,
     lineHeight: 20,
-  },
-  coachReplyAccent: {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: '#5B7FFF',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
   },
 });
