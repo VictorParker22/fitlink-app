@@ -27,6 +27,7 @@ import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import SquadFeed from '../../components/client-tabs/SquadFeed';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -713,6 +714,8 @@ export default function AthleteTodayScreen() {
             )
           )}
         </View>
+
+        <SquadFeed />
 
         {/* ── Check-in waiting — coach asked this week, not answered yet ── */}
         {trainer && checkinWaiting && (

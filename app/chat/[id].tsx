@@ -13,6 +13,7 @@ import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import FormReviewMessage, { FORM_REVIEW_PREFIX, parseFormReview } from '../../components/chat/FormReviewMessage';
 
 interface Message {
@@ -28,6 +29,147 @@ interface Message {
 
 function initials(name: string) {
   return name.split(' ').map((n) => n[0]).filter(Boolean).join('').toUpperCase().slice(0, 2);
+}
+
+function fmtClock(totalSeconds: number) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+// Athlete video bubble — inline player plus the entry point into the form-review composer
+function VideoBubble({ url, onReview }: { url: string; onReview?: () => void }) {
+  const player = useVideoPlayer(url, (p) => {
+    p.loop = false;
+  });
+
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={styles.videoBubbleWrap}>
+        <VideoView player={player} style={styles.videoBubble} contentFit="cover" nativeControls />
+      </View>
+      {onReview && (
+        <TouchableOpacity
+          style={styles.reviewAffordance}
+          onPress={onReview}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Review form on this video"
+        >
+          <Ionicons name="videocam-outline" size={13} color={CoachColors.accent} />
+          <Text style={styles.reviewAffordanceText}>Review form</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// In-screen composer overlay — pin a coaching comment to a second of the athlete's video
+function FormReviewComposer({
+  videoUrl,
+  sending,
+  onClose,
+  onSend,
+}: {
+  videoUrl: string;
+  sending: boolean;
+  onClose: () => void;
+  onSend: (seconds: number, comment: string) => void;
+}) {
+  const [seconds, setSeconds] = useState(0);
+  const [comment, setComment] = useState('');
+  const player = useVideoPlayer(videoUrl, (p) => {
+    p.loop = false;
+  });
+
+  const adjustSeconds = (delta: number) => {
+    const next = Math.max(0, seconds + delta);
+    setSeconds(next);
+    player.currentTime = next;
+  };
+
+  const captureFromPlayer = () => {
+    const next = Math.max(0, Math.round(player.currentTime || 0));
+    setSeconds(next);
+  };
+
+  const canSend = comment.trim().length > 0 && !sending;
+
+  return (
+    <View style={styles.reviewOverlay}>
+      <TouchableOpacity style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close form review" />
+      <KeyboardAvoidingView behavior="padding">
+        <View style={styles.reviewCard}>
+          <View style={styles.modalHeaderRow}>
+            <Text style={styles.modalSheetTitle}>Review form</Text>
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
+              <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.reviewVideoWrap}>
+            <VideoView player={player} style={styles.reviewVideo} contentFit="contain" nativeControls />
+          </View>
+
+          {/* Timestamp controls */}
+          <View style={styles.timestampRow}>
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => adjustSeconds(-1)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back one second"
+            >
+              <Text style={styles.stepBtnText}>−1s</Text>
+            </TouchableOpacity>
+            <View style={styles.timestampDisplay}>
+              <Text style={styles.timestampText}>{fmtClock(seconds)}</Text>
+              <Text style={styles.timestampLabel}>pinned at</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => adjustSeconds(1)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Forward one second"
+            >
+              <Text style={styles.stepBtnText}>+1s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.playheadBtn}
+              onPress={captureFromPlayer}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Use current playback time"
+            >
+              <Text style={styles.playheadBtnText}>Use playhead</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={styles.reviewInput}
+            placeholder="What should they fix at this moment?"
+            placeholderTextColor={CoachColors.textFaint}
+            value={comment}
+            onChangeText={setComment}
+            multiline
+            maxLength={500}
+          />
+
+          <TouchableOpacity
+            style={[styles.reviewSendBtn, !canSend && { opacity: 0.4 }]}
+            onPress={() => onSend(seconds, comment.trim())}
+            disabled={!canSend}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Send form review"
+          >
+            <Text style={styles.reviewSendText}>{sending ? 'Sending…' : 'Send review'}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
 }
 
 export default function ChatScreen() {
@@ -118,6 +260,42 @@ export default function ChatScreen() {
   const { workouts, diets } = useApp();
   const [showWorkoutPickerModal, setShowWorkoutPickerModal] = useState(false);
   const [showDietPickerModal, setShowDietPickerModal] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<Message | null>(null);
+
+  const sendFormReview = useCallback(async (seconds: number, comment: string) => {
+    if (!reviewTarget?.attachment_url || sending) return;
+    setSending(true);
+    try {
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_type: 'trainer',
+        content: `[FORM_REVIEW:${seconds}:${comment}]`,
+        attachment_url: reviewTarget.attachment_url,
+        attachment_type: reviewTarget.attachment_type,
+      });
+      const previewText = `Form review at ${fmtClock(seconds)}: ${comment}`;
+      await supabase.from('conversations').update({
+        last_message: previewText,
+        last_message_at: new Date().toISOString(),
+      }).eq('id', conversationId);
+
+      if (clientPushToken) {
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            pushToken: clientPushToken,
+            title: `Message from your Coach`,
+            body: previewText,
+            data: { url: '/my-messages' }
+          }
+        }).catch(err => console.log('Push error:', err));
+      }
+      setReviewTarget(null);
+    } catch (err) {
+      console.error('Send form review failed:', err);
+    } finally {
+      setSending(false);
+    }
+  }, [reviewTarget, sending, conversationId, clientPushToken]);
 
   const sendCustomContent = useCallback(async (content: string) => {
     if (sending) return;
@@ -307,6 +485,16 @@ export default function ChatScreen() {
       }
     }
 
+    // Athlete video message — playable inline, with an entry point into form review
+    if (msg.attachment_type === 'video' && msg.attachment_url) {
+      return (
+        <VideoBubble
+          url={msg.attachment_url}
+          onReview={!isMine ? () => setReviewTarget(msg) : undefined}
+        />
+      );
+    }
+
     if (content.startsWith('[WORKOUT_CARD:')) {
       const parts = content.split(':');
       const wId = parts[1];
@@ -482,15 +670,22 @@ export default function ChatScreen() {
 
             const msg = item as Message;
             const isMine = msg.sender_type === 'trainer';
+            const isPlainVideo = msg.attachment_type === 'video' && !!msg.attachment_url && !msg.content.startsWith(FORM_REVIEW_PREFIX);
+            const canReview = isPlainVideo && !isMine;
 
             return (
               <View style={[styles.bubbleRow, isMine && styles.bubbleRowRight]}>
-                <View style={[styles.bubble, msg.content === '[IMAGE]' ? { backgroundColor: 'transparent', padding: 0 } : isMine ? styles.bubbleSent : styles.bubbleReceived]}>
+                <TouchableOpacity
+                  activeOpacity={canReview ? 0.85 : 1}
+                  disabled={!canReview}
+                  onLongPress={canReview ? () => setReviewTarget(msg) : undefined}
+                  style={[styles.bubble, (msg.content === '[IMAGE]' || isPlainVideo) ? { backgroundColor: 'transparent', padding: 0 } : isMine ? styles.bubbleSent : styles.bubbleReceived]}
+                >
                   {renderMessageContent(msg, isMine)}
                   <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>
                     {formatTime(msg.created_at)}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
             );
           }}
@@ -675,6 +870,16 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Form review composer — in-screen overlay, pins a comment to a second of the athlete's video */}
+      {reviewTarget?.attachment_url && (
+        <FormReviewComposer
+          videoUrl={reviewTarget.attachment_url}
+          sending={sending}
+          onClose={() => setReviewTarget(null)}
+          onSend={sendFormReview}
+        />
+      )}
     </View>
   );
 }
@@ -787,4 +992,60 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999
   },
   attachBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.onAccent },
+
+  videoBubbleWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
+  videoBubble: { width: 220, height: 280 },
+  reviewAffordance: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(16,18,16,0.55)',
+  },
+  reviewAffordanceText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
+
+  reviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+    zIndex: 20,
+  },
+  reviewCard: {
+    backgroundColor: CoachColors.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderWidth: 1, borderColor: CoachColors.border,
+    padding: 20, paddingBottom: 30, gap: 14,
+  },
+  reviewVideoWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.4)' },
+  reviewVideo: { width: '100%', height: 210 },
+  timestampRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: {
+    width: 48, height: 38, borderRadius: 10,
+    borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.bg,
+  },
+  stepBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textPrimary },
+  timestampDisplay: { flex: 1, alignItems: 'center' },
+  timestampText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.accent },
+  timestampLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, marginTop: 1 },
+  playheadBtn: {
+    height: 38, borderRadius: 10, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(16,18,16,0.55)',
+  },
+  playheadBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
+  reviewInput: {
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11,
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    minHeight: 72, maxHeight: 140, textAlignVertical: 'top',
+  },
+  reviewSendBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  reviewSendText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
 });

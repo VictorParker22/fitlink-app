@@ -50,6 +50,37 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 type AssignMode = 'enroll' | 'workout' | 'diet' | null;
 type TabType = 'overview' | 'health' | 'programs' | 'progress';
 
+/** Coach-authored check-in question, as stored in clients.checkin_questions
+ *  JSONB. Shape must match what the athlete-side WeeklyCheckIn renders —
+ *  see supabase/migrations/add_checkin_questions.sql. */
+interface CoachQuestion {
+  id: string;
+  prompt: string;
+  context?: string;
+  type: 'choice' | 'scale' | 'text';
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}
+
+const Q_TYPES: { key: CoachQuestion['type']; label: string; hint: string }[] = [
+  { key: 'choice', label: 'Choice', hint: 'They pick one option' },
+  { key: 'scale',  label: 'Scale',  hint: 'They pick a number'   },
+  { key: 'text',   label: 'Text',   hint: 'They write a reply'   },
+];
+
+function newQuestionId() {
+  return `q_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function questionMeta(q: CoachQuestion) {
+  if (q.type === 'choice') return `Choice · ${(q.options || []).length} options`;
+  if (q.type === 'scale')  return `Scale · ${q.min ?? 1}–${q.max ?? 10}${q.unit ? ` ${q.unit}` : ''}`;
+  return 'Text reply';
+}
+
 const { width: W } = Dimensions.get('window');
 
 const TABS: { key: TabType; label: string }[] = [
@@ -71,7 +102,7 @@ export default function ClientDetailScreen() {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets,
     getClientProgress, workouts, diets, assignWorkout, assignDietPlan, plans,
     notifications, upgradeClientToPlan, extendClientTrial, getClientHealthSnapshot,
-    requestHealthAccess,
+    requestHealthAccess, meals, refreshClients,
   } = useApp();
 
   const [activeTab,        setActiveTab]        = useState<TabType>('overview');
@@ -83,6 +114,24 @@ export default function ClientDetailScreen() {
   const [notesSaving,      setNotesSaving]      = useState(false);
   const [lastMessage,      setLastMessage]      = useState<{ text: string; time: string } | null>(null);
   const [viewerPhoto,      setViewerPhoto]      = useState<string | null>(null);
+
+  // Check-in question authoring (in-screen overlay, not a native Modal)
+  const [showCqEditor, setShowCqEditor] = useState(false);
+  const [cqList,       setCqList]       = useState<CoachQuestion[]>([]);
+  const [cqSaving,     setCqSaving]     = useState(false);
+  const [cqEditing,    setCqEditing]    = useState<number | 'new' | null>(null);
+  const [qId,      setQId]      = useState('');
+  const [qPrompt,  setQPrompt]  = useState('');
+  const [qContext, setQContext] = useState('');
+  const [qType,    setQType]    = useState<CoachQuestion['type']>('choice');
+  const [qOptions, setQOptions] = useState('');
+  const [qMin,     setQMin]     = useState('1');
+  const [qMax,     setQMax]     = useState('10');
+  const [qStep,    setQStep]    = useState('1');
+  const [qUnit,    setQUnit]    = useState('');
+
+  // Nutrition review — real meal logs, last 7 days (null = still loading)
+  const [mealLogs, setMealLogs] = useState<any[] | null>(null);
 
   const client          = getClientById(id || '');
   const sessions        = getClientSessions(id || '');
@@ -173,6 +222,66 @@ export default function ClientDetailScreen() {
     return () => { cancelled = true; };
   }, [client?.id]);
 
+  // Meal logs for the nutrition card — last 7 calendar days, real rows only.
+  useEffect(() => {
+    if (!client?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const since = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+        const { data, error } = await supabase
+          .from('client_meal_logs')
+          .select('*')
+          .eq('client_id', client.id)
+          .gte('logged_date', since);
+        if (!cancelled) setMealLogs(error ? [] : (data || []));
+      } catch {
+        if (!cancelled) setMealLogs([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [client?.id]);
+
+  // ── Nutrition summary — planned vs logged kcal from real data ──
+  const activeDietPlan = assignedDiets[0]?.diet || null;
+  const nutrition = useMemo(() => {
+    if (!mealLogs) return null; // still loading — render nothing rather than a guess
+    const dpms = activeDietPlan?.diet_plan_meals || [];
+    const dpmById: Record<string, any> = {};
+    dpms.forEach((dpm: any) => { dpmById[dpm.id] = dpm; });
+    const mealById: Record<string, any> = {};
+    (meals || []).forEach((m: any) => { mealById[m.id] = m; });
+
+    // Planned kcal per day = the assigned plan's meal list at listed servings.
+    const plannedRaw = dpms.reduce((sum: number, dpm: any) =>
+      sum + (dpm.meals?.calories || 0) * (dpm.servings || 1), 0);
+    const plannedPerDay = plannedRaw > 0 ? Math.round(plannedRaw) : null;
+
+    const perDay: Record<string, number> = {};
+    let swapCount = 0;
+    for (const row of mealLogs) {
+      let kcal = 0;
+      if (row.swapped_meal_id) {
+        // Athlete ate an approved swap (or a rest-day meal) — count the meal
+        // that was actually eaten, resolved against the meals library.
+        swapCount += 1;
+        kcal = mealById[row.swapped_meal_id]?.calories || 0;
+      } else if (row.diet_plan_meal_id) {
+        const dpm = dpmById[row.diet_plan_meal_id];
+        kcal = (dpm?.meals?.calories || 0) * (dpm?.servings || 1);
+      }
+      if (row.logged_date) perDay[row.logged_date] = (perDay[row.logged_date] || 0) + kcal;
+    }
+
+    const dayRows = Object.keys(perDay).sort().reverse().map((key) => ({
+      key,
+      label: new Date(`${key}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      logged: Math.round(perDay[key]),
+    }));
+
+    return { daysLogged: dayRows.length, swapCount, plannedPerDay, dayRows };
+  }, [mealLogs, activeDietPlan, meals]);
+
   const handleTabChange = useCallback((tab: TabType, i: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     underlineX.value = withSpring(i * TAB_W, { damping: 20, stiffness: 260 });
@@ -217,6 +326,102 @@ export default function ClientDetailScreen() {
       showAlert({ type: 'error', title: 'Failed', message: err.message || 'Could not assign' });
     }
   }, [assignMode, client?.id, assignWorkout, assignDietPlan, showAlert]);
+
+  // ── Check-in question authoring ──
+  const openCqEditor = () => {
+    const existing = Array.isArray((client as any)?.checkin_questions) ? (client as any).checkin_questions : [];
+    setCqList(existing.filter((q: any) => q && typeof q.prompt === 'string' && q.prompt.trim()));
+    setCqEditing(null);
+    setShowCqEditor(true);
+  };
+
+  const openQForm = (target: number | 'new') => {
+    if (target === 'new') {
+      setQId(newQuestionId()); setQPrompt(''); setQContext(''); setQType('choice');
+      setQOptions(''); setQMin('1'); setQMax('10'); setQStep('1'); setQUnit('');
+    } else {
+      const q = cqList[target];
+      setQId(q.id); setQPrompt(q.prompt); setQContext(q.context || ''); setQType(q.type);
+      setQOptions((q.options || []).join('\n'));
+      setQMin(String(q.min ?? 1)); setQMax(String(q.max ?? 10));
+      setQStep(String(q.step ?? 1)); setQUnit(q.unit || '');
+    }
+    setCqEditing(target);
+  };
+
+  const commitQuestion = () => {
+    const prompt = qPrompt.trim();
+    if (!prompt) {
+      showAlert({ type: 'error', title: 'Missing question', message: 'Write the question first.' });
+      return;
+    }
+    const q: CoachQuestion = { id: qId || newQuestionId(), prompt, type: qType };
+    if (qContext.trim()) q.context = qContext.trim();
+    if (qType === 'choice') {
+      const options = qOptions.split('\n').map((o) => o.trim()).filter(Boolean);
+      if (options.length < 2) {
+        showAlert({ type: 'error', title: 'Needs options', message: 'Give at least two options, one per line.' });
+        return;
+      }
+      q.options = options;
+    } else if (qType === 'scale') {
+      const min = parseFloat(qMin), max = parseFloat(qMax), step = parseFloat(qStep);
+      q.min = Number.isFinite(min) ? min : 1;
+      q.max = Number.isFinite(max) ? max : 10;
+      q.step = Number.isFinite(step) && step > 0 ? step : 1;
+      if (q.max <= q.min) {
+        showAlert({ type: 'error', title: 'Check the range', message: 'Max has to be higher than min.' });
+        return;
+      }
+      if (qUnit.trim()) q.unit = qUnit.trim();
+    }
+    if (cqEditing === 'new') setCqList([...cqList, q]);
+    else if (typeof cqEditing === 'number') setCqList(cqList.map((old, i) => (i === cqEditing ? q : old)));
+    setCqEditing(null);
+  };
+
+  const moveQuestion = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= cqList.length) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = [...cqList];
+    [next[i], next[j]] = [next[j], next[i]];
+    setCqList(next);
+  };
+
+  const removeQuestion = (i: number) => setCqList(cqList.filter((_, idx) => idx !== i));
+
+  const saveCheckinQuestions = async () => {
+    if (!client?.id || cqSaving) return;
+    setCqSaving(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ checkin_questions: cqList.length > 0 ? cqList : null })
+        .eq('id', client.id);
+      if (error) {
+        // 42703 — column not migrated yet; tell the coach instead of crashing.
+        if (error.code === '42703') {
+          showAlert({ type: 'error', title: 'Not available yet', message: 'Custom check-in questions need the latest database update. Standard questions still run.' });
+          return;
+        }
+        throw error;
+      }
+      await refreshClients?.();
+      setShowCqEditor(false);
+      showAlert({
+        type: 'success',
+        title: 'Saved',
+        message: cqList.length > 0
+          ? `${toTitleCase(client.name).split(' ')[0]} will get these at the next check-in.`
+          : 'Back to the standard questions.',
+      });
+    } catch (err: any) {
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Could not save questions.' });
+    } finally {
+      setCqSaving(false);
+    }
+  };
 
   if (!client) {
     return (
@@ -434,6 +639,78 @@ export default function ClientDetailScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Check-in questions */}
+            <Text style={s.sectionLabel}>Check-in questions</Text>
+            {(() => {
+              const saved: CoachQuestion[] = Array.isArray((client as any).checkin_questions)
+                ? (client as any).checkin_questions.filter((q: any) => q && typeof q.prompt === 'string' && q.prompt.trim())
+                : [];
+              return (
+                <TouchableOpacity style={s.block} onPress={openCqEditor} activeOpacity={0.7}>
+                  <View style={s.blockRow}>
+                    <Ionicons name="chatbox-ellipses-outline" size={18} color={saved.length > 0 ? CoachColors.accent : CoachColors.textSecondary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.blockRowText}>
+                        {saved.length > 0 ? `${saved.length} custom question${saved.length === 1 ? '' : 's'}` : 'Standard questions'}
+                      </Text>
+                      <Text style={s.blockRowSub}>
+                        {saved.length > 0 ? 'Asked in their weekly check-in' : 'The standard four run until you write your own'}
+                      </Text>
+                    </View>
+                    <Text style={s.changeLink}>{saved.length > 0 ? 'Edit' : 'Write'}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })()}
+
+            {/* Nutrition — real meal logs vs the assigned plan, last 7 days */}
+            {nutrition && (
+              <>
+                <Text style={s.sectionLabel}>Nutrition, last 7 days</Text>
+                {nutrition.daysLogged === 0 ? (
+                  <View style={s.block}>
+                    <View style={s.blockRow}>
+                      <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                      <Text style={s.blockRowLabel}>
+                        {activeDietPlan ? 'No meals logged this week' : 'No diet plan assigned, no meals logged'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={s.block}>
+                    <View style={s.blockRow}>
+                      <Ionicons name="nutrition-outline" size={18} color={CoachColors.accent} />
+                      <Text style={s.blockRowLabel}>Days logged</Text>
+                      <Text style={s.blockRowValue}>{nutrition.daysLogged} of 7</Text>
+                    </View>
+                    {nutrition.swapCount > 0 && (
+                      <>
+                        <View style={s.blockDivider} />
+                        <View style={s.blockRow}>
+                          <Ionicons name="swap-horizontal-outline" size={18} color={CoachColors.textSecondary} />
+                          <Text style={s.blockRowLabel}>Swaps used</Text>
+                          <Text style={s.blockRowValue}>{nutrition.swapCount}</Text>
+                        </View>
+                      </>
+                    )}
+                    {nutrition.dayRows.map((d) => (
+                      <View key={d.key}>
+                        <View style={s.blockDivider} />
+                        <View style={s.nutriDayRow}>
+                          <Text style={s.nutriDayLabel}>{d.label}</Text>
+                          <Text style={s.nutriDayVal}>
+                            {nutrition.plannedPerDay
+                              ? `${d.logged.toLocaleString()} / ${nutrition.plannedPerDay.toLocaleString()} kcal`
+                              : `${d.logged.toLocaleString()} kcal logged`}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
 
             {/* Next Session */}
             <Text style={s.sectionLabel}>Upcoming Session</Text>
@@ -1086,6 +1363,170 @@ export default function ClientDetailScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* ── Check-in question editor — in-screen overlay, not a native Modal ── */}
+      {showCqEditor && (
+        <View style={s.cqOverlay}>
+          <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+              <View style={s.cqHeader}>
+                <TouchableOpacity
+                  onPress={() => (cqEditing !== null ? setCqEditing(null) : setShowCqEditor(false))}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={cqEditing !== null ? 'Back to question list' : 'Close'}
+                >
+                  <Ionicons name={cqEditing !== null ? 'chevron-back' : 'close'} size={24} color={CoachColors.textPrimary} />
+                </TouchableOpacity>
+                <Text style={s.cqTitle} numberOfLines={1}>
+                  {cqEditing === null ? 'Check-in questions' : cqEditing === 'new' ? 'New question' : 'Edit question'}
+                </Text>
+                {cqEditing === null ? (
+                  <TouchableOpacity onPress={saveCheckinQuestions} disabled={cqSaving} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Text style={[s.cqSaveLink, cqSaving && { color: CoachColors.textFaint }]}>{cqSaving ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ width: 40 }} />
+                )}
+              </View>
+
+              <ScrollView contentContainerStyle={s.cqBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {cqEditing === null ? (
+                  <>
+                    <Text style={s.cqHint}>
+                      Asked in {toTitleCase(client.name).split(' ')[0]}'s weekly check-in, in your name.
+                    </Text>
+
+                    {cqList.length === 0 && (
+                      <View style={s.emptyBlock}>
+                        <Text style={s.emptyBlockTitle}>No custom questions yet</Text>
+                        <Text style={s.emptyBlockSub}>
+                          The standard four ratings run each week until you write questions here. Anything you add replaces them for this client only.
+                        </Text>
+                      </View>
+                    )}
+
+                    {cqList.map((q, i) => (
+                      <View key={q.id} style={s.cqRow}>
+                        <TouchableOpacity style={{ flex: 1 }} onPress={() => openQForm(i)} activeOpacity={0.7}>
+                          <Text style={s.cqRowPrompt}>{q.prompt}</Text>
+                          {!!q.context && <Text style={s.cqRowContext} numberOfLines={1}>{q.context}</Text>}
+                          <Text style={s.cqRowMeta}>{questionMeta(q)}</Text>
+                        </TouchableOpacity>
+                        <View style={s.cqRowActions}>
+                          <TouchableOpacity onPress={() => moveQuestion(i, -1)} disabled={i === 0} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Move up">
+                            <Ionicons name="chevron-up" size={18} color={i === 0 ? CoachColors.borderMuted : CoachColors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => moveQuestion(i, 1)} disabled={i === cqList.length - 1} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Move down">
+                            <Ionicons name="chevron-down" size={18} color={i === cqList.length - 1 ? CoachColors.borderMuted : CoachColors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => removeQuestion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Remove question">
+                            <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+
+                    <TouchableOpacity style={s.addBtn} onPress={() => openQForm('new')} activeOpacity={0.7}>
+                      <Ionicons name="add" size={17} color={CoachColors.accent} />
+                      <Text style={s.addBtnText}>Add question</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={s.cqFieldLabel}>Question</Text>
+                    <TextInput
+                      style={s.cqInput}
+                      value={qPrompt}
+                      onChangeText={setQPrompt}
+                      placeholder="How are the knees holding up?"
+                      placeholderTextColor={CoachColors.textFaint}
+                      multiline
+                    />
+
+                    <Text style={s.cqFieldLabel}>Why you're asking (optional)</Text>
+                    <TextInput
+                      style={s.cqInput}
+                      value={qContext}
+                      onChangeText={setQContext}
+                      placeholder="Shown under the question so it doesn't feel random"
+                      placeholderTextColor={CoachColors.textFaint}
+                      multiline
+                    />
+
+                    <Text style={s.cqFieldLabel}>Answer type</Text>
+                    <View style={s.cqTypeRow}>
+                      {Q_TYPES.map((t) => (
+                        <TouchableOpacity
+                          key={t.key}
+                          style={[s.cqTypeChip, qType === t.key && s.cqTypeChipActive]}
+                          onPress={() => setQType(t.key)}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t.label} — ${t.hint}`}
+                        >
+                          <Text style={[s.cqTypeChipText, qType === t.key && s.cqTypeChipTextActive]}>{t.label}</Text>
+                          <Text style={s.cqTypeChipHint}>{t.hint}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {qType === 'choice' && (
+                      <>
+                        <Text style={s.cqFieldLabel}>Options, one per line</Text>
+                        <TextInput
+                          style={[s.cqInput, { minHeight: 88 }]}
+                          value={qOptions}
+                          onChangeText={setQOptions}
+                          placeholder={'Fine\nAchy\nBad'}
+                          placeholderTextColor={CoachColors.textFaint}
+                          multiline
+                        />
+                      </>
+                    )}
+
+                    {qType === 'scale' && (
+                      <View style={s.cqScaleRow}>
+                        {[
+                          { label: 'Min',  value: qMin,  set: setQMin  },
+                          { label: 'Max',  value: qMax,  set: setQMax  },
+                          { label: 'Step', value: qStep, set: setQStep },
+                        ].map((f) => (
+                          <View key={f.label} style={{ flex: 1 }}>
+                            <Text style={s.cqFieldLabel}>{f.label}</Text>
+                            <TextInput
+                              style={s.cqInput}
+                              value={f.value}
+                              onChangeText={(t) => f.set(t.replace(/[^0-9.\-]/g, ''))}
+                              keyboardType="decimal-pad"
+                              placeholderTextColor={CoachColors.textFaint}
+                            />
+                          </View>
+                        ))}
+                        <View style={{ flex: 1.4 }}>
+                          <Text style={s.cqFieldLabel}>Unit (optional)</Text>
+                          <TextInput
+                            style={s.cqInput}
+                            value={qUnit}
+                            onChangeText={setQUnit}
+                            placeholder="hours"
+                            placeholderTextColor={CoachColors.textFaint}
+                          />
+                        </View>
+                      </View>
+                    )}
+
+                    <TouchableOpacity style={s.cqCommitBtn} onPress={commitQuestion} activeOpacity={0.85}>
+                      <Text style={s.cqCommitBtnText}>{cqEditing === 'new' ? 'Add to list' : 'Update question'}</Text>
+                    </TouchableOpacity>
+                    <Text style={s.cqFormHint}>Nothing is sent until you save the list.</Text>
+                  </>
+                )}
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </View>
+      )}
     </View>
   );
 }
@@ -1280,4 +1721,34 @@ const s = StyleSheet.create({
   quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
   quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
   quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+
+  // NUTRITION (last 7 days)
+  nutriDayRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  nutriDayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  nutriDayVal:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+
+  // CHECK-IN QUESTION EDITOR (in-screen overlay)
+  cqOverlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: CoachColors.bg, zIndex: 50 },
+  cqHeader:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  cqTitle:       { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, textAlign: 'center' },
+  cqSaveLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  cqBody:        { padding: 16, paddingBottom: 48, gap: 10 },
+  cqHint:        { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 19, marginBottom: 4 },
+  cqRow:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14 },
+  cqRowPrompt:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, lineHeight: 20 },
+  cqRowContext:  { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  cqRowMeta:     { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint, marginTop: 4 },
+  cqRowActions:  { alignItems: 'center', gap: 10 },
+  cqFieldLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted, marginTop: 8, marginBottom: 6 },
+  cqInput:       { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, padding: 13, fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary, textAlignVertical: 'top' },
+  cqTypeRow:     { flexDirection: 'row', gap: 8 },
+  cqTypeChip:    { flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, gap: 3 },
+  cqTypeChipActive: { borderColor: CoachColors.accent, borderWidth: 1.5 },
+  cqTypeChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  cqTypeChipTextActive: { color: CoachColors.accent },
+  cqTypeChipHint: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint, lineHeight: 14 },
+  cqScaleRow:    { flexDirection: 'row', gap: 8 },
+  cqCommitBtn:   { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
+  cqCommitBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
+  cqFormHint:    { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint, textAlign: 'center', marginTop: 10 },
 });

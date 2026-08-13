@@ -5,6 +5,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -46,6 +47,7 @@ export default function SeasonComplete({
   onSend,
   onViewPlans,
   onDone,
+  squad,
 }: {
   enrollment: any;
   planName: string;
@@ -59,10 +61,20 @@ export default function SeasonComplete({
   onSend: (message: string) => Promise<boolean>;
   onViewPlans: () => void;
   onDone: () => void;
+  /** Present when the finish belongs to a pass — enables the squad feed share. */
+  squad?: SquadShare | null;
 }) {
   const [sessionStats, setSessionStats] = useState<{ done: number; total: number } | null>(null);
   const [lifts, setLifts] = useState<LiftLine[]>([]);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [shareSquad, setShareSquad] = useState(true);
+  const squadSharedRef = useRef(false);
+
+  const shareWithSquad = () => {
+    if (!squad || !shareSquad || squadSharedRef.current) return;
+    squadSharedRef.current = true;
+    insertSquadEvent(squad, 'season_complete', { plan_name: planName });
+  };
 
   const cardScale = useRef(new Animated.Value(0.9)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -161,7 +173,10 @@ export default function SeasonComplete({
     if (sendState === 'sending' || sendState === 'sent') return;
     setSendState('sending');
     const ok = await onSend(`Just finished ${planName} — the whole thing. What's next?`);
-    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      shareWithSquad();
+    }
     setSendState(ok ? 'sent' : 'failed');
   };
 
@@ -264,11 +279,35 @@ export default function SeasonComplete({
             </Text>
           </View>
 
+          {squad && (
+            <TouchableOpacity
+              style={s.squadRow}
+              onPress={() => { Haptics.selectionAsync(); setShareSquad(v => !v); }}
+              activeOpacity={0.8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: shareSquad }}
+            >
+              <View style={[s.squadBox, shareSquad && s.squadBoxOn]}>
+                {shareSquad && <View style={s.squadTick} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.squadLabel}>Share with the squad</Text>
+                <Text style={s.squadHint}>
+                  Athletes on your pass see that you finished {planName}. Nothing else.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <View style={{ height: 16 }} />
         </ScrollView>
 
         <View style={s.footer}>
-          <TouchableOpacity style={s.doneBtn} onPress={onDone} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={s.doneBtn}
+            onPress={() => { shareWithSquad(); onDone(); }}
+            activeOpacity={0.85}
+          >
             <Text style={s.doneBtnText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -342,6 +381,22 @@ const s = StyleSheet.create({
   sentText: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary, lineHeight: 18 },
   sendError: {
     fontFamily: F.body, fontSize: 12, color: C.danger, marginTop: 8, textAlign: 'center',
+  },
+
+  squadRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 11,
+    marginTop: 14, paddingHorizontal: 4,
+  },
+  squadBox: {
+    width: 20, height: 20, borderRadius: 6, marginTop: 1,
+    borderWidth: 1.5, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  squadBoxOn: { borderColor: C.accent, backgroundColor: C.accentSofter },
+  squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: C.accent },
+  squadLabel: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
+  squadHint: {
+    fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16,
   },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },

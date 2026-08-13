@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 
 /**
  * The PR payoff (design turn 22c) — shown in-screen when a strength session
@@ -48,6 +49,7 @@ export default function PRCelebration({
   canSend,
   onSend,
   onDone,
+  squad,
 }: {
   exerciseName: string;
   weight: number;
@@ -61,10 +63,24 @@ export default function PRCelebration({
   canSend: boolean;
   onSend: (message: string) => Promise<void>;
   onDone: () => void;
+  /** Present when the athlete is on a pass — enables the squad feed share. */
+  squad?: SquadShare | null;
 }) {
   const { width, height } = useWindowDimensions();
   const [message, setMessage] = useState(defaultMessage);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [shareSquad, setShareSquad] = useState(true);
+  const squadSharedRef = useRef(false);
+
+  const shareWithSquad = () => {
+    if (!squad || !shareSquad || squadSharedRef.current) return;
+    squadSharedRef.current = true;
+    insertSquadEvent(squad, 'pr', {
+      exercise: exerciseName,
+      weight,
+      prev: priorBest,
+    });
+  };
 
   const particles = useMemo<Particle[]>(
     () =>
@@ -105,6 +121,7 @@ export default function PRCelebration({
       await onSend(content);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSendState('sent');
+      shareWithSquad();
     } catch {
       setSendState('failed');
     }
@@ -225,11 +242,35 @@ export default function PRCelebration({
                 )}
               </View>
             )}
+
+            {squad && (
+              <TouchableOpacity
+                style={s.squadRow}
+                onPress={() => { Haptics.selectionAsync(); setShareSquad(v => !v); }}
+                activeOpacity={0.8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: shareSquad }}
+              >
+                <View style={[s.squadBox, shareSquad && s.squadBoxOn]}>
+                  {shareSquad && <View style={s.squadTick} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.squadLabel}>Share with the squad</Text>
+                  <Text style={s.squadHint}>
+                    Athletes on your pass see "{exerciseName} PR — {formatKg(weight)} kg". Nothing else.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <View style={{ height: 16 }} />
           </ScrollView>
 
           <View style={s.footer}>
-            <TouchableOpacity style={s.doneBtn} onPress={onDone} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={s.doneBtn}
+              onPress={() => { shareWithSquad(); onDone(); }}
+              activeOpacity={0.85}
+            >
               <Text style={s.doneBtnText}>Finish session</Text>
             </TouchableOpacity>
           </View>
@@ -324,6 +365,23 @@ const s = StyleSheet.create({
   sendError: {
     fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.danger,
     marginTop: 8, textAlign: 'center',
+  },
+
+  squadRow: {
+    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'flex-start', gap: 11,
+    marginTop: 12, paddingHorizontal: 4, paddingVertical: 2,
+  },
+  squadBox: {
+    width: 20, height: 20, borderRadius: 6, marginTop: 1,
+    borderWidth: 1.5, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  squadBoxOn: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+  squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: CoachColors.accent },
+  squadLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  squadHint: {
+    fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted,
+    marginTop: 2, lineHeight: 16,
   },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },

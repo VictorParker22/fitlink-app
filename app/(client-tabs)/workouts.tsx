@@ -711,6 +711,15 @@ export default function ClientWorkoutsScreen() {
           coachName={coachFirst}
           canSend={!!trainer && !!clientData}
           onSend={sendToCoach}
+          squad={
+            finishedSeason.plan_id && clientData?.id
+              ? {
+                  planId: finishedSeason.plan_id,
+                  clientId: clientData.id,
+                  firstName: (clientData.name || '').split(' ')[0] || 'Someone',
+                }
+              : null
+          }
           onViewPlans={() => {
             setFinishedSeason(null);
             router.push(ClientRoute.myPass);

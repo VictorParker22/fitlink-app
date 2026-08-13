@@ -80,7 +80,7 @@ export default function StrengthSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId: string }>();
   const { workoutHistory, recordStrengthWorkout } = useWorkout();
-  const { clientData, trainer, conversation, exercisePrs, logExerciseSet, checkAndUpdatePr } = useClient();
+  const { clientData, trainer, conversation, enrollment, exercisePrs, logExerciseSet, checkAndUpdatePr } = useClient();
 
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -624,6 +624,15 @@ export default function StrengthSessionScreen() {
             defaultMessage={prOverlayData.defaultMessage}
             canSend={!!conversation}
             onSend={sendPrToCoach}
+            squad={
+              enrollment?.status === 'active' && enrollment?.plan_id && clientData?.id
+                ? {
+                    planId: enrollment.plan_id,
+                    clientId: clientData.id,
+                    firstName: (clientData.name || '').split(' ')[0] || 'Someone',
+                  }
+                : null
+            }
             onDone={() => {
               setShowPr(false);
               router.push(ClientRoute.workouts);

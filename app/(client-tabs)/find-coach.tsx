@@ -357,7 +357,7 @@ export default function FindCoachScreen() {
       try {
         await supabase
           .from('clients')
-          .update({ assessment_data: { intake: answers } })
+          .update({ assessment_data: { intake: { ...answers, source: 'marketplace' } } })
           .eq('id', clientId);
       } catch { /* non-critical */ }
 

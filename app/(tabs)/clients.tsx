@@ -27,6 +27,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, RefreshControl, Linking, Alert, Dimensions,
+  Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +38,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useHaptic } from '../../hooks/useHaptic';
 import type { Client } from '../../context/AppContext';
@@ -102,6 +104,155 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: 'Inactive',
 };
 
+/**
+ * A trial client whose row was created by the find-coach marketplace flow.
+ * find-coach.tsx stamps assessment_data.intake.source = 'marketplace' right
+ * after create_client_and_notify — these are join requests, not confirmed clients.
+ */
+function isMarketplaceRequest(client: Client): boolean {
+  return client.status === 'trial'
+    && (client.assessment_data as any)?.intake?.source === 'marketplace';
+}
+
+// ─── Habit sheet ──────────────────────────────────────────────────────────────
+// The client_habits schema (supabase/migrations/client_habits.sql) is one row
+// per (client_id, date) with five fixed boolean columns — no free-form habit
+// names or frequencies exist. The coach sheet therefore works on those five
+// real habits, upserting today's row for the selected athlete.
+
+type HabitKey = 'water' | 'steps' | 'sleep' | 'protein' | 'mindfulness';
+
+const HABIT_DEFS: { key: HabitKey; label: string; desc: string }[] = [
+  { key: 'water',       label: 'Hydration',   desc: '8 glasses of water' },
+  { key: 'steps',       label: 'Steps',       desc: '8,000+ steps a day' },
+  { key: 'sleep',       label: 'Sleep',       desc: '7–9 hours a night' },
+  { key: 'protein',     label: 'Protein',     desc: 'Hit the protein goal' },
+  { key: 'mindfulness', label: 'Mindfulness', desc: '10 minutes of focus' },
+];
+
+const EMPTY_HABIT_STATE: Record<HabitKey, boolean> = {
+  water: false, steps: false, sleep: false, protein: false, mindfulness: false,
+};
+
+function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }) {
+  const haptic = useHaptic();
+  const [state, setState]     = useState<Record<HabitKey, boolean>>(EMPTY_HABIT_STATE);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState<HabitKey | null>(null);
+  const today = new Date().toISOString().split('T')[0];
+  const displayName = toTitleCase(client.name);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('client_habits')
+        .select('water, steps, sleep, protein, mindfulness')
+        .eq('client_id', client.id)
+        .eq('date', today)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setState({
+          water: data.water, steps: data.steps, sleep: data.sleep,
+          protein: data.protein, mindfulness: data.mindfulness,
+        });
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [client.id, today]);
+
+  const toggle = async (key: HabitKey) => {
+    if (saving) return;
+    haptic.trigger('light');
+    const next = { ...state, [key]: !state[key] };
+    setState(next);
+    setSaving(key);
+    const { error } = await supabase
+      .from('client_habits')
+      .upsert(
+        { client_id: client.id, date: today, ...next },
+        { onConflict: 'client_id,date' },
+      );
+    setSaving(null);
+    if (error) {
+      setState(state); // revert
+      Alert.alert('Could not save', 'The habit update did not go through. Try again.');
+    }
+  };
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close habits"
+        />
+        <View style={styles.sheetCard}>
+          <View style={styles.sheetHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sheetTitle}>Habits · {displayName}</Text>
+              <Text style={styles.sheetSub}>
+                Today's checklist — the same five habits they see on their home screen.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <View style={styles.sheetLoading}>
+              <ActivityIndicator size="small" color={CoachColors.accent} />
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {HABIT_DEFS.map(h => {
+                const done = state[h.key];
+                return (
+                  <TouchableOpacity
+                    key={h.key}
+                    style={[styles.habitRow, done && styles.habitRowDone]}
+                    onPress={() => toggle(h.key)}
+                    activeOpacity={0.75}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: done }}
+                    accessibilityLabel={`${h.label}, ${done ? 'done' : 'not done'} today`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.habitLabel}>{h.label}</Text>
+                      <Text style={styles.habitDesc}>{h.desc}</Text>
+                    </View>
+                    {saving === h.key ? (
+                      <ActivityIndicator size="small" color={CoachColors.accent} />
+                    ) : (
+                      <View style={[styles.habitCheck, done && styles.habitCheckDone]}>
+                        {done && <Ionicons name="checkmark" size={14} color={CoachColors.onAccent} />}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          <Text style={styles.sheetFootnote}>
+            Marks you set here show up in {displayName.split(' ')[0]}'s daily checklist.
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── SwipeActionsPanel ────────────────────────────────────────────────────────
 // Extracted as a named component so it can legally call hooks (useAnimatedStyle).
 //
@@ -154,11 +305,13 @@ export default function ClientsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
-  const { clients, plans, notifications, refreshData } = useApp();
+  const { clients, plans, notifications, refreshData, updateClient, trainer } = useApp();
 
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing]   = useState(false);
+  const [habitClient, setHabitClient] = useState<Client | null>(null);
+  const [requestBusyId, setRequestBusyId] = useState<string | null>(null);
 
   // Ref uses SwipeableMethods (the ReanimatedSwipeable API type)
   const firstItemRef = useRef<SwipeableMethods>(null);
@@ -170,14 +323,18 @@ export default function ClientsScreen() {
     setRefreshing(false);
   }, [refreshData]);
 
-  // ── Derived counts ──────────────────────────────────────────────────────────
-  const activeCount   = clients.filter(c => c.status === 'active').length;
-  const trialCount    = clients.filter(c => c.status === 'trial').length;
-  const inactiveCount = clients.filter(c => c.status === 'inactive').length;
+  // ── Derived counts (pending join requests are not roster yet) ───────────────
+  const roster        = clients.filter(c => !isMarketplaceRequest(c));
+  const activeCount   = roster.filter(c => c.status === 'active').length;
+  const trialCount    = roster.filter(c => c.status === 'trial').length;
+  const inactiveCount = roster.filter(c => c.status === 'inactive').length;
 
-  // ── Filtered + sorted list ──────────────────────────────────────────────────
+  // ── Marketplace join requests (find-coach flow) ─────────────────────────────
+  const joinRequests = useMemo(() => clients.filter(isMarketplaceRequest), [clients]);
+
+  // ── Filtered + sorted list (join requests live in their own section) ────────
   const filtered = useMemo(() => {
-    let list = clients;
+    let list = clients.filter(c => !isMarketplaceRequest(c));
     if (activeTab !== 'all') list = list.filter(c => c.status === activeTab);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -207,6 +364,7 @@ export default function ClientsScreen() {
     const items: AttentionItem[] = [];
 
     clients.forEach(client => {
+      if (isMarketplaceRequest(client)) return; // handled by the requests section
       const hasAssessment = !!(client.assessment_data as any)?.fitness_goals?.length;
       if (!hasAssessment) {
         items.push({
@@ -295,6 +453,137 @@ export default function ClientsScreen() {
     ];
   };
 
+  // ── Marketplace request handlers ────────────────────────────────────────────
+  const handleAcceptRequest = useCallback(async (client: Client) => {
+    if (requestBusyId) return;
+    setRequestBusyId(client.id);
+    try {
+      haptic.trigger('medium');
+      await updateClient(client.id, { status: 'active' });
+    } catch {
+      Alert.alert('Could not accept', 'The request could not be accepted. Try again.');
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [requestBusyId, updateClient, haptic]);
+
+  const declineRequest = useCallback(async (client: Client) => {
+    setRequestBusyId(client.id);
+    try {
+      await updateClient(client.id, { status: 'inactive' });
+
+      // Courteous decline message in the athlete's real conversation.
+      const first = toTitleCase(client.name).split(' ')[0];
+      const content =
+        `Hi ${first}, thanks for reaching out and for sharing your goals. ` +
+        `I don't have room to take on a new athlete right now, so I won't be able to coach you at the moment. ` +
+        `There are plenty of other coaches on FitLink worth a look — wishing you the best with your training.`;
+      try {
+        const trainerId = trainer?.id;
+        if (trainerId) {
+          let { data: conv } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('client_id', client.id)
+            .eq('trainer_id', trainerId)
+            .maybeSingle();
+          if (!conv) {
+            const { data: created } = await supabase
+              .from('conversations')
+              .insert({ client_id: client.id, trainer_id: trainerId })
+              .select('id')
+              .single();
+            conv = created;
+          }
+          if (conv) {
+            await supabase.from('messages').insert({
+              conversation_id: conv.id,
+              sender_type: 'trainer',
+              content,
+            });
+            await supabase.rpc('increment_conversation_unread', {
+              conv_id: conv.id,
+              new_last_message: content,
+            }).then(undefined, () => { /* older DBs may lack the rpc */ });
+          }
+        }
+      } catch { /* the decline itself already landed */ }
+      haptic.trigger('light');
+    } catch {
+      Alert.alert('Could not decline', 'The request could not be declined. Try again.');
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [updateClient, trainer, haptic]);
+
+  const handleDeclineRequest = useCallback((client: Client) => {
+    if (requestBusyId) return;
+    const name = toTitleCase(client.name);
+    Alert.alert(
+      'Decline this request?',
+      `${name} asked to train with you through Find a coach. Declining moves them out of your roster and sends them a short message letting them know you can't take them on right now.`,
+      [
+        { text: 'Keep request', style: 'cancel' },
+        { text: 'Decline', style: 'destructive', onPress: () => declineRequest(client) },
+      ],
+    );
+  }, [requestBusyId, declineRequest]);
+
+  // ── Marketplace request row ──────────────────────────────────────────────────
+  const renderRequestRow = (client: Client) => {
+    const displayName = toTitleCase(client.name);
+    const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    const goal = (client.assessment_data as any)?.intake?.goal as string | undefined;
+    const busy = requestBusyId === client.id;
+    return (
+      <View key={client.id} style={styles.requestRow}>
+        <TouchableOpacity
+          style={styles.requestBody}
+          activeOpacity={0.75}
+          onPress={() => { haptic.trigger('light'); router.push(`/client/${client.id}` as any); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${displayName}, requested to join${goal ? `, goal ${goal}` : ''}`}
+        >
+          <View style={styles.requestAvatar}>
+            <Text style={styles.requestAvatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.attnName} numberOfLines={1}>{displayName}</Text>
+            <Text style={styles.attnMeta} numberOfLines={1}>
+              {goal ? `Wants to train with you · ${goal}` : 'Wants to train with you'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.requestActions}>
+          <TouchableOpacity
+            style={[styles.requestAcceptBtn, busy && { opacity: 0.5 }]}
+            onPress={() => handleAcceptRequest(client)}
+            disabled={busy}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Accept ${displayName}'s request`}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={CoachColors.onAccent} />
+            ) : (
+              <Text style={styles.requestAcceptText}>Accept</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.requestDeclineBtn, busy && { opacity: 0.5 }]}
+            onPress={() => handleDeclineRequest(client)}
+            disabled={busy}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Decline ${displayName}'s request`}
+          >
+            <Text style={styles.requestDeclineText}>Decline</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   // ── Attention row ──────────────────────────────────────────────────────────
   const renderAttentionRow = (item: AttentionItem) => {
     const displayName = toTitleCase(item.client.name);
@@ -352,9 +641,13 @@ export default function ClientsScreen() {
             haptic.trigger('light');
             router.push(`/client/${item.id}` as any);
           }}
+          onLongPress={() => {
+            haptic.trigger('medium');
+            setHabitClient(item);
+          }}
           accessibilityRole="button"
           accessibilityLabel={`${displayName}, ${STATUS_LABEL[item.status]}, ${meta.text}`}
-          accessibilityHint="Double-tap to view profile. Swipe left for quick actions."
+          accessibilityHint="Double-tap to view profile. Swipe left for quick actions. Long-press to manage today's habits."
         >
           {/* Avatar */}
           <View style={styles.avatarWrap}>
@@ -443,7 +736,8 @@ export default function ClientsScreen() {
       {/* Filter pills */}
       <View style={styles.filterRow}>
         {(['all', 'active', 'trial'] as TabFilter[]).map(tab => {
-          const count = tab === 'all' ? clients.length : clients.filter(c => c.status === tab).length;
+          const roster = clients.filter(c => !isMarketplaceRequest(c));
+          const count = tab === 'all' ? roster.length : roster.filter(c => c.status === tab).length;
           const isActive = activeTab === tab;
           const label = tab === 'all' ? 'All' : toTitleCase(tab);
           return (
@@ -463,6 +757,16 @@ export default function ClientsScreen() {
           );
         })}
       </View>
+
+      {/* Requested to join — marketplace find-coach requests */}
+      {joinRequests.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionLabel}>Requested to join</Text>
+          <View style={{ gap: 10 }}>
+            {joinRequests.map(renderRequestRow)}
+          </View>
+        </View>
+      )}
 
       {/* Needs you first — attention leads */}
       {attentionItems.length > 0 && (
@@ -554,6 +858,10 @@ export default function ClientsScreen() {
               <FilteredEmptyState tab={activeTab} onShowAll={() => setActiveTab('all')} />
             }
           />
+        )}
+
+        {habitClient && (
+          <HabitSheet client={habitClient} onClose={() => setHabitClient(null)} />
         )}
       </SafeAreaView>
     </View>
@@ -794,6 +1102,58 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.023),
     color: CoachColors.textPrimary, letterSpacing: 0.3,
   },
+
+  // Requested to join (marketplace)
+  requestRow: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, gap: 12,
+  },
+  requestBody: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  requestAvatar: {
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: CoachColors.accent,
+    backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
+  },
+  requestAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.accent },
+  requestActions: { flexDirection: 'row', gap: 8 },
+  requestAcceptBtn: {
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
+    minHeight: 44, alignItems: 'center', justifyContent: 'center',
+  },
+  requestAcceptText: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.034), color: CoachColors.onAccent },
+  requestDeclineBtn: {
+    flex: 1, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    minHeight: 44, alignItems: 'center', justifyContent: 'center',
+  },
+  requestDeclineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.textSecondary },
+
+  // Habit sheet
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheetCard: {
+    backgroundColor: CoachColors.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: W * 0.05, paddingTop: 20, paddingBottom: 36,
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
+  sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.048), color: CoachColors.textPrimary },
+  sheetSub: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.031), color: CoachColors.textMuted, marginTop: 4, lineHeight: 18 },
+  sheetLoading: { paddingVertical: 40, alignItems: 'center' },
+  sheetFootnote: {
+    fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.029), color: CoachColors.textFaint,
+    marginTop: 14, textAlign: 'center',
+  },
+  habitRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, minHeight: 56,
+  },
+  habitRowDone: { borderColor: CoachColors.accent + '55' },
+  habitLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037), color: CoachColors.textPrimary },
+  habitDesc: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.029), color: CoachColors.textMuted, marginTop: 2 },
+  habitCheck: {
+    width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  habitCheckDone: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
 
   // Empty state — whole roster (10b)
   emptyRootWrap: { flex: 1, paddingHorizontal: W * 0.05, paddingTop: 4 },
