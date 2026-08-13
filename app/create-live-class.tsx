@@ -11,7 +11,8 @@ import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useApp } from '../context/AppContext';
-import { Spacing, FontFamily, Radius } from '../constants/theme';
+import { Spacing, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ export default function CreateLiveClassScreen() {
         {/* ── Header ───────────────────────────────────────────────────── */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.8)" />
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{isEditMode ? 'Edit class' : 'Schedule a Class'}</Text>
           <View style={{ width: 40 }} />
@@ -143,22 +144,22 @@ export default function CreateLiveClassScreen() {
         >
 
           {/* ── Title ─────────────────────────────────────────────────── */}
-          <Section label="CLASS TITLE">
+          <Section label="Class title">
             <TextInput
               style={[s.input, titleFocused && s.inputFocused]}
               placeholder="e.g. Saturday Morning HIIT"
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor={CoachColors.textFaint}
               value={title}
               onChangeText={setTitle}
               onFocus={() => setTitleFocused(true)}
               onBlur={() => setTitleFocused(false)}
-              selectionColor="#FF6B35"
+              selectionColor={CoachColors.accent}
               returnKeyType="done"
             />
           </Section>
 
           {/* ── Category ──────────────────────────────────────────────── */}
-          <Section label="CATEGORY">
+          <Section label="Category">
             <View style={s.chipGrid}>
               {CATEGORIES.map(cat => (
                 <Pressable
@@ -176,21 +177,21 @@ export default function CreateLiveClassScreen() {
           </Section>
 
           {/* ── Date & Time ───────────────────────────────────────────── */}
-          <Section label="DATE & TIME">
+          <Section label="Date & time">
             <View style={s.dateRow}>
               <TouchableOpacity style={s.dateBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-                <Ionicons name="calendar-outline" size={18} color="#FF6B35" />
+                <Ionicons name="calendar-outline" size={18} color={CoachColors.accent} />
                 <Text style={s.dateBtnText}>{dateLabel}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.dateBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
-                <Ionicons name="time-outline" size={18} color="#FF6B35" />
+                <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
                 <Text style={s.dateBtnText}>{timeLabel}</Text>
               </TouchableOpacity>
             </View>
           </Section>
 
           {/* ── Duration ──────────────────────────────────────────────── */}
-          <Section label="DURATION (MINUTES)">
+          <Section label="Duration (minutes)">
             <View style={s.durationRow}>
               {DURATIONS.map(min => (
                 <Pressable
@@ -208,18 +209,18 @@ export default function CreateLiveClassScreen() {
           </Section>
 
           {/* ── Description ───────────────────────────────────────────── */}
-          <Section label="DESCRIPTION  ·  OPTIONAL">
+          <Section label="Description · optional">
             <TextInput
               style={[s.input, s.textArea, descFocused && s.inputFocused]}
               placeholder="What should attendees expect? Intensity, equipment, any warm-up required..."
-              placeholderTextColor="rgba(255,255,255,0.2)"
+              placeholderTextColor={CoachColors.textFaint}
               value={desc}
               onChangeText={setDesc}
               onFocus={() => setDescFocused(true)}
               onBlur={() => setDescFocused(false)}
               multiline
               textAlignVertical="top"
-              selectionColor="#FF6B35"
+              selectionColor={CoachColors.accent}
             />
           </Section>
 
@@ -234,12 +235,12 @@ export default function CreateLiveClassScreen() {
             activeOpacity={0.88}
           >
             {saving ? (
-              <ActivityIndicator color="#000000" />
+              <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="radio" size={18} color="#000000" />
-                <Text style={s.ctaBtnText}>{isEditMode ? 'SAVE CHANGES' : 'SCHEDULE CLASS'}</Text>
-                <Ionicons name="arrow-forward" size={16} color="#000000" />
+                <Ionicons name="radio" size={18} color={CoachColors.onAccent} />
+                <Text style={s.ctaBtnText}>{isEditMode ? 'Save changes' : 'Schedule class'}</Text>
+                <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
               </>
             )}
           </TouchableOpacity>
@@ -253,7 +254,7 @@ export default function CreateLiveClassScreen() {
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
             <View style={s.pickerSheet}>
               <PickerHeader title="Select Date" onDone={() => setShowDatePicker(false)} />
-              <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} minimumDate={new Date()} textColor="#FFFFFF" themeVariant="dark" />
+              <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} minimumDate={new Date()} textColor={CoachColors.textPrimary} themeVariant="dark" />
             </View>
           </TouchableOpacity>
         </Modal>
@@ -270,7 +271,7 @@ export default function CreateLiveClassScreen() {
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
             <View style={s.pickerSheet}>
               <PickerHeader title="Select Time" onDone={() => setShowTimePicker(false)} />
-              <DateTimePicker value={date} mode="time" display="spinner" onChange={handleTimeChange} textColor="#FFFFFF" themeVariant="dark" />
+              <DateTimePicker value={date} mode="time" display="spinner" onChange={handleTimeChange} textColor={CoachColors.textPrimary} themeVariant="dark" />
             </View>
           </TouchableOpacity>
         </Modal>
@@ -309,7 +310,7 @@ function PickerHeader({ title, onDone }: { title: string; onDone: () => void }) 
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A10',
+    backgroundColor: CoachColors.bg,
   },
 
   // ── Header ──────────────────────────────────────────────────────────────────
@@ -320,7 +321,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   headerBack: {
     width: 40,
@@ -329,9 +330,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
 
@@ -348,28 +349,29 @@ const s = StyleSheet.create({
     marginBottom: Spacing['2xl'],
   },
   sectionLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.38)',
-    letterSpacing: 1.8,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    color: CoachColors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginBottom: Spacing.sm,
   },
 
   // ── Text Input ──────────────────────────────────────────────────────────────
   input: {
-    backgroundColor: '#0F0F18',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: CoachColors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   inputFocused: {
-    borderColor: 'rgba(255,107,53,0.45)',
-    backgroundColor: '#12121C',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.surface,
   },
   textArea: {
     height: 110,
@@ -386,21 +388,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: CoachColors.border,
   },
   chipActive: {
-    backgroundColor: 'rgba(255,107,53,0.16)',
-    borderColor: '#FF6B35',
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: CoachColors.accent,
   },
   chipText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   chipTextActive: {
-    color: '#FF6B35',
+    color: CoachColors.accent,
   },
 
   // ── Date & Time ─────────────────────────────────────────────────────────────
@@ -414,16 +416,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#0F0F18',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: CoachColors.border,
     borderRadius: Radius.md,
     paddingVertical: 14,
   },
   dateBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
   // ── Duration ────────────────────────────────────────────────────────────────
@@ -436,21 +438,21 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: CoachColors.border,
   },
   durationBtnActive: {
-    backgroundColor: 'rgba(255,107,53,0.16)',
-    borderColor: '#FF6B35',
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: CoachColors.accent,
   },
   durationText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
   },
   durationTextActive: {
-    color: '#FF6B35',
+    color: CoachColors.accent,
   },
 
   // ── Footer CTA ──────────────────────────────────────────────────────────────
@@ -458,15 +460,15 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-    backgroundColor: '#0A0A10',
+    borderTopColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
   },
   ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
     borderRadius: Radius.xl,
     paddingVertical: 17,
   },
@@ -474,10 +476,9 @@ const s = StyleSheet.create({
     opacity: 0.6,
   },
   ctaBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#000000',
-    letterSpacing: 0.8,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.onAccent,
   },
 
   // ── Picker modal ────────────────────────────────────────────────────────────
@@ -487,12 +488,12 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerSheet: {
-    backgroundColor: '#111118',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     paddingBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: CoachColors.border,
   },
   pickerHeader: {
     flexDirection: 'row',
@@ -500,16 +501,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   pickerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   pickerDone: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 16,
-    color: '#FF6B35',
+    color: CoachColors.accent,
   },
 });

@@ -835,14 +835,27 @@ export default function ProgramsScreen() {
     classes: classes.length,
     exercises: exercises.length,
   };
-  // Passes have their own dedicated creation flow; other tabs share the
-  // multi-type create sheet since a "class" or "workout" isn't one thing.
+  // Every tab has exactly one obvious thing "+ New" should create, except
+  // Classes — that tab covers both on-demand and live, so it's the only one
+  // that still needs a chooser.
   const handleHeaderAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isPassesTab) {
-      router.push('/create-plan' as any);
-    } else {
-      setShowAddActionSheet(true);
+    switch (activeTab) {
+      case 'plans':
+        router.push('/create-plan' as any);
+        break;
+      case 'workouts':
+        router.push('/create-workout' as any);
+        break;
+      case 'diets':
+        router.push('/create-diet' as any);
+        break;
+      case 'exercises':
+        router.push('/create-exercise' as any);
+        break;
+      case 'classes':
+        setShowAddActionSheet(true);
+        break;
     }
   };
 
@@ -865,7 +878,13 @@ export default function ProgramsScreen() {
             style={styles.headerAddBtn}
             onPress={handleHeaderAdd}
             accessibilityRole="button"
-            accessibilityLabel={isPassesTab ? 'New pass' : 'Create content menu'}
+            accessibilityLabel={
+              activeTab === 'plans' ? 'New pass' :
+              activeTab === 'workouts' ? 'New workout' :
+              activeTab === 'diets' ? 'New meal plan' :
+              activeTab === 'exercises' ? 'New exercise' :
+              'New class'
+            }
           >
             <Ionicons name="add" size={18} color={CoachColors.onAccent} />
             <Text style={styles.headerAddText}>New</Text>
@@ -1001,7 +1020,7 @@ export default function ProgramsScreen() {
         >
           <View style={styles.actionSheetContent} onStartShouldSetResponder={() => true}>
             <View style={styles.dragHandle} />
-            <Text style={styles.actionSheetTitle}>Create new</Text>
+            <Text style={styles.actionSheetTitle}>New class</Text>
 
             <TouchableOpacity
               style={styles.actionSheetItem}
@@ -1027,48 +1046,6 @@ export default function ProgramsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionSheetItemTitle}>Live virtual class</Text>
                 <Text style={styles.actionSheetItemSubtitle}>Broadcast real-time sessions to clients</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionSheetItem}
-              onPress={() => handleActionSheetNavigate('/create-workout')}
-            >
-              <View style={styles.actionSheetIconWrap}>
-                <Ionicons name="barbell-outline" size={20} color={CoachColors.textPrimary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionSheetItemTitle}>Workout template</Text>
-                <Text style={styles.actionSheetItemSubtitle}>Build an exercise routine for your clients</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionSheetItem}
-              onPress={() => handleActionSheetNavigate('/create-exercise')}
-            >
-              <View style={styles.actionSheetIconWrap}>
-                <Ionicons name="fitness-outline" size={20} color={CoachColors.textPrimary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionSheetItemTitle}>Custom exercise</Text>
-                <Text style={styles.actionSheetItemSubtitle}>Add a new movement to your library</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionSheetItem}
-              onPress={() => handleActionSheetNavigate('/create-diet')}
-            >
-              <View style={styles.actionSheetIconWrap}>
-                <Ionicons name="nutrition-outline" size={20} color={CoachColors.textPrimary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionSheetItemTitle}>Meal plan</Text>
-                <Text style={styles.actionSheetItemSubtitle}>Design meal targets and macronutrients</Text>
               </View>
               <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
             </TouchableOpacity>

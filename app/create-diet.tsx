@@ -6,7 +6,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
@@ -17,13 +16,14 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { searchNutrition, nutritionToMeal } from '../lib/nutritionApi';
-import { Spacing, FontFamily, Radius } from '../constants/theme';
+import { Spacing, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const MEAL_TIMES = [
-  { key: 'breakfast', label: 'Breakfast', icon: '🌅', color: '#F59E0B' },
-  { key: 'lunch', label: 'Lunch', icon: '☀️', color: '#22C55E' },
-  { key: 'dinner', label: 'Dinner', icon: '🌙', color: '#6366F1' },
-  { key: 'snack', label: 'Snacks', icon: '🍎', color: '#EF4444' },
+  { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
+  { key: 'lunch', label: 'Lunch', icon: '☀️' },
+  { key: 'dinner', label: 'Dinner', icon: '🌙' },
+  { key: 'snack', label: 'Snacks', icon: '🍎' },
 ] as const;
 
 type MealTimeKey = typeof MEAL_TIMES[number]['key'];
@@ -67,7 +67,7 @@ export default function CreateDietScreen() {
   const [category, setCategory] = useState<string>('balanced');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   const [selectedMeals, setSelectedMeals] = useState<SelectedMeal[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -99,7 +99,7 @@ export default function CreateDietScreen() {
       setDescription(editDiet.description || '');
       setCategory(editDiet.category || 'custom');
       setImageUrl(editDiet.image_url || null);
-      
+
       setTargetCalories(editDiet.target_calories?.toString() || '2000');
       setTargetProtein(editDiet.target_protein?.toString() || '150');
       setTargetCarbs(editDiet.target_carbs?.toString() || '200');
@@ -132,7 +132,7 @@ export default function CreateDietScreen() {
 
   const performSearch = async () => {
     if (!searchQuery.trim()) { setApiResults([]); return; }
-    
+
     setSearching(true);
     try {
       const results = await searchNutrition(searchQuery);
@@ -164,7 +164,7 @@ export default function CreateDietScreen() {
     const tPro = parseInt(targetProtein) || 1;
     const tCarb = parseInt(targetCarbs) || 1;
     const tFat = parseInt(targetFat) || 1;
-    
+
     return {
       cal: Math.min(totals.calories / tCal, 1),
       pro: Math.min(totals.protein / tPro, 1),
@@ -175,10 +175,10 @@ export default function CreateDietScreen() {
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return showAlert({ type: 'warning', title: 'Empty Prompt', message: 'Please describe the diet plan first.' });
-    
+
     setIsGenerating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
     try {
       const availableMeals = meals.slice(0, 100).map(m => ({
         id: m.id,
@@ -192,7 +192,7 @@ export default function CreateDietScreen() {
       const { data, error } = await supabase.functions.invoke('generate-diet', {
         body: { prompt: aiPrompt, availableMeals }
       });
-      
+
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
@@ -200,7 +200,7 @@ export default function CreateDietScreen() {
       setName(data.name || 'AI Generated Diet');
       setDescription(data.description || '');
       setCategory(data.category || 'balanced');
-      
+
       if (data.targets) {
         setTargetCalories(data.targets.calories?.toString() || '2000');
         setTargetProtein(data.targets.protein?.toString() || '150');
@@ -327,7 +327,7 @@ export default function CreateDietScreen() {
       // Find previous or next meal with the same meal_time
       const groupMeals = copy.map((m, i) => ({ ...m, origIndex: i })).filter(m => m.meal_time === meal.meal_time);
       const groupIndex = groupMeals.findIndex(m => m.origIndex === index);
-      
+
       if (direction === 'up' && groupIndex > 0) {
         const swapOrigIndex = groupMeals[groupIndex - 1].origIndex;
         [copy[index], copy[swapOrigIndex]] = [copy[swapOrigIndex], copy[index]];
@@ -342,10 +342,10 @@ export default function CreateDietScreen() {
 
   const CATEGORIES = [
     { key: 'balanced', label: 'Balanced', icon: '⚖️' },
-    { key: 'high-protein', label: 'High Protein', icon: '💪' },
+    { key: 'high-protein', label: 'High protein', icon: '💪' },
     { key: 'keto', label: 'Keto', icon: '🥑' },
     { key: 'vegan', label: 'Vegan', icon: '🌱' },
-    { key: 'weight-loss', label: 'Weight Loss', icon: '🔥' },
+    { key: 'weight-loss', label: 'Weight loss', icon: '🔥' },
     { key: 'custom', label: 'Custom', icon: '✨' },
   ] as const;
 
@@ -364,7 +364,7 @@ export default function CreateDietScreen() {
         const fileUri = result.assets[0].uri;
         const ext = fileUri.split('.').pop() || 'jpg';
         const fileName = `${Date.now()}.${ext}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('diet-images')
           .upload(fileName, decode(result.assets[0].base64), { contentType: `image/${ext}`, upsert: true });
@@ -384,7 +384,7 @@ export default function CreateDietScreen() {
   const handleSave = async () => {
     if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing Name', message: 'Please enter a plan name.' });
     if (selectedMeals.length === 0) return showAlert({ type: 'warning', title: 'No Meals', message: 'Add at least one meal to your plan.' });
-    
+
     setSaving(true);
     try {
       const mealList = [];
@@ -436,30 +436,30 @@ export default function CreateDietScreen() {
       <SafeAreaView style={wz.safeArea}>
         <View style={wz.header}>
           <TouchableOpacity onPress={() => isEditing ? setWizardStep(-1) : router.back()} style={wz.backBtn}>
-            <Ionicons name={isEditing ? "arrow-back" : "close"} size={24} color="#FFF" />
+            <Ionicons name={isEditing ? "arrow-back" : "close"} size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={wz.stepLabel}>STEP 1 OF 2</Text>
+          <Text style={wz.stepLabel}>Step 1 of 2</Text>
           <TouchableOpacity onPress={() => setWizardStep(-1)} style={wz.skipBtn}>
-            <Text style={wz.skipText}>{isEditing ? 'BUILDER' : 'SKIP'}</Text>
+            <Text style={wz.skipText}>{isEditing ? 'Builder' : 'Skip'}</Text>
           </TouchableOpacity>
         </View>
         <View style={wz.progressBar}><View style={[wz.progressFill, { width: '50%' }]} /></View>
-        
+
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={wz.scroll}>
-            <Text style={wz.title}>Set Daily Targets</Text>
+            <Text style={wz.title}>Set daily targets</Text>
             <Text style={wz.subtitle}>Establish the macronutrient goals for this plan.</Text>
-            
+
             <View style={wz.inputCard}>
               <View style={wz.inputRow}>
-                <View style={[wz.iconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-                  <Ionicons name="flame" size={20} color="#EF4444" />
+                <View style={wz.iconBox}>
+                  <Ionicons name="flame" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={wz.inputLabel}>Calories (kcal)</Text>
-                  <TextInput 
-                    style={wz.textInput} keyboardType="number-pad" placeholder="2000" placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={targetCalories} onChangeText={setTargetCalories}
+                  <TextInput
+                    style={wz.textInput} keyboardType="number-pad" placeholder="2000" placeholderTextColor={CoachColors.textFaint}
+                    value={targetCalories} onChangeText={setTargetCalories} selectionColor={CoachColors.accent}
                   />
                 </View>
               </View>
@@ -467,14 +467,14 @@ export default function CreateDietScreen() {
 
             <View style={wz.inputCard}>
               <View style={wz.inputRow}>
-                <View style={[wz.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                  <Ionicons name="fish" size={20} color="#3B82F6" />
+                <View style={wz.iconBox}>
+                  <Ionicons name="fish" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={wz.inputLabel}>Protein (g)</Text>
-                  <TextInput 
-                    style={wz.textInput} keyboardType="number-pad" placeholder="150" placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={targetProtein} onChangeText={setTargetProtein}
+                  <TextInput
+                    style={wz.textInput} keyboardType="number-pad" placeholder="150" placeholderTextColor={CoachColors.textFaint}
+                    value={targetProtein} onChangeText={setTargetProtein} selectionColor={CoachColors.accent}
                   />
                 </View>
               </View>
@@ -482,14 +482,14 @@ export default function CreateDietScreen() {
 
             <View style={wz.inputCard}>
               <View style={wz.inputRow}>
-                <View style={[wz.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-                  <Ionicons name="leaf" size={20} color="#22C55E" />
+                <View style={wz.iconBox}>
+                  <Ionicons name="leaf" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={wz.inputLabel}>Carbs (g)</Text>
-                  <TextInput 
-                    style={wz.textInput} keyboardType="number-pad" placeholder="200" placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={targetCarbs} onChangeText={setTargetCarbs}
+                  <TextInput
+                    style={wz.textInput} keyboardType="number-pad" placeholder="200" placeholderTextColor={CoachColors.textFaint}
+                    value={targetCarbs} onChangeText={setTargetCarbs} selectionColor={CoachColors.accent}
                   />
                 </View>
               </View>
@@ -497,31 +497,30 @@ export default function CreateDietScreen() {
 
             <View style={wz.inputCard}>
               <View style={wz.inputRow}>
-                <View style={[wz.iconBox, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
-                  <Ionicons name="water" size={20} color="#F59E0B" />
+                <View style={wz.iconBox}>
+                  <Ionicons name="water" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={wz.inputLabel}>Fat (g)</Text>
-                  <TextInput 
-                    style={wz.textInput} keyboardType="number-pad" placeholder="65" placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={targetFat} onChangeText={setTargetFat}
+                  <TextInput
+                    style={wz.textInput} keyboardType="number-pad" placeholder="65" placeholderTextColor={CoachColors.textFaint}
+                    value={targetFat} onChangeText={setTargetFat} selectionColor={CoachColors.accent}
                   />
                 </View>
               </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-        
+
         <View style={wz.footer}>
-          <TouchableOpacity 
-            style={[wz.nextBtn, !targetCalories && { opacity: 0.5 }]} 
+          <TouchableOpacity
+            style={[wz.nextBtn, !targetCalories && { opacity: 0.5 }]}
             disabled={!targetCalories}
             onPress={() => setWizardStep(2)}
+            activeOpacity={0.85}
           >
-            <View style={wz.nextBtnGradient}>
-              <Text style={wz.nextBtnText}>CONTINUE</Text>
-              <Ionicons name="arrow-forward" size={16} color="#000000" />
-            </View>
+            <Text style={wz.nextBtnText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -533,77 +532,81 @@ export default function CreateDietScreen() {
       <SafeAreaView style={wz.safeArea}>
         <View style={wz.header}>
           <TouchableOpacity onPress={() => setWizardStep(1)} style={wz.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+            <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={wz.stepLabel}>STEP 2 OF 2</Text>
+          <Text style={wz.stepLabel}>Step 2 of 2</Text>
           <TouchableOpacity onPress={() => setWizardStep(-1)} style={wz.skipBtn}>
-            <Text style={wz.skipText}>{isEditing ? 'BUILDER' : 'SKIP'}</Text>
+            <Text style={wz.skipText}>{isEditing ? 'Builder' : 'Skip'}</Text>
           </TouchableOpacity>
         </View>
         <View style={wz.progressBar}><View style={[wz.progressFill, { width: '100%' }]} /></View>
-        
+
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={wz.scroll}>
-            <Text style={wz.title}>Plan Details</Text>
+            <Text style={wz.title}>Plan details</Text>
             <Text style={wz.subtitle}>Give this diet plan a name and category.</Text>
-            
+
             <View style={wz.nameInputWrap}>
-              <Ionicons name="create-outline" size={20} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="create-outline" size={20} color={CoachColors.textFaint} />
               <TextInput
                 style={wz.nameInput}
                 placeholder="e.g. 2500 Calorie Cut"
-                placeholderTextColor="rgba(255,255,255,0.2)"
+                placeholderTextColor={CoachColors.textFaint}
                 value={name}
                 onChangeText={setName}
                 autoFocus
+                selectionColor={CoachColors.accent}
               />
             </View>
 
              <View style={[wz.nameInputWrap, { height: 100, alignItems: 'flex-start', marginTop: 16 }]}>
                <TextInput
                  style={[wz.nameInput, { marginTop: 16 }]}
-                 placeholder="Description (Optional)"
-                 placeholderTextColor="rgba(255,255,255,0.2)"
+                 placeholder="Description (optional)"
+                 placeholderTextColor={CoachColors.textFaint}
                  multiline
                  value={description}
                  onChangeText={setDescription}
+                 selectionColor={CoachColors.accent}
                />
             </View>
 
-            <Text style={[wz.stepLabel, { marginTop: 24, marginBottom: 12 }]}>BACKGROUND IMAGE (OPTIONAL)</Text>
-            <TouchableOpacity 
-              style={[wz.imageUploadBtn, imageUrl && wz.imageUploadBtnActive]} 
+            <Text style={[wz.eyebrow, { marginTop: 24, marginBottom: 12 }]}>Background image (optional)</Text>
+            <TouchableOpacity
+              style={[wz.imageUploadBtn, imageUrl && wz.imageUploadBtnActive]}
               onPress={pickImage}
               disabled={uploadingImage}
+              activeOpacity={0.85}
             >
               {uploadingImage ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={CoachColors.accent} />
               ) : imageUrl ? (
                 <>
                   <Image source={{ uri: imageUrl }} style={wz.uploadedImage} resizeMode="cover" />
                   <View style={wz.imageOverlay}>
-                    <Ionicons name="camera" size={24} color="#FFF" />
-                    <Text style={wz.imageOverlayText}>Change Image</Text>
+                    <Ionicons name="camera" size={24} color={CoachColors.textPrimary} />
+                    <Text style={wz.imageOverlayText}>Change image</Text>
                   </View>
                 </>
               ) : (
                 <>
-                  <Ionicons name="image-outline" size={28} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="image-outline" size={28} color={CoachColors.textFaint} />
                   <Text style={wz.imageUploadText}>Tap to add cover image</Text>
                 </>
               )}
             </TouchableOpacity>
 
-            <Text style={[wz.stepLabel, { marginTop: 24, marginBottom: 12 }]}>DIET TYPE</Text>
+            <Text style={[wz.eyebrow, { marginTop: 24, marginBottom: 12 }]}>Diet type</Text>
             <View style={wz.chipRow}>
               {CATEGORIES.map(c => (
                 <TouchableOpacity
                   key={c.key}
-                  style={[wz.nameChip, category === c.key && { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' }]}
+                  style={[wz.nameChip, category === c.key && wz.nameChipActive]}
                   onPress={() => setCategory(c.key)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[wz.nameChipText, category === c.key && { color: '#000', fontFamily: FontFamily.headingExtraBold }]}>
-                    {c.icon} {c.label.toUpperCase()}
+                  <Text style={[wz.nameChipText, category === c.key && wz.nameChipTextActive]}>
+                    {c.icon} {c.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -612,15 +615,14 @@ export default function CreateDietScreen() {
         </KeyboardAvoidingView>
 
         <View style={wz.footer}>
-          <TouchableOpacity 
-            style={[wz.nextBtn, !name.trim() && { opacity: 0.5 }]} 
+          <TouchableOpacity
+            style={[wz.nextBtn, !name.trim() && { opacity: 0.5 }]}
             disabled={!name.trim()}
             onPress={() => setWizardStep(-1)}
+            activeOpacity={0.85}
           >
-            <View style={wz.nextBtnGradient}>
-              <Text style={wz.nextBtnText}>ENTER BUILDER</Text>
-              <Ionicons name="build" size={16} color="#000000" style={{ marginLeft: 6 }} />
-            </View>
+            <Text style={wz.nextBtnText}>Enter builder</Text>
+            <Ionicons name="build" size={16} color={CoachColors.onAccent} style={{ marginLeft: 6 }} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -633,15 +635,15 @@ export default function CreateDietScreen() {
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <Ionicons name="close" size={24} color="#FFF" />
+            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{isEditing ? 'Edit Diet' : 'Builder'}</Text>
+          <Text style={styles.headerTitle}>{isEditing ? 'Edit diet' : 'Builder'}</Text>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <TouchableOpacity onPress={() => setWizardStep(1)} style={styles.iconBtn}>
-              <Ionicons name="settings-outline" size={20} color="#FFF" />
+              <Ionicons name="settings-outline" size={18} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowAiSheet(true)} style={styles.iconBtn}>
-              <Ionicons name="sparkles" size={20} color="#FBBF24" />
+              <Ionicons name="sparkles" size={18} color={CoachColors.accent} />
             </TouchableOpacity>
           </View>
         </View>
@@ -660,7 +662,7 @@ export default function CreateDietScreen() {
                 <Text style={styles.macroBarLabel}>Protein ({Math.round(totals.protein)}g)</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.pro * 100}%`, backgroundColor: '#3B82F6' }]} />
+                <View style={[styles.macroBarFill, { width: `${progress.pro * 100}%` }]} />
               </View>
             </View>
             <View style={styles.macroBarWrap}>
@@ -668,7 +670,7 @@ export default function CreateDietScreen() {
                 <Text style={styles.macroBarLabel}>Carbs ({Math.round(totals.carbs)}g)</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.carb * 100}%`, backgroundColor: '#22C55E' }]} />
+                <View style={[styles.macroBarFill, { width: `${progress.carb * 100}%` }]} />
               </View>
             </View>
             <View style={styles.macroBarWrap}>
@@ -676,7 +678,7 @@ export default function CreateDietScreen() {
                 <Text style={styles.macroBarLabel}>Fat ({Math.round(totals.fat)}g)</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.fat * 100}%`, backgroundColor: '#F59E0B' }]} />
+                <View style={[styles.macroBarFill, { width: `${progress.fat * 100}%` }]} />
               </View>
             </View>
           </View>
@@ -689,18 +691,18 @@ export default function CreateDietScreen() {
           return (
             <View key={mt.key} style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{mt.icon} {mt.label.toUpperCase()}</Text>
-                <TouchableOpacity 
+                <Text style={styles.sectionTitle}>{mt.icon}  {mt.label}</Text>
+                <TouchableOpacity
                   style={styles.quickAddBtn}
                   onPress={() => { setActiveMealTime(mt.key); setShowSearch(true); }}
                 >
-                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Ionicons name="add" size={18} color={CoachColors.accent} />
                 </TouchableOpacity>
               </View>
-              
+
               {mealsInTime.length === 0 ? (
                 <View style={styles.emptySection}>
-                  <Text style={styles.emptyText}>TAP + TO ADD {mt.label.toUpperCase()}</Text>
+                  <Text style={styles.emptyText}>Tap + to add {mt.label.toLowerCase()}</Text>
                 </View>
               ) : (
                 selectedMeals.map((meal, index) => {
@@ -716,7 +718,7 @@ export default function CreateDietScreen() {
                           {Math.round(meal.calories * meal.servings)} kcal • {meal.servings} serving(s)
                         </Text>
                       </View>
-                      <Ionicons name="create-outline" size={18} color="rgba(255,255,255,0.4)" />
+                      <Ionicons name="create-outline" size={18} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                   );
                 })
@@ -727,15 +729,13 @@ export default function CreateDietScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving}>
-          <View style={styles.saveBtnGradient}>
-            {saving ? <ActivityIndicator color="#000000" /> : (
-              <>
-                <Ionicons name="checkmark" size={18} color="#000000" style={{ marginRight: 6 }} />
-                <Text style={styles.saveBtnText}>SAVE DIET PLAN</Text>
-              </>
-            )}
-          </View>
+        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+          {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : (
+            <>
+              <Ionicons name="checkmark" size={18} color={CoachColors.onAccent} style={{ marginRight: 6 }} />
+              <Text style={styles.saveBtnText}>Save diet plan</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -744,31 +744,30 @@ export default function CreateDietScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>✨ Generate with AI</Text>
+              <Text style={styles.modalTitle}>Generate with AI</Text>
               <TouchableOpacity onPress={() => setShowAiSheet(false)}>
-                <Ionicons name="close" size={24} color="#FFF" />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalLabel}>Describe the perfect diet</Text>
             <View style={styles.aiInputWrap}>
-              <TextInput 
+              <TextInput
                 style={styles.aiInput}
                 placeholder="e.g. A 2500 calorie high-protein meal plan..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor={CoachColors.textFaint}
                 multiline
                 value={aiPrompt}
                 onChangeText={setAiPrompt}
+                selectionColor={CoachColors.accent}
               />
             </View>
-            <TouchableOpacity style={styles.aiGenerateBtn} onPress={handleAiGenerate} disabled={isGenerating}>
-              <LinearGradient colors={isGenerating ? ['#6B7280', '#4B5563'] : ['#FBBF24', '#D97706']} style={styles.aiGenerateGradient}>
-                {isGenerating ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Ionicons name="sparkles" size={20} color="#FFF" />
-                )}
-                <Text style={styles.aiGenerateText}>{isGenerating ? 'Generating...' : 'Generate Diet'}</Text>
-              </LinearGradient>
+            <TouchableOpacity style={[styles.aiGenerateBtn, isGenerating && { opacity: 0.7 }]} onPress={handleAiGenerate} disabled={isGenerating} activeOpacity={0.85}>
+              {isGenerating ? (
+                <ActivityIndicator color={CoachColors.onAccent} />
+              ) : (
+                <Ionicons name="sparkles" size={18} color={CoachColors.onAccent} />
+              )}
+              <Text style={styles.aiGenerateText}>{isGenerating ? 'Generating…' : 'Generate diet'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -779,50 +778,50 @@ export default function CreateDietScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Meal</Text>
+              <Text style={styles.modalTitle}>Edit meal</Text>
               <TouchableOpacity onPress={() => setEditingMealIndex(null)}>
-                <Ionicons name="close" size={24} color="#FFF" />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
-            
+
             {editingMealIndex !== null && (
               <>
                 <Text style={styles.modalLabel}>{selectedMeals[editingMealIndex]?.name}</Text>
-                
-                <View style={[styles.portionEditor, { backgroundColor: 'transparent', padding: 0 }]}>
-                  <Text style={[styles.portionLabel, { fontSize: 16 }]}>Servings:</Text>
-                  <View style={[styles.portionControls, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+
+                <View style={[styles.portionEditor, { backgroundColor: 'transparent', padding: 0, borderTopWidth: 0 }]}>
+                  <Text style={[styles.portionLabel, { fontSize: 15 }]}>Servings:</Text>
+                  <View style={styles.portionControls}>
                     <TouchableOpacity style={styles.portionBtn} onPress={() => setEditServings(Math.max(0.25, editServings - 0.25))}>
-                      <Ionicons name="remove" size={24} color="#FFF" />
+                      <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={[styles.portionValue, { fontSize: 18 }]}>{editServings}</Text>
+                    <Text style={[styles.portionValue, { fontSize: 17 }]}>{editServings}</Text>
                     <TouchableOpacity style={styles.portionBtn} onPress={() => setEditServings(editServings + 0.25)}>
-                      <Ionicons name="add" size={24} color="#FFF" />
+                      <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <TouchableOpacity style={[styles.portionAddBtn, { marginTop: 16 }]} onPress={updateMealServings}>
-                  <Text style={styles.portionAddText}>Save Servings</Text>
+                <TouchableOpacity style={[styles.portionAddBtn, { marginTop: 16, alignSelf: 'stretch', alignItems: 'center' }]} onPress={updateMealServings}>
+                  <Text style={styles.portionAddText}>Save servings</Text>
                 </TouchableOpacity>
 
                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
                   <TouchableOpacity style={styles.editActionBtn} onPress={() => moveMeal(editingMealIndex, 'up')}>
-                    <Ionicons name="arrow-up" size={20} color="#FFF" />
-                    <Text style={styles.editActionText}>Move Up</Text>
+                    <Ionicons name="arrow-up" size={18} color={CoachColors.textPrimary} />
+                    <Text style={styles.editActionText}>Move up</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.editActionBtn} onPress={() => moveMeal(editingMealIndex, 'down')}>
-                    <Ionicons name="arrow-down" size={20} color="#FFF" />
-                    <Text style={styles.editActionText}>Move Down</Text>
+                    <Ionicons name="arrow-down" size={18} color={CoachColors.textPrimary} />
+                    <Text style={styles.editActionText}>Move down</Text>
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity 
-                  style={[styles.editActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)', marginTop: 12 }]} 
+                <TouchableOpacity
+                  style={[styles.editActionBtn, styles.dangerBtn, { marginTop: 12 }]}
                   onPress={() => removeMeal(editingMealIndex)}
                 >
-                  <Ionicons name="trash" size={20} color="#EF4444" />
-                  <Text style={[styles.editActionText, { color: '#EF4444' }]}>Remove Meal</Text>
+                  <Ionicons name="trash" size={18} color={CoachColors.danger} />
+                  <Text style={[styles.editActionText, { color: CoachColors.danger }]}>Remove meal</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -837,32 +836,33 @@ export default function CreateDietScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to {MEAL_TIMES.find(m => m.key === activeMealTime)?.label}</Text>
               <TouchableOpacity onPress={() => { setShowSearch(false); setSelectedResultId(null); }}>
-                <Ionicons name="close" size={24} color="#FFF" />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchWrap}>
-              <Ionicons name="search" size={20} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="search" size={18} color={CoachColors.textFaint} />
               <TextInput
                 style={styles.searchInput}
-                placeholder={searchMode === 'api' ? "Search USDA Database (e.g. Chicken)" : "Search My Saved Meals"}
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholder={searchMode === 'api' ? "Search USDA database (e.g. Chicken)" : "Search my saved meals"}
+                placeholderTextColor={CoachColors.textFaint}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={() => searchMode === 'api' && performSearch()}
                 returnKeyType="search"
                 autoFocus
+                selectionColor={CoachColors.accent}
               />
               {searchMode === 'api' && (
-                <TouchableOpacity onPress={performSearch} style={{ padding: 8, paddingHorizontal: 16, backgroundColor: '#3B82F6', borderRadius: 8, marginLeft: 8 }}>
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, color: '#FFF' }}>Search</Text>
+                <TouchableOpacity onPress={performSearch} style={styles.searchBtn}>
+                  <Text style={styles.searchBtnText}>Search</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <View style={styles.searchTabs}>
               <TouchableOpacity style={[styles.searchTab, searchMode === 'saved' && styles.searchTabActive]} onPress={() => setSearchMode('saved')}>
-                <Text style={[styles.searchTabText, searchMode === 'saved' && styles.searchTabTextActive]}>My Meals</Text>
+                <Text style={[styles.searchTabText, searchMode === 'saved' && styles.searchTabTextActive]}>My meals</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.searchTab, searchMode === 'api' && styles.searchTabActive]} onPress={() => setSearchMode('api')}>
                 <Text style={[styles.searchTabText, searchMode === 'api' && styles.searchTabTextActive]}>USDA DB</Text>
@@ -870,7 +870,7 @@ export default function CreateDietScreen() {
             </View>
 
             {searching && searchMode === 'api' ? (
-              <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={CoachColors.accent} style={{ marginTop: 40 }} />
             ) : (
               <FlatList
                 data={searchMode === 'saved' ? filteredSavedMeals.map(m => ({ ...m, _uid: m.id })) : apiResults}
@@ -880,8 +880,8 @@ export default function CreateDietScreen() {
                   const isExpanded = selectedResultId === item._uid;
                   return (
                     <View style={styles.resultCard}>
-                      <TouchableOpacity 
-                        style={styles.resultRow} 
+                      <TouchableOpacity
+                        style={styles.resultRow}
                         onPress={() => {
                           setSelectedResultId(isExpanded ? null : item._uid);
                           setTempServings(1);
@@ -896,7 +896,13 @@ export default function CreateDietScreen() {
                             P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g
                           </Text>
                         </View>
-                        <Ionicons name={isExpanded ? "chevron-up" : "add-circle"} size={28} color={isExpanded ? "rgba(255,255,255,0.4)" : "#3B82F6"} />
+                        {isExpanded ? (
+                          <Ionicons name="chevron-up" size={26} color={CoachColors.textFaint} />
+                        ) : (
+                          <View style={styles.addCircle}>
+                            <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
+                          </View>
+                        )}
                       </TouchableOpacity>
 
                       {isExpanded && (
@@ -904,11 +910,11 @@ export default function CreateDietScreen() {
                           <Text style={styles.portionLabel}>Servings:</Text>
                           <View style={styles.portionControls}>
                             <TouchableOpacity style={styles.portionBtn} onPress={() => setTempServings(Math.max(0.25, tempServings - 0.25))}>
-                              <Ionicons name="remove" size={20} color="#FFF" />
+                              <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                             <Text style={styles.portionValue}>{tempServings}</Text>
                             <TouchableOpacity style={styles.portionBtn} onPress={() => setTempServings(tempServings + 0.25)}>
-                              <Ionicons name="add" size={20} color="#FFF" />
+                              <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                           </View>
                           <TouchableOpacity style={styles.portionAddBtn} onPress={() => {
@@ -936,118 +942,122 @@ export default function CreateDietScreen() {
 }
 
 const wz = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#000000' },
+  safeArea: { flex: 1, backgroundColor: CoachColors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
-  stepLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 1 },
+  backBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
+  stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 0.3 },
+  eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 0.3 },
   skipBtn: { paddingHorizontal: 12, paddingVertical: 8 },
-  skipText: { fontFamily: FontFamily.heading, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  progressBar: { height: 3, backgroundColor: 'rgba(255,255,255,0.06)', marginHorizontal: 20, marginTop: 8, borderRadius: 2 },
-  progressFill: { height: '100%', borderRadius: 2, backgroundColor: '#FFFFFF' },
+  skipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  progressBar: { height: 3, backgroundColor: CoachColors.borderMuted, marginHorizontal: 20, marginTop: 8, borderRadius: 2 },
+  progressFill: { height: '100%', borderRadius: 2, backgroundColor: CoachColors.accent },
   scroll: { paddingHorizontal: 24, paddingTop: 16 },
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: 26, color: '#FFF', lineHeight: 32, marginBottom: 8, letterSpacing: -0.5 },
-  subtitle: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 24 },
-  
-  inputCard: { backgroundColor: '#0A0A0A', borderRadius: Radius.xs, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  title: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary, lineHeight: 30, marginBottom: 8 },
+  subtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 24, lineHeight: 18 },
+
+  inputCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: CoachColors.border },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  iconBox: { width: 40, height: 40, borderRadius: Radius.xs, alignItems: 'center', justifyContent: 'center' },
-  inputLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 4, letterSpacing: 0.5 },
-  textInput: { flex: 1, fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: '#FFF', padding: 0 },
-  
-  nameInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 0, height: 50 },
-  nameInput: { flex: 1, color: '#FFF', fontFamily: FontFamily.body, fontSize: 16 },
-  
-  imageUploadBtn: { height: 120, borderRadius: Radius.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderStyle: 'dashed', backgroundColor: '#050505', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  iconBox: { width: 40, height: 40, borderRadius: Radius.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.accentSofter },
+  inputLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted, marginBottom: 4 },
+  textInput: { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, padding: 0 },
+
+  nameInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingHorizontal: 0, height: 50 },
+  nameInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 16 },
+
+  imageUploadBtn: { height: 120, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   imageUploadBtnActive: { borderWidth: 0, borderStyle: 'solid' },
-  imageUploadText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 8, letterSpacing: 0.5 },
+  imageUploadText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginTop: 8 },
   uploadedImage: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0, width: '100%', height: '100%' },
-  imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
-  imageOverlayText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: '#FFF', marginTop: 4, letterSpacing: 0.5 },
+  imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  imageOverlayText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary, marginTop: 4 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  nameChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, backgroundColor: '#0A0A0A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  nameChipText: { fontFamily: FontFamily.headingSemiBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
+  nameChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
+  nameChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  nameChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  nameChipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
 
-  footer: { padding: 24, paddingBottom: 32 },
-  nextBtn: { height: 50, borderRadius: Radius.sm, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  nextBtnGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  nextBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000000', letterSpacing: 1, marginRight: 6 },
+  footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
+  nextBtn: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  nextBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent, marginRight: 6 },
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#111' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: CoachColors.bg },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: '#FFF' },
-  
-  macroCard: { backgroundColor: '#050505', borderRadius: Radius.sm, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  iconBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+
+  macroCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 20, borderWidth: 1, borderColor: CoachColors.border },
   macroRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 },
   macroCol: { flexDirection: 'row', alignItems: 'baseline' },
-  macroVal: { fontFamily: FontFamily.headingExtraBold, fontSize: 32, color: '#FFF' },
-  macroLabel: { fontFamily: FontFamily.heading, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 4, letterSpacing: 0.5 },
+  macroVal: { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.textPrimary },
+  macroLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginLeft: 4 },
   macroBars: { gap: 12 },
   macroBarWrap: { flex: 1 },
   macroBarLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  macroBarLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.5 },
-  macroBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' },
-  macroBarFill: { height: '100%', borderRadius: 2 },
+  macroBarLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  macroBarBg: { height: 4, backgroundColor: CoachColors.borderMuted, borderRadius: 2, overflow: 'hidden' },
+  macroBarFill: { height: '100%', borderRadius: 2, backgroundColor: CoachColors.accent },
 
   scrollContent: { padding: 20, paddingBottom: 120 },
   section: { marginBottom: 32 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  sectionTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: '#FFF', letterSpacing: 1 },
-  quickAddBtn: { width: 32, height: 32, borderRadius: Radius.xs, backgroundColor: '#141414', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  emptySection: { padding: 24, backgroundColor: '#050505', borderRadius: Radius.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderStyle: 'dashed', alignItems: 'center' },
-  emptyText: { fontFamily: FontFamily.headingSemiBold, fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: 0.5 },
-  
-  mealCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0A0A0A', padding: 16, borderRadius: Radius.sm, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  mealCardText: { flex: 1 },
-  mealCardName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFF', marginBottom: 4 },
-  mealCardMacros: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
-  deleteBtn: { padding: 8 },
+  sectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  quickAddBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'transparent', borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  emptySection: { padding: 24, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', alignItems: 'center' },
+  emptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted },
 
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, backgroundColor: 'rgba(0,0,0,0.9)' },
-  saveBtn: { height: 50, borderRadius: Radius.sm, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  saveBtnGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000000', letterSpacing: 1 },
+  mealCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, padding: 16, borderRadius: Radius.md, marginBottom: 8, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  mealCardText: { flex: 1 },
+  mealCardName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
+  mealCardMacros: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, backgroundColor: CoachColors.bg },
+  saveBtn: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  saveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
 
   // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#0A0A0A', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xl },
-  modalTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: '#FFFFFF', letterSpacing: 1 },
-  modalLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 8, letterSpacing: 1 },
-  
-  editActionBtn: { flex: 1, flexDirection: 'row', height: 44, backgroundColor: '#141414', borderRadius: Radius.xs, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  editActionText: { fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: '#FFF', letterSpacing: 0.5 },
+  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginBottom: 8 },
 
-  aiInputWrap: { backgroundColor: '#050505', borderRadius: Radius.xs, padding: Spacing.md, height: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', marginBottom: 16 },
-  aiInput: { flex: 1, color: '#FFF', fontFamily: FontFamily.body },
-  aiGenerateBtn: { height: 48, borderRadius: Radius.sm, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  aiGenerateGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  aiGenerateText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000000', letterSpacing: 1 },
+  editActionBtn: { flex: 1, flexDirection: 'row', height: 46, backgroundColor: CoachColors.surface, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: CoachColors.border },
+  editActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  dangerBtn: { backgroundColor: CoachColors.dangerSoft, borderColor: 'transparent' },
 
-  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#050505', borderRadius: Radius.xs, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  searchInput: { flex: 1, color: '#FFF', fontFamily: FontFamily.body, fontSize: 14, marginLeft: 10 },
-  
-  searchTabs: { flexDirection: 'row', backgroundColor: '#050505', borderRadius: Radius.xs, padding: 4, marginTop: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  searchTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 },
-  searchTabActive: { backgroundColor: '#FFFFFF' },
-  searchTabText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  searchTabTextActive: { color: '#000000' },
+  aiInputWrap: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: Spacing.md, height: 100, borderWidth: 1, borderColor: CoachColors.border, marginBottom: 16 },
+  aiInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 14 },
+  aiGenerateBtn: { height: 50, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  aiGenerateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
 
-  resultCard: { backgroundColor: '#0A0A0A', borderRadius: Radius.xs, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: CoachColors.border },
+  searchInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 14, marginLeft: 10 },
+  searchBtn: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: CoachColors.accent, borderRadius: Radius.full, marginLeft: 8 },
+  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
+
+  searchTabs: { flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 4, marginTop: 16, borderWidth: 1, borderColor: CoachColors.border },
+  searchTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm },
+  searchTabActive: { backgroundColor: CoachColors.accent },
+  searchTabText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  searchTabTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
+
+  resultCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, overflow: 'hidden' },
   resultRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  resultName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFF', marginBottom: 4 },
-  resultMacros: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
-  resultMacrosSub: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
-  
-  portionEditor: { backgroundColor: '#050505', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  portionLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  portionControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141414', borderRadius: Radius.xs, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  resultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
+  resultMacros: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginBottom: 2 },
+  resultMacrosSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+
+  addCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+
+  portionEditor: { backgroundColor: CoachColors.surface, padding: 16, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  portionLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
+  portionControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.bg, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border },
   portionBtn: { padding: 8 },
-  portionValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: '#FFF', minWidth: 40, textAlign: 'center' },
-  portionAddBtn: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.xs },
-  portionAddText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: '#000000', letterSpacing: 0.5 }
+  portionValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, minWidth: 40, textAlign: 'center' },
+  portionAddBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: Radius.full },
+  portionAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent }
 });

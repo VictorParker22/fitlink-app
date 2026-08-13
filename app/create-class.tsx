@@ -8,14 +8,13 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../context/AppContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import { getCategoryColor, CATEGORY_COLORS } from '../data/categoryColors';
+import { Spacing, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const CLASS_CATEGORIES = [
-  'Meditation', 'Strength', 'Pilates', 'Running', 'Yoga', 'HIIT', 
+  'Meditation', 'Strength', 'Pilates', 'Running', 'Yoga', 'HIIT',
   'Cycling', 'Boxing', 'Barre', 'Stretching', 'Recovery', 'Dance', 'Conditioning'
 ];
 
@@ -23,19 +22,25 @@ const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced'];
 const TAGS_LIST = ['Full Body', 'Upper Body', 'Lower Body', 'Core', 'Cardio', 'Treadmill', 'Outdoor', 'Morning', 'Evening', 'No Equipment', 'Guided Audio'];
 const EQUIPMENT_LIST = ['Bodyweight', 'Dumbbell', 'Barbell', 'Bands', 'Kettlebell', 'Mat', 'Foam Roller', 'Bike', 'Treadmill'];
 
+const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
+  1: { title: 'Class details', subtitle: 'Step 1 of 3' },
+  2: { title: 'Media & workout', subtitle: 'Step 2 of 3' },
+  3: { title: 'Access & publish', subtitle: 'Step 3 of 3' },
+};
+
 export default function CreateClassScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string }>();
   const { editId } = params;
   const insets = useSafeAreaInsets();
-  
+
   const { classes, createClass, updateClass, workouts, plans, trainer } = useApp();
   const { showAlert } = useAlert();
 
   const [wizardStep, setWizardStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
-  
+
   // Step 1
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -44,12 +49,12 @@ export default function CreateClassScreen() {
   const [duration, setDuration] = useState(30);
   const [tags, setTags] = useState<string[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
-  
+
   // Step 2
   const [videoUrl, setVideoUrl] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [workoutId, setWorkoutId] = useState('');
-  
+
   // Step 3
   const [isFree, setIsFree] = useState(false);
   const [planId, setPlanId] = useState('');
@@ -87,7 +92,7 @@ export default function CreateClassScreen() {
     Haptics.selectionAsync();
     setEquipment(prev => prev.includes(eq) ? prev.filter(x => x !== eq) : [...prev, eq]);
   };
-  
+
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (wizardStep === 1) {
@@ -109,14 +114,14 @@ export default function CreateClassScreen() {
       router.back();
     }
   };
-  
+
   const uploadFile = async (asset: ImagePicker.ImagePickerAsset, bucket: 'class-thumbnails' | 'class-videos') => {
     const ext = asset.uri.split('.').pop() || (bucket === 'class-videos' ? 'mp4' : 'jpg');
     const fileName = `${bucket}-${Date.now()}.${ext}`;
-    
+
     const response = await fetch(asset.uri);
     const blob = await response.blob();
-    
+
     const formData = new FormData();
     formData.append('', {
       uri: asset.uri,
@@ -151,9 +156,9 @@ export default function CreateClassScreen() {
       aspect: [16, 9],
       allowsEditing: true,
     });
-    
+
     if (result.canceled || !result.assets[0]) return;
-    
+
     setUploadingMedia(true);
     try {
       const url = await uploadFile(result.assets[0], 'class-thumbnails');
@@ -170,7 +175,7 @@ export default function CreateClassScreen() {
       mediaTypes: ['videos'],
       quality: 0.7,
     };
-    
+
     let result;
     if (useCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -182,9 +187,9 @@ export default function CreateClassScreen() {
     } else {
       result = await ImagePicker.launchImageLibraryAsync(options);
     }
-    
+
     if (result.canceled || !result.assets[0]) return;
-    
+
     setUploadingMedia(true);
     try {
       const url = await uploadFile(result.assets[0], 'class-videos');
@@ -203,16 +208,16 @@ export default function CreateClassScreen() {
       showAlert({ type: 'warning', title: 'Missing Title', message: 'Please enter a title before saving.' });
       return;
     }
-    
+
     // If publishing a Mux VOD, show special transferring state
     const isMuxTransfer = status === 'published' && videoUrl?.includes('stream.mux.com');
-    
+
     setSaving(true);
 
     try {
       // Always save as draft first if it's a Mux transfer, let the Edge Function publish it
       const dbStatus = isMuxTransfer ? 'draft' : status;
-      
+
       const payload = {
         title: title.trim(),
         description: description.trim(),
@@ -228,7 +233,7 @@ export default function CreateClassScreen() {
         plan_id: planId || undefined,
         status: dbStatus,
       };
-      
+
       let classId = editId;
       if (editId) {
         await updateClass(editId, payload);
@@ -236,7 +241,7 @@ export default function CreateClassScreen() {
         const newClass = await createClass(payload);
         classId = newClass.id;
       }
-      
+
       if (isMuxTransfer && classId) {
         const { data, error } = await supabase.functions.invoke('transfer-vod', {
           body: { classId }
@@ -248,7 +253,7 @@ export default function CreateClassScreen() {
       } else {
         showAlert({ type: 'success', title: editId ? 'Updated' : 'Created', message: `Class ${status === 'published' ? 'published' : 'saved as draft'}.` });
       }
-      
+
       router.back();
     } catch (err: any) {
       showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save class.' });
@@ -257,26 +262,26 @@ export default function CreateClassScreen() {
     }
   };
 
-  const catColor = getCategoryColor(category);
+  const stepInfo = STEP_TITLES[wizardStep];
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={24} color="#FFFFFF" />
+            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[1, 2, 3].map(step => (
-              <View 
-                key={step} 
+              <View
+                key={step}
                 style={[
-                  styles.stepDot, 
-                  wizardStep >= step ? styles.stepDotActive : null,
-                  wizardStep === step && { backgroundColor: catColor, borderColor: catColor }
-                ]} 
+                  styles.stepDot,
+                  wizardStep >= step ? styles.stepDotSeen : null,
+                  wizardStep === step && styles.stepDotActive,
+                ]}
               />
             ))}
           </View>
@@ -284,48 +289,48 @@ export default function CreateClassScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          
+
           {wizardStep === 1 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>CLASS DETAILS // 1</Text>
-              
+              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
+              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
+
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>TITLE</Text>
+                <Text style={styles.sectionLabel}>Title</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. 30 Min Full Body HIIT"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor={CoachColors.textFaint}
                   value={title}
                   onChangeText={setTitle}
-                  selectionColor={catColor}
+                  selectionColor={CoachColors.accent}
                 />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>DESCRIPTION</Text>
+                <Text style={styles.sectionLabel}>Description</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   placeholder="What will users experience in this class?"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor={CoachColors.textFaint}
                   value={description}
                   onChangeText={setDescription}
                   multiline
                   textAlignVertical="top"
-                  selectionColor={catColor}
+                  selectionColor={CoachColors.accent}
                 />
                 <Text style={styles.charCount}>{description.length}/500</Text>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>CATEGORY</Text>
+                <Text style={styles.sectionLabel}>Category</Text>
                 <View style={styles.chipGrid}>
                   {CLASS_CATEGORIES.map(cat => {
                     const active = category === cat;
-                    const color = getCategoryColor(cat);
                     return (
                       <TouchableOpacity
                         key={cat}
-                        style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
+                        style={[styles.chip, active && styles.chipActive]}
                         onPress={() => { Haptics.selectionAsync(); setCategory(cat); }}
                       >
                         <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat}</Text>
@@ -337,7 +342,7 @@ export default function CreateClassScreen() {
 
               <View style={styles.rowGroup}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: Spacing.md }]}>
-                  <Text style={styles.tagHeader}>DIFFICULTY</Text>
+                  <Text style={styles.sectionLabel}>Difficulty</Text>
                   {DIFFICULTIES.map(diff => (
                     <TouchableOpacity
                       key={diff}
@@ -348,36 +353,36 @@ export default function CreateClassScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-                
+
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.tagHeader}>DURATION (MIN)</Text>
+                  <Text style={styles.sectionLabel}>Duration (min)</Text>
                   <View style={styles.stepperContainer}>
-                    <TouchableOpacity 
-                      style={styles.stepperBtn} 
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.max(5, duration - 5)); }}
                     >
-                      <Ionicons name="remove" size={20} color="#FFFFFF" />
+                      <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{duration}</Text>
-                    <TouchableOpacity 
-                      style={styles.stepperBtn} 
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.min(120, duration + 5)); }}
                     >
-                      <Ionicons name="add" size={20} color="#FFFFFF" />
+                      <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>EQUIPMENT</Text>
+                <Text style={styles.sectionLabel}>Equipment</Text>
                 <View style={styles.chipGrid}>
                   {EQUIPMENT_LIST.map(eq => {
                     const active = equipment.includes(eq);
                     return (
                       <TouchableOpacity
                         key={eq}
-                        style={[styles.chip, active && styles.multiChipActive]}
+                        style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleEquipment(eq)}
                       >
                         <Text style={[styles.chipText, active && styles.chipTextActive]}>{eq}</Text>
@@ -388,14 +393,14 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>TAGS</Text>
+                <Text style={styles.sectionLabel}>Tags</Text>
                 <View style={styles.chipGrid}>
                   {TAGS_LIST.map(tag => {
                     const active = tags.includes(tag);
                     return (
                       <TouchableOpacity
                         key={tag}
-                        style={[styles.chip, active && styles.multiChipActive]}
+                        style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleTag(tag)}
                       >
                         <Text style={[styles.chipText, active && styles.chipTextActive]}>{tag}</Text>
@@ -410,48 +415,49 @@ export default function CreateClassScreen() {
 
           {wizardStep === 2 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>MEDIA & WORKOUT // 2</Text>
+              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
+              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>CLASS VIDEO</Text>
+                <Text style={styles.sectionLabel}>Class video</Text>
                 <View style={styles.mediaContainer}>
                   {videoUrl ? (
                     <View style={styles.videoPreview}>
                       <View style={styles.videoPlayIcon}>
-                        <Ionicons name="play" size={32} color="#FFFFFF" />
+                        <Ionicons name="play" size={32} color={CoachColors.textPrimary} />
                       </View>
                       <Text style={styles.mediaUrlText} numberOfLines={1}>{videoUrl}</Text>
                       <TouchableOpacity style={styles.mediaClearBtn} onPress={() => setVideoUrl('')}>
-                        <Ionicons name="close-circle" size={24} color="#FF6B35" />
+                        <Ionicons name="close-circle" size={24} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.addMediaBtn} onPress={() => setShowVideoModal(true)}>
-                      <Ionicons name="videocam-outline" size={32} color="rgba(255,255,255,0.4)" />
-                      <Text style={styles.addMediaText}>Add Class Video</Text>
+                      <Ionicons name="videocam-outline" size={32} color={CoachColors.textFaint} />
+                      <Text style={styles.addMediaText}>Add class video</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>CUSTOM THUMBNAIL (OPTIONAL)</Text>
+                <Text style={styles.sectionLabel}>Custom thumbnail (optional)</Text>
                 <View style={styles.mediaContainer}>
                   {thumbnailUrl ? (
                     <View style={styles.thumbPreview}>
                       <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                       <TouchableOpacity style={styles.mediaClearBtnAlt} onPress={() => setThumbnailUrl('')}>
-                        <Ionicons name="close-circle" size={24} color="#FF6B35" />
+                        <Ionicons name="close-circle" size={24} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.addMediaBtn} onPress={handleThumbnailUpload} disabled={uploadingMedia}>
                       {uploadingMedia ? (
-                        <ActivityIndicator color={catColor} />
+                        <ActivityIndicator color={CoachColors.accent} />
                       ) : (
                         <>
-                          <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.4)" />
-                          <Text style={styles.addMediaText}>Upload Thumbnail</Text>
+                          <Ionicons name="image-outline" size={32} color={CoachColors.textFaint} />
+                          <Text style={styles.addMediaText}>Upload thumbnail</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -460,17 +466,17 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>LINKED WORKOUT (OPTIONAL)</Text>
+                <Text style={styles.sectionLabel}>Linked workout (optional)</Text>
                 <Text style={styles.helperText}>Clients can view the structured workout alongside the video.</Text>
                 {workouts && workouts.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                     {workouts.map(w => (
-                      <TouchableOpacity 
-                        key={w.id} 
-                        style={[styles.workoutCard, workoutId === w.id && { borderColor: catColor, backgroundColor: 'rgba(255,255,255,0.05)' }]}
+                      <TouchableOpacity
+                        key={w.id}
+                        style={[styles.workoutCard, workoutId === w.id && styles.workoutCardActive]}
                         onPress={() => setWorkoutId(workoutId === w.id ? '' : w.id)}
                       >
-                        <Text style={[styles.workoutCardTitle, workoutId === w.id && { color: catColor }]}>{w.name}</Text>
+                        <Text style={[styles.workoutCardTitle, workoutId === w.id && styles.workoutCardTitleActive]}>{w.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -483,28 +489,29 @@ export default function CreateClassScreen() {
 
           {wizardStep === 3 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>ACCESS & PUBLISH // 3</Text>
+              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
+              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>ACCESS LEVEL</Text>
+                <Text style={styles.sectionLabel}>Access level</Text>
                 <View style={styles.rowGroup}>
-                  <TouchableOpacity 
-                    style={[styles.accessCard, !isFree && styles.accessCardActive]} 
+                  <TouchableOpacity
+                    style={[styles.accessCard, !isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(false)}
                   >
-                    <Ionicons name="lock-closed" size={24} color={!isFree ? catColor : "rgba(255,255,255,0.3)"} />
-                    <Text style={[styles.accessTitle, !isFree && { color: catColor }]}>Subscribers Only</Text>
+                    <Ionicons name="lock-closed" size={24} color={!isFree ? CoachColors.accent : CoachColors.textFaint} />
+                    <Text style={[styles.accessTitle, !isFree && styles.accessTitleActive]}>Subscribers only</Text>
                     <Text style={styles.accessSub}>Requires active pass</Text>
                   </TouchableOpacity>
-                  
+
                   <View style={{ width: Spacing.md }} />
-                  
-                  <TouchableOpacity 
-                    style={[styles.accessCard, isFree && styles.accessCardActive]} 
+
+                  <TouchableOpacity
+                    style={[styles.accessCard, isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(true)}
                   >
-                    <Ionicons name="eye" size={24} color={isFree ? catColor : "rgba(255,255,255,0.3)"} />
-                    <Text style={[styles.accessTitle, isFree && { color: catColor }]}>Free Preview</Text>
+                    <Ionicons name="eye" size={24} color={isFree ? CoachColors.accent : CoachColors.textFaint} />
+                    <Text style={[styles.accessTitle, isFree && styles.accessTitleActive]}>Free preview</Text>
                     <Text style={styles.accessSub}>Open to everyone</Text>
                   </TouchableOpacity>
                 </View>
@@ -512,40 +519,40 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.tagHeader}>PREVIEW</Text>
+                <Text style={styles.sectionLabel}>Preview</Text>
                 <View style={styles.previewCard}>
                   {thumbnailUrl ? (
                     <Image source={{ uri: thumbnailUrl }} style={styles.previewImg} contentFit="cover" />
                   ) : (
                     <View style={styles.previewImgPlaceholder}>
-                      <Ionicons name="play" size={32} color="rgba(255,255,255,0.2)" />
+                      <Ionicons name="play" size={32} color={CoachColors.textFaint} />
                     </View>
                   )}
                   <View style={styles.previewContent}>
-                    <View style={[styles.previewBadge, { backgroundColor: catColor }]}>
-                      <Text style={styles.previewBadgeText}>{category.toUpperCase()}</Text>
+                    <View style={styles.previewBadge}>
+                      <Text style={styles.previewBadgeText}>{category}</Text>
                     </View>
-                    <Text style={styles.previewTitle} numberOfLines={2}>{title || 'Untitled Class'}</Text>
+                    <Text style={styles.previewTitle} numberOfLines={2}>{title || 'Untitled class'}</Text>
                     <Text style={styles.previewMeta}>{duration} min • {difficulty} • {trainer?.name || 'Coach'}</Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.publishBtnContainer}>
-                <TouchableOpacity 
-                  style={[styles.publishBtn, { backgroundColor: catColor }]}
+                <TouchableOpacity
+                  style={styles.publishBtn}
                   onPress={() => handleSave('published')}
                   disabled={saving}
                 >
-                  {saving ? <ActivityIndicator color="#000" /> : <Text style={styles.publishBtnText}>PUBLISH CLASS</Text>}
+                  {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : <Text style={styles.publishBtnText}>Publish class</Text>}
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.draftBtn}
                   onPress={() => handleSave('draft')}
                   disabled={saving}
                 >
-                  <Text style={styles.draftBtnText}>SAVE AS DRAFT</Text>
+                  <Text style={styles.draftBtnText}>Save as draft</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -553,13 +560,13 @@ export default function CreateClassScreen() {
 
           <View style={{ height: 100 }} />
         </ScrollView>
-        
+
         {/* Footer Navigation */}
         {wizardStep < 3 && (
           <View style={[styles.footerRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
             <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-              <Text style={styles.nextBtnText}>NEXT STEP</Text>
-              <Ionicons name="arrow-forward" size={16} color="#000000" />
+              <Text style={styles.nextBtnText}>Next step</Text>
+              <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
         )}
@@ -570,9 +577,9 @@ export default function CreateClassScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Class Video</Text>
+              <Text style={styles.modalTitle}>Add class video</Text>
               <TouchableOpacity onPress={() => setShowVideoModal(false)}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
+                <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -580,13 +587,13 @@ export default function CreateClassScreen() {
               <TextInput
                 style={styles.urlInput}
                 placeholder="Paste YouTube or Vimeo URL..."
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholderTextColor={CoachColors.textFaint}
                 value={videoUrlInput}
                 onChangeText={setVideoUrlInput}
-                selectionColor={catColor}
+                selectionColor={CoachColors.accent}
               />
-              <TouchableOpacity 
-                style={[styles.urlSaveBtn, { backgroundColor: catColor }]}
+              <TouchableOpacity
+                style={styles.urlSaveBtn}
                 onPress={() => {
                   if(videoUrlInput) {
                     setVideoUrl(videoUrlInput);
@@ -594,28 +601,28 @@ export default function CreateClassScreen() {
                   }
                 }}
               >
-                <Ionicons name="checkmark" size={20} color="#000000" />
+                <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
+              <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(false)}>
-              <Ionicons name="cloud-upload-outline" size={24} color="#FFFFFF" style={{ marginRight: 12 }} />
+              <Ionicons name="cloud-upload-outline" size={24} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.videoOptionTitle}>Upload Video File</Text>
+                <Text style={styles.videoOptionTitle}>Upload video file</Text>
                 <Text style={styles.videoOptionSub}>MP4, MOV</Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(true)}>
-              <Ionicons name="camera-outline" size={24} color="#FFFFFF" style={{ marginRight: 12 }} />
+              <Ionicons name="camera-outline" size={24} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.videoOptionTitle}>Record Video</Text>
+                <Text style={styles.videoOptionTitle}>Record video</Text>
                 <Text style={styles.videoOptionSub}>Use your camera</Text>
               </View>
             </TouchableOpacity>
@@ -630,7 +637,7 @@ export default function CreateClassScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -639,7 +646,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
   },
   backBtn: {
     padding: 8,
@@ -652,10 +659,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
+  },
+  stepDotSeen: {
+    backgroundColor: CoachColors.textFaint,
   },
   stepDotActive: {
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: CoachColors.accent,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
@@ -666,38 +676,43 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 22,
+    color: CoachColors.textPrimary,
+    marginBottom: 4,
+  },
+  stepSubtitle: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textMuted,
     marginBottom: Spacing.xl,
   },
   inputGroup: {
     marginBottom: Spacing.xl,
   },
-  tagHeader: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
+  sectionLabel: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12,
+    color: CoachColors.textSecondary,
     marginBottom: Spacing.sm,
   },
   input: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     padding: Spacing.md,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   textArea: {
     height: 100,
   },
   charCount: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textFaint,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -707,24 +722,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  multiChipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+  chipActive: {
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: CoachColors.accent,
   },
   chipText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
   },
   chipTextActive: {
-    color: '#000000',
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.bodySemiBold,
   },
   rowGroup: {
     flexDirection: 'row',
@@ -732,74 +748,74 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   diffChip: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     paddingVertical: 10,
     alignItems: 'center',
     marginBottom: 8,
   },
   diffChipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: CoachColors.accent,
   },
   diffChipText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
   },
   diffChipTextActive: {
-    color: '#000000',
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.bodySemiBold,
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     padding: 8,
   },
   stepperBtn: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     padding: 10,
     borderRadius: Radius.xs,
   },
   stepperValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   footerRow: {
     padding: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
-    backgroundColor: '#000000',
+    borderTopColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
   },
   nextBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 16,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   nextBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#000000',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.onAccent,
   },
   mediaContainer: {
     height: 160,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
   },
   addMediaBtn: {
     flex: 1,
@@ -808,13 +824,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   addMediaText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   videoPreview: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,
@@ -829,9 +845,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   mediaUrlText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
   },
   mediaClearBtn: {
@@ -851,64 +867,75 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   helperText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textFaint,
     marginBottom: 8,
   },
   workoutCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.sm,
     marginRight: 8,
   },
+  workoutCardActive: {
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSoft,
+  },
   workoutCardTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
+  },
+  workoutCardTitleActive: {
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.bodySemiBold,
   },
   accessCard: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     padding: Spacing.md,
     alignItems: 'center',
   },
   accessCardActive: {
-    borderColor: 'rgba(255,255,255,0.5)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSoft,
   },
   accessTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13,
+    color: CoachColors.textPrimary,
     marginTop: 12,
     marginBottom: 4,
     textAlign: 'center',
   },
+  accessTitleActive: {
+    color: CoachColors.accent,
+  },
   accessSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    fontFamily: CoachFonts.body,
+    fontSize: 11,
+    color: CoachColors.textFaint,
     textAlign: 'center',
   },
   warningText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: '#FF6B35',
+    color: CoachColors.warning,
     marginTop: 8,
     textAlign: 'center',
   },
   previewCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
   },
   previewImg: {
@@ -918,7 +945,7 @@ const styles = StyleSheet.create({
   previewImgPlaceholder: {
     width: '100%',
     height: 180,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -927,27 +954,27 @@ const styles = StyleSheet.create({
   },
   previewBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 2,
+    borderRadius: Radius.full,
+    backgroundColor: CoachColors.accentSoft,
     marginBottom: 8,
   },
   previewBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: '#000000',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    color: CoachColors.accent,
   },
   previewTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   previewMeta: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   publishBtnContainer: {
     marginTop: Spacing.xl,
@@ -955,26 +982,27 @@ const styles = StyleSheet.create({
   },
   publishBtn: {
     paddingVertical: 16,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.full,
     alignItems: 'center',
+    backgroundColor: CoachColors.accent,
   },
   publishBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#000000',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.onAccent,
   },
   draftBtn: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
     paddingVertical: 16,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.full,
     alignItems: 'center',
   },
   draftBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.textSecondary,
   },
   modalOverlay: {
     flex: 1,
@@ -982,11 +1010,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0C0C0E',
-    borderTopLeftRadius: Radius.sm,
-    borderTopRightRadius: Radius.sm,
+    backgroundColor: CoachColors.surface,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: Spacing.lg,
     paddingBottom: Spacing.xl * 2,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -995,9 +1026,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   urlInputRow: {
     flexDirection: 'row',
@@ -1006,18 +1037,21 @@ const styles = StyleSheet.create({
   },
   urlInput: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   urlSaveBtn: {
     width: 48,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
   },
   divider: {
     flexDirection: 'row',
@@ -1027,30 +1061,32 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.border,
   },
   dividerText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 12,
+    color: CoachColors.textFaint,
     marginHorizontal: 12,
   },
   videoOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
     padding: Spacing.md,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.sm,
     marginBottom: Spacing.sm,
   },
   videoOptionTitle: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 16,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.textPrimary,
   },
   videoOptionSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textFaint,
   },
 });
