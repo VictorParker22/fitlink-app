@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 
 interface TomorrowPreviewProps {
@@ -11,7 +11,7 @@ interface TomorrowPreviewProps {
 
 export default function TomorrowPreview({ tomorrowWorkout }: TomorrowPreviewProps) {
   const router = useRouter();
-  const title = (tomorrowWorkout?.title || tomorrowWorkout?.name || 'Lower Body Strength & Core').toUpperCase();
+  const title = tomorrowWorkout?.title || tomorrowWorkout?.name || 'Lower body strength & core';
   const duration = tomorrowWorkout?.duration || 45;
 
   return (
@@ -20,9 +20,9 @@ export default function TomorrowPreview({ tomorrowWorkout }: TomorrowPreviewProp
       activeOpacity={0.85}
       onPress={() => {
         if (tomorrowWorkout?.id || tomorrowWorkout?.workout_id) {
-          router.push({ 
-            pathname: ClientRoute.strengthSession, 
-            params: { sessionId: tomorrowWorkout.workout_id || tomorrowWorkout.id } 
+          router.push({
+            pathname: ClientRoute.strengthSession,
+            params: { sessionId: tomorrowWorkout.workout_id || tomorrowWorkout.id }
           });
         } else {
           router.push({ pathname: ClientRoute.workouts, params: { view: 'workouts_list' } });
@@ -30,13 +30,13 @@ export default function TomorrowPreview({ tomorrowWorkout }: TomorrowPreviewProp
       }}
     >
       <View style={st.leftCol}>
-        <Text style={st.sectionTag}>TOMORROW'S PLAN // PREVIEW</Text>
+        <Text style={st.sectionTag}>Tomorrow's plan // preview</Text>
         <Text style={st.title} numberOfLines={1}>{title}</Text>
-        <Text style={st.subtitle}>{duration} MINS • PRESCRIBED PROGRAM</Text>
+        <Text style={st.subtitle}>{duration} mins · prescribed program</Text>
       </View>
 
       <View style={st.actionBtn}>
-        <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+        <Ionicons name="chevron-forward" size={16} color={CoachColors.textPrimary} />
       </View>
     </TouchableOpacity>
   );
@@ -49,42 +49,44 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   leftCol: {
     flex: 1,
   },
   sectionTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   subtitle: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#6C9BF2',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   actionBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
