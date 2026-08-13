@@ -9,11 +9,22 @@ import { useApp } from '../context/AppContext';
 import type { TrackNode, PlanEnrollment } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { weekOfPosition, weekStartIndices, diffTracks } from '../lib/passWeeks';
+import { weekOfPosition, weekStartIndices, totalWeeks, diffTracks } from '../lib/passWeeks';
 import type { TrackDiffEntry } from '../lib/passWeeks';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const nodeKey = (n: TrackNode) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}`;
+
+// Editor rows need a key that survives reordering. Index keys break
+// DraggableFlatList (rows mis-reconcile → overlapped cards, stale numbers),
+// and content keys collide because a season repeats the same workout across
+// weeks — so each row instance carries its own uid for the editing session.
+type EditorNode = TrackNode & { _uid: string };
+let uidSeq = 0;
+const newUid = () => `n${Date.now().toString(36)}-${++uidSeq}`;
+const withUids = (nodes: TrackNode[]): EditorNode[] => nodes.map(n => ({ ...n, _uid: newUid() }));
+const toTrackNodes = (nodes: EditorNode[]): TrackNode[] =>
+  nodes.map(({ _uid, ...n }, i) => ({ ...n, order: i }));
 
 export default function PassTrackEditorScreen() {
   const router = useRouter();
@@ -24,8 +35,8 @@ export default function PassTrackEditorScreen() {
 
   const plan = plans.find(p => p.id === planId);
 
-  const [track, setTrack] = useState<TrackNode[]>(() =>
-    (plan?.track || []).sort((a, b) => a.order - b.order)
+  const [track, setTrack] = useState<EditorNode[]>(() =>
+    withUids([...(plan?.track || [])].sort((a, b) => a.order - b.order))
   );
   const [activeTab, setActiveTab] = useState<'workouts' | 'diets'>('workouts');
   const [saving, setSaving] = useState(false);
@@ -73,13 +84,41 @@ export default function PassTrackEditorScreen() {
   const activeHolders = useMemo(() => liveHolders.filter(h => h.enrollment.status === 'active'), [liveHolders]);
   const maxActiveWeek = activeHolders.length > 0 ? Math.max(...activeHolders.map(h => h.week)) : 0;
 
-  // IDs already in the track
-  const usedWorkoutIds = new Set(track.filter(n => n.type === 'workout').map(n => n.id));
-  const usedDietIds = new Set(track.filter(n => n.type === 'diet').map(n => n.id));
+  // How many times each library item already appears in the track. A season
+  // legitimately repeats content weekly, so nothing is ever locked out —
+  // the count is shown as information, not enforcement.
+  const nodeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    track.forEach(n => {
+      if (n.id) m.set(`${n.type}:${n.id}`, (m.get(`${n.type}:${n.id}`) ?? 0) + 1);
+    });
+    return m;
+  }, [track]);
+  const countOf = (type: TrackNode['type'], id: string) => nodeCounts.get(`${type}:${id}`) ?? 0;
+
+  const seasonWeekCount = totalWeeks(track, durationWeeks);
 
   const addNode = (type: TrackNode['type'], id?: string, label?: string) => {
-    const newNode: TrackNode = { type, id, label, order: track.length };
+    Haptics.selectionAsync().catch(() => {});
+    const newNode: EditorNode = { type, id, label, order: track.length, _uid: newUid() };
     setTrack([...track, newNode]);
+  };
+
+  // "Nobody hand-places 18 nodes": drop one instance at the end of every
+  // week in a single tap. Week boundaries come from the same math every
+  // pass surface uses (lib/passWeeks). Inserting back-to-front keeps the
+  // original boundary indices valid while we splice.
+  const addNodeEveryWeek = (type: TrackNode['type'], id: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    setTrack(prev => {
+      const starts = weekStartIndices(prev, durationWeeks);
+      const updated = [...prev];
+      for (let w = starts.length - 1; w >= 0; w--) {
+        const insertAt = w + 1 < starts.length ? starts[w + 1] : updated.length;
+        updated.splice(insertAt, 0, { type, id, order: 0, _uid: newUid() });
+      }
+      return updated.map((n, i) => ({ ...n, order: i }));
+    });
   };
 
   const removeNode = (index: number) => {
@@ -87,7 +126,7 @@ export default function PassTrackEditorScreen() {
     setTrack(updated);
   };
 
-  const onDragEnd = ({ data }: { data: TrackNode[] }) => {
+  const onDragEnd = ({ data }: { data: EditorNode[] }) => {
     setTrack(data.map((n, i) => ({ ...n, order: i })));
   };
 
@@ -110,12 +149,13 @@ export default function PassTrackEditorScreen() {
 
   const handleSave = async () => {
     if (!plan) return;
-    const changes = diffTracks(plan.track ?? [], track, durationWeeks);
+    const clean = toTrackNodes(track);
+    const changes = diffTracks(plan.track ?? [], clean, durationWeeks);
     // Nobody inside, or nothing but a reorder — save with no ceremony.
     if (liveHolders.length === 0 || changes.length === 0) {
       setSaving(true);
       try {
-        await updatePlanTrack(plan.id, track);
+        await updatePlanTrack(plan.id, clean);
         router.back();
       } catch (err: any) {
         Alert.alert('Error', err.message || 'Failed to save track');
@@ -191,6 +231,7 @@ export default function PassTrackEditorScreen() {
     setSaving(true);
     try {
       const oldTrack = plan.track ?? [];
+      const cleanTrack = toTrackNodes(track);
       // 1. Snapshot the pre-edit track into version history (never blocks the edit).
       try {
         const { data: vRows, error: vErr } = await supabase
@@ -215,12 +256,12 @@ export default function PassTrackEditorScreen() {
         console.warn('plan_versions unavailable:', e?.message);
       }
       // 2. The pass itself.
-      await updatePlanTrack(plan.id, track);
+      await updatePlanTrack(plan.id, cleanTrack);
       // 3. Per choice.
       if (audience === 'everyone') {
         const removedKeys = new Set(review.filter(c => c.kind === 'removed').map(c => nodeKey(c.node)));
         for (const h of liveHolders) {
-          const newSnap = buildProtectedSnapshot(h.snapshot, track, h.enrollment.track_position, removedKeys);
+          const newSnap = buildProtectedSnapshot(h.snapshot, cleanTrack, h.enrollment.track_position, removedKeys);
           await supabase
             .from('client_plan_enrollments')
             .update({ track_snapshot: newSnap, updated_at: new Date().toISOString() })
@@ -325,23 +366,25 @@ export default function PassTrackEditorScreen() {
     return s;
   };
 
-  const renderTrackItem = ({ item: node, drag, isActive, getIndex }: RenderItemParams<TrackNode>) => {
+  const renderTrackItem = ({ item: node, drag, isActive, getIndex }: RenderItemParams<EditorNode>) => {
     const index = getIndex() ?? 0;
     const isMilestone = node.type === 'milestone';
     return (
       <ScaleDecorator>
         <View style={st.trackRow}>
-          {/* Left rail: node marker + connecting line */}
+          {/* Left rail: node marker + connecting line. The lines extend past
+              the row's bounds by design, so they must vanish while the row is
+              being dragged or they smear across neighbouring rows. */}
           <View style={st.rail}>
-            {index > 0 && <View style={st.railLineTop} />}
-            <View style={[st.marker, isMilestone && st.markerMilestone]}>
+            {!isActive && index > 0 && <View style={st.railLineTop} />}
+            <View style={[st.marker, isMilestone && st.markerMilestone, isActive && st.markerActive]}>
               {isMilestone ? (
                 <Ionicons name="trophy" size={18} color={CoachColors.accent} />
               ) : (
                 <Text style={st.markerText}>{index + 1}</Text>
               )}
             </View>
-            <View style={st.railLineBottom} />
+            {!isActive && <View style={st.railLineBottom} />}
           </View>
 
           {/* Card */}
@@ -391,7 +434,7 @@ export default function PassTrackEditorScreen() {
       <DraggableFlatList
         data={track}
         onDragEnd={onDragEnd}
-        keyExtractor={(_, i) => `node-${i}`}
+        keyExtractor={item => item._uid}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={renderTrackItem}
@@ -495,34 +538,37 @@ export default function PassTrackEditorScreen() {
                 ) : (
                   <View style={st.contentList}>
                     {workouts.map(w => {
-                      const isUsed = usedWorkoutIds.has(w.id);
+                      const count = countOf('workout', w.id);
                       return (
                         <TouchableOpacity
                           key={w.id}
-                          style={[st.contentCard, isUsed && st.contentCardUsed]}
-                          onPress={() => !isUsed && addNode('workout', w.id)}
-                          activeOpacity={isUsed ? 1 : 0.7}
-                          disabled={isUsed}
+                          style={st.contentCard}
+                          onPress={() => addNode('workout', w.id)}
+                          activeOpacity={0.7}
                         >
                           <View style={st.contentIcon}>
-                            <Ionicons name="barbell-outline" size={18} color={isUsed ? CoachColors.textFaint : CoachColors.textSecondary} />
+                            <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
                           </View>
                           <View style={st.contentInfo}>
-                            <Text style={[st.contentName, isUsed && { color: CoachColors.textFaint }]} numberOfLines={1}>{w.name}</Text>
-                            <Text style={[st.contentSub, isUsed && { color: CoachColors.textFaint }]}>
+                            <Text style={st.contentName} numberOfLines={1}>{w.name}</Text>
+                            <Text style={st.contentSub}>
                               {w.workout_exercises?.length || 0} exercises
+                              {count > 0 ? ` · in track ×${count}` : ''}
                             </Text>
                           </View>
-                          {isUsed ? (
-                            <View style={st.usedBadge}>
-                              <Ionicons name="checkmark" size={12} color={CoachColors.textFaint} />
-                              <Text style={st.usedText}>Added</Text>
-                            </View>
-                          ) : (
-                            <View style={st.addContentBtn}>
-                              <Ionicons name="add" size={18} color={CoachColors.accent} />
-                            </View>
+                          {seasonWeekCount >= 2 && (
+                            <TouchableOpacity
+                              style={st.everyWeekBtn}
+                              onPress={() => addNodeEveryWeek('workout', w.id)}
+                              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                              accessibilityLabel={`Add ${w.name} to every week`}
+                            >
+                              <Text style={st.everyWeekText}>×{seasonWeekCount} wks</Text>
+                            </TouchableOpacity>
                           )}
+                          <View style={st.addContentBtn}>
+                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -537,34 +583,37 @@ export default function PassTrackEditorScreen() {
                 ) : (
                   <View style={st.contentList}>
                     {diets.map(d => {
-                      const isUsed = usedDietIds.has(d.id);
+                      const count = countOf('diet', d.id);
                       return (
                         <TouchableOpacity
                           key={d.id}
-                          style={[st.contentCard, isUsed && st.contentCardUsed]}
-                          onPress={() => !isUsed && addNode('diet', d.id)}
-                          activeOpacity={isUsed ? 1 : 0.7}
-                          disabled={isUsed}
+                          style={st.contentCard}
+                          onPress={() => addNode('diet', d.id)}
+                          activeOpacity={0.7}
                         >
                           <View style={st.contentIcon}>
-                            <Ionicons name="nutrition-outline" size={18} color={isUsed ? CoachColors.textFaint : CoachColors.textSecondary} />
+                            <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
                           </View>
                           <View style={st.contentInfo}>
-                            <Text style={[st.contentName, isUsed && { color: CoachColors.textFaint }]} numberOfLines={1}>{d.name}</Text>
-                            <Text style={[st.contentSub, isUsed && { color: CoachColors.textFaint }]}>
+                            <Text style={st.contentName} numberOfLines={1}>{d.name}</Text>
+                            <Text style={st.contentSub}>
                               {d.diet_plan_meals?.length || 0} meals
+                              {count > 0 ? ` · in track ×${count}` : ''}
                             </Text>
                           </View>
-                          {isUsed ? (
-                            <View style={st.usedBadge}>
-                              <Ionicons name="checkmark" size={12} color={CoachColors.textFaint} />
-                              <Text style={st.usedText}>Added</Text>
-                            </View>
-                          ) : (
-                            <View style={st.addContentBtn}>
-                              <Ionicons name="add" size={18} color={CoachColors.accent} />
-                            </View>
+                          {seasonWeekCount >= 2 && (
+                            <TouchableOpacity
+                              style={st.everyWeekBtn}
+                              onPress={() => addNodeEveryWeek('diet', d.id)}
+                              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                              accessibilityLabel={`Add ${d.name} to every week`}
+                            >
+                              <Text style={st.everyWeekText}>×{seasonWeekCount} wks</Text>
+                            </TouchableOpacity>
                           )}
+                          <View style={st.addContentBtn}>
+                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -749,6 +798,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   markerMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+  markerActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.bg },
   markerText: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: CoachColors.textSecondary },
 
   trackCard: {
@@ -757,7 +807,12 @@ const st = StyleSheet.create({
     borderRadius: 14, padding: 12, marginBottom: 12,
   },
   trackCardMilestone: { borderColor: 'rgba(198,242,78,0.3)', backgroundColor: CoachColors.accentSofter },
-  trackCardActive: { borderColor: CoachColors.accent },
+  trackCardActive: {
+    borderColor: CoachColors.accent,
+    // Lift the hovering card above its neighbours so it reads as picked up.
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12,
+    elevation: 8,
+  },
   trackCardIcon: {
     width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -814,7 +869,6 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 14,
     padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  contentCardUsed: { opacity: 0.5 },
   contentIcon: {
     width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -826,12 +880,11 @@ const st = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16, backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
-  usedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-    backgroundColor: CoachColors.borderMuted,
+  everyWeekBtn: {
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 6, marginRight: 2,
   },
-  usedText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
+  everyWeekText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent },
 
   // Empty
   emptyContent: { alignItems: 'center', paddingVertical: 30, gap: 8 },

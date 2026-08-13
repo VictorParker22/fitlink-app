@@ -1,57 +1,91 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Dimensions, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { useApp } from '../../context/AppContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Spacing, FontSize, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useFoodImage } from '../../lib/foodImages';
 
-const { width, height } = Dimensions.get('window');
+const CARB_GREY = '#7A8072';
+const FAT_GREY = '#4A4F45';
 
-const getDietGradient = (category: string) => {
-  const lower = category?.toLowerCase() || '';
-  if (lower.includes('keto') || lower.includes('carb')) return ['#4f46e5', '#312e81'];
-  if (lower.includes('vegan') || lower.includes('plant')) return ['#059669', '#064e3b'];
-  if (lower.includes('muscle') || lower.includes('bulk') || lower.includes('protein')) return ['#e11d48', '#881337'];
-  if (lower.includes('loss') || lower.includes('cut') || lower.includes('shred')) return ['#0284c7', '#0c4a6e'];
-  return ['#1e293b', '#0f172a'];
+/**
+ * Meal thumbnail: the coach's own photo when one exists; otherwise a
+ * representative dish photo resolved once via Spoonacular (food-image edge
+ * function, cached on-device and persisted onto the meal row), falling back
+ * to the time-of-day icon while resolving or on a miss.
+ */
+function MealThumb({
+  name, imageUrl, mealId, sectionIcon,
+}: {
+  name: string; imageUrl?: string | null; mealId?: string; sectionIcon: keyof typeof Ionicons.glyphMap;
+}) {
+  const url = useFoodImage(name, imageUrl, mealId);
+  if (url) {
+    return <Image source={{ uri: url }} style={styles.mealThumb} contentFit="cover" transition={150} />;
+  }
+  return (
+    <View style={styles.mealIconCircle}>
+      <Ionicons name={sectionIcon} size={20} color={CoachColors.textSecondary} />
+    </View>
+  );
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'balanced': 'Balanced',
+  'high-protein': 'High protein',
+  'keto': 'Keto',
+  'vegan': 'Vegan',
+  'weight-loss': 'Weight loss',
+  'custom': 'Custom',
+};
+
+const MEAL_SECTIONS: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
+  { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline' },
+  { key: 'dinner', label: 'Dinner', icon: 'moon-outline' },
+  { key: 'snack', label: 'Snacks', icon: 'cafe-outline' },
+  { key: 'other', label: 'Anytime', icon: 'cafe-outline' },
+];
+
+const DAY_LABELS: { key: string; label: string }[] = [
+  { key: 'mon', label: 'M' },
+  { key: 'tue', label: 'T' },
+  { key: 'wed', label: 'W' },
+  { key: 'thu', label: 'T' },
+  { key: 'fri', label: 'F' },
+  { key: 'sat', label: 'S' },
+  { key: 'sun', label: 'S' },
+];
+
+const DAY_NAMES: Record<string, string> = {
+  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
+  fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 };
 
 export default function DietDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { diets, deleteDietPlan, duplicateDietPlan, assignDietPlan, activeClients, clientDiets } = useApp();
-  const { colors } = useTheme();
+  const { diets, meals, deleteDietPlan, duplicateDietPlan, assignDietPlan, activeClients, clientDiets } = useApp();
   const { showAlert } = useAlert();
   const [showAssign, setShowAssign] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSwapId, setExpandedSwapId] = useState<string | null>(null);
 
   const diet = useMemo(() => diets.find((d) => d.id === id), [diets, id]);
 
-  if (!diet) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.bgPrimary }]}>
-        <View style={styles.topNav}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
-            <Ionicons name="chevron-back" size={22} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Diet plan not found</Text>
-        </View>
-      </View>
-    );
-  }
+  const mealsList = diet?.diet_plan_meals || [];
 
-  const mealsList = diet.diet_plan_meals || [];
-  const totals = mealsList.reduce((acc, m) => {
+  const totals = useMemo(() => mealsList.reduce((acc, m) => {
     const servings = m.servings || 1;
     if (m.meals) {
       acc.calories += m.meals.calories * servings;
@@ -60,34 +94,75 @@ export default function DietDetailScreen() {
       acc.fat += m.meals.fat * servings;
     }
     return acc;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-
-  const MEAL_SECTIONS: { key: string; emoji: string; label: string }[] = [
-    { key: 'breakfast', emoji: '🌅', label: 'Breakfast' },
-    { key: 'lunch', emoji: '☀️', label: 'Lunch' },
-    { key: 'dinner', emoji: '🌙', label: 'Dinner' },
-    { key: 'snack', emoji: '🍎', label: 'Snacks' },
-  ];
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 }), [mealsList]);
 
   const groupedMeals = useMemo(() => {
     const groups: Record<string, typeof mealsList> = {};
     for (const dm of mealsList) {
       const key = dm.meal_time || dm.meals?.category?.toLowerCase() || 'other';
-      const normalised = MEAL_SECTIONS.some(s => s.key === key) ? key : 'other';
+      const normalised = MEAL_SECTIONS.some(s => s.key === key && s.key !== 'other') ? key : 'other';
       if (!groups[normalised]) groups[normalised] = [];
       groups[normalised].push(dm);
+    }
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => a.order_index - b.order_index);
     }
     return groups;
   }, [mealsList]);
 
+  if (!diet) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Diet plan not found</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const catLabel = diet.category ? (CATEGORY_LABELS[diet.category] || 'Custom') : null;
+
+  // Targets — only trust stored values, no fabricated defaults.
+  const hasTargets = !!(diet.target_calories && diet.target_calories > 0);
+  const targetKcal = diet.target_calories || 0;
+  const targetP = diet.target_protein || 0;
+  const targetC = diet.target_carbs || 0;
+  const targetF = diet.target_fat || 0;
+
+  const actualKcal = Math.round(totals.calories);
+  const kcalDiff = actualKcal - targetKcal;
+  const onTarget = hasTargets && Math.abs(kcalDiff) <= targetKcal * 0.05;
+
+  // Split bar shares — from targets when stored, otherwise from actual totals.
+  const splitP = hasTargets ? targetP : totals.protein;
+  const splitC = hasTargets ? targetC : totals.carbs;
+  const splitF = hasTargets ? targetF : totals.fat;
+  const splitSum = splitP + splitC + splitF;
+
+  // Week structure (nullable — plans predating the migration render nothing).
+  const week = diet.week_structure || null;
+  const swaps = diet.swaps || null;
+  const restKcal = week
+    ? Math.round(week.restVariant.mealList.reduce((sum, m) => sum + m.calories * (m.servings || 1), 0))
+    : 0;
+
+  const assignedClients = activeClients.filter(c =>
+    clientDiets.some(cd => cd.client_id === c.id && cd.diet_plan_id === diet.id)
+  );
+
   const handleEdit = () => {
-    router.push(`/create-diet?editId=${diet.id}`);
+    router.push(`/create-diet?editId=${diet.id}` as any);
   };
 
   const handleDuplicate = () => {
     showAlert({
       type: 'confirm',
-      title: 'Duplicate Plan',
+      title: 'Duplicate plan',
       message: `Create a copy of "${diet.name}"?`,
       buttons: [
         { text: 'Cancel', style: 'cancel' },
@@ -97,7 +172,7 @@ export default function DietDetailScreen() {
             setDuplicating(true);
             try {
               await duplicateDietPlan(diet.id);
-              showAlert({ type: 'success', title: 'Duplicated!', message: `"${diet.name}" has been duplicated.` });
+              showAlert({ type: 'success', title: 'Duplicated', message: `"${diet.name}" has been duplicated.` });
               router.back();
             } catch (err: any) {
               showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to duplicate' });
@@ -111,7 +186,7 @@ export default function DietDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Diet Plan', `Are you sure you want to delete "${diet.name}"?`, [
+    Alert.alert('Delete diet plan', `Are you sure you want to delete "${diet.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -139,6 +214,7 @@ export default function DietDetailScreen() {
     }
   };
 
+  // ── Assign picker (in-screen overlay, mirrors workout/[id].tsx) ──
   if (showAssign) {
     const filteredClients = activeClients.filter(c =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,28 +222,29 @@ export default function DietDetailScreen() {
     );
 
     return (
-      <View style={[styles.container, { backgroundColor: colors.bgPrimary, paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={[styles.backBtnDark, { backgroundColor: colors.bgElevated }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={[styles.assignHeaderTitle, { color: colors.textPrimary }]}>Assign to Client</Text>
+          <Text style={styles.assignHeaderTitle}>Assign to athlete</Text>
           <View style={{ width: 36 }} />
         </View>
 
         <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
-          <View style={[styles.searchBox, { backgroundColor: colors.bgElevated }]}>
-            <Ionicons name="search" size={20} color={colors.textTertiary} />
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
             <TextInput
-              style={[styles.searchInput, { color: colors.textPrimary }]}
+              style={styles.searchInput}
               placeholder="Search clients..."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={CoachColors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
+              selectionColor={CoachColors.accent}
             />
             {searchQuery !== '' && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+                <Ionicons name="close-circle" size={20} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -176,33 +253,33 @@ export default function DietDetailScreen() {
         <ScrollView contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
           {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No clients found</Text>
-              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Try a different search term</Text>
+              <Text style={styles.emptyTitle}>No clients found</Text>
+              <Text style={styles.emptyText}>Try a different search term</Text>
             </View>
           ) : (
             filteredClients.map((client) => {
               const alreadyAssigned = clientDiets.some(cd => cd.client_id === client.id && cd.diet_plan_id === diet.id);
-              
+
               return (
                 <TouchableOpacity
                   key={client.id}
-                  style={[styles.assignItem, { borderBottomColor: colors.border, opacity: alreadyAssigned ? 0.6 : 1 }]}
+                  style={[styles.assignItem, { opacity: alreadyAssigned ? 0.6 : 1 }]}
                   onPress={() => !alreadyAssigned && handleAssign(client.id)}
                   disabled={alreadyAssigned}
                   activeOpacity={0.7}
                 >
                   <Avatar name={client.name} size="sm" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.assignName, { color: colors.textPrimary }]}>{client.name}</Text>
-                    <Text style={[styles.assignMeta, { color: colors.textTertiary }]}>{client.email || client.phone || 'No contact'}</Text>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.assignName}>{client.name}</Text>
+                    <Text style={styles.assignMeta}>{client.email || client.phone || 'No contact'}</Text>
                   </View>
                   {alreadyAssigned ? (
-                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: Colors.greenSoft, borderRadius: Radius.full }}>
-                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.green }}>Assigned</Text>
+                    <View style={styles.assignedBadge}>
+                      <Text style={styles.assignedBadgeText}>Assigned</Text>
                     </View>
                   ) : (
-                    <View style={styles.assignBtn}>
-                      <Ionicons name="add" size={16} color={Colors.white} />
+                    <View style={styles.assignAddBtn}>
+                      <Ionicons name="add" size={16} color={CoachColors.onAccent} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -214,197 +291,256 @@ export default function DietDetailScreen() {
     );
   }
 
-  const fallbackGradient = getDietGradient(diet.name);
+  const renderMealCard = (dm: (typeof mealsList)[0], sectionIcon: keyof typeof Ionicons.glyphMap, isLast: boolean) => {
+    const m = dm.meals;
+    if (!m) return null;
+    const servings = dm.servings || 1;
+    const swapEntry = swaps?.[String(dm.order_index)];
+    const swapMealIds = swapEntry?.allowedMealIds || [];
+    const hasSwaps = swapMealIds.length > 0;
+    const expanded = expandedSwapId === dm.id;
 
-  return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-        
-        <View style={styles.heroContainer}>
-          {diet.image_url ? (
-            <Image 
-              source={{ uri: diet.image_url }} 
-              style={styles.heroImage} 
-              resizeMode="cover" 
-            />
-          ) : (
-            <LinearGradient
-              colors={fallbackGradient as any}
-              style={styles.heroImage}
-            />
-          )}
-          <LinearGradient
-            colors={diet.image_url ? ['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)'] : ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
-            style={styles.heroGradient}
-          >
-            <View style={[styles.topNav, { marginTop: insets.top || Spacing.lg }]}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn}>
-                <Ionicons name="chevron-back" size={24} color={Colors.white} />
+    return (
+      <View key={dm.id}>
+        <View style={styles.mealRow}>
+          <MealThumb name={m.name} imageUrl={m.image_url} mealId={m.id} sectionIcon={sectionIcon} />
+          <View style={styles.mealInfoCol}>
+            <View style={styles.mealNameRow}>
+              <Text style={styles.mealName} numberOfLines={1}>{m.name}</Text>
+              {servings !== 1 && <Text style={styles.mealServings}>× {servings}</Text>}
+            </View>
+            <Text style={styles.mealMacroLine}>
+              P {Math.round(m.protein * servings)}  C {Math.round(m.carbs * servings)}  F {Math.round(m.fat * servings)}
+            </Text>
+            {hasSwaps && (
+              <TouchableOpacity
+                style={styles.swapTag}
+                onPress={() => setExpandedSwapId(prev => prev === dm.id ? null : dm.id)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="swap-horizontal" size={12} color={CoachColors.accent} />
+                <Text style={styles.swapTagText}>
+                  {swapMealIds.length} swap{swapMealIds.length !== 1 ? 's' : ''} allowed
+                </Text>
+                <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={CoachColors.accent} />
               </TouchableOpacity>
-              <View style={styles.topNavActions}>
-                <TouchableOpacity onPress={handleEdit} style={styles.glassBtn}>
-                  <Ionicons name="create-outline" size={22} color={Colors.white} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleDuplicate} style={styles.glassBtn} disabled={duplicating}>
-                  <Ionicons name="copy-outline" size={22} color={Colors.white} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} style={[styles.glassBtn, { backgroundColor: 'rgba(255,59,48,0.35)' }]} disabled={deleting}>
-                  <Ionicons name="trash-outline" size={22} color={Colors.white} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.heroTitleBlock}>
-              <View style={styles.totalPill}>
-                <Text style={styles.totalPillText}>{mealsList.length} MEALS</Text>
-              </View>
-              <Text style={styles.heroTitle}>{diet.name}</Text>
-              <Text style={styles.heroSubtitle}>With {diet.description || 'Nutrition Coach'}</Text>
-            </View>
-          </LinearGradient>
+            )}
+          </View>
+          <Text style={styles.mealKcal}>{Math.round(m.calories * servings)} kcal</Text>
         </View>
 
-        <View style={styles.contentSheet}>
-          <Text style={styles.descText}>
-            {diet.description || 'No description provided'}
-          </Text>
-
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Ionicons name="flame" size={16} color="#FFFFFF" />
-              <Text style={styles.statValue}>{totals.calories}</Text>
-              <Text style={styles.statLabel}>/ {diet.target_calories || 2000} KCAL</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="barbell" size={16} color="#FFFFFF" />
-              <Text style={styles.statValue}>{totals.protein}g</Text>
-              <Text style={styles.statLabel}>/ {diet.target_protein || 150}G PRO</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="leaf" size={16} color="#FFFFFF" />
-              <Text style={styles.statValue}>{totals.carbs}g</Text>
-              <Text style={styles.statLabel}>/ {diet.target_carbs || 200}G CARB</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="water" size={16} color="#FFFFFF" />
-              <Text style={styles.statValue}>{totals.fat}g</Text>
-              <Text style={styles.statLabel}>/ {diet.target_fat || 65}G FAT</Text>
-            </View>
-          </View>
-
-          <View style={styles.mealList}>
-            <Text style={styles.sectionTitle}>DAILY MEALS</Text>
-            {MEAL_SECTIONS.map((section) => {
-              const meals = groupedMeals[section.key];
-              if (!meals || meals.length === 0) return null;
+        {hasSwaps && expanded && (
+          <View style={styles.swapList}>
+            {swapMealIds.map(mid => {
+              const swapMeal = meals.find(x => x.id === mid);
+              if (!swapMeal) return null;
               return (
-                <View key={section.key} style={styles.mealSection}>
-                  <View style={styles.mealSectionHeader}>
-                    <Text style={styles.mealSectionEmoji}>{section.emoji}</Text>
-                    <Text style={styles.mealSectionLabel}>{section.label.toUpperCase()}</Text>
-                    <View style={styles.mealSectionLine} />
-                  </View>
-                  {meals
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .map((dm) => {
-                      const m = dm.meals;
-                      if (!m) return null;
-                      const servings = dm.servings || 1;
-                      return (
-                        <View key={dm.id} style={styles.mealCard}>
-                          <View style={styles.mealImgWrap}>
-                            <Ionicons name="restaurant-outline" size={20} color="#FFFFFF" />
-                            {servings > 1 && (
-                              <View style={styles.servingBadge}>
-                                <Text style={styles.servingBadgeText}>{servings}x</Text>
-                              </View>
-                            )}
-                          </View>
-
-                          <View style={styles.mealInfo}>
-                            <View style={styles.mealCatPill}>
-                              <Text style={styles.mealCatText}>{m.category.toUpperCase()}</Text>
-                            </View>
-                            <Text style={styles.mealName}>{m.name}</Text>
-                            <View style={styles.mealMacrosRow}>
-                              <Text style={styles.mealMacroText}>{m.calories * servings} kcal</Text>
-                              <Text style={styles.mealMacroDot}>•</Text>
-                              <Text style={styles.mealMacroText}>{m.protein * servings}g P</Text>
-                              <Text style={styles.mealMacroDot}>•</Text>
-                              <Text style={styles.mealMacroText}>{m.carbs * servings}g C</Text>
-                              <Text style={styles.mealMacroDot}>•</Text>
-                              <Text style={styles.mealMacroText}>{m.fat * servings}g F</Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                  })}
+                <View key={mid} style={styles.swapRow}>
+                  <Ionicons name="swap-horizontal" size={13} color={CoachColors.textFaint} />
+                  <Text style={styles.swapName} numberOfLines={1}>{swapMeal.name}</Text>
+                  <Text style={styles.swapKcal}>{Math.round(swapMeal.calories)} kcal</Text>
                 </View>
               );
             })}
-            {/* Ungrouped / "other" meals */}
-            {groupedMeals['other'] && groupedMeals['other'].length > 0 && (
-              <View style={styles.mealSection}>
-                <View style={styles.mealSectionHeader}>
-                  <Text style={styles.mealSectionEmoji}>🍽️</Text>
-                  <Text style={styles.mealSectionLabel}>OTHER</Text>
-                  <View style={styles.mealSectionLine} />
-                </View>
-                {groupedMeals['other']
-                  .sort((a, b) => a.order_index - b.order_index)
-                  .map((dm) => {
-                    const m = dm.meals;
-                    if (!m) return null;
-                    const servings = dm.servings || 1;
-                    return (
-                      <View key={dm.id} style={styles.mealCard}>
-                        <View style={styles.mealImgWrap}>
-                          <Ionicons name="restaurant-outline" size={20} color="#FFFFFF" />
-                          {servings > 1 && (
-                            <View style={styles.servingBadge}>
-                              <Text style={styles.servingBadgeText}>{servings}x</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <View style={styles.mealInfo}>
-                          <View style={styles.mealCatPill}>
-                            <Text style={styles.mealCatText}>{m.category.toUpperCase()}</Text>
-                          </View>
-                          <Text style={styles.mealName}>{m.name}</Text>
-                          <View style={styles.mealMacrosRow}>
-                            <Text style={styles.mealMacroText}>{m.calories * servings} kcal</Text>
-                            <Text style={styles.mealMacroDot}>•</Text>
-                            <Text style={styles.mealMacroText}>{m.protein * servings}g P</Text>
-                            <Text style={styles.mealMacroDot}>•</Text>
-                            <Text style={styles.mealMacroText}>{m.carbs * servings}g C</Text>
-                            <Text style={styles.mealMacroDot}>•</Text>
-                            <Text style={styles.mealMacroText}>{m.fat * servings}g F</Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                })}
+            {swapEntry?.allowOwnLog && (
+              <View style={styles.swapRow}>
+                <Ionicons name="create-outline" size={13} color={CoachColors.textFaint} />
+                <Text style={styles.swapName}>Athlete can log their own meal</Text>
               </View>
             )}
           </View>
-          
-          <View style={{ height: 100 }} />
-        </View>
+        )}
 
+        {!isLast && <View style={styles.rowDivider} />}
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 140 }}>
+
+        {/* ── Hero ── */}
+        {diet.image_url ? (
+          <View style={styles.heroContainer}>
+            <Image source={{ uri: diet.image_url }} style={styles.heroImage} contentFit="cover" />
+            <LinearGradient
+              colors={['rgba(16,18,16,0.55)', 'rgba(16,18,16,0.15)', 'rgba(16,18,16,0.92)']}
+              style={styles.heroGradient}
+            >
+              <View style={[styles.topNav, { marginTop: insets.top || Spacing.lg }]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn} accessibilityLabel="Go back" accessibilityRole="button">
+                  <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+                </TouchableOpacity>
+                <View style={styles.topNavActions}>
+                  <TouchableOpacity onPress={handleEdit} style={styles.glassBtn} accessibilityLabel="Edit">
+                    <Ionicons name="pencil" size={20} color={CoachColors.textPrimary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleDuplicate} style={styles.glassBtn} disabled={duplicating} accessibilityLabel="Duplicate">
+                    <Ionicons name="copy-outline" size={20} color={CoachColors.textPrimary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleDelete} style={styles.glassBtn} disabled={deleting} accessibilityLabel="Delete">
+                    <Ionicons name="trash-outline" size={20} color={CoachColors.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.heroTitleBlock}>
+                {catLabel && (
+                  <View style={styles.categoryChip}>
+                    <Text style={styles.categoryChipText}>{catLabel}</Text>
+                  </View>
+                )}
+                <Text style={styles.heroTitle}>{diet.name}</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        ) : (
+          <View style={[styles.flatHero, { paddingTop: (insets.top || Spacing.lg) + Spacing.sm }]}>
+            <View style={styles.topNav}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+                <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+              </TouchableOpacity>
+              <View style={styles.topNavActions}>
+                <TouchableOpacity onPress={handleEdit} style={styles.navBtn} accessibilityLabel="Edit">
+                  <Ionicons name="pencil" size={22} color={CoachColors.textPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleDuplicate} style={styles.navBtn} disabled={duplicating} accessibilityLabel="Duplicate">
+                  <Ionicons name="copy-outline" size={22} color={CoachColors.textPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleDelete} style={styles.navBtn} disabled={deleting} accessibilityLabel="Delete">
+                  <Ionicons name="trash-outline" size={22} color={CoachColors.danger} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.flatHeroBody}>
+              {catLabel && (
+                <View style={styles.categoryChip}>
+                  <Text style={styles.categoryChipText}>{catLabel}</Text>
+                </View>
+              )}
+              <Text style={styles.heroTitle}>{diet.name}</Text>
+              {!!diet.description && <Text style={styles.heroDesc}>{diet.description}</Text>}
+            </View>
+          </View>
+        )}
+
+        <View style={styles.content}>
+          {diet.image_url && !!diet.description && (
+            <Text style={styles.descBelowHero}>{diet.description}</Text>
+          )}
+
+          {/* ── Daily targets ── */}
+          <View style={styles.card}>
+            <Text style={styles.eyebrow}>{hasTargets ? 'Daily targets' : 'Day totals'}</Text>
+            <Text style={styles.kcalValue}>
+              {(hasTargets ? targetKcal : actualKcal).toLocaleString()} <Text style={styles.kcalUnit}>kcal</Text>
+            </Text>
+            {splitSum > 0 && (
+              <>
+                <View style={styles.splitBar}>
+                  <View style={[styles.splitSeg, { flex: splitP, backgroundColor: CoachColors.accent }]} />
+                  <View style={[styles.splitSeg, { flex: splitC, backgroundColor: CARB_GREY }]} />
+                  <View style={[styles.splitSeg, { flex: splitF, backgroundColor: FAT_GREY }]} />
+                </View>
+                <View style={styles.legendRow}>
+                  <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: CoachColors.accent }]} /><Text style={styles.legendText}>Protein {Math.round(splitP)}g</Text></View>
+                  <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: CARB_GREY }]} /><Text style={styles.legendText}>Carbs {Math.round(splitC)}g</Text></View>
+                  <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: FAT_GREY }]} /><Text style={styles.legendText}>Fat {Math.round(splitF)}g</Text></View>
+                </View>
+              </>
+            )}
+            {hasTargets && mealsList.length > 0 && (
+              <Text style={styles.compareLine}>
+                Meals add up to {actualKcal.toLocaleString()} kcal
+                <Text style={onTarget ? styles.compareOn : styles.compareOff}>
+                  {'  ·  '}
+                  {onTarget ? 'On target' : `${Math.abs(kcalDiff).toLocaleString()} ${kcalDiff < 0 ? 'under' : 'over'}`}
+                </Text>
+              </Text>
+            )}
+          </View>
+
+          {/* ── Week structure ── */}
+          {week && (
+            <View style={styles.card}>
+              <Text style={styles.eyebrow}>Week</Text>
+              <View style={styles.weekRow}>
+                {DAY_LABELS.map((d) => {
+                  const isTraining = week.trainingDays.includes(d.key);
+                  return (
+                    <View key={d.key} style={[styles.dayChip, isTraining && styles.dayChipTraining]}>
+                      <Text style={[styles.dayChipLabel, isTraining && styles.dayChipLabelTraining]}>{d.label}</Text>
+                      <Text style={[styles.dayChipKcal, isTraining && styles.dayChipKcalTraining]}>
+                        {isTraining ? actualKcal : restKcal}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={styles.weekLegendRow}>
+                <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: CoachColors.accent }]} /><Text style={styles.legendText}>Training day</Text></View>
+                <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: FAT_GREY }]} /><Text style={styles.legendText}>Rest day</Text></View>
+              </View>
+              {week.freeMeal?.enabled && (
+                <View style={styles.freeMealRow}>
+                  <Ionicons name="pizza-outline" size={14} color={CoachColors.textSecondary} />
+                  <Text style={styles.freeMealText}>
+                    One free meal a week · {DAY_NAMES[week.freeMeal.day] || week.freeMeal.day} dinner
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ── Meals grouped by meal time ── */}
+          {MEAL_SECTIONS.map((section) => {
+            const group = groupedMeals[section.key];
+            if (!group || group.length === 0) return null;
+            const groupKcal = Math.round(group.reduce((sum, dm) => sum + (dm.meals ? dm.meals.calories * (dm.servings || 1) : 0), 0));
+            return (
+              <View key={section.key} style={styles.mealSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionEyebrow}>{section.label.toUpperCase()}</Text>
+                  <Text style={styles.sectionKcal}>{groupKcal.toLocaleString()} kcal</Text>
+                </View>
+                <View style={styles.mealGroupCard}>
+                  {group.map((dm, i) => renderMealCard(dm, section.icon, i === group.length - 1))}
+                </View>
+              </View>
+            );
+          })}
+
+          {/* ── Who's on it ── */}
+          {assignedClients.length > 0 && (
+            <View style={styles.mealSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionEyebrow}>WHO'S ON IT</Text>
+                <Text style={styles.sectionKcal}>{assignedClients.length}</Text>
+              </View>
+              <View style={styles.mealGroupCard}>
+                {assignedClients.map((client, i) => (
+                  <View key={client.id}>
+                    <View style={styles.clientRow}>
+                      <Avatar name={client.name} size="sm" />
+                      <Text style={styles.clientName}>{client.name}</Text>
+                    </View>
+                    {i < assignedClients.length - 1 && <View style={styles.rowDivider} />}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
+      {/* ── Sticky CTA ── */}
       <View style={[styles.bottomCTAWrapper, { paddingBottom: insets.bottom || Spacing.xl }]}>
         <TouchableOpacity
           style={styles.bottomBtn}
           onPress={() => setShowAssign(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.bottomBtnText}>ASSIGN TO CLIENT</Text>
-          <Ionicons name="restaurant" size={18} color="#000000" />
+          <Text style={styles.bottomBtnText}>Assign to athlete</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -412,136 +548,258 @@ export default function DietDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
 
-  heroContainer: { width: '100%', height: height * 0.4, position: 'relative' },
+  // Header (flat hero + not-found state)
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+  },
+  navBtn: { padding: 8 },
+
+  // Image hero
+  heroContainer: { width: '100%', height: 280, position: 'relative' },
   heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   heroGradient: { flex: 1, justifyContent: 'space-between' },
-
   topNav: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.md,
   },
-  topNavActions: {
-    flexDirection: 'row', gap: Spacing.sm,
-  },
+  topNavActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   glassBtn: {
     width: 38, height: 38, borderRadius: Radius.xs,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(16,18,16,0.65)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  heroTitleBlock: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg, gap: 8 },
+
+  // Flat hero
+  flatHero: { paddingBottom: Spacing.lg },
+  flatHeroBody: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, gap: 8 },
+  heroDesc: {
+    fontFamily: CoachFonts.body, fontSize: FontSize.sm,
+    color: CoachColors.textSecondary, lineHeight: 21,
+  },
+  descBelowHero: {
+    fontFamily: CoachFonts.body, fontSize: FontSize.sm,
+    color: CoachColors.textSecondary, lineHeight: 21,
+    marginBottom: Spacing.lg,
   },
 
-  heroTitleBlock: { alignItems: 'center', paddingBottom: 60 },
-  totalPill: {
-    paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
-    backgroundColor: '#000000',
-    marginBottom: Spacing.sm,
+  categoryChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1, borderColor: CoachColors.accent,
+    borderRadius: Radius.full,
   },
-  totalPillText: { fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: '#FFFFFF', letterSpacing: 0.5 },
-  heroTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 30, color: '#FFFFFF', marginBottom: 4, letterSpacing: -0.5 },
-  heroSubtitle: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.7)' },
-
-  contentSheet: {
-    backgroundColor: '#000000',
-    marginTop: -40, paddingHorizontal: Spacing.lg, paddingTop: Spacing['2xl'],
-    minHeight: height * 0.6,
+  categoryChipText: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11,
+    color: CoachColors.accent, letterSpacing: 0.3,
   },
-
-  descText: {
-    fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center', lineHeight: 22, paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xl,
+  heroTitle: {
+    fontFamily: CoachFonts.headingBold, fontSize: 26,
+    color: CoachColors.textPrimary, letterSpacing: -0.5,
   },
 
-  statsContainer: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: Spacing.md, marginBottom: Spacing.xl,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.sm,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  statItem: { flex: 1, alignItems: 'center', gap: 4 },
-  statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: '#FFFFFF' },
-  statLabel: { fontFamily: FontFamily.heading, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
 
-  sectionTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 1, marginBottom: Spacing.md },
-  mealList: { gap: Spacing.md },
-  mealSection: { gap: Spacing.sm },
-  mealSectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    marginTop: Spacing.md, marginBottom: Spacing.xs,
+  // Cards
+  card: {
+    backgroundColor: CoachColors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
-  mealSectionEmoji: { fontSize: 18 },
-  mealSectionLabel: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 13,
-    color: '#FFFFFF', letterSpacing: 0.8,
+  eyebrow: {
+    fontFamily: CoachFonts.headingBold, fontSize: 9,
+    color: CoachColors.textFaint, letterSpacing: 1.8,
+    textTransform: 'uppercase', marginBottom: 10,
   },
-  mealSectionLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  mealCard: {
+  kcalValue: {
+    fontFamily: CoachFonts.headingBold, fontSize: 32,
+    color: CoachColors.accent, letterSpacing: -0.5,
+  },
+  kcalUnit: {
+    fontFamily: CoachFonts.bodyMedium, fontSize: FontSize.sm,
+    color: CoachColors.textSecondary, letterSpacing: 0,
+  },
+  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 14, gap: 2 },
+  splitSeg: { height: '100%' },
+  legendRow: { flexDirection: 'row', gap: 16, marginTop: 12, flexWrap: 'wrap' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  compareLine: {
+    fontFamily: CoachFonts.body, fontSize: 13,
+    color: CoachColors.textMuted, marginTop: 14,
+  },
+  compareOn: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.accent },
+  compareOff: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.warning },
+
+  // Week card
+  weekRow: { flexDirection: 'row', gap: 6 },
+  dayChip: {
+    flex: 1, alignItems: 'center', paddingVertical: 8,
+    borderRadius: Radius.sm, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg, gap: 2,
+  },
+  dayChipTraining: {
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSofter,
+  },
+  dayChipLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted },
+  dayChipLabelTraining: { color: CoachColors.accent },
+  dayChipKcal: { fontFamily: CoachFonts.mono, fontSize: 9, color: CoachColors.textFaint },
+  dayChipKcalTraining: { color: CoachColors.textSecondary },
+  weekLegendRow: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  freeMealRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+    paddingTop: 12, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
+  },
+  freeMealText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+
+  // Meal sections
+  mealSection: { marginBottom: Spacing.lg },
+  sectionHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: Spacing.sm, paddingHorizontal: 2,
+  },
+  sectionEyebrow: {
+    fontFamily: CoachFonts.headingBold, fontSize: 9,
+    color: CoachColors.textFaint, letterSpacing: 1.8,
+  },
+  sectionKcal: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted },
+  mealGroupCard: {
+    backgroundColor: CoachColors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    overflow: 'hidden',
+  },
+  mealRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.sm, padding: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg,
   },
-  mealImgWrap: {
-    width: 48, height: 48, borderRadius: Radius.xs, backgroundColor: '#111111',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  mealThumb: {
+    width: 46, height: 46, borderRadius: Radius.xs,
+    backgroundColor: CoachColors.bg,
   },
-  servingBadge: {
-    position: 'absolute', top: -4, right: -4,
-    backgroundColor: '#FFFFFF', borderRadius: 4,
-    minWidth: 18, height: 18, paddingHorizontal: 3,
+  mealIconCircle: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  servingBadgeText: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 9.5,
-    color: '#000000',
+  mealInfoCol: { flex: 1 },
+  mealNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mealName: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 15,
+    color: CoachColors.textPrimary, flexShrink: 1,
   },
-  mealInfo: { flex: 1, justifyContent: 'center', paddingRight: Spacing.sm },
-  mealCatPill: {
-    alignSelf: 'flex-start', backgroundColor: '#1A1A1A',
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 4,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  mealServings: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
+  mealMacroLine: {
+    fontFamily: CoachFonts.mono, fontSize: 11,
+    color: CoachColors.textMuted, marginTop: 3,
   },
-  mealCatText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
-  mealName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF', marginBottom: 2 },
-  mealMacrosRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
-  mealMacroText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
-  mealMacroDot: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+  mealKcal: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 14,
+    color: CoachColors.textPrimary, textAlign: 'right',
+  },
+  rowDivider: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: Spacing.lg },
 
+  // Swaps
+  swapTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', marginTop: 6,
+    paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: CoachColors.accentSofter,
+    borderRadius: Radius.full, borderWidth: 1, borderColor: CoachColors.accentSoft,
+  },
+  swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.accent },
+  swapList: {
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
+    padding: Spacing.md, gap: 8,
+    backgroundColor: CoachColors.bg, borderRadius: Radius.sm,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  swapRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  swapName: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  swapKcal: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted },
+
+  // Who's on it
+  clientRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg,
+  },
+  clientName: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary },
+
+  // Sticky CTA
   bottomCTAWrapper: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'transparent', paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg,
+    backgroundColor: 'transparent',
   },
   bottomBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: Radius.sm,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
+    paddingVertical: 16, borderRadius: Radius.sm,
   },
-  bottomBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 13, color: '#000000', letterSpacing: 1 },
+  bottomBtnText: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: FontSize.sm,
+    color: CoachColors.onAccent,
+  },
 
+  // Assign UI
   assignHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
   backBtnDark: {
     width: 36, height: 36, borderRadius: Radius.xs,
-    backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    alignItems: 'center', justifyContent: 'center',
   },
-  assignHeaderTitle: { flex: 1, fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFFFFF', textAlign: 'center', letterSpacing: 0.5 },
+  assignHeaderTitle: {
+    flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 16,
+    color: CoachColors.textPrimary, textAlign: 'center',
+  },
   assignList: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
   assignItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
-  assignName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF' },
-  assignMeta: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 1 },
-  assignBtn: { width: 32, height: 32, borderRadius: Radius.xs, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  assignName: { fontFamily: CoachFonts.headingSemiBold, fontSize: FontSize.base, color: CoachColors.textPrimary },
+  assignMeta: { fontFamily: CoachFonts.body, fontSize: FontSize.xs, color: CoachColors.textMuted, marginTop: 1 },
+  assignedBadge: {
+    paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1, borderColor: CoachColors.accent,
+    borderRadius: 4,
+  },
+  assignedBadgeText: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 10,
+    color: CoachColors.accent, letterSpacing: 0.3,
+  },
+  assignAddBtn: {
+    width: 32, height: 32, borderRadius: Radius.xs,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: 0, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.15)' },
-  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: '#FFFFFF', padding: 0 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: CoachColors.border,
+  },
+  searchInput: {
+    flex: 1, fontFamily: CoachFonts.body, fontSize: FontSize.sm,
+    color: CoachColors.textPrimary, padding: 0,
+  },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 0.5 },
-  emptyText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: FontSize.lg, color: CoachColors.textPrimary },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: FontSize.sm, color: CoachColors.textMuted },
 });
