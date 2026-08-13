@@ -1,25 +1,62 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+/**
+ * (auth)/client-signup.tsx — Athlete arrival + sign-up (design turn 25a/25b).
+ *
+ * Most athletes arrive holding a coach's link, so the first screen answers
+ * "whose is this?" before it asks for anything:
+ *   - If the link carries ?ref=<trainer_id> (or ?trainer=), the coach's real
+ *     name / avatar / specialization is resolved from the public trainers
+ *     table and leads the screen.
+ *   - If not, a neutral athlete welcome is shown (no invented coach).
+ *
+ * Sign-up asks for as little as possible; everything else is deferred into
+ * the client intake. Mechanics preserved from the previous version:
+ * lookup_client_by_contact → create_password (coach pre-added you) or
+ * new_signup → create_client_and_notify. AuthGuard handles the redirect
+ * after a session exists.
+ *
+ * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
+ */
+
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, Dimensions, StatusBar, Animated,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../../context/AuthContext';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
-import { Spacing, FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const C = CoachColors;
+const F = CoachFonts;
 
-type FlowStep = 'lookup' | 'create_password' | 'new_signup' | 'pick_trainer';
+type FlowStep = 'welcome' | 'lookup' | 'create_password' | 'new_signup' | 'pick_trainer';
+
+type InviteTrainer = {
+  id: string;
+  name: string;
+  specialization?: string | null;
+  avatar_url?: string | null;
+};
+
+function initials(name?: string): string {
+  if (!name) return '';
+  return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+}
+
+function firstName(name?: string): string {
+  return (name || '').split(' ')[0] || '';
+}
 
 export default function ClientSignupScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ ref?: string; trainer?: string }>();
 
-  const [flowStep, setFlowStep] = useState<FlowStep>('lookup');
+  const [flowStep, setFlowStep] = useState<FlowStep>('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -27,21 +64,33 @@ export default function ClientSignupScreen() {
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const [foundClient, setFoundClient] = useState<any>(null);
+  // Coach resolved from the invite link (?ref= / ?trainer=), if any.
+  const [inviteTrainer, setInviteTrainer] = useState<InviteTrainer | null>(null);
+
+  // Coach found via lookup (coach pre-added this athlete by email/phone).
+  const [foundClientName, setFoundClientName] = useState('');
   const [foundTrainerName, setFoundTrainerName] = useState('');
 
   const [trainers, setTrainers] = useState<any[]>([]);
-  const [selectedTrainer, setSelectedTrainer] = useState<string | null>(null);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
 
-  // Animation
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // ── Resolve the inviting coach from the link ref ──────────────────────────
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-  }, []);
+    const refId = (params.ref || params.trainer || '').toString().trim();
+    if (!refId) return;
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from('trainers')
+        .select('id, name, specialization, avatar_url')
+        .eq('id', refId)
+        .maybeSingle();
+      if (alive && data) setInviteTrainer(data);
+    })();
+    return () => { alive = false; };
+  }, [params.ref, params.trainer]);
 
   const isEmail = (val: string) => val.includes('@');
   const formatPhone = (raw: string) => {
@@ -52,7 +101,7 @@ export default function ClientSignupScreen() {
     return `+${digits}`;
   };
 
-  // --- Step 1: Lookup ---
+  // ── Step: lookup — did the coach already set you up? ─────────────────────
   const handleLookup = useCallback(async () => {
     const trimmed = contact.trim();
     const isEmailInput = isEmail(trimmed);
@@ -64,7 +113,6 @@ export default function ClientSignupScreen() {
 
     setError(''); setSuccess('');
     setLoading(true);
-
     try {
       const { data, error: rpcErr } = await supabase.rpc('lookup_client_by_contact', { contact_value: lookupVal });
       if (__DEV__) console.log('[ClientSignup] RPC:', JSON.stringify({ lookupVal, data, rpcErr }));
@@ -72,11 +120,11 @@ export default function ClientSignupScreen() {
 
       if (data?.found) {
         if (data.has_account) {
-          setSuccess('You already have an account! Redirecting to sign in...');
+          setSuccess('You already have an account. Taking you to sign in.');
           setTimeout(() => router.push('/(auth)/client-login'), 1500);
         } else {
-          setFoundClient({ name: data.client_name });
-          setFoundTrainerName(data.trainer_name || 'your trainer');
+          setFoundClientName(data.client_name || '');
+          setFoundTrainerName(data.trainer_name || inviteTrainer?.name || 'your coach');
           setName(data.client_name || '');
           setFlowStep('create_password');
         }
@@ -89,18 +137,19 @@ export default function ClientSignupScreen() {
     } finally {
       setLoading(false);
     }
-  }, [contact]);
+  }, [contact, router, inviteTrainer]);
 
-  // --- Existing client: create password ---
+  // ── Coach pre-added you: just a password ──────────────────────────────────
   const handleCreatePassword = async () => {
     setError('');
     if (!password.trim()) return setError('Create a password');
     if (password.length < 6) return setError('Password must be 6+ characters');
-    if (password !== confirmPassword) return setError("Passwords don't match");
 
     setLoading(true);
     try {
-      const contactEmail = isEmail(contact.trim()) ? contact.trim().toLowerCase() : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
+      const contactEmail = isEmail(contact.trim())
+        ? contact.trim().toLowerCase()
+        : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
       const { error: signUpErr } = await supabase.auth.signUp({
         email: contactEmail,
@@ -118,7 +167,7 @@ export default function ClientSignupScreen() {
       });
       if (__DEV__) console.log('[ClientSignup] Link:', JSON.stringify({ linkResult, linkErr }));
 
-      setSuccess("You're in! Redirecting...");
+      setSuccess("You're in. One moment.");
     } catch (err: any) {
       console.error('[ClientSignup] Error:', err);
       setError(err.message || 'Failed to create account');
@@ -127,22 +176,27 @@ export default function ClientSignupScreen() {
     }
   };
 
-  // --- New client: full signup ---
+  // ── New athlete: name + email + password, nothing else ────────────────────
   const handleNewSignup = async () => {
     setError('');
     if (!name.trim()) return setError('Enter your name');
-    if (!contact.trim()) return setError('Enter your email');
+    if (!contact.trim() || !isEmail(contact.trim())) return setError('Enter your email');
     if (password.length < 6) return setError('Password must be 6+ characters');
-    if (password !== confirmPassword) return setError("Passwords don't match");
 
     setLoading(true);
     try {
-      const { data, error: signUpErr } = await supabase.auth.signUp({
+      const { error: signUpErr } = await supabase.auth.signUp({
         email: contact.trim().toLowerCase(),
         password,
         options: { data: { name: name.trim(), role: 'client' } },
       });
       if (signUpErr) throw signUpErr;
+
+      // Arrived on a coach's link — connect straight to that coach.
+      if (inviteTrainer) {
+        await connectToTrainer(inviteTrainer.id);
+        return;
+      }
 
       setLoadingTrainers(true);
       const { data: trainerList } = await supabase
@@ -159,12 +213,9 @@ export default function ClientSignupScreen() {
     }
   };
 
-  // --- Pick trainer ---
-  const handlePickTrainer = async (trainerId: string) => {
-    setSelectedTrainer(trainerId);
+  const connectToTrainer = async (trainerId: string) => {
     setLoading(true);
     setError('');
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -175,409 +226,450 @@ export default function ClientSignupScreen() {
         p_trainer_id: trainerId,
         p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
       });
-
       if (rpcErr) throw rpcErr;
-      if (!result?.success) throw new Error(result?.reason || 'Failed to create client');
+      if (!result?.success) throw new Error(result?.reason || 'Failed to connect');
 
-      setSuccess('Connected! Redirecting...');
+      setSuccess('Connected. One moment.');
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to trainer');
+      setError(err.message || 'Failed to connect to coach');
       setLoading(false);
     }
   };
 
-  const getTitle = () => {
-    switch (flowStep) {
-      case 'lookup': return 'Get started';
-      case 'create_password': return 'Almost there';
-      case 'new_signup': return 'Create your\naccount';
-      case 'pick_trainer': return 'Pick your\ncoach';
-    }
-  };
-
-  const getSubtitle = () => {
-    switch (flowStep) {
-      case 'lookup': return "Enter your email or phone and we'll check if your coach already set you up.";
-      case 'create_password': return '';
-      case 'new_signup': return 'Fill in your details to join FitLink as a client.';
-      case 'pick_trainer': return 'Choose a coach to train with.';
-    }
-  };
-
-  // Step numbers for indicator
-  const stepNum = flowStep === 'lookup' ? 1 : flowStep === 'create_password' || flowStep === 'new_signup' ? 2 : 3;
-
   const goBack = () => {
-    if (flowStep === 'lookup') {
-      router.back();
-    } else if (flowStep === 'pick_trainer') {
-      setFlowStep('new_signup');
-    } else {
-      setFlowStep('lookup');
-      setPassword(''); setConfirmPassword(''); setError(''); setSuccess('');
-    }
+    setError(''); setSuccess('');
+    if (flowStep === 'welcome') router.back();
+    else if (flowStep === 'lookup') setFlowStep('welcome');
+    else if (flowStep === 'pick_trainer') setFlowStep('new_signup');
+    else { setFlowStep('lookup'); setPassword(''); }
   };
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+  const coachFirst = firstName(inviteTrainer?.name);
 
-      <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  // ── 25a: the front door ────────────────────────────────────────────────────
+  if (flowStep === 'welcome') {
+    return (
+      <View style={st.container}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <View style={[st.welcomeBody, { paddingTop: insets.top + 30 }]}>
+          <Text style={st.brand}>FITLINK</Text>
+
+          <View style={{ flex: 1 }} />
+
+          {inviteTrainer ? (
+            <>
+              <View style={st.coachAvatarWrap}>
+                {inviteTrainer.avatar_url ? (
+                  <Avatar name={inviteTrainer.name} size="lg" imageUrl={inviteTrainer.avatar_url} />
+                ) : (
+                  <Text style={st.coachAvatarText}>{initials(inviteTrainer.name)}</Text>
+                )}
+              </View>
+              <Text style={st.welcomeTitle}>{inviteTrainer.name}{'\n'}invited you to train</Text>
+              <Text style={st.welcomeSub}>
+                {inviteTrainer.specialization
+                  ? `${inviteTrainer.specialization}. `
+                  : ''}
+                You'll get {coachFirst}'s programme, check-ins, and a way to reach {coachFirst} that isn't a text message that gets forgotten.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={st.welcomeTitle}>Train with your coach,{'\n'}all in one place</Text>
+              <Text style={st.welcomeSub}>
+                Your programme, your check-ins, and a direct line to your coach. If they sent you a link, your plan is already on its way.
+              </Text>
+            </>
+          )}
+
+          <View style={st.stepsCol}>
+            {[
+              'A few questions about you',
+              inviteTrainer ? `${coachFirst} picks the right plan` : 'Your coach picks the right plan',
+              'Then you train',
+            ].map((label, i) => (
+              <View key={i} style={st.stepRow}>
+                <View style={st.stepNum}><Text style={st.stepNumText}>{i + 1}</Text></View>
+                <Text style={st.stepLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={[st.welcomeFooter, { paddingBottom: insets.bottom + 24 }]}>
+          <TouchableOpacity
+            style={st.primaryBtn}
+            onPress={() => setFlowStep('lookup')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Get started"
+          >
+            <Text style={st.primaryBtnText}>Get started</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/client-login')}
+            style={st.footerRow}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+          >
+            <Text style={st.footerText}>
+              {inviteTrainer ? `Already train with ${coachFirst}? ` : 'Already have an account? '}
+              <Text style={st.footerLink}>Sign in</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // ── 25b: the form steps ─────────────────────────────────────────────────────
+  return (
+    <View style={st.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[st.scrollContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <Animated.View style={{ opacity: fadeAnim }}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity style={styles.backButton} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={st.backBtn} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={18} color="#C9CEC2" />
+          </TouchableOpacity>
+
+          {/* Title */}
+          {flowStep === 'lookup' && (
+            <>
+              <Text style={st.title}>First, your email{'\n'}or phone</Text>
+              <Text style={st.subtitle}>
+                {inviteTrainer
+                  ? `If ${coachFirst} already added you, everything is ready and you just set a password.`
+                  : 'If your coach already added you, everything is ready and you just set a password.'}
+              </Text>
+            </>
+          )}
+          {flowStep === 'create_password' && (
+            <>
+              <Text style={st.title}>Almost there{foundClientName ? `, ${firstName(foundClientName)}` : ''}</Text>
+              <Text style={st.subtitle}>
+                {foundTrainerName} has everything ready. Set a password and you're in.
+              </Text>
+            </>
+          )}
+          {flowStep === 'new_signup' && (
+            <>
+              <Text style={st.title}>Make your account</Text>
+              <Text style={st.subtitle}>
+                {inviteTrainer
+                  ? `${coachFirst} sees your name and your training. Nothing else on this screen goes to him.`
+                  : 'Your coach sees your name and your training. Nothing else on this screen goes to them.'}
+              </Text>
+            </>
+          )}
+          {flowStep === 'pick_trainer' && (
+            <>
+              <Text style={st.title}>Pick your coach</Text>
+              <Text style={st.subtitle}>Choose who you'll be training with.</Text>
+            </>
+          )}
+
+          {/* Messages */}
+          {error ? (
+            <View style={st.messageBox}>
+              <Ionicons name="alert-circle" size={17} color={C.danger} />
+              <Text style={st.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          {success ? (
+            <View style={st.messageBox}>
+              <Ionicons name="checkmark-circle" size={17} color={C.accent} />
+              <Text style={st.successText}>{success}</Text>
+            </View>
+          ) : null}
+
+          {/* Lookup */}
+          {flowStep === 'lookup' && (
+            <>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Email or phone</Text>
+                <TextInput
+                  style={st.input}
+                  placeholder="you@example.com or (555) 000-0000"
+                  placeholderTextColor={C.textFaint}
+                  value={contact}
+                  onChangeText={setContact}
+                  autoCapitalize="none"
+                  autoFocus
+                  keyboardType="email-address"
+                  accessibilityLabel="Email or phone number"
+                  selectionColor={C.accent}
+                />
+              </View>
+              <TouchableOpacity
+                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
+                onPress={handleLookup}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Continue"
+              >
+                <Text style={st.primaryBtnText}>{loading ? 'Checking...' : 'Continue'}</Text>
               </TouchableOpacity>
-              <Text style={styles.headerLogo}>FITLINK</Text>
-            </View>
+            </>
+          )}
 
-            {/* Step indicator */}
-            <View style={styles.stepRow}>
-              <View style={[styles.stepDot, stepNum >= 1 && styles.stepDotActive]} />
-              <View style={[styles.stepLine, stepNum >= 2 && styles.stepLineActive]} />
-              <View style={[styles.stepDot, stepNum >= 2 && styles.stepDotActive]} />
-              <View style={[styles.stepLine, stepNum >= 3 && styles.stepLineActive]} />
-              <View style={[styles.stepDot, stepNum >= 3 && styles.stepDotActive]} />
-            </View>
-
-            <View style={styles.stepLabels}>
-              <Text style={[styles.stepLabel, stepNum >= 1 && styles.stepLabelActive]}>Verify</Text>
-              <Text style={[styles.stepLabel, stepNum >= 2 && styles.stepLabelActive]}>Account</Text>
-              <Text style={[styles.stepLabel, stepNum >= 3 && styles.stepLabelActive]}>Coach</Text>
-            </View>
-
-            {/* Title */}
-            <Text style={styles.title}>{getTitle()}</Text>
-            {getSubtitle() ? <Text style={styles.subtitle}>{getSubtitle()}</Text> : null}
-
-            {/* Messages */}
-            {error ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="alert-circle" size={18} color="#FF4444" />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-            {success ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                <Text style={styles.successText}>{success}</Text>
-              </View>
-            ) : null}
-
-            {/* ===== STEP 1: Lookup ===== */}
-            {flowStep === 'lookup' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Email or phone</Text>
+          {/* Coach pre-added you: password only */}
+          {flowStep === 'create_password' && (
+            <>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Password</Text>
+                <View style={st.passwordWrap}>
                   <TextInput
-                    style={styles.input}
-                    placeholder="email@example.com or (555) 000-0000"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={contact}
-                    onChangeText={setContact}
-                    autoCapitalize="none"
+                    style={[st.input, { flex: 1, borderWidth: 0, backgroundColor: 'transparent' }]}
+                    placeholder="6+ characters"
+                    placeholderTextColor={C.textFaint}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
                     autoFocus
-                    accessibilityLabel="Email or phone number"
-                    selectionColor="rgba(255,255,255,0.5)"
+                    accessibilityLabel="Create password"
+                    selectionColor={C.accent}
                   />
-                  <View style={styles.inputLine} />
-                  <Text style={styles.inputHint}>Your coach may have already added you</Text>
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                    <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                  </TouchableOpacity>
                 </View>
+                <Text style={st.fieldHint}>Six characters is enough.</Text>
+              </View>
 
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  onPress={handleLookup}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue"
-                >
-                  <Text style={styles.submitText}>{loading ? 'Checking...' : 'Continue'}</Text>
-                </TouchableOpacity>
-              </>
-            )}
+              <TouchableOpacity
+                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
+                onPress={handleCreatePassword}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Create account"
+              >
+                <Text style={st.primaryBtnText}>{loading ? 'Setting up...' : 'Create account'}</Text>
+              </TouchableOpacity>
+              <Text style={st.termsText}>
+                By continuing you agree to the <Text style={st.termsLink}>terms</Text> and <Text style={st.termsLink}>privacy policy</Text>
+              </Text>
+            </>
+          )}
 
-            {/* ===== STEP 2a: Existing client — create password ===== */}
-            {flowStep === 'create_password' && (
-              <>
-                <View style={styles.statusBanner}>
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.bannerTitle}>Welcome, {foundClient?.name}!</Text>
-                    <Text style={styles.bannerSub}>Coach {foundTrainerName} has everything ready. Just create a password.</Text>
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Create password</Text>
-                  <View style={styles.passwordRow}>
-                    <TextInput
-                      style={[styles.input, styles.passwordInput]}
-                      placeholder="6+ characters"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      autoFocus
-                      accessibilityLabel="Create password"
-                      selectionColor="rgba(255,255,255,0.5)"
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                      <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.inputLine} />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Confirm password</Text>
+          {/* New athlete */}
+          {flowStep === 'new_signup' && (
+            <>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Name</Text>
+                <TextInput
+                  style={st.input}
+                  placeholder="Your name"
+                  placeholderTextColor={C.textFaint}
+                  value={name}
+                  onChangeText={setName}
+                  accessibilityLabel="Name"
+                  selectionColor={C.accent}
+                />
+              </View>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Email</Text>
+                <TextInput
+                  style={st.input}
+                  placeholder="you@example.com"
+                  placeholderTextColor={C.textFaint}
+                  value={contact}
+                  onChangeText={setContact}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  accessibilityLabel="Email"
+                  selectionColor={C.accent}
+                />
+              </View>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Password</Text>
+                <View style={st.passwordWrap}>
                   <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    accessibilityLabel="Confirm password"
-                    selectionColor="rgba(255,255,255,0.5)"
+                    style={[st.input, { flex: 1, borderWidth: 0, backgroundColor: 'transparent' }]}
+                    placeholder="6+ characters"
+                    placeholderTextColor={C.textFaint}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    accessibilityLabel="Create password"
+                    selectionColor={C.accent}
                   />
-                  <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
-                  {confirmPassword && password !== confirmPassword && (
-                    <Text style={styles.fieldError}>Passwords don't match</Text>
-                  )}
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                    <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                  </TouchableOpacity>
                 </View>
+                <Text style={st.fieldHint}>Six characters is enough.</Text>
+              </View>
 
-                <Text style={styles.termsText}>
-                  By creating an account, you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms and Conditions</Text> and consent to our{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>.
-                </Text>
+              <TouchableOpacity
+                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
+                onPress={handleNewSignup}
+                disabled={loading}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Create account"
+              >
+                <Text style={st.primaryBtnText}>{loading ? 'Creating...' : 'Create account'}</Text>
+              </TouchableOpacity>
+              <Text style={st.termsText}>
+                By continuing you agree to the <Text style={st.termsLink}>terms</Text> and <Text style={st.termsLink}>privacy policy</Text>
+              </Text>
+            </>
+          )}
 
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  onPress={handleCreatePassword}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Setting up' : "Let's go"}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Setting up...' : "Let's go"}</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ===== STEP 2b: New client — full signup ===== */}
-            {flowStep === 'new_signup' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Full name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your full name"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={name}
-                    onChangeText={setName}
-                    accessibilityLabel="Full name"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={styles.inputLine} />
+          {/* Pick a coach (no invite ref) */}
+          {flowStep === 'pick_trainer' && (
+            <>
+              {loadingTrainers ? (
+                <ActivityIndicator size="large" color={C.accent} style={{ marginTop: 40 }} />
+              ) : trainers.length === 0 ? (
+                <View style={st.emptySection}>
+                  <Ionicons name="people-outline" size={40} color={C.textFaint} />
+                  <Text style={st.emptyText}>No coaches available yet</Text>
                 </View>
+              ) : (
+                trainers.map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    activeOpacity={0.7}
+                    onPress={() => connectToTrainer(t.id)}
+                    disabled={loading}
+                    style={st.trainerCard}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select coach ${t.name}`}
+                  >
+                    <Avatar name={t.name} size="md" imageUrl={t.avatar_url} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.trainerName}>{t.name}</Text>
+                      {t.specialization ? <Text style={st.trainerSpec}>{t.specialization}</Text> : null}
+                    </View>
+                    <View style={st.selectBadge}>
+                      <Text style={st.selectText}>Select</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </>
+          )}
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Email</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="email@example.com"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={contact}
-                    onChangeText={setContact}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    accessibilityLabel="Email"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={styles.inputLine} />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Create password</Text>
-                  <View style={styles.passwordRow}>
-                    <TextInput
-                      style={[styles.input, styles.passwordInput]}
-                      placeholder="6+ characters"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      accessibilityLabel="Create password"
-                      selectionColor="rgba(255,255,255,0.5)"
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                      <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.inputLine} />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Confirm password</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    accessibilityLabel="Confirm password"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
-                  {confirmPassword && password !== confirmPassword && (
-                    <Text style={styles.fieldError}>Passwords don't match</Text>
-                  )}
-                </View>
-
-                <Text style={styles.termsText}>
-                  By creating an account, you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms and Conditions</Text> and consent to our{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>.
-                </Text>
-
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  onPress={handleNewSignup}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Creating' : 'Continue'}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Creating...' : 'Continue'}</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ===== STEP 3: Pick trainer ===== */}
-            {flowStep === 'pick_trainer' && (
-              <>
-                {loadingTrainers ? (
-                  <ActivityIndicator size="large" color="rgba(255,255,255,0.6)" style={{ marginTop: Spacing['2xl'] }} />
-                ) : trainers.length === 0 ? (
-                  <View style={styles.emptySection}>
-                    <Ionicons name="people-outline" size={40} color="rgba(255,255,255,0.3)" />
-                    <Text style={styles.emptyText}>No coaches available yet</Text>
-                  </View>
-                ) : (
-                  trainers.map((t) => (
-                    <TouchableOpacity
-                      key={t.id}
-                      activeOpacity={0.7}
-                      onPress={() => handlePickTrainer(t.id)}
-                      disabled={loading}
-                      style={styles.trainerCard}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Select coach ${t.name}`}
-                    >
-                      <View style={styles.trainerRow}>
-                        <Avatar name={t.name} size="md" imageUrl={t.avatar_url} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.trainerName}>{t.name}</Text>
-                          {t.specialization && <Text style={styles.trainerSpec}>{t.specialization}</Text>}
-                        </View>
-                        <View style={styles.selectBadge}>
-                          <Text style={styles.selectText}>Select</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </>
-            )}
-
-            {/* Footer */}
+          {/* Footer */}
+          {flowStep !== 'pick_trainer' && (
             <TouchableOpacity
               onPress={() => router.push('/(auth)/client-login')}
-              style={styles.footerRow}
+              style={st.footerRow}
               accessibilityRole="button"
-              accessibilityLabel="Go to client sign in"
+              accessibilityLabel="Go to sign in"
             >
-              <Text style={styles.footerText}>
-                Already have an account? <Text style={styles.footerLink}>Sign in</Text>
+              <Text style={st.footerText}>
+                Already have an account? <Text style={st.footerLink}>Sign in</Text>
               </Text>
             </TouchableOpacity>
-          </Animated.View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
-  keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingBottom: 40 },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: SCREEN_HEIGHT * 0.06, paddingBottom: Spacing.md },
-  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerLogo: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: 'rgba(255,255,255,0.6)', letterSpacing: 4 },
+  // Welcome (25a)
+  welcomeBody: { flex: 1, paddingHorizontal: 24 },
+  brand: {
+    fontFamily: F.headingBold, fontSize: 13, letterSpacing: 3.4,
+    color: C.textFaint, textTransform: 'uppercase',
+  },
+  coachAvatarWrap: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: '#2A3320',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  coachAvatarText: { fontFamily: F.headingBold, fontSize: 24, color: C.accent },
+  welcomeTitle: {
+    fontFamily: F.headingBold, fontSize: 31, lineHeight: 37,
+    color: C.textPrimary, marginTop: 20,
+  },
+  welcomeSub: { fontFamily: F.body, fontSize: 14, lineHeight: 22, color: '#A9AF9F', marginTop: 12 },
+  stepsCol: { gap: 11, marginTop: 26 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  stepNum: {
+    width: 24, height: 24, borderRadius: 8, backgroundColor: '#1E211D',
+    borderWidth: 1, borderColor: '#2E322B', alignItems: 'center', justifyContent: 'center',
+  },
+  stepNumText: { fontFamily: F.bodyBold, fontSize: 11.5, color: C.accent },
+  stepLabel: { flex: 1, fontFamily: F.body, fontSize: 13.5, color: '#C9CEC2' },
+  welcomeFooter: { paddingHorizontal: 24, paddingTop: 26 },
 
-  // Step indicator
-  stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, alignSelf: 'flex-start' },
-  stepDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'transparent' },
-  stepDotActive: { borderColor: '#4CAF50', backgroundColor: '#4CAF50' },
-  stepLine: { width: 40, height: 1.5, backgroundColor: 'rgba(255,255,255,0.15)' },
-  stepLineActive: { backgroundColor: '#4CAF50' },
-  stepLabels: { flexDirection: 'row', alignSelf: 'flex-start', gap: 30, marginBottom: Spacing.xl, marginLeft: -4 },
-  stepLabel: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)' },
-  stepLabelActive: { color: 'rgba(255,255,255,0.7)' },
+  // Form steps
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20 },
+  backBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
+  },
+  title: {
+    fontFamily: F.headingBold, fontSize: 27, lineHeight: 32,
+    color: C.textPrimary, marginTop: 26,
+  },
+  subtitle: { fontFamily: F.body, fontSize: 13, lineHeight: 20, color: C.textMuted, marginTop: 9, marginBottom: 26 },
 
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: 34, color: '#FFFFFF', lineHeight: 40, marginBottom: Spacing.sm },
-  subtitle: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 20, marginBottom: Spacing.xl },
+  messageBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
+  },
+  errorText: { fontFamily: F.body, fontSize: 13, color: C.danger, flex: 1 },
+  successText: { fontFamily: F.body, fontSize: 13, color: C.accent, flex: 1 },
 
-  messageBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, marginBottom: Spacing.lg },
-  errorText: { fontFamily: FontFamily.body, fontSize: 13, color: '#FF6B6B', flex: 1 },
-  successText: { fontFamily: FontFamily.body, fontSize: 13, color: '#4CAF50', flex: 1 },
+  field: { marginBottom: 11 },
+  fieldLabel: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginBottom: 7 },
+  input: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 14, paddingVertical: 15, paddingHorizontal: 15,
+    fontFamily: F.bodyMedium, fontSize: 15, color: C.textPrimary,
+  },
+  fieldHint: { fontFamily: F.body, fontSize: 11, color: C.textFaint, marginTop: 7 },
+  passwordWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14,
+  },
+  showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
+  showText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
 
-  inputGroup: { marginBottom: 28 },
-  inputLabel: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
-  input: { fontSize: 16, fontFamily: FontFamily.body, color: '#FFFFFF', paddingVertical: 8, paddingHorizontal: 0 },
-  inputLine: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 2 },
-  inputLineError: { backgroundColor: '#FF4444' },
-  inputHint: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 8 },
-  fieldError: { fontFamily: FontFamily.body, fontSize: 12, color: '#FF6B6B', marginTop: 6 },
+  primaryBtn: {
+    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 16, alignItems: 'center',
+  },
+  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
+  btnDisabled: { opacity: 0.5 },
 
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  passwordInput: { flex: 1 },
-  eyeBtn: { padding: 8 },
+  termsText: {
+    fontFamily: F.body, fontSize: 11, color: C.textFaint,
+    textAlign: 'center', marginTop: 12, lineHeight: 16,
+  },
+  termsLink: { color: C.textMuted },
 
-  statusBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 16, marginBottom: 24, borderLeftWidth: 3, borderLeftColor: '#4CAF50' },
-  bannerTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFFFFF' },
-  bannerSub: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4, lineHeight: 18 },
+  trainerCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 16, padding: 15, marginBottom: 10,
+  },
+  trainerName: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  trainerSpec: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 2 },
+  selectBadge: {
+    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    paddingHorizontal: 14, paddingVertical: 7,
+  },
+  selectText: { fontFamily: F.bodySemiBold, fontSize: 12, color: '#C9CEC2' },
 
-  termsText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 18, marginBottom: Spacing.xl },
-  termsLink: { textDecorationLine: 'underline', color: 'rgba(255,255,255,0.6)' },
+  emptySection: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  emptyText: { fontFamily: F.body, fontSize: 14, color: C.textMuted },
 
-  submitBtn: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)', borderRadius: 4, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  submitBtnDisabled: { opacity: 0.4 },
-  submitText: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 0.5 },
-
-  trainerCard: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  trainerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trainerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFFFFF' },
-  trainerSpec: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  selectBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  selectText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: '#FFFFFF' },
-
-  emptySection: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.md },
-  emptyText: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-
-  footerRow: { alignItems: 'center', marginTop: Spacing['2xl'], paddingBottom: Spacing.xl },
-  footerText: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
-  footerLink: { fontFamily: FontFamily.bodySemiBold, color: '#FFFFFF', textDecorationLine: 'underline' },
+  footerRow: { alignItems: 'center', marginTop: 20, paddingVertical: 8 },
+  footerText: { fontFamily: F.body, fontSize: 13, color: C.textMuted },
+  footerLink: { fontFamily: F.bodySemiBold, color: C.accent },
 });

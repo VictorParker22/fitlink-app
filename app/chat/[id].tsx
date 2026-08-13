@@ -446,7 +446,7 @@ export default function ChatScreen() {
         <TouchableOpacity
           style={styles.inviteBtn}
           onPress={() => Share.share({
-            message: `Hey ${clientName}! Join me on FitLink to track your workouts, diet plans, and schedule sessions. Open the app and sign in as a client: https://fitlink.coach/client`,
+            message: `Hey ${clientName}! Join me on FitLink to track your workouts, diet plans, and schedule sessions. Open the app and sign in as a client: https://fitlink.coach/client${user?.id ? `?ref=${user.id}` : ''}`,
             title: 'Join me on FitLink',
           })}
           accessibilityRole="button"

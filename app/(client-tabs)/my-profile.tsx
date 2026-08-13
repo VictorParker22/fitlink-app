@@ -1,81 +1,88 @@
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator, Switch, Modal, TextInput, Linking } from 'react-native';
-import { useState } from 'react';
+/**
+ * Athlete profile — what you've done, and what your coach can see (design 25d).
+ *
+ * Fixed dark/lime via CoachColors (no useTheme — rebuilt athlete screens do not
+ * participate in the light/dark toggle, so the old theme picker is gone).
+ *
+ * Real numbers only: sessions from clients.completed_workouts, PRs from the
+ * exercisePrs map, weeks from created_at. The "what your coach can see" block
+ * states truthfully what coach-side screens surface; the only live switch is
+ * Apple Health sharing (clients.health_sharing_enabled), which really gates it.
+ *
+ * "Leave" has no clean single mechanism in the schema (the client row IS the
+ * coach relationship), so leaving routes to a conversation with the coach;
+ * deleting the account (existing delete_client_account RPC) remains the hard
+ * exit and is preserved unchanged.
+ */
+
+import { useMemo, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity,
+  ActivityIndicator, Modal, TextInput, Switch,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { supabase } from '../../lib/supabase';
-import { useTheme, type ThemeMode } from '../../context/ThemeContext';
-import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
-import { Colors, FontFamily, FontSize, Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute, SharedRoute } from '../../types/routes';
-
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function ClientProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const { clientData, updateClientAvatar, healthSharingEnabled, toggleHealthSharing } = useClient();
-  const { mode, setMode } = useTheme();
-  const { showAlert } = useAlert();
+  const {
+    clientData, trainer, exercisePrs, progressLogs,
+    updateClientAvatar, healthSharingEnabled, toggleHealthSharing,
+  } = useClient();
+
   const [uploading, setUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
+  const [healthBusy, setHealthBusy] = useState(false);
 
-  const name = clientData?.name || 'MEMBER';
-  const memberYear = clientData?.created_at ? new Date(clientData.created_at).getFullYear() : new Date().getFullYear();
+  const name = clientData?.name || 'You';
+  const coachFirst = (trainer?.name || 'your coach').split(' ')[0];
 
-  const handleSignOut = () => {
-    Alert.alert('SIGN OUT', 'Are you sure you want to log out of your session?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
-  };
+  const sinceLabel = useMemo(() => {
+    if (!clientData?.created_at) return null;
+    const d = new Date(clientData.created_at);
+    if (Number.isNaN(d.getTime())) return null;
+    const month = d.toLocaleDateString('en-US', { month: 'long' });
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() ? month : `${month} ${d.getFullYear()}`;
+  }, [clientData?.created_at]);
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'DELETE ACCOUNT',
-      'This will permanently remove your membership, active plans, workout history, and personal metrics. This action cannot be reverted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Proceed to Delete',
-          style: 'destructive',
-          onPress: () => {
-            setDeleteInput('');
-            setShowDeleteModal(true);
-          },
-        },
-      ]
-    );
-  };
+  const weeksIn = useMemo(() => {
+    if (!clientData?.created_at) return null;
+    const start = new Date(clientData.created_at).getTime();
+    if (Number.isNaN(start)) return null;
+    return Math.max(1, Math.floor((Date.now() - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
+  }, [clientData?.created_at]);
 
-  const handleConfirmDelete = async () => {
-    if (deleteInput !== 'DELETE') {
-      Alert.alert('Cancelled', 'Account deletion cancelled.');
-      setShowDeleteModal(false);
-      return;
+  const sessionsDone = clientData?.completed_workouts || 0;
+  const prCount = Object.keys(exercisePrs || {}).length;
+
+  const latestWeight = useMemo(() => {
+    if (!Array.isArray(progressLogs)) return null;
+    for (const log of progressLogs) {
+      const w = log?.weight;
+      if (typeof w === 'number' && w > 0) return w;
     }
-    try {
-      await supabase.rpc('delete_client_account');
-      setShowDeleteModal(false);
-      await signOut();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to delete account. Contact support.');
-      setShowDeleteModal(false);
-    }
-  };
+    return null;
+  }, [progressLogs]);
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
 
   const handlePickImage = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('PROFILE PHOTO', 'Select an option to update avatar', [
+    Alert.alert('Profile photo', 'Where from?', [
       { text: 'Camera', onPress: () => pickImage('camera') },
-      { text: 'Photo Library', onPress: () => pickImage('library') },
+      { text: 'Photo library', onPress: () => pickImage('library') },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -83,7 +90,7 @@ export default function ClientProfileScreen() {
   const pickImage = async (source: 'camera' | 'library') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need access to your photos to update your profile.');
+      Alert.alert('Permission needed', 'Allow photo access to change your picture.');
       return;
     }
     const pickerOptions: ImagePicker.ImagePickerOptions = {
@@ -94,181 +101,174 @@ export default function ClientProfileScreen() {
       : await ImagePicker.launchImageLibraryAsync(pickerOptions);
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    if (!asset.base64) { Alert.alert('Error', 'Could not read image data.'); return; }
+    if (!asset.base64) { Alert.alert('Something went wrong', 'Could not read that image.'); return; }
     setUploading(true);
     try {
       await updateClientAvatar(asset.base64, asset.uri);
     } catch (err: any) {
-      console.error('Upload Failed', err);
-      Alert.alert('Upload Failed', err.message || 'Could not upload photo.');
+      Alert.alert('Upload failed', err.message || 'Could not upload that photo.');
     } finally {
       setUploading(false);
     }
   };
 
+  const handleHealthToggle = async (next: boolean) => {
+    if (healthBusy) return;
+    setHealthBusy(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await toggleHealthSharing(next);
+    } catch {
+      Alert.alert('Something went wrong', 'Could not update health sharing. Try again.');
+    } finally {
+      setHealthBusy(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert('Sign out', 'Sign out of your account on this phone?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
+  };
+
+  const handleLeaveCoach = () => {
+    Alert.alert(
+      `Leave ${coachFirst}'s roster`,
+      `Leaving happens through ${coachFirst} — a message tells ${coachFirst} directly and gets it sorted, including any billing. If you want everything gone instead, delete your account below.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Message ${coachFirst}`, onPress: () => router.push(ClientRoute.myMessages) },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently removes your account, training history, check-ins and progress. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => { setDeleteInput(''); setShowDeleteModal(true); },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteInput !== 'DELETE') { setShowDeleteModal(false); return; }
+    try {
+      await supabase.rpc('delete_client_account');
+      setShowDeleteModal(false);
+      await signOut();
+    } catch (err: any) {
+      Alert.alert('Something went wrong', err.message || 'Could not delete the account. Contact support.');
+      setShowDeleteModal(false);
+    }
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* ── HEADER TITLE ── */}
-        <View style={s.topHeader}>
-          <Text style={s.topHeaderTitle}>PROFILE & SETTINGS</Text>
-          <View style={s.headerBadge}>
-            <Text style={s.headerBadgeText}>LUXURY ATHLETE</Text>
-          </View>
-        </View>
-
-        {/* ── PROFILE HERO CARD ── */}
-        <View style={s.profileCard}>
-          <TouchableOpacity onPress={handlePickImage} activeOpacity={0.85} style={s.avatarTouchable}>
-            <View style={s.avatarBorderWrap}>
-              {uploading ? (
-                <View style={s.avatarLoading}>
-                  <ActivityIndicator size="small" color="#FFD700" />
-                </View>
-              ) : (
-                <Avatar name={name} imageUrl={clientData?.avatar_url} size="xl" />
-              )}
-              <View style={s.editBadge}>
-                <Ionicons name="camera" size={12} color="#000000" />
-              </View>
-            </View>
+        {/* Header: who you are */}
+        <View style={s.headerRow}>
+          <TouchableOpacity onPress={handlePickImage} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Change profile photo">
+            {uploading ? (
+              <View style={s.avatarLoading}><ActivityIndicator size="small" color={CoachColors.accent} /></View>
+            ) : (
+              <Avatar name={name} imageUrl={clientData?.avatar_url} size="lg" />
+            )}
           </TouchableOpacity>
-
-          <View style={s.profileDetails}>
-            <Text style={s.profileName} numberOfLines={1}>{name}</Text>
-            <Text style={s.memberSince}>MEMBER SINCE {memberYear}</Text>
-            <View style={s.statusPill}>
-              <View style={s.statusDot} />
-              <Text style={s.statusText}>ALL SYSTEMS ACTIVE</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── HEALTHKIT / APPLE HEALTH BANNER CARD ── */}
-        <View style={s.healthBannerCard}>
-          <View style={s.healthBannerLeft}>
-            <View style={s.healthIconBox}>
-              <Ionicons name="heart" size={20} color="#FF6B35" />
-            </View>
-            <View style={s.healthTextCol}>
-              <Text style={s.healthBannerTitle}>APPLE HEALTH</Text>
-              <Text style={s.healthBannerSub}>
-                {healthSharingEnabled ? 'Syncing steps, HR, and calories' : 'Connect for real-time recovery analytics'}
-              </Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[s.healthConnectBtn, healthSharingEnabled && s.healthConnectedBtn]}
-            activeOpacity={0.8}
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              const nextVal = !healthSharingEnabled;
-              try {
-                await toggleHealthSharing(nextVal);
-                showAlert({
-                  type: 'success',
-                  title: nextVal ? 'HEALTH CONNECTED' : 'HEALTH DISCONNECTED',
-                  message: nextVal ? 'Biometrics now active.' : 'Health data sync paused.',
-                });
-              } catch (e) {
-                showAlert({ type: 'error', title: 'Error', message: 'Failed to update HealthKit configuration.' });
-              }
-            }}
-          >
-            <Text style={[s.healthBtnText, healthSharingEnabled && s.healthConnectedBtnText]}>
-              {healthSharingEnabled ? 'CONNECTED' : 'CONNECT'}
+          <View style={{ flex: 1 }}>
+            <Text style={s.name} numberOfLines={1}>{name}</Text>
+            <Text style={s.nameSub}>
+              {trainer?.name ? `Training with ${coachFirst}` : 'Training'}
+              {sinceLabel ? ` since ${sinceLabel}` : ''}
+              {latestWeight ? ` · ${latestWeight} lbs` : ''}
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        <SectionBlock title="Membership & Performance">
-          <MenuItem icon="nutrition-outline" label="My Diet Plan" onPress={() => router.push(ClientRoute.myDiet)} />
-          <MenuItem icon="calendar-outline" label="My Sessions & Bookings" onPress={() => router.push(ClientRoute.mySessions)} />
-          <MenuItem icon="card-outline" label="Membership & Billing" onPress={() => router.push(ClientRoute.mySubscription)} />
-          <MenuItem icon="body-outline" label="Fitness Profile & Biometrics" onPress={() => router.push(ClientRoute.healthInsights)} />
-        </SectionBlock>
-
-
-        {/* ── SETTINGS & HARDWARE ── */}
-        <SectionBlock title="Settings & Hardware">
-          <MenuItem icon="notifications-outline" label="Notifications & Alerts" onPress={() => router.push(SharedRoute.notifications)} />
-          <MenuItem icon="watch-outline" label="Connected Tech & Wearables" onPress={() => router.push(ClientRoute.connectedTech)} />
-
-          {/* Theme Row */}
-          <View style={s.menuItem}>
-            <View style={s.menuIconRow}>
-              <View style={[s.menuIconSquare, { borderColor: '#FFD700', backgroundColor: 'rgba(255,215,0,0.1)' }]}>
-                <Ionicons name="color-palette-outline" size={16} color="#FFD700" />
-              </View>
-              <Text style={s.menuLabel}>Aesthetics Theme</Text>
-            </View>
-            <View style={s.themeToggle}>
-              {(['dark', 'light', 'system'] as ThemeMode[]).map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  onPress={() => { Haptics.selectionAsync(); setMode(opt); }}
-                  style={[s.themeChip, mode === opt && s.themeChipActive]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={opt === 'dark' ? 'moon' : opt === 'light' ? 'sunny' : 'phone-portrait'}
-                    size={13}
-                    color={mode === opt ? '#000000' : 'rgba(255,255,255,0.4)'}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
-        </SectionBlock>
-
-        {/* ── HELP & SUPPORT ── */}
-        <SectionBlock title="Help & Support">
-          <MenuItem icon="chatbubble-ellipses-outline" label="Concierge Messages" onPress={() => router.push(ClientRoute.myMessages)} />
-          <MenuItem icon="help-circle-outline" label="Knowledge Base & FAQs" onPress={() => router.push(SharedRoute.helpCenter)} />
-          <MenuItem icon="chatbubble-outline" label="Contact VIP Support" onPress={() => router.push(SharedRoute.contactSupport)} />
-        </SectionBlock>
-
-        {/* ── LEGAL & POLICY LINKS ── */}
-        <View style={s.cardBlock}>
-          <LinkRow label="Share Feedback" onPress={() => router.push(SharedRoute.contactSupport)} isFirst />
-          <LinkRow label="Privacy Policy" onPress={() => router.push(SharedRoute.termsPrivacy)} />
-          <LinkRow label="Terms & Conditions" onPress={() => router.push(SharedRoute.termsPrivacy)} />
-        </View>
-
-        {/* ── ACCOUNT ACTIONS ── */}
-        <View style={s.actionRow}>
-          <TouchableOpacity style={s.signOutBtn} activeOpacity={0.8} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={s.signOutText}>SIGN OUT</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8}>
-            <Ionicons name="trash-outline" size={16} color={Colors.red} style={{ marginRight: 8 }} />
-            <Text style={s.deleteText}>DELETE ACCOUNT</Text>
+          <TouchableOpacity style={s.editBtn} onPress={handlePickImage} activeOpacity={0.8} accessibilityRole="button">
+            <Text style={s.editBtnText}>Edit</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── SOCIAL LINKS ── */}
-        <View style={s.socialRow}>
-          <TouchableOpacity style={s.socialIcon} activeOpacity={0.7} onPress={() => Linking.openURL('https://instagram.com')}>
-            <Ionicons name="logo-instagram" size={18} color="#FFFFFF" />
+        {/* What you've done — real totals */}
+        <View style={s.statRow}>
+          <View style={s.statCard}>
+            <Text style={s.statNum}>{sessionsDone}</Text>
+            <Text style={s.statLabel}>sessions</Text>
+          </View>
+          <View style={s.statCard}>
+            <Text style={s.statNum}>{prCount}</Text>
+            <Text style={s.statLabel}>PRs</Text>
+          </View>
+          <View style={s.statCard}>
+            <Text style={s.statNum}>{weeksIn ?? '—'}</Text>
+            <Text style={s.statLabel}>{weeksIn === 1 ? 'week in' : 'weeks in'}</Text>
+          </View>
+        </View>
+
+        {/* What the coach can see */}
+        <Text style={s.sectionLabel}>What {coachFirst} can see</Text>
+        <View style={s.visCard}>
+          <VisRow label="Every set, weight and rating you log" />
+          <View style={s.visDivider} />
+          <VisRow label="Your weekly check-ins and body weight" />
+          <View style={s.visDivider} />
+          <VisRow label="Your progress photos and measurements" />
+          <View style={s.visDivider} />
+          <VisRow label="Messages you send in the chat" />
+          <View style={s.visDivider} />
+          <View style={s.visRow}>
+            <Text style={s.visLabel}>Your Apple Health data</Text>
+            <Switch
+              value={healthSharingEnabled}
+              onValueChange={handleHealthToggle}
+              disabled={healthBusy}
+              trackColor={{ false: '#33382F', true: CoachColors.accent }}
+              thumbColor={healthSharingEnabled ? CoachColors.bg : CoachColors.textMuted}
+              ios_backgroundColor="#33382F"
+            />
+          </View>
+          <Text style={s.visFootnote}>
+            Everything above is how {coachFirst} coaches you — it comes with the coaching. Health data is the one thing you can switch off; turning it off just means {coachFirst} stops seeing it.
+          </Text>
+        </View>
+
+        {/* Account rows */}
+        <View style={s.menuList}>
+          <MenuRow label="My sessions and bookings" onPress={() => router.push(ClientRoute.mySessions)} />
+          <MenuRow label="My diet plan" onPress={() => router.push(ClientRoute.myDiet)} />
+          <MenuRow label="Membership and billing" onPress={() => router.push(ClientRoute.mySubscription)} />
+          <MenuRow label="Notifications" onPress={() => router.push(SharedRoute.notifications)} />
+          <MenuRow label="Help and support" onPress={() => router.push(SharedRoute.helpCenter)} />
+          <MenuRow label="Terms and privacy" onPress={() => router.push(SharedRoute.termsPrivacy)} />
+        </View>
+
+        {/* Sign out · leave */}
+        <View style={s.exitRow}>
+          <TouchableOpacity onPress={handleSignOut} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.signOutText}>Sign out</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.socialIcon} activeOpacity={0.7} onPress={() => Linking.openURL('https://tiktok.com')}>
-            <Ionicons name="logo-tiktok" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.socialIcon} activeOpacity={0.7} onPress={() => Linking.openURL('https://facebook.com')}>
-            <Ionicons name="logo-facebook" size={18} color="#FFFFFF" />
+          <View style={s.exitDivider} />
+          <TouchableOpacity onPress={handleLeaveCoach} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.leaveText}>Leave {coachFirst}'s roster</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── VERSION ── */}
-        <Text style={s.version}>FITLINK V{Constants.expoConfig?.version || '1.0.0'} • BRUTALIST LUXURY EDITION</Text>
+        <TouchableOpacity onPress={handleDeleteAccount} style={s.deleteRow} accessibilityRole="button">
+          <Text style={s.deleteText}>Delete my account</Text>
+        </TouchableOpacity>
 
       </ScrollView>
 
-      {/* ── DELETE ACCOUNT CONFIRMATION MODAL ── */}
+      {/* Delete confirmation */}
       <Modal
         visible={showDeleteModal}
         transparent
@@ -277,46 +277,34 @@ export default function ClientProfileScreen() {
       >
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <View style={s.modalHeaderRow}>
-              <Ionicons name="warning-sharp" size={20} color={Colors.red} />
-              <Text style={s.modalTag}>CRITICAL ACTION</Text>
-            </View>
-            <Text style={s.modalTitle}>DELETE ACCOUNT</Text>
+            <Text style={s.modalTitle}>Delete account</Text>
             <Text style={s.modalMessage}>
-              Type <Text style={s.modalBoldHighlight}>DELETE</Text> to permanently erase your profile and records.
+              Type <Text style={s.modalStrong}>DELETE</Text> to permanently erase your account and everything you've logged.
             </Text>
-
             <TextInput
               style={s.modalInput}
               value={deleteInput}
               onChangeText={setDeleteInput}
-              placeholder="TYPE DELETE"
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholder="Type DELETE"
+              placeholderTextColor={CoachColors.textFaint}
               autoCapitalize="characters"
               autoFocus
             />
-
             <View style={s.modalButtons}>
               <TouchableOpacity
                 style={[s.modalBtn, s.modalBtnCancel]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setShowDeleteModal(false);
-                }}
-                activeOpacity={0.7}
+                onPress={() => setShowDeleteModal(false)}
+                activeOpacity={0.8}
               >
-                <Text style={s.modalBtnCancelText}>CANCEL</Text>
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.3 }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  handleConfirmDelete();
-                }}
-                activeOpacity={0.7}
+                style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.35 }]}
+                onPress={handleConfirmDelete}
                 disabled={deleteInput !== 'DELETE'}
+                activeOpacity={0.8}
               >
-                <Text style={s.modalBtnConfirmText}>CONFIRM DELETION</Text>
+                <Text style={s.modalBtnConfirmText}>Delete forever</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -326,489 +314,171 @@ export default function ClientProfileScreen() {
   );
 }
 
-// ─── REUSABLE SUBCOMPONENTS ──────────────────────────────────
+// ─── Subcomponents ────────────────────────────────────────────────────────────
 
-const MENU_ICON_COLORS: Record<string, string> = {
-  'nutrition-outline': '#22C55E',
-  'card-outline': '#A78BFA',
-  'body-outline': '#FF6B35',
-  'notifications-outline': '#FFD700',
-  'watch-outline': '#22C55E',
-  'help-circle-outline': '#4D94FF',
-  'chatbubble-outline': '#A78BFA',
-  'chatbubble-ellipses-outline': '#FFD700',
-};
-
-function SectionBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function VisRow({ label }: { label: string }) {
   return (
-    <View style={s.sectionContainer}>
-      <Text style={s.sectionTitle}>{title.toUpperCase()}</Text>
-      <View style={s.cardBlock}>{children}</View>
+    <View style={s.visRow}>
+      <Text style={s.visLabel}>{label}</Text>
+      <Text style={s.visAlways}>Always</Text>
     </View>
   );
 }
 
-function MenuItem({ icon, label, onPress }: { icon: IoniconsName; label: string; onPress: () => void }) {
-  const iconColor = MENU_ICON_COLORS[icon as string] || '#FFFFFF';
+function MenuRow({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <TouchableOpacity
-      style={s.menuItem}
+      style={s.menuRow}
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
+      accessibilityRole="button"
     >
-      <View style={s.menuIconRow}>
-        <View style={[s.menuIconSquare, { borderColor: iconColor + '40', backgroundColor: iconColor + '12' }]}>
-          <Ionicons name={icon} size={16} color={iconColor} />
-        </View>
-        <Text style={s.menuLabel}>{label}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+      <Text style={s.menuLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
     </TouchableOpacity>
   );
 }
 
-function LinkRow({ label, onPress, isFirst }: { label: string; onPress: () => void; isFirst?: boolean }) {
-  return (
-    <TouchableOpacity
-      style={[s.linkRow, !isFirst && s.linkRowBorder]}
-      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
-      activeOpacity={0.7}
-    >
-      <Text style={s.linkLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
-    </TouchableOpacity>
-  );
-}
-
-// ─── STYLES ──────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scroll: {
-    paddingTop: 12,
-    paddingBottom: 120,
-    paddingHorizontal: 20,
-  },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  scroll: { paddingTop: 16, paddingBottom: 130, paddingHorizontal: 20 },
 
-  // Top header
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingTop: 4,
-  },
-  topHeaderTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.md,
-    letterSpacing: 1.5,
-    color: '#FFFFFF',
-  },
-  headerBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255,215,0,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
-    borderRadius: Radius.xs,
-  },
-  headerBadgeText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: '#FFD700',
-  },
-
-  // Profile Card
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: 16,
-    marginBottom: 16,
-    gap: 16,
-  },
-  avatarTouchable: {
-    position: 'relative',
-  },
-  avatarBorderWrap: {
-    padding: 2,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-    borderRadius: Radius.xs,
-    backgroundColor: '#000000',
-  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarLoading: {
-    width: 64,
-    height: 64,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: CoachColors.surface,
+    alignItems: 'center', justifyContent: 'center',
   },
-  editBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    backgroundColor: '#FFD700',
-    borderRadius: Radius.xs,
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  name: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },
+  nameSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+  editBtn: {
+    borderWidth: 1, borderColor: '#2E322B', borderRadius: 999,
+    paddingHorizontal: 13, paddingVertical: 8,
   },
-  profileDetails: {
-    flex: 1,
-    gap: 4,
-  },
-  profileName: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.lg,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  memberSince: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22C55E',
-  },
-  statusText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: '#22C55E',
-  },
+  editBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: '#C9CEC2' },
 
-  // Healthkit banner
-  healthBannerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
+  statRow: { flexDirection: 'row', gap: 9, marginTop: 20 },
+  statCard: {
+    flex: 1,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 16,
     padding: 14,
-    marginBottom: 24,
-    gap: 12,
   },
-  healthBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  healthIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.3)',
-    backgroundColor: 'rgba(255,107,53,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  healthTextCol: {
-    flex: 1,
-    gap: 2,
-  },
-  healthBannerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 3 },
+
+  sectionLabel: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 11,
     letterSpacing: 1,
-    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    color: CoachColors.textFaint,
+    marginTop: 26,
   },
-  healthBannerSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  healthConnectBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#FF6B35',
-    borderRadius: Radius.xs,
-  },
-  healthConnectedBtn: {
-    backgroundColor: 'rgba(34,197,94,0.12)',
+  visCard: {
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.4)',
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 12,
   },
-  healthBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: '#FFFFFF',
-  },
-  healthConnectedBtnText: {
-    color: '#22C55E',
+  visRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 30 },
+  visLabel: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
+  visAlways: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.textMuted },
+  visDivider: { height: 1, backgroundColor: '#21241F', marginVertical: 10 },
+  visFootnote: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: CoachColors.textFaint,
+    marginTop: 14,
+    paddingTop: 13,
+    borderTopWidth: 1,
+    borderTopColor: '#21241F',
   },
 
-  // Sections
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    marginBottom: 10,
-  },
-  cardBlock: {
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    overflow: 'hidden',
-  },
-
-  // Menu items
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  menuIconRow: {
+  menuList: { gap: 9, marginTop: 15 },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
-  },
-  menuIconSquare: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.xs,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.sm,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-
-  // Theme toggle chips
-  themeToggle: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  themeChip: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  themeChipActive: {
-    backgroundColor: '#FFD700',
-    borderColor: '#FFD700',
-  },
-
-  // Link row
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    paddingHorizontal: 15,
     paddingVertical: 14,
   },
-  linkRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  linkLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 0.5,
-  },
+  menuLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
 
-  // Actions
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  signOutBtn: {
-    flex: 1,
+  exitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0C0C0E',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    paddingVertical: 14,
+    gap: 18,
+    marginTop: 24,
   },
-  signOutText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#FFFFFF',
-  },
-  deleteBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
-    borderRadius: Radius.xs,
-    paddingVertical: 14,
-  },
-  deleteText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: Colors.red,
-  },
+  exitDivider: { width: 1, height: 12, backgroundColor: '#2E322B' },
+  signOutText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  leaveText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.danger },
 
-  // Social icons
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  socialIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Version
-  version: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.25)',
-    textAlign: 'center',
-  },
+  deleteRow: { alignItems: 'center', marginTop: 22 },
+  deleteText: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(10,11,9,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalContent: {
     width: '100%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: 24,
+    borderColor: CoachColors.border,
+    borderRadius: 18,
+    padding: 22,
   },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  modalTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    color: Colors.red,
-    letterSpacing: 2,
-  },
-  modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.lg,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
   modalMessage: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 20,
-    lineHeight: 20,
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: CoachColors.textMuted,
+    marginTop: 8,
+    marginBottom: 18,
   },
-  modalBoldHighlight: {
-    fontFamily: FontFamily.headingExtraBold,
-    color: '#FFFFFF',
-  },
+  modalStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
   modalInput: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: '#FFFFFF',
-    backgroundColor: '#000000',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14,
+    color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: CoachColors.border,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
     letterSpacing: 2,
-    marginBottom: 20,
+    marginBottom: 18,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  modalButtons: { flexDirection: 'row', gap: 10 },
   modalBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: Radius.xs,
+    paddingVertical: 13,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalBtnCancel: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: '#1C1C1E',
-  },
-  modalBtnCancelText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  modalBtnConfirm: {
-    backgroundColor: Colors.red,
-  },
-  modalBtnConfirmText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#FFFFFF',
-  },
+  modalBtnCancel: { borderWidth: 1, borderColor: '#2E322B' },
+  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: '#C9CEC2' },
+  modalBtnConfirm: { backgroundColor: CoachColors.danger },
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: '#FFFFFF' },
 });
-

@@ -60,7 +60,9 @@ function firstName(name?: string): string {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-type SentState = null | 'moving' | 'moved' | 'beat-sending' | 'beat-sent' | 'failed';
+type SentState =
+  | null | 'moving' | 'moved' | 'beat-sending' | 'beat-sent'
+  | 'hello-sending' | 'hello-sent' | 'failed';
 
 export default function AthleteTodayScreen() {
   const router = useRouter();
@@ -139,9 +141,22 @@ export default function AthleteTodayScreen() {
     if (!clientData || !trainer) {
       return {
         kind: 'no-coach' as const,
-        eyebrow: 'Today',
+        eyebrow: 'Waiting on a coach',
         title: 'No coach yet',
-        sub: 'Once a coach takes you on, your plan shows up here — one session at a time.',
+        sub: 'Once a coach takes you on, this screen becomes your plan — one session at a time, with a direct line to whoever set it.',
+      };
+    }
+    // 25c: signed up, connected to a coach, but nothing assigned yet.
+    const hasAnyPlan =
+      !!todayWorkout ||
+      (enrollment && enrollment.status === 'active') ||
+      (workouts || []).length > 0;
+    if (!hasAnyPlan) {
+      return {
+        kind: 'waiting' as const,
+        eyebrow: `Waiting on ${coachFirst}`,
+        title: `${firstName(trainer?.name) || 'Your coach'} is setting you up`,
+        sub: `Your plan lands right here — each day's session, what to lift, and a line to ${coachFirst} when something doesn't fit.`,
       };
     }
     if (todayWorkout) {
@@ -188,7 +203,7 @@ export default function AthleteTodayScreen() {
       title: 'Nothing on the plan today',
       sub: 'Rest is part of the programme, not a gap in it.',
     };
-  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst]);
+  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst, enrollment, workouts]);
 
   // ── The three answers ─────────────────────────────────────────────────────
 
@@ -264,6 +279,16 @@ export default function AthleteTodayScreen() {
     );
     setSentState(ok ? 'beat-sent' : 'failed');
   }, [sendToCoach, sessionName, sentState]);
+
+  // 25c: real message while waiting for the first plan.
+  const handleWaitingHello = useCallback(async () => {
+    if (sentState === 'hello-sending') return;
+    setSentState('hello-sending');
+    const ok = await sendToCoach(
+      "I'm all set up on my side — ready whenever my plan is."
+    );
+    setSentState(ok ? 'hello-sent' : 'failed');
+  }, [sendToCoach, sentState]);
 
   // ── This week — real completed sessions per day ───────────────────────────
   const weekDays = useMemo(() => {
@@ -371,8 +396,20 @@ export default function AthleteTodayScreen() {
         {/* ── The instruction ── */}
         <View style={[st.hero, instruction.kind === 'workout' && st.heroActive]}>
           <View style={st.eyebrowRow}>
-            <View style={st.eyebrowDot} />
-            <Text style={st.eyebrow}>{instruction.eyebrow}</Text>
+            <View
+              style={[
+                st.eyebrowDot,
+                (instruction.kind === 'waiting' || instruction.kind === 'no-coach') && { backgroundColor: C.warning },
+              ]}
+            />
+            <Text
+              style={[
+                st.eyebrow,
+                (instruction.kind === 'waiting' || instruction.kind === 'no-coach') && { color: C.warning },
+              ]}
+            >
+              {instruction.eyebrow}
+            </Text>
           </View>
           <Text style={st.heroTitle}>{instruction.title}</Text>
           <Text style={st.heroSub}>{instruction.sub}</Text>
@@ -457,6 +494,38 @@ export default function AthleteTodayScreen() {
             <Pressable style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
               <Text style={st.secondaryBtnText}>Message {coachFirst}</Text>
             </Pressable>
+          )}
+
+          {/* 25c: waiting on the coach — one real action */}
+          {instruction.kind === 'waiting' && (
+            sentState === 'hello-sent' ? (
+              <Pressable style={st.sentRow} onPress={openThread} accessibilityRole="button">
+                <Text style={st.sentText}>
+                  Sent. {coachFirst} can see you're ready — open the thread if you want to add anything.
+                </Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable
+                  style={st.primaryBtn}
+                  onPress={handleWaitingHello}
+                  disabled={sentState === 'hello-sending'}
+                  accessibilityRole="button"
+                >
+                  {sentState === 'hello-sending' ? (
+                    <ActivityIndicator size="small" color={C.onAccent} />
+                  ) : (
+                    <Text style={st.primaryBtnText}>Tell {coachFirst} you're ready</Text>
+                  )}
+                </Pressable>
+                <Pressable style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
+                  <Text style={st.secondaryBtnText}>Open the thread</Text>
+                </Pressable>
+                {sentState === 'failed' && (
+                  <Text style={st.footnote}>That message didn't send — try again, or open the thread.</Text>
+                )}
+              </>
+            )
           )}
         </View>
 

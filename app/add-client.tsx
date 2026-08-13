@@ -242,7 +242,7 @@ export default function AddClientScreen() {
     const clientFirst = name.trim().split(' ')[0] || 'there';
     try {
       await Share.share({
-        message: `Hey ${clientFirst}! ${coachName} has invited you to join FitLink to track your workouts and schedule sessions. Download here: https://fitlink.coach`,
+        message: `Hey ${clientFirst}! ${coachName} has invited you to join FitLink to track your workouts and schedule sessions. Download here: https://fitlink.coach${trainer?.id ? `?ref=${trainer.id}` : ''}`,
         title: 'Join me on FitLink',
       });
     } catch (err) {}
