@@ -86,10 +86,19 @@ export default function MessagesScreen() {
   }, [fetchConversations]);
 
   const startConversation = async (clientId: string) => {
+    // The compose picker is a native Modal — it must finish dismissing
+    // before we navigate, or the pushed screen ends up underneath it and
+    // the app appears frozen. Same fix as create-plan's content picker.
+    const wasPickerOpen = showComposePicker;
     setShowComposePicker(false);
+    const navigate = (convId: string) => {
+      const push = () => router.push(`/chat/${convId}` as any);
+      if (wasPickerOpen) setTimeout(push, 350); else push();
+    };
+
     const existing = conversations.find((c) => c.client_id === clientId);
     if (existing) {
-      router.push(`/chat/${existing.id}` as any);
+      navigate(existing.id);
       return;
     }
     const { data, error } = await supabase
@@ -98,7 +107,7 @@ export default function MessagesScreen() {
       .select()
       .single();
     if (!error && data) {
-      router.push(`/chat/${data.id}` as any);
+      navigate(data.id);
     }
   };
 

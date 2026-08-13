@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList, Alert
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { decode } from 'base64-arraybuffer';
 
-import { useApp } from '../context/AppContext';
+import { useApp, DietWeekStructure, DietSwapsMap, DietPlanExtras } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
@@ -19,14 +19,7 @@ import { searchNutrition, nutritionToMeal } from '../lib/nutritionApi';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
-const MEAL_TIMES = [
-  { key: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { key: 'lunch', label: 'Lunch', icon: '☀️' },
-  { key: 'dinner', label: 'Dinner', icon: '🌙' },
-  { key: 'snack', label: 'Snacks', icon: '🍎' },
-] as const;
-
-type MealTimeKey = typeof MEAL_TIMES[number]['key'];
+type MealTimeKey = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 interface SelectedMeal {
   id: string;
@@ -36,94 +29,285 @@ interface SelectedMeal {
   protein: number;
   carbs: number;
   fat: number;
-  meal_time: MealTimeKey;
   servings: number;
   serving_size_g?: number;
 }
 
+interface Slot {
+  label: string;
+  meal_time: MealTimeKey;
+  meal: SelectedMeal | null;
+  swaps: { allowedMealIds: string[]; allowOwnLog: boolean };
+}
+
+type DayVariant = 'training' | 'rest';
+type PresetKey = 'building' | 'cutting' | 'holding' | 'custom';
+
+// Percent splits (protein / carbs / fat, of calories).
+const PRESETS: Record<Exclude<PresetKey, 'custom'>, { p: number; c: number; f: number; label: string; category: string }> = {
+  building: { p: 30, c: 45, f: 25, label: 'Building', category: 'high-protein' },
+  cutting: { p: 40, c: 30, f: 30, label: 'Cutting', category: 'weight-loss' },
+  holding: { p: 30, c: 40, f: 30, label: 'Holding', category: 'balanced' },
+};
+
+const SLOT_TEMPLATES: Record<number, { label: string; meal_time: MealTimeKey }[]> = {
+  3: [
+    { label: 'Breakfast', meal_time: 'breakfast' },
+    { label: 'Lunch', meal_time: 'lunch' },
+    { label: 'Dinner', meal_time: 'dinner' },
+  ],
+  4: [
+    { label: 'Breakfast', meal_time: 'breakfast' },
+    { label: 'Lunch', meal_time: 'lunch' },
+    { label: 'Around training', meal_time: 'snack' },
+    { label: 'Dinner', meal_time: 'dinner' },
+  ],
+  5: [
+    { label: 'Breakfast', meal_time: 'breakfast' },
+    { label: 'Mid-morning', meal_time: 'snack' },
+    { label: 'Lunch', meal_time: 'lunch' },
+    { label: 'Around training', meal_time: 'snack' },
+    { label: 'Dinner', meal_time: 'dinner' },
+  ],
+  6: [
+    { label: 'Breakfast', meal_time: 'breakfast' },
+    { label: 'Mid-morning', meal_time: 'snack' },
+    { label: 'Lunch', meal_time: 'lunch' },
+    { label: 'Around training', meal_time: 'snack' },
+    { label: 'Dinner', meal_time: 'dinner' },
+    { label: 'Evening snack', meal_time: 'snack' },
+  ],
+};
+
+const WEEK_DAYS = [
+  { key: 'mon', short: 'M', full: 'Monday' },
+  { key: 'tue', short: 'T', full: 'Tuesday' },
+  { key: 'wed', short: 'W', full: 'Wednesday' },
+  { key: 'thu', short: 'T', full: 'Thursday' },
+  { key: 'fri', short: 'F', full: 'Friday' },
+  { key: 'sat', short: 'S', full: 'Saturday' },
+  { key: 'sun', short: 'S', full: 'Sunday' },
+];
+
+const emptySlots = (count: number): Slot[] =>
+  (SLOT_TEMPLATES[count] || SLOT_TEMPLATES[4]).map(t => ({
+    ...t, meal: null, swaps: { allowedMealIds: [], allowOwnLog: false },
+  }));
+
+const slotTotals = (slots: Slot[]) =>
+  slots.reduce((acc, s) => {
+    if (!s.meal) return acc;
+    const sv = s.meal.servings || 1;
+    acc.calories += s.meal.calories * sv;
+    acc.protein += s.meal.protein * sv;
+    acc.carbs += s.meal.carbs * sv;
+    acc.fat += s.meal.fat * sv;
+    return acc;
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+const fmtK = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
+
 export default function CreateDietScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string }>();
-  const { createDietPlan, updateDietPlan, createMeal, meals, diets } = useApp();
+  const { createDietPlan, updateDietPlan, createMeal, meals, diets, plans, updatePlanTrack } = useApp();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const insets = useSafeAreaInsets();
 
   const isEditing = !!params.editId;
   const editDiet = isEditing ? diets.find(d => d.id === params.editId) : null;
 
-  // ── WIZARD STATE ──
-  const [wizardStep, setWizardStep] = useState<number>(isEditing ? -1 : 1);
+  // ── STEP MACHINE ──
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Targets
-  const [targetCalories, setTargetCalories] = useState<string>('2000');
-  const [targetProtein, setTargetProtein] = useState<string>('150');
-  const [targetCarbs, setTargetCarbs] = useState<string>('200');
-  const [targetFat, setTargetFat] = useState<string>('65');
-
-  // Details
+  // ── Step 1: targets ──
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [kcal, setKcal] = useState(2400);
+  const [preset, setPreset] = useState<PresetKey>('holding');
+  const [customP, setCustomP] = useState('150');
+  const [customC, setCustomC] = useState('240');
+  const [customF, setCustomF] = useState('80');
+  const [mealsPerDay, setMealsPerDay] = useState(4);
   const [category, setCategory] = useState<string>('balanced');
+
+  // ── Step 2: day variants ──
+  const [dayVariant, setDayVariant] = useState<DayVariant>('training');
+  const [trainingSlots, setTrainingSlots] = useState<Slot[]>(emptySlots(4));
+  const [restSlots, setRestSlots] = useState<Slot[]>(emptySlots(4));
+
+  // ── Step 3: week + assignment ──
+  const [trainingDays, setTrainingDays] = useState<string[]>(['mon', 'wed', 'fri']);
+  const [freeMealEnabled, setFreeMealEnabled] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<string>('library'); // 'library' | plan id
+  const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  const [selectedMeals, setSelectedMeals] = useState<SelectedMeal[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // Search state
-  const [showSearch, setShowSearch] = useState(false);
-  const [activeMealTime, setActiveMealTime] = useState<MealTimeKey>('breakfast');
+  // ── Search modal (reused meal search, scoped to a slot) ──
+  const [searchSlotIndex, setSearchSlotIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [apiResults, setApiResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchMode, setSearchMode] = useState<'saved' | 'api'>('saved');
-
-  // Selected result portion
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [tempServings, setTempServings] = useState<number>(1);
 
-  // Edit Meal Sheet
-  const [editingMealIndex, setEditingMealIndex] = useState<number | null>(null);
+  // ── Slot detail sheet + swap sheet ──
+  const [slotSheetIndex, setSlotSheetIndex] = useState<number | null>(null);
   const [editServings, setEditServings] = useState<number>(1);
+  const [swapSheetIndex, setSwapSheetIndex] = useState<number | null>(null);
 
-  // AI State
-  const [showAiSheet, setShowAiSheet] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const slots = dayVariant === 'training' ? trainingSlots : restSlots;
+  const setSlots = dayVariant === 'training' ? setTrainingSlots : setRestSlots;
 
-  // Pre-populate in edit mode
+  // ── Edit-mode prefill ──
   useEffect(() => {
-    if (editDiet) {
-      setName(editDiet.name);
-      setDescription(editDiet.description || '');
-      setCategory(editDiet.category || 'custom');
-      setImageUrl(editDiet.image_url || null);
+    if (!editDiet) return;
+    setName(editDiet.name);
+    setDescription(editDiet.description || '');
+    setCategory(editDiet.category || 'custom');
+    setImageUrl(editDiet.image_url || null);
 
-      setTargetCalories(editDiet.target_calories?.toString() || '2000');
-      setTargetProtein(editDiet.target_protein?.toString() || '150');
-      setTargetCarbs(editDiet.target_carbs?.toString() || '200');
-      setTargetFat(editDiet.target_fat?.toString() || '65');
+    const cal = editDiet.target_calories || 2400;
+    const pro = editDiet.target_protein || 150;
+    const carb = editDiet.target_carbs || 240;
+    const fat = editDiet.target_fat || 80;
+    setKcal(cal);
+    setCustomP(String(pro));
+    setCustomC(String(carb));
+    setCustomF(String(fat));
 
-      if (editDiet.diet_plan_meals) {
-        const existingMeals: SelectedMeal[] = editDiet.diet_plan_meals
-          .sort((a, b) => a.order_index - b.order_index)
-          .map(dpm => ({
-            id: dpm.meal_id,
-            name: dpm.meals?.name || 'Unknown',
-            category: dpm.meals?.category || 'Snack',
-            calories: dpm.meals?.calories || 0,
-            protein: dpm.meals?.protein || 0,
-            carbs: dpm.meals?.carbs || 0,
-            fat: dpm.meals?.fat || 0,
-            meal_time: (dpm.meal_time as MealTimeKey) || 'snack',
-            servings: dpm.servings || 1,
-          }));
-        setSelectedMeals(existingMeals);
-      }
+    // Detect which preset the stored targets correspond to.
+    const pPct = (pro * 4 / cal) * 100, cPct = (carb * 4 / cal) * 100, fPct = (fat * 9 / cal) * 100;
+    const match = (Object.keys(PRESETS) as (keyof typeof PRESETS)[]).find(k =>
+      Math.abs(PRESETS[k].p - pPct) < 3 && Math.abs(PRESETS[k].c - cPct) < 3 && Math.abs(PRESETS[k].f - fPct) < 3
+    );
+    setPreset(match || 'custom');
+
+    const ws = editDiet.week_structure;
+    const count = ws?.mealsPerDay && SLOT_TEMPLATES[ws.mealsPerDay] ? ws.mealsPerDay : 4;
+    setMealsPerDay(count);
+
+    // Fill training slots from diet_plan_meals in order.
+    const orderedMeals = (editDiet.diet_plan_meals || [])
+      .slice().sort((a, b) => a.order_index - b.order_index)
+      .map(dpm => ({
+        dpm,
+        meal: {
+          id: dpm.meal_id,
+          name: dpm.meals?.name || 'Unknown',
+          category: dpm.meals?.category || 'Snack',
+          calories: dpm.meals?.calories || 0,
+          protein: dpm.meals?.protein || 0,
+          carbs: dpm.meals?.carbs || 0,
+          fat: dpm.meals?.fat || 0,
+          servings: dpm.servings || 1,
+        } as SelectedMeal,
+      }));
+
+    const base = emptySlots(count);
+    if (ws?.slotLabels) {
+      ws.slotLabels.forEach((label, i) => { if (base[i]) base[i].label = label; });
     }
+    const savedSwaps = editDiet.swaps || {};
+    orderedMeals.forEach(({ dpm, meal }, i) => {
+      const sw = savedSwaps[String(i)];
+      const swaps = sw ? { allowedMealIds: sw.allowedMealIds || [], allowOwnLog: !!sw.allowOwnLog } : { allowedMealIds: [], allowOwnLog: false };
+      if (i < base.length) {
+        base[i] = { ...base[i], meal_time: (dpm.meal_time as MealTimeKey) || base[i].meal_time, meal, swaps };
+      } else {
+        base.push({ label: `Meal ${i + 1}`, meal_time: (dpm.meal_time as MealTimeKey) || 'snack', meal, swaps });
+      }
+    });
+    setTrainingSlots(base);
+
+    // Rest variant from week_structure snapshot.
+    const rest = emptySlots(count);
+    if (ws?.restVariant?.mealList) {
+      ws.restVariant.mealList.forEach((m, i) => {
+        const meal: SelectedMeal = {
+          id: m.meal_id, name: m.name, category: 'Custom',
+          calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
+          servings: m.servings || 1,
+        };
+        const slot: Slot = { label: m.slotLabel || `Meal ${i + 1}`, meal_time: (m.meal_time as MealTimeKey) || 'snack', meal, swaps: { allowedMealIds: [], allowOwnLog: false } };
+        if (i < rest.length) rest[i] = slot; else rest.push(slot);
+      });
+    }
+    setRestSlots(rest);
+
+    if (ws?.trainingDays) setTrainingDays(ws.trainingDays);
+    if (ws?.freeMeal) setFreeMealEnabled(!!ws.freeMeal.enabled);
   }, [editDiet]);
 
+  // ── Step 1 derived: grams from kcal + split ──
+  const grams = useMemo(() => {
+    if (preset === 'custom') {
+      return {
+        p: parseInt(customP) || 0,
+        c: parseInt(customC) || 0,
+        f: parseInt(customF) || 0,
+      };
+    }
+    const sp = PRESETS[preset];
+    return {
+      p: Math.round(kcal * sp.p / 100 / 4),
+      c: Math.round(kcal * sp.c / 100 / 4),
+      f: Math.round(kcal * sp.f / 100 / 9),
+    };
+  }, [preset, kcal, customP, customC, customF]);
+
+  // Calorie share of each macro, for the stacked split bar.
+  const splitShares = useMemo(() => {
+    const pCal = grams.p * 4, cCal = grams.c * 4, fCal = grams.f * 9;
+    const sum = pCal + cCal + fCal || 1;
+    return { p: pCal / sum, c: cCal / sum, f: fCal / sum };
+  }, [grams]);
+
+  const changePreset = (key: PresetKey) => {
+    setPreset(key);
+    if (key === 'custom') {
+      setCategory('custom');
+      // Seed custom inputs from the current computed grams.
+      setCustomP(String(grams.p));
+      setCustomC(String(grams.c));
+      setCustomF(String(grams.f));
+    } else {
+      setCategory(PRESETS[key].category);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const changeMealsPerDay = (count: number) => {
+    setMealsPerDay(count);
+    const resize = (prev: Slot[]): Slot[] => {
+      const filled = prev.filter(s => s.meal);
+      const next = emptySlots(count);
+      let extra = 0;
+      filled.forEach((s, i) => {
+        if (i < next.length) {
+          next[i] = { ...next[i], meal: s.meal, swaps: s.swaps, meal_time: s.meal_time };
+        } else {
+          extra += 1;
+          next.push({ label: `Meal ${next.length + 1}`, meal_time: s.meal_time, meal: s.meal, swaps: s.swaps });
+        }
+      });
+      return next;
+    };
+    setTrainingSlots(resize);
+    setRestSlots(resize);
+  };
+
+  // ── Step 2 derived ──
+  const trainingTotals = useMemo(() => slotTotals(trainingSlots), [trainingSlots]);
+  const restTotals = useMemo(() => slotTotals(restSlots), [restSlots]);
+  const activeTotals = dayVariant === 'training' ? trainingTotals : restTotals;
+
+  const kcalDiff = Math.round(activeTotals.calories - kcal);
+  const onTarget = Math.abs(kcalDiff) <= kcal * 0.05;
+
+  // ── Meal search (saved + USDA, unchanged behaviour, scoped to a slot) ──
   const filteredSavedMeals = useMemo(() => {
     if (!searchQuery.trim()) return meals;
     const q = searchQuery.toLowerCase();
@@ -132,145 +316,51 @@ export default function CreateDietScreen() {
 
   const performSearch = async () => {
     if (!searchQuery.trim()) { setApiResults([]); return; }
-
     setSearching(true);
     try {
       const results = await searchNutrition(searchQuery);
       setApiResults(results.map((r, index) => ({ ...nutritionToMeal(r), _uid: index.toString() })));
     } catch (err: any) {
       if (err.message === 'RATE_LIMIT') {
-        showAlert({ type: 'warning', title: 'Rate Limit Reached', message: 'You have made too many searches using the free USDA API key. Please wait a bit before searching again.' });
+        showAlert({ type: 'warning', title: 'Rate limit reached', message: 'You have made too many searches using the free USDA API key. Please wait a bit before searching again.' });
       } else {
-        showAlert({ type: 'error', title: 'Search Failed', message: 'Could not fetch nutrition data.' });
+        showAlert({ type: 'error', title: 'Search failed', message: 'Could not fetch nutrition data.' });
       }
     } finally {
       setSearching(false);
     }
   };
 
-  const totals = useMemo(() => {
-    return selectedMeals.reduce((acc, m) => {
-      const s = m.servings || 1;
-      acc.calories += (m.calories * s);
-      acc.protein += (m.protein * s);
-      acc.carbs += (m.carbs * s);
-      acc.fat += (m.fat * s);
-      return acc;
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-  }, [selectedMeals]);
-
-  const progress = useMemo(() => {
-    const tCal = parseInt(targetCalories) || 1;
-    const tPro = parseInt(targetProtein) || 1;
-    const tCarb = parseInt(targetCarbs) || 1;
-    const tFat = parseInt(targetFat) || 1;
-
-    return {
-      cal: Math.min(totals.calories / tCal, 1),
-      pro: Math.min(totals.protein / tPro, 1),
-      carb: Math.min(totals.carbs / tCarb, 1),
-      fat: Math.min(totals.fat / tFat, 1),
-    };
-  }, [totals, targetCalories, targetProtein, targetCarbs, targetFat]);
-
-  const handleAiGenerate = async () => {
-    if (!aiPrompt.trim()) return showAlert({ type: 'warning', title: 'Empty Prompt', message: 'Please describe the diet plan first.' });
-
-    setIsGenerating(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      const availableMeals = meals.slice(0, 100).map(m => ({
-        id: m.id,
-        name: m.name,
-        calories: m.calories,
-        protein: m.protein,
-        carbs: m.carbs,
-        fat: m.fat,
-      }));
-
-      const { data, error } = await supabase.functions.invoke('generate-diet', {
-        body: { prompt: aiPrompt, availableMeals }
-      });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      // Populate plan details and targets
-      setName(data.name || 'AI Generated Diet');
-      setDescription(data.description || '');
-      setCategory(data.category || 'balanced');
-
-      if (data.targets) {
-        setTargetCalories(data.targets.calories?.toString() || '2000');
-        setTargetProtein(data.targets.protein?.toString() || '150');
-        setTargetCarbs(data.targets.carbs?.toString() || '200');
-        setTargetFat(data.targets.fat?.toString() || '65');
-      }
-
-      // Process meals
-      const newSelectedMeals: SelectedMeal[] = [];
-      if (data.meals && Array.isArray(data.meals)) {
-        for (const aiMeal of data.meals) {
-          const rawMealTime = (aiMeal.meal_time || 'snack').toString().toLowerCase();
-          const validMealTime = ['breakfast', 'lunch', 'dinner', 'snack'].includes(rawMealTime) ? rawMealTime : 'snack';
-          const validCategory = validMealTime.charAt(0).toUpperCase() + validMealTime.slice(1);
-
-          // Check if AI used an existing meal from the library
-          const existingMeal = meals.find(m => m.name.toLowerCase() === aiMeal.name.toLowerCase());
-          const mealId = existingMeal ? existingMeal.id : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-          newSelectedMeals.push({
-            id: mealId,
-            name: existingMeal ? existingMeal.name : aiMeal.name,
-            category: existingMeal ? (existingMeal.category || validCategory) : validCategory,
-            calories: existingMeal ? existingMeal.calories : Math.round(Number(aiMeal.calories || 0)),
-            protein: existingMeal ? existingMeal.protein : Math.round(Number(aiMeal.protein || 0)),
-            carbs: existingMeal ? existingMeal.carbs : Math.round(Number(aiMeal.carbs || 0)),
-            fat: existingMeal ? existingMeal.fat : Math.round(Number(aiMeal.fat || 0)),
-            meal_time: validMealTime as MealTimeKey,
-            servings: Number(aiMeal.servings || 1),
-          });
-        }
-      }
-
-      setSelectedMeals(newSelectedMeals);
-      setShowAiSheet(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showAlert({ type: 'success', title: 'Generation Complete', message: 'Your diet plan has been generated and populated!' });
-
-    } catch (err: any) {
-      console.error(err);
-      showAlert({ type: 'error', title: 'Generation Failed', message: err.message || 'Could not generate diet plan.' });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const addMealFromLocal = (item: any, finalServings: number) => {
-    setSelectedMeals(prev => [...prev, {
-      id: item.id,
-      name: item.name,
-      category: item.category || 'Custom',
-      calories: item.calories,
-      protein: item.protein,
-      carbs: item.carbs,
-      fat: item.fat,
-      meal_time: activeMealTime,
-      servings: finalServings,
-    }]);
+  const fillSlot = (slotIndex: number, meal: SelectedMeal) => {
+    setSlots(prev => {
+      const copy = [...prev];
+      if (copy[slotIndex]) copy[slotIndex] = { ...copy[slotIndex], meal };
+      return copy;
+    });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowSearch(false);
+    setSearchSlotIndex(null);
     setSearchQuery('');
+    setApiResults([]);
     setSelectedResultId(null);
     setTempServings(1);
   };
 
-  const addMealFromApi = async (item: any, finalServings: number) => {
+  const addFromLocal = (item: any, finalServings: number) => {
+    if (searchSlotIndex === null) return;
+    fillSlot(searchSlotIndex, {
+      id: item.id, name: item.name, category: item.category || 'Custom',
+      calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat,
+      servings: finalServings,
+    });
+  };
+
+  const addFromApi = async (item: any, finalServings: number) => {
+    if (searchSlotIndex === null) return;
     try {
+      const slot = slots[searchSlotIndex];
       const saved = await createMeal({
         name: item.name,
-        category: activeMealTime.charAt(0).toUpperCase() + activeMealTime.slice(1),
+        category: slot ? slot.meal_time.charAt(0).toUpperCase() + slot.meal_time.slice(1) : 'Snack',
         calories: item.calories,
         protein: item.protein,
         carbs: item.carbs,
@@ -280,74 +370,121 @@ export default function CreateDietScreen() {
         sugar: item.sugar,
         sodium_mg: item.sodium_mg,
       });
-      setSelectedMeals(prev => [...prev, {
-        id: saved.id,
-        name: saved.name,
-        category: saved.category,
-        calories: saved.calories,
-        protein: saved.protein,
-        carbs: saved.carbs,
-        fat: saved.fat,
-        meal_time: activeMealTime,
+      fillSlot(searchSlotIndex, {
+        id: saved.id, name: saved.name, category: saved.category,
+        calories: saved.calories, protein: saved.protein, carbs: saved.carbs, fat: saved.fat,
         servings: finalServings,
-      }]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setShowSearch(false);
-      setSearchQuery('');
-      setApiResults([]);
-      setSelectedResultId(null);
-      setTempServings(1);
+      });
     } catch (err: any) {
-      console.log('[addMealFromApi] Error:', err);
       Alert.alert('Error', err.message || 'Failed to save meal');
     }
   };
 
-  const removeMeal = (index: number) => {
-    setSelectedMeals(prev => prev.filter((_, i) => i !== index));
-    if (editingMealIndex === index) {
-      setEditingMealIndex(null);
-    }
-  };
-
-  const updateMealServings = () => {
-    if (editingMealIndex === null) return;
-    setSelectedMeals(prev => {
+  const clearSlot = (index: number) => {
+    setSlots(prev => {
       const copy = [...prev];
-      copy[editingMealIndex].servings = editServings;
+      copy[index] = { ...copy[index], meal: null, swaps: { allowedMealIds: [], allowOwnLog: false } };
       return copy;
     });
-    setEditingMealIndex(null);
+    setSlotSheetIndex(null);
   };
 
-  const moveMeal = (index: number, direction: 'up' | 'down') => {
-    setSelectedMeals(prev => {
-      const copy = [...prev];
-      const meal = copy[index];
-      // Find previous or next meal with the same meal_time
-      const groupMeals = copy.map((m, i) => ({ ...m, origIndex: i })).filter(m => m.meal_time === meal.meal_time);
-      const groupIndex = groupMeals.findIndex(m => m.origIndex === index);
+  const removeExtraSlot = (index: number) => {
+    setSlots(prev => prev.filter((_, i) => i !== index));
+    setSlotSheetIndex(null);
+  };
 
-      if (direction === 'up' && groupIndex > 0) {
-        const swapOrigIndex = groupMeals[groupIndex - 1].origIndex;
-        [copy[index], copy[swapOrigIndex]] = [copy[swapOrigIndex], copy[index]];
-      } else if (direction === 'down' && groupIndex < groupMeals.length - 1) {
-        const swapOrigIndex = groupMeals[groupIndex + 1].origIndex;
-        [copy[index], copy[swapOrigIndex]] = [copy[swapOrigIndex], copy[index]];
+  const appendSlot = () => {
+    setSlots(prev => [...prev, {
+      label: `Meal ${prev.length + 1}`, meal_time: 'snack', meal: null,
+      swaps: { allowedMealIds: [], allowOwnLog: false },
+    }]);
+    setSearchSlotIndex(slots.length);
+  };
+
+  const saveSlotServings = () => {
+    if (slotSheetIndex === null) return;
+    setSlots(prev => {
+      const copy = [...prev];
+      const s = copy[slotSheetIndex];
+      if (s?.meal) copy[slotSheetIndex] = { ...s, meal: { ...s.meal, servings: editServings } };
+      return copy;
+    });
+    setSlotSheetIndex(null);
+  };
+
+  // Copy training day into rest slots at reduced portions (85%, snapped to 0.25).
+  const copyTrainingToRest = () => {
+    setRestSlots(trainingSlots.map(s => s.meal ? {
+      ...s,
+      swaps: { allowedMealIds: [], allowOwnLog: false },
+      meal: { ...s.meal, servings: Math.max(0.25, Math.round((s.meal.servings * 0.85) / 0.25) * 0.25) },
+    } : { ...s, swaps: { allowedMealIds: [], allowOwnLog: false } }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  // ── Swap candidates: within ±40 kcal and ±5 g protein of the slot meal ──
+  const swapSlot = swapSheetIndex !== null ? trainingSlots[swapSheetIndex] : null;
+  const swapCandidates = useMemo(() => {
+    if (!swapSlot?.meal) return { inRange: [], outOfRange: [] as { meal: any; reason: string }[] };
+    const ref = swapSlot.meal;
+    const refCal = ref.calories * ref.servings;
+    const refPro = ref.protein * ref.servings;
+    const inRange: any[] = [];
+    const outOfRange: { meal: any; reason: string }[] = [];
+    meals.forEach(m => {
+      if (m.id === ref.id) return;
+      const dCal = m.calories - refCal;
+      const dPro = m.protein - refPro;
+      if (Math.abs(dCal) <= 40 && Math.abs(dPro) <= 5) {
+        inRange.push(m);
+      } else {
+        const reason = Math.abs(dCal) > 40
+          ? `${dCal > 0 ? '+' : '−'}${Math.abs(Math.round(dCal))} kcal`
+          : `${dPro > 0 ? '+' : '−'}${Math.abs(Math.round(dPro))}g protein`;
+        outOfRange.push({ meal: m, reason });
       }
+    });
+    return { inRange, outOfRange: outOfRange.slice(0, 12) };
+  }, [swapSlot, meals]);
+
+  const toggleSwapMeal = (mealId: string) => {
+    if (swapSheetIndex === null) return;
+    setTrainingSlots(prev => {
+      const copy = [...prev];
+      const s = copy[swapSheetIndex];
+      const ids = s.swaps.allowedMealIds.includes(mealId)
+        ? s.swaps.allowedMealIds.filter(id => id !== mealId)
+        : [...s.swaps.allowedMealIds, mealId];
+      copy[swapSheetIndex] = { ...s, swaps: { ...s.swaps, allowedMealIds: ids } };
       return copy;
     });
-    setEditingMealIndex(null); // Close sheet after moving
   };
 
-  const CATEGORIES = [
-    { key: 'balanced', label: 'Balanced', icon: '⚖️' },
-    { key: 'high-protein', label: 'High protein', icon: '💪' },
-    { key: 'keto', label: 'Keto', icon: '🥑' },
-    { key: 'vegan', label: 'Vegan', icon: '🌱' },
-    { key: 'weight-loss', label: 'Weight loss', icon: '🔥' },
-    { key: 'custom', label: 'Custom', icon: '✨' },
-  ] as const;
+  const toggleAllowOwnLog = () => {
+    if (swapSheetIndex === null) return;
+    setTrainingSlots(prev => {
+      const copy = [...prev];
+      const s = copy[swapSheetIndex];
+      copy[swapSheetIndex] = { ...s, swaps: { ...s.swaps, allowOwnLog: !s.swaps.allowOwnLog } };
+      return copy;
+    });
+  };
+
+  // ── Step 3 derived ──
+  const restDays = WEEK_DAYS.map(d => d.key).filter(d => !trainingDays.includes(d));
+  const freeMealDay = restDays.length > 0 ? restDays[restDays.length - 1] : 'sun';
+  const freeMealDayFull = WEEK_DAYS.find(d => d.key === freeMealDay)?.full || 'Sunday';
+
+  const dietPasses = useMemo(
+    () => plans.filter(p => p.track?.some(n => n.type === 'diet')),
+    [plans]
+  );
+
+  const toggleTrainingDay = (day: string) => {
+    setTrainingDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   const pickImage = async () => {
     try {
@@ -358,470 +495,551 @@ export default function CreateDietScreen() {
         quality: 0.8,
         base64: true,
       });
-
       if (!result.canceled && result.assets[0].uri && result.assets[0].base64) {
         setUploadingImage(true);
         const fileUri = result.assets[0].uri;
         const ext = fileUri.split('.').pop() || 'jpg';
         const fileName = `${Date.now()}.${ext}`;
-
         const { error: uploadError } = await supabase.storage
           .from('diet-images')
           .upload(fileName, decode(result.assets[0].base64), { contentType: `image/${ext}`, upsert: true });
-
         if (uploadError) throw uploadError;
-
         const { data: urlData } = supabase.storage.from('diet-images').getPublicUrl(fileName);
         setImageUrl(urlData.publicUrl);
       }
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Upload Failed', message: err.message || 'Could not upload image.' });
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Could not upload image.' });
     } finally {
       setUploadingImage(false);
     }
   };
 
+  // ── Save ──
   const handleSave = async () => {
-    if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing Name', message: 'Please enter a plan name.' });
-    if (selectedMeals.length === 0) return showAlert({ type: 'warning', title: 'No Meals', message: 'Add at least one meal to your plan.' });
+    const filledTraining = trainingSlots.filter(s => s.meal);
+    if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing name', message: 'Please enter a plan name.' });
+    if (filledTraining.length === 0) return showAlert({ type: 'warning', title: 'No meals', message: 'Add at least one meal to the training day.' });
 
     setSaving(true);
     try {
-      const mealList = [];
-      for (const m of selectedMeals) {
-        if (m.id.startsWith('temp-')) {
-          // It's a generated meal that hasn't been saved to the DB yet.
-          // We pass isGlobal = true so it gets added to the shared global database!
-          const savedMeal = await createMeal({
-            name: m.name,
-            category: m.category,
-            calories: m.calories,
-            protein: m.protein,
-            carbs: m.carbs,
-            fat: m.fat,
-          }, true);
-          mealList.push({ meal_id: savedMeal.id, meal_time: m.meal_time, servings: m.servings });
-        } else {
-          mealList.push({ meal_id: m.id, meal_time: m.meal_time, servings: m.servings });
+      const mealList = filledTraining.map(s => ({
+        meal_id: s.meal!.id,
+        meal_time: s.meal_time,
+        servings: s.meal!.servings,
+      }));
+
+      // Swaps keyed by the meal's order_index in mealList.
+      const swaps: DietSwapsMap = {};
+      filledTraining.forEach((s, i) => {
+        if (s.swaps.allowedMealIds.length > 0 || s.swaps.allowOwnLog) {
+          swaps[String(i)] = { allowedMealIds: s.swaps.allowedMealIds, allowOwnLog: s.swaps.allowOwnLog };
         }
-      }
-      const targets = {
-        calories: parseInt(targetCalories) || 2000,
-        protein: parseInt(targetProtein) || 150,
-        carbs: parseInt(targetCarbs) || 200,
-        fat: parseInt(targetFat) || 65
+      });
+
+      const week_structure: DietWeekStructure = {
+        mealsPerDay,
+        slotLabels: trainingSlots.map(s => s.label),
+        trainingDays,
+        restVariant: {
+          mealList: restSlots.filter(s => s.meal).map(s => ({
+            meal_id: s.meal!.id,
+            name: s.meal!.name,
+            calories: s.meal!.calories,
+            protein: s.meal!.protein,
+            carbs: s.meal!.carbs,
+            fat: s.meal!.fat,
+            meal_time: s.meal_time,
+            servings: s.meal!.servings,
+            slotLabel: s.label,
+          })),
+        },
+        freeMeal: freeMealEnabled ? { enabled: true, day: freeMealDay } : null,
       };
 
+      const targets = { calories: kcal, protein: grams.p, carbs: grams.c, fat: grams.f };
+      const extras: DietPlanExtras = { week_structure, swaps: Object.keys(swaps).length > 0 ? swaps : null };
+
+      let planId = params.editId as string;
       if (isEditing) {
-        await updateDietPlan(params.editId as string, name.trim(), description.trim(), mealList, category, targets, imageUrl);
-        showAlert({ type: 'success', title: 'Plan Updated!', message: `"${name.trim()}" has been saved.` });
+        await updateDietPlan(planId, name.trim(), description.trim(), mealList, category, targets, imageUrl, extras);
       } else {
-        await createDietPlan(name.trim(), description.trim(), mealList, category, targets, imageUrl);
-        showAlert({ type: 'success', title: 'Plan Created!', message: `"${name.trim()}" has been saved.` });
+        const created = await createDietPlan(name.trim(), description.trim(), mealList, category, targets, imageUrl, extras);
+        planId = created.id;
       }
-      setTimeout(() => {
-        router.back();
-      }, 1200);
+
+      // Assignment: fill the chosen pass's diet nodes with this plan.
+      if (assignTarget !== 'library') {
+        const pass = plans.find(p => p.id === assignTarget);
+        if (pass?.track) {
+          const newTrack = pass.track.map(n => n.type === 'diet' ? { ...n, id: planId } : n);
+          await updatePlanTrack(pass.id, newTrack);
+        }
+      }
+
+      showAlert({
+        type: 'success',
+        title: isEditing ? 'Plan updated' : 'Plan created',
+        message: `"${name.trim()}" has been saved.`,
+      });
+      setTimeout(() => { router.back(); }, 1200);
     } catch (err: any) {
       console.log(err);
-      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save diet plan' });
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save meal plan' });
       setSaving(false);
     }
   };
 
-  // ── WIZARD UI ──
-
-  if (wizardStep === 1) {
-    return (
-      <SafeAreaView style={wz.safeArea}>
-        <View style={wz.header}>
-          <TouchableOpacity onPress={() => isEditing ? setWizardStep(-1) : router.back()} style={wz.backBtn}>
-            <Ionicons name={isEditing ? "arrow-back" : "close"} size={22} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={wz.stepLabel}>Step 1 of 2</Text>
-          <TouchableOpacity onPress={() => setWizardStep(-1)} style={wz.skipBtn}>
-            <Text style={wz.skipText}>{isEditing ? 'Builder' : 'Skip'}</Text>
-          </TouchableOpacity>
+  // ── Shared chrome ──
+  const stepSubtitles = { 1: 'Targets', 2: 'Training day', 3: 'Week and assignment' };
+  const renderHeader = () => (
+    <>
+      <View style={s.header}>
+        <TouchableOpacity
+          onPress={() => step === 1 ? router.back() : setStep((step - 1) as 1 | 2)}
+          style={s.backBtn}
+        >
+          <Ionicons name={step === 1 ? 'close' : 'arrow-back'} size={22} color={CoachColors.textPrimary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || (isEditing ? 'Edit meal plan' : 'New meal plan')}</Text>
+          <Text style={s.headerSub}>Step {step} of 3 · {stepSubtitles[step]}</Text>
         </View>
-        <View style={wz.progressBar}><View style={[wz.progressFill, { width: '50%' }]} /></View>
+        <View style={{ width: 36 }} />
+      </View>
+      <View style={s.progressRow}>
+        {[1, 2, 3].map(n => (
+          <View key={n} style={[s.progressSeg, n <= step && s.progressSegActive]} />
+        ))}
+      </View>
+    </>
+  );
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={wz.scroll}>
-            <Text style={wz.title}>Set daily targets</Text>
-            <Text style={wz.subtitle}>Establish the macronutrient goals for this plan.</Text>
+  // ────────────────────────────── STEP 1 ──────────────────────────────
+  const renderStep1 = () => (
+    <>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={s.eyebrow}>Plan name</Text>
+          <TextInput
+            style={s.nameInput}
+            placeholder="e.g. Marcus off-season"
+            placeholderTextColor={CoachColors.textFaint}
+            value={name}
+            onChangeText={setName}
+            selectionColor={CoachColors.accent}
+          />
 
-            <View style={wz.inputCard}>
-              <View style={wz.inputRow}>
-                <View style={wz.iconBox}>
-                  <Ionicons name="flame" size={20} color={CoachColors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={wz.inputLabel}>Calories (kcal)</Text>
-                  <TextInput
-                    style={wz.textInput} keyboardType="number-pad" placeholder="2000" placeholderTextColor={CoachColors.textFaint}
-                    value={targetCalories} onChangeText={setTargetCalories} selectionColor={CoachColors.accent}
-                  />
-                </View>
+          {/* Daily calories */}
+          <View style={s.card}>
+            <Text style={s.eyebrow}>Daily calories</Text>
+            <View style={s.kcalRow}>
+              <TouchableOpacity
+                style={s.stepBtn}
+                onPress={() => { setKcal(k => Math.max(1600, k - 50)); Haptics.selectionAsync(); }}
+              >
+                <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={s.kcalValue}>{kcal.toLocaleString()} <Text style={s.kcalUnit}>kcal</Text></Text>
+                <Text style={s.kcalRange}>1,600 – 3,200 in steps of 50</Text>
               </View>
+              <TouchableOpacity
+                style={s.stepBtn}
+                onPress={() => { setKcal(k => Math.min(3200, k + 50)); Haptics.selectionAsync(); }}
+              >
+                <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
+              </TouchableOpacity>
             </View>
+          </View>
 
-            <View style={wz.inputCard}>
-              <View style={wz.inputRow}>
-                <View style={wz.iconBox}>
-                  <Ionicons name="fish" size={20} color={CoachColors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={wz.inputLabel}>Protein (g)</Text>
-                  <TextInput
-                    style={wz.textInput} keyboardType="number-pad" placeholder="150" placeholderTextColor={CoachColors.textFaint}
-                    value={targetProtein} onChangeText={setTargetProtein} selectionColor={CoachColors.accent}
-                  />
-                </View>
-              </View>
+          {/* Split it */}
+          <View style={s.card}>
+            <Text style={s.eyebrow}>Split it</Text>
+            <View style={s.splitBar}>
+              <View style={[s.splitSeg, { flex: splitShares.p, backgroundColor: CoachColors.accent }]} />
+              <View style={[s.splitSeg, { flex: splitShares.c, backgroundColor: '#7A8072' }]} />
+              <View style={[s.splitSeg, { flex: splitShares.f, backgroundColor: '#4A4F45' }]} />
             </View>
-
-            <View style={wz.inputCard}>
-              <View style={wz.inputRow}>
-                <View style={wz.iconBox}>
-                  <Ionicons name="leaf" size={20} color={CoachColors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={wz.inputLabel}>Carbs (g)</Text>
-                  <TextInput
-                    style={wz.textInput} keyboardType="number-pad" placeholder="200" placeholderTextColor={CoachColors.textFaint}
-                    value={targetCarbs} onChangeText={setTargetCarbs} selectionColor={CoachColors.accent}
-                  />
-                </View>
-              </View>
+            <View style={s.legendRow}>
+              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: CoachColors.accent }]} /><Text style={s.legendText}>Protein {grams.p}g</Text></View>
+              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: '#7A8072' }]} /><Text style={s.legendText}>Carbs {grams.c}g</Text></View>
+              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: '#4A4F45' }]} /><Text style={s.legendText}>Fat {grams.f}g</Text></View>
             </View>
-
-            <View style={wz.inputCard}>
-              <View style={wz.inputRow}>
-                <View style={wz.iconBox}>
-                  <Ionicons name="water" size={20} color={CoachColors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={wz.inputLabel}>Fat (g)</Text>
-                  <TextInput
-                    style={wz.textInput} keyboardType="number-pad" placeholder="65" placeholderTextColor={CoachColors.textFaint}
-                    value={targetFat} onChangeText={setTargetFat} selectionColor={CoachColors.accent}
-                  />
-                </View>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-
-        <View style={wz.footer}>
-          <TouchableOpacity
-            style={[wz.nextBtn, !targetCalories && { opacity: 0.5 }]}
-            disabled={!targetCalories}
-            onPress={() => setWizardStep(2)}
-            activeOpacity={0.85}
-          >
-            <Text style={wz.nextBtnText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (wizardStep === 2) {
-    return (
-      <SafeAreaView style={wz.safeArea}>
-        <View style={wz.header}>
-          <TouchableOpacity onPress={() => setWizardStep(1)} style={wz.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={wz.stepLabel}>Step 2 of 2</Text>
-          <TouchableOpacity onPress={() => setWizardStep(-1)} style={wz.skipBtn}>
-            <Text style={wz.skipText}>{isEditing ? 'Builder' : 'Skip'}</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={wz.progressBar}><View style={[wz.progressFill, { width: '100%' }]} /></View>
-
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={wz.scroll}>
-            <Text style={wz.title}>Plan details</Text>
-            <Text style={wz.subtitle}>Give this diet plan a name and category.</Text>
-
-            <View style={wz.nameInputWrap}>
-              <Ionicons name="create-outline" size={20} color={CoachColors.textFaint} />
-              <TextInput
-                style={wz.nameInput}
-                placeholder="e.g. 2500 Calorie Cut"
-                placeholderTextColor={CoachColors.textFaint}
-                value={name}
-                onChangeText={setName}
-                autoFocus
-                selectionColor={CoachColors.accent}
-              />
-            </View>
-
-             <View style={[wz.nameInputWrap, { height: 100, alignItems: 'flex-start', marginTop: 16 }]}>
-               <TextInput
-                 style={[wz.nameInput, { marginTop: 16 }]}
-                 placeholder="Description (optional)"
-                 placeholderTextColor={CoachColors.textFaint}
-                 multiline
-                 value={description}
-                 onChangeText={setDescription}
-                 selectionColor={CoachColors.accent}
-               />
-            </View>
-
-            <Text style={[wz.eyebrow, { marginTop: 24, marginBottom: 12 }]}>Background image (optional)</Text>
-            <TouchableOpacity
-              style={[wz.imageUploadBtn, imageUrl && wz.imageUploadBtnActive]}
-              onPress={pickImage}
-              disabled={uploadingImage}
-              activeOpacity={0.85}
-            >
-              {uploadingImage ? (
-                <ActivityIndicator color={CoachColors.accent} />
-              ) : imageUrl ? (
-                <>
-                  <Image source={{ uri: imageUrl }} style={wz.uploadedImage} resizeMode="cover" />
-                  <View style={wz.imageOverlay}>
-                    <Ionicons name="camera" size={24} color={CoachColors.textPrimary} />
-                    <Text style={wz.imageOverlayText}>Change image</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="image-outline" size={28} color={CoachColors.textFaint} />
-                  <Text style={wz.imageUploadText}>Tap to add cover image</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <Text style={[wz.eyebrow, { marginTop: 24, marginBottom: 12 }]}>Diet type</Text>
-            <View style={wz.chipRow}>
-              {CATEGORIES.map(c => (
+            <View style={s.chipRow}>
+              {(['building', 'cutting', 'holding', 'custom'] as PresetKey[]).map(k => (
                 <TouchableOpacity
-                  key={c.key}
-                  style={[wz.nameChip, category === c.key && wz.nameChipActive]}
-                  onPress={() => setCategory(c.key)}
-                  activeOpacity={0.7}
+                  key={k}
+                  style={[s.chip, preset === k && s.chipActive]}
+                  onPress={() => changePreset(k)}
                 >
-                  <Text style={[wz.nameChipText, category === c.key && wz.nameChipTextActive]}>
-                    {c.icon} {c.label}
+                  <Text style={[s.chipText, preset === k && s.chipTextActive]}>
+                    {k === 'custom' ? 'Custom' : PRESETS[k].label}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+            {preset === 'custom' && (
+              <View style={s.customRow}>
+                {([['Protein g', customP, setCustomP], ['Carbs g', customC, setCustomC], ['Fat g', customF, setCustomF]] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
+                  <View key={label} style={s.customField}>
+                    <Text style={s.customLabel}>{label}</Text>
+                    <TextInput
+                      style={s.customInput}
+                      keyboardType="number-pad"
+                      value={val}
+                      onChangeText={setter}
+                      selectionColor={CoachColors.accent}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
 
-        <View style={wz.footer}>
+          {/* Meals a day */}
+          <View style={s.card}>
+            <Text style={s.eyebrow}>Meals a day</Text>
+            <View style={s.chipRow}>
+              {[3, 4, 5, 6].map(n => (
+                <TouchableOpacity
+                  key={n}
+                  style={[s.chip, mealsPerDay === n && s.chipActive]}
+                  onPress={() => { changeMealsPerDay(n); Haptics.selectionAsync(); }}
+                >
+                  <Text style={[s.chipText, mealsPerDay === n && s.chipTextActive]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <Text style={s.footnote}>
+            Targets are yours, not medical advice. Athletes see them as a guide with your name on it.
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <View style={s.footer}>
+        <TouchableOpacity
+          style={[s.cta, !name.trim() && { opacity: 0.5 }]}
+          disabled={!name.trim()}
+          onPress={() => setStep(2)}
+          activeOpacity={0.85}
+        >
+          <Text style={s.ctaText}>Build the day</Text>
+          <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  // ────────────────────────────── STEP 2 ──────────────────────────────
+  const macroLine = (t: { protein: number; carbs: number; fat: number }) =>
+    `P ${Math.round(t.protein)}/${grams.p}   C ${Math.round(t.carbs)}/${grams.c}   F ${Math.round(t.fat)}/${grams.f}`;
+
+  const renderMacroHeader = () => {
+    const pShare = grams.p * 4, cShare = grams.c * 4, fShare = grams.f * 9;
+    const shareSum = pShare + cShare + fShare || 1;
+    const seg = (flexShare: number, consumed: number, target: number, color: string) => (
+      <View style={[s.macroSeg, { flex: flexShare / shareSum }]}>
+        <View style={[s.macroSegFill, { width: `${Math.min(target > 0 ? consumed / target : 0, 1) * 100}%`, backgroundColor: color }]} />
+      </View>
+    );
+    return (
+      <View style={s.macroCard}>
+        <View style={s.macroTopRow}>
+          <Text style={s.macroKcal}>
+            {Math.round(activeTotals.calories).toLocaleString()}
+            <Text style={s.macroKcalTarget}> of {kcal.toLocaleString()} kcal</Text>
+          </Text>
+          <View style={[s.statusChip, onTarget && s.statusChipOn]}>
+            <Text style={[s.statusChipText, onTarget && s.statusChipTextOn]}>
+              {onTarget ? 'On target' : `${Math.abs(kcalDiff)} ${kcalDiff < 0 ? 'under' : 'over'}`}
+            </Text>
+          </View>
+        </View>
+        <View style={s.macroStack}>
+          {seg(pShare, activeTotals.protein, grams.p, CoachColors.accent)}
+          {seg(cShare, activeTotals.carbs, grams.c, '#7A8072')}
+          {seg(fShare, activeTotals.fat, grams.f, '#4A4F45')}
+        </View>
+        <Text style={s.macroLine}>{macroLine(activeTotals)}</Text>
+      </View>
+    );
+  };
+
+  const renderStep2 = () => {
+    const restEmpty = restSlots.every(sl => !sl.meal);
+    const trainingHasMeals = trainingSlots.some(sl => sl.meal);
+    return (
+      <>
+        {renderMacroHeader()}
+
+        <View style={s.segmented}>
+          {(['training', 'rest'] as DayVariant[]).map(v => (
+            <TouchableOpacity
+              key={v}
+              style={[s.segment, dayVariant === v && s.segmentActive]}
+              onPress={() => { setDayVariant(v); Haptics.selectionAsync(); }}
+            >
+              <Text style={[s.segmentText, dayVariant === v && s.segmentTextActive]}>
+                {v === 'training' ? 'Training day' : 'Rest day'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <ScrollView contentContainerStyle={s.scroll}>
+          {dayVariant === 'rest' && restEmpty && trainingHasMeals && (
+            <TouchableOpacity style={s.copyBtn} onPress={copyTrainingToRest} activeOpacity={0.8}>
+              <Ionicons name="copy-outline" size={16} color={CoachColors.accent} />
+              <Text style={s.copyBtnText}>Copy training day at reduced portions</Text>
+            </TouchableOpacity>
+          )}
+
+          {slots.map((slot, index) => {
+            const swapCount = slot.swaps.allowedMealIds.length;
+            return (
+              <View key={`${dayVariant}-${index}`} style={{ marginBottom: 12 }}>
+                <Text style={s.slotLabel}>{slot.label}</Text>
+                {slot.meal ? (
+                  <TouchableOpacity
+                    style={s.slotCard}
+                    activeOpacity={0.8}
+                    onPress={() => { setSlotSheetIndex(index); setEditServings(slot.meal!.servings); }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.slotMealName} numberOfLines={1}>{slot.meal.name}</Text>
+                      <Text style={s.slotMealMacros}>
+                        P {Math.round(slot.meal.protein * slot.meal.servings)}  C {Math.round(slot.meal.carbs * slot.meal.servings)}  F {Math.round(slot.meal.fat * slot.meal.servings)}
+                        {slot.meal.servings !== 1 ? `  ·  ${slot.meal.servings}x` : ''}
+                      </Text>
+                      {dayVariant === 'training' && swapCount > 0 && (
+                        <View style={s.swapTag}>
+                          <Ionicons name="swap-horizontal" size={11} color={CoachColors.accent} />
+                          <Text style={s.swapTagText}>{swapCount} swap{swapCount === 1 ? '' : 's'} allowed</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.slotKcal}>{Math.round(slot.meal.calories * slot.meal.servings)} kcal</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={s.slotEmpty}
+                    activeOpacity={0.7}
+                    onPress={() => setSearchSlotIndex(index)}
+                  >
+                    <Ionicons name="add" size={16} color={CoachColors.textMuted} />
+                    <Text style={s.slotEmptyText}>Pick a meal</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+
+          <TouchableOpacity style={s.addSlotRow} onPress={appendSlot} activeOpacity={0.7}>
+            <Ionicons name="add" size={16} color={CoachColors.textSecondary} />
+            <Text style={s.addSlotText}>Add a meal</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        <View style={s.footer}>
           <TouchableOpacity
-            style={[wz.nextBtn, !name.trim() && { opacity: 0.5 }]}
-            disabled={!name.trim()}
-            onPress={() => setWizardStep(-1)}
+            style={[s.cta, !trainingHasMeals && { opacity: 0.5 }]}
+            disabled={!trainingHasMeals}
+            onPress={() => setStep(3)}
             activeOpacity={0.85}
           >
-            <Text style={wz.nextBtnText}>Enter builder</Text>
-            <Ionicons name="build" size={16} color={CoachColors.onAccent} style={{ marginLeft: 6 }} />
+            <Text style={s.ctaText}>Set the week</Text>
+            <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </>
     );
-  }
+  };
 
-  // ── STEP -1: BUILDER ──
-  return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{isEditing ? 'Edit diet' : 'Builder'}</Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity onPress={() => setWizardStep(1)} style={styles.iconBtn}>
-              <Ionicons name="settings-outline" size={18} color={CoachColors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowAiSheet(true)} style={styles.iconBtn}>
-              <Ionicons name="sparkles" size={18} color={CoachColors.accent} />
-            </TouchableOpacity>
-          </View>
+  // ────────────────────────────── STEP 3 ──────────────────────────────
+  const renderStep3 = () => (
+    <>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <Text style={s.h1}>Training days eat more</Text>
+        <Text style={s.sub}>
+          Tap the days this athlete trains. Training days get the {fmtK(trainingTotals.calories)} kcal day, the rest get the {fmtK(restTotals.calories)} kcal one.
+        </Text>
+
+        <View style={s.weekRow}>
+          {WEEK_DAYS.map(d => {
+            const isTraining = trainingDays.includes(d.key);
+            return (
+              <TouchableOpacity
+                key={d.key}
+                style={[s.dayChip, isTraining && s.dayChipActive]}
+                onPress={() => toggleTrainingDay(d.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.dayChipDay, isTraining && s.dayChipDayActive]}>{d.short}</Text>
+                <Text style={[s.dayChipKcal, isTraining && s.dayChipKcalActive]}>
+                  {fmtK(isTraining ? trainingTotals.calories : restTotals.calories)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Visual Macro Targets */}
-        <View style={styles.macroCard}>
-          <View style={styles.macroRow}>
-            <View style={styles.macroCol}>
-              <Text style={styles.macroVal}>{Math.round(totals.calories)}</Text>
-              <Text style={styles.macroLabel}>/ {targetCalories} kcal</Text>
-            </View>
+        <TouchableOpacity style={s.toggleRow} onPress={() => setFreeMealEnabled(v => !v)} activeOpacity={0.7}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.toggleTitle}>One free meal a week</Text>
+            <Text style={s.toggleSub}>{freeMealDayFull} dinner, off the books</Text>
           </View>
-          <View style={styles.macroBars}>
-            <View style={styles.macroBarWrap}>
-              <View style={styles.macroBarLabelRow}>
-                <Text style={styles.macroBarLabel}>Protein ({Math.round(totals.protein)}g)</Text>
-              </View>
-              <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.pro * 100}%` }]} />
-              </View>
-            </View>
-            <View style={styles.macroBarWrap}>
-              <View style={styles.macroBarLabelRow}>
-                <Text style={styles.macroBarLabel}>Carbs ({Math.round(totals.carbs)}g)</Text>
-              </View>
-              <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.carb * 100}%` }]} />
-              </View>
-            </View>
-            <View style={styles.macroBarWrap}>
-              <View style={styles.macroBarLabelRow}>
-                <Text style={styles.macroBarLabel}>Fat ({Math.round(totals.fat)}g)</Text>
-              </View>
-              <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { width: `${progress.fat * 100}%` }]} />
-              </View>
-            </View>
+          <View style={[s.toggle, freeMealEnabled && s.toggleOn]}>
+            <View style={[s.toggleKnob, freeMealEnabled && s.toggleKnobOn]} />
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {MEAL_TIMES.map(mt => {
-          const mealsInTime = selectedMeals.filter(m => m.meal_time === mt.key);
+        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]}>Where does it go</Text>
+        {dietPasses.map(p => {
+          const nodeCount = p.track!.filter(n => n.type === 'diet').length;
+          const selected = assignTarget === p.id;
           return (
-            <View key={mt.key} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{mt.icon}  {mt.label}</Text>
-                <TouchableOpacity
-                  style={styles.quickAddBtn}
-                  onPress={() => { setActiveMealTime(mt.key); setShowSearch(true); }}
-                >
-                  <Ionicons name="add" size={18} color={CoachColors.accent} />
-                </TouchableOpacity>
+            <TouchableOpacity key={p.id} style={[s.radioRow, selected && s.radioRowActive]} onPress={() => setAssignTarget(p.id)} activeOpacity={0.7}>
+              <View style={[s.radio, selected && s.radioActive]}>
+                {selected && <View style={s.radioDot} />}
               </View>
-
-              {mealsInTime.length === 0 ? (
-                <View style={styles.emptySection}>
-                  <Text style={styles.emptyText}>Tap + to add {mt.label.toLowerCase()}</Text>
-                </View>
-              ) : (
-                selectedMeals.map((meal, index) => {
-                  if (meal.meal_time !== mt.key) return null;
-                  return (
-                    <TouchableOpacity key={index} style={styles.mealCard} onPress={() => {
-                      setEditingMealIndex(index);
-                      setEditServings(meal.servings);
-                    }}>
-                      <View style={styles.mealCardText}>
-                        <Text style={styles.mealCardName}>{meal.name}</Text>
-                        <Text style={styles.mealCardMacros}>
-                          {Math.round(meal.calories * meal.servings)} kcal • {meal.servings} serving(s)
-                        </Text>
-                      </View>
-                      <Ionicons name="create-outline" size={18} color={CoachColors.textFaint} />
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.radioTitle}>Into {p.name}</Text>
+                <Text style={s.radioSub}>Fills all {nodeCount} meal-plan node{nodeCount === 1 ? '' : 's'}</Text>
+              </View>
+            </TouchableOpacity>
           );
         })}
+        <TouchableOpacity style={[s.radioRow, assignTarget === 'library' && s.radioRowActive]} onPress={() => setAssignTarget('library')} activeOpacity={0.7}>
+          <View style={[s.radio, assignTarget === 'library' && s.radioActive]}>
+            {assignTarget === 'library' && <View style={s.radioDot} />}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.radioTitle}>Library only</Text>
+            <Text style={s.radioSub}>Assign it to someone later</Text>
+          </View>
+        </TouchableOpacity>
+
+        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]}>Cover and notes (optional)</Text>
+        <TouchableOpacity
+          style={[s.imageUploadBtn, imageUrl && s.imageUploadBtnActive]}
+          onPress={pickImage}
+          disabled={uploadingImage}
+          activeOpacity={0.85}
+        >
+          {uploadingImage ? (
+            <ActivityIndicator color={CoachColors.accent} />
+          ) : imageUrl ? (
+            <>
+              <Image source={{ uri: imageUrl }} style={s.uploadedImage} resizeMode="cover" />
+              <View style={s.imageOverlay}>
+                <Ionicons name="camera" size={22} color={CoachColors.textPrimary} />
+                <Text style={s.imageOverlayText}>Change image</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Ionicons name="image-outline" size={24} color={CoachColors.textFaint} />
+              <Text style={s.imageUploadText}>Tap to add cover image</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TextInput
+          style={s.descInput}
+          placeholder="Notes the athlete sees (optional)"
+          placeholderTextColor={CoachColors.textFaint}
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          selectionColor={CoachColors.accent}
+        />
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+      <View style={s.footer}>
+        <TouchableOpacity style={[s.cta, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
           {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : (
             <>
-              <Ionicons name="checkmark" size={18} color={CoachColors.onAccent} style={{ marginRight: 6 }} />
-              <Text style={styles.saveBtnText}>Save diet plan</Text>
+              <Ionicons name="checkmark" size={18} color={CoachColors.onAccent} />
+              <Text style={s.ctaText}>{isEditing ? 'Save changes' : 'Save meal plan'}</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
+    </>
+  );
 
-      {/* AI Generate Sheet */}
-      <Modal visible={showAiSheet} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Generate with AI</Text>
-              <TouchableOpacity onPress={() => setShowAiSheet(false)}>
-                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalLabel}>Describe the perfect diet</Text>
-            <View style={styles.aiInputWrap}>
-              <TextInput
-                style={styles.aiInput}
-                placeholder="e.g. A 2500 calorie high-protein meal plan..."
-                placeholderTextColor={CoachColors.textFaint}
-                multiline
-                value={aiPrompt}
-                onChangeText={setAiPrompt}
-                selectionColor={CoachColors.accent}
-              />
-            </View>
-            <TouchableOpacity style={[styles.aiGenerateBtn, isGenerating && { opacity: 0.7 }]} onPress={handleAiGenerate} disabled={isGenerating} activeOpacity={0.85}>
-              {isGenerating ? (
-                <ActivityIndicator color={CoachColors.onAccent} />
-              ) : (
-                <Ionicons name="sparkles" size={18} color={CoachColors.onAccent} />
-              )}
-              <Text style={styles.aiGenerateText}>{isGenerating ? 'Generating…' : 'Generate diet'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+  // ── Sheets / modals ──
+  const slotSheetSlot = slotSheetIndex !== null ? slots[slotSheetIndex] : null;
+  const isExtraSlot = slotSheetIndex !== null && slotSheetIndex >= (SLOT_TEMPLATES[mealsPerDay]?.length ?? 4);
 
-      {/* Edit Meal Bottom Sheet */}
-      <Modal visible={editingMealIndex !== null} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit meal</Text>
-              <TouchableOpacity onPress={() => setEditingMealIndex(null)}>
+  return (
+    <SafeAreaView style={s.safeArea} edges={['top']}>
+      {renderHeader()}
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
+
+      {/* Slot detail sheet */}
+      <Modal visible={slotSheetIndex !== null} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{slotSheetSlot?.label || 'Meal'}</Text>
+              <TouchableOpacity onPress={() => setSlotSheetIndex(null)}>
                 <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            {editingMealIndex !== null && (
+            {slotSheetSlot?.meal && slotSheetIndex !== null && (
               <>
-                <Text style={styles.modalLabel}>{selectedMeals[editingMealIndex]?.name}</Text>
+                <Text style={s.modalLabel}>{slotSheetSlot.meal.name}</Text>
 
-                <View style={[styles.portionEditor, { backgroundColor: 'transparent', padding: 0, borderTopWidth: 0 }]}>
-                  <Text style={[styles.portionLabel, { fontSize: 15 }]}>Servings:</Text>
-                  <View style={styles.portionControls}>
-                    <TouchableOpacity style={styles.portionBtn} onPress={() => setEditServings(Math.max(0.25, editServings - 0.25))}>
+                <View style={s.servingRow}>
+                  <Text style={s.servingLabel}>Servings</Text>
+                  <View style={s.portionControls}>
+                    <TouchableOpacity style={s.portionBtn} onPress={() => setEditServings(v => Math.max(0.25, v - 0.25))}>
                       <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={[styles.portionValue, { fontSize: 17 }]}>{editServings}</Text>
-                    <TouchableOpacity style={styles.portionBtn} onPress={() => setEditServings(editServings + 0.25)}>
+                    <Text style={s.portionValue}>{editServings}</Text>
+                    <TouchableOpacity style={s.portionBtn} onPress={() => setEditServings(v => v + 0.25)}>
                       <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <TouchableOpacity style={[styles.portionAddBtn, { marginTop: 16, alignSelf: 'stretch', alignItems: 'center' }]} onPress={updateMealServings}>
-                  <Text style={styles.portionAddText}>Save servings</Text>
+                <TouchableOpacity style={s.sheetPrimaryBtn} onPress={saveSlotServings}>
+                  <Text style={s.sheetPrimaryText}>Save servings</Text>
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
-                  <TouchableOpacity style={styles.editActionBtn} onPress={() => moveMeal(editingMealIndex, 'up')}>
-                    <Ionicons name="arrow-up" size={18} color={CoachColors.textPrimary} />
-                    <Text style={styles.editActionText}>Move up</Text>
+                {dayVariant === 'training' && (
+                  <TouchableOpacity
+                    style={s.sheetActionBtn}
+                    onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSwapSheetIndex(i); }}
+                  >
+                    <Ionicons name="swap-horizontal" size={18} color={CoachColors.accent} />
+                    <Text style={s.sheetActionText}>
+                      Manage swaps{slotSheetSlot.swaps.allowedMealIds.length > 0 ? ` (${slotSheetSlot.swaps.allowedMealIds.length})` : ''}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.editActionBtn} onPress={() => moveMeal(editingMealIndex, 'down')}>
-                    <Ionicons name="arrow-down" size={18} color={CoachColors.textPrimary} />
-                    <Text style={styles.editActionText}>Move down</Text>
-                  </TouchableOpacity>
-                </View>
+                )}
 
                 <TouchableOpacity
-                  style={[styles.editActionBtn, styles.dangerBtn, { marginTop: 12 }]}
-                  onPress={() => removeMeal(editingMealIndex)}
+                  style={s.sheetActionBtn}
+                  onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSearchSlotIndex(i); }}
+                >
+                  <Ionicons name="repeat" size={18} color={CoachColors.textPrimary} />
+                  <Text style={s.sheetActionText}>Replace meal</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.sheetActionBtn, s.dangerBtn]}
+                  onPress={() => isExtraSlot ? removeExtraSlot(slotSheetIndex) : clearSlot(slotSheetIndex)}
                 >
                   <Ionicons name="trash" size={18} color={CoachColors.danger} />
-                  <Text style={[styles.editActionText, { color: CoachColors.danger }]}>Remove meal</Text>
+                  <Text style={[s.sheetActionText, { color: CoachColors.danger }]}>
+                    {isExtraSlot ? 'Remove this meal slot' : 'Clear this slot'}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -829,22 +1047,88 @@ export default function CreateDietScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Food Search Modal */}
-      <Modal visible={showSearch} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: '90%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add to {MEAL_TIMES.find(m => m.key === activeMealTime)?.label}</Text>
-              <TouchableOpacity onPress={() => { setShowSearch(false); setSelectedResultId(null); }}>
+      {/* Swap sheet (training day only) */}
+      <Modal visible={swapSheetIndex !== null} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalContent, { maxHeight: '85%' }]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle} numberOfLines={1}>
+                If they can't have {swapSlot?.meal ? swapSlot.meal.name.split(',')[0].split(' with ')[0] : 'this'}
+              </Text>
+              <TouchableOpacity onPress={() => setSwapSheetIndex(null)}>
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.swapSubtext}>
+              Pick what they're allowed to switch to. Anything you approve lands within 40 kcal and 5g protein of the original.
+            </Text>
+
+            <ScrollView style={{ flexGrow: 0 }}>
+              {swapCandidates.inRange.length === 0 && (
+                <Text style={s.swapEmpty}>None of your saved meals land within range of this one.</Text>
+              )}
+              {swapCandidates.inRange.map(m => {
+                const checked = swapSlot?.swaps.allowedMealIds.includes(m.id);
+                return (
+                  <TouchableOpacity key={m.id} style={s.swapRow} onPress={() => toggleSwapMeal(m.id)} activeOpacity={0.7}>
+                    <View style={[s.checkbox, checked && s.checkboxOn]}>
+                      {checked && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.swapName} numberOfLines={1}>{m.name}</Text>
+                      <Text style={s.swapMacros}>{m.calories} kcal · P {m.protein}g</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {swapCandidates.outOfRange.map(({ meal: m, reason }) => (
+                <View key={m.id} style={[s.swapRow, { opacity: 0.45 }]}>
+                  <View style={s.checkbox} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.swapName} numberOfLines={1}>{m.name}</Text>
+                    <Text style={s.swapMacros}>Out of range · {reason}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={s.ownLogRow} onPress={toggleAllowOwnLog} activeOpacity={0.7}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toggleTitle}>Let them log their own</Text>
+                <Text style={s.toggleSub}>You see it in their check-in either way</Text>
+              </View>
+              <View style={[s.toggle, swapSlot?.swaps.allowOwnLog && s.toggleOn]}>
+                <View style={[s.toggleKnob, swapSlot?.swaps.allowOwnLog && s.toggleKnobOn]} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.sheetPrimaryBtn} onPress={() => setSwapSheetIndex(null)}>
+              <Text style={s.sheetPrimaryText}>
+                Allow these {swapSlot?.swaps.allowedMealIds.length || 0}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Food search modal (saved + USDA) */}
+      <Modal visible={searchSlotIndex !== null} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
+          <View style={[s.modalContent, { height: '90%' }]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>
+                {searchSlotIndex !== null && slots[searchSlotIndex] ? slots[searchSlotIndex].label : 'Add a meal'}
+              </Text>
+              <TouchableOpacity onPress={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
                 <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.searchWrap}>
+            <View style={s.searchWrap}>
               <Ionicons name="search" size={18} color={CoachColors.textFaint} />
               <TextInput
-                style={styles.searchInput}
-                placeholder={searchMode === 'api' ? "Search USDA database (e.g. Chicken)" : "Search my saved meals"}
+                style={s.searchInput}
+                placeholder={searchMode === 'api' ? 'Search USDA database (e.g. Chicken)' : 'Search my saved meals'}
                 placeholderTextColor={CoachColors.textFaint}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -854,18 +1138,18 @@ export default function CreateDietScreen() {
                 selectionColor={CoachColors.accent}
               />
               {searchMode === 'api' && (
-                <TouchableOpacity onPress={performSearch} style={styles.searchBtn}>
-                  <Text style={styles.searchBtnText}>Search</Text>
+                <TouchableOpacity onPress={performSearch} style={s.searchBtn}>
+                  <Text style={s.searchBtnText}>Search</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            <View style={styles.searchTabs}>
-              <TouchableOpacity style={[styles.searchTab, searchMode === 'saved' && styles.searchTabActive]} onPress={() => setSearchMode('saved')}>
-                <Text style={[styles.searchTabText, searchMode === 'saved' && styles.searchTabTextActive]}>My meals</Text>
+            <View style={s.searchTabs}>
+              <TouchableOpacity style={[s.searchTab, searchMode === 'saved' && s.searchTabActive]} onPress={() => setSearchMode('saved')}>
+                <Text style={[s.searchTabText, searchMode === 'saved' && s.searchTabTextActive]}>My meals</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.searchTab, searchMode === 'api' && styles.searchTabActive]} onPress={() => setSearchMode('api')}>
-                <Text style={[styles.searchTabText, searchMode === 'api' && styles.searchTabTextActive]}>USDA DB</Text>
+              <TouchableOpacity style={[s.searchTab, searchMode === 'api' && s.searchTabActive]} onPress={() => setSearchMode('api')}>
+                <Text style={[s.searchTabText, searchMode === 'api' && s.searchTabTextActive]}>USDA DB</Text>
               </TouchableOpacity>
             </View>
 
@@ -879,52 +1163,49 @@ export default function CreateDietScreen() {
                 renderItem={({ item }) => {
                   const isExpanded = selectedResultId === item._uid;
                   return (
-                    <View style={styles.resultCard}>
+                    <View style={s.resultCard}>
                       <TouchableOpacity
-                        style={styles.resultRow}
+                        style={s.resultRow}
                         onPress={() => {
                           setSelectedResultId(isExpanded ? null : item._uid);
                           setTempServings(1);
                         }}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.resultName} numberOfLines={2}>{item.name}</Text>
-                          <Text style={styles.resultMacros}>
-                            {item.calories} kcal • {item.serving_size_g || 100}g serving
+                          <Text style={s.resultName} numberOfLines={2}>{item.name}</Text>
+                          <Text style={s.resultMacros}>
+                            {item.calories} kcal · {item.serving_size_g || 100}g serving
                           </Text>
-                          <Text style={styles.resultMacrosSub}>
-                            P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g
+                          <Text style={s.resultMacrosSub}>
+                            P {item.protein}g   C {item.carbs}g   F {item.fat}g
                           </Text>
                         </View>
                         {isExpanded ? (
                           <Ionicons name="chevron-up" size={26} color={CoachColors.textFaint} />
                         ) : (
-                          <View style={styles.addCircle}>
+                          <View style={s.addCircle}>
                             <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
                           </View>
                         )}
                       </TouchableOpacity>
 
                       {isExpanded && (
-                        <View style={styles.portionEditor}>
-                          <Text style={styles.portionLabel}>Servings:</Text>
-                          <View style={styles.portionControls}>
-                            <TouchableOpacity style={styles.portionBtn} onPress={() => setTempServings(Math.max(0.25, tempServings - 0.25))}>
+                        <View style={s.portionEditor}>
+                          <Text style={s.portionLabel}>Servings:</Text>
+                          <View style={s.portionControls}>
+                            <TouchableOpacity style={s.portionBtn} onPress={() => setTempServings(v => Math.max(0.25, v - 0.25))}>
                               <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
-                            <Text style={styles.portionValue}>{tempServings}</Text>
-                            <TouchableOpacity style={styles.portionBtn} onPress={() => setTempServings(tempServings + 0.25)}>
+                            <Text style={s.portionValue}>{tempServings}</Text>
+                            <TouchableOpacity style={s.portionBtn} onPress={() => setTempServings(v => v + 0.25)}>
                               <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                           </View>
-                          <TouchableOpacity style={styles.portionAddBtn} onPress={() => {
-                            if (searchMode === 'saved') {
-                              addMealFromLocal(item, tempServings);
-                            } else {
-                              addMealFromApi(item, tempServings);
-                            }
+                          <TouchableOpacity style={s.portionAddBtn} onPress={() => {
+                            if (searchMode === 'saved') addFromLocal(item, tempServings);
+                            else addFromApi(item, tempServings);
                           }}>
-                            <Text style={styles.portionAddText}>Add</Text>
+                            <Text style={s.portionAddText}>Add</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -936,128 +1217,175 @@ export default function CreateDietScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
-    </View>
+    </SafeAreaView>
   );
 }
 
-const wz = StyleSheet.create({
+const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: CoachColors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
   backBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
-  stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 0.3 },
-  eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 0.3 },
-  skipBtn: { paddingHorizontal: 12, paddingVertical: 8 },
-  skipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
-  progressBar: { height: 3, backgroundColor: CoachColors.borderMuted, marginHorizontal: 20, marginTop: 8, borderRadius: 2 },
-  progressFill: { height: '100%', borderRadius: 2, backgroundColor: CoachColors.accent },
-  scroll: { paddingHorizontal: 24, paddingTop: 16 },
-  title: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary, lineHeight: 30, marginBottom: 8 },
-  subtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 24, lineHeight: 18 },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, maxWidth: 240 },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 2 },
+  progressRow: { flexDirection: 'row', gap: 6, marginHorizontal: 20, marginBottom: 8 },
+  progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: CoachColors.borderMuted },
+  progressSegActive: { backgroundColor: CoachColors.accent },
 
-  inputCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: CoachColors.border },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  iconBox: { width: 40, height: 40, borderRadius: Radius.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.accentSofter },
-  inputLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted, marginBottom: 4 },
-  textInput: { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, padding: 0 },
+  scroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
+  eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase' },
+  h1: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary, marginBottom: 8 },
+  sub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 19, marginBottom: 20 },
+  footnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, lineHeight: 18, marginTop: 8 },
 
-  nameInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingHorizontal: 0, height: 50 },
-  nameInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 16 },
+  nameInput: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary,
+    borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingVertical: 12, marginBottom: 24, marginTop: 8,
+  },
 
-  imageUploadBtn: { height: 120, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  card: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: CoachColors.border },
+
+  kcalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  kcalValue: { fontFamily: CoachFonts.headingBold, fontSize: 34, color: CoachColors.accent },
+  kcalUnit: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textMuted },
+  kcalRange: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 4 },
+
+  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 14, gap: 2 },
+  splitSeg: { height: '100%' },
+  legendRow: { flexDirection: 'row', gap: 16, marginTop: 12, marginBottom: 14, flexWrap: 'wrap' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: Radius.full, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border },
+  chipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  chipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
+
+  customRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  customField: { flex: 1 },
+  customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted, marginBottom: 6 },
+  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
+
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, backgroundColor: CoachColors.bg },
+  cta: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  ctaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+
+  // Step 2
+  macroCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, marginHorizontal: 20, marginTop: 8, borderWidth: 1, borderColor: CoachColors.border },
+  macroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  macroKcal: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  macroKcalTarget: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.full, backgroundColor: CoachColors.borderMuted },
+  statusChipOn: { backgroundColor: CoachColors.accentSoft },
+  statusChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary },
+  statusChipTextOn: { color: CoachColors.accent },
+  macroStack: { flexDirection: 'row', gap: 3, height: 6 },
+  macroSeg: { height: 6, borderRadius: 3, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
+  macroSegFill: { height: '100%', borderRadius: 3 },
+  macroLine: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textSecondary, marginTop: 10 },
+
+  segmented: { flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 4, marginHorizontal: 20, marginTop: 12, borderWidth: 1, borderColor: CoachColors.border },
+  segment: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: Radius.sm },
+  segmentActive: { backgroundColor: CoachColors.accent },
+  segmentText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  segmentTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
+
+  copyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter, marginBottom: 16 },
+  copyBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+
+  slotLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  slotCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 12 },
+  slotMealName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 3 },
+  slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted },
+  slotKcal: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  swapTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: CoachColors.accentSofter, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full, marginTop: 6 },
+  swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.accent },
+  slotEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed' },
+  slotEmptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted },
+  addSlotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', marginTop: 4 },
+  addSlotText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+
+  // Step 3
+  weekRow: { flexDirection: 'row', gap: 6, marginBottom: 24 },
+  dayChip: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: Radius.sm, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
+  dayChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  dayChipDay: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary },
+  dayChipDayActive: { color: CoachColors.accent },
+  dayChipKcal: { fontFamily: CoachFonts.mono, fontSize: 10, color: CoachColors.textFaint, marginTop: 4 },
+  dayChipKcalActive: { color: CoachColors.accent },
+
+  toggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, borderWidth: 1, borderColor: CoachColors.border, gap: 12 },
+  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
+  toggleSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: CoachColors.borderMuted, padding: 3 },
+  toggleOn: { backgroundColor: CoachColors.accent },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: CoachColors.textSecondary },
+  toggleKnobOn: { backgroundColor: CoachColors.onAccent, alignSelf: 'flex-end' },
+
+  radioRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, borderWidth: 1, borderColor: CoachColors.border, gap: 12, marginBottom: 10 },
+  radioRowActive: { borderColor: CoachColors.accent },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { borderColor: CoachColors.accent },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CoachColors.accent },
+  radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
+  radioSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+
+  imageUploadBtn: { height: 110, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   imageUploadBtnActive: { borderWidth: 0, borderStyle: 'solid' },
   imageUploadText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginTop: 8 },
-  uploadedImage: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0, width: '100%', height: '100%' },
+  uploadedImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   imageOverlayText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary, marginTop: 4 },
-
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  nameChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
-  nameChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  nameChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
-  nameChipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
-
-  footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
-  nextBtn: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  nextBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent, marginRight: 6 },
-});
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CoachColors.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: CoachColors.bg },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  iconBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
-
-  macroCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 20, borderWidth: 1, borderColor: CoachColors.border },
-  macroRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 },
-  macroCol: { flexDirection: 'row', alignItems: 'baseline' },
-  macroVal: { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.textPrimary },
-  macroLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginLeft: 4 },
-  macroBars: { gap: 12 },
-  macroBarWrap: { flex: 1 },
-  macroBarLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  macroBarLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
-  macroBarBg: { height: 4, backgroundColor: CoachColors.borderMuted, borderRadius: 2, overflow: 'hidden' },
-  macroBarFill: { height: '100%', borderRadius: 2, backgroundColor: CoachColors.accent },
-
-  scrollContent: { padding: 20, paddingBottom: 120 },
-  section: { marginBottom: 32 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  sectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  quickAddBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'transparent', borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-  emptySection: { padding: 24, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', alignItems: 'center' },
-  emptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted },
-
-  mealCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, padding: 16, borderRadius: Radius.md, marginBottom: 8, borderWidth: 1, borderColor: CoachColors.borderMuted },
-  mealCardText: { flex: 1 },
-  mealCardName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
-  mealCardMacros: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
-
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, backgroundColor: CoachColors.bg },
-  saveBtn: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  descInput: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, padding: 14, marginTop: 12, minHeight: 80, textAlignVertical: 'top', fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xl },
-  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginBottom: 8 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md, gap: 12 },
+  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
+  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted, marginBottom: 16 },
 
-  editActionBtn: { flex: 1, flexDirection: 'row', height: 46, backgroundColor: CoachColors.surface, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: CoachColors.border },
-  editActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  servingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  servingLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary },
+  sheetPrimaryBtn: { height: 48, borderRadius: Radius.full, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  sheetPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  sheetActionBtn: { flexDirection: 'row', height: 46, backgroundColor: CoachColors.surface, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: CoachColors.border, marginTop: 10 },
+  sheetActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
   dangerBtn: { backgroundColor: CoachColors.dangerSoft, borderColor: 'transparent' },
 
-  aiInputWrap: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: Spacing.md, height: 100, borderWidth: 1, borderColor: CoachColors.border, marginBottom: 16 },
-  aiInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 14 },
-  aiGenerateBtn: { height: 50, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  aiGenerateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  swapSubtext: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 18, marginBottom: 16 },
+  swapEmpty: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, paddingVertical: 16, textAlign: 'center' },
+  swapRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  swapName: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
+  swapMacros: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  ownLogRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 8 },
 
+  // Search modal (unchanged pattern)
   searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: CoachColors.border },
   searchInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 14, marginLeft: 10 },
   searchBtn: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: CoachColors.accent, borderRadius: Radius.full, marginLeft: 8 },
   searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
-
   searchTabs: { flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 4, marginTop: 16, borderWidth: 1, borderColor: CoachColors.border },
   searchTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm },
   searchTabActive: { backgroundColor: CoachColors.accent },
   searchTabText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
   searchTabTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
-
   resultCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, overflow: 'hidden' },
   resultRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   resultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
   resultMacros: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginBottom: 2 },
   resultMacrosSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
-
   addCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-
   portionEditor: { backgroundColor: CoachColors.surface, padding: 16, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   portionLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
   portionControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.bg, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border },
   portionBtn: { padding: 8 },
   portionValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, minWidth: 40, textAlign: 'center' },
   portionAddBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: Radius.full },
-  portionAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent }
+  portionAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
 });

@@ -1,783 +1,1393 @@
-import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+// ─────────────────────────────────────────────────────────────────────────────
+// Turn 19 — "Creating a pass": a 5-step season builder.
+// The argument: nobody hand-places 18 nodes. Coaches think in weeks and
+// repeat. So the flow asks for one week, expands it into the season, then
+// lets you vary it. Every stat shown is computed from real data or omitted.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const PLAN_COLORS = [
-  '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899',
-  '#6366F1', '#14B8A6', '#F97316', '#06B6D4',
-];
+type DayNode = { kind: 'workout' | 'diet' | 'checkin' | 'live' | 'rest'; id?: string; name?: string };
+// A day holds a stack of nodes — a workout AND a meal plan on the same day is
+// the normal case, not a conflict. 'rest' is exclusive: it marks the day as a
+// deliberate rest day (distinct from simply unplanned) and produces no track node.
+type SeasonWeek = { days: DayNode[][]; label: string; isRest?: boolean };
 
-const TIER_CONFIG = {
-  diamond: { rank: 'DIAMOND', icon: 'diamond' as const, gradient: ['#22D3EE', '#0EA5E9', '#0369A1'] as [string, string, string] },
-  gold: { rank: 'GOLD', icon: 'trophy' as const, gradient: ['#FDE68A', '#FBBF24', '#D97706'] as [string, string, string] },
-  silver: { rank: 'SILVER', icon: 'shield-checkmark' as const, gradient: ['#F1F5F9', '#94A3B8', '#475569'] as [string, string, string] },
-  bronze: { rank: 'BRONZE', icon: 'medal' as const, gradient: ['#FED7AA', '#FB923C', '#C2410C'] as [string, string, string] },
+const WEEK_LENGTHS = [4, 6, 8, 12, 16];
+const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const STEP_LABELS = ['Basics', 'Weekly rhythm', 'Season map', 'Price', 'Preview'];
+const PROMISE_MAX = 90;
+// Must match earnings.tsx: const PLATFORM_FEE = 0.10;
+const PLATFORM_FEE = 0.10;
+
+const NUM_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+
+const TOOL_META: Record<DayNode['kind'], { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  workout: { label: 'Workout', icon: 'barbell-outline' },
+  diet: { label: 'Meal plan', icon: 'nutrition-outline' },
+  checkin: { label: 'Check-in', icon: 'chatbubble-ellipses-outline' },
+  live: { label: 'Live session', icon: 'videocam-outline' },
+  rest: { label: 'Rest', icon: 'moon-outline' },
 };
 
-const getTier = (price: number) => {
-  if (price >= 200) return TIER_CONFIG.diamond;
-  if (price >= 100) return TIER_CONFIG.gold;
-  if (price >= 50) return TIER_CONFIG.silver;
-  return TIER_CONFIG.bronze;
+const dotColor = (kind: DayNode['kind']) => {
+  if (kind === 'workout') return CoachColors.accent;
+  if (kind === 'diet') return CoachColors.textSecondary;
+  if (kind === 'rest') return CoachColors.borderMuted;
+  return CoachColors.textFaint; // check-in / live session
 };
 
-export default function CreatePlanModal() {
+const emptyDays = (): DayNode[][] => Array.from({ length: 7 }, () => []);
+
+const isRestDay = (day: DayNode[]) => day.some(n => n.kind === 'rest');
+// Nodes that become real track content — rest markers don't.
+const deliverable = (day: DayNode[]) => day.filter(n => n.kind !== 'rest');
+
+export default function CreatePassScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { createPlan, updatePlanTrack, workouts, diets } = useApp();
+  const { user } = useAuth();
+  const { createPlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients } = useApp();
   const { showAlert } = useAlert();
 
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [period, setPeriod] = useState('month');
-  const [featureInput, setFeatureInput] = useState('');
-  const [features, setFeatures] = useState<string[]>([]);
-  const [color, setColor] = useState(PLAN_COLORS[0]);
-  const [isPopular, setIsPopular] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // ── Flow state ──
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
 
-  // Track builder state
-  const [trackNodes, setTrackNodes] = useState<TrackNode[]>([]);
-  const [showTrackBuilder, setShowTrackBuilder] = useState(false);
-  const [trackTab, setTrackTab] = useState<'workouts' | 'diets'>('workouts');
+  // ── Step 1 — Basics ──
+  const [name, setName] = useState('');
+  const [promise, setPromise] = useState('');
+  const [weeks, setWeeks] = useState(8);
+  const [startWeekOne, setStartWeekOne] = useState(true);
+
+  // ── Step 2 — Weekly rhythm ──
+  const [weekTemplate, setWeekTemplate] = useState<DayNode[][]>(emptyDays());
+  const [selectedTool, setSelectedTool] = useState<DayNode['kind'] | null>('workout');
+
+  // ── Step 3 — Season map ──
+  const [seasonWeeks, setSeasonWeeks] = useState<SeasonWeek[]>([]);
+  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+  const [progressiveNote, setProgressiveNote] = useState(false);
+  const [finalMilestones, setFinalMilestones] = useState<string[]>([]);
   const [milestoneInput, setMilestoneInput] = useState('');
   const [showMilestoneInput, setShowMilestoneInput] = useState(false);
 
-  const usedWorkoutIds = new Set(trackNodes.filter(n => n.type === 'workout').map(n => n.id));
-  const usedDietIds = new Set(trackNodes.filter(n => n.type === 'diet').map(n => n.id));
+  // ── Step 4 — Price ──
+  const [period, setPeriod] = useState<'month' | 'year'>('month');
+  const [priceText, setPriceText] = useState('');
 
-  const numericPrice = Number(price) || 0;
-  const tier = useMemo(() => getTier(numericPrice), [numericPrice]);
+  // ── Step 5 — Preview + publish ──
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  // Set after a successful publish — drives the celebration overlay.
+  const [published, setPublished] = useState<{ offersSent: number } | null>(null);
 
-  const handleAddFeature = () => {
-    const trimmed = featureInput.trim();
-    if (trimmed && !features.includes(trimmed)) {
-      setFeatures([...features, trimmed]);
-      setFeatureInput('');
+  // Content picker (used by step 2 template and step 3 week editor)
+  const [picker, setPicker] = useState<{ dayIndex: number; weekIndex: number | null; kind: 'workout' | 'diet' } | null>(null);
+
+  // ── Real enrollment stats for the coach's existing passes ──
+  const [planStats, setPlanStats] = useState<Record<string, { holders: number; completed: number }>>({});
+  useEffect(() => {
+    if (plans.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('client_plan_enrollments')
+        .select('plan_id, status')
+        .in('plan_id', plans.map(p => p.id));
+      if (cancelled || error || !data) return;
+      const stats: Record<string, { holders: number; completed: number }> = {};
+      data.forEach((row: any) => {
+        const g = stats[row.plan_id] || (stats[row.plan_id] = { holders: 0, completed: 0 });
+        g.holders += 1;
+        if (row.status === 'completed') g.completed += 1;
+      });
+      if (!cancelled) setPlanStats(stats);
+    })();
+    return () => { cancelled = true; };
+  }, [plans]);
+
+  const price = Number(priceText) || 0;
+
+  // ── Market prices — real, platform-wide. The plans table is readable by
+  // every authenticated user by design (the marketplace policy in
+  // supabase/migrations/20260723070000_plans_client_read_policy.sql), so this
+  // comparison is grounded in what other coaches actually charge, not a guess.
+  const [marketPrices, setMarketPrices] = useState<{ month: number[]; year: number[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('plans')
+        .select('price, period, trainer_id')
+        .gt('price', 0);
+      if (cancelled || error || !data) return;
+      const others = data.filter((p: any) => p.trainer_id !== user?.id);
+      setMarketPrices({
+        month: others.filter((p: any) => p.period !== 'year').map((p: any) => Number(p.price)).sort((a: number, b: number) => a - b),
+        year: others.filter((p: any) => p.period === 'year').map((p: any) => Number(p.price)).sort((a: number, b: number) => a - b),
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const bumpPrice = (delta: number) => {
+    setPriceText(String(Math.max(0, (Number(priceText) || 0) + delta)));
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Derived data — all from real sources, or absent
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Reference pass = the coach's most-held existing pass (if any).
+  const referencePass = useMemo(() => {
+    if (plans.length === 0) return null;
+    let best = plans[0];
+    let bestHolders = planStats[best.id]?.holders ?? 0;
+    plans.forEach(p => {
+      const h = planStats[p.id]?.holders ?? 0;
+      if (h > bestHolders) { best = p; bestHolders = h; }
+    });
+    return { plan: best, holders: bestHolders };
+  }, [plans, planStats]);
+
+  // Step 1 context line: only parts we can actually compute.
+  const seasonContextLine = useMemo(() => {
+    if (!referencePass) return null;
+    const { plan } = referencePass;
+    const stats = planStats[plan.id];
+    const parts: string[] = [];
+    if (plan.duration_weeks) parts.push(`Your ${plan.name} pass runs ${plan.duration_weeks} weeks.`);
+    if (stats && stats.holders > 0) {
+      const pct = Math.round((stats.completed / stats.holders) * 100);
+      parts.push(`${pct}% of the athletes who took ${plan.name} finished it.`);
+    }
+    return parts.length > 0 ? parts.join(' ') : null;
+  }, [referencePass, planStats]);
+
+  const templateNodes = weekTemplate.flatMap(deliverable);
+  const templateCounts = useMemo(() => {
+    const c = { workout: 0, diet: 0, checkin: 0, live: 0 };
+    templateNodes.forEach(n => { if (n.kind !== 'rest') c[n.kind] += 1; });
+    return c;
+  }, [weekTemplate]);
+  const templateTrainingDays = weekTemplate.filter(d => d.some(n => n.kind === 'workout')).length;
+
+  // Full track generation from the season map.
+  const buildTrack = useCallback((): TrackNode[] => {
+    const nodes: Omit<TrackNode, 'order'>[] = [];
+    seasonWeeks.forEach((wk, i) => {
+      const label = wk.label.trim();
+      if (label) nodes.push({ type: 'milestone', label: `Week ${i + 1}: ${label}` });
+      else if (wk.isRest) nodes.push({ type: 'milestone', label: `Week ${i + 1}: Rest week` });
+      wk.days.forEach(day => {
+        day.forEach(d => {
+          if (d.kind === 'workout' && d.id) nodes.push({ type: 'workout', id: d.id });
+          else if (d.kind === 'diet' && d.id) nodes.push({ type: 'diet', id: d.id });
+          else if (d.kind === 'checkin') nodes.push({ type: 'milestone', label: 'Check-in' });
+          else if (d.kind === 'live') nodes.push({ type: 'milestone', label: 'Live session' });
+          // 'rest' is a rhythm marker, not deliverable content — no node.
+        });
+      });
+    });
+    finalMilestones.forEach(m => nodes.push({ type: 'milestone', label: m }));
+    return nodes.map((n, i) => ({ ...n, order: i }));
+  }, [seasonWeeks, finalMilestones]);
+
+  const trackCounts = useMemo(() => {
+    const track = buildTrack();
+    let w = 0, m = 0, c = 0, ms = 0;
+    track.forEach(n => {
+      if (n.type === 'workout') w += 1;
+      else if (n.type === 'diet') m += 1;
+      else if (n.type === 'milestone' && n.label === 'Check-in') c += 1;
+      else ms += 1;
+    });
+    return { workouts: w, meals: m, checkins: c, milestones: ms, total: track.length };
+  }, [buildTrack]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Actions
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const goBack = () => {
+    if (step === 1) { router.back(); return; }
+    setEditingWeek(null);
+    setStep(step - 1);
+  };
+
+  const expandToSeason = () => {
+    // week template × N — everything below is the coach's to edit.
+    setSeasonWeeks(Array.from({ length: weeks }, () => ({
+      days: weekTemplate.map(d => [...d]),
+      label: '',
+    })));
+    setEditingWeek(null);
+    setStep(3);
+  };
+
+  const updateDay = (weekIndex: number | null, dayIndex: number, update: (day: DayNode[]) => DayNode[]) => {
+    if (weekIndex === null) {
+      setWeekTemplate(prev => prev.map((d, i) => (i === dayIndex ? update(d) : d)));
+    } else {
+      setSeasonWeeks(prev => prev.map((wk, i) =>
+        i === weekIndex ? { ...wk, days: wk.days.map((d, j) => (j === dayIndex ? update(d) : d)), isRest: false } : wk
+      ));
     }
   };
 
-  const handleRemoveFeature = (feat: string) => {
-    setFeatures(features.filter(f => f !== feat));
+  // One node of each kind per day, stacked — a workout and a meal plan
+  // coexist. Tapping with a kind the day already has removes just that kind.
+  // Rest is exclusive: it clears the day, and adding anything clears rest.
+  const handleDayTap = (weekIndex: number | null, dayIndex: number, day: DayNode[]) => {
+    if (!selectedTool) return;
+    if (selectedTool === 'rest') {
+      updateDay(weekIndex, dayIndex, d => (isRestDay(d) ? [] : [{ kind: 'rest' }]));
+      return;
+    }
+    if (day.some(n => n.kind === selectedTool)) {
+      updateDay(weekIndex, dayIndex, d => d.filter(n => n.kind !== selectedTool));
+      return;
+    }
+    if (selectedTool === 'workout' || selectedTool === 'diet') {
+      setPicker({ dayIndex, weekIndex, kind: selectedTool });
+    } else {
+      updateDay(weekIndex, dayIndex, d => [...d.filter(n => n.kind !== 'rest'), { kind: selectedTool }]);
+    }
   };
 
-  const addTrackNode = (type: TrackNode['type'], id?: string, label?: string) => {
-    setTrackNodes(prev => [...prev, { type, id, label, order: prev.length }]);
+  const handlePickContent = (id: string, itemName: string) => {
+    if (!picker) return;
+    const { weekIndex, dayIndex, kind } = picker;
+    updateDay(weekIndex, dayIndex, d => [
+      ...d.filter(n => n.kind !== 'rest' && n.kind !== kind),
+      { kind, id, name: itemName },
+    ]);
+    setPicker(null);
   };
 
-  const removeTrackNode = (index: number) => {
-    setTrackNodes(prev => prev.filter((_, i) => i !== index).map((n, i) => ({ ...n, order: i })));
+  // "No X yet" is a dead end — let the coach create one right here.
+  // RN Modals are presented natively ABOVE the whole app, so the sheet must
+  // be fully dismissed before we push a route — navigating with it open
+  // leaves the modal covering the new screen and wedges touch handling on
+  // the way back. We stash the day target, close the sheet, navigate after
+  // the dismissal settles, and re-open the sheet when focus returns — the
+  // new item is in the list because the library refreshes through AppContext.
+  const pendingPickerRef = useRef<{ dayIndex: number; weekIndex: number | null; kind: 'workout' | 'diet' } | null>(null);
+
+  const handleCreateFromPicker = () => {
+    if (!picker) return;
+    const route = picker.kind === 'diet' ? '/create-diet' : '/create-workout';
+    pendingPickerRef.current = picker;
+    setPicker(null);
+    setTimeout(() => router.push(route as any), 350);
   };
 
-  const moveTrackNode = (index: number, dir: -1 | 1) => {
-    const newIdx = index + dir;
-    if (newIdx < 0 || newIdx >= trackNodes.length) return;
-    const updated = [...trackNodes];
-    [updated[index], updated[newIdx]] = [updated[newIdx], updated[index]];
-    setTrackNodes(updated.map((n, i) => ({ ...n, order: i })));
+  useFocusEffect(
+    useCallback(() => {
+      if (!pendingPickerRef.current) return;
+      const pending = pendingPickerRef.current;
+      pendingPickerRef.current = null;
+      // Let the back transition finish before re-presenting a native modal.
+      const t = setTimeout(() => setPicker(pending), 300);
+      return () => clearTimeout(t);
+    }, [])
+  );
+
+  const addRestWeek = () => {
+    setSeasonWeeks(prev => [...prev, { days: emptyDays(), label: '', isRest: true }]);
   };
 
-  const addMilestone = () => {
+  const addFinalMilestone = () => {
     const label = milestoneInput.trim();
     if (!label) return;
-    addTrackNode('milestone', undefined, label);
+    setFinalMilestones(prev => [...prev, label]);
     setMilestoneInput('');
     setShowMilestoneInput(false);
   };
 
-  const getTrackNodeIcon = (node: TrackNode): string => {
-    if (node.type === 'workout') return 'barbell';
-    if (node.type === 'diet') return 'nutrition';
-    return 'trophy';
+  const toggleClient = (id: string) => {
+    setSelectedClientIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
-  const getTrackNodeName = (node: TrackNode): string => {
-    if (node.type === 'workout' && node.id) return workouts.find(w => w.id === node.id)?.name || 'Workout';
-    if (node.type === 'diet' && node.id) return diets.find(d => d.id === node.id)?.name || 'Meal Plan';
-    return node.label || 'Milestone';
-  };
-
-  const TRACK_COLORS: Record<string, string> = { workout: '#22C55E', diet: '#A78BFA', milestone: '#FBBF24', class: '#A855F7' };
-
-  const handleSave = async () => {
-    if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing Name', message: 'Plan name is required.' });
-    if (!price || isNaN(Number(price))) return showAlert({ type: 'warning', title: 'Invalid Price', message: 'A valid price is required.' });
-
-    setLoading(true);
-    try {
-      const plan = await createPlan(name.trim(), Number(price), period, features, color, isPopular);
-      // Save track if nodes were added
-      if (trackNodes.length > 0) {
-        await updatePlanTrack(plan.id, trackNodes);
+  // Publish sends a real chat message from the coach — not a system
+  // notification — into each selected client's conversation.
+  const sendOffers = async (planName: string) => {
+    const content = `I just opened a new season: ${planName}${promise.trim() ? ` — ${promise.trim()}` : ''}`;
+    const { data: convs } = await supabase.from('conversations').select('id, client_id');
+    for (const clientId of selectedClientIds) {
+      try {
+        let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
+        if (!convId) {
+          const { data: created, error } = await supabase
+            .from('conversations')
+            .insert({ trainer_id: user!.id, client_id: clientId })
+            .select()
+            .single();
+          if (error || !created) continue;
+          convId = created.id;
+        }
+        await supabase.from('messages').insert({
+          conversation_id: convId,
+          sender_type: 'trainer',
+          content,
+        });
+        await supabase.from('conversations').update({
+          last_message: content,
+          last_message_at: new Date().toISOString(),
+        }).eq('id', convId);
+      } catch {
+        // Non-fatal — the pass is still created; a single failed offer
+        // shouldn't sink the publish.
       }
-      router.back();
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to create plan' });
-    } finally {
-      setLoading(false);
     }
   };
 
-  return (
-    <View style={[st.container, { paddingTop: insets.top }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      {/* ── HEADER ── */}
-      <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.closeBtn}>
-          <Ionicons name="close" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={st.headerTitle}>Create Pass</Text>
-        <View style={{ width: 40 }} />
-      </View>
+  const handleSave = async (publish: boolean) => {
+    if (!name.trim()) { showAlert({ type: 'warning', title: 'Missing name', message: 'Give the season a name first.' }); return; }
+    if (!price || price <= 0) { showAlert({ type: 'warning', title: 'Missing price', message: 'Set a price before saving.' }); return; }
+    setSaving(true);
+    try {
+      const plan = await createPlan(
+        name.trim(), price, period,
+        [],            // features replaced by the promise line
+        undefined,     // legacy color — default, no UI
+        false,         // legacy popular badge — removed
+        {
+          description: promise.trim() || undefined,
+          duration_weeks: weeks,
+          season_settings: { start_at_week_one: startWeekOne, progressive_note: progressiveNote },
+        }
+      );
+      const track = buildTrack();
+      if (track.length > 0) await updatePlanTrack(plan.id, track);
+      if (publish && selectedClientIds.size > 0) await sendOffers(name.trim());
+      if (publish) {
+        // The moment deserves more than a silent pop — celebrate, then leave.
+        setPublished({ offersSent: selectedClientIds.size });
+      } else {
+        router.back();
+      }
+    } catch (err: any) {
+      showAlert({ type: 'error', title: 'Could not save', message: err.message || 'Failed to create the pass' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      <ScrollView contentContainerStyle={st.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+  // ─────────────────────────────────────────────────────────────────────────
+  // Shared pieces
+  // ─────────────────────────────────────────────────────────────────────────
 
-        {/* ── LIVE PREVIEW CARD ── */}
-        <View style={st.previewWrap}>
-          <Text style={st.previewBadge}>LIVE PREVIEW</Text>
-          <View style={st.previewCard}>
-            {/* Gradient hero */}
-            <LinearGradient
-              colors={tier.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={st.previewHero}
-            >
-              <LinearGradient
-                colors={['rgba(255,255,255,0.2)', 'transparent', 'rgba(255,255,255,0.06)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={st.previewTierIcon}>
-                <Ionicons name={tier.icon} size={24} color="#FFF" />
-              </View>
-              <Text style={st.previewTierLabel}>{tier.rank}</Text>
-              <Text style={st.previewPlanName}>{name || 'Your Plan'}</Text>
-            </LinearGradient>
-
-            {/* Dark body */}
-            <View style={st.previewBody}>
-              <View style={st.previewPriceRow}>
-                <Text style={st.previewDollar}>$</Text>
-                <Text style={st.previewPriceNum}>{numericPrice || '0'}</Text>
-                <Text style={st.previewPeriodText}>/{period === 'year' ? 'yr' : 'mo'}</Text>
-              </View>
-              {features.length > 0 && (
-                <View style={st.previewPerks}>
-                  {features.slice(0, 3).map((f, i) => (
-                    <View key={i} style={st.previewPerkRow}>
-                      <View style={[st.previewPerkDot, { backgroundColor: color }]} />
-                      <Text style={st.previewPerkText} numberOfLines={1}>{f}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* ── TIER INDICATOR ── */}
-        <View style={st.tierBar}>
-          {Object.entries(TIER_CONFIG).map(([key, t]) => {
-            const isActive = tier.rank === t.rank;
-            return (
-              <View key={key} style={[st.tierStep, isActive && st.tierStepActive]}>
-                {isActive ? (
-                  <LinearGradient colors={t.gradient} style={st.tierStepGradient}>
-                    <Ionicons name={t.icon} size={16} color="#FFF" />
-                  </LinearGradient>
-                ) : (
-                  <View style={st.tierStepInactive}>
-                    <Ionicons name={t.icon} size={14} color="rgba(255,255,255,0.15)" />
-                  </View>
-                )}
-                <Text style={[st.tierStepLabel, isActive && st.tierStepLabelActive]}>
-                  {t.rank}
+  const renderDayStrip = (days: DayNode[][], weekIndex: number | null) => (
+    <View style={s.dayStrip}>
+      {days.map((day, i) => {
+        const rest = isRestDay(day);
+        const hasWorkout = day.some(n => n.kind === 'workout');
+        return (
+          <TouchableOpacity
+            key={i}
+            style={[
+              s.dayCell,
+              day.length > 0 && s.dayCellFilled,
+              hasWorkout && s.dayCellWorkout,
+              rest && s.dayCellRest,
+            ]}
+            onPress={() => handleDayTap(weekIndex, i, day)}
+            activeOpacity={0.7}
+          >
+            <Text style={s.dayLetter}>{DAY_LETTERS[i]}</Text>
+            {rest ? (
+              <>
+                <Ionicons name="moon-outline" size={14} color={CoachColors.textFaint} />
+                <Text style={[s.dayLabel, { color: CoachColors.textFaint }]}>Rest</Text>
+              </>
+            ) : day.length === 1 ? (
+              <>
+                <Ionicons name={TOOL_META[day[0].kind].icon} size={14} color={day[0].kind === 'workout' ? CoachColors.accent : CoachColors.textSecondary} />
+                <Text style={s.dayLabel} numberOfLines={2}>
+                  {day[0].name || TOOL_META[day[0].kind].label}
                 </Text>
-              </View>
-            );
-          })}
-          {/* Connector line */}
-          <View style={st.tierConnector} />
-        </View>
-
-        {/* ── NAME ── */}
-        <View style={st.field}>
-          <Text style={st.label}>PLAN NAME</Text>
-          <View style={st.inputWrap}>
-            <Ionicons name="layers-outline" size={18} color="rgba(255,255,255,0.2)" />
-            <TextInput
-              style={st.input}
-              placeholder="e.g. Pro Coaching"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          </View>
-        </View>
-
-        {/* ── PRICE & PERIOD ── */}
-        <View style={st.row}>
-          <View style={[st.field, { flex: 1 }]}>
-            <Text style={st.label}>PRICE</Text>
-            <View style={st.inputWrap}>
-              <Text style={st.dollarIcon}>$</Text>
-              <TextInput
-                style={st.input}
-                placeholder="0"
-                placeholderTextColor="rgba(255,255,255,0.2)"
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-          <View style={[st.field, { flex: 1 }]}>
-            <Text style={st.label}>BILLING</Text>
-            <View style={st.periodToggle}>
-              {(['month', 'year'] as const).map(p => (
-                <TouchableOpacity
-                  key={p}
-                  style={[st.periodBtn, period === p && st.periodBtnActive]}
-                  onPress={() => setPeriod(p)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[st.periodBtnText, period === p && st.periodBtnTextActive]}>
-                    {p === 'month' ? 'Monthly' : 'Yearly'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* ── PERKS ── */}
-        <View style={st.field}>
-          <Text style={st.label}>PERKS & FEATURES</Text>
-          <View style={st.featureInputRow}>
-            <View style={[st.inputWrap, { flex: 1 }]}>
-              <Ionicons name="flash-outline" size={16} color="rgba(255,255,255,0.2)" />
-              <TextInput
-                style={st.input}
-                placeholder="e.g. Weekly check-ins"
-                placeholderTextColor="rgba(255,255,255,0.2)"
-                value={featureInput}
-                onChangeText={setFeatureInput}
-                onSubmitEditing={handleAddFeature}
-                returnKeyType="done"
-              />
-            </View>
-            <TouchableOpacity
-              style={[st.addBtn, { backgroundColor: color }]}
-              onPress={handleAddFeature}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={22} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          {features.length > 0 && (
-            <View style={st.featureChips}>
-              {features.map((feat, i) => (
-                <View key={i} style={[st.chip, { borderColor: color + '25' }]}>
-                  <View style={[st.chipDot, { backgroundColor: color }]} />
-                  <Text style={st.chipText}>{feat}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveFeature(feat)} hitSlop={8}>
-                    <Ionicons name="close" size={14} color="rgba(255,255,255,0.25)" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* ── COLOR ── */}
-        <View style={st.field}>
-          <Text style={st.label}>BRAND COLOR</Text>
-          <View style={st.colorGrid}>
-            {PLAN_COLORS.map(c => (
-              <TouchableOpacity
-                key={c}
-                onPress={() => setColor(c)}
-                activeOpacity={0.7}
-                style={st.colorOuter}
-              >
-                <View style={[
-                  st.colorCircle,
-                  { backgroundColor: c },
-                  color === c && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.2 }] },
-                ]}>
-                  {color === c && <Ionicons name="checkmark" size={16} color="#FFF" />}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── POPULAR ── */}
-        <TouchableOpacity
-          style={[st.toggleCard, isPopular && { borderColor: '#FF6B35' + '30' }]}
-          onPress={() => setIsPopular(!isPopular)}
-          activeOpacity={0.7}
-        >
-          <View style={[st.toggleIconWrap, isPopular && { backgroundColor: 'rgba(255,107,53,0.12)' }]}>
-            <Ionicons name="flame" size={22} color={isPopular ? '#FF6B35' : 'rgba(255,255,255,0.15)'} />
-          </View>
-          <View style={st.toggleContent}>
-            <Text style={st.toggleTitle}>Mark as Popular</Text>
-            <Text style={st.toggleSub}>Badges this pass as recommended</Text>
-          </View>
-          <View style={[st.toggleCheck, isPopular && { backgroundColor: '#FF6B35', borderColor: '#FF6B35' }]}>
-            {isPopular && <Ionicons name="checkmark" size={14} color="#FFF" />}
-          </View>
-        </TouchableOpacity>
-
-        {/* ── PROGRESSION TRACK ── */}
-        <TouchableOpacity
-          style={[st.trackToggle, showTrackBuilder && { borderColor: color + '25' }]}
-          onPress={() => setShowTrackBuilder(!showTrackBuilder)}
-          activeOpacity={0.7}
-        >
-          <View style={[st.toggleIconWrap, showTrackBuilder && { backgroundColor: color + '12' }]}>
-            <Ionicons name="map" size={22} color={showTrackBuilder ? color : 'rgba(255,255,255,0.15)'} />
-          </View>
-          <View style={st.toggleContent}>
-            <Text style={st.toggleTitle}>Progression Track</Text>
-            <Text style={st.toggleSub}>
-              {trackNodes.length > 0 ? `${trackNodes.length} nodes added` : 'Add workouts & milestones'}
-            </Text>
-          </View>
-          <Ionicons
-            name={showTrackBuilder ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color="rgba(255,255,255,0.25)"
-          />
-        </TouchableOpacity>
-
-        {showTrackBuilder && (
-          <View style={st.trackBuilder}>
-            {/* Mini track preview */}
-            {trackNodes.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.trackPreviewScroll}>
-                <View style={st.trackPreviewRow}>
-                  {trackNodes.map((node, idx) => {
-                    const nodeColor = TRACK_COLORS[node.type];
-                    return (
-                      <View key={idx} style={st.trackPreviewNodeWrap}>
-                        {idx > 0 && <View style={[st.trackPreviewConn, { backgroundColor: nodeColor + '30' }]} />}
-                        <View style={[st.trackPreviewNode, { borderColor: nodeColor }]}>
-                          <Ionicons name={getTrackNodeIcon(node) as any} size={12} color={nodeColor} />
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            )}
-
-            {/* Current nodes list */}
-            {trackNodes.length > 0 && (
-              <View style={st.trackNodesList}>
-                {trackNodes.map((node, idx) => {
-                  const nodeColor = TRACK_COLORS[node.type];
-                  return (
-                    <View key={idx} style={st.trackNodeItem}>
-                      <View style={[st.trackNodeOrder, { backgroundColor: nodeColor + '15' }]}>
-                        <Text style={[st.trackNodeOrderText, { color: nodeColor }]}>{idx + 1}</Text>
-                      </View>
-                      <Ionicons name={getTrackNodeIcon(node) as any} size={16} color={nodeColor} />
-                      <Text style={st.trackNodeItemName} numberOfLines={1}>{getTrackNodeName(node)}</Text>
-                      <TouchableOpacity onPress={() => moveTrackNode(idx, -1)} disabled={idx === 0}>
-                        <Ionicons name="chevron-up" size={14} color={idx === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.3)'} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => moveTrackNode(idx, 1)} disabled={idx === trackNodes.length - 1}>
-                        <Ionicons name="chevron-down" size={14} color={idx === trackNodes.length - 1 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.3)'} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => removeTrackNode(idx)}>
-                        <Ionicons name="close" size={14} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Add milestone */}
-            {showMilestoneInput ? (
-              <View style={st.milestoneRow}>
-                <View style={st.milestoneInputWrap}>
-                  <Ionicons name="trophy" size={14} color="#FBBF24" />
-                  <TextInput
-                    style={st.milestoneInput}
-                    placeholder="e.g. Week 1 Complete!"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={milestoneInput}
-                    onChangeText={setMilestoneInput}
-                    onSubmitEditing={addMilestone}
-                    autoFocus
+              </>
+            ) : day.length > 1 ? (
+              <View style={s.dayIconStack}>
+                {day.map((n, j) => (
+                  <Ionicons
+                    key={j}
+                    name={TOOL_META[n.kind].icon}
+                    size={12}
+                    color={n.kind === 'workout' ? CoachColors.accent : CoachColors.textSecondary}
                   />
-                  <TouchableOpacity onPress={addMilestone} style={st.milestoneAddBtn}>
-                    <Ionicons name="add" size={16} color="#000" />
-                  </TouchableOpacity>
-                </View>
+                ))}
               </View>
             ) : (
-              <TouchableOpacity style={st.addMilestoneBtn} onPress={() => setShowMilestoneInput(true)}>
-                <Ionicons name="trophy" size={14} color="#FBBF24" />
-                <Text style={st.addMilestoneBtnText}>Add Milestone</Text>
-              </TouchableOpacity>
+              <Ionicons name="add" size={16} color={CoachColors.textFaint} />
             )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 
-            {/* Workout / Diet tabs */}
-            <View style={st.trackTabs}>
-              {(['workouts', 'diets'] as const).map(tab => (
-                <TouchableOpacity
-                  key={tab}
-                  style={[st.trackTab, trackTab === tab && st.trackTabActive]}
-                  onPress={() => setTrackTab(tab)}
-                >
-                  <Ionicons
-                    name={tab === 'workouts' ? 'barbell' : 'nutrition'}
-                    size={14}
-                    color={trackTab === tab ? '#FFF' : 'rgba(255,255,255,0.25)'}
-                  />
-                  <Text style={[st.trackTabText, trackTab === tab && st.trackTabTextActive]}>
-                    {tab === 'workouts' ? 'Workouts' : 'Diets'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+  const renderPalette = () => (
+    <View style={s.paletteSection}>
+      <Text style={s.eyebrow}>Add to a day</Text>
+      <Text style={s.paletteHint}>
+        Pick a type, then tap days. A day can hold a workout and a meal plan together — tap again with the same type to remove just that one.
+      </Text>
+      <View style={s.paletteRow}>
+        {(Object.keys(TOOL_META) as DayNode['kind'][]).map(kind => {
+          const active = selectedTool === kind;
+          return (
+            <TouchableOpacity
+              key={kind}
+              style={[s.paletteChip, active && s.paletteChipActive]}
+              onPress={() => setSelectedTool(active ? null : kind)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={TOOL_META[kind].icon} size={15} color={active ? CoachColors.onAccent : CoachColors.textSecondary} />
+              <Text style={[s.paletteChipText, active && s.paletteChipTextActive]}>{TOOL_META[kind].label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 
-            {/* Content items */}
-            <View style={st.trackContentList}>
-              {trackTab === 'workouts' ? (
-                workouts.length === 0 ? (
-                  <Text style={st.trackEmptyText}>No workouts yet — create one first</Text>
+  // ─────────────────────────────────────────────────────────────────────────
+  // Steps
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const renderStep1 = () => (
+    <>
+      <Text style={s.title}>Name the season</Text>
+
+      <Text style={s.eyebrow}>Pass name</Text>
+      <TextInput
+        style={s.nameInput}
+        placeholder="e.g. Spring strength block"
+        placeholderTextColor={CoachColors.textFaint}
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="sentences"
+        selectionColor={CoachColors.accent}
+      />
+
+      <View style={s.promiseHeader}>
+        <Text style={s.eyebrow}>The promise · one line</Text>
+        <Text style={s.charCounter}>{promise.length} / {PROMISE_MAX}</Text>
+      </View>
+      <TextInput
+        style={s.promiseInput}
+        placeholder="What an athlete walks away with"
+        placeholderTextColor={CoachColors.textFaint}
+        value={promise}
+        onChangeText={setPromise}
+        maxLength={PROMISE_MAX}
+        multiline
+        selectionColor={CoachColors.accent}
+      />
+
+      <View style={s.card}>
+        <Text style={s.eyebrow}>How long is the season</Text>
+        <Text style={s.weeksBig}>{weeks} weeks</Text>
+        <View style={s.weeksRow}>
+          {WEEK_LENGTHS.map(w => (
+            <TouchableOpacity
+              key={w}
+              style={[s.weekChip, weeks === w && s.weekChipActive]}
+              onPress={() => setWeeks(w)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.weekChipText, weeks === w && s.weekChipTextActive]}>{w}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {seasonContextLine && <Text style={s.contextLine}>{seasonContextLine}</Text>}
+      </View>
+
+      <TouchableOpacity style={s.toggleRow} onPress={() => setStartWeekOne(!startWeekOne)} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.toggleTitle}>Start everyone on week 1</Text>
+          <Text style={s.toggleSub}>Off means they join the season already in progress</Text>
+        </View>
+        <View style={[s.switch, startWeekOne && s.switchOn]}>
+          <View style={[s.switchKnob, startWeekOne && s.switchKnobOn]} />
+        </View>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderStep2 = () => {
+    const trainingDays = templateTrainingDays;
+    return (
+      <>
+        <Text style={s.title}>What does a normal week look like?</Text>
+        <Text style={s.subtitle}>Fill one week. We repeat it across all {weeks} and you edit from there.</Text>
+
+        {renderDayStrip(weekTemplate, null)}
+        {renderPalette()}
+
+        {templateNodes.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.eyebrow}>This week × {weeks}</Text>
+            <Text style={s.summaryBig}>{templateNodes.length * weeks} nodes</Text>
+            <Text style={s.summaryBreakdown}>
+              {[
+                templateCounts.workout > 0 ? `${templateCounts.workout * weeks} workouts` : null,
+                templateCounts.diet > 0 ? `${templateCounts.diet * weeks} meal plans` : null,
+                templateCounts.checkin > 0 ? `${templateCounts.checkin * weeks} check-ins` : null,
+                templateCounts.live > 0 ? `${templateCounts.live * weeks} live sessions` : null,
+              ].filter(Boolean).join(' · ')}
+            </Text>
+            {trainingDays > 0 && trainingDays < NUM_WORDS.length && (
+              <Text style={s.contextLine}>{NUM_WORDS[trainingDays]} training day{trainingDays === 1 ? '' : 's'} a week.</Text>
+            )}
+          </View>
+        )}
+      </>
+    );
+  };
+
+  const renderStep3 = () => (
+    <>
+      <Text style={s.title}>{seasonWeeks.length} weeks, laid out</Text>
+      <Text style={s.subtitle}>Tap a week to change it. Everything below is yours to edit before anyone sees it.</Text>
+
+      {seasonWeeks.map((wk, i) => {
+        const isEditing = editingWeek === i;
+        const nodes = wk.days.flat();
+        return (
+          <View key={i} style={[s.weekRow, isEditing && s.weekRowEditing]}>
+            <TouchableOpacity style={s.weekRowHeader} onPress={() => setEditingWeek(isEditing ? null : i)} activeOpacity={0.7}>
+              <Text style={s.weekRowNum}>W{i + 1}</Text>
+              <View style={s.weekDots}>
+                {nodes.length === 0 ? (
+                  <Text style={s.weekRestText}>{wk.isRest ? 'Rest week' : 'Empty'}</Text>
                 ) : (
-                  workouts.map(w => {
-                    const isUsed = usedWorkoutIds.has(w.id);
-                    return (
-                      <TouchableOpacity
-                        key={w.id}
-                        style={[st.trackContentItem, isUsed && { opacity: 0.4 }]}
-                        onPress={() => !isUsed && addTrackNode('workout', w.id)}
-                        disabled={isUsed}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[st.trackContentIcon, { backgroundColor: 'rgba(34,197,94,0.1)' }]}>
-                          <Ionicons name="barbell" size={16} color={isUsed ? 'rgba(255,255,255,0.1)' : '#22C55E'} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={st.trackContentName} numberOfLines={1}>{w.name}</Text>
-                          <Text style={st.trackContentSub}>{w.workout_exercises?.length || 0} exercises</Text>
-                        </View>
-                        {isUsed ? (
-                          <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.15)" />
-                        ) : (
-                          <Ionicons name="add-circle" size={20} color="#22C55E" />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })
-                )
-              ) : (
-                diets.length === 0 ? (
-                  <Text style={st.trackEmptyText}>No diet plans yet — create one first</Text>
-                ) : (
-                  diets.map(d => {
-                    const isUsed = usedDietIds.has(d.id);
-                    return (
-                      <TouchableOpacity
-                        key={d.id}
-                        style={[st.trackContentItem, isUsed && { opacity: 0.4 }]}
-                        onPress={() => !isUsed && addTrackNode('diet', d.id)}
-                        disabled={isUsed}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[st.trackContentIcon, { backgroundColor: 'rgba(167,139,250,0.1)' }]}>
-                          <Ionicons name="nutrition" size={16} color={isUsed ? 'rgba(255,255,255,0.1)' : '#A78BFA'} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={st.trackContentName} numberOfLines={1}>{d.name}</Text>
-                          <Text style={st.trackContentSub}>{d.diet_plan_meals?.length || 0} meals</Text>
-                        </View>
-                        {isUsed ? (
-                          <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.15)" />
-                        ) : (
-                          <Ionicons name="add-circle" size={20} color="#A78BFA" />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })
-                )
-              )}
+                  nodes.map((n, j) => <View key={j} style={[s.dot, { backgroundColor: dotColor(n.kind) }]} />)
+                )}
+              </View>
+              <Text style={s.weekRowLabel} numberOfLines={1}>{wk.label || ''}</Text>
+              <Ionicons name={isEditing ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textFaint} />
+            </TouchableOpacity>
+
+            {isEditing && (
+              <View style={s.weekEditor}>
+                {renderDayStrip(wk.days, i)}
+                {renderPalette()}
+                <Text style={[s.eyebrow, { marginTop: 12 }]}>Week label · optional</Text>
+                <TextInput
+                  style={s.weekLabelInput}
+                  placeholder='e.g. "Baseline", "Deload"'
+                  placeholderTextColor={CoachColors.textFaint}
+                  value={wk.label}
+                  onChangeText={t => setSeasonWeeks(prev => prev.map((w2, j) => (j === i ? { ...w2, label: t } : w2)))}
+                  selectionColor={CoachColors.accent}
+                />
+                <Text style={s.helperText}>A label becomes a milestone athletes see at the start of that week.</Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      <View style={s.outlineBtnRow}>
+        <TouchableOpacity style={s.outlineBtn} onPress={addRestWeek} activeOpacity={0.7}>
+          <Text style={s.outlineBtnText}>+ Rest week</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.outlineBtn} onPress={() => setShowMilestoneInput(true)} activeOpacity={0.7}>
+          <Text style={s.outlineBtnText}>+ Milestone</Text>
+        </TouchableOpacity>
+      </View>
+
+      {showMilestoneInput && (
+        <View style={s.milestoneInputRow}>
+          <Ionicons name="trophy-outline" size={16} color={CoachColors.accent} />
+          <TextInput
+            style={s.milestoneTextInput}
+            placeholder="e.g. Season complete"
+            placeholderTextColor={CoachColors.textFaint}
+            value={milestoneInput}
+            onChangeText={setMilestoneInput}
+            onSubmitEditing={addFinalMilestone}
+            autoFocus
+            selectionColor={CoachColors.accent}
+          />
+          <TouchableOpacity onPress={addFinalMilestone} style={s.milestoneAddBtn}>
+            <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+          </TouchableOpacity>
+        </View>
+      )}
+      {finalMilestones.length > 0 && (
+        <View style={s.milestoneChips}>
+          {finalMilestones.map((m, i) => (
+            <View key={i} style={s.milestoneChip}>
+              <Ionicons name="trophy-outline" size={12} color={CoachColors.accent} />
+              <Text style={s.milestoneChipText}>{m}</Text>
+              <TouchableOpacity onPress={() => setFinalMilestones(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
+                <Ionicons name="close" size={13} color={CoachColors.textFaint} />
+              </TouchableOpacity>
             </View>
+          ))}
+        </View>
+      )}
+
+      <TouchableOpacity style={s.toggleRow} onPress={() => setProgressiveNote(!progressiveNote)} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.toggleTitle}>Get harder each week</Text>
+          <Text style={s.toggleSub}>Athletes are told to add weight each week. A note, not automation.</Text>
+        </View>
+        <View style={[s.switch, progressiveNote && s.switchOn]}>
+          <View style={[s.switchKnob, progressiveNote && s.switchKnobOn]} />
+        </View>
+      </TouchableOpacity>
+
+      <View style={s.legendRow}>
+        <View style={[s.dot, { backgroundColor: CoachColors.accent }]} />
+        <Text style={s.legendText}>Workout</Text>
+        <View style={[s.dot, { backgroundColor: CoachColors.textSecondary, marginLeft: 12 }]} />
+        <Text style={s.legendText}>Meal plan</Text>
+        <View style={[s.dot, { backgroundColor: CoachColors.textFaint, marginLeft: 12 }]} />
+        <Text style={s.legendText}>Check-in / live</Text>
+        <View style={[s.dot, { backgroundColor: CoachColors.borderMuted, marginLeft: 12 }]} />
+        <Text style={s.legendText}>Rest</Text>
+      </View>
+    </>
+  );
+
+  const renderStep4 = () => {
+    const weeklyApprox = price > 0 ? (period === 'month' ? (price * 12) / 52 : price / 52) : 0;
+
+    // Market meter — percentile of this price among other coaches' passes on
+    // the same billing period. Only rendered with 3+ real comparison points;
+    // the bands describe positioning, and sale-speed phrasing stays framed as
+    // a tendency, never a fake probability.
+    const marketPool = marketPrices ? marketPrices[period] : [];
+    const marketMeter = (() => {
+      if (price <= 0 || marketPool.length < 3) return null;
+      const below = marketPool.filter(p => p <= price).length;
+      const pct = below / marketPool.length;
+      let band: string;
+      let note: string;
+      let noteColor = CoachColors.textSecondary;
+      if (pct <= 0.25) {
+        band = 'Below most';
+        note = 'An easy yes for athletes — you may be leaving money on the table.';
+      } else if (pct <= 0.75) {
+        band = 'In range';
+        note = 'Priced with the market. Nothing about the number slows a sale.';
+        noteColor = CoachColors.accent;
+      } else if (pct <= 0.9) {
+        band = 'Above most';
+        note = 'Premium positioning — first sales tend to come slower up here.';
+        noteColor = CoachColors.warning;
+      } else {
+        band = 'Well above market';
+        note = 'Expect a harder sell unless the promise clearly carries it.';
+        noteColor = CoachColors.warning;
+      }
+      return { pct, band, note, noteColor, count: marketPool.length };
+    })();
+    const sortedPrices = plans.map(p => p.price).filter(p => p > 0).sort((a, b) => a - b);
+    const median = sortedPrices.length > 0 ? sortedPrices[Math.floor(sortedPrices.length / 2)] : 0;
+    const quickPicks = median > 0
+      ? [...new Set([Math.max(5, Math.round(median * 0.75)), median, Math.round(median * 1.5)])]
+      : [60, 120, 180];
+    const projection = referencePass && referencePass.holders > 0 && price > 0 ? referencePass : null;
+
+    return (
+      <>
+        <Text style={s.title}>Price the season</Text>
+
+        <View style={s.segmented}>
+          {(['month', 'year'] as const).map(p => (
+            <TouchableOpacity
+              key={p}
+              style={[s.segment, period === p && s.segmentActive]}
+              onPress={() => setPeriod(p)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.segmentText, period === p && s.segmentTextActive]}>
+                {p === 'month' ? 'Monthly' : 'Yearly'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Any price the coach wants — type it directly or nudge with the
+            steppers. Nothing here clamps or restricts the number. */}
+        <View style={s.priceDisplay}>
+          <TouchableOpacity
+            style={s.priceStepBtn}
+            onPress={() => bumpPrice(-5)}
+            disabled={price <= 0}
+            activeOpacity={0.7}
+            accessibilityLabel="Lower price by five dollars"
+          >
+            <Ionicons name="remove" size={20} color={price <= 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <View style={s.priceCenter}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              <Text style={s.priceDollar}>$</Text>
+              <TextInput
+                style={s.priceInput}
+                placeholder="0"
+                placeholderTextColor={CoachColors.textFaint}
+                value={priceText}
+                onChangeText={setPriceText}
+                keyboardType="decimal-pad"
+                selectionColor={CoachColors.accent}
+              />
+              <Text style={s.pricePeriod}>/{period === 'month' ? 'mo' : 'yr'}</Text>
+            </View>
+            <Text style={s.priceEditHint}>Tap the number to type any amount</Text>
+          </View>
+          <TouchableOpacity
+            style={s.priceStepBtn}
+            onPress={() => bumpPrice(5)}
+            activeOpacity={0.7}
+            accessibilityLabel="Raise price by five dollars"
+          >
+            <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        {price > 0 && (
+          <Text style={s.priceSubline}>
+            About ${weeklyApprox.toFixed(0)} a week across the {weeks}-week season, billed {period === 'month' ? 'monthly' : 'yearly'}.
+          </Text>
+        )}
+
+        <View style={s.quickPickRow}>
+          {quickPicks.map(qp => (
+            <TouchableOpacity
+              key={qp}
+              style={[s.weekChip, price === qp && s.weekChipActive]}
+              onPress={() => setPriceText(String(qp))}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.weekChipText, price === qp && s.weekChipTextActive]}>${qp}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {marketMeter && (
+          <View style={s.card}>
+            <View style={s.meterHeader}>
+              <Text style={s.eyebrow}>Where this sits</Text>
+              <Text style={s.meterBand}>{marketMeter.band}</Text>
+            </View>
+            <View style={s.meterTrack}>
+              <View style={[s.meterZone, { flex: 25 }]} />
+              <View style={[s.meterZone, s.meterZoneMid, { flex: 50 }]} />
+              <View style={[s.meterZone, { flex: 25 }]} />
+              <View style={[s.meterMarker, { left: `${Math.min(97, Math.max(1, marketMeter.pct * 100))}%` }]} />
+            </View>
+            <View style={s.meterLabels}>
+              <Text style={s.meterLabelText}>Cheaper</Text>
+              <Text style={s.meterLabelText}>Market range</Text>
+              <Text style={s.meterLabelText}>Pricier</Text>
+            </View>
+            <Text style={[s.contextLine, { color: marketMeter.noteColor }]}>{marketMeter.note}</Text>
+            <Text style={s.helperText}>
+              Compared with {marketMeter.count} other {period === 'month' ? 'monthly' : 'yearly'} pass{marketMeter.count === 1 ? '' : 'es'} on FitLink. Your price is yours — this is context, not a rule.
+            </Text>
           </View>
         )}
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
-
-      {/* ── FOOTER CTA ── */}
-      <View style={[st.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <TouchableOpacity
-          style={[st.submitBtn, loading && { opacity: 0.6 }]}
-          onPress={handleSave}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={tier.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={st.submitGradient}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <>
-                <Ionicons name="layers" size={20} color="#FFF" />
-                <Text style={st.submitText}>Create Season Pass</Text>
-              </>
+        {price > 0 && (
+          <View style={s.card}>
+            <Text style={s.eyebrow}>You keep</Text>
+            <Text style={s.keepBig}>${(price * (1 - PLATFORM_FEE)).toFixed(2)}</Text>
+            <Text style={s.keepSub}>per athlete, {period === 'month' ? 'a month' : 'a year'} · ${(price * PLATFORM_FEE).toFixed(2)} platform fee</Text>
+            {projection && (
+              <Text style={s.contextLine}>
+                If {projection.holders} athlete{projection.holders === 1 ? '' : 's'} take it — as many as hold {projection.plan.name} today — that's ${(projection.holders * price * (1 - PLATFORM_FEE)).toFixed(0)} {period === 'month' ? 'a month' : 'a year'}.
+              </Text>
             )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          </View>
+        )}
+
+        {plans.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.eyebrow}>Against your other passes</Text>
+            {plans.map(p => {
+              const stats = planStats[p.id];
+              const nodeCount = p.track?.length ?? 0;
+              const meta = [
+                p.duration_weeks ? `${p.duration_weeks} weeks` : (nodeCount > 0 ? `${nodeCount} node${nodeCount === 1 ? '' : 's'}` : null),
+                stats ? `${stats.holders} holder${stats.holders === 1 ? '' : 's'}` : null,
+              ].filter(Boolean).join(' · ');
+              return (
+                <View key={p.id} style={s.compareRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.compareName} numberOfLines={1}>{p.name}</Text>
+                    {meta ? <Text style={s.compareMeta}>{meta}</Text> : null}
+                  </View>
+                  <Text style={s.comparePrice}>${p.price}/{p.period === 'year' ? 'yr' : 'mo'}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </>
+    );
+  };
+
+  const renderStep5 = () => {
+    const firstClient = activeClients[0];
+    const initials = (trainer?.name || 'C').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const coachSub = [
+      trainer?.specialization,
+      activeClients.length > 0 ? `${activeClients.length} athlete${activeClients.length === 1 ? '' : 's'}` : null,
+    ].filter(Boolean).join(' · ');
+
+    return (
+      <>
+        <Text style={s.title}>What {firstClient ? firstClient.name : 'your athletes'} would see</Text>
+
+        {/* Athlete-facing preview card */}
+        <View style={s.previewCard}>
+          <View style={s.previewHero}>
+            <Text style={s.previewEyebrow}>{weeks}-week season</Text>
+            <Text style={s.previewName}>{name || 'Your pass'}</Text>
+            {promise.trim() ? <Text style={s.previewPromise}>{promise.trim()}</Text> : null}
+          </View>
+          <View style={s.previewBody}>
+            <View style={s.coachRow}>
+              {trainer?.avatar_url ? (
+                <Image source={{ uri: trainer.avatar_url }} style={s.coachAvatar} />
+              ) : (
+                <View style={s.coachAvatarFallback}><Text style={s.coachInitials}>{initials}</Text></View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.coachName}>Coached by {trainer?.name || 'you'}</Text>
+                {coachSub ? <Text style={s.coachSub}>{coachSub}</Text> : null}
+              </View>
+            </View>
+
+            <View style={s.statRow}>
+              {[
+                { n: trackCounts.workouts, label: 'workouts' },
+                { n: trackCounts.meals, label: 'meal plans' },
+                { n: trackCounts.checkins, label: 'check-ins' },
+                { n: trackCounts.milestones, label: 'milestones' },
+              ].filter(x => x.n > 0).map(x => (
+                <View key={x.label} style={s.statCell}>
+                  <Text style={s.statNum}>{x.n}</Text>
+                  <Text style={s.statLabel}>{x.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Preview only — inert by design */}
+            <View style={s.mockCta}>
+              <Text style={s.mockCtaText}>Start the season · ${price || 0}{period === 'month' ? '/mo' : '/yr'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {activeClients.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.eyebrow}>Offer it to someone when it goes live</Text>
+            <Text style={s.helperText}>They get a message from you, not a system notification.</Text>
+            {activeClients.map(c => {
+              const selected = selectedClientIds.has(c.id);
+              return (
+                <TouchableOpacity key={c.id} style={s.clientRow} onPress={() => toggleClient(c.id)} activeOpacity={0.7}>
+                  {c.avatar_url ? (
+                    <Image source={{ uri: c.avatar_url }} style={s.clientAvatar} />
+                  ) : (
+                    <View style={s.clientAvatarFallback}>
+                      <Text style={s.clientInitial}>{c.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.clientName}>{c.name}</Text>
+                    {c.status === 'trial' ? <Text style={s.clientSub}>On trial</Text> : null}
+                  </View>
+                  <View style={[s.checkbox, selected && s.checkboxOn]}>
+                    {selected && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* True: enrollments freeze track_snapshot at purchase
+            (supabase/migrations/20260728_client_plan_enrollments.sql). */}
+        <Text style={s.footnote}>
+          You can keep editing a live pass. Athletes already inside it keep the version they started on.
+        </Text>
+      </>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Footer CTA per step
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const ctaConfig: Record<number, { label: string; disabled: boolean; onPress: () => void }> = {
+    1: { label: 'Build the week', disabled: !name.trim(), onPress: () => setStep(2) },
+    2: { label: `Expand to ${weeks} weeks`, disabled: templateNodes.length === 0, onPress: expandToSeason },
+    3: { label: 'Set the price', disabled: false, onPress: () => { setEditingWeek(null); setStep(4); } },
+    4: { label: 'See what athletes see', disabled: !price || price <= 0, onPress: () => setStep(5) },
+  };
+
+  const cta = ctaConfig[step];
+
+  return (
+    <View style={[s.container, { paddingTop: insets.top }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+
+        {/* ── Header ── */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={goBack} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name={step === 1 ? 'close' : 'chevron-back'} size={22} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <View style={{ alignItems: 'center', flex: 1 }}>
+            <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || 'New pass'}</Text>
+            <Text style={s.headerSub}>Step {step} of 5 · {STEP_LABELS[step - 1]}</Text>
+          </View>
+          <View style={{ width: 32 }} />
+        </View>
+
+        {/* Real 5-segment progress bar — one segment per step, no fake urgency */}
+        <View style={s.progressBar}>
+          {STEP_LABELS.map((_, i) => (
+            <View key={i} style={[s.progressSeg, i < step && s.progressSegDone]} />
+          ))}
+        </View>
+
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
+          {step === 4 && renderStep4()}
+          {step === 5 && renderStep5()}
+          <View style={{ height: 24 }} />
+        </ScrollView>
+
+        {/* ── Sticky footer ── */}
+        <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+          {step < 5 ? (
+            <TouchableOpacity
+              style={[s.primaryBtn, cta.disabled && { opacity: 0.4 }]}
+              onPress={cta.onPress}
+              disabled={cta.disabled}
+              activeOpacity={0.85}
+            >
+              <Text style={s.primaryBtnText}>{cta.label}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={s.footerRow}>
+              <TouchableOpacity
+                style={[s.draftBtn, saving && { opacity: 0.5 }]}
+                onPress={() => handleSave(false)}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                <Text style={s.draftBtnText}>Draft</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.primaryBtn, { flex: 1 }, saving && { opacity: 0.5 }]}
+                onPress={() => handleSave(true)}
+                disabled={saving}
+                activeOpacity={0.85}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                ) : (
+                  <Text style={s.primaryBtnText}>Publish pass</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </KeyboardAvoidingView>
+
+      {/* ── Content picker sheet (workouts / meal plans) ── */}
+      <Modal visible={picker !== null} animationType="slide" transparent onRequestClose={() => setPicker(null)}>
+        <View style={s.sheetBackdrop}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.sheetHeader}>
+              <Text style={s.sheetTitle}>{picker?.kind === 'diet' ? 'Pick a meal plan' : 'Pick a workout'}</Text>
+              <TouchableOpacity onPress={() => setPicker(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 380 }}>
+              {(picker?.kind === 'diet' ? diets : workouts).length === 0 ? (
+                <View style={s.sheetEmptyWrap}>
+                  <Text style={s.sheetEmpty}>
+                    {picker?.kind === 'diet'
+                      ? 'No meal plans in your library yet — build one now and it drops straight into this day when you come back.'
+                      : 'No workouts in your library yet — build one now and it drops straight into this day when you come back.'}
+                  </Text>
+                  <TouchableOpacity style={s.sheetCreateBtn} onPress={handleCreateFromPicker} activeOpacity={0.85}>
+                    <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+                    <Text style={s.sheetCreateBtnText}>
+                      {picker?.kind === 'diet' ? 'Create a meal plan' : 'Create a workout'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : picker?.kind === 'diet' ? (
+                diets.map(d => (
+                  <TouchableOpacity key={d.id} style={s.sheetItem} onPress={() => handlePickContent(d.id, d.name)} activeOpacity={0.7}>
+                    <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sheetItemName} numberOfLines={1}>{d.name}</Text>
+                      <Text style={s.sheetItemSub}>{d.diet_plan_meals?.length || 0} meals</Text>
+                    </View>
+                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                workouts.map(w => (
+                  <TouchableOpacity key={w.id} style={s.sheetItem} onPress={() => handlePickContent(w.id, w.name)} activeOpacity={0.7}>
+                    <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sheetItemName} numberOfLines={1}>{w.name}</Text>
+                      <Text style={s.sheetItemSub}>{w.workout_exercises?.length || 0} exercises</Text>
+                    </View>
+                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                  </TouchableOpacity>
+                ))
+              )}
+              {(picker?.kind === 'diet' ? diets : workouts).length > 0 && (
+                <TouchableOpacity style={s.sheetCreateRow} onPress={handleCreateFromPicker} activeOpacity={0.7}>
+                  <Ionicons name="add" size={16} color={CoachColors.accent} />
+                  <Text style={s.sheetCreateRowText}>
+                    {picker?.kind === 'diet' ? 'Not here? Create a meal plan' : 'Not here? Create a workout'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Publish celebration — in-screen overlay, never a native Modal ── */}
+      {published && (
+        <PassPublishedOverlay
+          planName={name.trim() || 'Your pass'}
+          offersSent={published.offersSent}
+          onDone={() => router.back()}
+        />
+      )}
     </View>
   );
 }
 
-const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   scroll: { paddingHorizontal: 20, paddingBottom: 20 },
 
-  // Header
+  // Header + progress
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10,
   },
-  closeBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFF' },
+  headerBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 1 },
+  progressBar: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, paddingBottom: 14 },
+  progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: CoachColors.borderMuted },
+  progressSegDone: { backgroundColor: CoachColors.accent },
 
-  // Preview
-  previewWrap: { marginBottom: 24 },
-  previewBadge: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 9,
-    color: 'rgba(255,255,255,0.25)', letterSpacing: 2, marginBottom: 8,
+  // Typography
+  title: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary, marginTop: 8, marginBottom: 6 },
+  subtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20, marginBottom: 18 },
+  eyebrow: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 8, marginTop: 14,
   },
-  previewCard: { borderRadius: 22, overflow: 'hidden' },
-  previewHero: {
-    paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', position: 'relative',
-  },
-  previewTierIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: 'rgba(0,0,0,0.2)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
-  },
-  previewTierLabel: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 10,
-    color: 'rgba(255,255,255,0.6)', letterSpacing: 4,
-  },
-  previewPlanName: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 20, color: '#FFF',
-    textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
-  },
-  previewBody: {
-    backgroundColor: 'rgba(15,15,20,0.95)', paddingHorizontal: 20, paddingVertical: 16, gap: 10,
-  },
-  previewPriceRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  previewDollar: { fontFamily: FontFamily.headingSemiBold, fontSize: 16, color: 'rgba(255,255,255,0.4)', marginBottom: 3 },
-  previewPriceNum: { fontFamily: FontFamily.headingExtraBold, fontSize: 32, color: '#FFF', lineHeight: 34 },
-  previewPeriodText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 4 },
-  previewPerks: { gap: 5 },
-  previewPerkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  previewPerkDot: { width: 5, height: 5, borderRadius: 3 },
-  previewPerkText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', flex: 1 },
+  helperText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 6, lineHeight: 17 },
+  contextLine: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 12, lineHeight: 18 },
+  footnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 17, marginTop: 16, textAlign: 'center' },
 
-  // Tier bar
-  tierBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 14,
-    marginBottom: 24, position: 'relative', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+  // Inputs
+  nameInput: {
+    fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: CoachColors.border,
   },
-  tierConnector: {
-    position: 'absolute', left: 40, right: 40, top: '50%', height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)', zIndex: 0, marginTop: -6,
+  promiseHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  charCounter: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginBottom: 8 },
+  promiseInput: {
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    borderWidth: 1, borderColor: CoachColors.border, minHeight: 68, textAlignVertical: 'top',
   },
-  tierStep: { alignItems: 'center', gap: 4, zIndex: 1 },
-  tierStepActive: {},
-  tierStepGradient: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  tierStepInactive: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center',
-  },
-  tierStepLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 8, color: 'rgba(255,255,255,0.15)', letterSpacing: 1 },
-  tierStepLabelActive: { color: 'rgba(255,255,255,0.6)' },
 
-  // Fields
-  field: { marginBottom: 22 },
-  label: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1.5, marginBottom: 8,
+  // Cards
+  card: {
+    backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 18,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  row: { flexDirection: 'row', gap: 12 },
-  inputWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14,
-    paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  weeksBig: { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.accent, marginBottom: 12 },
+  weeksRow: { flexDirection: 'row', gap: 8 },
+  weekChip: {
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.bg,
   },
-  input: { flex: 1, fontFamily: FontFamily.body, fontSize: 15, color: '#FFF', paddingVertical: 14 },
-  dollarIcon: { fontFamily: FontFamily.headingSemiBold, fontSize: 18, color: 'rgba(255,255,255,0.3)' },
-
-  // Period
-  periodToggle: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14,
-    padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  periodBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 11 },
-  periodBtnActive: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  periodBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.25)' },
-  periodBtnTextActive: { color: '#FFF' },
-
-  // Features
-  featureInputRow: { flexDirection: 'row', gap: 8 },
-  addBtn: { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  featureChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 50, borderWidth: 1,
-  },
-  chipDot: { width: 5, height: 5, borderRadius: 3 },
-  chipText: { fontFamily: FontFamily.bodyMedium, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
-
-  // Colors
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  colorOuter: { padding: 2 },
-  colorCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  weekChipActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  weekChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  weekChipTextActive: { color: CoachColors.onAccent },
 
   // Toggle
-  toggleCard: {
+  toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', marginBottom: 16,
+    backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 18,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  toggleIconWrap: {
-    width: 44, height: 44, borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center',
+  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  toggleSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2, lineHeight: 17 },
+  switch: {
+    width: 46, height: 27, borderRadius: 14, backgroundColor: CoachColors.borderMuted,
+    padding: 3, justifyContent: 'center',
   },
-  toggleContent: { flex: 1 },
-  toggleTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
-  toggleSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 1 },
-  toggleCheck: {
-    width: 24, height: 24, borderRadius: 8,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.1)',
+  switchOn: { backgroundColor: CoachColors.accent },
+  switchKnob: { width: 21, height: 21, borderRadius: 11, backgroundColor: CoachColors.textFaint },
+  switchKnobOn: { backgroundColor: CoachColors.onAccent, alignSelf: 'flex-end' },
+
+  // Day strip
+  dayStrip: { flexDirection: 'row', gap: 5, marginTop: 6 },
+  dayCell: {
+    flex: 1, minHeight: 84, borderRadius: 12, alignItems: 'center', paddingTop: 8, paddingBottom: 6,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    justifyContent: 'flex-start', gap: 5,
+  },
+  dayCellFilled: { borderColor: CoachColors.border },
+  dayCellWorkout: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
+  dayCellRest: { borderStyle: 'dashed', backgroundColor: CoachColors.bg },
+  dayLetter: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint },
+  dayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 8.5, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 2 },
+  dayIconStack: { alignItems: 'center', gap: 4, paddingTop: 1 },
+
+  // Palette
+  paletteSection: { marginTop: 6 },
+  paletteHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginBottom: 10 },
+  paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  paletteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 13, paddingVertical: 9, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.surface,
+  },
+  paletteChipActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  paletteChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  paletteChipTextActive: { color: CoachColors.onAccent },
+
+  // Step 2 summary
+  summaryBig: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary },
+  summaryBreakdown: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 4 },
+
+  // Step 3 — season map
+  weekRow: {
+    backgroundColor: CoachColors.surface, borderRadius: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  weekRowEditing: { borderColor: CoachColors.border },
+  weekRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  weekRowNum: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13, color: CoachColors.textPrimary, width: 34 },
+  weekDots: { flexDirection: 'row', gap: 5, flex: 1, alignItems: 'center' },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  weekRestText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  weekRowLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, maxWidth: 90, textAlign: 'right' },
+  weekEditor: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 10 },
+  weekLabelInput: {
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+    borderWidth: 1, borderColor: CoachColors.border,
+  },
+  outlineBtnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  outlineBtn: {
+    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
+    borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9,
+  },
+  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  milestoneInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
+    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
+  },
+  milestoneTextInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, paddingVertical: 12 },
+  milestoneAddBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
+  milestoneChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  milestoneChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: CoachColors.accentSofter, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
+  },
+  milestoneChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, justifyContent: 'center' },
+  legendText: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+
+  // Step 4 — price
+  segmented: {
+    flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: 14, padding: 4,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, marginTop: 6,
+  },
+  segment: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 11 },
+  segmentActive: { backgroundColor: CoachColors.borderMuted },
+  segmentText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textFaint },
+  segmentTextActive: { color: CoachColors.textPrimary },
+  priceDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 26, gap: 14 },
+  priceCenter: { alignItems: 'center' },
+  priceStepBtn: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.surface,
+  },
+  priceDollar: { fontFamily: CoachFonts.headingSemiBold, fontSize: 24, color: CoachColors.textSecondary, marginBottom: 8 },
+  priceInput: {
+    fontFamily: CoachFonts.headingBold, fontSize: 52, color: CoachColors.textPrimary,
+    minWidth: 80, textAlign: 'center', padding: 0,
+  },
+  pricePeriod: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginBottom: 12 },
+  priceEditHint: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 2 },
+
+  // Market meter
+  meterHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  meterBand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  meterTrack: {
+    flexDirection: 'row', height: 8, borderRadius: 999, overflow: 'visible',
+    marginTop: 6, gap: 3,
+  },
+  meterZone: { backgroundColor: CoachColors.borderMuted, borderRadius: 999 },
+  meterZoneMid: { backgroundColor: 'rgba(198,242,78,0.28)' },
+  meterMarker: {
+    position: 'absolute', top: -3, width: 4, height: 14, borderRadius: 2,
+    backgroundColor: CoachColors.accent, marginLeft: -2,
+  },
+  meterLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 },
+  meterLabelText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
+  priceSubline: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, textAlign: 'center', marginTop: 4 },
+  quickPickRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
+  keepBig: { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.accent },
+  keepSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 3 },
+  compareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
+  compareName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  compareMeta: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  comparePrice: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+
+  // Step 5 — preview
+  previewCard: {
+    borderRadius: 18, overflow: 'hidden', marginTop: 10,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  previewHero: { backgroundColor: CoachColors.accent, padding: 20 },
+  previewEyebrow: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: 'rgba(16,18,16,0.65)',
+    letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 6,
+  },
+  previewName: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.onAccent },
+  previewPromise: { fontFamily: CoachFonts.body, fontSize: 13.5, color: 'rgba(16,18,16,0.75)', marginTop: 5, lineHeight: 19 },
+  previewBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
+  coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  coachAvatar: { width: 40, height: 40, borderRadius: 20 },
+  coachAvatarFallback: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
+  coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  coachName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  coachSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 1 },
+  statRow: { flexDirection: 'row', gap: 8 },
+  statCell: {
+    flex: 1, alignItems: 'center', paddingVertical: 10,
+    backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted, marginTop: 2 },
+  mockCta: {
+    backgroundColor: CoachColors.accent, opacity: 0.55, borderRadius: 999,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  mockCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+
+  // Offer list
+  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
+  clientAvatar: { width: 36, height: 36, borderRadius: 18 },
+  clientAvatarFallback: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.borderMuted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  clientInitial: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  clientSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 7, borderWidth: 1.5, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
 
   // Footer
-  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
-  submitBtn: { borderRadius: Radius.sm, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: 50 },
-  submitGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10,
+  footer: {
+    paddingHorizontal: 20, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg,
   },
-  submitText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000000', letterSpacing: 1 },
+  footerRow: { flexDirection: 'row', gap: 10 },
+  primaryBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999, height: 52,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  primaryBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  draftBtn: {
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, height: 52,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24,
+  },
+  draftBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
 
-  // Track Builder
-  trackToggle: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.sm, padding: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 8,
+  // Picker sheet
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: CoachColors.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingTop: 18,
+    borderTopWidth: 1, borderColor: CoachColors.border,
   },
-  trackBuilder: {
-    backgroundColor: '#050505',
-    borderRadius: Radius.sm, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 16, gap: 12,
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  sheetEmpty: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 19 },
+  sheetEmptyWrap: { paddingVertical: 22, paddingHorizontal: 8, gap: 16, alignItems: 'center' },
+  sheetCreateBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingHorizontal: 20, paddingVertical: 12,
   },
-  trackPreviewScroll: { marginBottom: 4 },
-  trackPreviewRow: { flexDirection: 'row', paddingVertical: 6, gap: 0 },
-  trackPreviewNodeWrap: { alignItems: 'center', width: 44, position: 'relative' },
-  trackPreviewConn: {
-    position: 'absolute', top: 11, left: -6, width: 6, height: 2, borderRadius: 1,
-  },
-  trackPreviewNode: {
-    width: 24, height: 24, borderRadius: 4, borderWidth: 1.5,
-    backgroundColor: '#0F0F0F',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  trackNodesList: { gap: 6 },
-  trackNodeItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.xs,
-    paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  trackNodeOrder: {
-    width: 20, height: 20, borderRadius: 4,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  trackNodeOrderText: { fontFamily: FontFamily.headingExtraBold, fontSize: 9 },
-  trackNodeItemName: { fontFamily: FontFamily.headingSemiBold, fontSize: 12, color: '#FFF', flex: 1 },
-  milestoneRow: { gap: 6 },
-  milestoneInputWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.xs,
-    paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)',
-  },
-  milestoneInput: {
-    flex: 1, fontFamily: FontFamily.body, fontSize: 13, color: '#FFF', paddingVertical: 10,
-  },
-  milestoneAddBtn: {
-    width: 26, height: 26, borderRadius: 4, backgroundColor: '#FBBF24',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  addMilestoneBtn: {
+  sheetCreateBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  sheetCreateRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: Radius.xs,
-    backgroundColor: '#141005', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', borderRadius: 14,
+    paddingVertical: 13, marginBottom: 8,
   },
-  addMilestoneBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: '#FBBF24', letterSpacing: 0.5 },
-  trackTabs: {
-    flexDirection: 'row', backgroundColor: '#0A0A0A', borderRadius: Radius.xs,
-    padding: 3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  sheetCreateRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  sheetItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: CoachColors.surface, borderRadius: 14, padding: 13, marginBottom: 8,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  trackTab: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 8, borderRadius: 4,
-  },
-  trackTabActive: { backgroundColor: '#FFFFFF' },
-  trackTabText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  trackTabTextActive: { color: '#000000' },
-  trackContentList: { gap: 4 },
-  trackContentItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.xs,
-    padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  trackContentIcon: {
-    width: 32, height: 32, borderRadius: Radius.xs,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  trackContentName: { fontFamily: FontFamily.headingSemiBold, fontSize: 13, color: '#FFF' },
-  trackContentSub: { fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.3)' },
-  trackEmptyText: {
-    fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.2)',
-    textAlign: 'center', paddingVertical: 20,
-  },
+  sheetItemName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  sheetItemSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
 });

@@ -644,7 +644,9 @@ export default function ProgramsScreen() {
   const handleActionSheetNavigate = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowAddActionSheet(false);
-    router.push(route as any);
+    // Native Modal must finish dismissing before we navigate — pushing with
+    // it open leaves the sheet above the new screen and can wedge touches.
+    setTimeout(() => router.push(route as any), 350);
   };
 
   const renderWorkoutItem = ({ item }: { item: typeof workouts[0] }) => {

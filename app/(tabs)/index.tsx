@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
@@ -29,6 +30,7 @@ export default function CoachHomeScreen() {
 
   const activeClients = clients.filter(c => c.status !== 'inactive');
   const firstName = trainer?.name?.split(' ')[0] || 'Coach';
+  const unreadNotifs = notifications.filter(n => !n.is_read).length;
 
   // ── Today's sessions, chronological ──────────────────────────────────────
   const todaysSessions = useMemo(() => {
@@ -136,9 +138,15 @@ export default function CoachHomeScreen() {
               <Text style={emptyStyles.dateText}>{dateLabel}</Text>
               <Text style={emptyStyles.welcomeText}>Welcome, {firstName}</Text>
             </View>
-            <View style={emptyStyles.avatarCircle}>
+            <TouchableOpacity
+              style={emptyStyles.avatarCircle}
+              onPress={() => router.push('/(tabs)/profile')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Your profile"
+            >
               <Text style={emptyStyles.avatarInitial}>{firstName[0]?.toUpperCase()}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={emptyStyles.section}>
@@ -230,11 +238,31 @@ export default function CoachHomeScreen() {
             <Text style={styles.weekday}>{weekday}</Text>
             <Text style={styles.monthDay}>{monthDay}</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-            <View style={styles.avatarCircle}>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/notifications')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={unreadNotifs > 0 ? `Notifications, ${unreadNotifs} unread` : 'Notifications'}
+            >
+              <Ionicons name="notifications-outline" size={19} color={CoachColors.textSecondary} />
+              {unreadNotifs > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.avatarCircle}
+              onPress={() => router.push('/(tabs)/profile')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Your profile"
+            >
               <Text style={styles.avatarInitial}>{firstName[0]?.toUpperCase()}</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.subtitleRow}>
@@ -420,17 +448,42 @@ const styles = StyleSheet.create({
     color: CoachColors.textFaint,
     lineHeight: 34,
   },
-  avatarCircle: {
-    width: 34, height: 34, borderRadius: 17,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconBtn: {
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
+  badge: {
+    position: 'absolute',
+    top: -3, right: -3,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: CoachColors.bg,
+  },
+  badgeText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 9,
+    color: CoachColors.onAccent,
+  },
+  avatarCircle: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
   avatarInitial: {
     fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: CoachColors.textPrimary,
+    color: CoachColors.onAccent,
   },
 
   subtitleRow: {

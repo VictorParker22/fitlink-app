@@ -601,7 +601,8 @@ export default function CreateWorkoutScreen() {
 
   const closeAssignSheet = () => {
     setSavedWorkout(null);
-    router.back();
+    // Let the native Modal dismiss before navigating away.
+    setTimeout(() => router.back(), 300);
   };
 
   const handleAssign = async () => {
@@ -1345,7 +1346,7 @@ export default function CreateWorkoutScreen() {
 
             <TouchableOpacity
               style={s.passTrackRow}
-              onPress={() => { setSavedWorkout(null); router.push('/(tabs)/programs'); }}
+              onPress={() => { setSavedWorkout(null); setTimeout(() => router.push('/(tabs)/programs'), 350); }}
               activeOpacity={0.7}
             >
               <Text style={s.passTrackRowText}>Add to a pass track instead</Text>

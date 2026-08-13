@@ -137,6 +137,16 @@ interface Plan {
   autoflow_enabled?: boolean;
   autoflow_workout_id?: string | null;
   autoflow_welcome_message?: string | null;
+  // Season builder (added by supabase/migrations/add_plan_season_fields.sql)
+  description?: string | null;
+  duration_weeks?: number | null;
+  season_settings?: Record<string, any> | null;
+}
+
+export interface PlanSeasonExtras {
+  description?: string;
+  duration_weeks?: number;
+  season_settings?: Record<string, any>;
 }
 
 interface Referral {
@@ -222,6 +232,36 @@ interface DietPlanMeal {
   meals?: Meal;
 }
 
+// -- Week structure / swaps JSON shapes (diet_plans.week_structure, diet_plans.swaps) --
+// See supabase/migrations/add_diet_week_structure.sql for the canonical documentation.
+export interface DietRestMealSnapshot {
+  meal_id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  meal_time: string;
+  servings: number;
+  slotLabel: string;
+}
+
+export interface DietWeekStructure {
+  mealsPerDay: number;
+  slotLabels: string[];
+  trainingDays: string[]; // 'mon'..'sun'
+  restVariant: { mealList: DietRestMealSnapshot[] };
+  freeMeal: { enabled: boolean; day: string } | null;
+}
+
+// Keyed by the training-day meal's order_index in diet_plan_meals.
+export type DietSwapsMap = Record<string, { allowedMealIds: string[]; allowOwnLog: boolean }>;
+
+export interface DietPlanExtras {
+  week_structure?: DietWeekStructure | null;
+  swaps?: DietSwapsMap | null;
+}
+
 interface DietPlan {
   id: string;
   trainer_id: string;
@@ -235,6 +275,8 @@ interface DietPlan {
   image_url?: string;
   created_at?: string;
   diet_plan_meals?: DietPlanMeal[];
+  week_structure?: DietWeekStructure | null;
+  swaps?: DietSwapsMap | null;
 }
 
 interface ClientDiet {
@@ -319,7 +361,7 @@ interface AppContextType {
   getSessionsForDate: (date: Date) => Session[];
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
-  createPlan: (name: string, price: number, period: string, features?: string[], color?: string, isPopular?: boolean) => Promise<Plan>;
+  createPlan: (name: string, price: number, period: string, features?: string[], color?: string, isPopular?: boolean, extras?: PlanSeasonExtras) => Promise<Plan>;
   updatePlanTrack: (planId: string, track: TrackNode[]) => Promise<void>;
   createExercise: (name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
   updateExercise: (id: string, name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
@@ -330,8 +372,8 @@ interface AppContextType {
   duplicateWorkout: (id: string) => Promise<Workout>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
   createMeal: (meal: Partial<Meal>, isGlobal?: boolean) => Promise<Meal>;
-  createDietPlan: (name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null) => Promise<DietPlan>;
-  updateDietPlan: (id: string, name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null) => Promise<DietPlan>;
+  createDietPlan: (name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
+  updateDietPlan: (id: string, name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
   duplicateDietPlan: (id: string) => Promise<DietPlan>;
   deleteDietPlan: (id: string) => Promise<void>;
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
@@ -1052,23 +1094,38 @@ export function AppProvider({ children }: PropsWithChildren) {
     mealList: { meal_id: string; meal_time?: string; servings?: number }[],
     category?: string,
     targets?: { calories: number; protein: number; carbs: number; fat: number },
-    imageUrl?: string | null
+    imageUrl?: string | null,
+    extras?: DietPlanExtras
   ) => {
-    const { data: dietPlan, error } = await supabase
+    const basePayload = {
+      trainer_id: user!.id,
+      name,
+      description,
+      category: category || 'custom',
+      target_calories: targets?.calories || 2000,
+      target_protein: targets?.protein || 150,
+      target_carbs: targets?.carbs || 200,
+      target_fat: targets?.fat || 65,
+      image_url: imageUrl || null,
+    };
+    const extrasPayload = extras ? {
+      ...(extras.week_structure !== undefined && { week_structure: extras.week_structure }),
+      ...(extras.swaps !== undefined && { swaps: extras.swaps }),
+    } : {};
+
+    let { data: dietPlan, error } = await supabase
       .from('diet_plans')
-      .insert({ 
-        trainer_id: user!.id, 
-        name, 
-        description, 
-        category: category || 'custom',
-        target_calories: targets?.calories || 2000,
-        target_protein: targets?.protein || 150,
-        target_carbs: targets?.carbs || 200,
-        target_fat: targets?.fat || 65,
-        image_url: imageUrl || null,
-      })
+      .insert({ ...basePayload, ...extrasPayload })
       .select()
       .single();
+    // Pre-migration resilience: retry without the new JSONB columns if missing.
+    if (error && error.code === '42703' && Object.keys(extrasPayload).length > 0) {
+      ({ data: dietPlan, error } = await supabase
+        .from('diet_plans')
+        .insert(basePayload)
+        .select()
+        .single());
+    }
     if (error) throw error;
 
     if (mealList.length > 0) {
@@ -1104,23 +1161,37 @@ export function AppProvider({ children }: PropsWithChildren) {
     mealList: { meal_id: string; meal_time?: string; servings?: number }[],
     category?: string,
     targets?: { calories: number; protein: number; carbs: number; fat: number },
-    imageUrl?: string | null
+    imageUrl?: string | null,
+    extras?: DietPlanExtras
   ) => {
-    const { error } = await supabase
+    const baseUpdate = {
+      name,
+      description,
+      category: category || 'custom',
+      ...(targets && {
+        target_calories: targets.calories,
+        target_protein: targets.protein,
+        target_carbs: targets.carbs,
+        target_fat: targets.fat
+      }),
+      ...(imageUrl !== undefined && { image_url: imageUrl }),
+    };
+    const extrasUpdate = extras ? {
+      ...(extras.week_structure !== undefined && { week_structure: extras.week_structure }),
+      ...(extras.swaps !== undefined && { swaps: extras.swaps }),
+    } : {};
+
+    let { error } = await supabase
       .from('diet_plans')
-      .update({ 
-        name, 
-        description, 
-        category: category || 'custom',
-        ...(targets && {
-          target_calories: targets.calories,
-          target_protein: targets.protein,
-          target_carbs: targets.carbs,
-          target_fat: targets.fat
-        }),
-        ...(imageUrl !== undefined && { image_url: imageUrl }),
-      })
+      .update({ ...baseUpdate, ...extrasUpdate })
       .eq('id', id);
+    // Pre-migration resilience: retry without the new JSONB columns if missing.
+    if (error && error.code === '42703' && Object.keys(extrasUpdate).length > 0) {
+      ({ error } = await supabase
+        .from('diet_plans')
+        .update(baseUpdate)
+        .eq('id', id));
+    }
     if (error) throw error;
 
     // Replace all meal associations
@@ -1218,21 +1289,35 @@ export function AppProvider({ children }: PropsWithChildren) {
     period: string,
     features: string[] = [],
     color: string = Colors.blue,
-    isPopular: boolean = false
+    isPopular: boolean = false,
+    extras?: PlanSeasonExtras
   ) => {
-    const { data, error } = await supabase
+    const basePayload = {
+      trainer_id: user!.id,
+      name,
+      price,
+      period,
+      features,
+      color,
+      is_popular: isPopular,
+    };
+
+    let { data, error } = await supabase
       .from('plans')
-      .insert({
-        trainer_id: user!.id,
-        name,
-        price,
-        period,
-        features,
-        color,
-        is_popular: isPopular
-      })
+      .insert(extras ? { ...basePayload, ...extras } : basePayload)
       .select()
       .single();
+
+    // If the season-fields migration hasn't run yet, the insert fails with
+    // 42703 (undefined column). Retry without the new fields so the flow
+    // still works pre-migration.
+    if (error && extras && (error.code === '42703' || /column/i.test(error.message || ''))) {
+      ({ data, error } = await supabase
+        .from('plans')
+        .insert(basePayload)
+        .select()
+        .single());
+    }
 
     if (error) throw error;
     if (data) setPlans((prev) => [...prev, data].sort((a, b) => a.price - b.price));

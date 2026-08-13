@@ -194,6 +194,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       <Stack.Screen name="create-plan" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="pass-track-editor" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="pass-holders" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="pass-versions" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="book-session" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="session/[id]" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
       <Stack.Screen name="session/complete" options={{ animation: 'fade', gestureEnabled: false }} />
