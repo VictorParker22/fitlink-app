@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 
 interface WizardProgressBarProps {
   currentStep: number;
@@ -33,7 +33,7 @@ export default function WizardProgressBar({ currentStep, totalSteps = 5 }: Wizar
         {Array.from({ length: totalSteps }).map((_, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;
-          
+
           return (
             <React.Fragment key={index}>
               <View style={styles.dotContainer}>
@@ -67,7 +67,7 @@ export default function WizardProgressBar({ currentStep, totalSteps = 5 }: Wizar
         })}
       </View>
       <Text style={styles.text}>
-        STEP {currentStep + 1} OF {totalSteps}
+        Step {currentStep + 1} of {totalSteps}
       </Text>
     </View>
   );
@@ -100,16 +100,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   dotCompleted: {
-    backgroundColor: '#FFD700',
-    shadowColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
+    shadowColor: CoachColors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 4,
   },
   dotCurrent: {
-    backgroundColor: '#FFD700',
-    shadowColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
+    shadowColor: CoachColors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   dotFuture: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
   },
   line: {
     flex: 1,
@@ -126,15 +126,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   lineCompleted: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
   },
   lineFuture: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
   text: {
-    fontFamily: 'Epilogue-Medium',
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: '#666666',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
   },
 });

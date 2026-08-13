@@ -2,19 +2,20 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export const PassHowItWorks: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
-  
+
   const expandAnim = useRef(new Animated.Value(0)).current;
 
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     const toValue = expanded ? 0 : 1;
     setExpanded(!expanded);
-    
+
     Animated.timing(expandAnim, {
       toValue,
       duration: 300,
@@ -40,44 +41,44 @@ export const PassHowItWorks: React.FC = () => {
   return (
     <View style={styles.container}>
       <Pressable style={styles.headerRow} onPress={toggleExpand}>
-        <Text style={styles.headerText}>HOW IT WORKS</Text>
+        <Text style={styles.headerText}>How it works</Text>
         <Animated.View style={{ transform: [{ rotate: rotateInterpolation }] }}>
-          <Ionicons name="chevron-down" size={20} color="rgba(255,255,255,0.5)" />
+          <Ionicons name="chevron-down" size={20} color={CoachColors.textMuted} />
         </Animated.View>
       </Pressable>
 
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.contentContainer, 
+          styles.contentContainer,
           { height: contentHeight, opacity: contentOpacity }
         ]}
       >
         <View style={styles.row}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FF6B3526' }]}>
-            <Ionicons name="barbell" size={18} color="#FF6B35" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="barbell" size={18} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={styles.title}>Complete Workouts</Text>
+            <Text style={styles.title}>Complete workouts</Text>
             <Text style={styles.description}>+50 XP per workout</Text>
           </View>
         </View>
 
         <View style={styles.row}>
-          <View style={[styles.iconCircle, { backgroundColor: '#A78BFA26' }]}>
-            <Ionicons name="restaurant" size={18} color="#A78BFA" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="restaurant" size={18} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={styles.title}>Log Your Meals</Text>
+            <Text style={styles.title}>Log your meals</Text>
             <Text style={styles.description}>+10 XP per meal logged</Text>
           </View>
         </View>
 
         <View style={styles.row}>
-          <View style={[styles.iconCircle, { backgroundColor: '#22C55E26' }]}>
-            <Ionicons name="fitness" size={18} color="#22C55E" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="fitness" size={18} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={styles.title}>Gym Check-Ins</Text>
+            <Text style={styles.title}>Gym check-ins</Text>
             <Text style={styles.description}>+50 XP per check-out</Text>
           </View>
         </View>
@@ -88,9 +89,9 @@ export const PassHowItWorks: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
@@ -103,9 +104,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing['2xs'],
   },
   headerText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
@@ -121,6 +122,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -129,15 +131,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   description: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
 });
 

@@ -9,8 +9,9 @@ import {
   Easing,
   Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 const { width: W, height: H } = Dimensions.get('window');
 const PARTICLE_COUNT = 14;
@@ -21,12 +22,12 @@ const PARTICLE_ANGLES = Array.from(
   (_, i) => (i / PARTICLE_COUNT) * 2 * Math.PI,
 );
 
-// Gold / champagne palette for particle dots
+// Lime accent palette for particle dots
 const PARTICLE_COLORS = [
-  '#FFD700', '#FFC107', '#FFB300', '#FF8C00',
-  '#FFFFFF', '#F9A825', '#FFE082', '#FDD835',
-  '#FFCA28', '#FFB74D', '#FFA726', '#FF9800',
-  '#C8F135', '#A0E020',
+  CoachColors.accent,
+  CoachColors.textPrimary,
+  CoachColors.accent,
+  CoachColors.accentSoft,
 ];
 
 interface PRCelebrationModalProps {
@@ -193,17 +194,17 @@ export default function PRCelebrationModal({
               { opacity: cardOpacity, transform: [{ scale: cardScale }] },
             ]}
           >
-            {/* Gold top strip */}
-            <View style={s.goldStrip} />
+            {/* Accent top strip */}
+            <View style={s.accentStrip} />
 
             {/* Trophy */}
-            <Animated.Text style={[s.trophy, { transform: [{ scale: trophyScale }] }]}>
-              🏆
-            </Animated.Text>
+            <Animated.View style={[s.trophy, { transform: [{ scale: trophyScale }] }]}>
+              <Ionicons name="trophy" size={64} color={CoachColors.accent} />
+            </Animated.View>
 
             {/* Badge */}
             <View style={s.badge}>
-              <Text style={s.badgeText}>NEW PR</Text>
+              <Text style={s.badgeText}>New PR</Text>
             </View>
 
             {/* Weight */}
@@ -214,7 +215,7 @@ export default function PRCelebrationModal({
             <Text style={s.exerciseName} numberOfLines={2}>{exerciseName}</Text>
 
             {/* Motivational line */}
-            <Text style={s.sub}>That's your best ever. Keep pushing. 💪</Text>
+            <Text style={s.sub}>That's your best ever. Keep pushing.</Text>
 
             {/* Tap-to-dismiss hint */}
             <Text style={s.hint}>Tap anywhere to continue</Text>
@@ -244,80 +245,80 @@ const s = StyleSheet.create({
   // Card
   card: {
     width: W * 0.82,
-    backgroundColor: '#18171F',
+    backgroundColor: CoachColors.surface,
     borderRadius: 24,
     alignItems: 'center',
     paddingHorizontal: 28,
     paddingBottom: 32,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
+    borderColor: CoachColors.border,
     // Elevation for Android
     elevation: 24,
     // Shadow for iOS
-    shadowColor: '#FFD700',
+    shadowColor: CoachColors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.45,
     shadowRadius: 32,
     overflow: 'hidden',
   },
-  goldStrip: {
+  accentStrip: {
     height: 4,
     width: '140%', // bleed beyond card radius
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     marginBottom: 24,
   },
   trophy: {
-    fontSize: 72,
-    lineHeight: 84,
     marginBottom: 8,
   },
   badge: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     borderRadius: 100,
     paddingHorizontal: 14,
     paddingVertical: 4,
     marginBottom: 20,
+    marginTop: 12,
   },
   badgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#0D0D12',
+    color: CoachColors.onAccent,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   weight: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 72,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 78,
     textAlign: 'center',
   },
   weightUnit: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
     marginTop: 2,
     marginBottom: 16,
   },
   exerciseName: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   sub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
   hint: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
     letterSpacing: 0.5,
   },
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface SetLog {
   weight: string;
@@ -60,49 +60,49 @@ export default function WorkoutSummary({
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* Trophy icon */}
         <View style={s.trophyCard}>
-          <Ionicons name="trophy" size={40} color="#FFD700" />
+          <Ionicons name="trophy" size={40} color={CoachColors.accent} />
         </View>
 
-        <Text style={s.tagHeader}>SESSION COMPLETE // PERFORMANCE REVIEW</Text>
-        <Text style={s.title}>Workout Complete!</Text>
+        <Text style={s.tagHeader}>Session complete // performance review</Text>
+        <Text style={s.title}>Workout complete!</Text>
         <Text style={s.workoutName}>{activeWorkout?.workouts?.name || 'Workout'}</Text>
 
         {/* Stats Grid */}
         <View style={s.grid}>
           <View style={s.statCard}>
-            <Ionicons name="time-outline" size={18} color="#4D94FF" />
+            <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{formatDuration(elapsedSeconds)}</Text>
-            <Text style={s.statLabel}>DURATION</Text>
+            <Text style={s.statLabel}>Duration</Text>
           </View>
           <View style={s.statCard}>
-            <Ionicons name="barbell-outline" size={18} color="#22C55E" />
+            <Ionicons name="barbell-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{exercisesCompleted}</Text>
-            <Text style={s.statLabel}>EXERCISES</Text>
+            <Text style={s.statLabel}>Exercises</Text>
           </View>
           <View style={s.statCard}>
-            <Ionicons name="layers-outline" size={18} color="#A78BFA" />
+            <Ionicons name="layers-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{totalSetsCompleted}</Text>
-            <Text style={s.statLabel}>SETS DONE</Text>
+            <Text style={s.statLabel}>Sets done</Text>
           </View>
           <View style={s.statCard}>
-            <Ionicons name="trending-up-outline" size={18} color="#FFD700" />
+            <Ionicons name="trending-up-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>
               {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume.toLocaleString()}
             </Text>
-            <Text style={s.statLabel}>VOLUME (LBS)</Text>
+            <Text style={s.statLabel}>Volume (lbs)</Text>
           </View>
         </View>
 
         {/* Exercise breakdown */}
-        <Text style={s.breakdownHeader}>EXERCISE BREAKDOWN</Text>
+        <Text style={s.breakdownHeader}>Exercise breakdown</Text>
         <View style={s.breakdownCard}>
           {exerciseStates.map((ex, i) => {
             const completedSets = ex.sets.filter((s) => s.completed).length;
             return (
               <View key={i} style={s.exRow}>
-                <View style={[s.dot, { backgroundColor: completedSets > 0 ? '#22C55E' : 'rgba(255,255,255,0.2)' }]} />
+                <View style={[s.dot, { backgroundColor: completedSets > 0 ? CoachColors.accent : CoachColors.textFaint }]} />
                 <Text style={s.exName} numberOfLines={1}>{ex.exerciseName}</Text>
-                <Text style={s.exSets}>{completedSets}/{ex.targetSets} SETS</Text>
+                <Text style={s.exSets}>{completedSets}/{ex.targetSets} sets</Text>
               </View>
             );
           })}
@@ -110,12 +110,12 @@ export default function WorkoutSummary({
 
         {/* Action Buttons */}
         <TouchableOpacity style={s.finishBtn} onPress={onConfirmFinish} activeOpacity={0.8}>
-          <Ionicons name="checkmark-circle" size={18} color="#000000" />
-          <Text style={s.finishBtnText}>SAVE & FINISH →</Text>
+          <Ionicons name="checkmark-circle" size={18} color={CoachColors.onAccent} />
+          <Text style={s.finishBtnText}>Save & finish →</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.continueBtn} onPress={onContinueWorkout} activeOpacity={0.7}>
-          <Text style={s.continueBtnText}>CONTINUE WORKOUT</Text>
+          <Text style={s.continueBtnText}>Continue workout</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -125,38 +125,39 @@ export default function WorkoutSummary({
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   content: { padding: 20, alignItems: 'center' },
   trophyCard: {
     width: 72,
     height: 72,
     borderRadius: 18,
-    backgroundColor: '#1A1500',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     marginTop: 20,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 2,
   },
   workoutName: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: '#4D94FF',
+    color: CoachColors.accent,
     marginBottom: 24,
   },
   grid: {
@@ -168,38 +169,40 @@ const s = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 14,
     alignItems: 'center',
     gap: 6,
   },
   statValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   statLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   breakdownHeader: {
     alignSelf: 'flex-start',
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
   breakdownCard: {
     width: '100%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 14,
     gap: 10,
@@ -217,20 +220,21 @@ const s = StyleSheet.create({
   },
   exName: {
     flex: 1,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   exSets: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   finishBtn: {
     width: '100%',
     height: 48,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,25 +243,25 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   finishBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   continueBtn: {
     width: '100%',
     height: 44,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   continueBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
   },
 });

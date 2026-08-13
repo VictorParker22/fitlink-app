@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Avatar from '../../../components/Avatar';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
@@ -57,14 +57,14 @@ export default function CoachPulse({
       >
         <View style={st.noCoachLeft}>
           {/* §1 Micro → hero → context */}
-          <Text style={st.micro}>YOUR COACH</Text>
+          <Text style={st.micro}>Your coach</Text>
           <Text style={st.noCoachHero}>No coach yet.</Text>
           <Text style={st.noCoachSub}>Custom programming, real-time feedback, diet plans.</Text>
         </View>
         {/* §14 44×44 touch target */}
         <View style={st.ctaBtn}>
           <Text style={st.ctaBtnText}>Pair</Text>
-          <Ionicons name="arrow-forward" size={14} color="#000" />
+          <Ionicons name="arrow-forward" size={14} color={CoachColors.onAccent} />
         </View>
       </TouchableOpacity>
     );
@@ -83,7 +83,7 @@ export default function CoachPulse({
       }}
     >
       {/* Top Tag */}
-      <Text style={st.topTag}>YOUR COACH • {(trainer.name || 'VICTOR').toUpperCase()}</Text>
+      <Text style={st.topTag}>Your coach · {trainer.name || 'Victor'}</Text>
 
       <View style={st.mainRow}>
         {/* Square Avatar */}
@@ -91,11 +91,11 @@ export default function CoachPulse({
           {trainer.avatar_url ? (
             <Avatar imageUrl={trainer.avatar_url} name={trainer.name} size="md" />
           ) : (
-            <Text style={st.avatarPlaceholderText}>PHOTO</Text>
+            <Text style={st.avatarPlaceholderText}>Photo</Text>
           )}
         </View>
 
-        {/* Message with yellow bar */}
+        {/* Message with accent bar */}
         <View style={st.messageCol}>
           <Text style={st.speechText} numberOfLines={3}>
             "{messageText}"
@@ -104,7 +104,7 @@ export default function CoachPulse({
 
         {/* Chat button */}
         <View style={st.chatBtn}>
-          <Ionicons name="chatbubble-ellipses" size={18} color="#D9F95C" />
+          <Ionicons name="chatbubble-ellipses" size={18} color={CoachColors.accent} />
         </View>
       </View>
     </TouchableOpacity>
@@ -116,19 +116,19 @@ const st = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     padding: 18,
     paddingBottom: 14,
     overflow: 'hidden',
   },
 
   topTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 16,
@@ -146,32 +146,33 @@ const st = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarPlaceholderText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 
-  // Message with yellow bar
+  // Message with accent bar
   messageCol: {
     flex: 1,
     borderLeftWidth: 3,
-    borderLeftColor: '#D9F95C',
+    borderLeftColor: CoachColors.accent,
     paddingLeft: 12,
     paddingVertical: 2,
   },
   speechText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
+    color: CoachColors.textPrimary,
     fontStyle: 'italic',
     lineHeight: 18,
   },
@@ -181,9 +182,9 @@ const st = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(217, 249, 92, 0.08)',
+    backgroundColor: CoachColors.accentSofter,
     borderWidth: 1,
-    borderColor: 'rgba(217, 249, 92, 0.2)',
+    borderColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -192,10 +193,10 @@ const st = StyleSheet.create({
   noCoachCard: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,22 +208,23 @@ const st = StyleSheet.create({
   },
   // §1 "No coach" empty state: micro → punchy statement → sub
   micro: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
   noCoachHero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   noCoachSub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     lineHeight: 17,
   },
   // §14 CTA button 44×44 minimum
@@ -230,14 +232,14 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 44,
   },
   ctaBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
 });

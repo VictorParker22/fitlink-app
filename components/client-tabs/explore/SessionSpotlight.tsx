@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { supabase } from '../../../lib/supabase';
 
 export interface SessionItem {
@@ -48,13 +48,13 @@ export default function SessionSpotlight({ allCoaches = [], onBookSessionPress }
         if (data && data.length > 0) {
           const mapped: SessionItem[] = data.map((s: any) => ({
             id: s.id,
-            title: s.group_name || `${s.type || '1-on-1'} Coaching Session`,
+            title: s.group_name || `${s.type || '1-on-1'} coaching session`,
             type: s.type || '1-on-1',
             duration: s.duration || 60,
             coachName: s.trainers?.name || 'FitLink Coach',
             coachAvatar: s.trainers?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
             price: s.type === 'Virtual' ? '$25' : s.type === 'Group' ? '$35' : '$75',
-            accentColor: s.type === 'Virtual' ? '#5B7FFF' : s.type === 'Group' ? '#A78BFA' : '#FF6B35',
+            accentColor: CoachColors.accent,
             image: s.type === 'Virtual'
               ? 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400'
               : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400',
@@ -73,17 +73,17 @@ export default function SessionSpotlight({ allCoaches = [], onBookSessionPress }
   }, [allCoaches]);
   return (
     <View style={s.section}>
-      <Text style={s.tagHeader}>BOOK A SESSION // TRY BEFORE YOU BUY</Text>
-      <Text style={s.title}>Single Sessions & Passes</Text>
+      <Text style={s.tagHeader}>Book a session // try before you buy</Text>
+      <Text style={s.title}>Single sessions & passes</Text>
 
       {loading && sessionsList.length === 0 ? (
         <View style={{ paddingHorizontal: 16, paddingVertical: 40, alignItems: 'center' }}>
-          <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+          <ActivityIndicator size="small" color={CoachColors.textMuted} />
         </View>
       ) : sessionsList.length === 0 ? (
         <View style={{ paddingHorizontal: 16 }}>
           <View style={s.emptyCard}>
-            <Ionicons name="calendar-outline" size={24} color="rgba(255,255,255,0.4)" style={{ marginBottom: 8 }} />
+            <Ionicons name="calendar-outline" size={24} color={CoachColors.textMuted} style={{ marginBottom: 8 }} />
             <Text style={s.emptyCardText}>No sessions available yet. Coaches will publish bookable sessions soon.</Text>
           </View>
         </View>
@@ -113,12 +113,12 @@ export default function SessionSpotlight({ allCoaches = [], onBookSessionPress }
             <View style={s.cardTop}>
               <View style={[s.typeBadge, { borderColor: sess.accentColor }]}>
                 <Ionicons name="calendar-outline" size={10} color={sess.accentColor} />
-                <Text style={[s.typeText, { color: sess.accentColor }]}>{sess.type.toUpperCase()}</Text>
+                <Text style={[s.typeText, { color: sess.accentColor }]}>{sess.type}</Text>
               </View>
 
               <View style={s.durationPill}>
-                <Ionicons name="time-outline" size={10} color="rgba(255,255,255,0.7)" />
-                <Text style={s.durationText}>{sess.duration} MIN</Text>
+                <Ionicons name="time-outline" size={10} color={CoachColors.textSecondary} />
+                <Text style={s.durationText}>{sess.duration} min</Text>
               </View>
             </View>
 
@@ -132,7 +132,7 @@ export default function SessionSpotlight({ allCoaches = [], onBookSessionPress }
               </View>
 
               <View style={s.bookBtn}>
-                <Text style={s.bookBtnText}>BOOK SESSION →</Text>
+                <Text style={s.bookBtnText}>Book session →</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -146,17 +146,18 @@ export default function SessionSpotlight({ allCoaches = [], onBookSessionPress }
 const s = StyleSheet.create({
   section: { marginBottom: 24 },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     paddingHorizontal: 16,
     marginBottom: 4,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 16,
     marginBottom: 14,
     letterSpacing: -0.5,
@@ -170,8 +171,8 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
   },
   cardBg: { ...StyleSheet.absoluteFillObject, opacity: 0.5 },
   cardOverlay: {
@@ -188,38 +189,40 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(12,12,14,0.9)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   typeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   durationPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(12,12,14,0.9)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   durationText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
+    textTransform: 'uppercase',
   },
   cardBottom: { zIndex: 1 },
   sessionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     lineHeight: 26,
     marginBottom: 8,
@@ -235,46 +238,46 @@ const s = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
   },
   coachName: {
     flex: 1,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
   priceTag: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#22C55E',
+    color: CoachColors.accent,
   },
   bookBtn: {
     height: 44,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.accent,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.accent,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   bookBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   emptyCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
   },
   emptyCardText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { useClient } from '../../../context/ClientContext';
 
@@ -23,15 +23,15 @@ export default function FitLinkPassPreview({ hasActivePlan, onExplorePlansPress,
       <View style={s.card}>
         <View style={s.topRow}>
           <View style={s.tagBadge}>
-            <Ionicons name="ticket" size={12} color="#FF6B35" />
-            <Text style={s.tagText}>FITLINK PASS // GAMIFIED PROGRESSION</Text>
+            <Ionicons name="ticket" size={12} color={CoachColors.accent} />
+            <Text style={s.tagText}>FitLink Pass // gamified progression</Text>
           </View>
           <View style={s.xpBadge}>
-            <Text style={s.xpText}>+50 XP / WORKOUT</Text>
+            <Text style={s.xpText}>+50 XP / workout</Text>
           </View>
         </View>
 
-        <Text style={s.title}>Level Up Your Fitness Journey</Text>
+        <Text style={s.title}>Level up your fitness journey</Text>
         <Text style={s.desc}>
           Complete assigned workouts, log meals, and hit milestone check-ins to gain XP, level up, and unlock custom rewards along your personal pass timeline.
         </Text>
@@ -43,25 +43,21 @@ export default function FitLinkPassPreview({ hasActivePlan, onExplorePlansPress,
           {trackNodes.length > 0 ? (
             trackNodes.slice(0, 4).map((node: any, idx: number) => {
               let icon = 'ellipse';
-              let color = '#FFF';
-              let label = node.label || `LVL ${idx + 1}`;
-              
+              let label = node.label || `Lvl ${idx + 1}`;
+
               if (node.type === 'workout') {
                 icon = 'barbell';
-                color = '#FF6B35';
               } else if (node.type === 'diet') {
                 icon = 'restaurant';
-                color = '#A78BFA';
               } else if (node.type === 'milestone') {
                 icon = 'trophy';
-                color = '#FFD700';
-                if (!node.label) label = 'REWARD';
+                if (!node.label) label = 'Reward';
               }
 
               return (
                 <View key={idx} style={s.nodeItem}>
-                  <View style={[s.nodeCircle, { backgroundColor: color }]}>
-                    <Ionicons name={icon as any} size={10} color={color === '#FFD700' ? '#000' : '#FFF'} />
+                  <View style={s.nodeCircle}>
+                    <Ionicons name={icon as any} size={10} color={CoachColors.onAccent} />
                   </View>
                   <Text style={s.nodeLabel}>{label}</Text>
                 </View>
@@ -70,31 +66,31 @@ export default function FitLinkPassPreview({ hasActivePlan, onExplorePlansPress,
           ) : (
             <>
               <View style={s.nodeItem}>
-                <View style={[s.nodeCircle, { backgroundColor: '#FF6B35' }]}>
-                  <Ionicons name="barbell" size={10} color="#FFF" />
+                <View style={s.nodeCircle}>
+                  <Ionicons name="barbell" size={10} color={CoachColors.onAccent} />
                 </View>
-                <Text style={s.nodeLabel}>LVL 1</Text>
+                <Text style={s.nodeLabel}>Lvl 1</Text>
               </View>
 
               <View style={s.nodeItem}>
-                <View style={[s.nodeCircle, { backgroundColor: '#A78BFA' }]}>
-                  <Ionicons name="restaurant" size={10} color="#FFF" />
+                <View style={s.nodeCircle}>
+                  <Ionicons name="restaurant" size={10} color={CoachColors.onAccent} />
                 </View>
-                <Text style={s.nodeLabel}>LVL 2</Text>
+                <Text style={s.nodeLabel}>Lvl 2</Text>
               </View>
 
               <View style={s.nodeItem}>
-                <View style={[s.nodeCircle, { backgroundColor: '#FFD700' }]}>
-                  <Ionicons name="trophy" size={10} color="#000" />
+                <View style={s.nodeCircle}>
+                  <Ionicons name="trophy" size={10} color={CoachColors.onAccent} />
                 </View>
-                <Text style={s.nodeLabel}>REWARD</Text>
+                <Text style={s.nodeLabel}>Reward</Text>
               </View>
 
               <View style={s.nodeItem}>
-                <View style={[s.nodeCircle, { backgroundColor: '#22C55E' }]}>
-                  <Ionicons name="checkmark-done" size={10} color="#FFF" />
+                <View style={s.nodeCircle}>
+                  <Ionicons name="checkmark-done" size={10} color={CoachColors.onAccent} />
                 </View>
-                <Text style={s.nodeLabel}>LVL 4</Text>
+                <Text style={s.nodeLabel}>Lvl 4</Text>
               </View>
             </>
           )}
@@ -110,7 +106,7 @@ export default function FitLinkPassPreview({ hasActivePlan, onExplorePlansPress,
               router.push(ClientRoute.myPass);
             }}
           >
-            <Text style={s.ctaText}>VIEW MY FITLINK PASS →</Text>
+            <Text style={s.ctaText}>View my FitLink Pass →</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -125,8 +121,8 @@ export default function FitLinkPassPreview({ hasActivePlan, onExplorePlansPress,
               }
             }}
           >
-            <Ionicons name="lock-open" size={14} color="#000000" />
-            <Text style={[s.ctaText, { color: '#000000' }]}>SUBSCRIBE TO UNLOCK PASS →</Text>
+            <Ionicons name="lock-open" size={14} color={CoachColors.onAccent} />
+            <Text style={[s.ctaText, { color: CoachColors.onAccent }]}>Subscribe to unlock pass →</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -140,9 +136,9 @@ const s = StyleSheet.create({
     marginBottom: 24,
   },
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 20,
   },
@@ -156,45 +152,47 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   tagText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FF6B35',
+    color: CoachColors.accent,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   xpBadge: {
-    backgroundColor: '#0C1C12',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#22C55E',
+    borderColor: CoachColors.accent,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   xpText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#22C55E',
+    color: CoachColors.accent,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 6,
     letterSpacing: -0.6,
     lineHeight: 30,
   },
   desc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 19,
     marginBottom: 16,
   },
@@ -204,9 +202,9 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 10,
     marginBottom: 16,
     position: 'relative',
@@ -216,7 +214,7 @@ const s = StyleSheet.create({
     left: 36,
     right: 36,
     height: 2,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     top: 24,
   },
   nodeItem: {
@@ -230,31 +228,32 @@ const s = StyleSheet.create({
     borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: CoachColors.accent,
   },
   nodeLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   ctaBtn: {
     height: 44,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   ctaBtnUnlock: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
     flexDirection: 'row',
     gap: 6,
   },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
 });

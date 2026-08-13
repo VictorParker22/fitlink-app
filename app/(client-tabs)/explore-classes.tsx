@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Modal, ScrollView, TextInput,
+  Modal, ScrollView, TextInput, RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -49,6 +49,7 @@ export default function ExploreClassesScreen() {
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [activeLiveStreams, setActiveLiveStreams] = useState<any[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refetch on every tab focus so new classes appear without a full app restart
   const fetchLiveClasses = useCallback(async () => {
@@ -254,7 +255,7 @@ export default function ExploreClassesScreen() {
     }
 
     return list;
-  }, [sortKey, activeFilters, searchQuery]);
+  }, [classSource, sortKey, activeFilters, searchQuery]);
 
   const formatDuration = (min: number) => {
     const h = Math.floor(min / 60);
@@ -441,6 +442,19 @@ export default function ExploreClassesScreen() {
         renderItem={renderClassItem}
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await fetchLiveClasses();
+              setRefreshing(false);
+            }}
+            tintColor={CoachColors.accent}
+            colors={[CoachColors.accent]}
+            progressBackgroundColor={CoachColors.surface}
+          />
+        }
         ItemSeparatorComponent={() => <View style={s.separator} />}
         ListHeaderComponent={
           <FitLinkPassPreview
@@ -465,7 +479,7 @@ export default function ExploreClassesScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Clear all filters"
               >
-                <Text style={s.emptyClearText}>CLEAR ALL FILTERS</Text>
+                <Text style={s.emptyClearText}>Clear all filters</Text>
               </TouchableOpacity>
             )}
           </View>

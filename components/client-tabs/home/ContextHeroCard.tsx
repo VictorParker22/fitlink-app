@@ -19,18 +19,11 @@
 
 import React, { useRef } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import TodayWorkoutCard from './TodayWorkoutCard';
-import { FontFamily } from '../../../constants/theme';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -92,66 +85,3 @@ export default function ContextHeroCard({
     />
   );
 }
-
-const st = StyleSheet.create({
-  card: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    backgroundColor: '#0C0C0E',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.25)',  // gold tint border on evening state
-    padding: 20,
-    paddingBottom: 14,
-    overflow: 'hidden',
-    minHeight: 160,
-  },
-  tag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: '#FFD700',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  hero: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 32,
-    color: '#FFFFFF',
-    letterSpacing: -0.8,
-    marginBottom: 6,
-    lineHeight: 36,
-  },
-  sub: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: 19,
-    marginBottom: 20,
-  },
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,215,0,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  btnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: '#FFD700',
-    letterSpacing: 1.5,
-  },
-  accentLine: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-  },
-});

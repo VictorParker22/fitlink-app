@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
-import { getCategoryColor } from '../../../data/categoryColors';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export interface ActivityWeekStripProps {
   workouts: any[];
@@ -12,8 +11,6 @@ export interface ActivityWeekStripProps {
 }
 
 export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs = [] }: ActivityWeekStripProps) {
-  const { colors } = useTheme();
-
   const weekData = useMemo(() => {
     const today = new Date();
     const currentDay = today.getDay();
@@ -30,9 +27,9 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
       const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      
+
       const isToday = new Date().toDateString() === d.toDateString();
-      
+
       const dayActivities: { type: 'completed' | 'pending'; category: string }[] = [];
 
       workouts.forEach(w => {
@@ -75,9 +72,9 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-      <Text style={styles.tagHeader}>WEEKLY // OVERVIEW</Text>
-      
+    <View style={styles.container}>
+      <Text style={styles.tagHeader}>Weekly overview</Text>
+
       <View style={styles.row}>
         {weekData.days.map((day, idx) => {
           const hasCompleted = day.activities.some(a => a.type === 'completed');
@@ -85,8 +82,8 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
           const completedActivities = day.activities.filter(a => a.type === 'completed');
 
           return (
-            <TouchableOpacity 
-              key={idx} 
+            <TouchableOpacity
+              key={idx}
               activeOpacity={0.7}
               onPress={handleDayPress}
               style={[styles.column, day.isToday && styles.todayColumn]}
@@ -95,16 +92,16 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
               <Text style={[styles.dateNum, (hasCompleted || day.isToday) ? styles.dateNumActive : {}, day.isToday ? styles.dateNumToday : {}]}>
                 {day.dateNum}
               </Text>
-              
+
               <View style={styles.indicatorContainer}>
                 {completedActivities.length > 1 ? (
                   <View style={styles.multiDotContainer}>
                      {completedActivities.slice(0, 3).map((act, i) => (
-                       <View key={i} style={[styles.smallDot, { backgroundColor: getCategoryColor(act.category) }]} />
+                       <View key={i} style={styles.smallDot} />
                      ))}
                   </View>
                 ) : completedActivities.length === 1 ? (
-                  <View style={[styles.filledCircle, { backgroundColor: getCategoryColor(completedActivities[0].category) }]} />
+                  <View style={styles.filledCircle} />
                 ) : isPendingOnly ? (
                   <View style={styles.pendingCircle} />
                 ) : (
@@ -125,7 +122,7 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
         </View>
         <View style={styles.progressBarBg}>
           <View
-            style={[styles.progressBarFill, { width: `${(weekData.activeCount / 7) * 100}%`, backgroundColor: colors.accent }]} 
+            style={[styles.progressBarFill, { width: `${(weekData.activeCount / 7) * 100}%` }]}
           />
         </View>
       </View>
@@ -139,11 +136,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     padding: Spacing.xl,
     width: '100%',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 16,
@@ -162,26 +161,26 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
   },
   todayColumn: {
-    backgroundColor: 'rgba(255,215,0,0.06)',
-    borderColor: 'rgba(255,215,0,0.2)',
+    backgroundColor: CoachColors.accentSofter,
+    borderColor: 'rgba(198,242,78,0.2)',
   },
   dayLabel: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginBottom: 4,
   },
   dateNum: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginBottom: 8,
   },
   dateNumActive: {
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   dateNumToday: {
-    color: '#FFD700',
+    color: CoachColors.accent,
   },
   indicatorContainer: {
     height: 20,
@@ -193,21 +192,22 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.borderMuted,
   },
   pendingCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderStyle: 'dashed',
   },
   filledCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
+    backgroundColor: CoachColors.accent,
   },
   multiDotContainer: {
     flexDirection: 'row',
@@ -219,10 +219,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
+    backgroundColor: CoachColors.accent,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 12,
   },
   summaryContainer: {
@@ -234,23 +235,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryNumber: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.base,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   summaryText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   progressBarBg: {
     height: 4,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: 4,
     borderRadius: 2,
+    backgroundColor: CoachColors.accent,
   },
 });

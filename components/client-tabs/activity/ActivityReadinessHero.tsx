@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
-import { useTheme } from '../../../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
@@ -19,8 +19,6 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
   workouts,
   healthSnapshot
 }) => {
-  const { colors } = useTheme();
-
   useEffect(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, []);
@@ -39,9 +37,9 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
     };
 
     const completedWorkouts = workouts.filter(w => w.status === 'completed' && w.completed_at);
-    
+
     const completedYesterday = completedWorkouts.some(w => getDayDiff(w.completed_at) === 1);
-    
+
     let completedLast5Days = 0;
     for (let i = 1; i <= 5; i++) {
         if (completedWorkouts.some(w => getDayDiff(w.completed_at) === i)) {
@@ -64,27 +62,27 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
       const restScore = restDayYesterday ? 30 : 20;
       score = streakScore + recentScore + restScore;
     }
-    
+
     score = Math.round(score);
 
-    let color = '#EF4444';
-    let colorRgb = '239,68,68';
-    let label = 'LOW';
-    let message = 'Recovery day recommended 🧘';
-    
+    let color = CoachColors.danger;
+    let softColor = CoachColors.dangerSoft;
+    let label = 'Low';
+    let message = 'Recovery day recommended';
+
     if (score >= 85) {
-      color = '#22C55E';
-      colorRgb = '34,197,94';
-      label = 'PRIME';
-      message = 'Great day to push hard 💪';
+      color = CoachColors.accent;
+      softColor = CoachColors.accentSoft;
+      label = 'Prime';
+      message = 'Great day to push hard';
     } else if (score >= 60) {
-      color = '#FFD700';
-      colorRgb = '255,215,0';
-      label = 'GOOD';
+      color = CoachColors.warning;
+      softColor = CoachColors.warningSoft;
+      label = 'Good';
       message = 'Maintain your baseline today';
     }
 
-    return { score, color, colorRgb, label, message };
+    return { score, color, softColor, label, message };
   }, [streak, workouts, healthSnapshot]);
 
   const animValue = useRef(new Animated.Value(0)).current;
@@ -108,8 +106,8 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-      <Text style={styles.tagHeader}>READINESS // RECOVERY COCKPIT</Text>
+    <View style={styles.container}>
+      <Text style={styles.tagHeader}>Readiness</Text>
 
       <View style={styles.topRow}>
         <View style={styles.gaugeContainer}>
@@ -143,22 +141,22 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
 
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
-            <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,107,53,0.12)' }]}>
-              <Ionicons name="flame" size={14} color="#FF6B35" />
+            <View style={[styles.iconContainer, { backgroundColor: CoachColors.accentSoft }]}>
+              <Ionicons name="flame" size={14} color={CoachColors.accent} />
             </View>
-            <Text style={styles.statTextMain}>{streak} Day Streak</Text>
+            <Text style={styles.statTextMain}>{streak} day streak</Text>
           </View>
           <View style={styles.statRow}>
-            <View style={[styles.iconContainer, { backgroundColor: 'rgba(77,148,255,0.12)' }]}>
-              <Ionicons name="footsteps" size={14} color="#4D94FF" />
+            <View style={styles.iconContainerMuted}>
+              <Ionicons name="footsteps" size={14} color={CoachColors.textSecondary} />
             </View>
             <Text style={styles.statTextSub}>
               {healthSnapshot ? `${healthSnapshot.stepsToday} steps` : 'No device'}
             </Text>
           </View>
           <View style={styles.statRow}>
-            <View style={[styles.iconContainer, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-              <Ionicons name="heart" size={14} color="#EF4444" />
+            <View style={styles.iconContainerMuted}>
+              <Ionicons name="heart" size={14} color={CoachColors.textSecondary} />
             </View>
             <Text style={styles.statTextSub}>
               {healthSnapshot?.restingHeartRate ? `${healthSnapshot.restingHeartRate} bpm` : '--'}
@@ -169,13 +167,7 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
 
       <View style={styles.divider} />
 
-      <View style={[
-        styles.contextBadge, 
-        { 
-          backgroundColor: `rgba(${readinessInfo.colorRgb},0.08)`, 
-          borderColor: `rgba(${readinessInfo.colorRgb},0.15)` 
-        }
-      ]}>
+      <View style={[styles.contextBadge, { backgroundColor: readinessInfo.softColor }]}>
         <Text style={[styles.contextText, { color: readinessInfo.color }]}>
           {readinessInfo.message}
         </Text>
@@ -191,12 +183,15 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     width: '100%',
     overflow: 'hidden',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: Spacing.xl,
   },
   topRow: {
@@ -218,14 +213,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scoreText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize['3xl'],
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   labelText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
     letterSpacing: 1,
+    textTransform: 'uppercase',
     marginTop: Spacing.xs,
   },
   statsContainer: {
@@ -246,30 +242,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconContainerMuted: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CoachColors.borderMuted,
+  },
   statTextMain: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.sm,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   statTextSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 16,
   },
   contextBadge: {
-    borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
     alignSelf: 'center',
   },
   contextText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
     textAlign: 'center',
   }

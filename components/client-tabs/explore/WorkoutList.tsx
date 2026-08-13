@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useClient } from '../../../context/ClientContext';
 
 type TabKey = 'upcoming' | 'completed' | 'all';
@@ -28,9 +28,9 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
 
   const handleComplete = (id: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Complete Workout', `Mark "${name}" as completed?`, [
+    Alert.alert('Complete workout', `Mark "${name}" as completed?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: '✅ Complete', onPress: () => markWorkoutComplete(id) },
+      { text: 'Complete', onPress: () => markWorkoutComplete(id) },
     ]);
   };
 
@@ -55,10 +55,10 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
       const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
       const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
       let label: string;
-      if (d.toDateString() === today.toDateString()) label = 'TODAY';
-      else if (d.toDateString() === tomorrow.toDateString()) label = 'TOMORROW';
-      else if (d.toDateString() === yesterday.toDateString()) label = 'YESTERDAY';
-      else label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+      if (d.toDateString() === today.toDateString()) label = 'Today';
+      else if (d.toDateString() === tomorrow.toDateString()) label = 'Tomorrow';
+      else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday';
+      else label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       if (!groups[label]) groups[label] = [];
       groups[label].push(w);
     });
@@ -69,9 +69,9 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
   const totalAssigned = workouts.filter((w: any) => w.status === 'assigned').length;
 
   const TABS: { key: TabKey; label: string; count: number }[] = [
-    { key: 'upcoming', label: 'UPCOMING', count: totalAssigned },
-    { key: 'completed', label: 'COMPLETED', count: totalCompleted },
-    { key: 'all', label: 'ALL', count: workouts.length },
+    { key: 'upcoming', label: 'Upcoming', count: totalAssigned },
+    { key: 'completed', label: 'Completed', count: totalCompleted },
+    { key: 'all', label: 'All', count: workouts.length },
   ];
 
   return (
@@ -84,23 +84,23 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
           accessibilityLabel="Back to Explore"
           accessibilityRole="button"
         >
-          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-          <Text style={s.backBtnText}>EXPLORE</Text>
+          <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
+          <Text style={s.backBtnText}>Explore</Text>
         </TouchableOpacity>
 
         <View style={s.headerStats}>
-          <View style={[s.miniStat, { borderColor: '#22C55E' }]}>
-            <Ionicons name="checkmark-circle" size={12} color="#22C55E" />
-            <Text style={[s.miniStatText, { color: '#22C55E' }]}>{totalCompleted}</Text>
+          <View style={[s.miniStat, { borderColor: CoachColors.accent }]}>
+            <Ionicons name="checkmark-circle" size={12} color={CoachColors.accent} />
+            <Text style={[s.miniStatText, { color: CoachColors.accent }]}>{totalCompleted}</Text>
           </View>
-          <View style={[s.miniStat, { borderColor: '#4D94FF' }]}>
-            <Ionicons name="flash" size={12} color="#4D94FF" />
-            <Text style={[s.miniStatText, { color: '#4D94FF' }]}>{totalAssigned}</Text>
+          <View style={[s.miniStat, { borderColor: CoachColors.border }]}>
+            <Ionicons name="flash" size={12} color={CoachColors.textSecondary} />
+            <Text style={[s.miniStatText, { color: CoachColors.textSecondary }]}>{totalAssigned}</Text>
           </View>
         </View>
       </View>
 
-      <Text style={s.pageTitleTag}>YOUR PROGRAM</Text>
+      <Text style={s.pageTitleTag}>Your program</Text>
       <Text style={s.pageTitle}>Workouts</Text>
 
       {/* Tab Bar */}
@@ -117,7 +117,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
           >
             <Text style={[s.tabText, tab === t.key && s.tabTextActive]}>{t.label}</Text>
             <View style={[s.tabBadge, tab === t.key && s.tabBadgeActive]}>
-              <Text style={[s.tabBadgeText, tab === t.key && { color: '#000000' }]}>{t.count}</Text>
+              <Text style={[s.tabBadgeText, tab === t.key && { color: CoachColors.onAccent }]}>{t.count}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -130,7 +130,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4D94FF" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
         ListEmptyComponent={
           <View style={s.emptyState}>
             {/* §8 Opinionated empty copy, not all-caps generic label */}
@@ -151,8 +151,8 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                 onPress={onBackToExplore}
                 activeOpacity={0.85}
               >
-                <Text style={s.emptyCtaText}>Browse Catalog</Text>
-                <Ionicons name="arrow-forward" size={14} color="#000" />
+                <Text style={s.emptyCtaText}>Browse catalog</Text>
+                <Ionicons name="arrow-forward" size={14} color={CoachColors.onAccent} />
               </TouchableOpacity>
             )}
           </View>
@@ -179,10 +179,10 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
               >
                 <View style={s.missionTagRow}>
                   <View style={s.activeBadge}>
-                    <Ionicons name="flash" size={10} color="#000000" />
-                    <Text style={s.activeBadgeText}>TODAY'S MISSION</Text>
+                    <Ionicons name="flash" size={10} color={CoachColors.onAccent} />
+                    <Text style={s.activeBadgeText}>Today's mission</Text>
                   </View>
-                  <Text style={s.exerciseCountTag}>{exercises.length} EXERCISES</Text>
+                  <Text style={s.exerciseCountTag}>{exercises.length} exercises</Text>
                 </View>
 
                 {/* §1 Mission name = hero at 30px */}
@@ -206,15 +206,15 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                     onPress={() => onStartActiveWorkout(workout)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="play" size={14} color="#000000" />
-                    <Text style={s.startBtnText}>START SESSION →</Text>
+                    <Ionicons name="play" size={14} color={CoachColors.onAccent} />
+                    <Text style={s.startBtnText}>Start session</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={s.completeQuickBtn}
                     onPress={() => handleComplete(workout.id, workout.workouts?.name || 'Workout')}
                   >
-                    <Ionicons name="checkmark" size={16} color="#22C55E" />
+                    <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -235,15 +235,15 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                 </View>
                 <View style={[
                   s.statusPill,
-                  workout.status === 'completed' && { borderColor: '#22C55E', backgroundColor: '#0C1C12' },
-                  workout.status === 'skipped' && { borderColor: '#27272A', backgroundColor: '#141418' },
+                  workout.status === 'completed' && { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+                  workout.status === 'skipped' && { borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg },
                 ]}>
                   <Text style={[
                     s.statusPillText,
-                    workout.status === 'completed' && { color: '#22C55E' },
-                    workout.status === 'skipped' && { color: 'rgba(255,255,255,0.4)' },
+                    workout.status === 'completed' && { color: CoachColors.accent },
+                    workout.status === 'skipped' && { color: CoachColors.textMuted },
                   ]}>
-                    {workout.status.toUpperCase()}
+                    {workout.status}
                   </Text>
                 </View>
               </View>
@@ -263,22 +263,22 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
                         style={[s.startBtnSmall, { flex: 1 }]}
                         onPress={() => onStartActiveWorkout(workout)}
                       >
-                        <Text style={s.startBtnSmallText}>START WORKOUT →</Text>
+                        <Text style={s.startBtnSmallText}>Start workout</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={s.skipBtnSmall}
                         onPress={() => handleSkip(workout.id)}
                       >
-                        <Text style={s.skipBtnSmallText}>SKIP</Text>
+                        <Text style={s.skipBtnSmallText}>Skip</Text>
                       </TouchableOpacity>
                     </View>
                   )}
                 </View>
               )}
-              {/* §4 Accent line — client blue for assigned, green for done */}
+              {/* §4 Accent line — lime for active states, muted for skipped */}
               <View style={[
                 s.accentLine,
-                { backgroundColor: workout.status === 'completed' ? '#22C55E' : workout.status === 'skipped' ? '#1C1C1E' : '#5B7FFF' }
+                { backgroundColor: workout.status === 'completed' ? CoachColors.accent : workout.status === 'skipped' ? CoachColors.borderMuted : CoachColors.accent }
               ]} />
             </TouchableOpacity>
           );
@@ -289,8 +289,7 @@ export default function WorkoutList({ onBackToExplore, onStartActiveWorkout }: W
 }
 
 const s = StyleSheet.create({
-  // §2 Layer 0 true black
-  container: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: CoachColors.bg, paddingHorizontal: 20 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -302,18 +301,18 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     paddingHorizontal: 14,
     // §14 44pt min height
     height: 44,
     borderRadius: 12,
   },
   backBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1.2,
   },
   headerStats: { flexDirection: 'row', gap: 8 },
@@ -321,36 +320,36 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
     // §14 44pt height
     height: 44,
     paddingHorizontal: 12,
     borderRadius: 12,
   },
-  miniStatText: { fontFamily: FontFamily.bodyBold, fontSize: 13 },
+  miniStatText: { fontFamily: CoachFonts.bodyBold, fontSize: 13 },
   pageTitleTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   // §1 Hero page title: 32px, tight tracked
   pageTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     marginBottom: 20,
     lineHeight: 36,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 12,
     padding: 3,
     marginBottom: 20,
@@ -364,27 +363,27 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  tabActive: { backgroundColor: '#FFFFFF' },
+  tabActive: { backgroundColor: CoachColors.accent },
   tabText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
   },
-  tabTextActive: { color: '#000000' },
+  tabTextActive: { color: CoachColors.onAccent },
   tabBadge: {
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   tabBadgeActive: { backgroundColor: 'rgba(0,0,0,0.12)' },
-  tabBadgeText: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: '#FFFFFF' },
+  tabBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 9, color: CoachColors.textPrimary },
   listContent: { paddingBottom: 120 },
   sectionHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: 16,
@@ -393,9 +392,9 @@ const s = StyleSheet.create({
 
   // ── Mission Card (Today's workout) ──
   missionCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#5B7FFF',    // §3 unified client blue
+    borderColor: CoachColors.accent,
     borderRadius: 16,
     padding: 18,
     paddingBottom: 14,
@@ -412,28 +411,28 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#5B7FFF',  // §3 client blue
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   activeBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     letterSpacing: 1.2,
   },
   exerciseCountTag: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
   },
   // §1 Mission name: 30px hero, tight tracked
   missionName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 30,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     marginBottom: 16,
     lineHeight: 34,
@@ -442,7 +441,7 @@ const s = StyleSheet.create({
   startBtn: {
     flex: 1,
     height: 44,   // §14 exact 44pt
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,17 +449,17 @@ const s = StyleSheet.create({
     gap: 8,
   },
   startBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   completeQuickBtn: {
     width: 44,
     height: 44,   // §14 exact 44pt
-    backgroundColor: 'rgba(34,197,94,0.08)',
+    backgroundColor: CoachColors.accentSofter,
     borderWidth: 1,
-    borderColor: '#22C55E',
+    borderColor: CoachColors.accent,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -468,9 +467,9 @@ const s = StyleSheet.create({
 
   // ── Standard Card ──
   standardCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 16,
     paddingBottom: 13,
@@ -484,30 +483,31 @@ const s = StyleSheet.create({
   },
   // §1 Card workout name: 20px — elevated from 16px body-level
   cardWorkoutName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   cardDateText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginTop: 3,
   },
   statusPill: {
     borderWidth: 1,
-    borderColor: '#5B7FFF',        // §3 unified client blue
-    backgroundColor: 'rgba(91,127,255,0.06)',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSofter,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   statusPillText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#5B7FFF',              // §3 unified client blue
+    color: CoachColors.accent,
     letterSpacing: 1,
+    textTransform: 'capitalize',
   },
   // §4 Accent line — shared
   accentLine: {
@@ -519,7 +519,7 @@ const s = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
     gap: 6,
   },
   exRow: {
@@ -531,54 +531,54 @@ const s = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 4,
-    backgroundColor: '#111113',   // §11 Layer 2
+    backgroundColor: CoachColors.bg,   // §11 Layer 2
     justifyContent: 'center',
     alignItems: 'center',
   },
   exNumText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   exNameText: {
     flex: 1,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   exSetsText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   // §14 44pt minimum
   startBtnSmall: {
     height: 44,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   startBtnSmallText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   skipBtnSmall: {
     height: 44,   // §14
     paddingHorizontal: 16,
-    backgroundColor: '#111113',  // §11 Layer 2
+    backgroundColor: CoachColors.bg,  // §11 Layer 2
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   skipBtnSmallText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.5,
   },
 
@@ -589,17 +589,17 @@ const s = StyleSheet.create({
     paddingBottom: 40,
   },
   emptyHero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     marginBottom: 8,
     lineHeight: 36,
   },
   emptySub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
     lineHeight: 18,
     marginBottom: 20,
   },
@@ -608,15 +608,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
   },
   emptyCtaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
   // Legacy — kept for compatibility, now unused visually
   emptyIcon: { display: 'none' },

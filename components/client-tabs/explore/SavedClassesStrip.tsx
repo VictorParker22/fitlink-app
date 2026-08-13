@@ -6,8 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { FontFamily, Radius } from '../../../constants/theme';
-import { getCategoryColor } from '../../../data/categoryColors';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 
 export function SavedClassesStrip() {
@@ -23,7 +22,7 @@ export function SavedClassesStrip() {
           .from('class_favorites')
           .select('*, classes(*)')
           .eq('client_id', user!.id);
-        
+
         if (error) {
           console.log('[SavedClassesStrip] Error fetching favorites', error);
           return;
@@ -42,14 +41,14 @@ export function SavedClassesStrip() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.tag}>SAVED // YOUR LIBRARY</Text>
-          <Text style={styles.sectionTitle}>Saved Classes</Text>
+          <Text style={styles.tag}>Saved // your library</Text>
+          <Text style={styles.sectionTitle}>Saved classes</Text>
         </View>
         <View style={styles.emptyCard}>
-          <Ionicons name="heart-outline" size={28} color="rgba(255,255,255,0.2)" />
+          <Ionicons name="heart-outline" size={28} color={CoachColors.textFaint} />
           <Text style={styles.emptyTitle}>No saved classes yet</Text>
           <Text style={styles.emptySubtitle}>
-            Tap the ★ icon on any class to build your private library.
+            Tap the heart icon on any class to build your private library.
           </Text>
         </View>
       </View>
@@ -58,10 +57,9 @@ export function SavedClassesStrip() {
 
   const renderItem = ({ item }: { item: any }) => {
     const classData = item.classes;
-    const color = getCategoryColor(classData.category);
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.card}
         activeOpacity={0.8}
         onPress={() => {
@@ -71,17 +69,17 @@ export function SavedClassesStrip() {
       >
         <Image source={{ uri: classData.thumbnail_url }} style={styles.thumbnail} />
         <View style={styles.gradientOverlay} />
-        
+
         <View style={styles.topRow}>
-          <View style={[styles.categoryBadge, { backgroundColor: color }]}>
+          <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{classData.category}</Text>
           </View>
-          <Ionicons name="heart" size={16} color="#FFD700" />
+          <Ionicons name="heart" size={16} color={CoachColors.accent} />
         </View>
 
         <View style={styles.bottomContent}>
           <Text style={styles.title} numberOfLines={2}>{classData.title}</Text>
-          <Text style={styles.duration}>{classData.duration_minutes} MIN</Text>
+          <Text style={styles.duration}>{classData.duration_minutes} min</Text>
         </View>
       </TouchableOpacity>
     );
@@ -90,8 +88,8 @@ export function SavedClassesStrip() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.tag}>SAVED // YOUR LIBRARY</Text>
-        <Text style={styles.sectionTitle}>Saved Classes</Text>
+        <Text style={styles.tag}>Saved // your library</Text>
+        <Text style={styles.sectionTitle}>Saved classes</Text>
       </View>
       <FlatList
         data={favorites}
@@ -114,17 +112,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -133,9 +131,9 @@ const styles = StyleSheet.create({
   card: {
     width: 160,
     height: 110,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 12,
     overflow: 'hidden',
     justifyContent: 'space-between',
@@ -158,11 +156,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    backgroundColor: CoachColors.accent,
   },
   categoryText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
-    color: '#FFF',
+    color: CoachColors.onAccent,
     textTransform: 'uppercase',
   },
   bottomContent: {
@@ -170,21 +169,21 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   title: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   duration: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
   emptyCard: {
     marginHorizontal: 16,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 12,
     paddingVertical: 24,
     paddingHorizontal: 20,
@@ -192,15 +191,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginTop: 4,
   },
   emptySubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     lineHeight: 16,
   },

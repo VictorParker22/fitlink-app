@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export interface PassDailyQuestsProps {
   todayWorkout: any;
@@ -10,22 +11,22 @@ export interface PassDailyQuestsProps {
 }
 
 const QUESTS = [
-  { id: 'workout', title: 'Complete Today\'s Workout', xp: 50, icon: 'barbell', color: '#FF6B35' },
-  { id: 'meals', title: 'Log 3 Meals Today', xp: 30, icon: 'restaurant', color: '#A78BFA' },
-  { id: 'gym', title: 'Check In at the Gym', xp: 50, icon: 'fitness', color: '#22C55E' },
+  { id: 'workout', title: "Complete today's workout", xp: 50, icon: 'barbell' },
+  { id: 'meals', title: 'Log 3 meals today', xp: 30, icon: 'restaurant' },
+  { id: 'gym', title: 'Check in at the gym', xp: 50, icon: 'fitness' },
 ] as const;
 
 export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVisit }: PassDailyQuestsProps) {
   const isWorkoutDone = todayWorkout?.status === 'completed';
   const isMealsDone = mealLogsCount >= 3;
   const isGymDone = hasGymVisit === true;
-  
+
   const completionMap = {
     workout: isWorkoutDone,
     meals: isMealsDone,
     gym: isGymDone,
   };
-  
+
   const completedCount = Object.values(completionMap).filter(Boolean).length;
   const isAllDone = completedCount === QUESTS.length;
 
@@ -54,33 +55,33 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#1C1C1E', 'rgba(255,215,0,0.5)'],
+    outputRange: [CoachColors.borderMuted, 'rgba(198,242,78,0.5)'],
   });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionHeader}>DAILY QUESTS</Text>
-      
+      <Text style={styles.sectionHeader}>Daily quests</Text>
+
       <View style={styles.questsList}>
         {QUESTS.map((quest) => {
           const isDone = completionMap[quest.id];
           return (
             <View key={quest.id} style={[styles.questCard, isDone && styles.questCardDone]}>
-              <View style={[styles.iconCircle, { backgroundColor: `${quest.color}1E` }]}>
-                <Ionicons name={quest.icon as any} size={18} color={quest.color} />
+              <View style={styles.iconCircle}>
+                <Ionicons name={quest.icon as any} size={18} color={CoachColors.accent} />
               </View>
-              
+
               <View style={styles.questContent}>
                 <Text style={styles.questTitle}>{quest.title}</Text>
                 <View style={styles.xpPill}>
                   <Text style={styles.xpText}>+{quest.xp} XP</Text>
                 </View>
               </View>
-              
+
               <View style={styles.statusCol}>
                 {isDone ? (
                   <View style={styles.checkCircle}>
-                    <Ionicons name="checkmark-sharp" size={16} color="#000" />
+                    <Ionicons name="checkmark-sharp" size={16} color={CoachColors.onAccent} />
                   </View>
                 ) : (
                   <View style={styles.emptyCircle}>
@@ -95,17 +96,17 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
         })}
       </View>
 
-      <Animated.View style={[styles.vaultCard, isAllDone ? { borderColor, backgroundColor: 'rgba(255,215,0,0.05)' } : null]}>
+      <Animated.View style={[styles.vaultCard, isAllDone ? { borderColor, backgroundColor: CoachColors.accentSofter } : null]}>
         <View style={styles.vaultLeft}>
           <View style={[styles.vaultIconCircle, isAllDone && styles.vaultIconCircleDone]}>
-            <Ionicons name={isAllDone ? "gift-sharp" : "lock-closed-sharp"} size={20} color={isAllDone ? "#000" : "rgba(255,255,255,0.5)"} />
+            <Ionicons name={isAllDone ? "gift-sharp" : "lock-closed-sharp"} size={20} color={isAllDone ? CoachColors.onAccent : CoachColors.textMuted} />
           </View>
           <View>
-            <Text style={styles.vaultTitle}>DAILY VAULT</Text>
+            <Text style={styles.vaultTitle}>Daily vault</Text>
             {isAllDone ? (
-              <Text style={styles.vaultClaimText}>CLAIM BONUS</Text>
+              <Text style={styles.vaultClaimText}>Claim bonus</Text>
             ) : (
-              <Text style={styles.vaultProgressText}>{completedCount}/3 Quests</Text>
+              <Text style={styles.vaultProgressText}>{completedCount}/3 quests</Text>
             )}
           </View>
         </View>
@@ -121,9 +122,9 @@ const styles = StyleSheet.create({
   sectionHeader: {
     textTransform: 'uppercase',
     letterSpacing: 2,
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     marginBottom: Spacing.md,
   },
   questsList: {
@@ -133,21 +134,22 @@ const styles = StyleSheet.create({
   questCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xl,
     padding: 14,
     borderLeftWidth: 3,
     borderLeftColor: 'transparent',
   },
   questCardDone: {
-    borderLeftColor: '#FFD700',
+    borderLeftColor: CoachColors.accent,
   },
   iconCircle: {
     width: 36,
     height: 36,
     borderRadius: Radius.full,
+    backgroundColor: CoachColors.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -156,22 +158,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   questTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
   xpPill: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: Spacing.xs,
     paddingVertical: 2,
     borderRadius: Radius.sm,
     alignSelf: 'flex-start',
   },
   xpText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FF6B35',
+    color: CoachColors.accent,
   },
   statusCol: {
     marginLeft: Spacing.sm,
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: Radius.full,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -192,22 +194,22 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: Radius.full,
     borderWidth: 2,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   vaultCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: 16,
   },
@@ -219,28 +221,28 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.borderMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
   },
   vaultIconCircleDone: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
   },
   vaultTitle: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   vaultProgressText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   vaultClaimText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFD700',
+    color: CoachColors.accent,
   },
 });

@@ -11,8 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../../constants/theme';
-import { getCategoryColor } from '../../../data/categoryColors';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 
 import ExploreGrid from '../ExploreGrid';
@@ -142,7 +141,7 @@ export default function ExploreDashboard({
         <View style={s.header}>
           <View>
             {/* Decorative 9px tag — 32pt "Explore" title is the primary info carrier */}
-            <Text style={s.tagHeader} accessibilityElementsHidden={true}>TRAIN // DISCOVER</Text>
+            <Text style={s.tagHeader} accessibilityElementsHidden={true}>Train · Discover</Text>
             <Text style={s.title}>Explore</Text>
           </View>
           <TouchableOpacity
@@ -155,17 +154,17 @@ export default function ExploreDashboard({
             accessibilityHint="Opens a search field to find coaches, plans, and sessions"
             accessibilityRole="button"
           >
-            <Ionicons name={showSearchInput ? 'close' : 'search'} size={20} color="#FFF" />
+            <Ionicons name={showSearchInput ? 'close' : 'search'} size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {showSearchInput && (
           <View style={s.searchBarContainer}>
-            <Ionicons name="search" size={16} color="rgba(255,255,255,0.4)" style={s.searchIcon} />
+            <Ionicons name="search" size={16} color={CoachColors.textMuted} style={s.searchIcon} />
             <TextInput
               style={s.searchInputField}
               placeholder="Search coaches, plans, sessions..."
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={CoachColors.textFaint}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoFocus
@@ -175,7 +174,7 @@ export default function ExploreDashboard({
             />
             {searchQuery !== '' && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={s.searchClearBtn}>
-                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
+                <Ionicons name="close-circle" size={16} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -202,16 +201,16 @@ export default function ExploreDashboard({
           >
             <View style={s.passSummaryLeft}>
               <View style={s.passSummaryIconWrap}>
-                <Ionicons name="ticket" size={16} color="#FFD700" />
+                <Ionicons name="ticket" size={16} color={CoachColors.accent} />
               </View>
               <View>
-                {/* 9px decorative — "Your Active Plan" (15pt) is primary info */}
+                {/* 9px decorative — "Your active plan" (15pt) is primary info */}
                 <Text style={s.passSummaryLabel} accessibilityElementsHidden={true}>FITLINK PASS</Text>
-                <Text style={s.passSummaryTitle}>Your Active Plan</Text>
+                <Text style={s.passSummaryTitle}>Your active plan</Text>
               </View>
             </View>
             <View style={s.passSummaryRight}>
-              <Text style={s.passSummaryAction}>VIEW →</Text>
+              <Text style={s.passSummaryAction}>View →</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -219,12 +218,11 @@ export default function ExploreDashboard({
         <View style={s.zoneDivider} />
 
         {/* ══ ZONE B — CONTENT LIBRARY ══════════════════════════════════
-            HIG section header: Title case, no number prefix (non-iOS pattern removed).
             Category filter lives directly above what it controls. */}
         <View style={s.zoneHeader} accessibilityRole="header">
-          {/* 9px decorative — "Content Library" (22pt) is primary info carrier */}
+          {/* 9px decorative — "Content library" (22pt) is primary info carrier */}
           <Text style={s.zoneAccentTag} accessibilityElementsHidden={true}>BROWSE</Text>
-          <Text style={s.zoneTitle}>Content Library</Text>
+          <Text style={s.zoneTitle}>Content library</Text>
         </View>
 
         {/* Category filter — adjacent to the content it controls */}
@@ -237,7 +235,6 @@ export default function ExploreDashboard({
           style={s.filterRibbon}
           renderItem={({ item }) => {
             const isActive = activeCategory === item;
-            const chipColor = item === 'All' ? '#5B7FFF' : getCategoryColor(item);
             return (
               <TouchableOpacity
                 onPress={() => {
@@ -245,10 +242,7 @@ export default function ExploreDashboard({
                   setActiveCategory(item);
                   setSelectedCategoryLabel(item === 'All' ? null : item);
                 }}
-                style={[
-                  s.filterChip,
-                  isActive && { backgroundColor: chipColor, borderColor: chipColor },
-                ]}
+                style={[s.filterChip, isActive && s.filterChipActive]}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter by ${item}`}
@@ -256,7 +250,7 @@ export default function ExploreDashboard({
               >
                 {/* 11pt — raised to HIG minimum: chip text IS sole category indicator */}
                 <Text style={[s.filterChipText, isActive && s.filterChipTextActive]}>
-                  {item.toUpperCase()}
+                  {item}
                 </Text>
               </TouchableOpacity>
             );
@@ -271,15 +265,14 @@ export default function ExploreDashboard({
 
         <View style={s.zoneDivider} />
 
-        {/* ══ ZONE C — FIND A COACH ══════════════════════════════════════
-            HIG section header: Title case, no number prefix. */}
+        {/* ══ ZONE C — FIND A COACH ══════════════════════════════════════ */}
         <View
           style={s.zoneHeader}
           onLayout={(e) => { coachSectionY.current = e.nativeEvent.layout.y; }}
           accessibilityRole="header"
         >
           <Text style={s.zoneAccentTag} accessibilityElementsHidden={true}>COACHING</Text>
-          <Text style={s.zoneTitle}>Find a Coach</Text>
+          <Text style={s.zoneTitle}>Find a coach</Text>
         </View>
 
         {/* Hero — hidden when client already has a plan (no need to sell them) */}
@@ -310,11 +303,10 @@ export default function ExploreDashboard({
 
         <View style={s.zoneDivider} />
 
-        {/* ══ ZONE D — YOUR PROGRESS ═════════════════════════════════════
-            HIG section header: Title case, no number prefix. */}
+        {/* ══ ZONE D — YOUR PROGRESS ═════════════════════════════════════ */}
         <View style={s.zoneHeader} accessibilityRole="header">
           <Text style={s.zoneAccentTag} accessibilityElementsHidden={true}>STATS</Text>
-          <Text style={s.zoneTitle}>Your Progress</Text>
+          <Text style={s.zoneTitle}>Your progress</Text>
         </View>
         <ClassStatsWidget />
 
@@ -334,7 +326,7 @@ export default function ExploreDashboard({
       <CategoryLibraryModal
         selectedCategoryLabel={selectedCategoryLabel}
         onRequestClose={() => setSelectedCategoryLabel(null)}
-        accentColor="#5B7FFF"
+        accentColor={CoachColors.accent}
       />
 
       <CoachDetailModal
@@ -361,7 +353,7 @@ export default function ExploreDashboard({
           setBookingCoach(null);
           setSelectedCoach(null);
         }}
-        accentColor="#5B7FFF"
+        accentColor={CoachColors.accent}
       />
 
       <PlanWizardModal
@@ -376,7 +368,7 @@ export default function ExploreDashboard({
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   scroll: { paddingTop: 8 },
 
   // ── Header ──
@@ -388,35 +380,35 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 2,
     textTransform: 'uppercase',
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
   },
   searchToggleBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
@@ -426,9 +418,9 @@ const s = StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInputField: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   searchClearBtn: { padding: 4 },
 
@@ -436,9 +428,9 @@ const s = StyleSheet.create({
   passSummaryCard: {
     marginHorizontal: 16,
     marginBottom: 8,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.border,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -455,59 +447,56 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: CoachColors.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   passSummaryLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 2,
     marginBottom: 2,
   },
   passSummaryTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   passSummaryRight: {},
   passSummaryAction: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 1,
   },
 
   // ── Zone dividers + headers ──
   zoneDivider: {
-    height: 1,
-    backgroundColor: '#1A1A1E',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: 16,
     marginVertical: 24,
   },
-  // HIG-compliant zone header — replaces the non-native "01 / 02" numbered pattern.
-  // Structure: decorative 9px accent tag (accessibilityElementsHidden) + 22pt Title Case title.
-  // Maps to HIG Title 2 (22pt) — App Store / Podcasts section header style.
   zoneHeader: {
     paddingHorizontal: 20,
     marginBottom: 16,
     gap: 4, // 4pt between accent tag and title
   },
-  // 9px decorative — HIG §17 Intentional Deviation. VoiceOver skips via accessibilityElementsHidden.
+  // 9px decorative micro eyebrow — VoiceOver skips via accessibilityElementsHidden.
   zoneAccentTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
   },
-  // 22pt Title Case — HIG Title 2. Primary info carrier for this section.
+  // 22pt sentence case — primary info carrier for this section.
   zoneTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
 
@@ -523,18 +512,22 @@ const s = StyleSheet.create({
     minHeight: 36, // HIG: visual height close to 44pt when padded
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // 11pt — raised from 10pt to meet HIG Caption 2 minimum.
-  // Filter chip text IS the sole indicator of category — must meet 11pt minimum.
-  filterChipText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
+  filterChipActive: {
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
-  filterChipTextActive: { color: '#FFFFFF' },
+  // 11pt — HIG Caption 2 minimum: chip text IS the sole category indicator.
+  filterChipText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    color: CoachColors.textSecondary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  filterChipTextActive: { color: CoachColors.onAccent },
 });

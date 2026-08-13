@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 
 interface DaySummaryCardProps {
@@ -23,43 +23,34 @@ export default function DaySummaryCard({
   return (
     <View style={st.container}>
       <View style={st.topRow}>
-        <Text style={st.sectionTag}>EVENING RECAP // DAILY PERFORMANCE</Text>
+        <Text style={st.sectionTag}>Evening recap // daily performance</Text>
         <View style={st.streakPill}>
-          <Ionicons name="flame" size={10} color="#FF4757" />
-          <Text style={st.streakText}>{streakDays} DAY RHYTHM</Text>
+          <Ionicons name="flame" size={10} color={CoachColors.accent} />
+          <Text style={st.streakText}>{streakDays} day rhythm</Text>
         </View>
       </View>
 
       <View style={st.statsGrid}>
         {/* Workout stat */}
         <View style={st.statItem}>
-          <View style={[st.iconBox, { backgroundColor: workoutCompleted ? '#0C1C12' : '#141418', borderColor: workoutCompleted ? '#22C55E' : '#27272A' }]}>
+          <View style={[st.iconBox, { backgroundColor: workoutCompleted ? CoachColors.accentSofter : CoachColors.bg, borderColor: workoutCompleted ? CoachColors.accent : CoachColors.borderMuted }]}>
             <Ionicons
               name={workoutCompleted ? 'checkmark' : 'barbell-outline'}
               size={18}
-              color={workoutCompleted ? '#22C55E' : 'rgba(255,255,255,0.4)'}
+              color={workoutCompleted ? CoachColors.accent : CoachColors.textMuted}
             />
           </View>
-          <Text style={st.statLabel}>WORKOUT</Text>
-          <Text style={st.statValue}>{workoutCompleted ? 'LOGGED' : 'REST'}</Text>
+          <Text style={st.statLabel}>Workout</Text>
+          <Text style={st.statValue}>{workoutCompleted ? 'Logged' : 'Rest'}</Text>
         </View>
 
         {/* Nutrition stat */}
         <View style={st.statItem}>
-          <View style={[st.iconBox, { backgroundColor: '#1A1500', borderColor: '#EAB308' }]}>
-            <Ionicons name="restaurant-outline" size={18} color="#EAB308" />
+          <View style={[st.iconBox, { backgroundColor: CoachColors.bg, borderColor: CoachColors.border }]}>
+            <Ionicons name="restaurant-outline" size={18} color={CoachColors.textSecondary} />
           </View>
-          <Text style={st.statLabel}>NUTRITION</Text>
-          <Text style={st.statValue}>{mealsLoggedCount}/{totalMealsGoal} MEALS</Text>
-        </View>
-
-        {/* Recovery stat */}
-        <View style={st.statItem}>
-          <View style={[st.iconBox, { backgroundColor: '#1A0C0C', borderColor: '#FF6B6B' }]}>
-            <Ionicons name="heart-outline" size={18} color="#FF6B6B" />
-          </View>
-          <Text style={st.statLabel}>RECOVERY</Text>
-          <Text style={st.statValue}>OPTIMAL</Text>
+          <Text style={st.statLabel}>Nutrition</Text>
+          <Text style={st.statValue}>{mealsLoggedCount}/{totalMealsGoal} meals</Text>
         </View>
       </View>
 
@@ -68,8 +59,8 @@ export default function DaySummaryCard({
         activeOpacity={0.8}
         onPress={() => router.push(ClientRoute.myProgress as any)}
       >
-        <Text style={st.viewDetailsText}>VIEW FULL PERFORMANCE LOG</Text>
-        <Ionicons name="chevron-forward" size={14} color="#6C9BF2" />
+        <Text style={st.viewDetailsText}>View full performance log</Text>
+        <Ionicons name="chevron-forward" size={14} color={CoachColors.accent} />
       </TouchableOpacity>
     </View>
   );
@@ -79,11 +70,11 @@ const st = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   topRow: {
     flexDirection: 'row',
@@ -92,27 +83,29 @@ const st = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#1A0C0C',
+    backgroundColor: CoachColors.accentSofter,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FF6B6B',
+    borderColor: CoachColors.accentSoft,
   },
   streakText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FF6B6B',
+    color: CoachColors.accent,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -123,11 +116,11 @@ const st = StyleSheet.create({
   statItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.bg,
     borderRadius: 12,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#22222A',
+    borderColor: CoachColors.borderMuted,
   },
   iconBox: {
     width: 36,
@@ -139,16 +132,17 @@ const st = StyleSheet.create({
     borderWidth: 1,
   },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   statValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.5,
   },
   viewDetailsBtn: {
@@ -157,15 +151,16 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.borderMuted,
   },
   viewDetailsText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 10,
-    color: '#6C9BF2',
+    color: CoachColors.accent,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });

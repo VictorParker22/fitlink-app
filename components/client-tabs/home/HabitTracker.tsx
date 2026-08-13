@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../lib/supabase';
 import { useHealth } from '../../../context/HealthContext';
 import { useClient } from '../../../context/ClientContext';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ type HabitKey = 'water' | 'steps' | 'sleep' | 'protein' | 'mindfulness';
 interface HabitConfig {
   key: HabitKey;
   label: string;
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   color: string;
   defaultDesc: string;
   autoSource: 'health' | 'hydration' | 'nutrition' | null;
@@ -70,8 +70,8 @@ const HABITS: HabitConfig[] = [
   {
     key: 'water',
     label: 'Hydration',
-    emoji: '💧',
-    color: '#5B7FFF',
+    icon: 'water-outline',
+    color: CoachColors.accent,
     defaultDesc: '8 glasses of water',
     autoSource: 'hydration',
     cutoffHour: 23,
@@ -79,8 +79,8 @@ const HABITS: HabitConfig[] = [
   {
     key: 'steps',
     label: 'Steps',
-    emoji: '👣',
-    color: '#22C55E',
+    icon: 'footsteps-outline',
+    color: CoachColors.accent,
     defaultDesc: '8,000+ steps today',
     autoSource: 'health',
     cutoffHour: 23,
@@ -88,8 +88,8 @@ const HABITS: HabitConfig[] = [
   {
     key: 'sleep',
     label: 'Sleep',
-    emoji: '😴',
-    color: '#A855F7',
+    icon: 'moon-outline',
+    color: CoachColors.accent,
     defaultDesc: '7–9 hours last night',
     autoSource: null,
     cutoffHour: null,
@@ -97,8 +97,8 @@ const HABITS: HabitConfig[] = [
   {
     key: 'protein',
     label: 'Protein',
-    emoji: '🥩',
-    color: '#FF6B35',
+    icon: 'restaurant-outline',
+    color: CoachColors.accent,
     defaultDesc: 'Hit your protein goal',
     autoSource: 'nutrition',
     cutoffHour: 23,
@@ -106,8 +106,8 @@ const HABITS: HabitConfig[] = [
   {
     key: 'mindfulness',
     label: 'Mindfulness',
-    emoji: '🧘',
-    color: '#FFD700',
+    icon: 'leaf-outline',
+    color: CoachColors.accent,
     defaultDesc: '10 min focus/meditation',
     autoSource: null,
     cutoffHour: 22,
@@ -176,7 +176,7 @@ function HabitItem({
   const hour = new Date().getHours();
   const isPastCutoff = habit.cutoffHour !== null && hour >= habit.cutoffHour;
   const isMissed = isPastCutoff && !checked;
-  const uncheckedBorder = isMissed ? '#FF453A' : '#5A5A5E';
+  const uncheckedBorder = isMissed ? CoachColors.danger : CoachColors.border;
 
   useEffect(() => {
     Animated.spring(checkAnim, {
@@ -209,7 +209,7 @@ function HabitItem({
             borderColor: `${habit.color}40`,
             backgroundColor: `${habit.color}08`,
           },
-          isMissed && !checked && { borderColor: 'rgba(255,67,58,0.25)', backgroundColor: 'rgba(255,67,58,0.03)' },
+          isMissed && !checked && { borderColor: CoachColors.dangerSoft, backgroundColor: 'rgba(224,92,92,0.04)' },
         ]}
         onPress={handlePress}
         activeOpacity={0.85}
@@ -225,14 +225,18 @@ function HabitItem({
           ]}
         />
 
-        {/* Emoji icon */}
+        {/* Icon */}
         <View
           style={[
             s.habitIcon,
-            { backgroundColor: checked ? `${habit.color}22` : 'rgba(255,255,255,0.04)' },
+            { backgroundColor: checked ? CoachColors.accentSoft : CoachColors.surfaceRaised },
           ]}
         >
-          <Text style={s.habitEmoji}>{habit.emoji}</Text>
+          <Ionicons
+            name={habit.icon}
+            size={17}
+            color={checked ? CoachColors.accent : CoachColors.textMuted}
+          />
         </View>
 
         {/* Text */}
@@ -241,14 +245,14 @@ function HabitItem({
             <Text
               style={[
                 s.habitLabel,
-                { color: checked ? '#FFFFFF' : 'rgba(255,255,255,0.6)' },
+                { color: checked ? CoachColors.textPrimary : CoachColors.textSecondary },
               ]}
             >
               {habit.label}
             </Text>
             {isAuto && (
               <View style={[s.autoPill, { borderColor: `${habit.color}60` }]}>
-                <Text style={[s.autoText, { color: habit.color }]}>AUTO</Text>
+                <Text style={[s.autoText, { color: habit.color }]}>Auto</Text>
               </View>
             )}
           </View>
@@ -260,7 +264,7 @@ function HabitItem({
         {/* Streak badge */}
         {streak > 0 && (
           <View style={s.streakBadge}>
-            <Text style={s.streakText}>{streak >= 7 ? '🔥' : `${streak}d`}</Text>
+            <Text style={s.streakText}>{`${streak}d`}</Text>
           </View>
         )}
 
@@ -273,7 +277,7 @@ function HabitItem({
           ]}
         >
           <Animated.View style={{ transform: [{ scale: checkScale }], opacity: checkAnim }}>
-            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={14} color={CoachColors.onAccent} />
           </Animated.View>
         </Animated.View>
       </TouchableOpacity>
@@ -554,7 +558,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
   if (loading) {
     return (
       <View style={[s.container, { alignItems: 'center', justifyContent: 'center', minHeight: 80 }]}>
-        <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+        <ActivityIndicator size="small" color={CoachColors.textMuted} />
       </View>
     );
   }
@@ -567,8 +571,8 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       {/* ── Header ── */}
       <View style={s.header}>
         <View>
-          <Text style={s.tagHeader}>HABITS // TODAY</Text>
-          <Text style={s.title}>Daily Checklist</Text>
+          <Text style={s.tagHeader}>Habits // today</Text>
+          <Text style={s.title}>Daily checklist</Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
           <View style={[s.countBadge, allDone && s.countBadgeDone]}>
@@ -594,14 +598,14 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
                 inputRange: [0, 1],
                 outputRange: ['0%', '100%'],
               }),
-              backgroundColor: allDone ? '#22C55E' : '#5B7FFF',
+              backgroundColor: allDone ? CoachColors.accent : 'rgba(198,242,78,0.55)',
             },
           ]}
         />
       </View>
 
       {allDone && (
-        <Text style={s.allDoneText}>🎉 Perfect day — all habits complete!</Text>
+        <Text style={s.allDoneText}>Perfect day — all habits complete</Text>
       )}
 
       {/* ── Habit Rows ── */}
@@ -622,7 +626,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       {/* ── Data source footnote ── */}
       {autoCount > 0 && (
         <View style={s.footer}>
-          <Ionicons name="sync-outline" size={10} color="rgba(255,255,255,0.25)" />
+          <Ionicons name="sync-outline" size={10} color={CoachColors.textFaint} />
           <Text style={s.footerText}>
             Synced from Apple Health · Hydration log · Meal tracker
           </Text>
@@ -636,9 +640,9 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 10,
@@ -654,7 +658,7 @@ const s = StyleSheet.create({
     paddingBottom: 12,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     color: 'rgba(255,255,255,0.35)',
     letterSpacing: 2,
@@ -662,7 +666,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: -0.4,
@@ -680,14 +684,14 @@ const s = StyleSheet.create({
     borderColor: 'rgba(34,197,94,0.4)',
   },
   countText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.5,
   },
   countTextDone: { color: '#22C55E' },
   autoSyncLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
     color: '#5B7FFF',
     letterSpacing: 0.3,
@@ -705,7 +709,7 @@ const s = StyleSheet.create({
     borderRadius: 1,
   },
   allDoneText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
     color: '#22C55E',
     letterSpacing: 0.3,
@@ -749,7 +753,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   habitLabel: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
     letterSpacing: -0.2,
   },
@@ -760,12 +764,12 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   autoText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 8,
     letterSpacing: 1,
   },
   habitDesc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
     color: 'rgba(255,255,255,0.3)',
   },
@@ -776,7 +780,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   streakText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.3,
@@ -803,7 +807,7 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   footerText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
     color: 'rgba(255,255,255,0.25)',
   },

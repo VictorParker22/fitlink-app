@@ -38,7 +38,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useClient } from '../../../context/ClientContext';
 import { ClientRoute } from '../../../types/routes';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { StepVaultPull } from './wizard/StepVaultPull';
 
 import type { PlanItem } from './CoachPlansShowcase';
@@ -70,32 +70,32 @@ interface PlanWizardModalProps {
 const ARCHETYPES = [
   {
     id: 'FORGE',
-    label: 'FORGE',
-    sub: 'Strength & Hypertrophy',
-    accent: '#FF6B35',
+    label: 'Forge',
+    sub: 'Strength & hypertrophy',
+    accent: CoachColors.accent,
     icon: 'barbell' as const,
   },
   {
     id: 'VELOCITY',
-    label: 'VELOCITY',
-    sub: 'Speed & Conditioning',
-    accent: '#5B7FFF',
+    label: 'Velocity',
+    sub: 'Speed & conditioning',
+    accent: CoachColors.accent,
     icon: 'flash' as const,
   },
   {
     id: 'MERIDIAN',
-    label: 'MERIDIAN',
-    sub: 'Recovery & Balance',
-    accent: '#22C55E',
+    label: 'Meridian',
+    sub: 'Recovery & balance',
+    accent: CoachColors.accent,
     icon: 'leaf' as const,
   },
 ];
 
 function getTierLabel(price: number) {
-  if (price >= 200) return { label: 'DIAMOND', color: '#B9F2FF' };
-  if (price >= 100) return { label: 'GOLD', color: '#FFD700' };
-  if (price >= 50) return { label: 'SILVER', color: '#C0C0C0' };
-  return { label: 'BRONZE', color: '#CD7F32' };
+  if (price >= 200) return { label: 'Diamond', color: CoachColors.accent };
+  if (price >= 100) return { label: 'Gold', color: CoachColors.accent };
+  if (price >= 50) return { label: 'Silver', color: CoachColors.accent };
+  return { label: 'Bronze', color: CoachColors.accent };
 }
 
 const DEFAULT_FEATURES = [
@@ -148,7 +148,7 @@ function ArchetypeRow({
       <View
         style={[
           s.archetypeBar,
-          { backgroundColor: selected ? arch.accent : 'rgba(255,255,255,0.08)' },
+          { backgroundColor: selected ? arch.accent : CoachColors.borderMuted },
         ]}
       />
 
@@ -160,13 +160,13 @@ function ArchetypeRow({
         <View
           style={[
             s.archetypeIconWrap,
-            { backgroundColor: selected ? `${arch.accent}22` : 'transparent' },
+            { backgroundColor: selected ? CoachColors.accentSoft : 'transparent' },
           ]}
         >
           <Ionicons
             name={arch.icon}
             size={18}
-            color={selected ? arch.accent : 'rgba(255,255,255,0.25)'}
+            color={selected ? arch.accent : CoachColors.textFaint}
           />
         </View>
       </Animated.View>
@@ -192,15 +192,15 @@ function TierPill({
       activeOpacity={0.8}
       style={[
         s.tierPill,
-        selected && { borderColor: tier.color, backgroundColor: `${tier.color}15` },
+        selected && { borderColor: tier.color, backgroundColor: CoachColors.accentSoft },
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Select ${plan.name} tier at $${plan.price}/month`}
     >
-      <Text style={[s.tierPillTier, { color: selected ? tier.color : 'rgba(255,255,255,0.4)' }]}>
+      <Text style={[s.tierPillTier, { color: selected ? tier.color : CoachColors.textMuted }]}>
         {tier.label}
       </Text>
-      <Text style={[s.tierPillPrice, { color: selected ? '#FFFFFF' : 'rgba(255,255,255,0.45)' }]}>
+      <Text style={[s.tierPillPrice, { color: selected ? CoachColors.textPrimary : CoachColors.textMuted }]}>
         ${plan.price}
       </Text>
     </TouchableOpacity>
@@ -262,12 +262,11 @@ export default function PlanWizardModal({
 
   const tier = selectedPlan ? getTierLabel(selectedPlan.price) : getTierLabel(0);
   const perSession = selectedPlan ? Math.round(selectedPlan.price / 16) : 0;
-  const coachFirstName = (coach?.name || plan?.coachName || 'COACH')
-    .split(' ')[0]
-    .toUpperCase();
+  const coachFirstName = (coach?.name || plan?.coachName || 'Coach')
+    .split(' ')[0];
   const coachAvatar = coach?.avatar || plan?.coachAvatar || DEFAULT_AVATAR;
-  const coachName = (coach?.name || plan?.coachName || 'Your Coach').toUpperCase();
-  const coachRole = (coach?.role || plan?.coachRole || 'Elite Trainer').toUpperCase();
+  const coachName = coach?.name || plan?.coachName || 'Your Coach';
+  const coachRole = coach?.role || plan?.coachRole || 'Elite Trainer';
 
   // Commit handler — shows Vault animation then saves
   const handleCommit = useCallback(async () => {
@@ -352,7 +351,7 @@ export default function PlanWizardModal({
                     accessibilityLabel={`${coachName} profile photo`}
                   />
                   <LinearGradient
-                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)', '#000000']}
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)', CoachColors.bg]}
                     locations={[0, 0.5, 1]}
                     style={StyleSheet.absoluteFill}
                   />
@@ -364,7 +363,7 @@ export default function PlanWizardModal({
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
+                    <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
                   </TouchableOpacity>
 
                   {/* Tier badge top-left */}
@@ -376,20 +375,12 @@ export default function PlanWizardModal({
                   <View style={s.heroBottom}>
                     <Text style={s.heroName}>{coachName}</Text>
                     <Text style={s.heroRole}>{coachRole}</Text>
-                    <View style={s.heroStats}>
-                      <Ionicons name="star" size={10} color="#FFD700" />
-                      <Text style={s.heroStat}>4.9</Text>
-                      <Text style={s.heroStatDot}>·</Text>
-                      <Text style={s.heroStat}>247 clients</Text>
-                      <Text style={s.heroStatDot}>·</Text>
-                      <Text style={s.heroStat}>3 yr</Text>
-                    </View>
                   </View>
                 </View>
 
                 {/* ── §2 IDENTITY ─────────────────────────────────────── */}
                 <View style={s.section}>
-                  <Text style={s.sectionTag}>01 — TRAINING IDENTITY</Text>
+                  <Text style={s.sectionTag}>01 — Training identity</Text>
                   <Text style={s.sectionHint}>
                     Choose your archetype. Your coach will tailor the program accordingly.
                   </Text>
@@ -413,7 +404,7 @@ export default function PlanWizardModal({
 
                 {/* ── §3 PLAN ─────────────────────────────────────────── */}
                 <View style={s.section}>
-                  <Text style={s.sectionTag}>02 — YOUR PLAN</Text>
+                  <Text style={s.sectionTag}>02 — Your plan</Text>
                 </View>
 
                 <View style={s.planBlock}>
@@ -454,7 +445,7 @@ export default function PlanWizardModal({
                     {features.map((feat, i) => (
                       <View key={i} style={s.featureRow}>
                         <View style={s.featureCheck}>
-                          <Ionicons name="checkmark" size={12} color="#22C55E" />
+                          <Ionicons name="checkmark" size={12} color={CoachColors.accent} />
                         </View>
                         <Text style={s.featureText}>{feat}</Text>
                       </View>
@@ -478,22 +469,22 @@ export default function PlanWizardModal({
                   accessibilityLabel={`Commit to ${coachFirstName}'s coaching plan`}
                 >
                   <LinearGradient
-                    colors={['#FFD700', '#FF9500']}
+                    colors={[CoachColors.accent, CoachColors.accent]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={s.ctaBtn}
                   >
                     {saving ? (
-                      <ActivityIndicator size="small" color="#000000" />
+                      <ActivityIndicator size="small" color={CoachColors.onAccent} />
                     ) : (
                       <>
-                        <Text style={s.ctaText}>COMMIT TO {coachFirstName}</Text>
-                        <Ionicons name="arrow-forward" size={18} color="#000000" />
+                        <Text style={s.ctaText}>Commit to {coachFirstName}</Text>
+                        <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
                       </>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
-                <Text style={s.ctaDisclaimer}>No commitment · Cancel anytime</Text>
+                <Text style={s.ctaDisclaimer}>No commitment · cancel anytime</Text>
               </View>
             </>
           )}
@@ -520,7 +511,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: SCREEN_H * 0.92,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -538,7 +529,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.border,
   },
 
   // Scroll
@@ -577,9 +568,10 @@ const s = StyleSheet.create({
     zIndex: 10,
   },
   heroBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   heroBottom: {
     paddingHorizontal: 20,
@@ -587,34 +579,19 @@ const s = StyleSheet.create({
     zIndex: 2,
   },
   heroName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 34,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     lineHeight: 38,
     marginBottom: 2,
   },
   heroRole: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
     letterSpacing: 2.5,
-    marginBottom: 10,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  heroStat: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
-  },
-  heroStatDot: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
+    textTransform: 'uppercase',
   },
 
   // ── Section headers ──
@@ -624,31 +601,31 @@ const s = StyleSheet.create({
     paddingBottom: 12,
   },
   sectionTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   sectionHint: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     lineHeight: 17,
   },
 
   // ── Archetype rows ──
   archetypeList: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.07)',
+    borderTopColor: CoachColors.borderMuted,
   },
   archetypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 68,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   archetypeBar: {
     width: 3,
@@ -663,15 +640,15 @@ const s = StyleSheet.create({
   },
   archetypeTextGroup: { gap: 2 },
   archetypeLabel: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   archetypeSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
   },
   archetypeIconWrap: {
     width: 36,
@@ -684,7 +661,7 @@ const s = StyleSheet.create({
   // ── Divider ──
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginTop: 8,
   },
 
@@ -692,16 +669,16 @@ const s = StyleSheet.create({
   planBlock: {
     marginHorizontal: 20,
     marginTop: 4,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: 16,
     padding: 20,
   },
   planName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.4,
     marginBottom: 12,
   },
@@ -712,22 +689,22 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   priceAmount: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 48,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -2,
     lineHeight: 52,
   },
   priceMeta: { gap: 2, paddingBottom: 6 },
   pricePeriod: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
   },
   priceSession: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 0.3,
   },
 
@@ -746,16 +723,17 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#27272A',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface,
   },
   tierPillTier: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   tierPillPrice: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
     letterSpacing: -0.3,
   },
@@ -763,7 +741,7 @@ const s = StyleSheet.create({
   // Features
   planDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 16,
   },
   featuresList: { gap: 10 },
@@ -776,14 +754,14 @@ const s = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(34,197,94,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   featureText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    color: CoachColors.textPrimary,
     flex: 1,
   },
 
@@ -796,7 +774,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === 'ios' ? 8 : 20,
     paddingTop: 12,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   ctaFade: {
     position: 'absolute',
@@ -819,15 +797,15 @@ const s = StyleSheet.create({
     gap: 10,
   },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   ctaDisclaimer: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
     textAlign: 'center',
     letterSpacing: 0.3,
   },

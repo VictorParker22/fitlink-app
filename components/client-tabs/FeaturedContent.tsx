@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { FEATURED_CONTENT } from '../../data/workouts';
 import { supabase } from '../../lib/supabase';
 
@@ -44,8 +44,8 @@ export default function FeaturedContent({ searchQuery }: FeaturedContentProps) {
 
   return (
     <View style={s.featuredSection}>
-      <Text style={s.tagHeader}>EDITORIAL // FEATURED READS</Text>
-      <Text style={s.featuredTitle}>Curated Insights</Text>
+      <Text style={s.tagHeader}>Featured reads</Text>
+      <Text style={s.featuredTitle}>Curated insights</Text>
       {filteredFeatured.length === 0 ? (
         <Text style={s.noResultsText}>No articles matching your search</Text>
       ) : (
@@ -73,23 +73,17 @@ export default function FeaturedContent({ searchQuery }: FeaturedContentProps) {
             >
               <Image source={{ uri: art.image }} style={s.articleCardBg} cachePolicy="memory-disk" transition={200} />
               <LinearGradient
-                colors={['transparent', '#0C0C0E'] as const}
+                colors={['transparent', CoachColors.surface] as const}
                 style={s.articleCardGradient}
               />
               <View style={s.articleCardContent}>
-                <View style={s.topBadgeRow}>
-                  <View style={s.catBadge}>
-                    <Text style={s.articleCat}>{art.category}</Text>
-                  </View>
-                  <View style={s.readTimeBadge}>
-                    <Ionicons name="time-outline" size={10} color="rgba(255,255,255,0.7)" />
-                    <Text style={s.readTimeText}>{Math.max(3, Math.min(12, Math.round(art.title.length / 5)))} MIN READ</Text>
-                  </View>
+                <View style={s.catBadge}>
+                  <Text style={s.articleCat}>{art.category}</Text>
                 </View>
                 <Text style={s.articleTitle} numberOfLines={2}>{art.title}</Text>
                 <View style={s.articleReadRow}>
-                  <Ionicons name="document-text-outline" size={12} color="#5B7FFF" />
-                  <Text style={s.articleReadLabel}>READ ESSAY →</Text>
+                  <Ionicons name="document-text-outline" size={12} color={CoachColors.accent} />
+                  <Text style={s.articleReadLabel}>Read essay</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -103,25 +97,26 @@ export default function FeaturedContent({ searchQuery }: FeaturedContentProps) {
 const s = StyleSheet.create({
   featuredSection: { marginBottom: 24 },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     paddingHorizontal: 16,
     marginBottom: 4,
   },
   featuredTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 16,
     marginBottom: 14,
     letterSpacing: -0.5,
   },
   noResultsText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     paddingHorizontal: 16,
     marginTop: 4,
   },
@@ -134,16 +129,16 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
   },
   articleCardBg: { ...StyleSheet.absoluteFillObject, opacity: 0.75 },
   articleCardGradient: { ...StyleSheet.absoluteFillObject },
   articleCardContent: { zIndex: 1 },
   catBadge: {
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -151,45 +146,26 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   articleCat: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   articleTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 27,
     letterSpacing: -0.5,
     marginBottom: 10,
   },
   articleReadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   articleReadLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 1.2,
-  },
-  topBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  readTimeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  readTimeText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 });

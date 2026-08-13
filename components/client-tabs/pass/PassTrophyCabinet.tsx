@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export interface PassTrophyCabinetProps {
   totalWorkouts: number;
@@ -28,20 +29,20 @@ export interface BadgeItem {
 const BADGES: BadgeItem[] = [
   {
     id: 'first_steps',
-    name: 'First Steps',
+    name: 'First steps',
     desc: 'Complete 1 workout session',
     icon: 'footsteps',
-    color: '#FF6B35',
+    color: CoachColors.accent,
     xpReward: 100,
     condition: (p) => p.totalWorkouts >= 1,
     getProgress: (p) => ({ current: Math.min(1, p.totalWorkouts), target: 1, label: 'workouts' }),
   },
   {
     id: 'iron_will',
-    name: 'Iron Will',
+    name: 'Iron will',
     desc: 'Maintain a 7-day streak',
     icon: 'flame',
-    color: '#FFD700',
+    color: CoachColors.accent,
     xpReward: 250,
     condition: (p) => p.currentStreak >= 7 || p.bestStreak >= 7,
     getProgress: (p) => ({ current: Math.min(7, Math.max(p.currentStreak, p.bestStreak)), target: 7, label: 'days' }),
@@ -51,57 +52,57 @@ const BADGES: BadgeItem[] = [
     name: 'Centurion',
     desc: 'Complete 100 total workouts',
     icon: 'trophy',
-    color: '#B9F2FF',
+    color: CoachColors.accent,
     xpReward: 1000,
     condition: (p) => p.totalWorkouts >= 100,
     getProgress: (p) => ({ current: Math.min(100, p.totalWorkouts), target: 100, label: 'workouts' }),
   },
   {
     id: 'meal_master',
-    name: 'Meal Master',
-    desc: 'Reach Athlete Level 3',
+    name: 'Meal master',
+    desc: 'Reach athlete level 3',
     icon: 'restaurant',
-    color: '#A78BFA',
+    color: CoachColors.accent,
     xpReward: 300,
     condition: (p) => p.currentLevel >= 3,
     getProgress: (p) => ({ current: Math.min(3, p.currentLevel), target: 3, label: 'level' }),
   },
   {
     id: 'gym_rat',
-    name: 'Gym Rat',
+    name: 'Gym rat',
     desc: 'Complete 10 gym visits',
     icon: 'fitness',
-    color: '#22C55E',
+    color: CoachColors.accent,
     xpReward: 400,
     condition: (p) => p.gymVisits >= 10,
     getProgress: (p) => ({ current: Math.min(10, p.gymVisits), target: 10, label: 'visits' }),
   },
   {
     id: 'early_bird',
-    name: 'Early Bird',
+    name: 'Early bird',
     desc: 'Active member for 30+ days',
     icon: 'sunny',
-    color: '#FBBF24',
+    color: CoachColors.accent,
     xpReward: 500,
     condition: (p) => p.memberSinceDays >= 30,
     getProgress: (p) => ({ current: Math.min(30, p.memberSinceDays), target: 30, label: 'days' }),
   },
   {
     id: 'level_5',
-    name: 'Level 5 Club',
-    desc: 'Reach Athlete Level 5',
+    name: 'Level 5 club',
+    desc: 'Reach athlete level 5',
     icon: 'diamond',
-    color: '#FFD700',
+    color: CoachColors.accent,
     xpReward: 750,
     condition: (p) => p.currentLevel >= 5,
     getProgress: (p) => ({ current: Math.min(5, p.currentLevel), target: 5, label: 'level' }),
   },
   {
     id: 'streak_blazer',
-    name: 'Streak Blazer',
+    name: 'Streak blazer',
     desc: 'Maintain a 30-day streak',
     icon: 'bonfire',
-    color: '#FF6B35',
+    color: CoachColors.accent,
     xpReward: 1500,
     condition: (p) => p.currentStreak >= 30 || p.bestStreak >= 30,
     getProgress: (p) => ({ current: Math.min(30, Math.max(p.currentStreak, p.bestStreak)), target: 30, label: 'days' }),
@@ -120,11 +121,11 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.sectionHeader}>TROPHY CABINET</Text>
+      <Text style={styles.sectionHeader}>Trophy cabinet</Text>
 
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>
-          {earnedBadges.length}/{BADGES.length} Badges Unlocked
+          {earnedBadges.length}/{BADGES.length} badges unlocked
         </Text>
         <View style={styles.progressBarBg}>
           <View style={[styles.progressBarFill, { width: `${progressRatio * 100}%` }]} />
@@ -144,17 +145,17 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
               <View
                 style={[
                   styles.circle,
-                  isEarned ? { backgroundColor: `${badge.color}26` } : styles.circleLocked,
+                  isEarned ? { backgroundColor: CoachColors.accentSoft } : styles.circleLocked,
                 ]}
               >
                 <Ionicons
                   name={badge.icon as any}
                   size={24}
-                  color={isEarned ? badge.color : 'rgba(255,255,255,0.15)'}
+                  color={isEarned ? badge.color : CoachColors.textFaint}
                 />
                 {!isEarned && (
                   <View style={styles.lockOverlay}>
-                    <Ionicons name="lock-closed" size={10} color="#000" />
+                    <Ionicons name="lock-closed" size={10} color={CoachColors.onAccent} />
                   </View>
                 )}
               </View>
@@ -188,14 +189,14 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                   style={[
                     styles.modalCircle,
                     selectedBadge.condition(props)
-                      ? { backgroundColor: `${selectedBadge.color}25` }
-                      : { backgroundColor: 'rgba(255,255,255,0.05)' },
+                      ? { backgroundColor: CoachColors.accentSoft }
+                      : { backgroundColor: CoachColors.borderMuted },
                   ]}
                 >
                   <Ionicons
                     name={selectedBadge.icon as any}
                     size={40}
-                    color={selectedBadge.condition(props) ? selectedBadge.color : 'rgba(255,255,255,0.3)'}
+                    color={selectedBadge.condition(props) ? selectedBadge.color : CoachColors.textFaint}
                   />
                 </View>
               </View>
@@ -213,7 +214,7 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                   <View style={styles.modalProgressSection}>
                     <View style={styles.modalProgressRow}>
                       <Text style={styles.modalProgressLabel}>
-                        {isEarned ? 'Unlocked 🎉' : `Progress: ${prog.current}/${prog.target} ${prog.label}`}
+                        {isEarned ? 'Unlocked' : `Progress: ${prog.current}/${prog.target} ${prog.label}`}
                       </Text>
                       <Text style={styles.modalProgressPct}>{pct}%</Text>
                     </View>
@@ -221,15 +222,15 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                       <View
                         style={[
                           styles.modalBarFill,
-                          { width: `${pct}%`, backgroundColor: isEarned ? selectedBadge.color : '#FFD700' },
+                          { width: `${pct}%`, backgroundColor: CoachColors.accent },
                         ]}
                       />
                     </View>
 
                     {/* Reward Pill */}
                     <View style={styles.rewardRow}>
-                      <Ionicons name="flash" size={14} color="#FFD700" />
-                      <Text style={styles.rewardText}>+{selectedBadge.xpReward} XP Reward</Text>
+                      <Ionicons name="flash" size={14} color={CoachColors.accent} />
+                      <Text style={styles.rewardText}>+{selectedBadge.xpReward} XP reward</Text>
                     </View>
                   </View>
                 );
@@ -240,7 +241,7 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                 onPress={() => setSelectedBadge(null)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalCloseText}>CLOSE</Text>
+                <Text style={styles.modalCloseText}>Close</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -252,17 +253,17 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: 20,
     marginBottom: Spacing.lg,
   },
   sectionHeader: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
@@ -271,20 +272,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   progressText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: 8,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     borderRadius: 3,
   },
   grid: {
@@ -306,15 +307,15 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   circleLocked: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
   },
   lockOverlay: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -322,15 +323,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeName: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
     textAlign: 'center',
   },
   badgeNameEarned: {
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   badgeNameLocked: {
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   // Modal Drawer Styles
   modalOverlay: {
@@ -341,10 +342,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalContent: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
+    borderColor: 'rgba(198,242,78,0.3)',
     padding: 24,
     width: '100%',
     alignItems: 'center',
@@ -360,24 +361,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   modalDesc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     marginBottom: 20,
   },
   modalProgressSection: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.bg,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
     padding: 16,
     marginBottom: 20,
   },
@@ -387,18 +388,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalProgressLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   modalProgressPct: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFD700',
+    color: CoachColors.accent,
   },
   modalBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 12,
@@ -414,13 +415,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rewardText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 1,
   },
   modalCloseBtn: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 12,
@@ -428,9 +429,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCloseText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1.5,
   },
 });

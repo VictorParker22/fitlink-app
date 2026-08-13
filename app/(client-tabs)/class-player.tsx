@@ -210,12 +210,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
                         .update({ rating: star })
                         .eq('client_id', user.id)
                         .eq('class_id', entry.classId)
-                        // .order('completed_at', { ascending: false }).limit(1)
-                        // In Supabase, if we want to update the last inserted, we might need a better query.
-                        // For simplicity, we just filter by completed_at being recent, but to avoid complex queries
-                        // we'll leave it as a general update or skip it for this mock. Wait, the prompt says:
-                        // "supabase.from('class_completions').update({ rating: star }).eq('client_id', user.id).eq('class_id', classId)..."
-                        // I will use exact prompt text.
+                        // Rate the most recent completion of this class only
                         .order('completed_at', { ascending: false })
                         .limit(1)
                         .then(() => {});

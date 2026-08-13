@@ -1,9 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 
 interface StepArchetypeProps {
   onSelect: (archetype: string) => void;
@@ -14,26 +13,26 @@ interface StepArchetypeProps {
 const ARCHETYPES = [
   {
     id: 'FORGE',
-    title: 'FORGE',
-    subtitle: 'Strength & Hypertrophy',
+    title: 'Forge',
+    subtitle: 'Strength & hypertrophy',
     icon: 'barbell' as const,
-    accent: '#FF6B35',
+    accent: CoachColors.accent,
     description: 'Raw power. Progressive overload. Built for lifters who chase the iron.'
   },
   {
     id: 'VELOCITY',
-    title: 'VELOCITY',
-    subtitle: 'Speed & Conditioning',
+    title: 'Velocity',
+    subtitle: 'Speed & conditioning',
     icon: 'flash' as const,
-    accent: '#4D94FF',
+    accent: CoachColors.accent,
     description: 'Explosive speed. Cardio endurance. Built for athletes who dominate the field.'
   },
   {
     id: 'MERIDIAN',
-    title: 'MERIDIAN',
-    subtitle: 'Recovery & Mind-Body',
+    title: 'Meridian',
+    subtitle: 'Recovery & mind-body',
     icon: 'leaf' as const,
-    accent: '#22C55E',
+    accent: CoachColors.accent,
     description: 'Deep restoration. Flexibility. Built for those who master balance.'
   }
 ];
@@ -42,7 +41,7 @@ export default function StepArchetype({ onSelect, onContinue, selectedArchetype 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>CHOOSE YOUR PATH</Text>
+        <Text style={styles.title}>Choose your path</Text>
         <Text style={styles.subtitle}>Select the archetype that defines your training philosophy</Text>
       </View>
 
@@ -71,19 +70,14 @@ export default function StepArchetype({ onSelect, onContinue, selectedArchetype 
         }}
       >
         {selectedArchetype ? (
-          <LinearGradient
-            colors={['#FFD700', '#FFA500']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.continueButton}
-          >
-            <Text style={styles.continueButtonText}>CONTINUE</Text>
-            <Ionicons name="arrow-forward" size={20} color="#000000" />
-          </LinearGradient>
+          <View style={styles.continueButton}>
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />
+          </View>
         ) : (
           <View style={[styles.continueButton, styles.continueButtonDisabled]}>
-            <Text style={styles.continueButtonTextDisabled}>CONTINUE</Text>
-            <Ionicons name="arrow-forward" size={20} color="#444444" />
+            <Text style={styles.continueButtonTextDisabled}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={CoachColors.textFaint} />
           </View>
         )}
       </Pressable>
@@ -115,11 +109,11 @@ function ArchetypeCard({ archetype, isSelected, onPress }: { archetype: any; isS
         {isSelected && (
           <View style={[styles.activeBorderLeft, { backgroundColor: archetype.accent }]} />
         )}
-        
+
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: isSelected ? `${archetype.accent}33` : `${archetype.accent}1A` } 
+            { backgroundColor: isSelected ? CoachColors.accentSoft : CoachColors.accentSofter }
           ]}
         >
           <Ionicons name={archetype.icon} size={24} color={archetype.accent} />
@@ -137,32 +131,31 @@ function ArchetypeCard({ archetype, isSelected, onPress }: { archetype: any; isS
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     padding: 20,
   },
   header: {
     marginBottom: 32,
   },
   title: {
-    fontFamily: 'Epilogue-ExtraBold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    color: CoachColors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   cardsContainer: {
     gap: 16,
     flex: 1,
   },
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
@@ -188,15 +181,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   cardDescription: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: '#888888',
+    color: CoachColors.textMuted,
     lineHeight: 18,
   },
   continueButtonContainer: {
@@ -210,20 +203,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    backgroundColor: CoachColors.accent,
   },
   continueButtonDisabled: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
   },
   continueButtonText: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   continueButtonTextDisabled: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#444444',
+    color: CoachColors.textFaint,
     letterSpacing: 1,
   },
 });

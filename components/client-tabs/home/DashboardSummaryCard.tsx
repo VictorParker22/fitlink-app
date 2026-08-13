@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { calculateLevel, calculateProgressToNextLevel, XP_PER_LEVEL } from '../../../utils/xp';
 
 interface DashboardSummaryCardProps {
@@ -35,9 +35,10 @@ export default function DashboardSummaryCard({
   const radius2 = radius1 - strokeWidth - 2;
   const radius3 = radius2 - strokeWidth - 2;
 
-  const moveColor = '#E0FF4F';
-  const trainColor = '#38BDF8';
-  const recoverColor = '#F43F5E';
+  // One accent hue — rings stay distinguishable via opacity steps
+  const moveColor = CoachColors.accent;
+  const trainColor = 'rgba(198,242,78,0.6)';
+  const recoverColor = 'rgba(198,242,78,0.3)';
 
   const circumference1 = 2 * Math.PI * radius1;
   const circumference2 = 2 * Math.PI * radius2;
@@ -60,10 +61,10 @@ export default function DashboardSummaryCard({
         <View style={st.ringsContainer}>
           <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             {/* Background Tracks */}
-            <Circle cx={center} cy={center} r={radius1} stroke="#1A1A1A" strokeWidth={strokeWidth} fill="none" />
-            <Circle cx={center} cy={center} r={radius2} stroke="#1A1A1A" strokeWidth={strokeWidth} fill="none" />
-            <Circle cx={center} cy={center} r={radius3} stroke="#1A1A1A" strokeWidth={strokeWidth} fill="none" />
-            
+            <Circle cx={center} cy={center} r={radius1} stroke={CoachColors.borderMuted} strokeWidth={strokeWidth} fill="none" />
+            <Circle cx={center} cy={center} r={radius2} stroke={CoachColors.borderMuted} strokeWidth={strokeWidth} fill="none" />
+            <Circle cx={center} cy={center} r={radius3} stroke={CoachColors.borderMuted} strokeWidth={strokeWidth} fill="none" />
+
             {/* Foreground Rings */}
             <Circle
               cx={center}
@@ -110,21 +111,21 @@ export default function DashboardSummaryCard({
         {/* Stats Column */}
         <View style={st.statsCol}>
           <View style={st.statBlock}>
-            <Text style={st.statLabel}>MOVE</Text>
+            <Text style={st.statLabel}>Move</Text>
             <Text style={st.statValue}>
               <Text style={[st.statHero, { color: moveColor }]}>{mealsLoggedToday}</Text>
               <Text style={st.statSub}> / {targetMeals} meals</Text>
             </Text>
           </View>
           <View style={st.statBlock}>
-            <Text style={st.statLabel}>TRAIN</Text>
+            <Text style={st.statLabel}>Train</Text>
             <Text style={st.statValue}>
               <Text style={[st.statHero, { color: trainColor }]}>{completedWeekWorkouts}</Text>
               <Text style={st.statSub}> / {targetWeekWorkouts} lifts</Text>
             </Text>
           </View>
           <View style={st.statBlock}>
-            <Text style={st.statLabel}>XP LEVEL</Text>
+            <Text style={st.statLabel}>XP level</Text>
             <Text style={st.statValue}>
               <Text style={[st.statHero, { color: recoverColor }]}>{xpInLevel}</Text>
               <Text style={st.statSub}> / {xpToNext}</Text>
@@ -138,7 +139,7 @@ export default function DashboardSummaryCard({
         {DAYS.map((dayLabel, idx) => {
           const isDone = completedDays.includes(idx);
           const isToday = idx === todayIdx;
-          
+
           return (
             <View key={idx} style={st.dayCol}>
               <View
@@ -149,7 +150,7 @@ export default function DashboardSummaryCard({
                 ]}
               >
                 {isDone ? (
-                  <Ionicons name="checkmark" size={16} color={moveColor} />
+                  <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
                 ) : (
                   <View style={st.dayDot} />
                 )}
@@ -167,10 +168,10 @@ const st = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     padding: 24,
     paddingBottom: 20,
   },
@@ -194,9 +195,9 @@ const st = StyleSheet.create({
     gap: 2,
   },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
@@ -205,14 +206,14 @@ const st = StyleSheet.create({
     alignItems: 'baseline',
   },
   statHero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
     letterSpacing: -0.5,
   },
   statSub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   weekTracker: {
     flexDirection: 'row',
@@ -226,32 +227,32 @@ const st = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 8,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   daySquareDone: {
-    backgroundColor: 'rgba(224, 255, 79, 0.1)',
-    borderColor: 'rgba(224, 255, 79, 0.4)',
+    backgroundColor: CoachColors.accentSofter,
+    borderColor: 'rgba(198,242,78,0.4)',
   },
   daySquareToday: {
-    borderColor: '#FFFFFF',
+    borderColor: CoachColors.textPrimary,
     borderWidth: 1.5,
   },
   dayDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.textFaint,
   },
   dayLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   dayLabelToday: {
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 });

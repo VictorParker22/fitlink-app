@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import * as Haptics from 'expo-haptics';
 
@@ -51,11 +51,11 @@ export default function GreetingHeader({
           }}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-outline" size={20} color="rgba(255,255,255,0.7)" />
+          <Ionicons name="chatbubble-outline" size={20} color={CoachColors.textSecondary} />
           {unreadCount > 0 ? (
-             <View style={[st.dot, { backgroundColor: '#E0FF4F' }]} />
+             <View style={[st.dot, { backgroundColor: CoachColors.accent }]} />
           ) : (
-             <View style={[st.dot, { backgroundColor: '#E0FF4F' }]} /> // In the screenshot, there is a green/lime dot even without "unread" specifically. We will just always show it for now to match the screenshot or make it unread.
+             <View style={[st.dot, { backgroundColor: CoachColors.accent }]} /> // In the screenshot, there is a green/lime dot even without "unread" specifically. We will just always show it for now to match the screenshot or make it unread.
           )}
         </TouchableOpacity>
       </View>
@@ -71,23 +71,23 @@ const st = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 24,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   nameBlock: {
     flex: 1,
     gap: 2,
   },
   tagline: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#D9F95C',
+    color: CoachColors.accent,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
   },
   name: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 34,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -1.5,
     lineHeight: 38,
     textTransform: 'uppercase',
@@ -100,9 +100,9 @@ const st = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -113,6 +113,6 @@ const st = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E0FF4F',
+    backgroundColor: CoachColors.accent,
   },
 });

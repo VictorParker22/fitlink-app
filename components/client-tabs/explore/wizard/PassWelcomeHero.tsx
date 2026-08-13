@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, Spacing, Radius } from '../../../../constants/theme';
+import { Spacing, Radius } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 
 interface PassWelcomeHeroProps {
   planName: string;
@@ -60,7 +61,7 @@ export default function PassWelcomeHero({
   return (
     <Animated.View style={[s.container, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
       <LinearGradient
-        colors={['rgba(255,215,0,0.08)', 'rgba(255,107,53,0.04)', 'rgba(0,0,0,0)']}
+        colors={[CoachColors.accentSofter, CoachColors.accentSofter, 'rgba(0,0,0,0)']}
         style={s.gradientBg}
       />
 
@@ -70,8 +71,8 @@ export default function PassWelcomeHero({
       {/* Welcome Tag */}
       <View style={s.tagRow}>
         <View style={s.tag}>
-          <Ionicons name="diamond" size={10} color="#FFD700" />
-          <Text style={s.tagText}>WELCOME TO YOUR JOURNEY</Text>
+          <Ionicons name="diamond" size={10} color={CoachColors.accent} />
+          <Text style={s.tagText}>Welcome to your journey</Text>
         </View>
       </View>
 
@@ -83,22 +84,17 @@ export default function PassWelcomeHero({
 
       {/* Animated Badge */}
       <Animated.View style={[s.badgeContainer, { opacity: badgeFade }]}>
-        <LinearGradient
-          colors={['#FFD700', '#FFA500']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={s.badge}
-        >
-          <Ionicons name="shield-checkmark" size={16} color="#000" />
-          <Text style={s.badgeText}>ACTIVE MEMBER</Text>
-        </LinearGradient>
+        <View style={s.badge}>
+          <Ionicons name="shield-checkmark" size={16} color={CoachColors.onAccent} />
+          <Text style={s.badgeText}>Active member</Text>
+        </View>
       </Animated.View>
 
       {/* Stats Row */}
       <Animated.View style={[s.statsRow, { opacity: statsFade }]}>
         <View style={s.statItem}>
           <Text style={s.statValue}>{level}</Text>
-          <Text style={s.statLabel}>LEVEL</Text>
+          <Text style={s.statLabel}>Level</Text>
         </View>
         <View style={s.statDivider} />
         <View style={s.statItem}>
@@ -108,7 +104,7 @@ export default function PassWelcomeHero({
         <View style={s.statDivider} />
         <View style={s.statItem}>
           <Text style={s.statValue}>{trackNodeCount}</Text>
-          <Text style={s.statLabel}>REWARDS</Text>
+          <Text style={s.statLabel}>Rewards</Text>
         </View>
       </Animated.View>
 
@@ -122,10 +118,10 @@ export default function PassWelcomeHero({
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.2)',
+    borderColor: CoachColors.border,
     padding: 24,
     marginBottom: Spacing.xl,
     overflow: 'hidden',
@@ -146,7 +142,7 @@ const s = StyleSheet.create({
     bottom: -1,
     borderRadius: Radius['2xl'],
     borderWidth: 2,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
   },
   tagRow: {
     flexDirection: 'row',
@@ -155,31 +151,32 @@ const s = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.2)',
+    borderColor: CoachColors.border,
     borderRadius: Radius.full,
     paddingHorizontal: 12,
     paddingVertical: 5,
     gap: 6,
   },
   tagText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   planName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 4,
   },
   coachLine: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginBottom: 16,
   },
   badgeContainer: {
@@ -189,22 +186,24 @@ const s = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
     gap: 6,
   },
   badgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: '#000',
+    color: CoachColors.onAccent,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.bg,
     borderRadius: Radius.xl,
     paddingVertical: 16,
     marginBottom: 16,
@@ -214,26 +213,27 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginTop: 2,
+    textTransform: 'uppercase',
   },
   statDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
   motivational: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
   },

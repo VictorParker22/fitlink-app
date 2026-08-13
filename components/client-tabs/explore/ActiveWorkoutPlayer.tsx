@@ -5,7 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useClient } from '../../../context/ClientContext';
 
 import ExerciseThumbnail from '../../../components/shared/exercise/ExerciseThumbnail';
@@ -188,7 +188,7 @@ export default function ActiveWorkoutPlayer({
             const { error } = await supabase.from('notifications').insert({
               trainer_id: clientData.trainer_id,
               type: 'score',
-              title: '🏆 New Personal Record!',
+              title: 'New personal record',
               description: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
               metadata: { client_id: clientData.id, exercise: exercise.exerciseName, weight },
               is_read: false,
@@ -200,7 +200,7 @@ export default function ActiveWorkoutPlayer({
             supabase.functions.invoke('send-push-notification', {
               body: {
                 pushToken: trainer.expo_push_token,
-                title: '🏆 New PR!',
+                title: 'New PR',
                 body: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
                 data: { url: `/client/${clientData.id}` },
               },
@@ -231,8 +231,8 @@ export default function ActiveWorkoutPlayer({
   };
 
   const handleConfirmCancel = () => {
-    Alert.alert('End Workout?', 'Your progress will be lost.', [
-      { text: 'Keep Going', style: 'cancel' },
+    Alert.alert('End workout?', 'Your progress will be lost.', [
+      { text: 'Keep going', style: 'cancel' },
       {
         text: 'End',
         style: 'destructive',
@@ -256,7 +256,7 @@ export default function ActiveWorkoutPlayer({
     if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('instagram.com') || url.includes('tiktok.com')) {
       Linking.openURL(url);
     } else {
-      setVideoExerciseName(exerciseName || 'Exercise Demo');
+      setVideoExerciseName(exerciseName || 'Exercise demo');
       setVideoUrl(url);
       setShowVideoModal(true);
     }
@@ -272,7 +272,7 @@ export default function ActiveWorkoutPlayer({
       <Modal visible={showRestTimer} transparent animationType="fade" onRequestClose={() => setShowRestTimer(false)}>
         <View style={s.restOverlay}>
           <View style={s.restCard}>
-            <Text style={s.restTag}>INTERVAL // REST TIMER</Text>
+            <Text style={s.restTag}>Rest timer</Text>
             <Text style={s.restTime}>{formatTime(restTimeLeft)}</Text>
             <Text style={s.restHint}>Breathe and prepare for next set</Text>
             <TouchableOpacity
@@ -283,8 +283,8 @@ export default function ActiveWorkoutPlayer({
               }}
               activeOpacity={0.8}
             >
-              <Ionicons name="play-skip-forward" size={14} color="#000000" />
-              <Text style={s.restSkipText}>SKIP REST →</Text>
+              <Ionicons name="play-skip-forward" size={14} color={CoachColors.onAccent} />
+              <Text style={s.restSkipText}>Skip rest</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -294,16 +294,16 @@ export default function ActiveWorkoutPlayer({
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity onPress={handleConfirmCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
+            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <View style={s.headerCenter}>
-            <Text style={s.tagHeader}>ACTIVE SESSION // LIVE TRACKING</Text>
+            <Text style={s.tagHeader}>Active session</Text>
             <Text style={s.workoutName} numberOfLines={1}>
               {activeWorkout?.workouts?.name || 'Workout'}
             </Text>
           </View>
           <View style={s.timerPill}>
-            <Ionicons name="time-outline" size={12} color="#4D94FF" />
+            <Ionicons name="time-outline" size={12} color={CoachColors.accent} />
             <Text style={s.timerText}>{formatDuration(elapsedSeconds)}</Text>
           </View>
         </View>
@@ -313,7 +313,7 @@ export default function ActiveWorkoutPlayer({
           <View style={s.progressTrack}>
             <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
           </View>
-          <Text style={s.progressLabel}>{completedSets}/{totalSets} SETS</Text>
+          <Text style={s.progressLabel}>{completedSets}/{totalSets} sets</Text>
         </View>
       </View>
 
@@ -331,14 +331,14 @@ export default function ActiveWorkoutPlayer({
                 activeOpacity={0.7}
               >
                 <View style={{ position: 'relative' }}>
-                  <ExerciseThumbnail 
-                    imageUrl={exercise.imageUrl} 
-                    hasVideo={!!exercise.videoUrl} 
-                    size={44} 
+                  <ExerciseThumbnail
+                    imageUrl={exercise.imageUrl}
+                    hasVideo={!!exercise.videoUrl}
+                    size={44}
                   />
                   {allDone && (
-                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#0C0C0E', borderRadius: 10, padding: 2 }}>
-                      <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: CoachColors.surface, borderRadius: 10, padding: 2 }}>
+                      <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
                     </View>
                   )}
                 </View>
@@ -346,11 +346,11 @@ export default function ActiveWorkoutPlayer({
                   <Text style={s.exName}>{exercise.exerciseName}</Text>
                   <View style={s.exMeta}>
                     <Text style={s.exTarget}>
-                      {exercise.targetSets} SETS • {exercise.targetReps} REPS
+                      {exercise.targetSets} sets • {exercise.targetReps} reps
                     </Text>
                     {exercise.restSeconds > 0 && (
                       <Text style={s.exRestTag}>
-                        • {exercise.restSeconds}S REST
+                        • {exercise.restSeconds}s rest
                       </Text>
                     )}
                   </View>
@@ -359,7 +359,7 @@ export default function ActiveWorkoutPlayer({
                 <Ionicons
                   name={exercise.expanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color="rgba(255,255,255,0.4)"
+                  color={CoachColors.textMuted}
                 />
               </TouchableOpacity>
 
@@ -367,13 +367,13 @@ export default function ActiveWorkoutPlayer({
               {exercise.expanded && (
                 <View style={s.expandedContent}>
                   <View style={{ marginBottom: 16 }}>
-                    <ExerciseMediaDemo 
+                    <ExerciseMediaDemo
                       imageUrl={exercise.imageUrl}
                       videoUrl={exercise.videoUrl}
                       exerciseName={exercise.exerciseName}
                       onPlayVideo={handlePlayVideo}
                     />
-                    <ExerciseInstructions 
+                    <ExerciseInstructions
                       exerciseId={exercise.exerciseId}
                       instructionText={exercise.instructionText}
                       muscleGroup={exercise.muscleGroup}
@@ -382,16 +382,16 @@ export default function ActiveWorkoutPlayer({
 
                   <View style={s.setsContainer}>
                     <View style={s.setHeaderRow}>
-                      <Text style={[s.setHeaderText, { width: 36 }]}>SET</Text>
-                      <Text style={[s.setHeaderText, { flex: 1 }]}>WEIGHT (LBS)</Text>
-                      <Text style={[s.setHeaderText, { flex: 1 }]}>REPS</Text>
-                      <Text style={[s.setHeaderText, { width: 44, textAlign: 'center' }]}>LOG</Text>
+                      <Text style={[s.setHeaderText, { width: 36 }]}>Set</Text>
+                      <Text style={[s.setHeaderText, { flex: 1 }]}>Weight (lbs)</Text>
+                      <Text style={[s.setHeaderText, { flex: 1 }]}>Reps</Text>
+                      <Text style={[s.setHeaderText, { width: 44, textAlign: 'center' }]}>Log</Text>
                     </View>
 
                     {exercise.sets.map((set, setIdx) => (
                       <View key={setIdx} style={[s.setRow, set.completed && s.setRowDone]}>
                       <View style={s.setNumBox}>
-                        <Text style={[s.setNumText, set.completed && { color: '#22C55E' }]}>{setIdx + 1}</Text>
+                        <Text style={[s.setNumText, set.completed && { color: CoachColors.accent }]}>{setIdx + 1}</Text>
                       </View>
 
                       <View style={s.setInputBox}>
@@ -400,7 +400,7 @@ export default function ActiveWorkoutPlayer({
                           value={set.weight}
                           onChangeText={(v) => updateSetValue(exIdx, setIdx, 'weight', v)}
                           placeholder="0"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
+                          placeholderTextColor={CoachColors.textFaint}
                           keyboardType="numeric"
                           editable={!set.completed}
                           selectTextOnFocus
@@ -413,7 +413,7 @@ export default function ActiveWorkoutPlayer({
                           value={set.reps}
                           onChangeText={(v) => updateSetValue(exIdx, setIdx, 'reps', v)}
                           placeholder="0"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
+                          placeholderTextColor={CoachColors.textFaint}
                           keyboardType="numeric"
                           editable={!set.completed}
                           selectTextOnFocus
@@ -428,7 +428,7 @@ export default function ActiveWorkoutPlayer({
                         <Ionicons
                           name={set.completed ? 'checkmark-circle' : 'ellipse-outline'}
                           size={24}
-                          color={set.completed ? '#22C55E' : 'rgba(255,255,255,0.4)'}
+                          color={set.completed ? CoachColors.accent : CoachColors.textMuted}
                         />
                       </TouchableOpacity>
                     </View>
@@ -446,9 +446,9 @@ export default function ActiveWorkoutPlayer({
           onPress={handleFinish}
           activeOpacity={0.8}
         >
-          <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={18} color={progress >= 1 ? '#000000' : '#FFFFFF'} />
-          <Text style={[s.finishBtnText, progress >= 1 && { color: '#000000' }]}>
-            {progress >= 1 ? 'FINISH SESSION 🎉' : 'COMPLETE WORKOUT'}
+          <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={18} color={progress >= 1 ? CoachColors.onAccent : CoachColors.textPrimary} />
+          <Text style={[s.finishBtnText, progress >= 1 && { color: CoachColors.onAccent }]}>
+            {progress >= 1 ? 'Finish session' : 'Complete workout'}
           </Text>
         </TouchableOpacity>
 
@@ -474,7 +474,7 @@ export default function ActiveWorkoutPlayer({
                 setVideoUrl(null);
               }}
             >
-              <Ionicons name="close" size={20} color="#FFF" />
+              <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.videoModalTitle} numberOfLines={1}>
               {videoExerciseName}
@@ -504,11 +504,11 @@ export default function ActiveWorkoutPlayer({
 
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.bg,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 14,
@@ -521,31 +521,32 @@ const s = StyleSheet.create({
   },
   headerCenter: { flex: 1, marginHorizontal: 12 },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   workoutName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   timerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   timerText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   progressRow: {
     flexDirection: 'row',
@@ -555,32 +556,33 @@ const s = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.surface,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4D94FF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 2,
   },
   progressLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
   exCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
   },
-  exCardDone: { borderColor: '#22C55E' },
+  exCardDone: { borderColor: CoachColors.accent },
   exHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -590,25 +592,25 @@ const s = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   exIdxBoxDone: {
-    backgroundColor: '#0C1C12',
-    borderColor: '#22C55E',
+    backgroundColor: CoachColors.accentSofter,
+    borderColor: CoachColors.accent,
   },
   exIdxText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   exName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   exMeta: {
     flexDirection: 'row',
@@ -617,15 +619,15 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   exTarget: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.8,
   },
   exRestTag: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   watchDemoBtn: {
     flexDirection: 'row',
@@ -634,16 +636,16 @@ const s = StyleSheet.create({
     marginLeft: 6,
   },
   watchDemoText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#4D94FF',
+    color: CoachColors.accent,
     letterSpacing: 1,
   },
   setsContainer: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
     gap: 8,
   },
   setHeaderRow: {
@@ -653,10 +655,11 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   setHeaderText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   setRow: {
     flexDirection: 'row',
@@ -668,31 +671,31 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   setNumText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   setInputBox: {
     flex: 1,
     height: 36,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 8,
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
   setInput: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
-  setInputDone: { color: '#22C55E' },
+  setInputDone: { color: CoachColors.accent },
   checkBtn: {
     width: 44,
     height: 36,
@@ -702,9 +705,9 @@ const s = StyleSheet.create({
   checkBtnDone: {},
   finishBtn: {
     height: 48,
-    backgroundColor: '#141418',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -713,13 +716,13 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   finishBtnReady: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
   finishBtnText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
   restOverlay: {
@@ -731,37 +734,38 @@ const s = StyleSheet.create({
   },
   restCard: {
     width: '100%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
   },
   restTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#4D94FF',
+    color: CoachColors.accent,
     letterSpacing: 2,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
   restTime: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 48,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -1,
     marginBottom: 4,
   },
   restHint: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
     marginBottom: 20,
   },
   restSkipBtn: {
     width: '100%',
     height: 44,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -769,14 +773,14 @@ const s = StyleSheet.create({
     gap: 6,
   },
   restSkipText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   videoModalOverlay: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     paddingTop: 50,
   },
   videoModalHeader: {
@@ -790,31 +794,31 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   videoModalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   videoModalCard: {
     flex: 1,
     marginHorizontal: 16,
     marginBottom: 40,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   videoPlayer: { flex: 1 },
   expandedContent: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: CoachColors.borderMuted,
   },
 });

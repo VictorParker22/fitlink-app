@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -17,40 +17,40 @@ export default function ExploreGrid() {
 
   return (
     <View style={s.gridContainer}>
-      <Text style={s.tagHeader}>CONTENT // ON-DEMAND LIBRARY</Text>
-      <Text style={s.sectionTitle}>Content Catalog</Text>
+      <Text style={s.tagHeader}>On-demand library</Text>
+      <Text style={s.sectionTitle}>Content catalog</Text>
 
       <View style={s.gridRow}>
-        {/* On-Demand Classes */}
+        {/* On-demand classes */}
         <TouchableOpacity
           style={s.gridCard}
           activeOpacity={0.85}
           onPress={() => handlePress(() => router.push(ClientRoute.exploreClasses))}
           accessibilityRole="button"
-          accessibilityLabel="View On-Demand Classes"
+          accessibilityLabel="View on-demand classes"
         >
           <Image source={{ uri: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300' }} style={s.gridCardBg} cachePolicy="memory-disk" transition={200} />
           <View style={s.gridCardOverlay} />
           <View style={s.cardBadge}>
-            <Ionicons name="play" size={10} color="#5B7FFF" />
-            <Text style={s.cardBadgeText}>CLASSES</Text>
+            <Ionicons name="play" size={10} color={CoachColors.accent} />
+            <Text style={s.cardBadgeText}>Classes</Text>
           </View>
-          <Text style={s.gridCardTitle}>On-Demand</Text>
+          <Text style={s.gridCardTitle}>On-demand</Text>
         </TouchableOpacity>
-        
+
         {/* Collections */}
         <TouchableOpacity
           style={s.gridCard}
           activeOpacity={0.85}
           onPress={() => handlePress(() => router.push(ClientRoute.collections))}
           accessibilityRole="button"
-          accessibilityLabel="View Curated Collections"
+          accessibilityLabel="View curated collections"
         >
           <Image source={{ uri: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?w=300' }} style={s.gridCardBg} cachePolicy="memory-disk" transition={200} />
           <View style={s.gridCardOverlay} />
           <View style={s.cardBadge}>
-            <Ionicons name="layers" size={10} color="#22C55E" />
-            <Text style={[s.cardBadgeText, { color: '#22C55E' }]}>SERIES</Text>
+            <Ionicons name="layers" size={10} color={CoachColors.accent} />
+            <Text style={s.cardBadgeText}>Series</Text>
           </View>
           <Text style={s.gridCardTitle}>Collections</Text>
         </TouchableOpacity>
@@ -63,13 +63,13 @@ export default function ExploreGrid() {
           activeOpacity={0.85}
           onPress={() => handlePress(() => router.push(ClientRoute.programs))}
           accessibilityRole="button"
-          accessibilityLabel="View Signature Guided Programs"
+          accessibilityLabel="View signature guided programs"
         >
           <Image source={{ uri: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=300' }} style={s.gridCardBg} cachePolicy="memory-disk" transition={200} />
           <View style={s.gridCardOverlay} />
           <View style={s.cardBadge}>
-            <Ionicons name="trophy" size={10} color="#FFD700" />
-            <Text style={[s.cardBadgeText, { color: '#FFD700' }]}>PLANS</Text>
+            <Ionicons name="trophy" size={10} color={CoachColors.accent} />
+            <Text style={s.cardBadgeText}>Plans</Text>
           </View>
           <Text style={s.gridCardTitle}>Programs</Text>
         </TouchableOpacity>
@@ -80,13 +80,13 @@ export default function ExploreGrid() {
           activeOpacity={0.85}
           onPress={() => handlePress(() => router.push(ClientRoute.articles))}
           accessibilityRole="button"
-          accessibilityLabel="Read Articles & Insights"
+          accessibilityLabel="Read articles and insights"
         >
           <Image source={{ uri: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=300' }} style={s.gridCardBg} cachePolicy="memory-disk" transition={200} />
           <View style={s.gridCardOverlay} />
           <View style={s.cardBadge}>
-            <Ionicons name="document-text" size={10} color="#A78BFA" />
-            <Text style={[s.cardBadgeText, { color: '#A78BFA' }]}>READS</Text>
+            <Ionicons name="document-text" size={10} color={CoachColors.accent} />
+            <Text style={s.cardBadgeText}>Reads</Text>
           </View>
           <Text style={s.gridCardTitle}>Articles</Text>
         </TouchableOpacity>
@@ -98,16 +98,17 @@ export default function ExploreGrid() {
 const s = StyleSheet.create({
   gridContainer: { paddingHorizontal: 16, gap: 12, marginBottom: 20 },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 16,
     letterSpacing: -0.5,
   },
@@ -120,8 +121,8 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
   },
   gridCardBg: { ...StyleSheet.absoluteFillObject, opacity: 0.6 },
   gridCardOverlay: {
@@ -132,25 +133,26 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     alignSelf: 'flex-start',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     marginBottom: 6,
   },
   cardBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   gridCardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
 });

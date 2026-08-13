@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useWorkout } from '../../../context/WorkoutContext';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export function ClassStatsWidget() {
   const { workoutHistory } = useWorkout();
@@ -17,11 +16,11 @@ export function ClassStatsWidget() {
 
     workoutHistory.forEach(entry => {
       totalSeconds += entry.durationSec;
-      
+
       if (entry.category) {
         categoryCounts[entry.category] = (categoryCounts[entry.category] || 0) + 1;
       }
-      
+
       if (entry.completedAt) {
         const dateStr = new Date(entry.completedAt).toISOString().split('T')[0];
         dates.add(dateStr);
@@ -66,26 +65,26 @@ export function ClassStatsWidget() {
   return (
     <View style={styles.containerWrapper}>
       <View style={styles.header}>
-        <Text style={styles.tag}>ANALYTICS // YOUR STATS</Text>
-        <Text style={styles.sectionTitle}>Class Stats</Text>
+        <Text style={styles.tag}>Analytics // your stats</Text>
+        <Text style={styles.sectionTitle}>Class stats</Text>
       </View>
       <View style={styles.container}>
         <View style={styles.grid}>
           <View style={styles.pill}>
             <Text style={styles.value}>{stats.totalClasses}</Text>
-            <Text style={styles.label}>CLASSES</Text>
+            <Text style={styles.label}>Classes</Text>
           </View>
           <View style={styles.pill}>
             <Text style={styles.value}>{stats.totalMinutes}</Text>
-            <Text style={styles.label}>MINUTES</Text>
+            <Text style={styles.label}>Minutes</Text>
           </View>
           <View style={styles.pill}>
             <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{stats.topCategory}</Text>
-            <Text style={styles.label}>TOP CATEGORY</Text>
+            <Text style={styles.label}>Top category</Text>
           </View>
           <View style={styles.pill}>
             <Text style={styles.value}>{stats.streak}</Text>
-            <Text style={styles.label}>DAY STREAK</Text>
+            <Text style={styles.label}>Day streak</Text>
           </View>
         </View>
       </View>
@@ -102,24 +101,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
     letterSpacing: -0.5,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   container: {
     marginHorizontal: 16,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 16,
   },
@@ -135,17 +134,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   value: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
     letterSpacing: -0.5,
-    color: '#FFD700',
+    color: CoachColors.accent,
     marginBottom: 4,
   },
   label: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
     letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textTransform: 'uppercase',
   },
 });

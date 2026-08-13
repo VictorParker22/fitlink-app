@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface PassSeasonBannerProps {
   trackProgress: number; // 0-1, ratio of unlocked/total track nodes
@@ -13,15 +14,15 @@ interface PassSeasonBannerProps {
 const getSeasonInfo = () => {
   const month = new Date().getMonth();
   const year = new Date().getFullYear();
-  
+
   if (month === 11 || month === 0 || month === 1) { // Dec, Jan, Feb
-    return { name: 'Winter Warrior', color: '#6C9BF2', icon: 'snow' as const, year };
+    return { name: 'Winter warrior', icon: 'snow' as const, year };
   } else if (month >= 2 && month <= 4) { // Mar, Apr, May
-    return { name: 'Spring Reset', color: '#22C55E', icon: 'leaf' as const, year };
+    return { name: 'Spring reset', icon: 'leaf' as const, year };
   } else if (month >= 5 && month <= 7) { // Jun, Jul, Aug
-    return { name: 'Summer Sculpt', color: '#FF6B35', icon: 'sunny' as const, year };
+    return { name: 'Summer sculpt', icon: 'sunny' as const, year };
   } else { // Sep, Oct, Nov
-    return { name: 'Fall Forge', color: '#FFD700', icon: 'flame' as const, year };
+    return { name: 'Fall forge', icon: 'flame' as const, year };
   }
 };
 
@@ -40,7 +41,7 @@ export const PassSeasonBanner: React.FC<PassSeasonBannerProps> = ({
 }) => {
   const season = getSeasonInfo();
   const daysLeft = getDaysRemaining();
-  
+
   // Calculate tier name based on level
   const tierName = currentLevel < 10 ? 'Novice' : currentLevel < 20 ? 'Challenger' : 'Champion';
 
@@ -48,35 +49,35 @@ export const PassSeasonBanner: React.FC<PassSeasonBannerProps> = ({
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.seasonBadge}>
-          <Ionicons name={season.icon} size={24} color={season.color} />
-          <Text style={styles.tagText}>SEASON PASS</Text>
+          <Ionicons name={season.icon} size={24} color={CoachColors.accent} />
+          <Text style={styles.tagText}>Season pass</Text>
         </View>
-        <Text style={[styles.daysLeft, { color: season.color }]}>
-          {daysLeft} DAYS REMAINING
+        <Text style={styles.daysLeft}>
+          {daysLeft} days remaining
         </Text>
       </View>
-      
+
       <Text style={styles.seasonName}>{season.name} {season.year}</Text>
-      
+
       <View style={styles.progressSection}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>TRACK PROGRESS</Text>
-          <Text style={styles.progressText}>{unlockedNodes}/{totalNodes} Nodes</Text>
+          <Text style={styles.progressLabel}>Track progress</Text>
+          <Text style={styles.progressText}>{unlockedNodes}/{totalNodes} nodes</Text>
         </View>
-        
+
         <View style={styles.progressBarBg}>
-          <View 
+          <View
             style={[
-              styles.progressBarFill, 
-              { width: `${Math.min(100, Math.max(0, trackProgress * 100))}%`, backgroundColor: season.color }
-            ]} 
+              styles.progressBarFill,
+              { width: `${Math.min(100, Math.max(0, trackProgress * 100))}%` }
+            ]}
           />
         </View>
       </View>
 
       <View style={styles.bottomRow}>
-        <View style={[styles.levelPill, { borderColor: season.color }]}>
-          <Text style={[styles.levelPillText, { color: season.color }]}>Level {currentLevel}</Text>
+        <View style={styles.levelPill}>
+          <Text style={styles.levelPillText}>Level {currentLevel}</Text>
         </View>
         <Text style={styles.tierName}>{tierName}</Text>
       </View>
@@ -86,9 +87,9 @@ export const PassSeasonBanner: React.FC<PassSeasonBannerProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: 20,
     marginBottom: Spacing.lg,
@@ -105,20 +106,21 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   tagText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   daysLeft: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
+    color: CoachColors.accent,
   },
   seasonName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.xl,
   },
   progressSection: {
@@ -131,26 +133,27 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   progressLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   progressText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
+    backgroundColor: CoachColors.accent,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -159,17 +162,19 @@ const styles = StyleSheet.create({
   },
   levelPill: {
     borderWidth: 1,
+    borderColor: CoachColors.accent,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing['2xs'],
   },
   levelPillText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
+    color: CoachColors.accent,
   },
   tierName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 });

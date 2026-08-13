@@ -4,18 +4,11 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface HeroSpotlightProps {
   onExploreCoachesPress: () => void;
 }
-
-// §15 "Alive" — stat ticker pulses on mount
-const LIVE_STATS = [
-  { value: '1,240+', label: 'Active Athletes' },
-  { value: '94%', label: 'Goal Completion' },
-  { value: '48h', label: 'Avg Response Time' },
-];
 
 export default function HeroSpotlight({ onExploreCoachesPress }: HeroSpotlightProps) {
   // §15 Alive — pulsing live indicator
@@ -51,39 +44,29 @@ export default function HeroSpotlight({ onExploreCoachesPress }: HeroSpotlightPr
         <View style={s.liveRow}>
           {/* §15 Pulsing dot */}
           <Animated.View style={[s.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-          <Text style={s.liveLabel}>COACHING MARKETPLACE</Text>
+          <Text style={s.liveLabel}>Coaching marketplace</Text>
         </View>
 
-        {/* §1 Hero headline: 38px, tight tracked — the statement IS the design */}
-        <Text style={s.headline}>Train With{'\n'}Elite Coaches.</Text>
-
-        {/* §7 Social proof stat row — data IS the design */}
-        <View style={s.statsRow}>
-          {LIVE_STATS.map((stat, i) => (
-            <View key={i} style={[s.statItem, i < LIVE_STATS.length - 1 && s.statDivider]}>
-              <Text style={s.statValue}>{stat.value}</Text>
-              <Text style={s.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
+        {/* §1 Hero headline: tight tracked — the statement IS the design */}
+        <Text style={s.headline}>Train with{'\n'}elite coaches.</Text>
 
         {/* §11 Three feature pills — compact, readable */}
         <View style={s.pillRow}>
           <View style={s.pill}>
-            <Ionicons name="barbell-outline" size={11} color="#5B7FFF" />
-            <Text style={s.pillText}>Custom Plans</Text>
+            <Ionicons name="barbell-outline" size={11} color={CoachColors.accent} />
+            <Text style={s.pillText}>Custom plans</Text>
           </View>
           <View style={s.pill}>
-            <Ionicons name="chatbubbles-outline" size={11} color="#22C55E" />
-            <Text style={s.pillText}>Direct Access</Text>
+            <Ionicons name="chatbubbles-outline" size={11} color={CoachColors.accent} />
+            <Text style={s.pillText}>Direct access</Text>
           </View>
           <View style={s.pill}>
-            <Ionicons name="trophy-outline" size={11} color="#FFD700" />
-            <Text style={s.pillText}>XP Pass Track</Text>
+            <Ionicons name="trophy-outline" size={11} color={CoachColors.accent} />
+            <Text style={s.pillText}>XP pass track</Text>
           </View>
         </View>
 
-        {/* §14 CTA: 44pt, white, full-width */}
+        {/* §14 CTA: 44pt, full-width */}
         <TouchableOpacity
           style={s.ctaBtn}
           activeOpacity={0.88}
@@ -92,10 +75,10 @@ export default function HeroSpotlight({ onExploreCoachesPress }: HeroSpotlightPr
             onExploreCoachesPress();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Browse All Coach Plans"
+          accessibilityLabel="Browse all coach plans"
         >
-          <Text style={s.ctaText}>Browse Coach Plans</Text>
-          <Ionicons name="arrow-forward" size={16} color="#000" />
+          <Text style={s.ctaText}>Browse coach plans</Text>
+          <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
         </TouchableOpacity>
       </View>
     </View>
@@ -111,8 +94,8 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
     justifyContent: 'flex-end',
   },
   bgImage: {
@@ -128,7 +111,7 @@ const s = StyleSheet.create({
     zIndex: 2,
   },
 
-  // §1 Micro → hero → stats → pills → CTA
+  // §1 Micro → hero → pills → CTA
   liveRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,57 +122,24 @@ const s = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#22C55E',
+    backgroundColor: CoachColors.accent,
   },
   liveLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
 
   // §1 Hero: 32px, tight — this is THE statement
   headline: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     lineHeight: 36,
-    marginBottom: 4,
-  },
-
-  // §7 Data IS the design — horizontal stat row
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statDivider: {
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.08)',
-  },
-  statValue: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 18,
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.5,
-    textAlign: 'center',
+    marginBottom: 12,
   },
 
   pillRow: {
@@ -201,24 +151,24 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(17,17,19,0.9)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     marginBottom: 8,
   },
   pillText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
-  // §14 CTA: 44pt, white, full-width, flexRow for icon
+  // §14 CTA: 44pt, full-width, flexRow for icon
   ctaBtn: {
     height: 44,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,16 +176,9 @@ const s = StyleSheet.create({
     gap: 8,
   },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.2,
-  },
-  badgeText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 9,
-    color: '#FFD700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
 });

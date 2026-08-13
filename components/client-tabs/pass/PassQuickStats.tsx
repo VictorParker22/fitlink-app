@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface PassQuickStatsProps {
   level: number;
@@ -23,43 +23,37 @@ export const PassQuickStats: React.FC<PassQuickStatsProps> = ({
     <View>
       <View style={styles.card}>
         <View style={styles.col}>
-          <Ionicons name="shield" size={16} color="#FFD700" style={styles.icon} />
+          <Ionicons name="shield" size={16} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{level}</Text>
-          <Text style={styles.label}>LEVEL</Text>
+          <Text style={styles.label}>Level</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.col}>
           <Ionicons
             name="flame"
             size={16}
-            color={streak > 0 ? '#FF6B35' : 'rgba(255,255,255,0.2)'}
+            color={streak > 0 ? CoachColors.accent : CoachColors.textFaint}
             style={styles.icon}
           />
-          <Text style={styles.number}>
-            {streak}
-            {streak > 0 ? '🔥' : ''}
-          </Text>
-          <Text style={styles.label}>STREAK</Text>
+          <Text style={styles.number}>{streak}</Text>
+          <Text style={styles.label}>Streak</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.col}>
-          <Ionicons name="barbell" size={16} color="#FF6B35" style={styles.icon} />
+          <Ionicons name="barbell" size={16} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{workoutsThisMonth}</Text>
-          <Text style={styles.label}>THIS MONTH</Text>
+          <Text style={styles.label}>This month</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.col}>
-          <Ionicons name="flash" size={16} color="#FFD700" style={styles.icon} />
+          <Ionicons name="flash" size={16} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{totalXp}</Text>
-          <Text style={styles.label}>TOTAL XP</Text>
+          <Text style={styles.label}>Total XP</Text>
         </View>
       </View>
-      
+
       <View style={styles.progressTrack}>
-        <LinearGradient
-          colors={['#FF6B35', '#FFD700']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+        <View
           style={[styles.progressBar, { width: `${Math.max(0, Math.min(100, progressToNextLevel * 100))}%` }]}
         />
       </View>
@@ -69,9 +63,9 @@ export const PassQuickStats: React.FC<PassQuickStatsProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: Spacing.lg,
     flexDirection: 'row',
@@ -85,31 +79,33 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
   },
   icon: {
     marginBottom: Spacing.xs,
   },
   number: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
   label: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   progressTrack: {
     height: 4,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     borderRadius: 2,
+    backgroundColor: CoachColors.accent,
   },
 });

@@ -6,7 +6,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 
 interface ConsistencyRingProps {
@@ -52,7 +52,7 @@ export default function ConsistencyRing({
       <View style={st.topRow}>
         {/* Left: hero number */}
         <View style={st.heroBlock}>
-          <Text style={st.micro}>THIS WEEK</Text>
+          <Text style={st.micro}>This week</Text>
           <Text style={st.hero}>
             {doneThisWeek}
             <Text style={st.heroUnit}>/{totalScheduled}</Text>
@@ -61,7 +61,7 @@ export default function ConsistencyRing({
             {doneThisWeek === 0
               ? 'Start today'
               : isGreatWeek
-                ? 'Perfect week 🏆'
+                ? 'Perfect week'
                 : nextWorkoutTitle
                   ? `Next: ${nextWorkoutTitle}`
                   : `${totalScheduled - doneThisWeek} left`}
@@ -76,15 +76,15 @@ export default function ConsistencyRing({
             const isToday   = idx === todayIdx;
             const isFuture  = idx > todayIdx && !isDone && !isRest;
 
-            let bg     = '#111113'; // §11 Layer 2 surface tint
-            let border = '#1C1C1E';
+            let bg     = CoachColors.bg;
+            let border = CoachColors.borderMuted;
 
             if (isDone) {
-              bg     = '#051a0a';   // §3 green at 5% opacity
-              border = '#22C55E';
+              bg     = CoachColors.accentSofter;
+              border = CoachColors.accent;
             } else if (isRest) {
-              bg     = '#0a0f1a';
-              border = '#5B7FFF';
+              bg     = CoachColors.surface;
+              border = CoachColors.border;
             }
 
             const square = (
@@ -96,9 +96,9 @@ export default function ConsistencyRing({
                 ]}
               >
                 {isDone ? (
-                  <Ionicons name="checkmark" size={11} color="#22C55E" />
+                  <Ionicons name="checkmark" size={11} color={CoachColors.accent} />
                 ) : isRest ? (
-                  <Ionicons name="moon" size={9} color="#5B7FFF" />
+                  <Ionicons name="moon" size={9} color={CoachColors.textMuted} />
                 ) : isFuture ? null : (
                   <View style={st.emptyDot} />
                 )}
@@ -122,21 +122,21 @@ export default function ConsistencyRing({
         </View>
       </View>
 
-      {/* §11 Accent line at bottom — client blue = progress category */}
+      {/* §11 Accent line at bottom */}
       <View style={st.accentLine} />
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  // §2 Surface: Layer 1 (#0C0C0E) + 1px #1C1C1E border
+  // §2 Surface: card surface + 1px border
   container: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     padding: 18,
     paddingBottom: 14,
     overflow: 'hidden',
@@ -155,30 +155,30 @@ const st = StyleSheet.create({
     minWidth: 60,
   },
   micro: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   // §1 Hero number: 48px, tight tracked
   hero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 48,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -2,
     lineHeight: 50,
   },
   heroUnit: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 0,
   },
   context: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginTop: 4,
   },
 
@@ -201,34 +201,34 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  // Today: white ring instead of filled
+  // Today: bright ring instead of filled
   todayRing: {
-    borderColor: '#FFFFFF',
+    borderColor: CoachColors.textPrimary,
     borderWidth: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surfaceRaised,
   },
   emptyDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.textFaint,
   },
   dayLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   todayLabel: {
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
-  // §11 Accent line — client blue = progress
+  // §11 Accent line — progress
   accentLine: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: '#5B7FFF',
+    backgroundColor: CoachColors.accent,
   },
 });

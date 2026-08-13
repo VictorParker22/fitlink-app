@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { Spacing, Radius } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 
 export interface Plan {
   id: string;
@@ -155,10 +156,10 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
   }, []);
 
   const getTierBadge = (price: number) => {
-    if (price >= 200) return { label: 'DIAMOND', color: '#B9F2FF' };
-    if (price >= 100) return { label: 'GOLD', color: '#FFD700' };
-    if (price >= 50) return { label: 'SILVER', color: '#C0C0C0' };
-    return { label: 'BRONZE', color: '#CD7F32' };
+    if (price >= 200) return { label: 'Diamond' };
+    if (price >= 100) return { label: 'Gold' };
+    if (price >= 50) return { label: 'Silver' };
+    return { label: 'Bronze' };
   };
 
   const tier = getTierBadge(plan.price);
@@ -177,7 +178,7 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
           accessibilityRole="button"
           accessibilityLabel="Skip animation"
         >
-          <Text style={styles.skipText}>SKIP →</Text>
+          <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -200,10 +201,10 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
       {/* Initial / Tension Text */}
       <View style={styles.textLayer} pointerEvents="none">
         <Animated.Text style={[styles.statusText, { opacity: initTextOpacity }]}>
-          ACCESSING THE VAULT...
+          Accessing the vault...
         </Animated.Text>
         <Animated.Text style={[styles.statusText, { opacity: tensionTextOpacity, position: 'absolute' }]}>
-          UNLOCKING YOUR ACCESS...
+          Unlocking your access...
         </Animated.Text>
       </View>
 
@@ -217,7 +218,7 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
           ]}
         >
           <View style={{ transform: [{ rotate: '-45deg' }] }}>
-            <Ionicons name="diamond" size={40} color="#000000" />
+            <Ionicons name="diamond" size={40} color={CoachColors.onAccent} />
           </View>
         </Animated.View>
 
@@ -241,24 +242,33 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
       <View style={styles.cardLayer} pointerEvents="none">
         <Animated.View style={[styles.card, { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] }]}>
           <View style={styles.cardHeader}>
-            {/* ✅ Fixed: expo-image requires { uri } object for remote URLs */}
+            {/* Fixed: expo-image requires { uri } object for remote URLs */}
             <Image source={{ uri: coachAvatar }} style={styles.avatar} contentFit="cover" />
             <Text style={styles.coachName}>{coachName}</Text>
           </View>
           <Text style={styles.cardPlanName}>{plan.name}</Text>
-          <View style={[styles.tierBadge, { borderColor: tier.color }]}>
-            <Text style={[styles.tierText, { color: tier.color }]}>{tier.label}</Text>
+          <View style={styles.tierBadge}>
+            <Text style={styles.tierText}>{tier.label}</Text>
           </View>
           {archetype && <Text style={styles.archetypeText}>{archetype}</Text>}
           <View style={styles.stampContainer}>
-            <Text style={styles.stampText}>ACCESS UNLOCKED</Text>
+            <Text style={styles.stampText}>Access unlocked</Text>
           </View>
         </Animated.View>
 
         <View style={styles.statsContainer}>
-          <Animated.Text style={[styles.statText, { opacity: stat1Opacity }]}>✓ {plan.name} Activated</Animated.Text>
-          <Animated.Text style={[styles.statText, { opacity: stat2Opacity }]}>✓ FitLink Pass Journey Unlocked</Animated.Text>
-          <Animated.Text style={[styles.statText, { opacity: stat3Opacity }]}>✓ Direct Coach Messaging Enabled</Animated.Text>
+          <Animated.View style={[styles.statRow, { opacity: stat1Opacity }]}>
+            <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
+            <Text style={styles.statText}>{plan.name} activated</Text>
+          </Animated.View>
+          <Animated.View style={[styles.statRow, { opacity: stat2Opacity }]}>
+            <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
+            <Text style={styles.statText}>FitLink Pass journey unlocked</Text>
+          </Animated.View>
+          <Animated.View style={[styles.statRow, { opacity: stat3Opacity }]}>
+            <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
+            <Text style={styles.statText}>Direct coach messaging enabled</Text>
+          </Animated.View>
         </View>
       </View>
 
@@ -277,15 +287,15 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
           accessibilityLabel="Enter your coaching journey"
         >
           <Animated.View style={[styles.btnGlowWrapper, { opacity: btnGlow }]}>
-            <LinearGradient colors={['rgba(255, 215, 0, 0.4)', 'rgba(255, 215, 0, 0)']} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={[CoachColors.accentSoft, 'rgba(198,242,78,0)']} style={StyleSheet.absoluteFill} />
           </Animated.View>
-          <LinearGradient colors={['#FFD700', '#FFA500']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
+          <View style={styles.cta}>
             {saving ? (
-              <ActivityIndicator size="small" color="#000000" />
+              <ActivityIndicator size="small" color={CoachColors.onAccent} />
             ) : (
-              <Text style={styles.ctaText}>ENTER YOUR JOURNEY</Text>
+              <Text style={styles.ctaText}>Enter your journey</Text>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -293,39 +303,40 @@ export const StepVaultPull: React.FC<StepVaultPullProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' },
-  flash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#FFFFFF', zIndex: 999 },
+  container: { flex: 1, backgroundColor: CoachColors.bg, justifyContent: 'center', alignItems: 'center' },
+  flash: { ...StyleSheet.absoluteFillObject, backgroundColor: CoachColors.textPrimary, zIndex: 999 },
   skipBtn: { position: 'absolute', top: 16, right: 20, zIndex: 100, paddingVertical: 8, paddingHorizontal: 12 },
-  skipText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.5 },
-  particle: { position: 'absolute', width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFD700' },
-  burstParticle: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFD700' },
+  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 1.5 },
+  particle: { position: 'absolute', width: 4, height: 4, borderRadius: 2, backgroundColor: CoachColors.accent },
+  burstParticle: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.accent },
   textLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  statusText: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: '#FFD700', letterSpacing: 3 },
+  statusText: { fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.accent, letterSpacing: 3 },
   centerLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 5 },
-  glowCircle: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255, 215, 0, 0.1)' },
-  vaultDiamond: { width: 80, height: 80, backgroundColor: '#FFD700', justifyContent: 'center', alignItems: 'center' },
+  glowCircle: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: CoachColors.accentSofter },
+  vaultDiamond: { width: 80, height: 80, backgroundColor: CoachColors.accent, justifyContent: 'center', alignItems: 'center' },
   cardLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
   card: {
-    backgroundColor: '#0C0C0E', borderWidth: 2, borderColor: '#FFD700',
+    backgroundColor: CoachColors.surface, borderWidth: 2, borderColor: CoachColors.accent,
     borderRadius: 20, padding: 24, width: 280, alignItems: 'center', marginBottom: Spacing['2xl'],
   },
   cardHeader: { alignItems: 'center', marginBottom: Spacing.lg },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginBottom: Spacing.xs, backgroundColor: '#1C1C1E' },
-  coachName: { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: 'rgba(255, 255, 255, 0.5)' },
-  cardPlanName: { fontFamily: FontFamily.headingExtraBold, fontSize: 24, color: '#FFFFFF', marginBottom: Spacing.sm, textAlign: 'center' },
-  tierBadge: { borderWidth: 1, borderRadius: Radius.sm, paddingHorizontal: Spacing.xs, paddingVertical: 2, marginBottom: Spacing.md },
-  tierText: { fontFamily: FontFamily.bodyBold, fontSize: 10 },
-  archetypeText: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255, 255, 255, 0.7)', marginBottom: Spacing.xl },
+  avatar: { width: 40, height: 40, borderRadius: 20, marginBottom: Spacing.xs, backgroundColor: CoachColors.borderMuted },
+  coachName: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  cardPlanName: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary, marginBottom: Spacing.sm, textAlign: 'center' },
+  tierBadge: { borderWidth: 1, borderColor: CoachColors.accent, borderRadius: Radius.sm, paddingHorizontal: Spacing.xs, paddingVertical: 2, marginBottom: Spacing.md },
+  tierText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.accent },
+  archetypeText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginBottom: Spacing.xl },
   stampContainer: {
-    borderWidth: 1, borderColor: '#FFD700', borderRadius: Radius.full,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderWidth: 1, borderColor: CoachColors.accent, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: CoachColors.accentSoft,
   },
-  stampText: { fontFamily: FontFamily.bodyBold, fontSize: 12, color: '#FFD700' },
+  stampText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
   statsContainer: { alignItems: 'flex-start', width: 280 },
-  statText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFFFFF', marginBottom: Spacing.sm },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
+  statText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
   ctaLayer: { position: 'absolute', bottom: Spacing['3xl'], left: Spacing.lg, right: Spacing.lg, zIndex: 30 },
   ctaWrapper: { borderRadius: 12, overflow: 'hidden', height: 56 },
   btnGlowWrapper: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.1 }] },
-  cta: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  ctaText: { fontFamily: FontFamily.bodyBold, fontSize: 16, color: '#000000' },
+  cta: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: CoachColors.accent },
+  ctaText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },
 });

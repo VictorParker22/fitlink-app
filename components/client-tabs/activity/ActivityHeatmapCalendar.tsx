@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Animated } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../../../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export interface ActivityHeatmapCalendarProps {
   activityMap: Record<string, { inClub: boolean; progress: number; workoutName?: string; duration?: number }>;
@@ -19,8 +19,6 @@ const AVAILABLE_WIDTH = screenWidth - (CONTAINER_MARGIN * 2) - (CALENDAR_PADDING
 const CELL_SIZE = Math.min(Math.floor((AVAILABLE_WIDTH - (GAP * 6)) / 7), 36);
 
 export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatmapCalendarProps) {
-  const { colors } = useTheme();
-  
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -54,7 +52,7 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    
+
     let startDayOfWeek = firstDay.getDay() - 1;
     if (startDayOfWeek === -1) startDayOfWeek = 6;
 
@@ -62,18 +60,18 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
     for (let i = 0; i < startDayOfWeek; i++) {
       cells.push(-i - 1);
     }
-    
+
     for (let i = 1; i <= daysInMonth; i++) {
       cells.push(i);
     }
-    
+
     const remainder = cells.length % 7;
     if (remainder !== 0) {
       for (let i = 0; i < 7 - remainder; i++) {
         cells.push(-(daysInMonth + i + 1));
       }
     }
-    
+
     return cells;
   };
 
@@ -109,11 +107,11 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
   };
 
   const getIntensityColor = (progress: number) => {
-    if (progress === 0 || !progress) return colors.bgPrimary;
-    if (progress <= 0.25) return colors.accentSoft;
-    if (progress <= 0.5) return 'rgba(255,107,53, 0.50)';
-    if (progress <= 0.75) return 'rgba(255,107,53, 0.75)';
-    return colors.accent;
+    if (progress === 0 || !progress) return CoachColors.bg;
+    if (progress <= 0.25) return CoachColors.accentSofter;
+    if (progress <= 0.5) return 'rgba(198,242,78,0.35)';
+    if (progress <= 0.75) return 'rgba(198,242,78,0.6)';
+    return CoachColors.accent;
   };
 
   let activeDays = 0;
@@ -137,16 +135,16 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
   const selectedActivity = selectedDay ? activityMap[selectedDay] : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-      <Text style={styles.tagHeader}>ACTIVITY // CALENDAR</Text>
-      
+    <View style={styles.container}>
+      <Text style={styles.tagHeader}>Activity calendar</Text>
+
       <View style={styles.navRow}>
         <TouchableOpacity onPress={handlePrevMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-back" size={16} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={16} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{getMonthName(calMonth)}, {calYear}</Text>
         <TouchableOpacity onPress={handleNextMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+          <Ionicons name="chevron-forward" size={16} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -166,10 +164,10 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
 
           const dayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(cell).padStart(2, '0')}`;
           const isToday = today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === cell;
-          
+
           const cellDate = new Date(calYear, calMonth, cell);
           const isFuture = cellDate > today;
-          
+
           const activity = activityMap[dayStr];
           const progress = activity?.progress || 0;
           const bgColor = getIntensityColor(progress);
@@ -177,28 +175,28 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
           const isSelected = selectedDay === dayStr;
 
           return (
-            <TouchableOpacity 
-              key={`day-${cell}`} 
+            <TouchableOpacity
+              key={`day-${cell}`}
               activeOpacity={0.7}
               onPress={() => handleDayPress(dayStr)}
               style={[
                 styles.cell,
-                isFuture ? [styles.futureCell, { backgroundColor: colors.bgPrimary, borderColor: colors.border }] : { backgroundColor: bgColor },
-                isToday && [styles.todayCell, { borderColor: colors.accent }]
+                isFuture ? styles.futureCell : { backgroundColor: bgColor },
+                isToday && styles.todayCell
               ]}
             >
               {isToday && (
-                <Animated.View style={[styles.todayGlow, { opacity: glowAnim, backgroundColor: colors.accentSoft }]} />
+                <Animated.View style={[styles.todayGlow, { opacity: glowAnim }]} />
               )}
-              <Text style={[styles.cellText, isSelected && [styles.selectedCellText, { color: colors.textInverse }]]}>{cell}</Text>
+              <Text style={[styles.cellText, isSelected && styles.selectedCellText]}>{cell}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       {selectedDay && (
-        <View style={[styles.tooltip, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-          <Text style={[styles.tooltipDate, { color: colors.accent }]}>{selectedDay}</Text>
+        <View style={styles.tooltip}>
+          <Text style={styles.tooltipDate}>{selectedDay}</Text>
           {selectedActivity ? (
             <>
               {selectedActivity.workoutName && <Text style={styles.tooltipWorkout}>{selectedActivity.workoutName}</Text>}
@@ -216,29 +214,29 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
       <View style={styles.divider} />
 
       <View style={styles.statsRow}>
-        <View style={[styles.pill, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
+        <View style={styles.pill}>
           <Text style={styles.pillNumber}>{activeDays}</Text>
-          <Text style={styles.pillLabel}>ACTIVE DAYS</Text>
+          <Text style={styles.pillLabel}>Active days</Text>
         </View>
-        <View style={[styles.pill, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
+        <View style={styles.pill}>
           <Text style={styles.pillNumber}>{workoutCount}</Text>
-          <Text style={styles.pillLabel}>WORKOUTS</Text>
+          <Text style={styles.pillLabel}>Workouts</Text>
         </View>
-        <View style={[styles.pill, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
+        <View style={styles.pill}>
           <Text style={styles.pillNumber}>{bestStreak}</Text>
-          <Text style={styles.pillLabel}>BEST STREAK</Text>
+          <Text style={styles.pillLabel}>Best streak</Text>
         </View>
       </View>
 
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>0</Text>
-        <LinearGradient 
-          colors={[colors.bgPrimary, colors.accent]}
+        <Text style={styles.legendText}>Less</Text>
+        <LinearGradient
+          colors={[CoachColors.bg, CoachColors.accent]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.legendBar}
         />
-        <Text style={styles.legendText}>5+</Text>
+        <Text style={styles.legendText}>More</Text>
       </View>
     </View>
   );
@@ -250,11 +248,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     padding: CALENDAR_PADDING,
     width: '100%',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 16,
@@ -269,14 +269,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   monthLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   daysHeader: {
     flexDirection: 'row',
@@ -286,9 +286,9 @@ const styles = StyleSheet.create({
   dayHeaderText: {
     width: CELL_SIZE,
     textAlign: 'center',
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
   grid: {
     flexDirection: 'row',
@@ -304,44 +304,49 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   overflowCell: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.borderMuted,
   },
   futureCell: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   todayCell: {
     borderWidth: 2,
+    borderColor: CoachColors.accent,
   },
   todayGlow: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: Radius.sm,
+    backgroundColor: CoachColors.accentSoft,
   },
   cellText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   selectedCellText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
+    color: CoachColors.accent,
   },
   tooltip: {
     marginTop: 16,
     padding: 12,
     borderRadius: Radius.lg,
     borderWidth: 1,
+    backgroundColor: CoachColors.bg,
+    borderColor: CoachColors.borderMuted,
   },
   tooltipDate: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFD700',
+    color: CoachColors.accent,
     marginBottom: 4,
   },
   tooltipWorkout: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   tooltipMetaRow: {
@@ -349,18 +354,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tooltipMeta: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   tooltipEmpty: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 12,
   },
   statsRow: {
@@ -375,17 +380,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     flex: 1,
+    backgroundColor: CoachColors.bg,
+    borderColor: CoachColors.borderMuted,
   },
   pillNumber: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   pillLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
@@ -397,9 +404,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   legendText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   legendBar: {
     width: 60,

@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import Svg, { Path, Circle as SvgCircle, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
-import { useTheme } from '../../../context/ThemeContext';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import * as Haptics from 'expo-haptics';
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
@@ -13,7 +13,6 @@ interface ActivityBodyProgressProps {
 }
 
 export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ progressLogs }) => {
-  const { colors } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -43,19 +42,19 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
 
   if (validEntries.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-        <Text style={styles.tagHeader}>BODY PROGRESS // TRACKING</Text>
-        <Text style={styles.title}>Weight Trend</Text>
+      <View style={styles.container}>
+        <Text style={styles.tagHeader}>Body progress</Text>
+        <Text style={styles.title}>Weight trend</Text>
         <View style={styles.emptyState}>
-          <Ionicons name="scale-outline" size={48} color="rgba(255,255,255,0.15)" />
+          <Ionicons name="scale-outline" size={48} color={CoachColors.textFaint} />
           <Text style={styles.emptyText}>Log your first weight to start tracking trends</Text>
-          <TouchableOpacity 
-            style={[styles.logButtonWrapper, { backgroundColor: colors.accent }]} 
+          <TouchableOpacity
+            style={styles.logButtonWrapper}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           >
-            <Text style={styles.logButtonText}>Log Weight</Text>
+            <Text style={styles.logButtonText}>Log weight</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -76,7 +75,7 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
   const hasBodyFat = validEntries.some((e) => e.body_fat != null);
   const latestBodyFat = hasBodyFat ? [...validEntries].reverse().find(e => e.body_fat != null)?.body_fat : null;
 
-  const chartWidth = 300; 
+  const chartWidth = 300;
   const chartHeight = 160;
 
   const getPoint = (index: number, weight: number) => {
@@ -86,7 +85,7 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
   };
 
   const points = validEntries.map((e, i) => getPoint(i, e.weight));
-  
+
   const pathString = points.reduce((acc, point, index) => {
     return index === 0 ? `M ${point.x},${point.y}` : `${acc} L ${point.x},${point.y}`;
   }, '');
@@ -96,33 +95,33 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
   const avgY = chartHeight - ((averageWeight - minWeight) / (maxWeight - minWeight)) * chartHeight;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-      <Text style={styles.tagHeader}>BODY PROGRESS // TRACKING</Text>
-      <Text style={styles.title}>Weight Trend</Text>
+    <View style={styles.container}>
+      <Text style={styles.tagHeader}>Body progress</Text>
+      <Text style={styles.title}>Weight trend</Text>
 
       <View style={styles.chartContainer}>
         <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
           <Defs>
             <SvgLinearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={colors.accentSoft} />
+              <Stop offset="0" stopColor={CoachColors.accentSoft} />
               <Stop offset="1" stopColor="transparent" />
             </SvgLinearGradient>
           </Defs>
 
-          <Line x1="0" y1={avgY} x2={chartWidth} y2={avgY} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4 4" />
-          
+          <Line x1="0" y1={avgY} x2={chartWidth} y2={avgY} stroke={CoachColors.borderMuted} strokeWidth="1" strokeDasharray="4 4" />
+
           <Path d={fillPathString} fill="url(#gradient)" />
-          <Path d={pathString} stroke={colors.accent} strokeWidth="2" fill="none" />
+          <Path d={pathString} stroke={CoachColors.accent} strokeWidth="2" fill="none" />
 
           {points.map((p, i) => (
-            <SvgCircle key={i} cx={p.x} cy={p.y} r="3" fill={colors.accent} />
+            <SvgCircle key={i} cx={p.x} cy={p.y} r="3" fill={CoachColors.accent} />
           ))}
           {points.length > 0 && (
             <AnimatedCircle
               cx={points[points.length - 1].x}
               cy={points[points.length - 1].y}
               r="6"
-              fill={colors.accent}
+              fill={CoachColors.accent}
               opacity={pulseAnim}
             />
           )}
@@ -135,7 +134,7 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
         </View>
         <View style={styles.verticalDivider} />
         <View style={styles.statColumnCenter}>
-          <Text style={[styles.statChange, { color: totalChange <= 0 ? '#22C55E' : '#FF4444' }]}>
+          <Text style={[styles.statChange, { color: totalChange <= 0 ? CoachColors.accent : CoachColors.danger }]}>
             {totalChange > 0 ? '+' : ''}{totalChange.toFixed(1)}
           </Text>
         </View>
@@ -147,7 +146,7 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
 
       {hasBodyFat && latestBodyFat != null && (
         <View style={styles.bodyFatRow}>
-          <Text style={styles.bodyFatText}>Body Fat: {latestBodyFat}%</Text>
+          <Text style={styles.bodyFatText}>Body fat: {latestBodyFat}%</Text>
         </View>
       )}
     </View>
@@ -160,18 +159,21 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: Spacing.xs,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.xl,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.md,
   },
   emptyState: {
@@ -179,9 +181,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl,
   },
   emptyText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.sm,
     marginBottom: Spacing.lg,
@@ -192,11 +194,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
   },
   logButtonText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: FontSize.sm,
-    color: '#000',
+    color: CoachColors.onAccent,
   },
   chartContainer: {
     height: 160,
@@ -211,7 +214,7 @@ const styles = StyleSheet.create({
   verticalDivider: {
     width: 1,
     height: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
   statColumn: {
     flex: 1,
@@ -225,25 +228,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   statCurrent: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize['2xl'],
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   statChange: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.lg,
   },
   statSince: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   bodyFatRow: {
     marginTop: Spacing.sm,
   },
   bodyFatText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
 });

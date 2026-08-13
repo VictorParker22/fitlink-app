@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface PassMembershipCardProps {
   clientName: string;
@@ -18,10 +19,10 @@ interface PassMembershipCardProps {
 }
 
 const getTierInfo = (level: number) => {
-  if (level >= 20) return { name: 'DIAMOND', color: '#B9F2FF' };
-  if (level >= 10) return { name: 'GOLD', color: '#FFD700' };
-  if (level >= 5) return { name: 'SILVER', color: '#C0C0C0' };
-  return { name: 'BRONZE', color: '#CD7F32' };
+  if (level >= 20) return { name: 'Diamond', color: CoachColors.accent };
+  if (level >= 10) return { name: 'Gold', color: CoachColors.textPrimary };
+  if (level >= 5) return { name: 'Silver', color: CoachColors.textSecondary };
+  return { name: 'Bronze', color: CoachColors.textMuted };
 };
 
 export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
@@ -84,7 +85,7 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
           </Text>
         </View>
         <Text style={[styles.watermark, { color: tier.color }]}>
-          FITLINK CLUB
+          FitLink club
         </Text>
       </View>
 
@@ -93,7 +94,7 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
           ) : (
-            <Ionicons name="person" size={32} color="#FFFFFF" />
+            <Ionicons name="person" size={32} color={CoachColors.textPrimary} />
           )}
         </View>
         <Text style={styles.clientName}>{clientName}</Text>
@@ -111,17 +112,17 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
       <View style={styles.statsRow}>
         <View style={styles.statCol}>
           <Text style={styles.statValue}>{totalWorkouts}</Text>
-          <Text style={styles.statLabel}>WORKOUTS</Text>
+          <Text style={styles.statLabel}>Workouts</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statCol}>
           <Text style={styles.statValue}>{totalXp}</Text>
-          <Text style={styles.statLabel}>TOTAL XP</Text>
+          <Text style={styles.statLabel}>Total XP</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statCol}>
           <Text style={styles.statValue}>{currentStreak}</Text>
-          <Text style={styles.statLabel}>DAY STREAK</Text>
+          <Text style={styles.statLabel}>Day streak</Text>
         </View>
       </View>
     </View>
@@ -130,7 +131,7 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 2,
     borderRadius: 20,
     padding: Spacing['2xl'],
@@ -164,14 +165,16 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   tierText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   watermark: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 10,
     letterSpacing: 3,
+    textTransform: 'uppercase',
     opacity: 0.3,
   },
   profileSection: {
@@ -185,7 +188,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: Spacing.md,
     overflow: 'hidden',
   },
@@ -194,19 +197,19 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   clientName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.xs,
   },
   planName: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginBottom: Spacing.xs,
   },
   memberSince: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
   },
   statsRow: {
@@ -215,7 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: CoachColors.borderMuted,
   },
   statCol: {
     flex: 1,
@@ -224,18 +227,19 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: '100%',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
   statValue: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
   statLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

@@ -1,12 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
+
+// Single accent, distinguished by tone: accent for the outer ring, neutral
+// grays for the inner rings.
+const RING_WORKOUT = CoachColors.accent;
+const RING_STEPS = CoachColors.textSecondary;
+const RING_MEALS = CoachColors.textFaint;
 
 export interface ActivityTripleRingsProps {
   todayWorkoutMinutes: number;
@@ -25,8 +31,6 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
   targetSteps = 8000,
   targetMeals = 3,
 }) => {
-  const { colors } = useTheme();
-
   const workoutProgress = Math.min(todayWorkoutMinutes / targetMinutes, 1);
   const stepsProgress = stepsToday !== null ? Math.min(stepsToday / targetSteps, 1) : null;
   const mealsProgress = Math.min(mealsLoggedToday / targetMeals, 1);
@@ -81,7 +85,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
       inputRange: [0, 1],
       outputRange: [circumference, 0]
     });
-    
+
     return (
       <React.Fragment key={color}>
         <SvgCircle
@@ -109,20 +113,20 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-      <Text style={styles.tagHeader}>DAILY PROGRESS // RINGS</Text>
-      
+    <View style={styles.container}>
+      <Text style={styles.tagHeader}>Daily progress</Text>
+
       <View style={styles.ringsContainer}>
         <Svg width={size} height={size} style={styles.svg}>
-          {renderRing(outerRadius, '#FF6B35', animWorkout)}
-          {stepsToday !== null && renderRing(midRadius, '#22C55E', animSteps)}
-          {renderRing(innerRadius, '#4D94FF', animMeals)}
+          {renderRing(outerRadius, RING_WORKOUT, animWorkout)}
+          {stepsToday !== null && renderRing(midRadius, RING_STEPS, animSteps)}
+          {renderRing(innerRadius, RING_MEALS, animMeals)}
         </Svg>
-        
+
         <View style={styles.centerContent}>
           {isComplete ? (
             <View style={styles.completeBadge}>
-              <Ionicons name="checkmark" size={24} color="#FFD700" />
+              <Ionicons name="checkmark" size={24} color={CoachColors.accent} />
             </View>
           ) : (
             <Text style={styles.centerText}>{Math.round(maxProgress * 100)}%</Text>
@@ -134,8 +138,8 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
 
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
-          <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,107,53,0.12)' }]}>
-            <Ionicons name="flame" size={14} color="#FF6B35" />
+          <View style={[styles.iconContainer, { backgroundColor: CoachColors.accentSoft }]}>
+            <Ionicons name="flame" size={14} color={RING_WORKOUT} />
           </View>
           <View>
             <Text style={styles.legendLabel}>Workout</Text>
@@ -145,8 +149,8 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
 
         {stepsToday !== null && (
           <View style={styles.legendItem}>
-            <View style={[styles.iconContainer, { backgroundColor: 'rgba(34,197,94,0.12)' }]}>
-              <Ionicons name="footsteps" size={14} color="#22C55E" />
+            <View style={[styles.iconContainer, { backgroundColor: CoachColors.borderMuted }]}>
+              <Ionicons name="footsteps" size={14} color={RING_STEPS} />
             </View>
             <View>
               <Text style={styles.legendLabel}>Steps</Text>
@@ -156,8 +160,8 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
         )}
 
         <View style={styles.legendItem}>
-          <View style={[styles.iconContainer, { backgroundColor: 'rgba(77,148,255,0.12)' }]}>
-            <Ionicons name="restaurant" size={14} color="#4D94FF" />
+          <View style={[styles.iconContainer, { backgroundColor: CoachColors.borderMuted }]}>
+            <Ionicons name="restaurant" size={14} color={RING_MEALS} />
           </View>
           <View>
             <Text style={styles.legendLabel}>Meals</Text>
@@ -175,11 +179,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius['2xl'],
     padding: Spacing.xl,
     width: '100%',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: Spacing.xl,
@@ -200,23 +206,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.xl,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   completeBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,215,0,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.2)',
+    borderColor: 'rgba(198,242,78,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 20,
   },
   legendContainer: {
@@ -238,14 +244,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   legendLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   legendValue: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginTop: Spacing['2xs'],
   }
 });

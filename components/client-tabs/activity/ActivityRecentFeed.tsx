@@ -2,9 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
-import { getCategoryColor } from '../../../data/categoryColors';
-import { useTheme } from '../../../context/ThemeContext';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface ActivityRecentFeedProps {
   workouts: any[];
@@ -19,8 +18,6 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
   progressLogs = [],
   onPressWorkout,
 }) => {
-  const { colors } = useTheme();
-
   const mergedFeed = [
     ...workouts.filter((w) => w.status === 'completed').map((w) => ({
       id: w.id,
@@ -43,7 +40,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
     ...progressLogs.map((p) => ({
       id: p.id,
       type: 'log' as const,
-      name: 'Progress Check-in',
+      name: 'Progress check-in',
       category: 'Other',
       date: new Date(p.date),
       duration: '',
@@ -71,13 +68,13 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagHeader}>ACTIVITY // RECENT HISTORY</Text>
+      <Text style={styles.tagHeader}>Recent history</Text>
       <View style={styles.divider} />
 
       {mergedFeed.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconContainer}>
-            <Ionicons name="barbell-outline" size={48} color="rgba(255,255,255,0.25)" />
+            <Ionicons name="barbell-outline" size={48} color={CoachColors.textFaint} />
           </View>
           <Text style={styles.emptyText}>
             No recent activity yet. Complete your first workout to see it here.
@@ -88,7 +85,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
           {mergedFeed.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border, borderTopColor: getCategoryColor(item.category) }]}
+              style={styles.card}
               onPress={() => handlePress(item)}
               disabled={item.type !== 'workout' || !onPressWorkout}
               activeOpacity={0.7}
@@ -97,12 +94,12 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
                 <Text style={styles.itemName}>{item.name}</Text>
                 <View style={styles.metaRow}>
                   {item.isCoachAssigned ? (
-                    <View style={[styles.pill, { backgroundColor: colors.accentSoft }]}>
-                      <Text style={[styles.pillText, { color: colors.accent }]}>Coach</Text>
+                    <View style={[styles.pill, { backgroundColor: CoachColors.accentSoft }]}>
+                      <Text style={[styles.pillText, { color: CoachColors.accent }]}>Coach</Text>
                     </View>
                   ) : (
-                    <View style={[styles.pill, { borderWidth: 1, borderColor: colors.border }]}>
-                      <Text style={[styles.pillText, { color: colors.textSecondary }]}>Logged</Text>
+                    <View style={[styles.pill, { borderWidth: 1, borderColor: CoachColors.border }]}>
+                      <Text style={[styles.pillText, { color: CoachColors.textSecondary }]}>Logged</Text>
                     </View>
                   )}
                   {item.duration ? <Text style={styles.metaText}>{item.duration}</Text> : null}
@@ -111,7 +108,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
                 </View>
               </View>
               <View style={styles.navButtonContainer}>
-                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+                <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
               </View>
             </TouchableOpacity>
           ))}
@@ -127,16 +124,16 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: Spacing.xl,
   },
   emptyState: {
@@ -147,16 +144,16 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 16,
   },
   emptyText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     marginTop: 16,
     maxWidth: '80%',
@@ -170,17 +167,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderWidth: 1,
-    borderTopWidth: 3,
     borderRadius: Radius.md,
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   contentArea: {
     flex: 1,
     paddingLeft: 4,
   },
   itemName: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: FontSize.base,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: 6,
   },
   metaRow: {
@@ -196,26 +194,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
     textTransform: 'uppercase',
   },
   metaText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   metaDot: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
     marginHorizontal: 6,
   },
   navButtonContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },

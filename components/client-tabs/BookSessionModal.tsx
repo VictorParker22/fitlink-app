@@ -25,12 +25,11 @@ import {
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 
@@ -59,31 +58,28 @@ interface BookSessionModalProps {
 const SESSION_TYPES = [
   {
     id: '1on1',
-    label: '1-ON-1',
+    label: '1-on-1',
     icon: 'person' as const,
     desc: 'Private session, fully focused on you',
     price: '$75',
-    accent: '#FF6B35',
   },
   {
     id: 'virtual',
-    label: 'VIRTUAL',
+    label: 'Virtual',
     icon: 'videocam' as const,
     desc: 'Remote coaching via video call',
     price: '$45',
-    accent: '#5B7FFF',
   },
   {
     id: 'assessment',
-    label: 'ASSESSMENT',
+    label: 'Assessment',
     icon: 'clipboard' as const,
-    desc: 'Full fitness & goals evaluation',
+    desc: 'Full fitness and goals evaluation',
     price: '$60',
-    accent: '#22C55E',
   },
 ];
 
-const DURATIONS = ['30 MIN', '45 MIN', '60 MIN', '90 MIN'];
+const DURATIONS = ['30 min', '45 min', '60 min', '90 min'];
 
 // ─── Phase: Confirmed ─────────────────────────────────────────────────────────
 
@@ -118,12 +114,12 @@ function ConfirmedScreen({
   return (
     <View style={cs.root}>
       <Animated.View style={[cs.iconWrap, { transform: [{ scale: scaleAnim }] }]}>
-        <LinearGradient colors={['#22C55E', '#16A34A']} style={cs.iconGrad}>
-          <Ionicons name="checkmark" size={40} color="#FFFFFF" />
-        </LinearGradient>
+        <View style={cs.iconCircle}>
+          <Ionicons name="checkmark" size={40} color={CoachColors.onAccent} />
+        </View>
       </Animated.View>
 
-      <Text style={cs.title}>Request Sent</Text>
+      <Text style={cs.title}>Request sent</Text>
       <Text style={cs.sub}>
         Your booking request has been sent to{' '}
         <Text style={cs.subBold}>{coach.name.split(' ')[0]}</Text>. They'll reach
@@ -142,8 +138,6 @@ function ConfirmedScreen({
         </View>
       </View>
 
-      <Text style={cs.hint}>Average response time: 2–4 hours</Text>
-
       <TouchableOpacity
         style={cs.closeBtn}
         onPress={onClose}
@@ -151,14 +145,7 @@ function ConfirmedScreen({
         accessibilityRole="button"
         accessibilityLabel="Close booking confirmation"
       >
-        <LinearGradient
-          colors={['#FFD700', '#FF9500']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={cs.closeBtnGrad}
-        >
-          <Text style={cs.closeBtnText}>DONE →</Text>
-        </LinearGradient>
+        <Text style={cs.closeBtnText}>Done</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -170,7 +157,7 @@ function ConfirmedScreen({
         accessibilityLabel="View your sessions"
         style={{ marginTop: 8 }}
       >
-        <Text style={cs.viewSessionsLink}>View My Sessions →</Text>
+        <Text style={cs.viewSessionsLink}>View my sessions</Text>
       </TouchableOpacity>
     </View>
   );
@@ -186,44 +173,45 @@ const cs = StyleSheet.create({
   iconWrap: {
     marginBottom: 24,
   },
-  iconGrad: {
+  iconCircle: {
     width: 88,
     height: 88,
     borderRadius: 44,
+    backgroundColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     marginBottom: 12,
     textAlign: 'center',
   },
   sub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 21,
     textAlign: 'center',
     marginBottom: 28,
   },
   subBold: {
-    fontFamily: FontFamily.bodyBold,
-    color: 'rgba(255,255,255,0.8)',
+    fontFamily: CoachFonts.bodyBold,
+    color: CoachColors.textPrimary,
   },
   coachRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 16,
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 32,
   },
   coachAvatar: {
     width: 48,
@@ -231,45 +219,37 @@ const cs = StyleSheet.create({
     borderRadius: 10,
   },
   coachName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   coachRole: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginTop: 2,
   },
-  hint: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.25)',
-    marginBottom: 32,
-  },
   closeBtn: {
     width: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  closeBtnGrad: {
     height: 56,
+    borderRadius: 14,
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   viewSessionsLink: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
@@ -285,7 +265,7 @@ export default function BookSessionModal({
 }: BookSessionModalProps) {
   const { clientData } = useClient();
   const [selectedType, setSelectedType] = useState(SESSION_TYPES[0].id);
-  const [selectedDuration, setSelectedDuration] = useState('60 MIN');
+  const [selectedDuration, setSelectedDuration] = useState('60 min');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -297,7 +277,7 @@ export default function BookSessionModal({
       setConfirmed(false);
       setNotes('');
       setSelectedType(SESSION_TYPES[0].id);
-      setSelectedDuration('60 MIN');
+      setSelectedDuration('60 min');
       Animated.spring(slideAnim, {
         toValue: 0,
         friction: 20,
@@ -379,7 +359,7 @@ export default function BookSessionModal({
               {/* Header */}
               <View style={s.header}>
                 <View>
-                  <Text style={s.headerTag}>BOOK A SESSION</Text>
+                  <Text style={s.headerTag}>Book a session</Text>
                   <Text style={s.headerTitle}>
                     With {coach.name.split(' ')[0]}
                   </Text>
@@ -390,7 +370,7 @@ export default function BookSessionModal({
                   accessibilityRole="button"
                   accessibilityLabel="Close booking"
                 >
-                  <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+                  <Ionicons name="close" size={18} color={CoachColors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -414,13 +394,13 @@ export default function BookSessionModal({
                     <Text style={s.coachRole}>{coach.role}</Text>
                   </View>
                   <View style={s.priceBadge}>
-                    <Text style={s.priceLabel}>FROM</Text>
+                    <Text style={s.priceLabel}>From</Text>
                     <Text style={s.priceValue}>{selectedTypeData.price}</Text>
                   </View>
                 </View>
 
                 {/* ── Session type ─────────────────────────────────── */}
-                <Text style={s.fieldLabel}>SESSION TYPE</Text>
+                <Text style={s.fieldLabel}>Session type</Text>
                 <View style={s.typeList}>
                   {SESSION_TYPES.map((type) => {
                     const isSelected = selectedType === type.id;
@@ -429,7 +409,7 @@ export default function BookSessionModal({
                         key={type.id}
                         style={[
                           s.typeRow,
-                          isSelected && { borderColor: type.accent, backgroundColor: `${type.accent}0D` },
+                          isSelected && { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
                         ]}
                         onPress={() => {
                           Haptics.selectionAsync();
@@ -443,26 +423,26 @@ export default function BookSessionModal({
                         <View
                           style={[
                             s.typeBar,
-                            { backgroundColor: isSelected ? type.accent : 'transparent' },
+                            { backgroundColor: isSelected ? CoachColors.accent : 'transparent' },
                           ]}
                         />
                         <View
                           style={[
                             s.typeIconWrap,
-                            { backgroundColor: isSelected ? `${type.accent}22` : '#111113' },
+                            { backgroundColor: isSelected ? CoachColors.accentSoft : CoachColors.surface },
                           ]}
                         >
                           <Ionicons
                             name={type.icon}
                             size={16}
-                            color={isSelected ? type.accent : 'rgba(255,255,255,0.3)'}
+                            color={isSelected ? CoachColors.accent : CoachColors.textFaint}
                           />
                         </View>
                         <View style={s.typeTextGroup}>
                           <Text
                             style={[
                               s.typeLabel,
-                              { color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.5)' },
+                              { color: isSelected ? CoachColors.textPrimary : CoachColors.textSecondary },
                             ]}
                           >
                             {type.label}
@@ -472,7 +452,7 @@ export default function BookSessionModal({
                         <Text
                           style={[
                             s.typePrice,
-                            { color: isSelected ? type.accent : 'rgba(255,255,255,0.25)' },
+                            { color: isSelected ? CoachColors.accent : CoachColors.textFaint },
                           ]}
                         >
                           {type.price}
@@ -483,7 +463,7 @@ export default function BookSessionModal({
                 </View>
 
                 {/* ── Duration ─────────────────────────────────────── */}
-                <Text style={s.fieldLabel}>DURATION</Text>
+                <Text style={s.fieldLabel}>Duration</Text>
                 <View style={s.durationRow}>
                   {DURATIONS.map((dur) => {
                     const isSelected = selectedDuration === dur;
@@ -493,8 +473,8 @@ export default function BookSessionModal({
                         style={[
                           s.durationPill,
                           isSelected && {
-                            backgroundColor: `${selectedTypeData.accent}22`,
-                            borderColor: selectedTypeData.accent,
+                            backgroundColor: CoachColors.accentSoft,
+                            borderColor: CoachColors.accent,
                           },
                         ]}
                         onPress={() => {
@@ -508,7 +488,7 @@ export default function BookSessionModal({
                         <Text
                           style={[
                             s.durationText,
-                            { color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.4)' },
+                            { color: isSelected ? CoachColors.textPrimary : CoachColors.textMuted },
                           ]}
                         >
                           {dur}
@@ -519,11 +499,11 @@ export default function BookSessionModal({
                 </View>
 
                 {/* ── Notes ────────────────────────────────────────── */}
-                <Text style={s.fieldLabel}>GOALS & NOTES</Text>
+                <Text style={s.fieldLabel}>Goals and notes</Text>
                 <TextInput
                   style={s.notesInput}
                   placeholder="Describe your goals, areas to focus on, or specific requests..."
-                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  placeholderTextColor={CoachColors.textFaint}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -539,28 +519,21 @@ export default function BookSessionModal({
               {/* ── Sticky submit ──────────────────────────────────── */}
               <View style={s.submitWrap}>
                 <TouchableOpacity
-                  style={s.submitTouchable}
+                  style={s.submitBtn}
                   onPress={handleSubmit}
                   activeOpacity={0.88}
                   disabled={submitting}
                   accessibilityRole="button"
                   accessibilityLabel="Submit session booking request"
                 >
-                  <LinearGradient
-                    colors={['#FFD700', '#FF9500']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={s.submitBtn}
-                  >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#000000" />
-                    ) : (
-                      <>
-                        <Ionicons name="send" size={16} color="#000000" />
-                        <Text style={s.submitText}>SEND BOOKING REQUEST</Text>
-                      </>
-                    )}
-                  </LinearGradient>
+                  {submitting ? (
+                    <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={16} color={CoachColors.onAccent} />
+                      <Text style={s.submitText}>Send booking request</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
                 <Text style={s.submitHint}>
                   No charge yet · {coach.name.split(' ')[0]} will confirm availability
@@ -587,7 +560,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: SCREEN_H * 0.9,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -603,7 +576,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.border,
   },
 
   // Header
@@ -615,26 +588,27 @@ const s = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   headerTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   closeBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -646,9 +620,9 @@ const s = StyleSheet.create({
   coachCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 14,
     marginBottom: 24,
@@ -661,40 +635,42 @@ const s = StyleSheet.create({
   },
   coachInfo: { flex: 1 },
   coachName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 2,
   },
   coachRole: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   priceBadge: { alignItems: 'flex-end' },
   priceLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 8,
-    color: 'rgba(255,255,255,0.25)',
+    color: CoachColors.textFaint,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
   priceValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
 
   // Field label
   fieldLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 2.5,
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
 
@@ -703,14 +679,14 @@ const s = StyleSheet.create({
     gap: 8,
     marginBottom: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: CoachColors.borderMuted,
   },
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 64,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: CoachColors.borderMuted,
     borderLeftWidth: 0,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -731,17 +707,17 @@ const s = StyleSheet.create({
   },
   typeTextGroup: { flex: 1, gap: 2 },
   typeLabel: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
     letterSpacing: -0.2,
   },
   typeDesc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
   typePrice: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
     letterSpacing: -0.5,
     paddingRight: 4,
@@ -758,25 +734,25 @@ const s = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   durationText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
     letterSpacing: 0.5,
   },
 
   // Notes
   notesInput: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
-    color: '#FFFFFF',
-    fontFamily: FontFamily.body,
+    color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
     padding: 16,
     minHeight: 100,
@@ -790,32 +766,30 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 20,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-  },
-  submitTouchable: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 10,
+    borderTopColor: CoachColors.borderMuted,
   },
   submitBtn: {
     height: 56,
+    borderRadius: 14,
+    backgroundColor: CoachColors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    marginBottom: 10,
   },
   submitText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   submitHint: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
     textAlign: 'center',
     letterSpacing: 0.3,
   },

@@ -1,7 +1,8 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 export interface PassStreakCalendarProps {
   currentStreak: number;
@@ -42,14 +43,14 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
       const date = new Date(monday);
       date.setDate(monday.getDate() + index);
       date.setHours(0, 0, 0, 0);
-      
+
       const dateString = date.toISOString().split('T')[0];
       const isToday = date.getTime() === today.getTime();
       const isFuture = date.getTime() > today.getTime();
       const isPast = date.getTime() < today.getTime();
-      
-      const hasCompletedWorkout = workouts.some(w => 
-        w.status === 'completed' && 
+
+      const hasCompletedWorkout = workouts.some(w =>
+        w.status === 'completed' &&
         (w.completed_at?.startsWith(dateString) || w.assigned_date?.startsWith(dateString))
       );
 
@@ -77,18 +78,18 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
     const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    
+
     const weeks: Date[][] = [];
     let currentWeek: Date[] = [];
-    
+
     // Fill first week empty slots
     for (let i = 0; i < firstDay.getDay(); i++) {
       currentWeek.push(new Date(year, month, 1 - (firstDay.getDay() - i)));
     }
-    
+
     for (let i = 1; i <= lastDay.getDate(); i++) {
       currentWeek.push(new Date(year, month, i));
       if (currentWeek.length === 7) {
@@ -96,7 +97,7 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
         currentWeek = [];
       }
     }
-    
+
     if (currentWeek.length > 0) {
       // Fill last week empty slots
       let d = 1;
@@ -105,11 +106,11 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
       }
       weeks.push(currentWeek);
     }
-    
+
     return weeks.map(week => week.map(date => {
       const dateString = date.toISOString().split('T')[0];
-      const dateWorkouts = workouts.filter(w => 
-        w.status === 'completed' && 
+      const dateWorkouts = workouts.filter(w =>
+        w.status === 'completed' &&
         (w.completed_at?.startsWith(dateString) || w.assigned_date?.startsWith(dateString))
       );
       return {
@@ -134,28 +135,29 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
     <View style={styles.card}>
       {/* Part 1: 7-Day Streak Strip */}
       <View style={styles.streakHeader}>
-        <Text style={styles.sectionHeader}>CURRENT STREAK</Text>
+        <Text style={styles.sectionHeader}>Current streak</Text>
         <View style={styles.fireBadge}>
-          <Text style={styles.fireBadgeText}>{currentStreak}🔥</Text>
+          <Ionicons name="flame" size={12} color={CoachColors.accent} />
+          <Text style={styles.fireBadgeText}>{currentStreak}</Text>
         </View>
       </View>
-      
+
       <View style={styles.stripContainer}>
         {weekDays.map((day, i) => (
           <View key={i} style={styles.dayCol}>
             <View style={styles.circleContainer}>
               {day.status === 'completed' && (
                 <View style={[styles.circle, styles.circleCompleted]}>
-                  <Ionicons name="checkmark-sharp" size={20} color="#000" />
+                  <Ionicons name="checkmark-sharp" size={20} color={CoachColors.onAccent} />
                 </View>
               )}
               {day.status === 'today' && (
-                <Animated.View 
+                <Animated.View
                   style={[
-                    styles.circle, 
-                    styles.circleToday, 
+                    styles.circle,
+                    styles.circleToday,
                     { transform: [{ scale: pulseScale }], opacity: pulseOpacity }
-                  ]} 
+                  ]}
                 />
               )}
               {day.status === 'future' && (
@@ -175,14 +177,14 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
       <View style={styles.divider} />
 
       {/* Part 2: Monthly Activity Dot Grid */}
-      <Text style={[styles.sectionHeader, { marginBottom: Spacing.md }]}>THIS MONTH</Text>
-      
+      <Text style={[styles.sectionHeader, { marginBottom: Spacing.md }]}>This month</Text>
+
       <View style={styles.gridHeader}>
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
           <Text key={i} style={styles.gridHeaderLabel}>{day}</Text>
         ))}
       </View>
-      
+
       <View style={styles.grid}>
         {monthWeeks.map((week, wIndex) => (
           <View key={wIndex} style={styles.gridRow}>
@@ -208,9 +210,9 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: 20,
     marginBottom: Spacing.xl,
@@ -224,21 +226,24 @@ const styles = StyleSheet.create({
   sectionHeader: {
     textTransform: 'uppercase',
     letterSpacing: 2,
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
   },
   fireBadge: {
-    backgroundColor: 'rgba(255,215,0,0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing['2xs'],
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
+    borderColor: 'rgba(198,242,78,0.3)',
   },
   fireBadgeText: {
-    color: '#FFD700',
-    fontFamily: FontFamily.bodyBold,
+    color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
   },
   stripContainer: {
@@ -264,32 +269,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   circleCompleted: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: CoachColors.accent,
   },
   circleToday: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
   },
   circleFuture: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.borderMuted,
   },
   circleMissed: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.borderMuted,
   },
   missedText: {
-    color: 'rgba(255,255,255,0.2)',
-    fontFamily: FontFamily.bodyBold,
+    color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
   },
   dayLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
-    fontFamily: FontFamily.bodySemiBold,
+    color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodySemiBold,
   },
   divider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: Spacing.lg,
   },
   gridHeader: {
@@ -300,8 +305,8 @@ const styles = StyleSheet.create({
   },
   gridHeaderLabel: {
     fontSize: 8,
-    color: 'rgba(255,255,255,0.35)',
-    fontFamily: FontFamily.bodyBold,
+    color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold,
     width: 10,
     textAlign: 'center',
   },
@@ -322,15 +327,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   dotEmptyMonth: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  dotLight: {
-    backgroundColor: 'rgba(255,107,53,0.25)',
+    backgroundColor: CoachColors.borderMuted,
   },
   dotMedium: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: 'rgba(198,242,78,0.5)',
   },
   dotHeavy: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
   },
 });

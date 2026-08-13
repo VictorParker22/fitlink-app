@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 
 interface Coach {
@@ -21,14 +21,6 @@ interface CoachDirectoryProps {
   allCoaches: Coach[];
   onCoachPress: (coach: Coach) => void;
   onBookPress: (coach: Coach) => void;
-}
-
-// Deterministic accent colour per coach — based on name hash
-function getCoachAccent(name: string): string {
-  const ACCENTS = ['#5B7FFF', '#22C55E', '#A855F7', '#FF6B35', '#FFD700', '#F43F5E'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return ACCENTS[Math.abs(hash) % ACCENTS.length];
 }
 
 export default function CoachDirectory({
@@ -48,8 +40,8 @@ export default function CoachDirectory({
   return (
     <View style={s.section}>
       {/* §1 Micro → hero — left aligned, not centred */}
-      <Text style={s.tagHeader}>YOUR COACHES</Text>
-      <Text style={s.coachesTitle}>Personal Coaching</Text>
+      <Text style={s.tagHeader}>Your coaches</Text>
+      <Text style={s.coachesTitle}>Personal coaching</Text>
 
       {filteredCoaches.length === 0 ? (
         // §8 Opinionated empty copy
@@ -66,7 +58,6 @@ export default function CoachDirectory({
           decelerationRate="fast"
         >
           {filteredCoaches.map((coach) => {
-            const accent = getCoachAccent(coach.name);
             const firstName = (coach.name || 'Coach').split(' ')[0];
 
             return (
@@ -78,23 +69,23 @@ export default function CoachDirectory({
                 accessibilityRole="button"
                 accessibilityLabel={`View coach profile: ${coach.name}`}
               >
-                {/* §11 Colour accent top bar — unique per coach */}
-                <View style={[s.accentBar, { backgroundColor: accent }]} />
+                {/* §11 Colour accent top bar */}
+                <View style={s.accentBar} />
 
                 <View style={s.cardBody}>
                   {/* Avatar + name row — left aligned (§16 not centred) */}
                   <View style={s.avatarRow}>
                     <Image
                       source={{ uri: coach.avatar }}
-                      style={[s.coachAvatar, { borderColor: accent }]}
+                      style={s.coachAvatar}
                       cachePolicy="memory-disk"
                       transition={200}
                     />
                     <View style={s.nameCol}>
                       <Text style={s.coachName} numberOfLines={1}>
-                        {firstName.toUpperCase()}
+                        {firstName}
                       </Text>
-                      <Text style={[s.coachRole, { color: accent }]} numberOfLines={1}>
+                      <Text style={s.coachRole} numberOfLines={1}>
                         {coach.role}
                       </Text>
                     </View>
@@ -116,12 +107,12 @@ export default function CoachDirectory({
                       accessibilityRole="button"
                       accessibilityLabel={`Message ${coach.name}`}
                     >
-                      <Ionicons name="chatbubble-outline" size={14} color="#FFFFFF" />
-                      <Text style={s.msgBtnText}>MSG</Text>
+                      <Ionicons name="chatbubble-outline" size={14} color={CoachColors.textPrimary} />
+                      <Text style={s.msgBtnText}>Message</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[s.bookBtn, { backgroundColor: accent }]}
+                      style={s.bookBtn}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         onBookPress(coach);
@@ -129,8 +120,8 @@ export default function CoachDirectory({
                       accessibilityRole="button"
                       accessibilityLabel={`Book session with ${coach.name}`}
                     >
-                      <Ionicons name="calendar-outline" size={14} color="#000" />
-                      <Text style={s.bookBtnText}>BOOK</Text>
+                      <Ionicons name="calendar-outline" size={14} color={CoachColors.onAccent} />
+                      <Text style={s.bookBtnText}>Book</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -147,18 +138,18 @@ const s = StyleSheet.create({
   section: { marginBottom: 28 },
 
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     paddingHorizontal: 16,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   coachesTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 16,
     marginBottom: 14,
     letterSpacing: -0.5,
@@ -168,9 +159,9 @@ const s = StyleSheet.create({
 
   card: {
     width: 240,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -178,6 +169,7 @@ const s = StyleSheet.create({
   accentBar: {
     height: 3,
     width: '100%',
+    backgroundColor: CoachColors.accent,
   },
 
   cardBody: {
@@ -202,27 +194,28 @@ const s = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
   },
   coachName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 2,
   },
   coachRole: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
+    color: CoachColors.accent,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
 
   specialty: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 17,
     marginBottom: 12,
   },
@@ -240,14 +233,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   msgBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
   bookBtn: {
@@ -258,12 +251,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRadius: 12,
-    // backgroundColor set inline per accent
+    backgroundColor: CoachColors.accent,
   },
   bookBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
 
@@ -273,15 +266,15 @@ const s = StyleSheet.create({
     paddingVertical: 24,
   },
   emptyHero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   emptySub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
 });

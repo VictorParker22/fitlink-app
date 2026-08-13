@@ -2,9 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, SectionList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
-import { getCategoryColor } from '../../../data/categoryColors';
-import { useTheme } from '../../../context/ThemeContext';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface AddActivityModalProps {
   visible: boolean;
@@ -49,24 +48,23 @@ const ACTIVITY_TYPES = [
 ];
 
 export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onClose, onSave, saving }) => {
-  const { colors } = useTheme();
   const [screen, setScreen] = useState<'form' | 'picker'>('form');
-  
+
   const [selectedType, setSelectedType] = useState(ACTIVITY_TYPES[0]);
   const [activityName, setActivityName] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   const [showTimePickers, setShowTimePickers] = useState(false);
   const [hour, setHour] = useState(12);
   const [minute, setMinute] = useState(0);
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('PM');
   const [durationHr, setDurationHr] = useState(0);
   const [durationMn, setDurationMn] = useState(45);
-  
+
   const [location, setLocation] = useState<'In club' | 'Not in club'>('In club');
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isNameFocused, setIsNameFocused] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -123,14 +121,14 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   const filteredTypes = useMemo(() => {
     const lowerQ = searchQuery.toLowerCase();
     const filtered = ACTIVITY_TYPES.filter(t => t.name.toLowerCase().includes(lowerQ));
-    
+
     const grouped = filtered.reduce((acc, curr) => {
       const firstLetter = curr.name[0].toUpperCase();
       if (!acc[firstLetter]) acc[firstLetter] = [];
       acc[firstLetter].push(curr);
       return acc;
     }, {} as Record<string, typeof ACTIVITY_TYPES>);
-    
+
     return Object.keys(grouped).sort().map(key => ({
       title: key,
       data: grouped[key]
@@ -140,36 +138,36 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   const renderForm = () => (
     <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
       <View style={styles.header}>
-        <Text style={styles.tagHeader}>LOG // NEW ACTIVITY</Text>
+        <Text style={styles.tagHeader}>Log activity</Text>
         <TouchableOpacity onPress={onClose}>
-          <Ionicons name="close" size={24} color="#FFF" />
+          <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
-      
-      <Text style={styles.modalTitle}>{isFuture ? 'Schedule Activity' : 'Add Activity'}</Text>
-      
+
+      <Text style={styles.modalTitle}>{isFuture ? 'Schedule activity' : 'Add activity'}</Text>
+
       <TouchableOpacity style={styles.typeSelector} onPress={() => setScreen('picker')}>
-        <View style={[styles.categoryDot, { backgroundColor: getCategoryColor(selectedType.category) }]} />
+        <View style={styles.categoryDot} />
         <Text style={styles.typeSelectorText}>{selectedType.name}</Text>
-        <Ionicons name="chevron-down" size={20} color="#FFF" />
+        <Ionicons name="chevron-down" size={20} color={CoachColors.textPrimary} />
       </TouchableOpacity>
-      
+
       <TextInput
         style={[
           styles.nameInput,
-          { borderBottomColor: isNameFocused ? colors.accent : 'transparent' }
+          { borderBottomColor: isNameFocused ? CoachColors.accent : 'transparent' }
         ]}
-        placeholder="Activity Name"
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholder="Activity name"
+        placeholderTextColor={CoachColors.textMuted}
         value={activityName}
         onChangeText={setActivityName}
         textAlign="center"
         onFocus={() => setIsNameFocused(true)}
         onBlur={() => setIsNameFocused(false)}
       />
-      
+
       <View style={styles.divider} />
-      
+
       <View style={styles.weekStrip}>
         {weekDays.map((d, i) => {
           const isToday = new Date().toDateString() === d.toDateString();
@@ -177,8 +175,8 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
           const dateNum = d.getDate();
           return (
-            <TouchableOpacity 
-              key={i} 
+            <TouchableOpacity
+              key={i}
               style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
               onPress={() => setSelectedDate(d)}
             >
@@ -188,10 +186,10 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           );
         })}
       </View>
-      
+
       <View style={styles.timeDurationRow}>
         <TouchableOpacity style={styles.timeBlock} onPress={() => setShowTimePickers(!showTimePickers)}>
-          <Text style={styles.blockLabel}>Start Time</Text>
+          <Text style={styles.blockLabel}>Start time</Text>
           <Text style={styles.blockValue}>{hour}:{minute.toString().padStart(2, '0')} {ampm}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.timeBlock} onPress={() => setShowTimePickers(!showTimePickers)}>
@@ -199,42 +197,41 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           <Text style={styles.blockValue}>{durationHr > 0 ? `${durationHr}h ` : ''}{durationMn}min</Text>
         </TouchableOpacity>
       </View>
-      
+
       {showTimePickers && (
         <View style={styles.pickerArea}>
            <Text style={styles.pickerHint}>Pickers placeholder (Hour, Min, AM/PM, DurHr, DurMin)</Text>
         </View>
       )}
-      
+
       <View style={styles.locationToggle}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.locationBtn, location === 'In club' && styles.locationBtnSelected]}
           onPress={() => setLocation('In club')}
         >
           <Text style={[styles.locationText, location === 'In club' && styles.locationTextSelected]}>In club</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.locationBtn, location === 'Not in club' && styles.locationBtnSelected]}
           onPress={() => setLocation('Not in club')}
         >
           <Text style={[styles.locationText, location === 'Not in club' && styles.locationTextSelected]}>Not in club</Text>
         </TouchableOpacity>
       </View>
-      
+
       <TouchableOpacity style={styles.notesToggle} onPress={() => setShowNotes(!showNotes)}>
-        <Text style={styles.notesToggleText}>Add Notes</Text>
-        <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={20} color="#FFF" />
+        <Text style={styles.notesToggleText}>Add notes</Text>
+        <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textPrimary} />
       </TouchableOpacity>
-      
+
       {showNotes && (
         <TextInput
           style={[
             styles.notesInput,
-            { backgroundColor: colors.bgPrimary, color: colors.textPrimary },
-            { borderColor: isNotesFocused ? colors.accent : 'transparent' }
+            { borderColor: isNotesFocused ? CoachColors.accent : 'transparent' }
           ]}
           placeholder="How was the workout?"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={CoachColors.textMuted}
           multiline
           value={notes}
           onChangeText={setNotes}
@@ -242,19 +239,19 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           onBlur={() => setIsNotesFocused(false)}
         />
       )}
-      
-      <TouchableOpacity 
-        disabled={!canSubmit || saving} 
+
+      <TouchableOpacity
+        disabled={!canSubmit || saving}
         onPress={handleSubmit}
         style={{ marginTop: Spacing.xl }}
       >
         {canSubmit && !saving ? (
-          <View style={[styles.submitButton, { backgroundColor: colors.accent }]}>
-            <Text style={styles.submitButtonText}>SAVE ACTIVITY</Text>
+          <View style={styles.submitButton}>
+            <Text style={styles.submitButtonText}>Save activity</Text>
           </View>
         ) : (
           <View style={[styles.submitButton, styles.submitButtonDisabled]}>
-            <Text style={styles.submitButtonTextDisabled}>{saving ? 'SAVING...' : 'SAVE ACTIVITY'}</Text>
+            <Text style={styles.submitButtonTextDisabled}>{saving ? 'Saving...' : 'Save activity'}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -265,27 +262,27 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
     <View style={styles.pickerContainer}>
       <View style={styles.pickerHeader}>
         <TouchableOpacity onPress={() => setScreen('form')} style={styles.pickerBack}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.pickerTitle}>Select Activity Type</Text>
+        <Text style={styles.pickerTitle}>Select activity type</Text>
       </View>
-      
+
       <View style={[
         styles.searchBar,
-        { backgroundColor: colors.bgPrimary, borderColor: isSearchFocused ? colors.accent : colors.bgPrimary }
+        { borderColor: isSearchFocused ? CoachColors.accent : CoachColors.bg }
       ]}>
-        <Ionicons name="search" size={20} color="rgba(255,255,255,0.35)" style={styles.searchIcon} />
+        <Ionicons name="search" size={20} color={CoachColors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search activity..."
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={CoachColors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
           onFocus={() => setIsSearchFocused(true)}
           onBlur={() => setIsSearchFocused(false)}
         />
       </View>
-      
+
       <SectionList
         sections={filteredTypes}
         keyExtractor={(item) => item.name}
@@ -293,7 +290,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           <Text style={styles.sectionHeader}>{title}</Text>
         )}
         renderItem={({ item }) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.typeItem}
             onPress={() => {
               setSelectedType(item);
@@ -305,7 +302,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           >
             <View style={styles.typeItemLeft}>
               <Text style={styles.typeItemName}>{item.name}</Text>
-              <View style={[styles.typeItemDot, { backgroundColor: getCategoryColor(item.category) }]} />
+              <View style={styles.typeItemDot} />
               <Text style={styles.typeItemCategory}>{item.category}</Text>
             </View>
           </TouchableOpacity>
@@ -318,7 +315,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.modalContent}>
           <View style={styles.grabBar} />
           {screen === 'form' ? renderForm() : renderPicker()}
         </View>
@@ -339,12 +336,14 @@ const styles = StyleSheet.create({
     height: '90%',
     paddingHorizontal: Spacing.xl,
     borderWidth: 1,
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   grabBar: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 8,
@@ -362,21 +361,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   modalTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 17,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.xl,
   },
   typeSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     alignSelf: 'center',
@@ -387,17 +387,18 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginRight: Spacing.sm,
+    backgroundColor: CoachColors.accent,
   },
   typeSelectorText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginRight: Spacing.xs,
   },
   nameInput: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: FontSize['2xl'],
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.xl,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 1,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderStyle: 'dashed',
     borderRadius: 1,
     marginBottom: Spacing.xl,
@@ -424,21 +425,21 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   dayButtonSelected: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
   },
   dayName: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginBottom: 4,
   },
   dateNum: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.sm,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   dayTextSelected: {
-    color: '#000',
+    color: CoachColors.onAccent,
   },
   timeDurationRow: {
     flexDirection: 'row',
@@ -447,35 +448,35 @@ const styles = StyleSheet.create({
   },
   timeBlock: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
     padding: Spacing.md,
     borderRadius: Radius.lg,
   },
   blockLabel: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginBottom: 4,
   },
   blockValue: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   pickerArea: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.xl,
     alignItems: 'center',
   },
   pickerHint: {
-    color: 'rgba(255,255,255,0.35)',
-    fontFamily: FontFamily.bodyMedium,
+    color: CoachColors.textMuted,
+    fontFamily: CoachFonts.bodyMedium,
   },
   locationToggle: {
     flexDirection: 'row',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
     borderRadius: Radius.lg,
     padding: 4,
     marginBottom: Spacing.xl,
@@ -487,15 +488,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   locationBtnSelected: {
-    backgroundColor: '#FFF',
+    backgroundColor: CoachColors.accent,
   },
   locationText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   locationTextSelected: {
-    color: '#000',
+    color: CoachColors.onAccent,
   },
   notesToggle: {
     flexDirection: 'row',
@@ -504,39 +505,42 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   notesToggleText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   notesInput: {
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.base,
     height: 100,
     textAlignVertical: 'top',
     marginTop: Spacing.sm,
     borderWidth: 1,
     borderColor: 'transparent',
+    backgroundColor: CoachColors.bg,
+    color: CoachColors.textPrimary,
   },
   submitButton: {
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: CoachColors.accent,
   },
   submitButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
   submitButtonText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: FontSize.base,
-    color: '#000',
+    color: CoachColors.onAccent,
   },
   submitButtonTextDisabled: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: FontSize.base,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   pickerContainer: {
     flex: 1,
@@ -550,9 +554,9 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   pickerTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 17,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   searchBar: {
     flexDirection: 'row',
@@ -561,6 +565,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.lg,
     borderWidth: 1,
+    backgroundColor: CoachColors.bg,
   },
   searchIcon: {
     marginRight: Spacing.sm,
@@ -568,29 +573,29 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 40,
-    color: '#FFF',
-    fontFamily: FontFamily.bodyMedium,
+    color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodyMedium,
   },
   sectionHeader: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: FontSize.base,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     paddingVertical: Spacing.sm,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
   },
   typeItem: {
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
   },
   typeItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   typeItemName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
     marginRight: Spacing.sm,
   },
   typeItemDot: {
@@ -598,10 +603,11 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginRight: Spacing.xs,
+    backgroundColor: CoachColors.textFaint,
   },
   typeItemCategory: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
 });

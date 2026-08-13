@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontFamily, Radius } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { CATEGORY_LIBRARIES } from '../../data/workouts';
 
 interface CategoryLibraryModalProps {
@@ -32,9 +33,9 @@ export default function CategoryLibraryModal({ selectedCategoryLabel, onRequestC
     <Modal visible={!!selectedCategoryLabel} transparent animationType="slide" onRequestClose={onRequestClose}>
       <View style={s.modalBg}>
         <View style={[s.modalHeader, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-          <Text style={s.modalHeaderTitle}>Explore Content</Text>
+          <Text style={s.modalHeaderTitle}>Explore content</Text>
           <TouchableOpacity onPress={onRequestClose} style={s.modalCloseBtn} hitSlop={12} activeOpacity={0.7}>
-            <Ionicons name="close" size={22} color="#FFF" />
+            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
         {libraryData && (
@@ -45,7 +46,7 @@ export default function CategoryLibraryModal({ selectedCategoryLabel, onRequestC
 
             <View style={s.libraryDivider} />
 
-            <Text style={s.librarySectionTitle}>AVAILABLE SELECTIONS</Text>
+            <Text style={s.librarySectionTitle}>Available selections</Text>
             {libraryData.items.map((item, idx) => (
               <TouchableOpacity key={idx} style={s.libraryItemRow} activeOpacity={0.8} onPress={() => {
                 Alert.alert("Explore", `Starting "${item.name}"... Premium content requires active coaching subscription.`);
@@ -54,7 +55,7 @@ export default function CategoryLibraryModal({ selectedCategoryLabel, onRequestC
                   <Text style={s.libraryItemName}>{item.name}</Text>
                   <Text style={s.libraryItemTag}>{item.tag}</Text>
                 </View>
-                <Ionicons name="play-circle" size={28} color={accentColor} />
+                <Ionicons name="play-circle" size={28} color={CoachColors.accent} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -65,17 +66,17 @@ export default function CategoryLibraryModal({ selectedCategoryLabel, onRequestC
 }
 
 const s = StyleSheet.create({
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
-  modalHeaderTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: '#FFFFFF', letterSpacing: 0.5 },
-  modalCloseBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  modalBg: { flex: 1, backgroundColor: CoachColors.bg },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CoachColors.borderMuted },
+  modalHeaderTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, letterSpacing: 0.5 },
+  modalCloseBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
   modalScroll: { padding: 20 },
-  libraryHeaderTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 26, color: '#FFFFFF', marginBottom: 4 },
-  libraryHeaderSubtitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FF6B35', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  libraryDesc: { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.6)', lineHeight: 22 },
-  libraryDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 24 },
-  librarySectionTitle: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, marginBottom: 16 },
-  libraryItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.lg, padding: 16, marginBottom: 12 },
-  libraryItemName: { fontFamily: FontFamily.headingSemiBold, fontSize: 15, color: '#FFFFFF', marginBottom: 4 },
-  libraryItemTag: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  libraryHeaderTitle: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 4 },
+  libraryHeaderSubtitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  libraryDesc: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22 },
+  libraryDivider: { height: StyleSheet.hairlineWidth, backgroundColor: CoachColors.border, marginVertical: 24 },
+  librarySectionTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 },
+  libraryItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.lg, padding: 16, marginBottom: 12 },
+  libraryItemName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
+  libraryItemTag: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
 });

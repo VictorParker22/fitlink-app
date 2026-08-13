@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { HealthSnapshot } from '../../../context/HealthContext';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../constants/theme';
-import { useTheme } from '../../../context/ThemeContext';
+import { FontSize, Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 const CARD_MARGIN = Spacing.md;
 
@@ -22,7 +22,6 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
   workoutsThisMonth,
   streak,
 }) => {
-  const { colors } = useTheme();
   const sortedLogs = [...progressLogs]
     .filter((log) => log.weight != null)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -58,7 +57,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
 
     return (
       <Svg width={w} height={h} style={styles.sparkline}>
-        <Path d={points} stroke={colors.accent} strokeWidth={1.5} fill="none" />
+        <Path d={points} stroke={CoachColors.accent} strokeWidth={1.5} fill="none" />
       </Svg>
     );
   };
@@ -102,7 +101,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
             cx={16}
             cy={16}
             r={radius}
-            stroke="rgba(34,197,94,0.2)"
+            stroke={CoachColors.accentSoft}
             strokeWidth={stroke}
             fill="none"
           />
@@ -110,7 +109,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
             cx={16}
             cy={16}
             r={radius}
-            stroke="#22C55E"
+            stroke={CoachColors.accent}
             strokeWidth={stroke}
             fill="none"
             strokeDasharray={`${circumference} ${circumference}`}
@@ -125,22 +124,22 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagHeader}>METRICS // INSIGHTS BENTO</Text>
+      <Text style={styles.tagHeader}>Insights</Text>
       <View style={styles.grid}>
         {/* Weight */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-              <Ionicons name="scale-outline" size={16} color={colors.textSecondary} />
+            <View style={styles.iconWrap}>
+              <Ionicons name="scale-outline" size={16} color={CoachColors.textSecondary} />
             </View>
             {weightTrend !== 0 && (
               <View style={styles.trendRow}>
                 <Ionicons
                   name={weightTrend === -1 ? 'chevron-down' : 'chevron-up'}
                   size={12}
-                  color={weightTrend === -1 ? '#22C55E' : '#EF4444'}
+                  color={weightTrend === -1 ? CoachColors.accent : CoachColors.danger}
                 />
-                <Text style={[styles.trendText, { color: weightTrend === -1 ? '#22C55E' : '#EF4444' }]}>
+                <Text style={[styles.trendText, { color: weightTrend === -1 ? CoachColors.accent : CoachColors.danger }]}>
                   {Math.abs(latestWeight! - prevWeight!).toFixed(1)}
                 </Text>
               </View>
@@ -153,17 +152,17 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
           </View>
           <Text style={styles.label}>Weight</Text>
           {weightData.length >= 2 ? renderSparkline() : (
-            <View style={[styles.emptyStateBadge, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.border }]}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>LOG WEIGHT</Text>
+            <View style={styles.emptyStateBadge}>
+              <Text style={styles.emptyStateText}>Log weight</Text>
             </View>
           )}
         </View>
 
         {/* Heart Rate */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-              <Ionicons name="heart" size={16} color={colors.textSecondary} />
+            <View style={styles.iconWrap}>
+              <Ionicons name="heart" size={16} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
@@ -178,17 +177,17 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
           </View>
           <Text style={styles.label}>Resting HR</Text>
           {!healthSnapshot?.restingHeartRate && (
-            <View style={[styles.emptyStateBadge, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.border }]}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>CONNECT DEVICE</Text>
+            <View style={styles.emptyStateBadge}>
+              <Text style={styles.emptyStateText}>Connect device</Text>
             </View>
           )}
         </View>
 
         {/* Steps */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-              <Ionicons name="footsteps" size={16} color={colors.textSecondary} />
+            <View style={styles.iconWrap}>
+              <Ionicons name="footsteps" size={16} color={CoachColors.textSecondary} />
             </View>
             {healthSnapshot?.stepsToday ? renderStepsRing(healthSnapshot.stepsToday) : null}
           </View>
@@ -199,19 +198,19 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
               <Text style={styles.value}>--</Text>
             )}
           </View>
-          <Text style={styles.label}>Steps Today</Text>
+          <Text style={styles.label}>Steps today</Text>
           {!healthSnapshot?.stepsToday && (
-            <View style={[styles.emptyStateBadge, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.border }]}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>CONNECT DEVICE</Text>
+            <View style={styles.emptyStateBadge}>
+              <Text style={styles.emptyStateText}>Connect device</Text>
             </View>
           )}
         </View>
 
         {/* Calories */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-              <Ionicons name="flame" size={16} color={colors.textSecondary} />
+            <View style={styles.iconWrap}>
+              <Ionicons name="flame" size={16} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
@@ -224,41 +223,38 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
               <Text style={styles.value}>--</Text>
             )}
           </View>
-          <Text style={styles.label}>Active Cal</Text>
+          <Text style={styles.label}>Active calories</Text>
           {!healthSnapshot?.activeCaloriesToday && (
-            <View style={[styles.emptyStateBadge, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.border }]}>
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>CONNECT DEVICE</Text>
+            <View style={styles.emptyStateBadge}>
+              <Text style={styles.emptyStateText}>Connect device</Text>
             </View>
           )}
         </View>
 
         {/* Workouts */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border }]}>
-              <Ionicons name="barbell" size={16} color={colors.textSecondary} />
+            <View style={styles.iconWrap}>
+              <Ionicons name="barbell" size={16} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
             <Text style={styles.value}>{workoutsThisMonth}</Text>
           </View>
-          <Text style={styles.label}>This Month</Text>
+          <Text style={styles.label}>This month</Text>
         </View>
 
         {/* Streak */}
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Animated.View style={[styles.iconWrap, { backgroundColor: colors.bgPrimary, borderColor: colors.border, transform: [{ scale: streakAnim }] }]}>
-              <Ionicons name="flame" size={16} color={colors.textSecondary} />
+            <Animated.View style={[styles.iconWrap, { transform: [{ scale: streakAnim }] }]}>
+              <Ionicons name="flame" size={16} color={streak > 0 ? CoachColors.accent : CoachColors.textSecondary} />
             </Animated.View>
           </View>
           <View style={styles.valueRow}>
-            <Text style={styles.value}>
-              {streak}
-              {streak > 0 && <Text style={styles.emojiText}> 🔥</Text>}
-            </Text>
+            <Text style={styles.value}>{streak}</Text>
           </View>
-          <Text style={styles.label}>Day Streak</Text>
+          <Text style={styles.label}>Day streak</Text>
         </View>
       </View>
     </View>
@@ -270,10 +266,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
     letterSpacing: 2,
-    color: 'rgba(255,255,255,0.35)',
+    textTransform: 'uppercase',
+    color: CoachColors.textMuted,
     marginBottom: 12,
     paddingHorizontal: 16,
   },
@@ -290,6 +287,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.lg,
     padding: Spacing.md,
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -304,13 +303,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: CoachColors.bg,
+    borderColor: CoachColors.borderMuted,
   },
   trendRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   trendText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
     marginLeft: 2,
   },
@@ -320,19 +321,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   value: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: FontSize.xl,
-    color: '#FFF',
+    color: CoachColors.textPrimary,
   },
   suffix: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   label: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   emptyStateBadge: {
     borderWidth: 1,
@@ -341,14 +342,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing['2xs'],
     alignSelf: 'flex-start',
     marginTop: Spacing.xs,
+    backgroundColor: CoachColors.borderMuted,
+    borderColor: CoachColors.border,
   },
   emptyStateText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.xs,
     letterSpacing: 1,
-  },
-  emojiText: {
-    fontSize: FontSize.lg,
+    color: CoachColors.textSecondary,
   },
   sparkline: {
     marginTop: 8,

@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily, Spacing, Radius } from '../../../constants/theme';
+import { Spacing, Radius } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { TrackNode } from '../../../context/AppContext';
 
 interface PassJourneyTrackProps {
@@ -58,7 +59,7 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
   if (!trackNodes || trackNodes.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.sectionHeader}>YOUR JOURNEY</Text>
+        <Text style={styles.sectionHeader}>Your journey</Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Your coach hasn't set up a reward track yet.</Text>
         </View>
@@ -71,9 +72,9 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionHeader}>YOUR JOURNEY</Text>
+      <Text style={styles.sectionHeader}>Your journey</Text>
       <Text style={styles.summaryText}>
-        {claimedCount} Claimed · {remainingCount} Remaining
+        {claimedCount} claimed · {remainingCount} remaining
       </Text>
 
       <ScrollView
@@ -89,16 +90,12 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
           const isLocked = !isUnlocked && !isNextUnlock;
 
           let iconName: keyof typeof Ionicons.glyphMap = 'help';
-          let color = '#FFFFFF';
           if (node.type === 'workout') {
             iconName = 'barbell';
-            color = '#FF6B35';
           } else if (node.type === 'diet') {
             iconName = 'nutrition';
-            color = '#A78BFA';
           } else if (node.type === 'milestone') {
             iconName = 'trophy';
-            color = '#FFD700';
           }
 
           let nodeName = node.label || node.type;
@@ -119,7 +116,7 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
                   style={[
                     styles.connector,
                     {
-                      backgroundColor: isUnlocked ? `${color}4D` : 'rgba(255,255,255,0.06)',
+                      backgroundColor: isUnlocked ? 'rgba(198,242,78,0.3)' : CoachColors.borderMuted,
                     },
                   ]}
                 />
@@ -135,36 +132,36 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
                     style={[
                       styles.pulseRing,
                       {
-                        borderColor: '#FFD700',
+                        borderColor: CoachColors.accent,
                         opacity: pulseAnim,
                       },
                     ]}
                   />
                 )}
-                
+
                 <View
                   style={[
                     styles.circle,
-                    isUnlocked ? { backgroundColor: `${color}26` } : null,
-                    isLocked ? { backgroundColor: 'rgba(255,255,255,0.05)', opacity: 0.3 } : null,
-                    isNextUnlock ? { backgroundColor: `${color}1A` } : null,
+                    isUnlocked ? { backgroundColor: CoachColors.accentSoft } : null,
+                    isLocked ? { backgroundColor: CoachColors.borderMuted, opacity: 0.3 } : null,
+                    isNextUnlock ? { backgroundColor: CoachColors.accentSofter } : null,
                   ]}
                 >
                   <Ionicons
                     name={iconName}
                     size={24}
-                    color={isUnlocked || isNextUnlock ? color : 'rgba(255,255,255,0.2)'}
+                    color={isUnlocked || isNextUnlock ? CoachColors.accent : CoachColors.textFaint}
                   />
                   {isLocked && (
                     <View style={styles.lockOverlay}>
-                      <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.5)" />
+                      <Ionicons name="lock-closed" size={10} color={CoachColors.textMuted} />
                     </View>
                   )}
                 </View>
 
                 {isUnlocked && (
                   <View style={styles.checkBadge}>
-                    <Ionicons name="checkmark" size={10} color="#000000" />
+                    <Ionicons name="checkmark" size={10} color={CoachColors.onAccent} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -178,25 +175,25 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
 
                 {isUnlocked && node.type !== 'milestone' && (
                   <TouchableOpacity
-                    style={[styles.claimButton, { backgroundColor: color }]}
+                    style={styles.claimButton}
                     onPress={() => onClaim(node)}
                     disabled={!!claiming}
                   >
                     <Text style={styles.claimButtonText}>
-                      {isClaimingThis ? '...' : 'CLAIM'}
+                      {isClaimingThis ? '...' : 'Claim'}
                     </Text>
                   </TouchableOpacity>
                 )}
 
                 {isNextUnlock && (
                   <View style={styles.nextBadge}>
-                    <Text style={styles.nextBadgeText}>NEXT</Text>
+                    <Text style={styles.nextBadgeText}>Next</Text>
                   </View>
                 )}
 
                 {(isLocked || isNextUnlock) && (
-                  <Text style={[styles.levelLabel, isNextUnlock && { color: '#FFD700' }]}>
-                    LVL {reqLevel}
+                  <Text style={[styles.levelLabel, isNextUnlock && { color: CoachColors.accent }]}>
+                    Lvl {reqLevel}
                   </Text>
                 )}
               </View>
@@ -210,24 +207,24 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius['2xl'],
     padding: 20,
     paddingBottom: 16,
   },
   sectionHeader: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   summaryText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xl,
   },
@@ -241,9 +238,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   nodeColumn: {
     width: 80,
@@ -291,7 +288,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -300,38 +297,39 @@ const styles = StyleSheet.create({
     height: 40,
   },
   nodeName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
   },
   claimButton: {
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing['2xs'],
     borderRadius: Radius.full,
   },
   claimButtonText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
   },
   nextBadge: {
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing['2xs'],
     borderRadius: Radius.full,
     marginBottom: 2,
   },
   nextBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
   levelLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
   },
 });
 

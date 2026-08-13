@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { Spacing } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 
 export type TrackNodeType = 'workout' | 'diet' | 'milestone';
 
@@ -22,16 +22,16 @@ interface StepPassJourneyProps {
 const DEFAULT_TRACK: TrackNode[] = [
   { type: 'workout', order: 1 },
   { type: 'diet', order: 2 },
-  { type: 'milestone', label: 'FIRST REWARD', order: 3 },
+  { type: 'milestone', label: 'First reward', order: 3 },
   { type: 'workout', order: 4 },
   { type: 'diet', order: 5 },
-  { type: 'milestone', label: 'ULTIMATE GOAL', order: 6 },
+  { type: 'milestone', label: 'Ultimate goal', order: 6 },
 ];
 
 const NodeConfig = {
-  workout: { icon: 'barbell', color: '#FF6B35', label: 'WORKOUT' },
-  diet: { icon: 'restaurant', color: '#A78BFA', label: 'NUTRITION' },
-  milestone: { icon: 'trophy', color: '#FFD700', label: 'REWARD' },
+  workout: { icon: 'barbell', color: CoachColors.accent, label: 'Workout' },
+  diet: { icon: 'restaurant', color: CoachColors.accent, label: 'Nutrition' },
+  milestone: { icon: 'trophy', color: CoachColors.accent, label: 'Reward' },
 } as const;
 
 export const StepPassJourney: React.FC<StepPassJourneyProps> = ({ track, onContinue }) => {
@@ -67,22 +67,22 @@ export const StepPassJourney: React.FC<StepPassJourneyProps> = ({ track, onConti
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>YOUR FITLINK PASS</Text>
+        <Text style={styles.title}>Your FitLink Pass</Text>
         <Text style={styles.subtitle}>
           A structured journey of workouts, nutrition, and milestone rewards
         </Text>
       </View>
 
       <View style={styles.trackWrapper}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.trackContent}
         >
           <View style={styles.trackLineContainer}>
             <View style={styles.trackLine} />
           </View>
-          
+
           {activeTrack.map((node, index) => {
             const config = NodeConfig[node.type];
             const isUnlocked = index < 2;
@@ -107,17 +107,17 @@ export const StepPassJourney: React.FC<StepPassJourneyProps> = ({ track, onConti
                       }
                     ]} />
                   )}
-                  
+
                   <View style={[
-                    styles.nodeCircle, 
-                    { backgroundColor: `${config.color}26` } // 15% opacity hex roughly
+                    styles.nodeCircle,
+                    { backgroundColor: CoachColors.accentSoft }
                   ]}>
                     <Ionicons name={config.icon as any} size={24} color={config.color} />
                   </View>
-                  
+
                   {!isUnlocked && (
                     <View style={styles.lockIconContainer}>
-                      <Ionicons name="lock-closed" size={10} color="#FFFFFF" />
+                      <Ionicons name="lock-closed" size={10} color={CoachColors.textPrimary} />
                     </View>
                   )}
                 </View>
@@ -134,36 +134,31 @@ export const StepPassJourney: React.FC<StepPassJourneyProps> = ({ track, onConti
       <View style={styles.content}>
         <View style={styles.statsCard}>
           <View style={styles.statColumn}>
-            <Ionicons name="barbell" size={20} color="#FF6B35" />
+            <Ionicons name="barbell" size={20} color={CoachColors.accent} />
             <Text style={styles.statCount}>{workoutsCount}</Text>
-            <Text style={styles.statLabel}>WORKOUTS</Text>
-          </View>
-          
-          <View style={styles.statColumn}>
-            <Ionicons name="restaurant" size={20} color="#A78BFA" />
-            <Text style={styles.statCount}>{dietsCount}</Text>
-            <Text style={styles.statLabel}>MEAL PLANS</Text>
+            <Text style={styles.statLabel}>Workouts</Text>
           </View>
 
           <View style={styles.statColumn}>
-            <Ionicons name="trophy" size={20} color="#FFD700" />
+            <Ionicons name="restaurant" size={20} color={CoachColors.accent} />
+            <Text style={styles.statCount}>{dietsCount}</Text>
+            <Text style={styles.statLabel}>Meal plans</Text>
+          </View>
+
+          <View style={styles.statColumn}>
+            <Ionicons name="trophy" size={20} color={CoachColors.accent} />
             <Text style={styles.statCount}>{milestonesCount}</Text>
-            <Text style={styles.statLabel}>REWARDS</Text>
+            <Text style={styles.statLabel}>Rewards</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.footer}>
         <Pressable onPress={handleContinue} style={styles.continueButtonWrapper}>
-          <LinearGradient
-            colors={['#FFD700', '#B89B00']}
-            style={styles.continueButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.continueButtonText}>CONTINUE</Text>
-            <Ionicons name="arrow-forward" size={20} color="#000000" />
-          </LinearGradient>
+          <View style={styles.continueButton}>
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />
+          </View>
         </Pressable>
       </View>
     </View>
@@ -173,7 +168,7 @@ export const StepPassJourney: React.FC<StepPassJourneyProps> = ({ track, onConti
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     paddingHorizontal: Spacing.xl,
@@ -181,15 +176,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   title: {
-    fontFamily: 'Epilogue-ExtraBold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    color: CoachColors.textPrimary,
   },
   subtitle: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginTop: Spacing.xs,
   },
   trackWrapper: {
@@ -212,7 +206,7 @@ const styles = StyleSheet.create({
   trackLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
   nodeItem: {
     alignItems: 'center',
@@ -243,7 +237,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -251,9 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nodeLabel: {
-    fontFamily: 'Epilogue-Medium',
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
@@ -263,8 +257,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
   },
   statsCard: {
-    backgroundColor: '#0C0C0E',
-    borderColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
+    borderColor: CoachColors.borderMuted,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -276,16 +270,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statCount: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 24,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginTop: Spacing.xs,
     marginBottom: Spacing['2xs'],
   },
   statLabel: {
-    fontFamily: 'Epilogue-Medium',
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textTransform: 'uppercase',
   },
   footer: {
@@ -302,11 +296,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
+    gap: Spacing.sm,
   },
   continueButtonText: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#000000',
-    marginRight: Spacing.sm,
+    color: CoachColors.onAccent,
   },
 });

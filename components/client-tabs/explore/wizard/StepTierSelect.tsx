@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { Spacing, Radius } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 
 export interface Plan {
   id: string;
@@ -54,10 +55,10 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
   }, []);
 
   const getTierBadge = (price: number) => {
-    if (price >= 200) return { label: 'DIAMOND', color: '#B9F2FF' };
-    if (price >= 100) return { label: 'GOLD', color: '#FFD700' };
-    if (price >= 50) return { label: 'SILVER', color: '#C0C0C0' };
-    return { label: 'BRONZE', color: '#CD7F32' };
+    if (price >= 200) return { label: 'Diamond' };
+    if (price >= 100) return { label: 'Gold' };
+    if (price >= 50) return { label: 'Silver' };
+    return { label: 'Bronze' };
   };
 
   const sortedPlans = [...plans].sort((a, b) => b.price - a.price);
@@ -82,14 +83,14 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>SELECT YOUR TIER</Text>
+        <Text style={styles.title}>Select your tier</Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>RESERVED FOR YOU</Text>
+          <Text style={styles.badgeText}>Reserved for you</Text>
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.scroll} 
+      <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -113,14 +114,14 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
               >
                 {isSelected && (
                   <View style={styles.recommendedRibbon}>
-                    <Text style={styles.recommendedText}>RECOMMENDED</Text>
+                    <Text style={styles.recommendedText}>Selected</Text>
                   </View>
                 )}
 
                 <View style={styles.cardHeader}>
                   <Text style={styles.planName}>{plan.name}</Text>
-                  <View style={[styles.tierBadge, { borderColor: tier.color }]}>
-                    <Text style={[styles.tierText, { color: tier.color }]}>{tier.label}</Text>
+                  <View style={styles.tierBadge}>
+                    <Text style={styles.tierText}>{tier.label}</Text>
                   </View>
                 </View>
 
@@ -133,7 +134,7 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
                 <View style={styles.features}>
                   {plan.features?.slice(0, 3).map((feature, idx) => (
                     <View key={idx} style={styles.featureRow}>
-                      <Ionicons name="checkmark" size={16} color={isSelected ? '#FFD700' : 'rgba(255,255,255,0.5)'} />
+                      <Ionicons name="checkmark" size={16} color={isSelected ? CoachColors.accent : CoachColors.textMuted} />
                       <Text style={styles.featureText}>{feature}</Text>
                     </View>
                   ))}
@@ -141,30 +142,21 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
 
                 <View style={[styles.selectButton, isSelected && styles.selectButtonActive]}>
                   <Text style={[styles.selectButtonText, isSelected && styles.selectButtonTextActive]}>
-                    {isSelected ? 'SELECTED' : 'SELECT'}
+                    {isSelected ? 'Selected' : 'Select'}
                   </Text>
                 </View>
               </Animated.View>
             </TouchableOpacity>
           );
         })}
-        
-        <Text style={styles.lossAversion}>
-          Your custom {archetype || "training"} blueprint expires when you leave this screen
-        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity activeOpacity={0.8} onPress={handleContinue} style={styles.ctaWrapper}>
-          <LinearGradient
-            colors={['#FFD700', '#FFA500']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.cta}
-          >
+          <View style={styles.cta}>
             <View style={styles.ctaContent}>
-              <Text style={styles.ctaText}>CLAIM YOUR ACCESS</Text>
-              <Ionicons name="arrow-forward" size={20} color="#000" />
+              <Text style={styles.ctaText}>Claim your access</Text>
+              <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />
             </View>
             <Animated.View
               style={[
@@ -179,7 +171,7 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
                 style={StyleSheet.absoluteFill}
               />
             </Animated.View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -189,30 +181,30 @@ export const StepTierSelect: React.FC<StepTierSelectProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.xs,
   },
   badge: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing['2xs'],
   },
   badgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FFD700',
+    color: CoachColors.accent,
   },
   scroll: {
     flex: 1,
@@ -222,9 +214,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['4xl'],
   },
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 20,
     marginBottom: Spacing.lg,
@@ -232,21 +224,21 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderWidth: 3,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
   },
   recommendedRibbon: {
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing['2xs'],
     borderBottomLeftRadius: 8,
   },
   recommendedText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -255,39 +247,41 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   planName: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   tierBadge: {
     borderWidth: 1,
+    borderColor: CoachColors.accent,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.xs,
     paddingVertical: 2,
   },
   tierText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
+    color: CoachColors.accent,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   price: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   period: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginLeft: 4,
   },
   perSession: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginBottom: Spacing.lg,
   },
   features: {
@@ -299,44 +293,36 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   featureText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginLeft: Spacing.sm,
   },
   selectButton: {
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
     alignItems: 'center',
   },
   selectButtonActive: {
-    backgroundColor: '#FFD700',
-    borderColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
   selectButtonText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   selectButtonTextActive: {
-    color: '#000000',
-  },
-  lossAversion: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: Spacing.lg,
+    color: CoachColors.onAccent,
   },
   footer: {
     padding: Spacing.lg,
     paddingBottom: Spacing['2xl'],
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
   },
   ctaWrapper: {
     borderRadius: 12,
@@ -346,17 +332,18 @@ const styles = StyleSheet.create({
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: CoachColors.accent,
   },
   ctaContent: {
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 1,
+    gap: Spacing.xs,
   },
   ctaText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#000000',
-    marginRight: Spacing.xs,
+    color: CoachColors.onAccent,
   },
   shimmerContainer: {
     ...StyleSheet.absoluteFillObject,

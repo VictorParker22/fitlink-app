@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { supabase } from '../../../lib/supabase';
 
 export interface PlanItem {
@@ -22,10 +22,10 @@ export interface PlanItem {
 
 
 function getTierBadge(price: number): { label: string; color: string } {
-  if (price >= 200) return { label: 'DIAMOND TIER', color: '#B9F2FF' };
-  if (price >= 100) return { label: 'GOLD TIER', color: '#FFD700' };
-  if (price >= 50) return { label: 'SILVER TIER', color: '#C0C0C0' };
-  return { label: 'BRONZE TIER', color: '#CD7F32' };
+  if (price >= 200) return { label: 'Diamond tier', color: CoachColors.accent };
+  if (price >= 100) return { label: 'Gold tier', color: CoachColors.accent };
+  if (price >= 50) return { label: 'Silver tier', color: CoachColors.textSecondary };
+  return { label: 'Bronze tier', color: CoachColors.textSecondary };
 }
 
 interface Coach {
@@ -65,7 +65,7 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
 
             return {
               id: p.id,
-              name: p.name || 'Coaching Plan',
+              name: p.name || 'Coaching plan',
               price: typeof p.price === 'number' ? p.price : parseFloat(p.price) || 99,
               period: p.period || 'month',
               features: p.features || [
@@ -75,9 +75,9 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
               ],
               isPopular: p.is_popular || false,
               coachName: coach?.name || 'FitLink Coach',
-              coachRole: coach?.role || 'Elite Trainer',
+              coachRole: coach?.role || 'Elite trainer',
               coachAvatar: coach?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              color: p.color || '#FFD700',
+              color: p.color || CoachColors.accent,
             };
           });
           setPlans(mapped);
@@ -91,17 +91,17 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
   }, [allCoaches]);
   return (
     <View style={s.section}>
-      <Text style={s.tagHeader}>MARKETPLACE // COACH PLANS</Text>
-      <Text style={s.title}>Coaching Programs</Text>
+      <Text style={s.tagHeader}>Marketplace // coach plans</Text>
+      <Text style={s.title}>Coaching programs</Text>
 
       {loading && plans.length === 0 ? (
         <View style={{ paddingHorizontal: 16, paddingVertical: 40, alignItems: 'center' }}>
-          <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+          <ActivityIndicator size="small" color={CoachColors.textMuted} />
         </View>
       ) : plans.length === 0 ? (
         <View style={{ paddingHorizontal: 16 }}>
           <View style={s.emptyCard}>
-            <Ionicons name="barbell-outline" size={24} color="rgba(255,255,255,0.4)" style={{ marginBottom: 8 }} />
+            <Ionicons name="barbell-outline" size={24} color={CoachColors.textMuted} style={{ marginBottom: 8 }} />
             <Text style={s.emptyCardText}>No coaching plans available yet. Check back soon as coaches publish their programs.</Text>
           </View>
         </View>
@@ -151,8 +151,8 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
                 {/* Popular ribbon */}
                 {plan.isPopular && (
                   <View style={s.popularRibbon}>
-                    <Ionicons name="star" size={8} color="#000000" />
-                    <Text style={s.popularRibbonText}>POPULAR</Text>
+                    <Ionicons name="star" size={8} color={CoachColors.onAccent} />
+                    <Text style={s.popularRibbonText}>Popular</Text>
                   </View>
                 )}
 
@@ -179,13 +179,13 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
 
                 {/* CTA */}
                 <LinearGradient
-                  colors={plan.isPopular ? ['#FFD700', '#FF9500'] : ['#1A1A1E', '#1A1A1E']}
+                  colors={plan.isPopular ? [CoachColors.accent, CoachColors.accent] : [CoachColors.surfaceRaised, CoachColors.surfaceRaised]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={s.ctaBtn}
                 >
-                  <Text style={[s.ctaBtnText, plan.isPopular && { color: '#000000' }]}>
-                    VIEW DOSSIER →
+                  <Text style={[s.ctaBtnText, plan.isPopular && { color: CoachColors.onAccent }]}>
+                    View dossier →
                   </Text>
                 </LinearGradient>
               </View>
@@ -201,17 +201,18 @@ export default function CoachPlansShowcase({ allCoaches = [], onPlanSelect, onPl
 const s = StyleSheet.create({
   section: { marginBottom: 24 },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     paddingHorizontal: 16,
     marginBottom: 4,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 16,
     marginBottom: 14,
     letterSpacing: -0.5,
@@ -221,14 +222,14 @@ const s = StyleSheet.create({
   // ── Card ──────────────────────────────────────────────────────────────────
   planCard: {
     width: 240,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     overflow: 'hidden',
   },
   planCardPopular: {
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
   },
 
   // Coach photo hero
@@ -246,15 +247,15 @@ const s = StyleSheet.create({
     zIndex: 2,
   },
   coachName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   coachRole: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginTop: 1,
@@ -268,17 +269,18 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
     zIndex: 5,
   },
   popularRibbonText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   tierBadge: {
     position: 'absolute',
@@ -292,9 +294,10 @@ const s = StyleSheet.create({
     zIndex: 5,
   },
   tierBadgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 8,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
 
   // Card body
@@ -302,9 +305,9 @@ const s = StyleSheet.create({
     padding: 14,
   },
   planName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 8,
   },
@@ -315,9 +318,9 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   priceAmount: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -1.5,
     lineHeight: 34,
   },
@@ -326,14 +329,14 @@ const s = StyleSheet.create({
     gap: 1,
   },
   pricePeriod: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   perSessionText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 0.3,
   },
   ctaBtn: {
@@ -343,25 +346,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   ctaBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
 
   // Empty state
   emptyCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     padding: 24,
     alignItems: 'center',
   },
   emptyCardText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },

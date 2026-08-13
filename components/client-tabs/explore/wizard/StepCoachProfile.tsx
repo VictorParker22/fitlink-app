@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import { FontFamily, FontSize, Spacing, Radius } from '../../../../constants/theme';
+import { Spacing } from '../../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../../constants/coachDesign';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
 interface Coach {
@@ -64,40 +64,40 @@ export const StepCoachProfile: React.FC<StepCoachProfileProps> = ({ coach, plan,
       <View style={styles.content}>
         <View style={styles.avatarContainer}>
           {coach?.avatar ? (
-            <Image 
-              source={{ uri: coach.avatar }} 
-              style={styles.avatar} 
-              contentFit="cover" 
+            <Image
+              source={{ uri: coach.avatar }}
+              style={styles.avatar}
+              contentFit="cover"
             />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={60} color="rgba(255,255,255,0.2)" />
+              <Ionicons name="person" size={60} color={CoachColors.textFaint} />
             </View>
           )}
         </View>
-        
+
         <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
-        <Text style={styles.coachRole}>{coach?.role || 'Elite Trainer'}</Text>
-        <Text style={styles.coachSpecialty}>{coach?.specialty || 'General Fitness'}</Text>
+        <Text style={styles.coachRole}>{coach?.role || 'Elite trainer'}</Text>
+        <Text style={styles.coachSpecialty}>{coach?.specialty || 'General fitness'}</Text>
 
         <View style={styles.badgesContainer}>
-          <View style={[styles.badge, { borderColor: '#FFD700' }]}>
-            <Text style={styles.badgeText}>⭐ 4.9 Rating</Text>
+          <View style={styles.badge}>
+            <Ionicons name="shield-checkmark" size={12} color={CoachColors.accent} />
+            <Text style={styles.badgeText}>Verified coach</Text>
           </View>
-          <View style={[styles.badge, { borderColor: '#A78BFA' }]}>
-            <Text style={styles.badgeText}>🏆 Verified Coach</Text>
+          <View style={styles.badge}>
+            <Ionicons name="barbell" size={12} color={CoachColors.accent} />
+            <Text style={styles.badgeText}>Elite trainer</Text>
           </View>
-          <View style={[styles.badge, { borderColor: '#FF6B35' }]}>
-            <Text style={styles.badgeText}>💪 Elite Trainer</Text>
-          </View>
-          <View style={[styles.badge, { borderColor: '#22C55E' }]}>
-            <Text style={styles.badgeText}>✓ Certified</Text>
+          <View style={styles.badge}>
+            <Ionicons name="checkmark-circle" size={12} color={CoachColors.accent} />
+            <Text style={styles.badgeText}>Certified</Text>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={styles.unlockHeader}>WHAT YOU UNLOCK</Text>
+        <Text style={styles.unlockHeader}>What you unlock</Text>
 
         <View style={styles.featuresList}>
           {features.map((feature, index) => {
@@ -105,19 +105,19 @@ export const StepCoachProfile: React.FC<StepCoachProfileProps> = ({ coach, plan,
               inputRange: [0, 1],
               outputRange: [20, 0]
             });
-            
+
             return (
-              <Animated.View 
-                key={index} 
+              <Animated.View
+                key={index}
                 style={[
-                  styles.featureRow, 
-                  { 
+                  styles.featureRow,
+                  {
                     opacity: animatedValues[index],
                     transform: [{ translateY }]
                   }
                 ]}
               >
-                <Ionicons name="checkmark-circle" size={20} color="#FFD700" style={styles.featureIcon} />
+                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} style={styles.featureIcon} />
                 <Text style={styles.featureText}>{feature}</Text>
               </Animated.View>
             );
@@ -133,15 +133,10 @@ export const StepCoachProfile: React.FC<StepCoachProfileProps> = ({ coach, plan,
 
       <View style={styles.footer}>
         <Pressable onPress={handleContinue} style={styles.continueButtonWrapper}>
-          <LinearGradient
-            colors={['#FFD700', '#B89B00']}
-            style={styles.continueButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.continueButtonText}>CONTINUE</Text>
-            <Ionicons name="arrow-forward" size={20} color="#000000" />
-          </LinearGradient>
+          <View style={styles.continueButton}>
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />
+          </View>
         </Pressable>
       </View>
     </View>
@@ -151,7 +146,7 @@ export const StepCoachProfile: React.FC<StepCoachProfileProps> = ({ coach, plan,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   content: {
     flex: 1,
@@ -167,36 +162,35 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
   },
   avatarPlaceholder: {
     width: 120,
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#FFD700',
-    backgroundColor: '#1C1C1E',
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   coachName: {
-    fontFamily: 'Epilogue-ExtraBold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
-    textTransform: 'uppercase',
   },
   coachRole: {
-    fontFamily: 'Epilogue-Medium',
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing['2xs'],
   },
   coachSpecialty: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: '#FFD700',
+    color: CoachColors.accent,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
@@ -208,27 +202,32 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   badge: {
-    backgroundColor: '#111114',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
+    borderColor: CoachColors.border,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   badgeText: {
-    fontFamily: 'Epilogue-Medium',
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   divider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 24,
   },
   unlockHeader: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: Spacing.lg,
   },
   featuresList: {
@@ -242,15 +241,15 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   featureText: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     flex: 1,
   },
   archetypeText: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: Spacing['2xl'],
@@ -269,11 +268,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
+    gap: Spacing.sm,
   },
   continueButtonText: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#000000',
-    marginRight: Spacing.sm,
+    color: CoachColors.onAccent,
   },
 });
