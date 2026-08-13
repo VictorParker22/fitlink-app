@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../../context/ClientContext';
-import { FontFamily, FontSize } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface QuickWeightLogProps {
   latestWeight?: number;
@@ -55,7 +55,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   const handleSave = async () => {
     const val = parseFloat(weightVal);
     if (!val || isNaN(val)) {
-      Alert.alert('Invalid Weight', 'Please enter a valid weight number.');
+      Alert.alert('Invalid weight', 'Please enter a valid weight number.');
       return;
     }
 
@@ -66,7 +66,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
       setIsLoggedToday(true);
       if (onLogComplete) onLogComplete();
     } catch (err: any) {
-      Alert.alert('Log Failed', err?.message || 'Could not save weight log.');
+      Alert.alert('Log failed', err?.message || 'Could not save weight log.');
     } finally {
       setIsSubmitting(false);
     }
@@ -75,9 +75,9 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   if (isLoggedToday) {
     return (
       <View style={st.loggedContainer}>
-        <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+        <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
         <Text style={st.loggedText}>
-          WEIGHT LOGGED TODAY: <Text style={{ fontFamily: FontFamily.headingExtraBold, color: '#FFFFFF' }}>{weightVal} {unit.toUpperCase()}</Text>
+          Weight logged today: <Text style={{ fontFamily: CoachFonts.headingBold, color: CoachColors.textPrimary }}>{weightVal} {unit}</Text>
         </Text>
       </View>
     );
@@ -86,8 +86,8 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   return (
     <View style={st.container}>
       <View style={st.headerRow}>
-        <Text style={st.sectionTag}>BIOMETRICS // WEIGHT ENTRY</Text>
-        <Text style={st.unitLabel}>{unit.toUpperCase()}</Text>
+        <Text style={st.sectionTag}>Biometrics // weight entry</Text>
+        <Text style={st.unitLabel}>{unit}</Text>
       </View>
 
       <View style={st.logRow}>
@@ -99,7 +99,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           onPressOut={stopRepeat}
           delayLongPress={300}
         >
-          <Ionicons name="remove" size={18} color="#FFFFFF" />
+          <Ionicons name="remove" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={st.inputWrapper}>
@@ -111,7 +111,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
             selectTextOnFocus
             maxLength={5}
           />
-          <Text style={st.inputUnit}>{unit.toUpperCase()}</Text>
+          <Text style={st.inputUnit}>{unit}</Text>
         </View>
 
         <TouchableOpacity
@@ -122,7 +122,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           onPressOut={stopRepeat}
           delayLongPress={300}
         >
-          <Ionicons name="add" size={18} color="#FFFFFF" />
+          <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -131,7 +131,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           disabled={isSubmitting}
           onPress={handleSave}
         >
-          <Text style={st.saveBtnText}>{isSubmitting ? '...' : 'SAVE'}</Text>
+          <Text style={st.saveBtnText}>{isSubmitting ? '...' : 'Save'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -142,11 +142,11 @@ const st = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginBottom: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   headerRow: {
     flexDirection: 'row',
@@ -155,16 +155,18 @@ const st = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   unitLabel: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#6C9BF2',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   logRow: {
     flexDirection: 'row',
@@ -175,9 +177,9 @@ const st = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -186,30 +188,29 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderRadius: 10,
     height: 40,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   input: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     minWidth: 50,
   },
   inputUnit: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginLeft: 4,
+    textTransform: 'uppercase',
   },
   saveBtn: {
-    backgroundColor: '#1A1A1E',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 18,
     height: 40,
     borderRadius: 10,
@@ -217,10 +218,11 @@ const st = StyleSheet.create({
     justifyContent: 'center',
   },
   saveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   loggedContainer: {
     marginHorizontal: 16,
@@ -228,16 +230,16 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
+    borderColor: 'rgba(198,242,78,0.3)',
   },
   loggedText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
     letterSpacing: 1,
   },
 });

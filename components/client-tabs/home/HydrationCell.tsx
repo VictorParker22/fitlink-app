@@ -1,10 +1,6 @@
 /**
  * HydrationCell — Daily Water Intake Tracker
  *
- * Research finding: 75% of gym-goers are chronically underhydrated during training.
- * Dehydration of just 2% body weight reduces maximal strength output by up to 10%
- * and cognitive function by 13%. (NSCA, ACSM, 2024 meta-analysis)
- *
  * This widget replaces the redundant GYM cell that lived in the stat grid.
  * The full GymCheckInWidget (timer, Spotify, summary) now appears directly
  * below TodayWorkoutCard where the context is right.
@@ -13,7 +9,7 @@
  * - Tap to add 8oz instantly (1 glass — zero friction, ≤1 tap rule)
  * - Hero number = oz consumed today
  * - Progress micro-bar under hero = visual % of goal
- * - Accent line changes: grey → blue → green as goal approaches
+ * - Accent line ramps up in intensity as the goal approaches
  * - Data stored in AsyncStorage with daily reset (date key)
  * - No backend dependency — this is a personal glanceable widget
  *
@@ -21,14 +17,14 @@
  * - All informational text ≥ 11pt
  * - 44pt minimum touch target (cell is 130pt tall)
  * - accessibilityLabel + accessibilityHint
- * - 9px "HYDRATION" label is decorative — "48 oz" (52pt) is primary info carrier
+ * - 9px "Hydration" label is decorative — "48 oz" (52pt) is primary info carrier
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -67,14 +63,14 @@ export default function HydrationCell({ style }: HydrationCellProps) {
   const isGoalMet   = oz >= DAILY_GOAL_OZ;
   const ozRemaining = Math.max(DAILY_GOAL_OZ - oz, 0);
 
-  // Accent colour ramps up from grey → blue → electric blue → green at 100%
+  // Accent colour ramps up in intensity — full accent at 100%
   const accentColor = isGoalMet
-    ? '#22C55E'
+    ? CoachColors.accent
     : progress >= 0.66
-      ? '#3B82F6'
+      ? 'rgba(198,242,78,0.7)'
       : progress >= 0.33
-        ? '#6B9FFF'
-        : '#27272A'; // neutral below 33%
+        ? 'rgba(198,242,78,0.45)'
+        : CoachColors.borderMuted; // neutral below 33%
 
   const handleAdd = useCallback(async () => {
     // Instant haptic feedback — feels like a satisfying physical action
@@ -87,7 +83,7 @@ export default function HydrationCell({ style }: HydrationCellProps) {
     // Show inline feedback toast
     const remaining = Math.max(DAILY_GOAL_OZ - next, 0);
     const msg = isGoalMet || next >= DAILY_GOAL_OZ
-      ? '🎯 Daily goal reached!'
+      ? 'Daily goal reached'
       : `+8oz logged · ${remaining}oz to go`;
     clearTimeout(toastTimer.current);
     setToastMsg(msg);
@@ -116,10 +112,10 @@ export default function HydrationCell({ style }: HydrationCellProps) {
       accessibilityHint="Tap to log one glass of water (8 oz)"
     >
       {/* 9px — decorative; "48 oz" (52pt) is the primary info carrier */}
-      <Text style={st.micro}>HYDRATION</Text>
+      <Text style={st.micro}>Hydration</Text>
 
       {/* Hero number — flashes on tap for instant feedback */}
-      <Animated.Text style={[st.hero, { opacity: flashAnim, color: isGoalMet ? '#22C55E' : '#FFFFFF' }]}>
+      <Animated.Text style={[st.hero, { opacity: flashAnim, color: isGoalMet ? CoachColors.accent : CoachColors.textPrimary }]}>
         {oz}<Text style={st.unit}> oz</Text>
       </Animated.Text>
 
@@ -139,7 +135,7 @@ export default function HydrationCell({ style }: HydrationCellProps) {
       ) : (
         <Text style={st.sub}>
           {isGoalMet
-            ? '🎯 Daily goal hit!'
+            ? 'Daily goal hit'
             : `${ozRemaining}oz left · tap +8oz`}
         </Text>
       )}
@@ -156,9 +152,9 @@ const st = StyleSheet.create({
   // Matches the other stat cells exactly — fits the 2×2 grid seamlessly
   cell: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     padding: 18,
     paddingBottom: 14,
@@ -169,9 +165,9 @@ const st = StyleSheet.create({
 
   // 9px — decorative (52pt hero is the primary). HIG §17 Intentional Deviation.
   micro: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -179,22 +175,22 @@ const st = StyleSheet.create({
 
   // 52pt hero — matches the editorial stat grid system
   hero: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 52,
     letterSpacing: -2,
     lineHeight: 54,
   },
   unit: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0,
   },
 
   // 3pt micro progress bar — lives between hero and sub label
   bar: {
     height: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 1.5,
     overflow: 'hidden',
     marginTop: 8,
@@ -207,15 +203,15 @@ const st = StyleSheet.create({
 
   // 11pt — HIG minimum. Shows remaining oz — this IS the info carrier.
   sub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginBottom: 10,
   },
   toast: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#22C55E',
+    color: CoachColors.accent,
     marginBottom: 10,
     letterSpacing: 0.2,
   },
