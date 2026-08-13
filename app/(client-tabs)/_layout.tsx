@@ -155,6 +155,7 @@ export default function ClientTabsLayout() {
         <Tabs.Screen name="program-detail"    options={{ href: null }} />
         <Tabs.Screen name="strength-session"  options={{ href: null }} />
         <Tabs.Screen name="my-sessions"       options={{ href: null }} />
+        <Tabs.Screen name="find-coach"        options={{ href: null }} />
       </Tabs>
     </>
   );

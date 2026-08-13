@@ -26,6 +26,7 @@ import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
+import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -62,7 +63,16 @@ function firstName(name?: string): string {
 
 type SentState =
   | null | 'moving' | 'moved' | 'beat-sending' | 'beat-sent'
-  | 'hello-sending' | 'hello-sent' | 'failed';
+  | 'hello-sending' | 'hello-sent' | 'reason-sending' | 'reason-sent' | 'failed';
+
+// 24b — the small honest reasons. Label is the chip; message is what actually
+// lands in the coach thread. No scold anywhere, including in what we send.
+const LAPSE_REASONS: { label: string; message: (days: number) => string }[] = [
+  { label: 'Work got heavy', message: (d) => `Been away ${d} days — honestly, work got heavy. Where do we pick back up?` },
+  { label: 'I was ill', message: (d) => `Been away ${d} days — I was ill. What should the first one back look like?` },
+  { label: 'The plan is too much right now', message: (d) => `Been away ${d} days — honestly, the plan is too much for my week right now. Can we thin it out?` },
+  { label: 'I lost interest, honestly', message: (d) => `Been away ${d} days — I lost interest, honestly. Not sure what would get me going again.` },
+];
 
 export default function AthleteTodayScreen() {
   const router = useRouter();
@@ -73,6 +83,7 @@ export default function AthleteTodayScreen() {
     todayWorkout,
     workouts,
     enrollment,
+    plans,
     diets,
     mealLogs,
     conversation,
@@ -124,6 +135,43 @@ export default function AthleteTodayScreen() {
     return { type: track[pos]?.type as string, node: track[pos], pos, total: track.length };
   }, [enrollment]);
 
+  // ── Lapsed (24b) — computed from real activity, client-side ──────────────
+  // "Away" means: there is evidence of past training (track progress or a
+  // completed assignment), the most recent of it is 7+ days old, and there is
+  // still an active plan to come back to. Athletes who never started are a
+  // different problem and never see this.
+  const lapse = useMemo(() => {
+    const completedTimes = (workouts || [])
+      .filter((w: any) => w.status === 'completed' && w.assigned_date)
+      .map((w: any) => new Date(w.assigned_date).getTime())
+      .filter((t: number) => !Number.isNaN(t));
+    const trackActive = enrollment?.status === 'active';
+    const hasTrackProgress = trackActive && (enrollment.track_position || 0) > 0;
+    if (!hasTrackProgress && completedTimes.length === 0) return null;
+
+    const candidates = [...completedTimes];
+    if (hasTrackProgress && enrollment.updated_at) {
+      const t = new Date(enrollment.updated_at).getTime();
+      if (!Number.isNaN(t)) candidates.push(t);
+    }
+    if (candidates.length === 0) return null;
+    const days = Math.floor((Date.now() - Math.max(...candidates)) / 86400000);
+    if (days < 7) return null;
+
+    // Which week they're parked in, if they're on a pass.
+    let week: number | null = null;
+    if (trackActive && Array.isArray(enrollment.track_snapshot) && enrollment.track_snapshot.length > 0) {
+      const track = [...enrollment.track_snapshot].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      const plan = (plans || []).find((p: any) => p.id === enrollment.plan_id);
+      const dw = plan?.duration_weeks ?? null;
+      week = Math.min(
+        weekOfPosition(Math.min(enrollment.track_position || 0, track.length - 1), track, dw),
+        totalWeeks(track, dw)
+      );
+    }
+    return { days, week };
+  }, [workouts, enrollment, plans]);
+
   // ── The one instruction — built from real data ───────────────────────────
   // Shapes: todayWorkout from context is either a client_workouts row with a
   // joined .workouts (source 'coach') or a trainer workouts row itself
@@ -144,6 +192,29 @@ export default function AthleteTodayScreen() {
         eyebrow: 'Waiting on a coach',
         title: 'No coach yet',
         sub: 'Once a coach takes you on, this screen becomes your plan — one session at a time, with a direct line to whoever set it.',
+      };
+    }
+    // 24a: the season is finished and nothing new is assigned — the receipt
+    // lives in Train's completion moment; Today states the fact and the question.
+    if (enrollment?.status === 'completed' && !todayWorkout) {
+      const planName = (plans || []).find((p: any) => p.id === enrollment.plan_id)?.name;
+      return {
+        kind: 'complete' as const,
+        eyebrow: 'Season complete',
+        title: planName ? `You finished ${planName}` : 'You finished the whole plan',
+        sub: `Every session you logged is in your history, and ${coachFirst} can see all of it. What comes next is a conversation, not a countdown.`,
+      };
+    }
+    // 24b: quietly stopped — the screen that doesn't scold.
+    if (todayWorkout && lapse) {
+      return {
+        kind: 'lapsed' as const,
+        eyebrow: 'Welcome back',
+        title: `You've been away ${lapse.days} days`,
+        sub:
+          lapse.week != null
+            ? `Nothing expired and nothing's overdue. Week ${lapse.week} is exactly where you left it.`
+            : `Nothing expired and nothing's overdue. Your plan is exactly where you left it.`,
       };
     }
     // 25c: signed up, connected to a coach, but nothing assigned yet.
@@ -203,7 +274,7 @@ export default function AthleteTodayScreen() {
       title: 'Nothing on the plan today',
       sub: 'Rest is part of the programme, not a gap in it.',
     };
-  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst, enrollment, workouts]);
+  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst, enrollment, workouts, lapse, plans]);
 
   // ── The three answers ─────────────────────────────────────────────────────
 
@@ -279,6 +350,20 @@ export default function AthleteTodayScreen() {
     );
     setSentState(ok ? 'beat-sent' : 'failed');
   }, [sendToCoach, sessionName, sentState]);
+
+  // 24b: one tap tells the coach why — a real message, never a fake ack.
+  const [pendingReason, setPendingReason] = useState<string | null>(null);
+  const handleLapseReason = useCallback(
+    async (label: string, message: string) => {
+      if (sentState === 'reason-sending') return;
+      setPendingReason(label);
+      setSentState('reason-sending');
+      const ok = await sendToCoach(message);
+      setSentState(ok ? 'reason-sent' : 'failed');
+      if (!ok) setPendingReason(null);
+    },
+    [sendToCoach, sentState]
+  );
 
   // 25c: real message while waiting for the first plan.
   const handleWaitingHello = useCallback(async () => {
@@ -415,7 +500,7 @@ export default function AthleteTodayScreen() {
           <Text style={st.heroSub}>{instruction.sub}</Text>
 
           {/* Exercise chips — real names only */}
-          {instruction.kind === 'workout' && exercises.length > 0 && (
+          {(instruction.kind === 'workout' || instruction.kind === 'lapsed') && exercises.length > 0 && (
             <View style={st.chipRow}>
               {exercises.slice(0, 2).map((ex: any, i: number) => (
                 <View key={ex.id || i} style={st.chip}>
@@ -431,6 +516,13 @@ export default function AthleteTodayScreen() {
                 </View>
               )}
             </View>
+          )}
+
+          {/* 26a: no coach yet — the self-serve path */}
+          {instruction.kind === 'no-coach' && (
+            <Pressable style={st.primaryBtn} onPress={() => router.push('/(client-tabs)/find-coach' as any)} accessibilityRole="button">
+              <Text style={st.primaryBtnText}>Find a coach</Text>
+            </Pressable>
           )}
 
           {/* The three answers */}
@@ -484,11 +576,67 @@ export default function AthleteTodayScreen() {
             </>
           )}
 
+          {/* 24b: lapsed — the easy restart, then the honest reasons */}
+          {instruction.kind === 'lapsed' && (
+            <>
+              {startWorkoutId && (
+                <Pressable style={st.primaryBtn} onPress={startSession} accessibilityRole="button">
+                  <Text style={st.primaryBtnText}>Pick it back up</Text>
+                </Pressable>
+              )}
+
+              {sentState === 'reason-sent' ? (
+                <Pressable style={st.sentRow} onPress={openThread} accessibilityRole="button">
+                  <Text style={st.sentText}>
+                    Told {coachFirst}. No lecture coming — open the thread if you want to say more.
+                  </Text>
+                </Pressable>
+              ) : (
+                <>
+                  <View style={st.reasonGroup}>
+                    {LAPSE_REASONS.map((r) => (
+                      <Pressable
+                        key={r.label}
+                        style={st.reasonChip}
+                        onPress={() => handleLapseReason(r.label, r.message(lapse?.days ?? 7))}
+                        disabled={sentState === 'reason-sending'}
+                        accessibilityRole="button"
+                      >
+                        {sentState === 'reason-sending' && pendingReason === r.label ? (
+                          <ActivityIndicator size="small" color={C.textSecondary} />
+                        ) : (
+                          <Text style={st.reasonChipText}>{r.label}</Text>
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={st.footnote}>
+                    {sentState === 'failed'
+                      ? 'That message didn’t send — try again, or open the thread.'
+                      : `One tap tells ${coachFirst} what happened, so the plan can bend around it`}
+                  </Text>
+                </>
+              )}
+            </>
+          )}
+
           {instruction.kind === 'diet' && (
             <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.myDiet)} accessibilityRole="button">
               <Text style={st.primaryBtnText}>Open meal plan</Text>
             </Pressable>
           )}
+
+          {/* 24a: finished season — the question, both real answers */}
+          {instruction.kind === 'complete' &&
+            (plans || []).some((p: any) => p.id !== enrollment?.plan_id) && (
+              <Pressable
+                style={st.primaryBtn}
+                onPress={() => router.push(ClientRoute.myPass)}
+                accessibilityRole="button"
+              >
+                <Text style={st.primaryBtnText}>See {coachFirst}'s other plans</Text>
+              </Pressable>
+            )}
 
           {(instruction.kind === 'milestone' || instruction.kind === 'complete' || instruction.kind === 'rest') && trainer && (
             <Pressable style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
@@ -664,6 +812,12 @@ const st = StyleSheet.create({
     fontFamily: F.body, fontSize: 11, color: C.textFaint,
     textAlign: 'center', marginTop: 9, lineHeight: 15,
   },
+  reasonGroup: { gap: 8, marginTop: 14 },
+  reasonChip: {
+    borderWidth: 1, borderColor: C.border, borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center',
+  },
+  reasonChipText: { fontFamily: F.bodySemiBold, fontSize: 13, color: '#C9CEC2' },
   sentRow: {
     marginTop: 12, borderRadius: 13, backgroundColor: C.accentSofter,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)', padding: 12,

@@ -8,7 +8,6 @@ import {
   Dimensions,
   ActivityIndicator,
   Animated,
-  Modal,
   Platform,
   Linking,
   Switch,
@@ -30,6 +29,7 @@ import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { isBroadcastDndEnabled, setBroadcastDnd } from '../../lib/broadcastFocus';
+import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
 
 const { width } = Dimensions.get('window');
 
@@ -358,144 +358,13 @@ function ScheduledRow({
   );
 }
 
-// ── Coach Elite Paywall Modal ─────────────────────────────────────────────────
-function CoachElitePaywallModal({
-  visible,
-  onClose,
-  onUpgrade,
-  isPurchasing,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onUpgrade: () => void;
-  isPurchasing: boolean;
-}) {
-  const { restorePurchases } = useRevenueCat();
-  const [restoring, setRestoring] = useState(false);
-  const slideAnim = useRef(new Animated.Value(600)).current;
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
-
-  const handleRestore = async () => {
-    setRestoring(true);
-    const { restored } = await restorePurchases();
-    setRestoring(false);
-    if (restored) onClose();
-  };
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 60, friction: 12 }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 600, duration: 220, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [visible]);
-
-  const PERKS = [
-    { icon: 'radio-outline',       text: 'Unlimited live broadcasts to all clients' },
-    { icon: 'people-outline',      text: 'Real-time viewer chat and reactions' },
-    { icon: 'videocam-outline',    text: 'Auto-save replays to your class library' },
-    { icon: 'flash-outline',       text: 'Autoflow — auto-assign workouts on subscribe' },
-    { icon: 'ribbon-outline',      text: 'Elite badge on your public coach profile' },
-    { icon: 'trending-up-outline', text: 'Advanced engagement analytics' },
-  ];
-
-  return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[pw.overlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
-        <Animated.View style={[pw.sheet, { transform: [{ translateY: slideAnim }] }]}>
-          <View style={pw.handle} />
-
-          <View style={pw.hero}>
-            <View style={pw.eliteBadge}>
-              <Ionicons name="ribbon" size={18} color={CoachColors.accent} />
-              <Text style={pw.eliteBadgeText}>Coach Elite</Text>
-            </View>
-            <Text style={pw.heroTitle}>Unlock go live</Text>
-            <Text style={pw.heroSub}>
-              Go live is a Coach Elite feature. Upgrade to broadcast to your clients in real time.
-            </Text>
-          </View>
-
-          <View style={pw.perks}>
-            {PERKS.map((p, i) => (
-              <View key={i} style={pw.perkRow}>
-                <View style={pw.perkIcon}>
-                  <Ionicons name={p.icon as any} size={15} color={CoachColors.accent} />
-                </View>
-                <Text style={pw.perkText}>{p.text}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={pw.pricing}>
-            <Text style={pw.priceAmount}>$29</Text>
-            <Text style={pw.pricePer}>/mo · cancel anytime · 7-day free trial</Text>
-          </View>
-
-          <TouchableOpacity
-            style={[pw.cta, isPurchasing && pw.ctaLoading]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              onUpgrade();
-            }}
-            activeOpacity={0.85}
-            disabled={isPurchasing}
-          >
-            {isPurchasing ? (
-              <ActivityIndicator color={CoachColors.onAccent} />
-            ) : (
-              <>
-                <Ionicons name="ribbon" size={16} color={CoachColors.onAccent} style={{ marginRight: 8 }} />
-                <Text style={pw.ctaText}>Start free trial</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              handleRestore();
-            }}
-            disabled={restoring || isPurchasing}
-            style={pw.restoreBtn}
-          >
-            {restoring ? (
-              <ActivityIndicator size="small" color={CoachColors.textFaint} />
-            ) : (
-              <Text style={pw.restoreText}>Restore purchases</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={onClose} style={pw.skipBtn}>
-            <Text style={pw.skipText}>Maybe later</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
-  );
-}
-
 export default function StudioScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass, activeClients } = useApp();
   const { showAlert } = useAlert();
-  const { isCoachElite, offerings, purchasePackage } = useRevenueCat();
+  const { isCoachElite } = useRevenueCat();
   const [showPaywall, setShowPaywall] = useState(false);
-  const [isPurchasing, setIsPurchasing] = useState(false);
 
   // Pulsing live dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -717,24 +586,12 @@ export default function StudioScreen() {
     router.push('/create-live-class' as any);
   };
 
-  const handleUpgrade = useCallback(async () => {
-    const pkg = offerings?.availablePackages?.[0];
-    if (!pkg) {
-      setShowPaywall(false);
-      router.push('/broadcast/setup' as any);
-      return;
-    }
-    setIsPurchasing(true);
-    const { success, error } = await purchasePackage(pkg);
-    setIsPurchasing(false);
-    if (success) {
-      setShowPaywall(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push('/broadcast/setup' as any);
-    } else if (error) {
-      showAlert({ type: 'error', title: 'Purchase failed', message: error });
-    }
-  }, [offerings, purchasePackage, router, showAlert]);
+  // Paywall success path: navigation happens only AFTER the modal is
+  // dismissed — the paywall itself never navigates while visible.
+  const handlePaywallSuccess = useCallback(() => {
+    setShowPaywall(false);
+    router.push('/broadcast/setup' as any);
+  }, [router]);
 
   const handleDelete = (id: string, title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1108,11 +965,10 @@ export default function StudioScreen() {
 
     </SafeAreaView>
 
-      <CoachElitePaywallModal
+      <CoachElitePaywall
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
-        onUpgrade={handleUpgrade}
-        isPurchasing={isPurchasing}
+        onSuccess={handlePaywallSuccess}
       />
     </>
   );
@@ -1621,123 +1477,4 @@ const sr = StyleSheet.create({
   },
 });
 
-// ── Paywall styles ────────────────────────────────────────────────────────────
-const pw = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: CoachColors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: CoachColors.border,
-  },
-  handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: CoachColors.border,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  hero: { alignItems: 'center', marginBottom: 24 },
-  eliteBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: CoachColors.accentSoft,
-    borderWidth: 1,
-    borderColor: 'rgba(198,242,78,0.3)',
-    borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 16,
-  },
-  eliteBadgeText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
-    color: CoachColors.accent,
-    letterSpacing: 1.2,
-  },
-  heroTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
-    color: CoachColors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  heroSub: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14,
-    color: CoachColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  perks: { marginBottom: 24, gap: 10 },
-  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  perkIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: CoachColors.accentSofter,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  perkText: {
-    fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
-    color: CoachColors.textPrimary,
-    flex: 1,
-  },
-  pricing: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-    marginBottom: 20,
-    justifyContent: 'center',
-  },
-  priceAmount: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
-    color: CoachColors.textPrimary,
-  },
-  pricePer: {
-    fontFamily: CoachFonts.body,
-    fontSize: 13,
-    color: CoachColors.textMuted,
-  },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: CoachColors.accent,
-    borderRadius: Radius.md,
-    height: 54,
-    marginBottom: 12,
-  },
-  ctaLoading: { opacity: 0.7 },
-  ctaText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
-    color: CoachColors.onAccent,
-  },
-  restoreBtn: { alignItems: 'center', paddingVertical: 10 },
-  restoreText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
-    color: CoachColors.textMuted,
-    textDecorationLine: 'underline',
-  },
-  skipBtn: { alignItems: 'center', paddingVertical: 8 },
-  skipText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 13,
-    color: CoachColors.textFaint,
-  },
-});
+

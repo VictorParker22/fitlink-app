@@ -151,7 +151,9 @@ export function ClientProvider({ children }: PropsWithChildren) {
         supabase.from('payments').select('*, plans(*)').eq('client_id', client.id).order('created_at', { ascending: false }),
         supabase.from('gym_visits').select('*').eq('client_id', client.id).is('check_out_time', null).maybeSingle(),
         supabase.from('client_meal_logs').select('*').eq('client_id', client.id).eq('logged_date', new Date().toISOString().split('T')[0]),
-        supabase.from('client_plan_enrollments').select('*').eq('client_id', client.id).eq('status', 'active').order('started_at', { ascending: false }).limit(1),
+        // Active first, else the most recent completed one — the finished-season
+        // states on Today/Train need the completed enrollment to survive a refresh.
+        supabase.from('client_plan_enrollments').select('*').eq('client_id', client.id).in('status', ['active', 'completed']).order('started_at', { ascending: false }).limit(5),
         supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', client.trainer_id),
         // Fetch only the exercises JSONB column — avoids pulling full log rows (notes, duration, etc)
         supabase.from('client_workout_logs').select('exercises').eq('client_id', client.id)
@@ -182,8 +184,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (convRes.data) setConversation(convRes.data);
       if (plansRes.data) setPlans(plansRes.data);
       if (payRes.data) setPaymentHistory(payRes.data);
-      if (enrollmentRes?.data && enrollmentRes.data.length > 0) setEnrollment(enrollmentRes.data[0]);
-      else setEnrollment(null);
+      if (enrollmentRes?.data && enrollmentRes.data.length > 0) {
+        const active = enrollmentRes.data.find((e: any) => e.status === 'active');
+        setEnrollment(active || enrollmentRes.data[0]);
+      } else setEnrollment(null);
       if (trainerWorkoutsRes?.data) setAllTrainerWorkouts(trainerWorkoutsRes.data);
 
       // ── Build exercise PR map from historical logs ───────────────────────────

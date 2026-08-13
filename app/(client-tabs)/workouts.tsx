@@ -41,6 +41,7 @@ import type { TrackNode } from '../../context/AppContext';
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
 import ActiveWorkoutPlayer from '../../components/client-tabs/explore/ActiveWorkoutPlayer';
 import WorkoutSummary from '../../components/client-tabs/explore/WorkoutSummary';
+import SeasonComplete from '../../components/client-tabs/SeasonComplete';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -60,6 +61,7 @@ export default function ClientWorkoutsScreen() {
     workouts,
     enrollment,
     plans,
+    conversation,
     completeWorkoutWithLog,
     completeTrackWorkout,
     refreshData,
@@ -87,6 +89,12 @@ export default function ClientWorkoutsScreen() {
 
   // Trainer's workout library — resolves track node ids into real sessions.
   const [trainerWorkouts, setTrainerWorkouts] = useState<any[]>([]);
+
+  // Season finish (24a) — the enrollment snapshot at the moment the final
+  // node was completed, so the receipt survives the refresh that follows.
+  const [finishedSeason, setFinishedSeason] = useState<any | null>(null);
+  // Conversation created here when the context has none yet.
+  const [localConversation, setLocalConversation] = useState<any>(null);
 
   // ── startWorkoutId contract (Today depends on this — preserved exactly) ──
   useEffect(() => {
@@ -242,11 +250,61 @@ export default function ClientWorkoutsScreen() {
     setShowSummary(true);
   };
 
+  // Real message to the coach — find-or-create conversation, insert, bump unread.
+  const sendToCoach = useCallback(
+    async (content: string): Promise<boolean> => {
+      if (!clientData) return false;
+      try {
+        let target = conversation || localConversation;
+        if (!target) {
+          const { data, error } = await supabase
+            .from('conversations')
+            .insert({ client_id: clientData.id, trainer_id: clientData.trainer_id })
+            .select()
+            .single();
+          if (error || !data) return false;
+          target = data;
+          setLocalConversation(data);
+        }
+        const { error: msgError } = await supabase
+          .from('messages')
+          .insert({ conversation_id: target.id, sender_type: 'client', content });
+        if (msgError) return false;
+        await supabase.rpc('increment_conversation_unread', {
+          conv_id: target.id,
+          new_last_message: content,
+        });
+        if (trainer?.expo_push_token) {
+          supabase.functions
+            .invoke('send-push-notification', {
+              body: {
+                pushToken: trainer.expo_push_token,
+                title: `Message from ${clientData.name || 'Client'}`,
+                body: content,
+                data: { url: '/messages' },
+              },
+            })
+            .catch(() => {});
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [clientData, conversation, localConversation, trainer]
+  );
+
   const handleConfirmFinish = async () => {
     if (!activeWorkout) return;
     if (activeWorkout.source === 'track') {
+      // Is this the final node of the enrollment? Snapshot before advancing —
+      // the receipt (24a) needs the enrollment as it was, refreshes included.
+      const trackLen = Array.isArray(enrollment?.track_snapshot) ? enrollment.track_snapshot.length : 0;
+      const isFinal =
+        enrollment?.status === 'active' && trackLen > 0 && (enrollment.track_position || 0) + 1 >= trackLen;
       // Advances the enrollment position and writes the session log.
       await completeTrackWorkout();
+      if (isFinal) setFinishedSeason({ ...enrollment, completed_at: new Date().toISOString() });
     } else {
       await completeWorkoutWithLog(activeWorkout.id, summaryElapsedSeconds);
     }
@@ -532,8 +590,16 @@ export default function ClientWorkoutsScreen() {
           <View style={s.noteCard}>
             <Text style={s.noteTitle}>You finished the whole plan</Text>
             <Text style={s.noteBody}>
-              Every step, done. {coachFirst} will be in touch about what comes next.
+              Every session is in your history, and {coachFirst} can see all of it. What comes next
+              is a conversation, not a countdown.
             </Text>
+            <Pressable
+              style={s.emptyBtn}
+              onPress={() => router.push(ClientRoute.myMessages)}
+              accessibilityRole="button"
+            >
+              <Text style={s.emptyBtnText}>Ask {coachFirst} what's next</Text>
+            </Pressable>
           </View>
         )}
       </>
@@ -628,6 +694,30 @@ export default function ClientWorkoutsScreen() {
           <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
         </Pressable>
       </ScrollView>
+
+      {/* Season finish — the receipt, then the question (24a) */}
+      {finishedSeason && (
+        <SeasonComplete
+          enrollment={finishedSeason}
+          planName={
+            (plans || []).find((p: any) => p.id === finishedSeason.plan_id)?.name || 'your programme'
+          }
+          weeks={totalWeeks(
+            Array.isArray(finishedSeason.track_snapshot) ? finishedSeason.track_snapshot : [],
+            (plans || []).find((p: any) => p.id === finishedSeason.plan_id)?.duration_weeks ?? null
+          )}
+          trainerWorkouts={trainerWorkouts}
+          otherPlans={(plans || []).filter((p: any) => p.id !== finishedSeason.plan_id)}
+          coachName={coachFirst}
+          canSend={!!trainer && !!clientData}
+          onSend={sendToCoach}
+          onViewPlans={() => {
+            setFinishedSeason(null);
+            router.push(ClientRoute.myPass);
+          }}
+          onDone={() => setFinishedSeason(null)}
+        />
+      )}
     </View>
   );
 }
