@@ -111,8 +111,8 @@
       [
         "react-native-bootsplash",
         {
-          "logo": "./assets/images/logo.png",
-          "logoWidth": 130,
+          "logo": "./assets/images/splash-mark.png",
+          "logoWidth": 96,
           "background": "#101210",
           "assetsOutput": "assets/bootsplash"
         }
