@@ -136,11 +136,27 @@ const EMPTY_HABIT_STATE: Record<HabitKey, boolean> = {
 
 function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }) {
   const haptic = useHaptic();
+  const { liveHabitRows } = useApp();
   const [state, setState]     = useState<Record<HabitKey, boolean>>(EMPTY_HABIT_STATE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState<HabitKey | null>(null);
   const today = new Date().toISOString().split('T')[0];
   const displayName = toTitleCase(client.name);
+
+  // If the athlete checks a habit off on their phone while this sheet is open,
+  // the realtime row lands in context — reflect it here. Only apply when the
+  // row object itself changes (never on save-state changes), so the coach's
+  // optimistic toggle is not reverted by a stale row while its echo is in flight.
+  const liveRow = liveHabitRows[`${client.id}:${today}`];
+  const appliedLiveRowRef = useRef<any>(null);
+  useEffect(() => {
+    if (!liveRow || liveRow === appliedLiveRowRef.current) return;
+    appliedLiveRowRef.current = liveRow;
+    setState({
+      water: !!liveRow.water, steps: !!liveRow.steps, sleep: !!liveRow.sleep,
+      protein: !!liveRow.protein, mindfulness: !!liveRow.mindfulness,
+    });
+  }, [liveRow]);
 
   useEffect(() => {
     let cancelled = false;

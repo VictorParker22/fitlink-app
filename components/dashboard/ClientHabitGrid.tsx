@@ -10,7 +10,7 @@
  * at a glance" feature — built to FitLink's editorial standard.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,14 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
+import { useApp } from '../../context/AppContext';
 import { FontFamily } from '../../constants/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,6 +90,27 @@ function HabitDot({
   color: string;
   isToday: boolean;
 }) {
+  // Pop the filled dot in when it flips to done while mounted (realtime
+  // update) — first render paints instantly with no animation.
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const prevDone = useRef(done);
+
+  useEffect(() => {
+    if (done && !prevDone.current) {
+      scale.value = 0.2;
+      opacity.value = 0.2;
+      scale.value = withSpring(1, { damping: 12, stiffness: 220 });
+      opacity.value = withTiming(1, { duration: 260 });
+    }
+    prevDone.current = done;
+  }, [done, scale, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
   return (
     <View
       style={[
@@ -90,13 +118,14 @@ function HabitDot({
         isToday && dot.todayWrapper,
       ]}
     >
-      <View
+      <Animated.View
         style={[
           dot.circle,
           done
             ? { backgroundColor: color }
             : { backgroundColor: 'rgba(255,255,255,0.08)' },
           isToday && !done && { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+          animStyle,
         ]}
       />
     </View>
@@ -124,12 +153,21 @@ const dot = StyleSheet.create({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ClientHabitGrid({ clientId }: HabitGridProps) {
-  const [rows, setRows] = useState<Record<string, any>>({});
+  const [fetchedRows, setFetchedRows] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
+  const { liveHabitRows } = useApp();
 
   const days = getLast7Days();
   const dateStrings = days.map((d) => d.date);
+
+  // Realtime rows win over the initial fetch — a habit checked off on the
+  // athlete's phone flips the dot here without pull-to-refresh.
+  const rows: Record<string, any> = { ...fetchedRows };
+  for (const d of dateStrings) {
+    const live = liveHabitRows[`${clientId}:${d}`];
+    if (live) rows[d] = live;
+  }
 
   const fetchHabits = useCallback(async () => {
     try {
@@ -146,7 +184,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
       (data || []).forEach((row) => {
         indexed[row.date] = row;
       });
-      setRows(indexed);
+      setFetchedRows(indexed);
     } catch (err) {
       if (__DEV__) console.log('[ClientHabitGrid] fetch error:', err);
     } finally {

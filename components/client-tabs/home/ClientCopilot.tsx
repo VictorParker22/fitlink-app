@@ -1,0 +1,392 @@
+/**
+ * ClientCopilot — the athlete's "what's next" stack on the Today screen.
+ *
+ * A single card ("From your coach") with up to 4 prioritized rows, each one
+ * derived from real context/Supabase data — a row with no real data behind it
+ * is omitted, and if every row is empty the card renders nothing.
+ *
+ * Priority order:
+ *   1. Unread coach message (passed in from the Today screen's existing fetch)
+ *   2. New assignment — latest unseen client_workouts row (last 7 days)
+ *   3. Next session — soonest upcoming booked session
+ *   4. Training streak — consecutive days, computed from real history (≥2 only)
+ *   5. Hydration — remaining to goal, only if water was logged today
+ *      (reads the same AsyncStorage keys HydrationCell writes)
+ *
+ * Rows are individually dismissible for the day (ids + date in AsyncStorage).
+ * Tapping the assignment row marks that assignment permanently seen.
+ */
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useClient } from '../../../context/ClientContext';
+import { useWorkout } from '../../../context/WorkoutContext';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { ClientRoute } from '../../../types/routes';
+import { useReducedMotion } from '../../../hooks/useReducedMotion';
+
+const C = CoachColors;
+const F = CoachFonts;
+
+// ─── Storage keys ─────────────────────────────────────────────────────────────
+
+const DISMISS_KEY = 'fitlink_copilot_dismissed_v1';
+const SEEN_ASSIGNMENTS_KEY = 'fitlink_copilot_seen_assignments_v1';
+
+// Mirror HydrationCell exactly — same key prefix, same daily goal.
+const HYDRATION_PREFIX = 'fitlink_hydration_';
+const HYDRATION_GOAL_OZ = 96;
+
+// An assignment only counts as "new" for this long after it was created.
+const NEW_ASSIGNMENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CoachMessagePreview {
+  id: string;
+  content: string;
+  created_at: string;
+  read?: boolean | null;
+}
+
+interface ClientCopilotProps {
+  /** Latest trainer message, if the parent already fetched one (with `read`). */
+  latestCoachMessage?: CoachMessagePreview | null;
+}
+
+interface CopilotRow {
+  id: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  sub: string;
+  onPress?: () => void;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function firstName(name?: string): string {
+  return (name || '').split(' ')[0] || '';
+}
+
+/** Human-readable snippet for special message payloads. */
+function messageSnippet(content: string): string {
+  if (content === '[IMAGE]') return 'Sent you an image';
+  if (content.startsWith('[WORKOUT_CARD:')) return 'Sent you a workout';
+  if (content === '[CHECKIN_REQUEST]') return 'Asked for your weekly check-in';
+  return content;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps) {
+  const router = useRouter();
+  const reduced = useReducedMotion();
+  const { trainer, workouts, upcomingSessions } = useClient();
+  const { workoutHistory } = useWorkout();
+
+  // null = storage not loaded yet; render nothing until then to avoid a flash
+  // of rows that were already dismissed today.
+  const [dismissed, setDismissed] = useState<Set<string> | null>(null);
+  const [seenAssignments, setSeenAssignments] = useState<string[]>([]);
+  const [hydrationOz, setHydrationOz] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const today = new Date().toDateString();
+        const [dRaw, sRaw, hRaw] = await Promise.all([
+          AsyncStorage.getItem(DISMISS_KEY),
+          AsyncStorage.getItem(SEEN_ASSIGNMENTS_KEY),
+          AsyncStorage.getItem(HYDRATION_PREFIX + today),
+        ]);
+        if (!alive) return;
+        if (dRaw) {
+          const parsed: { date?: string; ids?: string[] } = JSON.parse(dRaw);
+          setDismissed(new Set(parsed.date === today ? parsed.ids || [] : []));
+        } else {
+          setDismissed(new Set());
+        }
+        if (sRaw) setSeenAssignments(JSON.parse(sRaw) || []);
+        if (hRaw) setHydrationOz(parseInt(hRaw, 10) || 0);
+      } catch {
+        if (alive) setDismissed(new Set());
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const dismissRow = useCallback((id: string) => {
+    Haptics.selectionAsync();
+    setDismissed((prev) => {
+      const next = new Set(prev ?? []);
+      next.add(id);
+      AsyncStorage.setItem(
+        DISMISS_KEY,
+        JSON.stringify({ date: new Date().toDateString(), ids: [...next] })
+      ).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const markAssignmentSeen = useCallback((rowId: string) => {
+    setSeenAssignments((prev) => {
+      if (prev.includes(rowId)) return prev;
+      const next = [...prev, rowId].slice(-50); // keep the list bounded
+      AsyncStorage.setItem(SEEN_ASSIGNMENTS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  // ── Streak — consecutive training days from real history, local timezone ──
+  // Sources: WorkoutContext history (class/strength sessions logged on-device)
+  // and completed coach assignments from ClientContext. Day granularity via
+  // toDateString(); a streak may end today or yesterday (an unfinished today
+  // doesn't break it).
+  const streak = useMemo(() => {
+    const days = new Set<string>();
+    (workoutHistory || []).forEach((e) => {
+      if (e?.completedAt) days.add(new Date(e.completedAt).toDateString());
+    });
+    (workouts || []).forEach((w: any) => {
+      if (w.status !== 'completed' || !w.assigned_date) return;
+      const t = new Date(w.assigned_date);
+      if (!Number.isNaN(t.getTime())) days.add(t.toDateString());
+    });
+    if (days.size === 0) return { days: 0, trainedToday: false };
+    const cursor = new Date();
+    const trainedToday = days.has(cursor.toDateString());
+    if (!trainedToday) cursor.setDate(cursor.getDate() - 1);
+    let n = 0;
+    while (days.has(cursor.toDateString())) {
+      n++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return { days: n, trainedToday };
+  }, [workoutHistory, workouts]);
+
+  // ── Rows — every line built from real data or skipped ────────────────────
+  const rows = useMemo<CopilotRow[]>(() => {
+    if (!trainer) return [];
+    const out: CopilotRow[] = [];
+    const coachFirst = firstName(trainer.name) || 'Your coach';
+
+    // 1. Unread coach message — the coach-attention echo, always the top row.
+    if (latestCoachMessage && latestCoachMessage.read === false) {
+      out.push({
+        id: `msg-${latestCoachMessage.id}`,
+        icon: 'chatbubble-ellipses',
+        title: `Coach ${coachFirst} messaged you`,
+        sub: messageSnippet(latestCoachMessage.content),
+        onPress: () => router.push(ClientRoute.myMessages),
+      });
+    }
+
+    // 2. New assignment — latest unseen client_workouts row from the last week.
+    const assignment = (workouts || [])
+      .filter((w: any) => {
+        if (w.status !== 'assigned' || !w.workouts?.name) return false;
+        if (seenAssignments.includes(`assign-${w.id}`)) return false;
+        const created = new Date(w.created_at || w.assigned_date);
+        if (Number.isNaN(created.getTime())) return false;
+        return Date.now() - created.getTime() <= NEW_ASSIGNMENT_WINDOW_MS;
+      })
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.created_at || b.assigned_date).getTime() -
+          new Date(a.created_at || a.assigned_date).getTime()
+      )[0];
+    if (assignment) {
+      const rowId = `assign-${assignment.id}`;
+      const workoutId = assignment.workout_id || assignment.workouts?.id;
+      const assignedDate = new Date(assignment.assigned_date);
+      const exCount: number = assignment.workouts?.workout_exercises?.length || 0;
+      const subParts: string[] = [];
+      if (!Number.isNaN(assignedDate.getTime())) {
+        subParts.push(
+          `For ${assignedDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`
+        );
+      }
+      if (exCount > 0) subParts.push(`${exCount} exercise${exCount === 1 ? '' : 's'}`);
+      out.push({
+        id: rowId,
+        icon: 'barbell',
+        title: `Coach ${coachFirst} sent you ${assignment.workouts.name}`,
+        sub: subParts.join(' · ') || 'On your plan',
+        onPress: () => {
+          markAssignmentSeen(rowId);
+          if (workoutId) {
+            router.push({ pathname: ClientRoute.workouts, params: { startWorkoutId: String(workoutId) } });
+          } else {
+            router.push(ClientRoute.workouts);
+          }
+        },
+      });
+    }
+
+    // 3. Next session — soonest upcoming booked session with a real date/time.
+    const nextSession = [...(upcomingSessions || [])]
+      .filter((s: any) => s?.date && !Number.isNaN(new Date(s.date).getTime()))
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    if (nextSession) {
+      const d = new Date(nextSession.date);
+      const subParts = [
+        d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+        d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      ];
+      if (nextSession.duration) subParts.push(`${nextSession.duration} min`);
+      out.push({
+        id: `session-${nextSession.id}`,
+        icon: 'calendar',
+        title: `Next session with ${coachFirst}`,
+        sub: subParts.join(' · '),
+        onPress: () => router.push(ClientRoute.mySessions),
+      });
+    }
+
+    // 4. Streak — only when it's a real streak (2+ consecutive days).
+    if (streak.days >= 2) {
+      out.push({
+        id: 'streak',
+        icon: 'flame',
+        title: `${streak.days}-day training streak`,
+        sub: streak.trainedToday
+          ? 'Trained today — streak is safe'
+          : 'Trained yesterday — today keeps it alive',
+        onPress: () => router.push(ClientRoute.myProgress),
+      });
+    }
+
+    // 5. Hydration — only if water was actually logged today and the goal
+    //    isn't hit yet. No route: logging lives in the hydration widget.
+    if (hydrationOz > 0 && hydrationOz < HYDRATION_GOAL_OZ) {
+      out.push({
+        id: 'hydration',
+        icon: 'water',
+        title: `${HYDRATION_GOAL_OZ - hydrationOz} oz of water to go`,
+        sub: `${hydrationOz} oz logged today`,
+      });
+    }
+
+    return out.filter((r) => !dismissed?.has(r.id)).slice(0, 4);
+  }, [
+    trainer, latestCoachMessage, workouts, seenAssignments, upcomingSessions,
+    streak, hydrationOz, dismissed, router, markAssignmentSeen,
+  ]);
+
+  // Storage not loaded yet, or nothing real to say — render nothing.
+  if (!dismissed || rows.length === 0) return null;
+
+  return (
+    <View style={st.card}>
+      <Text style={st.eyebrow}>From your coach</Text>
+      {rows.map((row, i) => (
+        <Animated.View
+          key={row.id}
+          entering={reduced ? undefined : FadeInDown.delay(i * 80).duration(320)}
+          exiting={reduced ? undefined : FadeOut.duration(160)}
+          layout={LinearTransition.duration(200)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              st.row,
+              i > 0 && st.rowBorder,
+              pressed && !!row.onPress && { opacity: 0.7 },
+            ]}
+            onPress={row.onPress}
+            disabled={!row.onPress}
+            accessibilityRole={row.onPress ? 'button' : undefined}
+            accessibilityLabel={`${row.title}. ${row.sub}`}
+          >
+            <View style={st.iconCircle}>
+              <Ionicons name={row.icon} size={16} color={C.accent} />
+            </View>
+            <View style={st.rowTextCol}>
+              <Text style={st.rowTitle} numberOfLines={1}>{row.title}</Text>
+              <Text style={st.rowSub} numberOfLines={2}>{row.sub}</Text>
+            </View>
+            <Pressable
+              onPress={() => dismissRow(row.id)}
+              hitSlop={12}
+              style={st.dismissBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`Dismiss for today: ${row.title}`}
+            >
+              <Ionicons name="close" size={14} color={C.textFaint} />
+            </Pressable>
+            {!!row.onPress && (
+              <Ionicons name="chevron-forward" size={15} color={C.textMuted} />
+            )}
+          </Pressable>
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const st = StyleSheet.create({
+  card: {
+    marginTop: 14,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    borderRadius: 18,
+    paddingHorizontal: 15,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  eyebrow: {
+    fontFamily: F.bodyBold,
+    fontSize: 11,
+    color: C.textFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    minHeight: 56,
+  },
+  rowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: C.borderMuted,
+  },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: C.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowTextCol: { flex: 1 },
+  rowTitle: {
+    fontFamily: F.bodySemiBold,
+    fontSize: 13.5,
+    color: C.textPrimary,
+  },
+  rowSub: {
+    fontFamily: F.body,
+    fontSize: 12,
+    color: C.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  dismissBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

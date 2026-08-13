@@ -1087,6 +1087,11 @@ export default function ClientDetailScreen() {
                   </View>
                   <LineChart
                     data={weightChartData}
+                    // A new weight log arriving over realtime (AppContext
+                    // client_progress subscription) redraws the line animated
+                    // instead of snapping to the new point.
+                    animateOnDataChange
+                    onDataChangeAnimationDuration={600}
                     width={W - 64}
                     height={96}
                     spacing={Math.max(28, Math.floor((W-80)/weightChartData.length))}

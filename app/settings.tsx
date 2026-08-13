@@ -10,6 +10,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
 import { useHaptic } from '../hooks/useHaptic';
+import { getSoundsEnabled, setSoundsEnabled } from '../lib/sounds';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -36,6 +37,10 @@ export default function SettingsScreen() {
   const [sessionReminders, setSessionReminders] = useState(savedPrefs.sessionReminders ?? true);
   const [newClientAlerts, setNewClientAlerts] = useState(savedPrefs.newClientAlerts ?? true);
   const [messageNotifs, setMessageNotifs] = useState(savedPrefs.messageNotifs ?? true);
+
+  // UI sounds — persisted locally via lib/sounds, independent of trainer prefs.
+  const [uiSounds, setUiSounds] = useState(true);
+  useEffect(() => { getSoundsEnabled().then(setUiSounds); }, []);
 
   // Working hours
   const defaultHours: DayHours = { start: '9:00 AM', end: '5:00 PM', enabled: true };
@@ -216,6 +221,32 @@ export default function SettingsScreen() {
                 />
               </View>
             ))}
+          </View>
+
+          {/* Sounds */}
+          <Text style={s.sectionLabel}>Sounds</Text>
+          <View style={s.cardFlush}>
+            <View style={s.notifRow}>
+              <View style={s.notifIcon}>
+                <Ionicons name="volume-medium-outline" size={16} color={CoachColors.textSecondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.notifLabel}>Sounds</Text>
+                <Text style={s.notifDesc}>Soft sounds when you complete things</Text>
+              </View>
+              <Switch
+                value={uiSounds}
+                onValueChange={(val) => {
+                  haptic.trigger('light');
+                  setUiSounds(val);
+                  setSoundsEnabled(val);
+                }}
+                trackColor={{ false: CoachColors.border, true: CoachColors.accent }}
+                thumbColor={uiSounds ? CoachColors.onAccent : CoachColors.textMuted}
+                accessibilityLabel="Sounds toggle"
+                accessibilityRole="switch"
+              />
+            </View>
           </View>
 
           {/* Payments */}

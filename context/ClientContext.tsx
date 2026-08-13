@@ -303,6 +303,39 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setExerciseLogs({});
   }, []);
 
+  // Notify the coach a workout was finished — in-app notifications row (lands
+  // live via the coach's existing notifications realtime channel) plus a push
+  // when the trainer has a token. Set count is only mentioned when we truly
+  // have one. Fire-and-forget: failures never block the completion flow.
+  const notifyCoachWorkoutDone = useCallback((workoutName?: string | null, completedSets?: number) => {
+    if (!clientData?.trainer_id) return;
+    const name = workoutName || 'a workout';
+    const summary = completedSets && completedSets > 0
+      ? `${clientData.name} finished ${name} — ${completedSets} set${completedSets === 1 ? '' : 's'} logged`
+      : `${clientData.name} finished ${name}`;
+    (async () => {
+      const { error } = await supabase.from('notifications').insert({
+        trainer_id: clientData.trainer_id,
+        type: 'workout',
+        title: 'Workout completed',
+        description: summary,
+        metadata: { client_id: clientData.id, ...(completedSets && completedSets > 0 ? { sets: completedSets } : {}) },
+        is_read: false,
+      });
+      if (error && __DEV__) console.warn('[ClientContext] Coach notification skipped:', error.message);
+    })();
+    if (trainer?.expo_push_token) {
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          pushToken: trainer.expo_push_token,
+          title: 'Workout completed',
+          body: summary,
+          data: { url: `/client/${clientData.id}` },
+        },
+      }).catch(() => {});
+    }
+  }, [clientData, trainer]);
+
   // Complete workout with full exercise log data
   const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number) => {
     // Persist the log data alongside the workout completion
@@ -358,6 +391,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
         setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 50 } as any : prev);
       }
       setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
+      // Tell the coach — real completed-set count only (0 sets → no count claim).
+      const completedSets = exercisesJson.reduce(
+        (sum, ex: any) => sum + (ex.sets || []).filter((s: any) => s?.completed).length, 0);
+      const assignment = workouts.find((w: any) => w.id === clientWorkoutId);
+      notifyCoachWorkoutDone(assignment?.workouts?.name || todayWorkout?.workouts?.name, completedSets);
       // Clear logs for this workout
       setExerciseLogs((prev) => {
         const next = { ...prev };
@@ -365,7 +403,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
         return next;
       });
     }
-  }, [exerciseLogs, clientData]);
+  }, [exerciseLogs, clientData, workouts, notifyCoachWorkoutDone]);
 
   const markWorkoutComplete = useCallback(async (clientWorkoutId: string) => {
     const { error } = await supabase.from('client_workouts').update({ status: 'completed' }).eq('id', clientWorkoutId);
@@ -511,10 +549,17 @@ export function ClientProvider({ children }: PropsWithChildren) {
       
       // Refresh enrollment state
       setEnrollment((prev: any) => prev ? { ...prev, track_position: newPos, status: isComplete ? 'completed' : 'active' } : null);
+
+      // Tell the coach. Track completions carry no per-set log here, so the
+      // summary names the workout without inventing a set count.
+      if (node?.type === 'workout' && node?.id) {
+        const trackWorkout = allTrainerWorkouts.find((w: any) => w.id === node.id);
+        notifyCoachWorkoutDone(trackWorkout?.name);
+      }
     } catch (e) {
       console.log('[ClientContext] completeTrackWorkout error:', e);
     }
-  }, [enrollment, todayWorkout, clientData]);
+  }, [enrollment, todayWorkout, clientData, allTrainerWorkouts, notifyCoachWorkoutDone]);
 
   const skipTrackWorkout = useCallback(async () => {
     if (!enrollment) return;

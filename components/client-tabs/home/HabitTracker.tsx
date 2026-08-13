@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../lib/supabase';
+import { playPop } from '../../../lib/sounds';
 import { useHealth } from '../../../context/HealthContext';
 import { useClient } from '../../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
@@ -521,6 +522,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       const newValue = !habits[key];
       const newHabits = { ...habits, [key]: newValue };
       setHabits(newHabits);
+      if (newValue) playPop(); // sound only on marking done, never on un-marking
 
       // If user manually unchecks an auto habit, clear the auto flag
       if (!newValue && autoFlags[key]) {

@@ -328,6 +328,14 @@ interface AppContextType {
   diets: DietPlan[];
   meals: Meal[];
   notifications: NotificationData[];
+  /**
+   * Habit rows received over realtime, keyed `${client_id}:${date}`.
+   * Overlay these on top of any locally-fetched client_habits rows so the
+   * coach heatmap/sheet reflects athlete check-offs without pull-to-refresh.
+   * Empty until the realtime publication migration is run — everything still
+   * works, just without live updates.
+   */
+  liveHabitRows: Record<string, any>;
   classes: ClassItem[];
   liveClasses: LiveClassItem[];
   clientWorkouts: ClientWorkout[];
@@ -454,6 +462,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
   const [clientHealthSnapshots, setClientHealthSnapshots] = useState<any[]>([]);
+  const [liveHabitRows, setLiveHabitRows] = useState<Record<string, any>>({});
   const [trainerClasses, setTrainerClasses] = useState<ClassItem[]>([]);
   const [liveClassesList, setLiveClassesList] = useState<LiveClassItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -467,6 +476,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       setReferrals([]);
       setSessions([]);
       setActivities([]);
+      setLiveHabitRows({});
       setLoading(false);
       return;
     }
@@ -634,6 +644,87 @@ export function AppProvider({ children }: PropsWithChildren) {
     };
   }, [user]);
 
+  // --- Realtime: sessions + weight logs (coach-scoped tables) ---
+  // Same pattern as the notifications channel above. Payloads carry the full
+  // row, so we merge directly into state — no refetch, no API burst to debounce.
+  // Requires the tables to be in the supabase_realtime publication
+  // (supabase/migrations/enable_realtime_magic.sql); until that migration runs
+  // these channels simply never fire and the app behaves as before.
+  useEffect(() => {
+    if (!user) return;
+
+    const coachChannel = supabase
+      .channel(`coach_sync_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sessions', filter: `trainer_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as Session;
+          setSessions((prev) => {
+            if (prev.some((s) => s.id === row.id)) return prev; // already added optimistically
+            return [...prev, row].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `trainer_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as Session;
+          setSessions((prev) => prev.map((s) => (s.id === row.id ? row : s)));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'client_progress', filter: `trainer_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as ProgressLog;
+          setProgressLogs((prev) => {
+            if (prev.some((p) => p.id === row.id)) return prev;
+            return [row, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(coachChannel);
+    };
+  }, [user]);
+
+  // --- Realtime: client_habits (client-owned table, no trainer_id column) ---
+  // Scoped with an `in` filter over the coach's current client ids; the channel
+  // re-subscribes when the roster changes. RLS already limits events to rows
+  // the coach can read, the filter just keeps the stream narrow.
+  const clientIdsKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients]);
+  useEffect(() => {
+    if (!user || !clientIdsKey) return;
+
+    const handleHabitRow = (payload: any) => {
+      const row = payload.new;
+      if (!row?.client_id || !row?.date) return;
+      setLiveHabitRows((prev) => ({ ...prev, [`${row.client_id}:${row.date}`]: row }));
+    };
+
+    const habitChannel = supabase
+      .channel(`coach_habits_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'client_habits', filter: `client_id=in.(${clientIdsKey})` },
+        handleHabitRow
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'client_habits', filter: `client_id=in.(${clientIdsKey})` },
+        handleHabitRow
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(habitChannel);
+    };
+  }, [user, clientIdsKey]);
+
   // --- Client operations ---
   const addClient = useCallback(async (clientData: Partial<Client>) => {
     const { data, error } = await supabase
@@ -693,10 +784,24 @@ export function AppProvider({ children }: PropsWithChildren) {
       }, { onConflict: 'client_id,plan_id' })
       .select()
       .single();
-    
+
     if (error) throw error;
+    // Notify the athlete their pass is live. In-app state syncs via the
+    // client_plan_enrollments realtime subscription in ClientContext.
+    const client = clients.find((c) => c.id === clientId);
+    const clientToken = (client as any)?.expo_push_token;
+    if (clientToken && plan?.name) {
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          pushToken: clientToken,
+          title: trainer?.name ? `New pass from ${trainer.name}` : 'New pass activated',
+          body: plan.name,
+          data: { url: '/(client-tabs)/workouts' },
+        },
+      }).catch(() => {});
+    }
     return data as PlanEnrollment;
-  }, [plans]);
+  }, [plans, clients, trainer]);
 
   const advanceTrackPosition = useCallback(async (enrollmentId: string, nodeType: string, nodeId?: string, durationSec?: number) => {
     const { data: enrollment } = await supabase
@@ -1069,7 +1174,21 @@ export function AppProvider({ children }: PropsWithChildren) {
       type: 'workout',
       message: `Assigned "${workout?.name}" to ${client?.name || 'client'}`,
     });
-  }, [user, clients, workouts]);
+    // Notify the athlete on their device. Their in-app list updates on its own:
+    // ClientContext already subscribes to client_workouts inserts. Fire-and-forget
+    // so a push failure never blocks the assignment.
+    const clientToken = (client as any)?.expo_push_token;
+    if (clientToken && workout?.name) {
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          pushToken: clientToken,
+          title: trainer?.name ? `New workout from ${trainer.name}` : 'New workout assigned',
+          body: workout.name,
+          data: { url: '/(client-tabs)/workouts' },
+        },
+      }).catch(() => {});
+    }
+  }, [user, clients, workouts, trainer]);
 
   // --- Diet Plan operations ---
   // --- Meal / Diet operations ---
@@ -1581,8 +1700,12 @@ export function AppProvider({ children }: PropsWithChildren) {
   const updatePushToken = useCallback(async (token: string) => {
     if (!user) return;
     try {
-      const table = trainer ? 'trainers' : 'clients';
-      await supabase.from(table).update({ push_token: token }).eq('id', user.id);
+      // expo_push_token is the column the send paths read (see chat/[id].tsx,
+      // client-autoflow) — clients rows are keyed by auth_user_id, not id.
+      const { error } = trainer
+        ? await supabase.from('trainers').update({ expo_push_token: token }).eq('id', user.id)
+        : await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', user.id);
+      if (error && __DEV__) console.warn('Failed to update push token', error.message);
     } catch (err) {
       if (__DEV__) console.warn('Failed to update push token', err);
     }
@@ -1804,6 +1927,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     diets,
     meals,
     notifications,
+    liveHabitRows,
     classes: trainerClasses,
     liveClasses: liveClassesList,
     clientWorkouts: clientWorkoutsList,
@@ -1873,7 +1997,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     getClientEnrollment,
   }), [
     loading, trainer, clients, sessions, activities, plans, referrals,
-    workouts, exercises, autoAddExerciseId, diets, meals, notifications,
+    workouts, exercises, autoAddExerciseId, diets, meals, notifications, liveHabitRows,
     clientWorkoutsList, clientDietsList, activeClients, trialClients,
     inactiveClients, todaySessions, upcomingSessions, totalReferrals,
     totalMonthlyRevenue, addClient, updateClient, upgradeClientToPlan,

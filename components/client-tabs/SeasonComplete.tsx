@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
+import { playChime } from '../../lib/sounds';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -81,6 +82,7 @@ export default function SeasonComplete({
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    playChime();
     Animated.parallel([
       Animated.timing(cardOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
       Animated.spring(cardScale, { toValue: 1, useNativeDriver: true, speed: 12, bounciness: 6 }),

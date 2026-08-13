@@ -268,6 +268,33 @@ export default function StrengthSessionScreen() {
         duration_minutes: Math.round(durationSec / 60),
       });
       if (error && __DEV__) console.warn('[StrengthSession] Log save skipped:', error.message);
+
+      // Close the loop: tell the coach, with the real set count only.
+      // Fire-and-forget — a notification failure never blocks the finish flow.
+      if (clientData.trainer_id && allSets.length > 0) {
+        const summary = `${clientData.name} finished ${session.name || 'a workout'} — ${allSets.length} set${allSets.length === 1 ? '' : 's'} logged`;
+        (async () => {
+          const { error: notifErr } = await supabase.from('notifications').insert({
+            trainer_id: clientData.trainer_id,
+            type: 'workout',
+            title: 'Workout completed',
+            description: summary,
+            metadata: { client_id: clientData.id, sets: allSets.length },
+            is_read: false,
+          });
+          if (notifErr && __DEV__) console.warn('[StrengthSession] Coach notification skipped:', notifErr.message);
+        })();
+        if (trainer?.expo_push_token) {
+          supabase.functions.invoke('send-push-notification', {
+            body: {
+              pushToken: trainer.expo_push_token,
+              title: 'Workout completed',
+              body: summary,
+              data: { url: `/client/${clientData.id}` },
+            },
+          }).catch(() => {});
+        }
+      }
     }
 
     setFinishing(false);
@@ -277,7 +304,7 @@ export default function StrengthSessionScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(ClientRoute.workouts);
     }
-  }, [session, clientData, recordStrengthWorkout, checkAndUpdatePr, router]);
+  }, [session, clientData, trainer, recordStrengthWorkout, checkAndUpdatePr, router]);
 
   const logSet = () => {
     if (!currentEx) return;

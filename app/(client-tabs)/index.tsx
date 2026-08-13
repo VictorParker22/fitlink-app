@@ -28,6 +28,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import SquadFeed from '../../components/client-tabs/SquadFeed';
+import ClientCopilot, { CoachMessagePreview } from '../../components/client-tabs/home/ClientCopilot';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -102,7 +103,7 @@ export default function AthleteTodayScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [sentState, setSentState] = useState<SentState>(null);
-  const [latestCoachMsg, setLatestCoachMsg] = useState<{ content: string; created_at: string } | null>(null);
+  const [latestCoachMsg, setLatestCoachMsg] = useState<CoachMessagePreview | null>(null);
   // Coach asked for a check-in this week and no submitted row exists yet.
   const [checkinWaiting, setCheckinWaiting] = useState(false);
   // Conversation created on this screen (when context has none yet)
@@ -124,7 +125,7 @@ export default function AthleteTodayScreen() {
     (async () => {
       const { data } = await supabase
         .from('messages')
-        .select('content, created_at')
+        .select('id, content, created_at, read')
         .eq('conversation_id', conv.id)
         .eq('sender_type', 'trainer')
         .order('created_at', { ascending: false })
@@ -715,6 +716,9 @@ export default function AthleteTodayScreen() {
           )}
         </View>
 
+        {/* ── Client copilot — up to 4 real "what's next" rows ── */}
+        <ClientCopilot latestCoachMessage={latestCoachMsg} />
+
         <SquadFeed />
 
         {/* ── Check-in waiting — coach asked this week, not answered yet ── */}
@@ -733,8 +737,10 @@ export default function AthleteTodayScreen() {
           </Pressable>
         )}
 
-        {/* ── Latest word from the coach ── */}
-        {trainer && coachPreviewText && (
+        {/* ── Latest word from the coach ──
+            Suppressed while the message is unread — the copilot's top row is
+            already surfacing it; two coach cards for one message is noise. */}
+        {trainer && coachPreviewText && latestCoachMsg?.read !== false && (
           <Pressable style={st.card} onPress={openThread} accessibilityRole="button" accessibilityLabel="Open coach thread">
             <View style={st.coachRow}>
               <View style={st.coachAvatar}>

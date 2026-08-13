@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { playChime } from '../../lib/sounds';
 
 /**
  * Shown once, right after a coach publishes a pass — a lime confetti burst
@@ -66,6 +67,7 @@ export default function PassPublishedOverlay({
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    playChime();
     Animated.parallel([
       // Gravity-ish: the burst accelerates as it falls.
       Animated.timing(progress, {

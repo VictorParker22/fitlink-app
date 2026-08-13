@@ -6,6 +6,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
+import { playChime } from '../../lib/sounds';
 
 /**
  * The PR payoff (design turn 22c) — shown in-screen when a strength session
@@ -103,6 +104,7 @@ export default function PRCelebration({
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    playChime();
     Animated.parallel([
       Animated.timing(progress, {
         toValue: 1, duration: 2200,
