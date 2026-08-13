@@ -5,38 +5,30 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import type { ThemeColors } from '../constants/theme';
-import { useTheme } from '../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
-function getStatusConfig(colors: ThemeColors): Record<string, { color: string; label: string }> {
-  return {
-    active: { color: colors.green, label: 'Active' },
-    signed_up: { color: colors.teal, label: 'Signed Up' },
-    pending: { color: colors.yellow, label: 'Pending' },
-    expired: { color: colors.textTertiary, label: 'Expired' },
-  };
-}
+/**
+ * Referrals — real rows from the trainer-scoped `referrals` table.
+ *
+ * Fixes over the previous version: the Bronze/Silver/Gold/Platinum "tier"
+ * ladder (emoji medals, invented 10/25/50 targets with no backend behind
+ * them) is gone. What remains is all real: referral rows, their statuses,
+ * and the reward amounts recorded on each row. The share message keeps the
+ * same code + signup-URL pattern that profile.tsx uses.
+ */
 
-function getReferralTier(count: number, colors: ThemeColors) {
-  if (count >= 50) return { name: 'Platinum', icon: '💎', color: colors.purple };
-  if (count >= 25) return { name: 'Gold', icon: '🏆', color: colors.yellow };
-  if (count >= 10) return { name: 'Silver', icon: '🥈', color: colors.textTertiary };
-  return { name: 'Bronze', icon: '🥉', color: '#CD7F32' };
-}
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Active',
+  signed_up: 'Signed up',
+  pending: 'Pending',
+  expired: 'Expired',
+};
 
-function getTierProgress(count: number) {
-  if (count >= 50) return { current: count, target: count, nextTier: 'Platinum', percent: 100 };
-  if (count >= 25) return { current: count, target: 50, nextTier: 'Platinum', percent: (count / 50) * 100 };
-  if (count >= 10) return { current: count, target: 25, nextTier: 'Gold', percent: (count / 25) * 100 };
-  return { current: count, target: 10, nextTier: 'Silver', percent: (count / 10) * 100 };
-}
+const FILTERS = ['all', 'active', 'signed_up', 'pending', 'expired'];
 
 export default function ReferralsScreen() {
   const router = useRouter();
   const { referrals, totalReferrals, trainer, refreshData } = useApp();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -45,21 +37,13 @@ export default function ReferralsScreen() {
     try { await refreshData(); } finally { setRefreshing(false); }
   };
 
-  const statusConfig = useMemo(() => getStatusConfig(colors), [colors]);
-  const tier = getReferralTier(totalReferrals, colors);
-  const progress = getTierProgress(totalReferrals);
+  const activeCount = referrals.filter((r) => r.status === 'active').length;
+  const totalEarned = referrals.reduce((sum, r) => sum + (r.reward || 0), 0);
 
-  const activeReferrals = referrals.filter((r) => r.status === 'active').length;
-  const pendingReferrals = referrals.filter((r) => r.status === 'pending').length;
-  const totalEarnings = referrals.reduce((sum, r) => sum + (r.reward || 0), 0);
-  const conversionRate = totalReferrals > 0 ? Math.round((activeReferrals / totalReferrals) * 100) : 0;
-
-  const filteredReferrals = useMemo(() =>
-    filter === 'all' ? referrals : referrals.filter((r) => r.status === filter),
-    [referrals, filter]
+  const filteredReferrals = useMemo(
+    () => (filter === 'all' ? referrals : referrals.filter((r) => r.status === filter)),
+    [referrals, filter],
   );
-
-  const filters = ['all', 'active', 'signed_up', 'pending', 'expired'];
 
   const handleInvite = async () => {
     try {
@@ -70,249 +54,312 @@ export default function ReferralsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>REFERRAL PROGRAM</Text>
-        <TouchableOpacity onPress={handleInvite} style={styles.inviteHeaderBtn} accessibilityRole="button" accessibilityLabel="Share referral link">
-          <Ionicons name="person-add-outline" size={18} color={colors.bgPrimary} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} colors={[colors.textPrimary]} />}>
-        {/* Tier Banner */}
-        <View style={styles.tierCard}>
-          <View style={styles.tierRow}>
-            <Text style={styles.tierIcon}>{tier.icon}</Text>
-            <View style={{ flex: 1 }}>
-              <View style={styles.tierHeader}>
-                <Text style={styles.tierName}>{tier.name.toUpperCase()} TIER</Text>
-                {progress.percent < 100 && (
-                  <Text style={styles.tierProgress}>{progress.current}/{progress.target} TO {progress.nextTier.toUpperCase()}</Text>
-                )}
-              </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.min(progress.percent, 100)}%` }]} />
-              </View>
-            </View>
+    <SafeAreaView style={st.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={st.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
+      >
+        {/* ── Header ── */}
+        <View style={st.header}>
+          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={st.headerTitle}>Referrals</Text>
+            <Text style={st.headerSub}>Bring people in, get rewarded</Text>
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {[
-            { value: totalReferrals.toString(), label: 'TOTAL' },
-            { value: `${conversionRate}%`, label: 'CONVERSION' },
-            { value: `$${totalEarnings}`, label: 'EARNED' },
-          ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
+        {/* ── Code card + share ── */}
+        <View style={st.codeCard}>
+          <Text style={st.codeLabel}>Your code</Text>
+          <Text style={st.codeValue}>{trainer?.referral_code || '—'}</Text>
+          <Text style={st.codeDesc}>
+            Anyone who signs up with it shows in the list below, with the reward once it's recorded.
+          </Text>
+          <TouchableOpacity style={st.shareBtn} onPress={handleInvite} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Share referral link">
+            <Ionicons name="share-outline" size={16} color={CoachColors.onAccent} />
+            <Text style={st.shareBtnText}>Share your link</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Invite CTA */}
-        <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite} activeOpacity={0.8} accessibilityRole="button">
-          <Ionicons name="share-outline" size={18} color={colors.bgPrimary} />
-          <Text style={styles.inviteBtnText}>SHARE REFERRAL LINK</Text>
-        </TouchableOpacity>
+        {/* ── Stats ── */}
+        <View style={st.statsRow}>
+          <View style={st.statTile}>
+            <Text style={st.statLabel}>Referred</Text>
+            <Text style={st.statValue}>{totalReferrals}</Text>
+          </View>
+          <View style={st.statTile}>
+            <Text style={st.statLabel}>Active</Text>
+            <Text style={st.statValue}>{activeCount}</Text>
+          </View>
+          <View style={st.statTile}>
+            <Text style={st.statLabel}>Earned</Text>
+            <Text style={st.statValue}>${totalEarned.toLocaleString()}</Text>
+          </View>
+        </View>
 
-        {/* Filter Tabs */}
-        <Text style={styles.sectionLabel}>REFERRAL HISTORY</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {filters.map((f) => (
-            <TouchableOpacity key={f} style={[styles.filterChip, filter === f && styles.filterChipActive]} onPress={() => setFilter(f)}>
-              <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                {f === 'signed_up' ? 'SIGNED UP' : f.toUpperCase()}
+        {/* ── History ── */}
+        <Text style={st.sectionTitle}>History</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.filterScroll}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[st.filterChip, filter === f && st.filterChipActive]}
+              onPress={() => setFilter(f)}
+              accessibilityRole="button"
+            >
+              <Text style={[st.filterText, filter === f && st.filterTextActive]}>
+                {f === 'all' ? 'All' : STATUS_LABEL[f] || f}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Referral List */}
         {filteredReferrals.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={36} color={colors.textTertiary} />
-              <Text style={styles.emptyTitle}>NO REFERRALS YET</Text>
-              <Text style={styles.emptyText}>No referrals {filter !== 'all' ? `with status "${filter}"` : 'yet'}</Text>
-            </View>
+          <View style={st.emptyCard}>
+            <Text style={st.emptyTitle}>
+              {filter === 'all' ? 'No referrals yet' : `No ${STATUS_LABEL[filter]?.toLowerCase() || filter} referrals`}
+            </Text>
+            <Text style={st.emptyText}>
+              {filter === 'all'
+                ? 'Share your link — everyone who joins with your code lands here.'
+                : 'Try a different filter.'}
+            </Text>
           </View>
         ) : (
-          filteredReferrals.map((ref) => {
-            const sc = statusConfig[ref.status] || statusConfig.pending;
-            return (
-              <View key={ref.id} style={styles.refCard}>
-                <View style={styles.refRow}>
+          <View style={st.listCard}>
+            {filteredReferrals.map((ref, i) => {
+              const isActive = ref.status === 'active';
+              return (
+                <View key={ref.id} style={[st.refRow, i < filteredReferrals.length - 1 && st.rowBorder]}>
                   <Avatar name={ref.name || 'Unknown'} size="sm" shape="square" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.refName}>{ref.name.toUpperCase()}</Text>
-                    <Text style={styles.refDate}>{new Date(ref.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.refName} numberOfLines={1}>{ref.name}</Text>
+                    <Text style={st.refDate}>
+                      {new Date(ref.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusText}>{sc.label.toUpperCase()}</Text>
+                    <View style={[st.statusBadge, isActive && st.statusBadgeActive]}>
+                      <Text style={[st.statusText, isActive && st.statusTextActive]}>
+                        {STATUS_LABEL[ref.status] || ref.status}
+                      </Text>
                     </View>
-                    {(ref.reward || 0) > 0 && (
-                      <Text style={styles.rewardText}>+${ref.reward}</Text>
-                    )}
+                    {(ref.reward || 0) > 0 && <Text style={st.rewardText}>+${ref.reward}</Text>}
                   </View>
                 </View>
-              </View>
-            );
-          })
+              );
+            })}
+          </View>
         )}
+
+        <View style={{ height: 48 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   backBtn: {
     width: 36,
     height: 36,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
+    borderRadius: 18,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: colors.textPrimary,
-    letterSpacing: 1.5,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 19,
+    letterSpacing: -0.3,
+    color: CoachColors.textPrimary,
   },
-  inviteHeaderBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textMuted,
+    marginTop: 1,
   },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
 
-  tierCard: {
-    backgroundColor: colors.bgSecondary,
+  codeCard: {
+    marginTop: 18,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.md,
+    borderColor: CoachColors.border,
+    borderRadius: 16,
+    padding: 18,
   },
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  tierIcon: { fontSize: 28 },
-  tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tierName: { fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1 },
-  tierProgress: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 0.8 },
-  progressTrack: { height: 4, borderRadius: Radius.xs, backgroundColor: colors.bgPrimary, borderWidth: 1, borderColor: colors.border, marginTop: 6 },
-  progressFill: { height: '100%' as any, backgroundColor: colors.textPrimary },
-
-  statsRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    backgroundColor: colors.bgSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
+  codeLabel: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 11,
+    color: CoachColors.textFaint,
+    letterSpacing: 0.6,
   },
-  statValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 22, color: colors.textPrimary },
-  statLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 1, marginTop: 2 },
-
-  inviteBtn: {
+  codeValue: {
+    fontFamily: CoachFonts.mono,
+    fontSize: 26,
+    color: CoachColors.accent,
+    marginTop: 8,
+    letterSpacing: 1,
+  },
+  codeDesc: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    borderRadius: Radius.xs,
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
     paddingVertical: 14,
-    marginBottom: Spacing.lg,
+    marginTop: 16,
   },
-  inviteBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: colors.bgPrimary,
-    letterSpacing: 1.5,
+  shareBtnText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 14,
+    color: CoachColors.onAccent,
   },
 
-  sectionLabel: {
-    fontFamily: FontFamily.heading,
-    fontSize: 11,
-    color: colors.textTertiary,
-    letterSpacing: 1.5,
-    marginBottom: Spacing.xs,
-  },
-  filterScroll: { marginBottom: Spacing.md },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
-    marginRight: Spacing.xs,
+  statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  statTile: {
+    flex: 1,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 12,
+    padding: 13,
+  },
+  statLabel: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11,
+    color: CoachColors.textMuted,
+  },
+  statValue: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 18,
+    color: CoachColors.textPrimary,
+    marginTop: 4,
+  },
+
+  sectionTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 16,
+    color: CoachColors.textPrimary,
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  filterScroll: { marginBottom: 12, flexGrow: 0 },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: CoachColors.surface,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
   },
   filterChipActive: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
-  filterText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textTertiary, letterSpacing: 0.8 },
-  filterTextActive: { color: colors.bgPrimary },
+  filterText: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 12,
+    color: CoachColors.textSecondary,
+  },
+  filterTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
 
-  refCard: {
-    backgroundColor: colors.bgSecondary,
+  listCard: {
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
-    marginBottom: Spacing.xs,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    overflow: 'hidden',
   },
-  refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  refName: { fontFamily: FontFamily.bodyBold, fontSize: 12, color: colors.textPrimary, letterSpacing: 0.5 },
-  refDate: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, letterSpacing: 0.5, marginTop: 2 },
+  refRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: CoachColors.borderMuted,
+  },
+  refName: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13.5,
+    color: CoachColors.textPrimary,
+  },
+  refDate: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+    marginTop: 1,
+  },
   statusBadge: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgPrimary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.xs,
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  statusText: { fontFamily: FontFamily.bodyBold, fontSize: 8, color: colors.textPrimary, letterSpacing: 0.8 },
-  rewardText: { fontFamily: FontFamily.headingExtraBold, fontSize: 11, color: colors.green },
+  statusBadgeActive: {
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: 'transparent',
+  },
+  statusText: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 10.5,
+    color: CoachColors.textSecondary,
+  },
+  statusTextActive: { color: CoachColors.accent },
+  rewardText: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 12.5,
+    color: CoachColors.accent,
+  },
 
   emptyCard: {
-    backgroundColor: colors.bgSecondary,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
-    padding: Spacing.lg,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    padding: 24,
+    alignItems: 'center',
   },
-  emptyState: { alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
-  emptyTitle: { fontFamily: FontFamily.heading, fontSize: 12, color: colors.textPrimary, letterSpacing: 1 },
-  emptyText: { fontFamily: FontFamily.body, fontSize: 11, color: colors.textTertiary },
+  emptyTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 14,
+    color: CoachColors.textPrimary,
+  },
+  emptyText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
 });

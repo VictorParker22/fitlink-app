@@ -1,12 +1,10 @@
-import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import type { ThemeColors } from '../constants/theme';
-import { useTheme } from '../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const PRESET_CERTS = [
   'NASM-CPT', 'ACE-CPT', 'ISSA-CPT', 'NSCA-CSCS', 'ACSM-CEP',
@@ -15,217 +13,231 @@ const PRESET_CERTS = [
   'Kettlebell Athletics', 'USA Weightlifting', 'Yoga Alliance RYT-200',
 ];
 
+const MAX_CERTS = 20;
+
+function parseList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((s) => String(s).trim()).filter(Boolean);
+  if (typeof value === 'string' && value) return value.split(',').map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
 export default function CertificationsScreen() {
   const router = useRouter();
   const { trainer, updateTrainer } = useApp();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
 
-  const existingCerts: string[] = Array.isArray(trainer?.certifications)
-    ? trainer.certifications
-    : (typeof trainer?.certifications === 'string' && trainer.certifications)
-      ? trainer.certifications.split(',').map((s: string) => s.trim()).filter(Boolean)
-      : [];
-
-  const [certs, setCerts] = useState<string[]>(existingCerts);
+  const [certs, setCerts] = useState<string[]>(() => parseList(trainer?.certifications));
   const [customCert, setCustomCert] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const toggleCert = (cert: string) => {
-    setCerts((prev) => prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]);
+  const addCert = (cert: string) => {
+    if (certs.length >= MAX_CERTS) {
+      Alert.alert('Limit reached', `You can list up to ${MAX_CERTS} certifications.`);
+      return;
+    }
+    setCerts((prev) => (prev.includes(cert) ? prev : [...prev, cert]));
   };
+
+  const removeCert = (cert: string) => setCerts((prev) => prev.filter((c) => c !== cert));
 
   const addCustom = () => {
     const trimmed = customCert.trim();
     if (!trimmed) return;
-    if (certs.includes(trimmed)) return Alert.alert('Duplicate', 'This certification is already added.');
-    setCerts((prev) => [...prev, trimmed]);
+    if (certs.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      Alert.alert('Already added', 'This certification is already on your list.');
+      return;
+    }
+    addCert(trimmed);
     setCustomCert('');
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateTrainer({ certifications: certs as any });
-      Alert.alert('Saved!', `${certs.length} certification${certs.length !== 1 ? 's' : ''} updated.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // trainers.certifications is a text column — persist as a comma-joined string.
+      await updateTrainer({ certifications: certs.join(', ') });
+      router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save');
+      Alert.alert('Could not save', err.message || 'Something went wrong. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>CERTIFICATIONS</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveHeaderBtn} accessibilityRole="button">
-          <Text style={[styles.saveBtnText, saving && { opacity: 0.5 }]}>{saving ? 'SAVING...' : 'SAVE'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Current */}
-        {certs.length > 0 && (
-          <>
-            <Text style={styles.sectionLabel}>YOUR CERTIFICATIONS ({certs.length})</Text>
-            <View style={styles.chipGrid}>
-              {certs.map((cert) => (
-                <TouchableOpacity key={cert} style={styles.chipActive} onPress={() => toggleCert(cert)} activeOpacity={0.8}>
-                  <Ionicons name="checkmark" size={13} color={colors.bgPrimary} />
-                  <Text style={styles.chipTextActive}>{cert}</Text>
-                  <Ionicons name="close" size={12} color={colors.bgPrimary} style={{ opacity: 0.7 }} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Add Custom */}
-        <Text style={styles.sectionLabel}>ADD CUSTOM</Text>
-        <View style={styles.addRow}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="e.g. First Aid / CPR"
-            placeholderTextColor={colors.textTertiary}
-            value={customCert}
-            onChangeText={setCustomCert}
-            onSubmitEditing={addCustom}
-            returnKeyType="done"
-          />
-          <TouchableOpacity style={[styles.addBtn, !customCert.trim() && styles.addBtnDisabled]} onPress={addCustom} disabled={!customCert.trim()} activeOpacity={0.8}>
-            <Ionicons name="add" size={20} color={customCert.trim() ? colors.bgPrimary : colors.textTertiary} />
+    <SafeAreaView style={s.container} edges={['top']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Certifications</Text>
+          <TouchableOpacity onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save certifications">
+            <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Presets */}
-        <Text style={styles.sectionLabel}>POPULAR CERTIFICATIONS</Text>
-        <View style={styles.chipGrid}>
-          {PRESET_CERTS.filter((c) => !certs.includes(c)).map((cert) => (
-            <TouchableOpacity key={cert} style={styles.chip} onPress={() => toggleCert(cert)} activeOpacity={0.7}>
-              <Ionicons name="add-outline" size={14} color={colors.textTertiary} />
-              <Text style={styles.chipText}>{cert}</Text>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Current */}
+          <Text style={s.sectionLabel}>Your certifications{certs.length > 0 ? ` (${certs.length})` : ''}</Text>
+          {certs.length > 0 ? (
+            <View style={s.chipGrid}>
+              {certs.map((cert) => (
+                <TouchableOpacity
+                  key={cert}
+                  style={s.chipSelected}
+                  onPress={() => removeCert(cert)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${cert}`}
+                >
+                  <Text style={s.chipSelectedText}>{cert}</Text>
+                  <Ionicons name="close" size={13} color={CoachColors.accent} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text style={s.emptyText}>
+              Certifications you add here appear on your coach profile. Pick from the list below or type your own.
+            </Text>
+          )}
+
+          {/* Add custom */}
+          <Text style={s.sectionLabel}>Add your own</Text>
+          <View style={s.addRow}>
+            <TextInput
+              style={s.addInput}
+              placeholder="e.g. First Aid / CPR"
+              placeholderTextColor={CoachColors.textFaint}
+              value={customCert}
+              onChangeText={setCustomCert}
+              onSubmitEditing={addCustom}
+              returnKeyType="done"
+              selectionColor={CoachColors.accent}
+            />
+            <TouchableOpacity
+              style={[s.addBtn, !customCert.trim() && s.addBtnDisabled]}
+              onPress={addCustom}
+              disabled={!customCert.trim()}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Add certification"
+            >
+              <Ionicons name="add" size={22} color={customCert.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
             </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+          </View>
+
+          {/* Presets */}
+          <Text style={s.sectionLabel}>Common certifications</Text>
+          <View style={s.chipGrid}>
+            {PRESET_CERTS.filter((c) => !certs.includes(c)).map((cert) => (
+              <TouchableOpacity
+                key={cert}
+                style={s.chip}
+                onPress={() => addCert(cert)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${cert}`}
+              >
+                <Ionicons name="add-outline" size={14} color={CoachColors.textFaint} />
+                <Text style={s.chipText}>{cert}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: CoachColors.borderMuted,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerBack: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  saveBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: CoachColors.accent,
   },
-  headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: colors.textPrimary,
-    letterSpacing: 1.5,
-  },
-  saveHeaderBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.textPrimary,
-    borderRadius: Radius.xs,
-  },
-  saveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: colors.bgPrimary,
-    letterSpacing: 1,
-  },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
+
+  scroll: { paddingHorizontal: 20, paddingBottom: 48 },
+
   sectionLabel: {
-    fontFamily: FontFamily.heading,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: colors.textTertiary,
-    letterSpacing: 1.5,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.sm,
+    color: CoachColors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 24,
+    marginBottom: 10,
   },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  emptyText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: CoachColors.textSecondary,
+  },
+
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: CoachColors.border,
+    backgroundColor: 'transparent',
   },
-  chipText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  chipActive: {
+  chipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  chipSelected: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.textPrimary,
+    gap: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.textPrimary,
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accentSofter,
   },
-  chipTextActive: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
-    color: colors.bgPrimary,
-    letterSpacing: 0.5,
-  },
-  addRow: { flexDirection: 'row', gap: Spacing.xs },
+  chipSelectedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
+
+  addRow: { flexDirection: 'row', gap: 10 },
   addInput: {
     flex: 1,
-    backgroundColor: colors.bgSecondary,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 13,
-    color: colors.textPrimary,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontFamily: CoachFonts.body,
+    fontSize: 14.5,
+    color: CoachColors.textPrimary,
   },
   addBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
+    width: 46,
+    borderRadius: 14,
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtnDisabled: {
-    backgroundColor: colors.bgSecondary,
-    borderColor: colors.border,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
   },
 });

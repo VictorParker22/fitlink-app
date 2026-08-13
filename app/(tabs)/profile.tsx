@@ -21,7 +21,7 @@ const ACCOUNT_ITEMS = [
   { icon: 'flash-outline',      label: 'Specializations', route: '/specializations' },
 ];
 const BUSINESS_ITEMS = [
-  { icon: 'card-outline',         label: 'Subscription plans', route: '/subscriptions' },
+  { icon: 'pricetag-outline',     label: 'Pass revenue',       route: '/subscriptions' },
   { icon: 'wallet-outline',       label: 'Earnings & payouts', route: '/earnings'      },
   { icon: 'share-social-outline', label: 'Referral program',   route: '/referrals'     },
   { icon: 'bar-chart-outline',    label: 'Analytics',          route: '/analytics'     },

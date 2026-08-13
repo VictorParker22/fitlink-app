@@ -1,32 +1,27 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
-import Avatar from '../components/Avatar';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 48;
+/**
+ * Passes — the business lens on the same plans the Library's Passes tab
+ * manages. The Library (programs.tsx) owns creation, track editing and the
+ * Autoflow config; this screen answers "what is each pass worth?".
+ *
+ * Fixes over the previous version: the price-derived DIAMOND/GOLD/SILVER
+ * "tier" theatre is gone (it encoded nothing real), "YOUR EMPIRE" is gone,
+ * and every revenue figure now subtracts the same 10% platform fee that
+ * earnings.tsx uses — the old screen showed gross dressed up as take-home.
+ * All counts come from real client rows; nothing is invented.
+ */
 
-const TIER_CONFIG: Record<string, { rank: string; icon: string; glow: string; gradientStart: string; gradientMid: string; gradientEnd: string }> = {
-  diamond: { rank: 'DIAMOND', icon: 'diamond', glow: '#67E8F9', gradientStart: '#22D3EE', gradientMid: '#0EA5E9', gradientEnd: '#0369A1' },
-  gold: { rank: 'GOLD', icon: 'trophy', glow: '#FCD34D', gradientStart: '#FDE68A', gradientMid: '#FBBF24', gradientEnd: '#D97706' },
-  silver: { rank: 'SILVER', icon: 'shield-checkmark', glow: '#CBD5E1', gradientStart: '#F1F5F9', gradientMid: '#94A3B8', gradientEnd: '#475569' },
-  bronze: { rank: 'BRONZE', icon: 'medal', glow: '#FDBA74', gradientStart: '#FED7AA', gradientMid: '#FB923C', gradientEnd: '#C2410C' },
-};
-
-const getTier = (price: number) => {
-  if (price >= 200) return TIER_CONFIG.diamond;
-  if (price >= 100) return TIER_CONFIG.gold;
-  if (price >= 50) return TIER_CONFIG.silver;
-  return TIER_CONFIG.bronze;
-};
+const PLATFORM_FEE = 0.10;
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { plans, clients, refreshData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -35,374 +30,344 @@ export default function SubscriptionsScreen() {
     try { await refreshData(); } finally { setRefreshing(false); }
   }, [refreshData]);
 
-  const getSubCount = (planId: string) => clients.filter(c => c.plan_id === planId && c.status !== 'inactive').length;
-  const totalRevenue = useMemo(() => plans.reduce((sum, p) => sum + Number(p.price) * getSubCount(p.id), 0), [plans, clients]);
-  const totalSubscribers = useMemo(() => plans.reduce((sum, p) => sum + getSubCount(p.id), 0), [plans, clients]);
+  // Same holder definition as earnings.tsx: anyone not inactive counts.
+  const holdersOf = useCallback(
+    (planId: string) => clients.filter(c => c.plan_id === planId && c.status !== 'inactive'),
+    [clients],
+  );
+
+  const breakdown = useMemo(() => {
+    return plans
+      .map(plan => {
+        const holders = holdersOf(plan.id);
+        const active = holders.filter(h => h.status === 'active').length;
+        const trial = holders.filter(h => h.status === 'trial').length;
+        const gross = Number(plan.price) * holders.length;
+        const net = gross * (1 - PLATFORM_FEE);
+        return { plan, holders: holders.length, active, trial, gross, net };
+      })
+      .sort((a, b) => b.net - a.net);
+  }, [plans, holdersOf]);
+
+  const totalNet = useMemo(() => breakdown.reduce((s, b) => s + b.net, 0), [breakdown]);
+  const totalHolders = useMemo(() => breakdown.reduce((s, b) => s + b.holders, 0), [breakdown]);
+  const totalTrial = useMemo(() => breakdown.reduce((s, b) => s + b.trial, 0), [breakdown]);
+
+  const formatWhole = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const formatCurrency = (n: number) => `$${n.toFixed(2)}`;
 
   return (
-    <View style={[st.container, { paddingTop: insets.top }]}>
-      {/* ── HEADER ── */}
-      <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <View style={st.headerCenter}>
-          <Ionicons name="layers" size={16} color="#FF6B35" />
-          <Text style={st.headerTitle}>Season Passes</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/create-plan' as any)} style={st.addBtn}>
-          <Ionicons name="add" size={22} color="#000" />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={st.container} edges={['top']}>
       <ScrollView
+        contentContainerStyle={st.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B35" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
       >
-        {/* ── EMPIRE HERO ── */}
-        <View style={st.empireHero}>
-          <Text style={st.empireLabel}>YOUR EMPIRE</Text>
-          <Text style={st.empireRevenue}>${totalRevenue.toLocaleString()}</Text>
-          <Text style={st.empireSub}>/MONTH RECURRING</Text>
-
-          <View style={st.empireStats}>
-            <View style={st.empireStat}>
-              <Text style={st.empireStatNum}>{totalSubscribers}</Text>
-              <Text style={st.empireStatLabel}>MEMBERS</Text>
-            </View>
-            <View style={st.empireStatSep} />
-            <View style={st.empireStat}>
-              <Text style={st.empireStatNum}>{plans.length}</Text>
-              <Text style={st.empireStatLabel}>TIERS</Text>
-            </View>
-            <View style={st.empireStatSep} />
-            <View style={st.empireStat}>
-              <Text style={st.empireStatNum}>${totalSubscribers > 0 ? Math.round(totalRevenue / totalSubscribers) : 0}</Text>
-              <Text style={st.empireStatLabel}>ARPU</Text>
-            </View>
+        {/* ── Header ── */}
+        <View style={st.header}>
+          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={st.headerTitle}>Passes</Text>
+            <Text style={st.headerSub}>What each pass brings in</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => router.push('/create-plan' as any)}
+            style={st.addBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Create a pass"
+          >
+            <Ionicons name="add" size={20} color={CoachColors.onAccent} />
+          </TouchableOpacity>
         </View>
 
-        {/* ── SEASON PASS CARDS ── */}
         {plans.length === 0 ? (
           <View style={st.emptyState}>
-            <View style={st.emptyIcon}>
-              <Ionicons name="layers-outline" size={24} color="rgba(255,255,255,0.4)" />
-            </View>
-            <Text style={st.emptyTitle}>NO SEASON PASSES</Text>
-            <Text style={st.emptySub}>CREATE YOUR FIRST TIER TO START BUILDING YOUR EMPIRE</Text>
-            <TouchableOpacity style={st.emptyCta} onPress={() => router.push('/create-plan' as any)} activeOpacity={0.8}>
-              <Ionicons name="add" size={16} color="#000" />
-              <Text style={st.emptyCtaText}>CREATE PASS</Text>
+            <Text style={st.emptyTitle}>No passes yet</Text>
+            <Text style={st.emptyText}>
+              Create a pass to start charging athletes monthly. You keep 90% of every payment.
+            </Text>
+            <TouchableOpacity style={st.emptyCta} onPress={() => router.push('/create-plan' as any)} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={st.emptyCtaText}>Create a pass</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={st.passGrid}>
-            {plans.map((plan, idx) => {
-              const planColor = (plan as any).color || '#3B82F6';
-              const tier = getTier(Number(plan.price));
-              const subCount = getSubCount(plan.id);
-              const subscribers = clients.filter(c => c.plan_id === plan.id && c.status !== 'inactive');
-              const features = ((plan as any).features || []) as string[];
-              const isPopular = (plan as any).is_popular;
-              const planRevenue = Number(plan.price) * subCount;
+          <>
+            {/* ── Headline ── */}
+            <View style={st.headlineCard}>
+              <Text style={st.headlineLabel}>Monthly recurring</Text>
+              <Text style={st.headlineValue}>{formatWhole(totalNet)}</Text>
+              <Text style={st.headlineDesc}>
+                From {totalHolders} pass holder{totalHolders === 1 ? '' : 's'} across {plans.length} pass{plans.length === 1 ? '' : 'es'}, after the 10% fee.
+                {totalTrial > 0 ? ` ${totalTrial} of them ${totalTrial === 1 ? 'is' : 'are'} still on a trial.` : ''}
+              </Text>
+            </View>
 
+            {/* ── Per-pass breakdown ── */}
+            <Text style={st.sectionTitle}>By pass</Text>
+            <Text style={st.sectionDesc}>Tap a pass for pricing and details. Tracks and Autoflow live in the Library.</Text>
+
+            {breakdown.map(({ plan, holders, active, trial, net }) => {
+              const share = totalNet > 0 ? (net / totalNet) * 100 : 0;
               return (
                 <TouchableOpacity
                   key={plan.id}
-                  activeOpacity={0.9}
+                  style={st.passCard}
+                  activeOpacity={0.85}
                   onPress={() => router.push({ pathname: '/plan-detail', params: { planId: plan.id } } as any)}
+                  accessibilityRole="button"
                 >
-                  <View style={st.passCard}>
-                    {/* Header zone */}
-                    <View style={st.passHeroGradient}>
-                      {isPopular && (
-                        <View style={st.popularRibbon}>
-                          <Ionicons name="flame" size={8} color="#000" />
-                          <Text style={st.popularRibbonText}>POPULAR</Text>
-                        </View>
-                      )}
-
-                      <View style={st.passHeroContent}>
-                        <View style={st.tierIconCircle}>
-                          <Ionicons name={tier.icon as any} size={20} color="#FFF" />
-                        </View>
-                        <Text style={st.tierRankText}>{tier.rank}</Text>
-                        <Text style={st.passNameText}>{plan.name.toUpperCase()}</Text>
-                      </View>
+                  <View style={st.passTopRow}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={st.passName} numberOfLines={1}>{plan.name}</Text>
+                      <Text style={st.passMeta}>
+                        {formatCurrency(Number(plan.price))} / {plan.period || 'monthly'}
+                        {holders === 0
+                          ? ' · no holders yet'
+                          : ` · ${active} active${trial > 0 ? ` · ${trial} on trial` : ''}`}
+                      </Text>
                     </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={st.passNet}>{formatWhole(net)}</Text>
+                      <Text style={st.passNetSub}>/mo after fee</Text>
+                    </View>
+                  </View>
 
-                    {/* Dark body */}
-                    <View style={st.passBody}>
-                      {/* Price block */}
-                      <View style={st.passPriceBlock}>
-                        <View style={st.passPriceRow}>
-                          <Text style={st.passCurrency}>$</Text>
-                          <Text style={st.passPrice}>{Number(plan.price)}</Text>
-                          <Text style={st.passPeriod}>/{(plan as any).period || 'mo'}</Text>
-                        </View>
-                        <View style={[st.revenuePill, { backgroundColor: planColor + '15' }]}>
-                          <Text style={[st.revenuePillText, { color: planColor }]}>${planRevenue.toLocaleString()}/mo revenue</Text>
-                        </View>
-                      </View>
+                  <View style={st.barTrack}>
+                    <View style={[st.barFill, { width: `${Math.max(share, holders > 0 ? 2 : 0)}%` }]} />
+                  </View>
 
-                      {/* Perks */}
-                      {features.length > 0 && (
-                        <View style={st.passPerks}>
-                          {features.slice(0, 4).map((f, i) => (
-                            <View key={i} style={st.passPerkRow}>
-                              <View style={[st.perkDot, { backgroundColor: planColor }]} />
-                              <Text style={st.perkText} numberOfLines={1}>{f}</Text>
-                            </View>
-                          ))}
-                          {features.length > 4 && (
-                            <Text style={st.perkMore}>+{features.length - 4} more</Text>
-                          )}
-                        </View>
-                      )}
-
-                      {/* Footer: subscribers + arrow */}
-                      <View style={st.passFooter}>
-                        <View style={st.passSubscribers}>
-                          {subscribers.length > 0 && (
-                            <View style={st.avatarStack}>
-                              {subscribers.slice(0, 4).map((c, i) => (
-                                <View key={c.id} style={[st.avatarWrap, { marginLeft: i > 0 ? -10 : 0, zIndex: 5 - i }]}>
-                                  <Avatar name={c.name} size="sm" imageUrl={(c as any).avatar_url} />
-                                </View>
-                              ))}
-                            </View>
-                          )}
-                          <Text style={st.subCountText}>
-                            {subCount === 0 ? 'No members yet' : `${subCount} member${subCount !== 1 ? 's' : ''}`}
-                          </Text>
-                        </View>
-                        <View style={[st.viewBtn, { backgroundColor: planColor + '20' }]}>
-                          <Ionicons name="arrow-forward" size={16} color={planColor} />
-                        </View>
-                      </View>
+                  <View style={st.passFooter}>
+                    <TouchableOpacity
+                      style={st.footerBtn}
+                      activeOpacity={0.7}
+                      onPress={() => router.push(`/pass-holders?planId=${plan.id}` as any)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={st.footerBtnText}>Holders</Text>
+                    </TouchableOpacity>
+                    <View style={st.footerDivider} />
+                    <TouchableOpacity
+                      style={st.footerBtn}
+                      activeOpacity={0.7}
+                      onPress={() => router.push(`/pass-track-editor?planId=${plan.id}` as any)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={st.footerBtnText}>Edit track</Text>
+                    </TouchableOpacity>
+                    <View style={st.footerDivider} />
+                    <View style={st.footerBtn}>
+                      <Text style={st.footerBtnAccent}>Details</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
               );
             })}
-          </View>
+
+            <Text style={st.footnote}>
+              Revenue here matches Earnings: holder count × price, minus the 10% platform fee.
+            </Text>
+          </>
         )}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: Radius.xs,
-    backgroundColor: '#0F0F0F',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 1.5 },
-  addBtn: {
-    width: 36, height: 36, borderRadius: Radius.xs,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Empire Hero
-  empireHero: {
-    marginHorizontal: 20,
-    marginBottom: 28,
-    marginTop: 20,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    borderRadius: Radius.xs,
-    backgroundColor: '#0A0A0A',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  empireLabel: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  empireRevenue: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 48,
-    color: '#FFFFFF',
-    letterSpacing: -1,
-  },
-  empireSub: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
-    marginBottom: 24,
-  },
-  empireStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: Radius.xs,
-    paddingVertical: 14,
-    width: '100%',
-  },
-  empireStat: { flex: 1, alignItems: 'center', gap: 2 },
-  empireStatNum: { fontFamily: FontFamily.headingExtraBold, fontSize: 18, color: '#FFFFFF' },
-  empireStatLabel: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 },
-  empireStatSep: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
-
-  // Pass Grid
-  passGrid: { paddingHorizontal: 20, gap: 16 },
-
-  // Pass Card
-  passCard: {
-    borderRadius: Radius.xs,
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
-  },
-
-  // Hero section inside card
-  passHeroGradient: {
-    paddingTop: 20,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    position: 'relative',
-  },
-  popularRibbon: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.xs,
-  },
-  popularRibbonText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 8,
-    color: '#000000',
-    letterSpacing: 1.5,
-  },
-  passHeroContent: { alignItems: 'center', gap: 6 },
-  tierIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.xs,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 19,
+    letterSpacing: -0.3,
+    color: CoachColors.textPrimary,
+  },
+  headerSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textMuted,
+    marginTop: 1,
+  },
+  addBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  headlineCard: {
+    marginTop: 18,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 16,
+    padding: 18,
+  },
+  headlineLabel: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 11,
+    color: CoachColors.textFaint,
+    letterSpacing: 0.6,
+  },
+  headlineValue: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 36,
+    letterSpacing: -0.5,
+    color: CoachColors.accent,
+    marginTop: 9,
+  },
+  headlineDesc: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    marginTop: 8,
+    lineHeight: 18,
+  },
+
+  sectionTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 16,
+    color: CoachColors.textPrimary,
+    marginTop: 22,
     marginBottom: 4,
   },
-  tierRankText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 2,
-  },
-  passNameText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    letterSpacing: 1,
+  sectionDesc: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    lineHeight: 18,
+    marginBottom: 12,
   },
 
-  // Dark body
-  passBody: {
-    padding: 20,
-    gap: 16,
+  passCard: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
   },
-  passPriceBlock: {
+  passTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
   },
-  passPriceRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  passCurrency: { fontFamily: FontFamily.heading, fontSize: 16, color: 'rgba(255,255,255,0.5)', marginBottom: 4 },
-  passPrice: { fontFamily: FontFamily.headingExtraBold, fontSize: 36, color: '#FFFFFF', lineHeight: 40 },
-  passPeriod: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 6, letterSpacing: 1 },
-  revenuePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  passName: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14.5,
+    color: CoachColors.textPrimary,
   },
-  revenuePillText: { fontFamily: FontFamily.bodyBold, fontSize: 9, letterSpacing: 0.5 },
-
-  // Perks
-  passPerks: {
-    gap: 8,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+  passMeta: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+    marginTop: 2,
   },
-  passPerkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  perkDot: { width: 6, height: 6, borderRadius: Radius.xs },
-  perkText: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.6)', flex: 1, letterSpacing: 0.5 },
-  perkMore: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: 'rgba(255,255,255,0.3)', paddingLeft: 16, letterSpacing: 0.5 },
-
-  // Footer
+  passNet: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 16,
+    color: CoachColors.textPrimary,
+  },
+  passNetSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 10.5,
+    color: CoachColors.textFaint,
+    marginTop: 1,
+  },
+  barTrack: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: CoachColors.borderMuted,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: CoachColors.accent,
+  },
   passFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 16,
+    marginTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: CoachColors.borderMuted,
   },
-  passSubscribers: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarStack: { flexDirection: 'row' },
-  avatarWrap: { borderWidth: 1, borderColor: '#000000', borderRadius: Radius.xs },
-  subCountText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  viewBtn: {
-    width: 32, height: 32, borderRadius: Radius.xs,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  footerBtn: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  footerDivider: { width: 1, height: 14, backgroundColor: CoachColors.borderMuted },
+  footerBtnText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12.5,
+    color: CoachColors.textSecondary,
+  },
+  footerBtnAccent: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12.5,
+    color: CoachColors.accent,
   },
 
-  // Empty
-  emptyState: { alignItems: 'center', paddingVertical: 100, paddingHorizontal: 40, gap: 12 },
-  emptyIcon: {
-    width: 64, height: 64, borderRadius: Radius.xs,
-    backgroundColor: '#0F0F0F',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  footnote: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textFaint,
+    lineHeight: 17,
+    marginTop: 8,
   },
-  emptyTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 1 },
-  emptySub: { fontFamily: FontFamily.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center', letterSpacing: 0.5 },
+
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 15,
+    color: CoachColors.textPrimary,
+  },
+  emptyText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+    maxWidth: 260,
+  },
   emptyCta: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FFFFFF', paddingHorizontal: 24, paddingVertical: 14,
-    borderRadius: Radius.xs, marginTop: 16,
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
+    paddingVertical: 13,
+    paddingHorizontal: 28,
+    marginTop: 18,
   },
-  emptyCtaText: { fontFamily: FontFamily.bodyBold, fontSize: 12, color: '#000000', letterSpacing: 1 },
+  emptyCtaText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13.5,
+    color: CoachColors.onAccent,
+  },
 });

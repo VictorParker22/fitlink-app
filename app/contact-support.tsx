@@ -1,114 +1,97 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
-import { useClient } from '../context/ClientContext';
-import { supabase } from '../lib/supabase';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import type { ThemeColors } from '../constants/theme';
-import { useTheme } from '../context/ThemeContext';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
-const TOPICS = ['Bug Report', 'Feature Request', 'Account Issue', 'Billing', 'Other'];
+const SUPPORT_EMAIL = 'support@getfitlink.com';
+const TOPICS = ['Bug report', 'Feature request', 'Account issue', 'Billing & payouts', 'Other'];
 
 export default function ContactSupportScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { clientData } = useClient();
   const [selectedTopic, setSelectedTopic] = useState('');
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const handleSend = async () => {
     if (!selectedTopic) return Alert.alert('Select a topic', 'Please choose what your message is about.');
     if (!message.trim()) return Alert.alert('Empty message', 'Please describe your issue.');
-    setSending(true);
-    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const subject = `FitLink coach support — ${selectedTopic}`;
+    const body = `${message.trim()}\n\n—\nAccount: ${user?.email || 'unknown'}\nPlatform: ${Platform.OS}`;
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
     try {
-      if (clientData) {
-        await supabase.from('activities').insert({
-          trainer_id: clientData.trainer_id,
-          type: 'support_request',
-          message: `${clientData.name} requested support for: ${selectedTopic}\n\nMessage: ${message}`
-        });
-      } else {
-        await new Promise((r) => setTimeout(r, 1500)); // Fallback if no clientData
-      }
-      
-      setSending(false);
-      Alert.alert('Message Sent!', 'We\'ll get back to you within 24 hours.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (error) {
-      console.warn('Error sending support message:', error);
-      setSending(false);
-      Alert.alert('Error', 'Failed to send message. Please try again later.');
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('No mail app found', `Please email us directly at ${SUPPORT_EMAIL}.`);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>CONTACT SUPPORT</Text>
+          <Text style={s.headerTitle}>Contact support</Text>
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Quick Contact */}
-          <View style={styles.quickRow}>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => Linking.openURL('mailto:support@getfitlink.com')}>
-              <View style={styles.quickIcon}>
-                <Ionicons name="mail" size={16} color={colors.textPrimary} />
-              </View>
-              <Text style={styles.quickLabel}>EMAIL</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => Linking.openURL('https://twitter.com/fitlinkapp')}>
-              <View style={styles.quickIcon}>
-                <Ionicons name="logo-twitter" size={16} color={colors.textPrimary} />
-              </View>
-              <Text style={styles.quickLabel}>TWITTER</Text>
-            </TouchableOpacity>
+        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text style={s.heroTitle}>Get in touch</Text>
+          <Text style={s.heroSubtitle}>
+            Pick a topic and write your message below. It opens as an email to our support team, so you keep a copy in your outbox.
+          </Text>
+
+          <Text style={s.fieldLabel}>TOPIC</Text>
+          <View style={s.topicRow}>
+            {TOPICS.map((topic) => {
+              const active = selectedTopic === topic;
+              return (
+                <TouchableOpacity
+                  key={topic}
+                  style={[s.topicChip, active && s.topicChipActive]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedTopic(topic); }}
+                >
+                  <Text style={[s.topicText, active && s.topicTextActive]}>{topic}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Contact Form */}
-          <Text style={styles.sectionLabel}>SEND A MESSAGE</Text>
-
-          <Text style={styles.fieldLabel}>TOPIC</Text>
-          <View style={styles.topicRow}>
-            {TOPICS.map((topic) => (
-              <TouchableOpacity
-                key={topic}
-                style={[styles.topicChip, selectedTopic === topic && styles.topicChipActive]}
-                onPress={() => setSelectedTopic(topic)}
-              >
-                <Text style={[styles.topicText, selectedTopic === topic && styles.topicTextActive]}>{topic.toUpperCase()}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.fieldLabel}>YOUR MESSAGE</Text>
+          <Text style={s.fieldLabel}>YOUR MESSAGE</Text>
           <TextInput
-            style={styles.textArea}
-            placeholder="DESCRIBE YOUR ISSUE OR FEEDBACK..."
-            placeholderTextColor={colors.textTertiary}
+            style={s.textArea}
+            placeholder="Describe your issue or feedback…"
+            placeholderTextColor={CoachColors.textFaint}
             value={message}
             onChangeText={setMessage}
             multiline
-            numberOfLines={6}
             textAlignVertical="top"
           />
 
-          <Text style={styles.emailNote}>WE'LL RESPOND TO {user?.email?.toUpperCase() || user?.phone || 'YOUR ACCOUNT EMAIL'}</Text>
+          {!!user?.email && (
+            <Text style={s.emailNote}>We'll reply to {user.email}</Text>
+          )}
 
-          <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={sending} activeOpacity={0.8}>
-            <Text style={styles.sendBtnText}>{sending ? 'SENDING...' : 'SEND MESSAGE'}</Text>
+          <TouchableOpacity style={s.sendBtn} onPress={handleSend} activeOpacity={0.85}>
+            <Ionicons name="mail-outline" size={17} color={CoachColors.onAccent} />
+            <Text style={s.sendBtnText}>Send via email</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={s.directRow}
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => Alert.alert('No mail app found', `Email us at ${SUPPORT_EMAIL}.`))}
+          >
+            <Text style={s.directRowLabel}>Or email us directly</Text>
+            <Text style={s.directRowEmail}>{SUPPORT_EMAIL}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -116,102 +99,55 @@ export default function ContactSupportScreen() {
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: colors.textPrimary,
-    letterSpacing: 1.5,
-  },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 110 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
 
-  quickRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  quickBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: Spacing.md,
-    backgroundColor: colors.bgSecondary,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
+  heroTitle: {
+    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
+    marginTop: 16, letterSpacing: -0.3,
   },
-  quickIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20, marginTop: 8 },
+
+  fieldLabel: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    letterSpacing: 0.8, marginTop: 24, marginBottom: 10,
   },
-  quickLabel: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textPrimary, letterSpacing: 1 },
 
-  sectionLabel: { fontFamily: FontFamily.heading, fontSize: 11, color: colors.textTertiary, letterSpacing: 1.5, marginTop: Spacing['2xl'], marginBottom: Spacing.md },
-  fieldLabel: { fontFamily: FontFamily.heading, fontSize: 10, color: colors.textSecondary, letterSpacing: 1, marginBottom: Spacing.xs, marginTop: Spacing.md },
-
-  topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   topicChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radius.xs,
-    backgroundColor: colors.bgSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  topicChipActive: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
-  topicText: { fontFamily: FontFamily.bodyBold, fontSize: 10, color: colors.textTertiary, letterSpacing: 0.8 },
-  topicTextActive: { color: colors.bgPrimary },
+  topicChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  topicText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  topicTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
 
   textArea: {
-    backgroundColor: colors.bgSecondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: Radius.xs,
-    padding: Spacing.md,
-    minHeight: 120,
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 12,
-    color: colors.textPrimary,
-    letterSpacing: 0.5,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, padding: 16, minHeight: 140,
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
   },
 
-  emailNote: { fontFamily: FontFamily.bodyBold, fontSize: 9, color: colors.textTertiary, marginTop: Spacing.sm, marginBottom: Spacing.xl, letterSpacing: 0.5 },
+  emailNote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginTop: 10 },
 
   sendBtn: {
-    backgroundColor: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    borderRadius: Radius.xs,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15, marginTop: 24,
   },
-  sendBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: colors.bgPrimary,
-    letterSpacing: 1.5,
-  },
+  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+
+  directRow: { alignItems: 'center', marginTop: 24, gap: 3 },
+  directRowLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  directRowEmail: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
 });
