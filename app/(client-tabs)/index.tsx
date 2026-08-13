@@ -741,7 +741,12 @@ export default function AthleteTodayScreen() {
             Suppressed while the message is unread — the copilot's top row is
             already surfacing it; two coach cards for one message is noise. */}
         {trainer && coachPreviewText && latestCoachMsg?.read !== false && (
-          <Pressable style={st.card} onPress={openThread} accessibilityRole="button" accessibilityLabel="Open coach thread">
+          <Pressable
+            style={st.card}
+            onPress={openThread}
+            accessibilityRole="button"
+            accessibilityLabel={`Message from ${trainer?.name}: ${coachPreviewText}. Double tap to reply`}
+          >
             <View style={st.coachRow}>
               <View style={st.coachAvatar}>
                 <Text style={st.coachAvatarText}>{initials(trainer?.name)}</Text>
@@ -761,7 +766,11 @@ export default function AthleteTodayScreen() {
         {(food || trainer) && (
           <View style={st.statRow}>
             {food && (
-              <View style={st.statCard}>
+              <View
+                style={st.statCard}
+                accessible={true}
+                accessibilityLabel={`Eaten ${food.eaten.toLocaleString()} of ${food.target.toLocaleString()} calories, ${food.pct} percent`}
+              >
                 <Text style={st.statLabel}>Eaten</Text>
                 <Text style={st.statValue}>
                   {food.eaten.toLocaleString()}
@@ -773,7 +782,11 @@ export default function AthleteTodayScreen() {
               </View>
             )}
             {trainer && (
-              <View style={st.statCard}>
+              <View
+                style={st.statCard}
+                accessible={true}
+                accessibilityLabel={`This week, ${doneThisWeek} session${doneThisWeek === 1 ? '' : 's'} completed`}
+              >
                 <Text style={st.statLabel}>This week</Text>
                 <Text style={st.statValue}>
                   {doneThisWeek}
@@ -802,7 +815,12 @@ export default function AthleteTodayScreen() {
             <Text style={st.sectionLabel}>Rest of the week</Text>
             <View style={{ gap: 8 }}>
               {upcoming.map((u) => (
-                <View key={u.id} style={st.upcomingRow}>
+                <View
+                  key={u.id}
+                  style={st.upcomingRow}
+                  accessible={true}
+                  accessibilityLabel={`${u.day}, ${u.name}${u.mins ? `, ${u.mins} minutes` : ''}`}
+                >
                   <Text style={st.upcomingDay}>{u.day}</Text>
                   <Text style={st.upcomingName}>{u.name}</Text>
                   {u.mins ? <Text style={st.upcomingMins}>{u.mins} min</Text> : null}

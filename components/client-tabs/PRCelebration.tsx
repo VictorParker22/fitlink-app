@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 import { playChime } from '../../lib/sounds';
 
@@ -68,6 +69,7 @@ export default function PRCelebration({
   squad?: SquadShare | null;
 }) {
   const { width, height } = useWindowDimensions();
+  const reduced = useReducedMotion();
   const [message, setMessage] = useState(defaultMessage);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
   const [shareSquad, setShareSquad] = useState(true);
@@ -85,7 +87,8 @@ export default function PRCelebration({
 
   const particles = useMemo<Particle[]>(
     () =>
-      Array.from({ length: 30 }, (_, i) => ({
+      // Reduce Motion: no confetti fall — the card alone carries the moment.
+      Array.from({ length: reduced ? 0 : 30 }, (_, i) => ({
         x0: Math.random() * width,
         drift: (Math.random() - 0.5) * 140,
         size: 5 + Math.random() * 6,
@@ -105,6 +108,13 @@ export default function PRCelebration({
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playChime();
+    if (reduced) {
+      // Reduce Motion: jump to final values with a plain fade at most.
+      progress.setValue(1);
+      cardScale.setValue(1);
+      Animated.timing(cardOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      return;
+    }
     Animated.parallel([
       Animated.timing(progress, {
         toValue: 1, duration: 2200,
@@ -113,7 +123,7 @@ export default function PRCelebration({
       Animated.timing(cardOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
       Animated.spring(cardScale, { toValue: 1, useNativeDriver: true, speed: 13, bounciness: 8 }),
     ]).start();
-  }, []);
+  }, [reduced]);
 
   const handleSend = async () => {
     const content = message.trim();

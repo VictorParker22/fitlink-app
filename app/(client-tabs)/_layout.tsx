@@ -97,8 +97,8 @@ function AthleteTabBar({ state, navigation }: any) {
               onPress={() => handlePress(route.name, route.key)}
               style={styles.tabButton}
               accessibilityRole="tab"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={`${tab.label} tab`}
+              accessibilityState={{ selected: isFocused }}
+              accessibilityLabel={showDot ? `${tab.label} tab, new message from your coach` : `${tab.label} tab`}
               accessibilityHint={tab.hint}
             >
               <View>

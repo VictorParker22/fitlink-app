@@ -231,6 +231,8 @@ export default function ClientProfileScreen() {
               value={healthSharingEnabled}
               onValueChange={handleHealthToggle}
               disabled={healthBusy}
+              accessibilityRole="switch"
+              accessibilityLabel="Share your Apple Health data with your coach"
               trackColor={{ false: '#33382F', true: CoachColors.accent }}
               thumbColor={healthSharingEnabled ? CoachColors.bg : CoachColors.textMuted}
               ios_backgroundColor="#33382F"

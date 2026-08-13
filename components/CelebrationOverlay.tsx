@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { CelebrationData } from '../hooks/useCelebrations';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import { FontFamily } from '../constants/theme';
 import { ClientRoute } from '../types/routes';
 
@@ -31,12 +32,19 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
 
 export default function CelebrationOverlay({ celebration, onDismiss }: CelebrationOverlayProps) {
   const router = useRouter();
+  const reduced = useReducedMotion();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (celebration) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (reduced) {
+        // Reduce Motion: plain fade to final values, no spring pop.
+        scale.value = 1;
+        opacity.value = withTiming(1, { duration: 200 });
+        return;
+      }
       opacity.value = withTiming(1, { duration: 250 });
       scale.value = withSequence(
         withSpring(1.05, { damping: 12, stiffness: 180 }),
@@ -44,9 +52,9 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
       );
     } else {
       opacity.value = withTiming(0, { duration: 200 });
-      scale.value = withTiming(0, { duration: 200 });
+      scale.value = reduced ? 0 : withTiming(0, { duration: 200 });
     }
-  }, [celebration]);
+  }, [celebration, reduced]);
 
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -72,12 +80,14 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
       <Animated.View style={[st.backdrop, backdropAnimStyle]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onDismiss} />
 
-        {/* Particles */}
-        <View style={st.particleContainer} pointerEvents="none">
-          {PARTICLES.map((p) => (
-            <Particle key={p.id} x={p.x} y={p.y} color={p.color} size={p.size} active={!!celebration} />
-          ))}
-        </View>
+        {/* Particles — skipped entirely under Reduce Motion */}
+        {!reduced && (
+          <View style={st.particleContainer} pointerEvents="none">
+            {PARTICLES.map((p) => (
+              <Particle key={p.id} x={p.x} y={p.y} color={p.color} size={p.size} active={!!celebration} />
+            ))}
+          </View>
+        )}
 
         <Animated.View style={[st.card, cardAnimStyle]}>
           <View style={st.cardInner}>

@@ -403,7 +403,12 @@ export default function ClientWorkoutsScreen() {
       const label = (node.label || '').replace(WEEK_LABEL_RE, '').trim();
       if (!label && WEEK_LABEL_RE.test(node.label || '')) return null;
       return (
-        <View key={nodeIndex} style={s.markerRow}>
+        <View
+          key={nodeIndex}
+          style={s.markerRow}
+          accessible={true}
+          accessibilityLabel={`Marker: ${label || 'A marker your coach set here'}${done ? ', done' : ''}`}
+        >
           <View style={s.markerDot} />
           <Text style={s.markerText}>{label || 'A marker your coach set here'}</Text>
           {done && <Ionicons name="checkmark" size={14} color={C.textFaint} />}
@@ -437,7 +442,12 @@ export default function ClientWorkoutsScreen() {
 
     if (node.type === 'class') {
       return (
-        <View key={nodeIndex} style={[s.nodeRow, done && s.nodeRowDone]}>
+        <View
+          key={nodeIndex}
+          style={[s.nodeRow, done && s.nodeRowDone]}
+          accessible={true}
+          accessibilityLabel={`${node.label || 'Class session'}, ${done ? 'done' : 'a class your coach put on the plan'}`}
+        >
           {done ? (
             <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
           ) : (
@@ -495,7 +505,12 @@ export default function ClientWorkoutsScreen() {
     }
 
     return (
-      <View key={nodeIndex} style={[s.nodeRow, done && s.nodeRowDone]}>
+      <View
+        key={nodeIndex}
+        style={[s.nodeRow, done && s.nodeRowDone]}
+        accessible={true}
+        accessibilityLabel={`${w?.name || node.label || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'ahead on your plan'}`}
+      >
         {done ? (
           <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
         ) : (
@@ -546,7 +561,8 @@ export default function ClientWorkoutsScreen() {
                 key={wk}
                 onPress={() => setSelectedWeek(wk)}
                 accessibilityRole="button"
-                accessibilityLabel={`Week ${wk}`}
+                accessibilityLabel={`Week ${wk}${isPast ? ', done' : isCurrent ? ', current week' : ''}`}
+                accessibilityState={{ selected: isSelected }}
                 style={[
                   s.weekChip,
                   isCurrent && s.weekChipCurrent,
@@ -626,6 +642,7 @@ export default function ClientWorkoutsScreen() {
                 onPress={() => !done && startAssignedWorkout(cw)}
                 disabled={done}
                 accessibilityRole="button"
+                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${done ? '' : '. Double tap to start'}`}
               >
                 {done ? (
                   <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />

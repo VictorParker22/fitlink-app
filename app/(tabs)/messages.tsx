@@ -219,6 +219,7 @@ export default function MessagesScreen() {
                 onValueChange={setReminderEnabled}
                 trackColor={{ false: CoachColors.borderMuted, true: CoachColors.accentSoft }}
                 thumbColor={reminderEnabled ? CoachColors.accent : CoachColors.textFaint}
+                accessibilityRole="switch"
                 accessibilityLabel="Reply reminder"
               />
             </View>

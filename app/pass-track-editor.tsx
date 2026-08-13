@@ -702,6 +702,8 @@ export default function PassTrackEditorScreen() {
                   <Switch
                     value={notify}
                     onValueChange={setNotify}
+                    accessibilityRole="switch"
+                    accessibilityLabel="Tell them what changed"
                     trackColor={{ false: CoachColors.borderMuted, true: CoachColors.accent }}
                     thumbColor={CoachColors.textPrimary}
                   />

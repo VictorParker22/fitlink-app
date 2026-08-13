@@ -331,6 +331,8 @@ export default function AthleteProgressScreen() {
               router.push(ClientRoute.myProfile);
             }}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Your profile"
           >
             {clientData?.avatar_url ? (
               <Image source={{ uri: clientData.avatar_url }} style={s.avatarImg} contentFit="cover" />
@@ -383,6 +385,9 @@ export default function AthleteProgressScreen() {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setSelectedLift(lift.exerciseId);
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${lift.name}, ${lift.points.length} sessions logged`}
+                        accessibilityState={{ selected: active }}
                       >
                         <Text style={[s.chipText, active && s.chipTextActive]}>{lift.name}</Text>
                       </Pressable>
@@ -392,7 +397,11 @@ export default function AthleteProgressScreen() {
 
                 {activeLift && (
                   <View style={s.card}>
-                    <View style={s.liftHeadRow}>
+                    <View
+                      style={s.liftHeadRow}
+                      accessible={true}
+                      accessibilityLabel={`${activeLift.name}, from ${activeLift.points[0].weight} to ${activeLift.points[activeLift.points.length - 1].weight} over ${activeLift.points.length} sessions`}
+                    >
                       <View style={{ flex: 1 }}>
                         <Text style={s.liftName}>{activeLift.name}</Text>
                         <Text style={s.liftRange}>
@@ -459,7 +468,12 @@ export default function AthleteProgressScreen() {
           <>
             <Text style={s.sectionTitle}>PR moments</Text>
             {prMoments.map((pr, i) => (
-              <View key={`${pr.name}-${pr.date}-${i}`} style={s.prRow}>
+              <View
+                key={`${pr.name}-${pr.date}-${i}`}
+                style={s.prRow}
+                accessible={true}
+                accessibilityLabel={`${pr.name}, new best ${pr.weight}, ${shortDate(pr.date)}`}
+              >
                 <View style={s.prBadge}>
                   <Ionicons name="trending-up" size={14} color={C.accent} />
                 </View>
@@ -539,11 +553,14 @@ export default function AthleteProgressScreen() {
               keyboardType="decimal-pad"
               returnKeyType="done"
               onSubmitEditing={saveWeight}
+              accessibilityLabel="Today's weight"
             />
             <Pressable
               style={[s.composerBtn, (!parseFloat(weightInput) || weightSaving) && { opacity: 0.4 }]}
               onPress={saveWeight}
               disabled={!parseFloat(weightInput) || weightSaving}
+              accessibilityRole="button"
+              accessibilityLabel="Log today's weight"
             >
               {weightSaving ? (
                 <ActivityIndicator size="small" color={C.onAccent} />
@@ -562,7 +579,12 @@ export default function AthleteProgressScreen() {
           </View>
         ) : photoLogs.length === 1 ? (
           <View style={s.card}>
-            <Pressable onPress={() => setViewerPhoto(firstPhotoLog.photos[0])} style={s.singlePhotoWrap}>
+            <Pressable
+              onPress={() => setViewerPhoto(firstPhotoLog.photos[0])}
+              style={s.singlePhotoWrap}
+              accessibilityRole="button"
+              accessibilityLabel={`Progress photo, ${shortDate(firstPhotoLog.date || firstPhotoLog.created_at)}. Double tap to view full screen`}
+            >
               <Image source={{ uri: firstPhotoLog.photos[0] }} style={s.singlePhoto} contentFit="cover" transition={200} />
             </Pressable>
             <Text style={[s.emptyText, { marginTop: 10 }]}>
@@ -575,7 +597,11 @@ export default function AthleteProgressScreen() {
             {/* First vs latest compare */}
             <View style={s.compareRow}>
               <View style={{ flex: 1 }}>
-                <Pressable onPress={() => setViewerPhoto(firstPhotoLog.photos[0])}>
+                <Pressable
+                  onPress={() => setViewerPhoto(firstPhotoLog.photos[0])}
+                  accessibilityRole="button"
+                  accessibilityLabel={`First photo, ${shortDate(firstPhotoLog.date || firstPhotoLog.created_at)}${firstPhotoLog.weight ? `, ${Number(firstPhotoLog.weight).toFixed(1)} pounds` : ''}. Double tap to view full screen`}
+                >
                   <Image source={{ uri: firstPhotoLog.photos[0] }} style={s.comparePhoto} contentFit="cover" transition={200} />
                 </Pressable>
                 <Text style={s.compareCaption}>
@@ -585,7 +611,11 @@ export default function AthleteProgressScreen() {
               </View>
               <Ionicons name="arrow-forward" size={17} color={C.textFaint} style={{ alignSelf: 'center' }} />
               <View style={{ flex: 1 }}>
-                <Pressable onPress={() => setViewerPhoto(latestPhotoLog!.photos[0])}>
+                <Pressable
+                  onPress={() => setViewerPhoto(latestPhotoLog!.photos[0])}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Latest photo, ${shortDate(latestPhotoLog!.date || latestPhotoLog!.created_at)}${latestPhotoLog!.weight ? `, ${Number(latestPhotoLog!.weight).toFixed(1)} pounds` : ''}. Double tap to view full screen`}
+                >
                   <Image
                     source={{ uri: latestPhotoLog!.photos[0] }}
                     style={[s.comparePhoto, s.comparePhotoLatest]}
@@ -604,7 +634,13 @@ export default function AthleteProgressScreen() {
             {photoLogs.length > 2 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.photoStrip}>
                 {photoLogs.map((log: any) => (
-                  <Pressable key={log.id} onPress={() => setViewerPhoto(log.photos[0])} style={s.photoThumbWrap}>
+                  <Pressable
+                    key={log.id}
+                    onPress={() => setViewerPhoto(log.photos[0])}
+                    style={s.photoThumbWrap}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Progress photo, ${shortDate(log.date || log.created_at)}. Double tap to view full screen`}
+                  >
                     <Image source={{ uri: log.photos[0] }} style={s.photoThumb} contentFit="cover" transition={200} />
                     <Text style={s.photoThumbDate}>{shortDate(log.date || log.created_at)}</Text>
                   </Pressable>
@@ -649,7 +685,17 @@ export default function AthleteProgressScreen() {
             ];
             const present = ratings.filter(([, v]) => v != null);
             return (
-              <View key={ci.id} style={s.checkinRow}>
+              <View
+                key={ci.id}
+                style={s.checkinRow}
+                accessible={true}
+                accessibilityLabel={[
+                  `Check-in, week of ${shortDate(ci.week_start)}`,
+                  ...present.map(([label, v]) => `${label} ${v} of 5`),
+                  ci.highlight ? `Highlight: ${ci.highlight}` : null,
+                  ci.coach_note ? 'Coach replied' : null,
+                ].filter(Boolean).join(', ')}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={s.checkinWeek}>Week of {shortDate(ci.week_start)}</Text>
                   {present.length > 0 && (
@@ -692,7 +738,7 @@ export default function AthleteProgressScreen() {
           {viewerPhoto && (
             <Image source={{ uri: viewerPhoto }} style={s.viewerImage} contentFit="contain" />
           )}
-          <TouchableOpacity style={s.viewerClose} onPress={() => setViewerPhoto(null)}>
+          <TouchableOpacity style={s.viewerClose} onPress={() => setViewerPhoto(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Close photo">
             <Ionicons name="close" size={22} color={C.textPrimary} />
           </TouchableOpacity>
         </View>

@@ -239,6 +239,8 @@ export default function CoachHomeScreen() {
             style={emptyStyles.libraryLink}
             activeOpacity={0.7}
             onPress={() => router.push('/(tabs)/programs?tab=workouts' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Browse your workout and pass library"
           >
             <Text style={emptyStyles.libraryLinkText}>Browse your workout and pass library →</Text>
           </TouchableOpacity>
@@ -354,6 +356,8 @@ export default function CoachHomeScreen() {
                 style={styles.joinBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push(`/session/${nextSession.id}` as any)}
+                accessibilityRole="button"
+                accessibilityLabel={`Join session with ${nextSession.group_name || clientName(clients, nextSession.client_id)}`}
               >
                 <Text style={styles.joinBtnText}>Join session</Text>
               </TouchableOpacity>
@@ -362,6 +366,8 @@ export default function CoachHomeScreen() {
                   style={styles.planBtn}
                   activeOpacity={0.85}
                   onPress={() => router.push(`/client/${nextSession.client_id}` as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open plan for ${clientName(clients, nextSession.client_id)}`}
                 >
                   <Text style={styles.planBtnText}>Plan</Text>
                 </TouchableOpacity>
@@ -383,6 +389,9 @@ export default function CoachHomeScreen() {
                 style={styles.timelineRow}
                 activeOpacity={0.7}
                 onPress={() => router.push(`/session/${s.id}` as any)}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${s.group_name || clientName(clients, s.client_id)}, ${new Date(s.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}, ${s.type}. Double tap to open session`}
               >
                 <View style={styles.timelineRail}>
                   <View style={styles.timelineDot} />
@@ -413,6 +422,9 @@ export default function CoachHomeScreen() {
                 style={styles.betweenRow}
                 activeOpacity={0.7}
                 onPress={item.onPress}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.label}. Double tap to ${item.cta.toLowerCase()}`}
               >
                 <Text style={styles.betweenText}>{item.label}</Text>
                 <Text style={styles.betweenCta}>{item.cta} →</Text>
@@ -429,6 +441,9 @@ export default function CoachHomeScreen() {
             style={styles.revenueCard}
             activeOpacity={0.8}
             onPress={() => router.push('/earnings')}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`${monthLabel} revenue, $${monthlyEarnings.toFixed(0)}, ${activeClients.length} active athletes. Double tap to open earnings`}
           >
             <View>
               <Text style={styles.revenueMonth}>{monthLabel}</Text>
@@ -437,7 +452,7 @@ export default function CoachHomeScreen() {
                   text={`$${monthlyEarnings.toFixed(0)}`}
                   style={styles.revenueValue}
                 />
-                <Text style={styles.revenueValue}> · {activeClients.length} active</Text>
+                <Text style={styles.revenueValue} numberOfLines={1}> · {activeClients.length} active</Text>
               </View>
             </View>
             <Text style={styles.revenueLink}>Revenue →</Text>
@@ -447,6 +462,9 @@ export default function CoachHomeScreen() {
             style={styles.revenueCard}
             activeOpacity={0.8}
             onPress={() => router.push('/(tabs)/programs' as any)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`${plans.length} pass${plans.length === 1 ? '' : 'es'}, ${activeClients.filter(c => c.plan_id).length} athlete${activeClients.filter(c => c.plan_id).length === 1 ? '' : 's'} holding one. Double tap to manage passes`}
           >
             <View>
               <Text style={styles.revenueMonth}>{plans.length} pass{plans.length === 1 ? '' : 'es'}</Text>
@@ -461,6 +479,9 @@ export default function CoachHomeScreen() {
             style={styles.revenueCard}
             activeOpacity={0.8}
             onPress={() => router.push('/(tabs)/programs?tab=workouts' as any)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`Library, ${workouts.length} workout${workouts.length === 1 ? '' : 's'} on file. Double tap to browse`}
           >
             <View>
               <Text style={styles.revenueMonth}>Library</Text>

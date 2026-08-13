@@ -15,6 +15,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { FontFamily } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -103,6 +104,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
   const bottomPad      = Math.max(insets.bottom, 12);
   const activeIndex    = useSharedValue(state.index);
   const unreadMessages = useUnreadMessageCount();
+  const reduced        = useReducedMotion();
 
   // ── Studio compact mode ──────────────────────────────────────────────────────
   // When on Studio tab: bar shrinks to give the GO LIVE CTA full visual priority.
@@ -113,10 +115,17 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
 
   useEffect(() => {
     const isStudio = state.routes[state.index]?.name === STUDIO_TAB_NAME;
+    if (reduced) {
+      // Reduce Motion: jump straight to the final compact/full state.
+      barScale.value   = isStudio ? BAR_COMPACT_SCALE : 1;
+      barOpacity.value = isStudio ? BAR_COMPACT_ALPHA : 1;
+      barSlideY.value  = isStudio ? BAR_COMPACT_SLIDE : 0;
+      return;
+    }
     barScale.value   = withSpring(isStudio ? BAR_COMPACT_SCALE : 1, COMPACT_SPRING);
     barOpacity.value = withTiming(isStudio ? BAR_COMPACT_ALPHA : 1, { duration: 280 });
     barSlideY.value  = withSpring(isStudio ? BAR_COMPACT_SLIDE : 0, COMPACT_SPRING);
-  }, [state.index]);
+  }, [state.index, reduced]);
 
   const barAnimStyle = useAnimatedStyle(() => ({
     transform: [
@@ -130,9 +139,9 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
   const circleStyle = useAnimatedStyle(() => {
     const targetX = activeIndex.value * TAB_WIDTH + (TAB_WIDTH - ACTIVE_SIZE) / 2;
     return {
-      transform: [{ translateX: withSpring(targetX, FLOW_SPRING) }],
+      transform: [{ translateX: reduced ? targetX : withSpring(targetX, FLOW_SPRING) }],
     };
-  });
+  }, [reduced]);
 
   const visibleRoutes = state.routes.filter((r: any) =>
     VISIBLE_TABS.some(t => t.name === r.name)
@@ -167,6 +176,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
               tabIndex={tabIndex}
               activeIndex={activeIndex}
               badge={badge}
+              reduced={reduced}
               onPress={() => handlePress(route.name, route.key, tabIndex)}
             />
           );
@@ -185,10 +195,11 @@ interface TabButtonProps {
   tabIndex: number;
   activeIndex: SharedValue<number>;
   badge?: number;
+  reduced?: boolean;
   onPress: () => void;
 }
 
-function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, onPress }: TabButtonProps) {
+function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, reduced = false, onPress }: TabButtonProps) {
 
   const animatedContainer = useAnimatedStyle(() => {
     // No vertical lift — flat design.
@@ -197,30 +208,34 @@ function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, onPres
     const distance = Math.abs(activeIndex.value - tabIndex);
     const scale    = interpolate(distance, [0, 1], [1.07, 1], Extrapolation.CLAMP);
     return {
-      transform: [{ scale: withSpring(scale, ICON_SPRING) }],
+      transform: [{ scale: reduced ? scale : withSpring(scale, ICON_SPRING) }],
     };
-  });
+  }, [reduced]);
 
   const wellStyle = useAnimatedStyle(() => {
     const distance = Math.abs(activeIndex.value - tabIndex);
     const opacity  = interpolate(distance, [0, 0.8, 1], [0, 0.6, 1], Extrapolation.CLAMP);
-    return { opacity: withSpring(opacity, ICON_SPRING) };
-  });
+    return { opacity: reduced ? opacity : withSpring(opacity, ICON_SPRING) };
+  }, [reduced]);
 
   // Label fades out when active (replaced by lifted icon on circle)
   const labelStyle = useAnimatedStyle(() => {
     const distance = Math.abs(activeIndex.value - tabIndex);
     const opacity  = interpolate(distance, [0, 0.6, 1], [0, 0.5, 1], Extrapolation.CLAMP);
-    return { opacity: withSpring(opacity, ICON_SPRING) };
-  });
+    return { opacity: reduced ? opacity : withSpring(opacity, ICON_SPRING) };
+  }, [reduced]);
 
   return (
     <Pressable
       onPress={onPress}
       style={styles.tabButton}
-      accessibilityRole="button"
-      accessibilityState={isFocused ? { selected: true } : {}}
-      accessibilityLabel={`${config.label} tab`}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
+      accessibilityLabel={
+        badge > 0
+          ? `${config.label} tab, ${badge > 99 ? 'more than 99' : badge} unread`
+          : `${config.label} tab`
+      }
     >
       <Animated.View style={[styles.iconOuter, animatedContainer]}>
         {/* Inactive well */}

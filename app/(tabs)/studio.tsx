@@ -312,6 +312,8 @@ function DoNotDisturbRow({ isLast = false }: { isLast?: boolean }) {
       <Switch
         value={on}
         onValueChange={(v) => { setOn(v); setBroadcastDnd(v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+        accessibilityRole="switch"
+        accessibilityLabel="Do not disturb while live"
         trackColor={{ false: CoachColors.borderMuted, true: CoachColors.accentSoft }}
         thumbColor={on ? CoachColors.accent : '#555'}
         ios_backgroundColor={CoachColors.borderMuted}

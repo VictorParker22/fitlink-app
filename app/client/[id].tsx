@@ -39,6 +39,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
@@ -98,6 +99,7 @@ export default function ClientDetailScreen() {
   const { id }      = useLocalSearchParams<{ id: string }>();
   const router      = useRouter();
   const { showAlert } = useAlert();
+  const reduced     = useReducedMotion();
   const {
     getClientById, getClientSessions, getClientWorkouts, getClientDiets,
     getClientProgress, workouts, diets, assignWorkout, assignDietPlan, plans,
@@ -203,8 +205,12 @@ export default function ClientDetailScreen() {
     strokeDashoffset: CIRC * (1 - arcProg.value),
   }));
   useEffect(() => {
+    if (reduced) {
+      arcProg.value = engagementScore.score / 100;
+      return;
+    }
     arcProg.value = withDelay(400, withTiming(engagementScore.score / 100, { duration: 900 }));
-  }, [engagementScore.score]);
+  }, [engagementScore.score, reduced]);
 
   // ── Effects ──
   useEffect(() => { if (client?.notes) setNotesText(client.notes); }, [client?.id]);
@@ -284,9 +290,10 @@ export default function ClientDetailScreen() {
 
   const handleTabChange = useCallback((tab: TabType, i: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    underlineX.value = withSpring(i * TAB_W, { damping: 20, stiffness: 260 });
+    if (reduced) underlineX.value = i * TAB_W;
+    else underlineX.value = withSpring(i * TAB_W, { damping: 20, stiffness: 260 });
     setActiveTab(tab);
-  }, [underlineX]);
+  }, [underlineX, reduced]);
 
   const saveNotes = useCallback(async () => {
     setNotesSaving(true);
@@ -491,11 +498,11 @@ export default function ClientDetailScreen() {
       {/* NAV BAR */}
       <SafeAreaView edges={['top']}>
         <View style={s.nav}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.navTitle} numberOfLines={1}>{toTitleCase(client.name)}</Text>
-          <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Edit client">
             <Ionicons name="ellipsis-horizontal" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -504,7 +511,7 @@ export default function ClientDetailScreen() {
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ══════════════ HERO ══════════════ */}
-        <Animated.View entering={FadeIn.duration(400)} style={s.hero}>
+        <Animated.View entering={reduced ? undefined : FadeIn.duration(400)} style={s.hero}>
           {/* Avatar */}
           <Avatar name={client.name} size="xl" imageUrl={client.avatar_url} />
 
@@ -531,21 +538,21 @@ export default function ClientDetailScreen() {
 
           {/* Aggregate stats — demoted: smaller, quieter than the attention banner above */}
           <View style={s.statRow}>
-            <View style={s.statBlock}>
-              <Text style={s.statNum}>{completedSessions.length}</Text>
+            <View style={s.statBlock} accessible={true} accessibilityLabel={`${completedSessions.length} completed session${completedSessions.length === 1 ? '' : 's'}`}>
+              <Text style={s.statNum} numberOfLines={1} adjustsFontSizeToFit>{completedSessions.length}</Text>
               <Text style={s.statLabel}>Sessions</Text>
             </View>
             <View style={s.statDivider} />
-            <View style={s.statBlock}>
-              <Text style={[s.statNum, streak === 0 && { color: CoachColors.textFaint }]}>
+            <View style={s.statBlock} accessible={true} accessibilityLabel={streak > 0 ? `${streak} day streak` : 'No streak'}>
+              <Text style={[s.statNum, streak === 0 && { color: CoachColors.textFaint }]} numberOfLines={1} adjustsFontSizeToFit>
                 {streak > 0 ? streak : '0'}
               </Text>
               <Text style={s.statLabel}>{streak > 0 ? 'Day streak' : 'No streak'}</Text>
             </View>
             {/* Engagement score — plain stat, no heavy ring; keeps status color since it's a signal, not decoration */}
             <View style={s.statDivider} />
-            <View style={s.statBlock}>
-              <Text style={[s.statNum, { color: engagementScore.color }]}>
+            <View style={s.statBlock} accessible={true} accessibilityLabel={`Engagement ${engagementScore.score} percent, ${engagementScore.label}`}>
+              <Text style={[s.statNum, { color: engagementScore.color }]} numberOfLines={1} adjustsFontSizeToFit>
                 {engagementScore.score}%
               </Text>
               <Text style={s.statLabel}>{engagementScore.label}</Text>
@@ -590,7 +597,15 @@ export default function ClientDetailScreen() {
           {TABS.map((tab, i) => {
             const isActive = activeTab === tab.key;
             return (
-              <TouchableOpacity key={tab.key} style={[s.tabItem, { width: TAB_W }]} onPress={() => handleTabChange(tab.key, i)} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={tab.key}
+                style={[s.tabItem, { width: TAB_W }]}
+                onPress={() => handleTabChange(tab.key, i)}
+                activeOpacity={0.7}
+                accessibilityRole="tab"
+                accessibilityLabel={`${tab.label} tab`}
+                accessibilityState={{ selected: isActive }}
+              >
                 <Text style={[s.tabLabel, isActive && s.tabLabelActive]}>{tab.label}</Text>
               </TouchableOpacity>
             );
@@ -602,7 +617,7 @@ export default function ClientDetailScreen() {
             TAB: OVERVIEW
         ══════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <Animated.View entering={FadeInDown.duration(280)} style={s.tabBody}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(280)} style={s.tabBody}>
 
             {/* Coach Notes */}
             <Text style={s.sectionLabel}>Coach Notes</Text>
@@ -719,7 +734,14 @@ export default function ClientDetailScreen() {
               const dt   = new Date(sess.date);
               const daysUntil = Math.ceil((dt.getTime()-Date.now())/86400000);
               return (
-                <TouchableOpacity style={s.sessionCard} onPress={() => router.push(`/book-session?clientId=${client.id}` as any)} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={s.sessionCard}
+                  onPress={() => router.push(`/book-session?clientId=${client.id}` as any)}
+                  activeOpacity={0.8}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${sess.type}, ${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}, ${dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, ${sess.duration} minutes, ${daysUntil === 0 ? 'today' : daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`}. Double tap to manage booking`}
+                >
                   <View style={s.sessionDateCol}>
                     <Text style={s.sessionDay}>{dt.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()}</Text>
                     <Text style={s.sessionDayNum}>{dt.getDate()}</Text>
@@ -744,7 +766,16 @@ export default function ClientDetailScreen() {
 
             {/* Last Message */}
             <Text style={s.sectionLabel}>Messages</Text>
-            <TouchableOpacity style={s.messageRow} onPress={startConversation} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={s.messageRow}
+              onPress={startConversation}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={lastMessage
+                ? `Last message, ${lastMessage.text}, ${lastMessage.time}${clientUnread > 0 ? `, ${clientUnread} unread` : ''}. Double tap to open conversation`
+                : 'Start conversation'}
+            >
               <View style={s.messageAvatarWrap}>
                 <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} />
                 {clientUnread > 0 && <View style={s.msgBadge}><Text style={s.msgBadgeText}>{clientUnread}</Text></View>}
@@ -881,7 +912,7 @@ export default function ClientDetailScreen() {
             TAB: HEALTH
         ══════════════════════════════════════════════════ */}
         {activeTab === 'health' && (
-          <Animated.View entering={FadeInDown.duration(280)} style={s.tabBody}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(280)} style={s.tabBody}>
             <ClientHabitGrid clientId={id || ''} />
 
             {healthSnapshot ? (
@@ -926,7 +957,7 @@ export default function ClientDetailScreen() {
             TAB: PROGRAMS
         ══════════════════════════════════════════════════ */}
         {activeTab === 'programs' && (
-          <Animated.View entering={FadeInDown.duration(280)} style={s.tabBody}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(280)} style={s.tabBody}>
 
             {/* Active Plan */}
             <Text style={s.sectionLabel}>Current Program</Text>
@@ -1063,7 +1094,7 @@ export default function ClientDetailScreen() {
             TAB: PROGRESS
         ══════════════════════════════════════════════════ */}
         {activeTab === 'progress' && (
-          <Animated.View entering={FadeInDown.duration(280)} style={s.tabBody}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(280)} style={s.tabBody}>
 
             {/* Weight chart */}
             {weightChartData.length >= 2 && (
@@ -1138,7 +1169,15 @@ export default function ClientDetailScreen() {
                     {photologs.map((log: any, idx: number) => {
                       const isLatest = idx === photologs.length-1;
                       return (
-                        <TouchableOpacity key={log.id} style={s.photoThumb} onPress={() => setViewerPhoto(log.photos[0])} activeOpacity={0.85}>
+                        <TouchableOpacity
+                          key={log.id}
+                          style={s.photoThumb}
+                          onPress={() => setViewerPhoto(log.photos[0])}
+                          activeOpacity={0.85}
+                          accessible={true}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Progress photo, ${new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}${log.weight ? `, ${Number(log.weight).toFixed(0)} pounds` : ''}${isLatest ? ', latest' : ''}. Double tap to view full screen`}
+                        >
                           <EImage source={{ uri: log.photos[0] }} style={s.photoThumbImg} contentFit="cover" transition={200} />
                           <LinearGradient colors={['transparent','rgba(0,0,0,0.85)']} style={s.photoGrad} />
                           <View style={s.photoFooter}>
@@ -1232,7 +1271,7 @@ export default function ClientDetailScreen() {
         <View style={s.photoViewerBg}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setViewerPhoto(null)} activeOpacity={1} />
           {viewerPhoto && <EImage source={{ uri: viewerPhoto }} style={s.photoViewerImg} contentFit="contain" />}
-          <TouchableOpacity style={s.photoViewerClose} onPress={() => setViewerPhoto(null)}>
+          <TouchableOpacity style={s.photoViewerClose} onPress={() => setViewerPhoto(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Close photo">
             <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -1242,7 +1281,7 @@ export default function ClientDetailScreen() {
       <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }}>
+            <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
               <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.modalNavTitle}>
@@ -1338,7 +1377,7 @@ export default function ClientDetailScreen() {
       <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => setShowUpgradeModal(false)}><Ionicons name="close" size={22} color={CoachColors.textPrimary} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={22} color={CoachColors.textPrimary} /></TouchableOpacity>
             <Text style={s.modalNavTitle}>Choose a Plan</Text>
             <View style={{ width: 24 }} />
           </View>

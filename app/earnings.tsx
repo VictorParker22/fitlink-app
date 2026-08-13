@@ -252,7 +252,7 @@ export default function EarningsScreen() {
 
         {/* ── Header ──────────────────────────────────── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -283,6 +283,8 @@ export default function EarningsScreen() {
                 disabled={stripeLoading}
                 activeOpacity={0.85}
                 accessibilityRole="button"
+                accessibilityLabel="Connect my bank"
+                accessibilityState={{ disabled: stripeLoading, busy: stripeLoading }}
               >
                 {stripeLoading ? (
                   <ActivityIndicator size="small" color={CoachColors.onAccent} />
@@ -350,13 +352,13 @@ export default function EarningsScreen() {
             </View>
 
             <View style={styles.statsRow}>
-              <View style={styles.statTile}>
+              <View style={styles.statTile} accessible={true} accessibilityLabel={`Paid this month, ${formatWhole(thisMonthNet)}`}>
                 <Text style={styles.statLabel}>Paid this month</Text>
-                <Text style={styles.statValue}>{formatWhole(thisMonthNet)}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{formatWhole(thisMonthNet)}</Text>
               </View>
-              <View style={styles.statTile}>
+              <View style={styles.statTile} accessible={true} accessibilityLabel={`Since you started, ${formatWhole(sinceStarted)}`}>
                 <Text style={styles.statLabel}>Since you started</Text>
-                <Text style={styles.statValue}>{formatWhole(sinceStarted)}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{formatWhole(sinceStarted)}</Text>
               </View>
             </View>
 
@@ -366,7 +368,10 @@ export default function EarningsScreen() {
               onPress={handleStripeDashboard}
               disabled={stripeLoading}
               activeOpacity={0.85}
+              accessible={true}
               accessibilityRole="button"
+              accessibilityLabel="Stripe dashboard. Balances, disputes, tax documents. Double tap to open"
+              accessibilityState={{ disabled: stripeLoading, busy: stripeLoading }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.dashboardBtnTitle}>Stripe dashboard</Text>

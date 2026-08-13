@@ -27,6 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../context/AppContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { FontFamily } from '../../constants/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,9 +57,10 @@ const HABITS: HabitRow[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getLast7Days(): { date: string; dayLabel: string; isToday: boolean }[] {
+function getLast7Days(): { date: string; dayLabel: string; dayFull: string; isToday: boolean }[] {
   const days = [];
   const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const dayFullNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const today = new Date().toISOString().split('T')[0];
 
   for (let i = 6; i >= 0; i--) {
@@ -68,6 +70,7 @@ function getLast7Days(): { date: string; dayLabel: string; isToday: boolean }[] 
     days.push({
       date,
       dayLabel: dayNames[d.getDay()],
+      dayFull: dayFullNames[d.getDay()],
       isToday: date === today,
     });
   }
@@ -85,26 +88,29 @@ function HabitDot({
   done,
   color,
   isToday,
+  label,
 }: {
   done: boolean;
   color: string;
   isToday: boolean;
+  label: string;
 }) {
   // Pop the filled dot in when it flips to done while mounted (realtime
   // update) — first render paints instantly with no animation.
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const prevDone = useRef(done);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
-    if (done && !prevDone.current) {
+    if (done && !prevDone.current && !reduced) {
       scale.value = 0.2;
       opacity.value = 0.2;
       scale.value = withSpring(1, { damping: 12, stiffness: 220 });
       opacity.value = withTiming(1, { duration: 260 });
     }
     prevDone.current = done;
-  }, [done, scale, opacity]);
+  }, [done, scale, opacity, reduced]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -117,6 +123,8 @@ function HabitDot({
         dot.wrapper,
         isToday && dot.todayWrapper,
       ]}
+      accessible={true}
+      accessibilityLabel={label}
     >
       <Animated.View
         style={[
@@ -217,6 +225,11 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
         style={s.header}
         onPress={() => setExpanded((v) => !v)}
         activeOpacity={0.85}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`Habits this week, ${overallPct} percent complete`}
+        accessibilityState={{ expanded }}
+        accessibilityHint={expanded ? 'Double tap to collapse the habit grid' : 'Double tap to expand the habit grid'}
       >
         <View>
           <Text style={s.tagHeader}>HABITS // THIS WEEK</Text>
@@ -249,7 +262,11 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
           ) : (
             <>
               {/* ── Day headers ── */}
-              <View style={s.dayHeaderRow}>
+              <View
+                style={s.dayHeaderRow}
+                accessible={true}
+                accessibilityLabel={`Habit grid, last 7 days, ${days[0].dayFull} to ${days[6].dayFull}. One row per habit, one square per day`}
+              >
                 {/* Habit label col spacer */}
                 <View style={s.habitLabelCol} />
                 {days.map((day) => (
@@ -283,7 +300,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                     ]}
                   >
                     {/* Habit label */}
-                    <View style={s.habitLabelCol}>
+                    <View style={s.habitLabelCol} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden={true}>
                       <Text style={s.habitEmoji}>{habit.emoji}</Text>
                     </View>
 
@@ -296,6 +313,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                           done={done}
                           color={habit.color}
                           isToday={day.isToday}
+                          label={`${habit.label}, ${day.dayFull}, ${done ? 'done' : 'missed'}`}
                         />
                       );
                     })}
@@ -448,7 +466,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    height: 44, // HIG 44pt minimum touch target height
+    minHeight: 44, // HIG 44pt minimum touch target height; min (not fixed) so large font scales don't clip
   },
   habitRowBorder: {
     borderBottomWidth: 1,

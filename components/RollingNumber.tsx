@@ -43,7 +43,12 @@ export default function RollingNumber({ text, style, digitHeight, accessibilityL
 
   if (reduced) {
     return (
-      <Text style={style} accessibilityLabel={accessibilityLabel ?? text}>
+      <Text
+        style={style}
+        accessibilityLabel={accessibilityLabel ?? text}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {text}
       </Text>
     );

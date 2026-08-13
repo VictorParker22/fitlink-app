@@ -201,6 +201,8 @@ function PassCard({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setEnabled(val);
               }}
+              accessibilityRole="switch"
+              accessibilityLabel="Autoflow when an athlete subscribes"
               trackColor={{ false: CoachColors.borderMuted, true: CoachColors.accentSoft }}
               thumbColor={enabled ? CoachColors.accent : '#555'}
               ios_backgroundColor={CoachColors.borderMuted}

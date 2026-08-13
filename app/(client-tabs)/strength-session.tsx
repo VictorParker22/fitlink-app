@@ -524,7 +524,12 @@ export default function StrengthSessionScreen() {
               {/* Done sets */}
               <View style={{ gap: 8, marginTop: lastTop ? 14 : 0 }}>
                 {doneSetsForCurrent.map((set) => (
-                  <View key={set.setIndex} style={s.doneSetRow}>
+                  <View
+                    key={set.setIndex}
+                    style={s.doneSetRow}
+                    accessible={true}
+                    accessibilityLabel={`Set ${set.setIndex + 1} done, ${fmtKg(set.weight)} kilograms for ${set.reps}${set.feel ? `, felt ${FEELS.find(f => f.key === set.feel)?.label.toLowerCase()}` : ''}`}
+                  >
                     <View style={s.doneSetBadge}><Text style={s.doneSetBadgeText}>{set.setIndex + 1}</Text></View>
                     <Text style={s.doneSetText}>{fmtKg(set.weight)} kg × {set.reps}</Text>
                     {set.feel && (
@@ -615,7 +620,11 @@ export default function StrengthSessionScreen() {
 
             {/* CTA bar */}
             <View style={s.ctaBar}>
-              <View style={s.restBubble}>
+              <View
+                style={s.restBubble}
+                accessible={true}
+                accessibilityLabel={restLeft != null && restLeft > 0 ? `Rest, ${fmtClock(restLeft)} remaining` : `Rest, ${fmtClock(currentEx.restSec)} between sets`}
+              >
                 <Text style={s.restTime}>
                   {restLeft != null && restLeft > 0 ? fmtClock(restLeft) : fmtClock(currentEx.restSec)}
                 </Text>
@@ -700,7 +709,15 @@ export default function StrengthSessionScreen() {
               const instructionText = ex.raw.notes || ex.raw.exercises?.instructions;
               return (
                 <View key={ex.key} style={s.exCard}>
-                  <TouchableOpacity style={s.exRow} activeOpacity={0.85} onPress={() => toggleExercise(ex.key)} accessibilityRole="button">
+                  <TouchableOpacity
+                    style={s.exRow}
+                    activeOpacity={0.85}
+                    onPress={() => toggleExercise(ex.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
+                    accessibilityState={{ expanded: open }}
+                    accessibilityHint={open ? 'Double tap to collapse details' : 'Double tap to expand details'}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={s.exName}>{ex.name}</Text>
                       <Text style={s.exMeta}>
@@ -908,7 +925,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1E211D',
   },
   restBubble: {
-    width: 52, height: 52, borderRadius: 26,
+    minWidth: 52, minHeight: 52, borderRadius: 26,
     borderWidth: 1, borderColor: '#2E322B',
     alignItems: 'center', justifyContent: 'center',
   },

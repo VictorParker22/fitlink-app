@@ -703,9 +703,17 @@ export default function ClientsScreen() {
             haptic.trigger('medium');
             setHabitClient(item);
           }}
+          accessible={true}
           accessibilityRole="button"
-          accessibilityLabel={`${displayName}, ${STATUS_LABEL[item.status]}, ${meta.text}`}
-          accessibilityHint="Double-tap to view profile. Swipe left for quick actions. Long-press to manage today's habits."
+          accessibilityLabel={[
+            displayName,
+            STATUS_LABEL[item.status],
+            activeToday ? 'active today' : null,
+            meta.text,
+            (item.completed_workouts ?? 0) > 0 ? `${item.completed_workouts} workouts total` : null,
+            unread > 0 ? `${unread} unread message${unread === 1 ? '' : 's'}` : null,
+          ].filter(Boolean).join(', ')}
+          accessibilityHint="Double tap to open profile. Swipe left for quick actions. Long press to manage today's habits."
         >
           {/* Avatar */}
           <View style={styles.avatarWrap}>

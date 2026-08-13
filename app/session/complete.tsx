@@ -40,6 +40,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../../context/AppContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
 import {
@@ -128,13 +129,19 @@ const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','S
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function StatTile({ value, label, delay = 0 }: { value: string; label: string; delay?: number }) {
-  const opacity    = useSharedValue(0);
-  const translateY = useSharedValue(10);
+  const reduced    = useReducedMotion();
+  const opacity    = useSharedValue(reduced ? 1 : 0);
+  const translateY = useSharedValue(reduced ? 0 : 10);
 
   useEffect(() => {
+    if (reduced) {
+      opacity.value = 1;
+      translateY.value = 0;
+      return;
+    }
     opacity.value    = withDelay(delay, withTiming(1, { duration: 350 }));
     translateY.value = withDelay(delay, withSpring(0, { damping: 18, stiffness: 220 }));
-  }, []);
+  }, [reduced]);
 
   const aStyle = useAnimatedStyle(() => ({
     opacity:   opacity.value,
@@ -156,14 +163,20 @@ function ExerciseBar({
   const completedSets = exercise.sets.filter(s => s.completed).length;
   const totalSets     = exercise.sets.length;
   const pct           = totalSets > 0 ? completedSets / totalSets : 0;
-  const barWidth       = useSharedValue(0);
-  const opacity        = useSharedValue(0);
+  const reduced        = useReducedMotion();
+  const barWidth       = useSharedValue(reduced ? pct : 0);
+  const opacity        = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
+    if (reduced) {
+      opacity.value = 1;
+      barWidth.value = pct;
+      return;
+    }
     const delay = 500 + index * 90;
     opacity.value  = withDelay(delay, withTiming(1, { duration: 280 }));
     barWidth.value = withDelay(delay, withSpring(pct, { damping: 18, stiffness: 120 }));
-  }, []);
+  }, [reduced]);
 
   const barStyle = useAnimatedStyle(() => ({
     width: `${barWidth.value * 100}%` as any,
@@ -206,6 +219,7 @@ function ExerciseBar({
 
 export default function SessionCompleteScreen() {
   const router                   = useRouter();
+  const reduced                  = useReducedMotion();
   const { sessionId }            = useLocalSearchParams<{ sessionId: string }>();
   const { sessions, getClientById, getClientSessions, updateSession } = useApp();
 
@@ -364,7 +378,7 @@ export default function SessionCompleteScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* ── HERO HEADER ─────────────────────────────────────── */}
-            <Animated.View entering={FadeIn.duration(350)} style={st.hero}>
+            <Animated.View entering={reduced ? undefined : FadeIn.duration(350)} style={st.hero}>
               {/* Client row */}
               <View style={st.clientRow}>
                 {client && (
@@ -402,7 +416,7 @@ export default function SessionCompleteScreen() {
 
             {/* ── EXERCISE BREAKDOWN ─────────────────────────────── */}
             {hasExerciseData && (
-              <Animated.View entering={FadeInUp.delay(350).duration(300)} style={st.card}>
+              <Animated.View entering={reduced ? undefined : FadeInUp.delay(350).duration(300)} style={st.card}>
                 <Text style={st.cardTag}>What she did</Text>
                 <Text style={st.cardTitle}>Exercise breakdown</Text>
                 <View style={st.exList}>
@@ -415,7 +429,7 @@ export default function SessionCompleteScreen() {
 
             {/* ── MUSCLE GROUPS ──────────────────────────────────── */}
             {muscleGroups.length > 0 && (
-              <Animated.View entering={FadeInUp.delay(420).duration(300)} style={st.card}>
+              <Animated.View entering={reduced ? undefined : FadeInUp.delay(420).duration(300)} style={st.card}>
                 <Text style={st.cardTag}>Muscles targeted</Text>
                 <View style={st.muscleChips}>
                   {muscleGroups.map((m, i) => (
@@ -428,7 +442,7 @@ export default function SessionCompleteScreen() {
             )}
 
             {/* ── COACH NOTES ────────────────────────────────────── */}
-            <Animated.View entering={FadeInUp.delay(480).duration(300)} style={st.card}>
+            <Animated.View entering={reduced ? undefined : FadeInUp.delay(480).duration(300)} style={st.card}>
               <View style={st.cardTitleRow}>
                 <Text style={st.cardTag}>Your note</Text>
                 {noteSaved && <Text style={st.savedText}>Saved</Text>}
@@ -448,7 +462,7 @@ export default function SessionCompleteScreen() {
             </Animated.View>
 
             {/* ── WHAT'S NEXT ────────────────────────────────────── */}
-            <Animated.View entering={FadeInUp.delay(540).duration(300)} style={[st.card, st.nextCard]}>
+            <Animated.View entering={reduced ? undefined : FadeInUp.delay(540).duration(300)} style={[st.card, st.nextCard]}>
               <Text style={st.cardTag}>Next session</Text>
               <Text style={st.cardTitle}>
                 {DAY_FULL[nextDate.getDay()]}, {nextType.toLowerCase()}
@@ -473,7 +487,7 @@ export default function SessionCompleteScreen() {
 
             {/* ── DONE ────────────────────────────────────────────── */}
             <Animated.View
-              entering={FadeInUp.delay(600).duration(280)}
+              entering={reduced ? undefined : FadeInUp.delay(600).duration(280)}
               style={st.doneRow}
             >
               <TouchableOpacity

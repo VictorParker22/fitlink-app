@@ -711,7 +711,7 @@ export default function ChatScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back to messages">
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Back to messages">
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerAvatar}>
@@ -731,6 +731,7 @@ export default function ChatScreen() {
             message: `Hey ${clientName}! Join me on FitLink to track your workouts, diet plans, and schedule sessions. Open the app and sign in as a client: https://fitlink.coach/client${user?.id ? `?ref=${user.id}` : ''}`,
             title: 'Join me on FitLink',
           })}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           accessibilityRole="button"
           accessibilityLabel="Invite client to app"
         >
@@ -799,7 +800,11 @@ export default function ChatScreen() {
           ListFooterComponent={
             isTyping ? (
               <View style={styles.typingRow}>
-                <View style={styles.typingBubble}>
+                <View
+                  style={styles.typingBubble}
+                  accessible={true}
+                  accessibilityLabel={`${clientName} is typing`}
+                >
                   <View style={styles.typingDots}>
                     <View style={[styles.dot, styles.dot1]} />
                     <View style={[styles.dot, styles.dot2]} />
@@ -817,6 +822,9 @@ export default function ChatScreen() {
             style={styles.quickActionBtn}
             onPress={() => setShowWorkoutPickerModal(true)}
             activeOpacity={0.8}
+            hitSlop={{ top: 6, bottom: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Attach a workout"
           >
             <Text style={styles.quickActionText}>Attach a workout</Text>
           </TouchableOpacity>
@@ -824,6 +832,9 @@ export default function ChatScreen() {
             style={styles.quickActionBtn}
             onPress={() => setShowDietPickerModal(true)}
             activeOpacity={0.8}
+            hitSlop={{ top: 6, bottom: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Share meal plan"
           >
             <Text style={styles.quickActionText}>Share meal plan</Text>
           </TouchableOpacity>
@@ -832,6 +843,9 @@ export default function ChatScreen() {
             onPress={() => sendCustomContent('[CHECKIN_REQUEST]')}
             activeOpacity={0.8}
             disabled={sending}
+            hitSlop={{ top: 6, bottom: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Ask for check-in"
           >
             <Text style={styles.quickActionText}>Ask for check-in</Text>
           </TouchableOpacity>
@@ -843,6 +857,7 @@ export default function ChatScreen() {
             style={styles.attachBtn}
             onPress={handleImagePick}
             activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             accessibilityRole="button"
             accessibilityLabel="Send a photo"
           >
@@ -859,13 +874,16 @@ export default function ChatScreen() {
             returnKeyType="send"
             onSubmitEditing={handleSend}
             blurOnSubmit={false}
+            accessibilityLabel="Message athlete"
           />
           <TouchableOpacity
             style={[styles.sendBtn, newMessage.trim() && styles.sendBtnActive]}
             onPress={handleSend}
             disabled={!newMessage.trim() || sending}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             accessibilityRole="button"
             accessibilityLabel="Send message"
+            accessibilityState={{ disabled: !newMessage.trim() || sending }}
           >
             <Ionicons
               name="send"

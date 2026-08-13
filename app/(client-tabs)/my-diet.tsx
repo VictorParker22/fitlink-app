@@ -440,7 +440,11 @@ export default function AthleteFoodScreen() {
         </Text>
 
         {/* ── Room left ── */}
-        <View style={st.roomCard}>
+        <View
+          style={st.roomCard}
+          accessible={true}
+          accessibilityLabel={`${Math.abs(kcalLeft).toLocaleString()} calories ${kcalLeft >= 0 ? 'left' : 'over'} of ${target.kcal.toLocaleString()}. Protein ${consumed.p} of ${target.p} grams, carbs ${consumed.c} of ${target.c} grams, fat ${consumed.f} of ${target.f} grams`}
+        >
           <View style={st.roomTopRow}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
               <Text style={st.roomBig}>{Math.abs(kcalLeft).toLocaleString()}</Text>
@@ -540,8 +544,9 @@ export default function AthleteFoodScreen() {
                 key={m.key}
                 style={[st.mealCard, logged && { opacity: 0.62 }]}
                 onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
-                accessibilityRole="button"
-                accessibilityLabel={`${logged ? 'Unlog' : 'Log'} ${m.name}`}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: logged }}
+                accessibilityLabel={`${slotName}, ${swapMeal ? `${swapMeal.name}, swapped` : m.name}, ${Math.round(swapMeal?.calories ?? m.calories)} calories, ${logged ? 'logged' : 'not logged'}. Double tap to ${logged ? 'unlog' : 'log'}`}
               >
                 {logged ? (
                   <Ionicons name="checkmark" size={17} color={C.accent} />
@@ -607,7 +612,8 @@ export default function AthleteFoodScreen() {
                         style={[st.altRow, isSel && st.altRowSelected]}
                         onPress={() => setSelectedSwapId(isSel ? null : a.id)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Choose ${a.name}`}
+                        accessibilityState={{ selected: isSel }}
+                        accessibilityLabel={`${a.name}, ${Math.round(a.calories || 0)} calories, ${dKcal === 0 ? 'same calories as the plan' : `${dKcal > 0 ? `${dKcal} calories more` : `${Math.abs(dKcal)} calories less`} than the plan`}`}
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={st.altName}>{a.name}</Text>
