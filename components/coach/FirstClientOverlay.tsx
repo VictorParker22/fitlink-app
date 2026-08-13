@@ -2,32 +2,27 @@ import React, { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { playChime } from '../../lib/sounds';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import ConfettiBurst from './ConfettiBurst';
+import { Bolt } from '../mascot/Bolt';
 
 /**
- * Shown once, right after a coach publishes a pass — a lime confetti burst
- * over a spring-in "It's live" card. Kept in the coach design language: one
- * accent, no emoji, and copy that states what actually happened (how many
- * athletes were told, where the pass lives now).
+ * One-time celebration when a coach's very first athlete lands on the
+ * roster. Same overlay pattern as PassPublishedOverlay: absolutely
+ * positioned (never a native Modal), lime confetti, chime, spring-in card.
  *
- * Rendered as an absolutely-positioned overlay inside the screen — NOT a
- * native Modal — so dismissing and navigating can never wedge each other.
- *
- * Reduce Motion: no confetti, card appears without the spring.
+ * The caller owns the "only once" logic (AsyncStorage flag on the
+ * dashboard). Reduce Motion: no confetti, card appears without the spring.
  */
 
-export default function PassPublishedOverlay({
-  planName,
-  offersSent,
+export default function FirstClientOverlay({
+  clientName,
   onDone,
 }: {
-  planName: string;
-  offersSent: number;
+  clientName: string;
   onDone: () => void;
 }) {
   const reduced = useReducedMotion();
@@ -52,20 +47,24 @@ export default function PassPublishedOverlay({
     <View style={[StyleSheet.absoluteFill, s.root]} pointerEvents="auto">
       {!reduced && <ConfettiBurst />}
 
-      {/* Card */}
       <Animated.View style={[s.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}>
-        <View style={s.checkCircle}>
-          <Ionicons name="checkmark" size={30} color={CoachColors.onAccent} />
+        <View style={s.mascotWrap}>
+          <Bolt pose="Celebrate" size={88} color={CoachColors.accent} />
         </View>
-        <Text style={s.eyebrow}>It's live</Text>
-        <Text style={s.planName} numberOfLines={2}>{planName}</Text>
+        <Text style={s.eyebrow}>First athlete in</Text>
+        <Text style={s.name} numberOfLines={2}>{clientName}</Text>
         <Text style={s.sub}>
-          {offersSent > 0
-            ? `${offersSent} athlete${offersSent === 1 ? '' : 's'} just got a message from you — watch your inbox for replies.`
-            : 'Athletes can take it from your Passes tab whenever you offer it.'}
+          Your roster is live. Their sessions, check-ins and progress start
+          landing on your dashboard from here.
         </Text>
-        <TouchableOpacity style={s.doneBtn} onPress={onDone} activeOpacity={0.85}>
-          <Text style={s.doneBtnText}>Done</Text>
+        <TouchableOpacity
+          style={s.doneBtn}
+          onPress={onDone}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss celebration"
+        >
+          <Text style={s.doneBtnText}>Let's go</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -85,23 +84,24 @@ const s = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  checkCircle: {
-    width: 68, height: 68, borderRadius: 34,
-    backgroundColor: CoachColors.accent,
+  mascotWrap: {
+    width: 104, height: 104, borderRadius: 52,
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1, borderColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
   },
   eyebrow: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent,
     letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
   },
-  planName: {
+  name: {
     fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary,
     textAlign: 'center', lineHeight: 32,
   },
   sub: {
     fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
-    textAlign: 'center', lineHeight: 21, marginTop: 12,
+    textAlign: 'center', lineHeight: 21, marginTop: 12, maxWidth: 300,
   },
   doneBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999,

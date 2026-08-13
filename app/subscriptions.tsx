@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import BoltEmptyState from '../components/mascot/BoltEmptyState';
 
 /**
  * Passes — the business lens on the same plans the Library's Passes tab
@@ -83,15 +84,13 @@ export default function SubscriptionsScreen() {
         </View>
 
         {plans.length === 0 ? (
-          <View style={st.emptyState}>
-            <Text style={st.emptyTitle}>No passes yet</Text>
-            <Text style={st.emptyText}>
-              Create a pass to start charging athletes monthly. You keep 90% of every payment.
-            </Text>
-            <TouchableOpacity style={st.emptyCta} onPress={() => router.push('/create-plan' as any)} activeOpacity={0.85} accessibilityRole="button">
-              <Text style={st.emptyCtaText}>Create a pass</Text>
-            </TouchableOpacity>
-          </View>
+          <BoltEmptyState
+            pose="welcome"
+            title="No passes yet"
+            subtitle="Create a pass to start charging athletes monthly. You keep 90% of every payment."
+            actionLabel="Create a pass"
+            onAction={() => router.push('/create-plan' as any)}
+          />
         ) : (
           <>
             {/* ── Headline ── */}

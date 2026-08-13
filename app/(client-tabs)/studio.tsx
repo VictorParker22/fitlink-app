@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Bolt } from '../../components/mascot/Bolt';
+import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -228,10 +228,11 @@ export default function GlobalStudioScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TRENDING CLASSES</Text>
           {vodClasses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Bolt pose="Analyze" size={80} />
-              <Text style={styles.emptyText}>No classes available yet.</Text>
-            </View>
+            <BoltEmptyState
+              pose="analyze"
+              title="No classes yet"
+              subtitle="Coaches are recording on-demand classes now — new ones land here as they publish."
+            />
           ) : (
             <View style={styles.grid}>
               {vodClasses.map((item) => {

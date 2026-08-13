@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import BoltEmptyState from '../components/mascot/BoltEmptyState';
 
 import type { NotificationData } from '../context/AppContext';
 
@@ -175,12 +176,11 @@ export default function NotificationsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
       >
         {notifications.length === 0 ? (
-          <View style={st.emptyState}>
-            <Text style={st.emptyTitle}>Nothing yet</Text>
-            <Text style={st.emptySubtitle}>
-              Client activity lands here — new messages, completed workouts, score milestones and shared files.
-            </Text>
-          </View>
+          <BoltEmptyState
+            pose="analyze"
+            title="Nothing yet"
+            subtitle="Client activity lands here — new messages, completed workouts, score milestones and shared files."
+          />
         ) : (
           <>
             {renderSection('Today', todayNotifs)}

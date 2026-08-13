@@ -35,12 +35,14 @@ import { useRouter } from 'expo-router';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Reanimated, {
   useAnimatedStyle, interpolate, Extrapolation, type SharedValue,
+  useSharedValue, withRepeat, withTiming, Easing, cancelAnimation,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import type { Client } from '../../context/AppContext';
 
 // ─── Layout constants (ALL responsive) ───────────────────────────────────────
@@ -269,6 +271,43 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
   );
 }
 
+// ─── ActiveTodayDot ───────────────────────────────────────────────────────────
+// Breathes (slow scale + opacity, 2.4s loop) next to an athlete's name when a
+// realtime habit row for TODAY exists for them — i.e. they checked something
+// off on their phone today. Real signal only; no invented "online" state.
+// Reduce Motion: a static dot, no loop.
+
+function ActiveTodayDot() {
+  const reduced = useReducedMotion();
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced) {
+      cancelAnimation(pulse);
+      pulse.value = 0;
+      return;
+    }
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true, // reverse — full breathe cycle = 2.4s
+    );
+    return () => cancelAnimation(pulse);
+  }, [reduced]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.55 + pulse.value * 0.45,
+    transform: [{ scale: 1 + pulse.value * 0.3 }],
+  }));
+
+  return (
+    <Reanimated.View
+      style={[styles.activeTodayDot, style]}
+      accessibilityLabel="Active today"
+    />
+  );
+}
+
 // ─── SwipeActionsPanel ────────────────────────────────────────────────────────
 // Extracted as a named component so it can legally call hooks (useAnimatedStyle).
 //
@@ -321,7 +360,7 @@ export default function ClientsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
-  const { clients, plans, notifications, refreshData, updateClient, trainer } = useApp();
+  const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows } = useApp();
 
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -638,6 +677,9 @@ export default function ClientsScreen() {
     const unread        = unreadByClient[item.id] || 0;
     const hasAssessment = !!(item.assessment_data as any)?.fitness_goals?.length;
     const actions       = buildActions(item);
+    // Real "active today" signal: a habit row for today arrived over realtime.
+    const todayKey      = new Date().toISOString().split('T')[0];
+    const activeToday   = !!liveHabitRows[`${item.id}:${todayKey}`];
 
     return (
       <ReanimatedSwipeable
@@ -691,6 +733,7 @@ export default function ClientsScreen() {
           <View style={styles.cardBody}>
             <View style={styles.nameRow}>
               <Text style={styles.clientName} numberOfLines={1}>{displayName}</Text>
+              {activeToday && <ActiveTodayDot />}
               {!hasAssessment && (
                 <View style={styles.setupBadge} accessibilityLabel="Setup needed">
                   <Text style={styles.setupBadgeText}>SETUP</Text>
@@ -1083,6 +1126,10 @@ const styles = StyleSheet.create({
   },
   setupBadgeText: {
     fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.warning, letterSpacing: 0.3,
+  },
+  activeTodayDot: {
+    width: 7, height: 7, borderRadius: 3.5,
+    backgroundColor: CoachColors.accent,
   },
   metaText: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03) },
   freqText: {

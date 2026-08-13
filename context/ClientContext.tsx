@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
+import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import type { SetFeel } from './WorkoutContext';
 import * as Notifications from 'expo-notifications';
@@ -111,6 +112,41 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [healthSharingEnabled, setHealthSharingEnabled] = useState(false);
   const [activeGymVisit, setActiveGymVisit] = useState<any>(null);
   const [mealLogs, setMealLogs] = useState<Record<string, boolean>>({});
+  // True once a network fetch has landed — hydration then stays hands-off so
+  // stale snapshots can never overwrite fresh (or legitimately empty) data.
+  const netLoadedRef = useRef(false);
+
+  // Hydrate the athlete's core data from the last-known-good snapshot so the
+  // Today/Train/Food screens render instantly, even in airplane mode.
+  useEffect(() => {
+    if (!user) return;
+    netLoadedRef.current = false;
+    let mounted = true;
+    (async () => {
+      const [profile, coach, wk, dt, en, ss, cv] = await Promise.all([
+        loadSnapshot<ClientData>(user.id, 'client_profile'),
+        loadSnapshot<any>(user.id, 'client_trainer'),
+        loadSnapshot<any[]>(user.id, 'client_workouts'),
+        loadSnapshot<any[]>(user.id, 'client_diets'),
+        loadSnapshot<any>(user.id, 'client_enrollment'),
+        loadSnapshot<any[]>(user.id, 'client_sessions'),
+        loadSnapshot<any>(user.id, 'client_conversation'),
+      ]);
+      if (!mounted || netLoadedRef.current) return;
+      if (profile) {
+        setClientData((prev) => prev ?? profile);
+        setHealthSharingEnabled((prev) => prev || !!profile.health_sharing_enabled);
+        setLoading(false);
+      }
+      if (coach) setTrainer((prev: any) => prev ?? coach);
+      if (wk?.length) setWorkouts((prev) => (prev.length ? prev : wk));
+      if (dt?.length) setDiets((prev) => (prev.length ? prev : dt));
+      if (en) setEnrollment((prev: any) => prev ?? en);
+      if (ss?.length) setSessions((prev) => (prev.length ? prev : ss));
+      if (cv) setConversation((prev: any) => prev ?? cv);
+    })();
+    return () => { mounted = false; };
+  }, [user]);
 
   const fetchClientData = useCallback(async (isBackground = false) => {
     if (!user) { setLoading(false); return; }
@@ -184,11 +220,24 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (convRes.data) setConversation(convRes.data);
       if (plansRes.data) setPlans(plansRes.data);
       if (payRes.data) setPaymentHistory(payRes.data);
+      let pickedEnrollment: any = null;
       if (enrollmentRes?.data && enrollmentRes.data.length > 0) {
         const active = enrollmentRes.data.find((e: any) => e.status === 'active');
-        setEnrollment(active || enrollmentRes.data[0]);
+        pickedEnrollment = active || enrollmentRes.data[0];
+        setEnrollment(pickedEnrollment);
       } else setEnrollment(null);
       if (trainerWorkoutsRes?.data) setAllTrainerWorkouts(trainerWorkoutsRes.data);
+
+      // Network data landed — snapshot it for the next cold/offline start,
+      // and stop any late hydration from overwriting it.
+      netLoadedRef.current = true;
+      saveSnapshot(user.id, 'client_profile', client);
+      if (trainerRes.data) saveSnapshot(user.id, 'client_trainer', trainerRes.data);
+      if (workoutsRes.data) saveSnapshot(user.id, 'client_workouts', workoutsRes.data);
+      if (dietsRes.data) saveSnapshot(user.id, 'client_diets', dietsRes.data);
+      if (sessionsRes.data) saveSnapshot(user.id, 'client_sessions', sessionsRes.data);
+      if (convRes.data) saveSnapshot(user.id, 'client_conversation', convRes.data);
+      saveSnapshot(user.id, 'client_enrollment', pickedEnrollment);
 
       // ── Build exercise PR map from historical logs ───────────────────────────
       // Scan all past workout logs and keep the max weight per exercise ID.

@@ -11,6 +11,7 @@ import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
 import { getCategoryColor } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 
 
 type TabType = 'workouts' | 'exercises' | 'diets' | 'plans' | 'classes';
@@ -997,12 +998,20 @@ export default function ProgramsScreen() {
                   <Text style={styles.emptyText}>Try a different search.</Text>
                 </View>
               )
-            ) : (
+            ) : searchQuery ? (
               <View style={styles.emptyState}>
-                <Ionicons name="folder-open-outline" size={40} color={CoachColors.textFaint} />
+                <Ionicons name="search-outline" size={40} color={CoachColors.textFaint} />
                 <Text style={styles.emptyTitle}>No {TAB_LABEL[activeTab].toLowerCase()} found</Text>
-                <Text style={styles.emptyText}>Tap "New" in the header to create your first item.</Text>
+                <Text style={styles.emptyText}>Try a different search.</Text>
               </View>
+            ) : (
+              <BoltEmptyState
+                pose="help"
+                title={`No ${TAB_LABEL[activeTab].toLowerCase()} yet`}
+                subtitle="Everything you build lives here, ready to assign to any athlete."
+                actionLabel="Create your first"
+                onAction={() => setShowAddActionSheet(true)}
+              />
             )
           }
         />

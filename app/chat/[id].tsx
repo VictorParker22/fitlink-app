@@ -6,7 +6,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../../lib/supabase';
+import { enqueueMessage, flushOutbox, isNetworkError, loadOutbox, makeTempId, type OutboxMessage } from '../../lib/outbox';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
@@ -25,6 +27,8 @@ interface Message {
   read: boolean;
   attachment_url?: string;
   attachment_type?: string;
+  /** Local-only: queued in the outbox, waiting for connectivity. Never shown as sent. */
+  pending?: boolean;
 }
 
 function initials(name: string) {
@@ -211,7 +215,20 @@ export default function ChatScreen() {
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
-    if (msgs) setMessages(msgs);
+
+    // Re-attach any queued (unsent) messages for this thread so they survive
+    // screen re-entry and app restarts — shown as "Waiting to send".
+    const queued = (await loadOutbox(user?.id)).filter((q) => q.conversationId === conversationId);
+    const pendingBubbles: Message[] = queued.map((q) => ({
+      id: q.tempId,
+      conversation_id: q.conversationId,
+      sender_type: 'trainer',
+      content: q.content,
+      created_at: q.createdAt,
+      read: false,
+      pending: true,
+    }));
+    if (msgs || pendingBubbles.length) setMessages([...(msgs || []), ...pendingBubbles]);
 
     // Mark as read
     await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conversationId);
@@ -243,7 +260,9 @@ export default function ChatScreen() {
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
       }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message]);
+        const row = payload.new as Message;
+        // Dedupe — a flushed outbox message may already be in state.
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
       })
       .subscribe();
 
@@ -342,6 +361,67 @@ export default function ChatScreen() {
     }
   }, [sending, conversationId, clientPushToken]);
 
+  // Queue a message locally when the device is offline: honest pending bubble
+  // now, real send when connectivity returns. Never rendered as a sent tick.
+  const queueLocally = useCallback(async (content: string) => {
+    if (!user || !conversationId) return;
+    const tempId = makeTempId();
+    const createdAt = new Date().toISOString();
+    await enqueueMessage(user.id, {
+      tempId,
+      conversationId,
+      senderType: 'trainer',
+      content,
+      createdAt,
+    });
+    setMessages((prev) => [...prev, {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_type: 'trainer',
+      content,
+      created_at: createdAt,
+      read: false,
+      pending: true,
+    }]);
+  }, [user, conversationId]);
+
+  // Replay queued messages in order once we are back online. Each success
+  // swaps the pending bubble for the real server row (deduped by tempId).
+  const flushQueued = useCallback(async () => {
+    if (!user) return;
+    const flushed = await flushOutbox(user.id, async (m: OutboxMessage) => {
+      const { data, error } = await supabase.from('messages').insert({
+        conversation_id: m.conversationId,
+        sender_type: m.senderType,
+        content: m.content,
+      }).select().single();
+      if (error || !data) return null;
+      await supabase.from('conversations').update({
+        last_message: m.content,
+        last_message_at: new Date().toISOString(),
+      }).eq('id', m.conversationId);
+      return data;
+    });
+    if (flushed.length) {
+      setMessages((prev) => prev
+        .map((msg) => {
+          const hit = flushed.find((f) => f.tempId === msg.id);
+          return hit ? (hit.row as Message) : msg;
+        })
+        // If realtime already delivered the row, drop the duplicate.
+        .filter((msg, i, arr) => arr.findIndex((m) => m.id === msg.id) === i));
+    }
+  }, [user]);
+
+  // Flush on reconnect (fires once on mount with current state too, which
+  // clears any leftover queue from a previous session).
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) flushQueued();
+    });
+    return () => unsubscribe();
+  }, [flushQueued]);
+
   const handleSend = useCallback(async () => {
     const content = newMessage.trim();
     if (!content || sending) return;
@@ -349,12 +429,21 @@ export default function ChatScreen() {
     setSending(true);
     setNewMessage('');
 
+    // Known-offline: skip the doomed request and queue immediately.
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      await queueLocally(content);
+      setSending(false);
+      return;
+    }
+
     try {
-      await supabase.from('messages').insert({
+      const { error: insertError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_type: 'trainer',
         content,
       });
+      if (insertError) throw insertError;
       await supabase.from('conversations').update({
         last_message: content,
         last_message_at: new Date().toISOString(),
@@ -380,12 +469,17 @@ export default function ChatScreen() {
         console.log('Client has NO push token saved!');
       }
     } catch (err) {
-      console.error('Send failed:', err);
-      setNewMessage(content);
+      if (isNetworkError(err)) {
+        // Connectivity dropped mid-send — queue it for the reconnect flush.
+        await queueLocally(content);
+      } else {
+        console.error('Send failed:', err);
+        setNewMessage(content);
+      }
     } finally {
       setSending(false);
     }
-  }, [newMessage, sending, conversationId, clientPushToken]);
+  }, [newMessage, sending, conversationId, clientPushToken, queueLocally]);
 
   const formatTime = (ts: string) => {
     return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -679,12 +773,19 @@ export default function ChatScreen() {
                   activeOpacity={canReview ? 0.85 : 1}
                   disabled={!canReview}
                   onLongPress={canReview ? () => setReviewTarget(msg) : undefined}
-                  style={[styles.bubble, (msg.content === '[IMAGE]' || isPlainVideo) ? { backgroundColor: 'transparent', padding: 0 } : isMine ? styles.bubbleSent : styles.bubbleReceived]}
+                  style={[styles.bubble, (msg.content === '[IMAGE]' || isPlainVideo) ? { backgroundColor: 'transparent', padding: 0 } : msg.pending ? styles.bubblePending : isMine ? styles.bubbleSent : styles.bubbleReceived]}
                 >
-                  {renderMessageContent(msg, isMine)}
-                  <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>
-                    {formatTime(msg.created_at)}
-                  </Text>
+                  {renderMessageContent(msg, isMine && !msg.pending)}
+                  {msg.pending ? (
+                    <View style={styles.pendingRow}>
+                      <Ionicons name="time-outline" size={10} color={CoachColors.textMuted} />
+                      <Text style={styles.pendingText}>Waiting to send</Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>
+                      {formatTime(msg.created_at)}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             );
@@ -917,6 +1018,10 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
   bubbleSent: { backgroundColor: CoachColors.accent, borderBottomRightRadius: 4 },
   bubbleReceived: { backgroundColor: 'rgba(255,255,255,0.07)', borderBottomLeftRadius: 4 },
+  // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
+  bubblePending: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderBottomRightRadius: 4 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
+  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, color: CoachColors.textMuted },
   bubbleText: { fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 21 },
   bubbleTextSent: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodyMedium },
   bubbleTextReceived: { color: CoachColors.textPrimary },

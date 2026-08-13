@@ -29,6 +29,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 
@@ -283,27 +284,13 @@ function RequestCard({
 
 function EmptyState({ onExplore }: { onExplore: () => void }) {
   return (
-    <View style={s.emptyWrap}>
-      <View style={s.emptyIconWrap}>
-        <Ionicons name="calendar-outline" size={36} color={CoachColors.textFaint} />
-      </View>
-      <Text style={s.emptyTitle}>No sessions yet</Text>
-      <Text style={s.emptySub}>
-        Browse coaches and request a private session to get started.
-      </Text>
-      <TouchableOpacity
-        style={s.emptyBtn}
-        onPress={onExplore}
-        activeOpacity={0.88}
-        accessibilityRole="button"
-        accessibilityLabel="Find a coach"
-      >
-        <View style={s.emptyBtnInner}>
-          <Ionicons name="search" size={14} color={CoachColors.onAccent} />
-          <Text style={s.emptyBtnText}>Find a coach</Text>
-        </View>
-      </TouchableOpacity>
-    </View>
+    <BoltEmptyState
+      pose="welcome"
+      title="No sessions yet"
+      subtitle="Browse coaches and request a private session to get started."
+      actionLabel="Find a coach"
+      onAction={onExplore}
+    />
   );
 }
 
@@ -432,7 +419,9 @@ export default function MySessionsScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  if (loading) {
+  // Only gate on the spinner when there is truly nothing to show yet — once
+  // data (fresh or cached) exists, render it and refresh silently.
+  if (loading && sessions.length === 0 && requests.length === 0) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.loadingWrap}>

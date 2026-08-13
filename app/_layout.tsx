@@ -32,6 +32,7 @@ import LottieView from 'lottie-react-native';
 // .web.tsx provides a passthrough wrapper
 import { StripeProvider } from '../lib/stripe-provider';
 import { NetworkProvider } from '../context/NetworkContext';
+import OfflineBanner from '../components/OfflineBanner';
 import { RevenueCatProvider } from '../context/RevenueCatContext';
 import { LayersAnalyticsProvider } from '../context/LayersContext';
 
@@ -260,6 +261,7 @@ export default function RootLayout() {
                         <HealthProvider>
                           <ThemedStatusBar />
                           <AuthGuard onProgress={setStartupProgress} />
+                          <OfflineBanner />
                         </HealthProvider>
                       </WorkoutProvider>
                     </ClientProvider>

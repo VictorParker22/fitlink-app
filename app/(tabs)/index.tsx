@@ -5,10 +5,18 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import CheckInInbox from '../../components/dashboard/CheckInInbox';
 import NewCoachSetupCards from '../../components/dashboard/NewCoachSetupCards';
+import ExampleAtRiskCard from '../../components/dashboard/ExampleAtRiskCard';
+import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
+import RollingNumber from '../../components/RollingNumber';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+
+// First-run flags (golden path for a brand-new coach).
+const EXAMPLE_DISMISSED_KEY = 'coach_example_atrisk_dismissed';
+const FIRST_CLIENT_CELEBRATED_KEY = 'coach_first_client_celebrated';
 
 /**
  * Coach Home — design #1c "Calm timeline".
@@ -24,7 +32,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 export default function CoachHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { trainer, clients, sessions, notifications, plans, workouts } = useApp();
+  const { trainer, clients, sessions, notifications, plans, workouts, loading } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const checkInsY = useRef(0);
 
@@ -116,6 +124,42 @@ export default function CoachHomeScreen() {
     scrollRef.current?.scrollTo({ y: Math.max(checkInsY.current - 20, 0), animated: true });
   }, []);
 
+  // ── Golden path: example card dismissal (first-run only) ─────────────────
+  // Hidden until the persisted flag is read so it never flashes for coaches
+  // who already dismissed it.
+  const [exampleDismissed, setExampleDismissed] = useState(true);
+  useEffect(() => {
+    AsyncStorage.getItem(EXAMPLE_DISMISSED_KEY)
+      .then(v => setExampleDismissed(v === '1'))
+      .catch(() => { /* keep hidden on read failure */ });
+  }, []);
+  const dismissExample = useCallback(() => {
+    setExampleDismissed(true);
+    AsyncStorage.setItem(EXAMPLE_DISMISSED_KEY, '1').catch(() => {});
+  }, []);
+
+  // ── Golden path: one-time celebration when the roster goes 0 → 1 ─────────
+  // Only tracked after the initial fetch settles (`loading` false), so the
+  // empty-array-then-populated hydration of an existing roster never fires it.
+  const [celebratedName, setCelebratedName] = useState<string | null>(null);
+  const prevClientCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const count = clients.length;
+    const prev = prevClientCount.current;
+    prevClientCount.current = count;
+    if (prev === 0 && count === 1) {
+      const name = clients[0]?.name || 'Your first athlete';
+      AsyncStorage.getItem(FIRST_CLIENT_CELEBRATED_KEY)
+        .then(v => {
+          if (v) return;
+          AsyncStorage.setItem(FIRST_CLIENT_CELEBRATED_KEY, '1').catch(() => {});
+          setCelebratedName(name);
+        })
+        .catch(() => {});
+    }
+  }, [loading, clients.length]);
+
   // ── Day-one empty state ──────────────────────────────────────────────────
   // No athletes, no sessions, no notifications yet — nothing to build a real
   // dashboard from. Show the setup checklist instead of empty charts.
@@ -150,6 +194,18 @@ export default function CoachHomeScreen() {
           </View>
 
           <View style={emptyStyles.section}>
+            <TouchableOpacity
+              style={emptyStyles.primaryCta}
+              onPress={() => router.push('/add-client' as any)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Add your first client"
+            >
+              <Text style={emptyStyles.primaryCtaText}>Add your first client</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={emptyStyles.section}>
             <NewCoachSetupCards />
           </View>
 
@@ -164,13 +220,19 @@ export default function CoachHomeScreen() {
           </View>
 
           <View style={emptyStyles.section}>
-            <Text style={emptyStyles.sectionTitle}>Needs attention</Text>
-            <View style={emptyStyles.placeholderCard}>
-              <Text style={emptyStyles.placeholderTitle}>This is where the app nudges you.</Text>
-              <Text style={emptyStyles.placeholderBody}>
-                Athletes going quiet, trials about to end, check-ins waiting on a reply.
-              </Text>
-            </View>
+            {!exampleDismissed ? (
+              <ExampleAtRiskCard onDismiss={dismissExample} />
+            ) : (
+              <>
+                <Text style={emptyStyles.sectionTitle}>Needs attention</Text>
+                <View style={emptyStyles.placeholderCard}>
+                  <Text style={emptyStyles.placeholderTitle}>This is where the app nudges you.</Text>
+                  <Text style={emptyStyles.placeholderBody}>
+                    Athletes going quiet, trials about to end, check-ins waiting on a reply.
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
 
           <TouchableOpacity
@@ -370,9 +432,13 @@ export default function CoachHomeScreen() {
           >
             <View>
               <Text style={styles.revenueMonth}>{monthLabel}</Text>
-              <Text style={styles.revenueValue}>
-                ${monthlyEarnings.toFixed(0)} · {activeClients.length} active
-              </Text>
+              <View style={styles.revenueValueRow}>
+                <RollingNumber
+                  text={`$${monthlyEarnings.toFixed(0)}`}
+                  style={styles.revenueValue}
+                />
+                <Text style={styles.revenueValue}> · {activeClients.length} active</Text>
+              </View>
             </View>
             <Text style={styles.revenueLink}>Revenue →</Text>
           </TouchableOpacity>
@@ -413,6 +479,14 @@ export default function CoachHomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* One-time first-client celebration (flag set before this renders). */}
+      {celebratedName !== null && (
+        <FirstClientOverlay
+          clientName={celebratedName}
+          onDone={() => setCelebratedName(null)}
+        />
+      )}
     </View>
   );
 }
@@ -693,11 +767,15 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: CoachColors.textFaint,
   },
+  revenueValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   revenueValue: {
     fontFamily: CoachFonts.bodyBold,
     fontSize: 14.5,
     color: CoachColors.textPrimary,
-    marginTop: 2,
   },
   revenueLink: {
     fontFamily: CoachFonts.bodySemiBold,
@@ -743,6 +821,19 @@ const emptyStyles = StyleSheet.create({
   section: {
     paddingHorizontal: 20,
     marginTop: 22,
+  },
+  primaryCta: {
+    backgroundColor: CoachColors.accent,
+    borderRadius: 999,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  primaryCtaText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 15,
+    color: CoachColors.onAccent,
   },
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,

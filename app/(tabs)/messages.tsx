@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { loadSnapshot, saveSnapshot } from '../../lib/offlineCache';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -73,9 +74,26 @@ export default function MessagesScreen() {
       .from('conversations')
       .select('*, clients(name, avatar_url)')
       .order('last_message_at', { ascending: false });
-    if (data) setConversations(data);
+    if (data) {
+      setConversations(data);
+      saveSnapshot(user?.id, 'conversations', data);
+    }
     setLoading(false);
-  }, []);
+  }, [user?.id]);
+
+  // Hydrate from the offline snapshot first so the inbox renders instantly
+  // (and in airplane mode), then let the network fetch replace it silently.
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+    loadSnapshot<Conversation[]>(user.id, 'conversations').then((snap) => {
+      if (mounted && snap?.length) {
+        setConversations((prev) => (prev.length ? prev : snap));
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, [user?.id]);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
@@ -137,7 +155,9 @@ export default function MessagesScreen() {
 
   const isFullyEmpty = conversations.length === 0 && unconnectedClients.length === 0;
 
-  if (loading) {
+  // Only gate when there is truly nothing to show — cached conversations
+  // render immediately while the fetch refreshes in the background.
+  if (loading && conversations.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingState}>

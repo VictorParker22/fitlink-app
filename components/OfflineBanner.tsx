@@ -1,67 +1,79 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
-import { Ionicons } from '@expo/vector-icons';
+/**
+ * Offline pill — slides in under the safe area when NetInfo reports no
+ * connection, out when it comes back. Deliberately calm: cached data is still
+ * real data, so this is informational (surface/borderMuted/textSecondary),
+ * not an alarm. Mounted once in app/_layout.tsx so it covers both the coach
+ * and athlete sides.
+ */
+
+import { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontFamily, FontSize } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useNetwork } from '../context/NetworkContext';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
+
+const SLIDE_DISTANCE = 72;
 
 export default function OfflineBanner() {
-  const [isConnected, setIsConnected] = useState<boolean | null>(true);
-  const translateY = new Animated.Value(-100);
+  const { isConnected } = useNetwork();
   const insets = useSafeAreaInsets();
+  const [mounted, setMounted] = useState(false);
+  const slide = useRef(new Animated.Value(-SLIDE_DISTANCE)).current;
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (isConnected === false) {
-      Animated.timing(translateY, {
+    if (!isConnected) {
+      setMounted(true);
+      Animated.spring(slide, {
         toValue: 0,
-        duration: 300,
         useNativeDriver: true,
+        tension: 70,
+        friction: 11,
       }).start();
-    } else {
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 300,
+    } else if (mounted) {
+      Animated.timing(slide, {
+        toValue: -SLIDE_DISTANCE,
+        duration: 260,
         useNativeDriver: true,
-      }).start();
+      }).start(() => setMounted(false));
     }
-  }, [isConnected]);
+  }, [isConnected, mounted, slide]);
+
+  if (!mounted) return null;
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ translateY }], paddingTop: Math.max(insets.top, 40) }]} pointerEvents="none">
-      <Ionicons name="cloud-offline" size={16} color="#FFFFFF" style={styles.icon} />
-      <Text style={styles.text}>No internet connection</Text>
-    </Animated.View>
+    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 6 }]}>
+      <Animated.View style={[styles.pill, { transform: [{ translateY: slide }] }]}>
+        <Ionicons name="cloud-offline-outline" size={13} color={CoachColors.textSecondary} />
+        <Text style={styles.text}>Offline — showing saved data</Text>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#E53935',
+    alignItems: 'center',
+    zIndex: 9998,
+    elevation: 9998,
+  },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 12,
-    zIndex: 9999,
-    elevation: 9999,
-  },
-  icon: {
-    marginRight: 8,
+    gap: 6,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   text: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11.5,
+    color: CoachColors.textSecondary,
   },
 });

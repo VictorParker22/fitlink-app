@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
+import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import { Colors } from '../constants/theme';
 
@@ -482,9 +483,37 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
+    const uid = user.id;
 
-    async function fetchAll() {
-      setLoading(true);
+    // Hydrate core lists from the last-known-good snapshot so screens render
+    // instantly (and keep rendering in airplane mode). Functional setters keep
+    // network data if the fetch somehow lands first. Returns true when
+    // anything hydrated so fetchAll can skip the loading gate.
+    async function hydrateFromCache(): Promise<boolean> {
+      const [t, c, s, p, w, d, n] = await Promise.all([
+        loadSnapshot<Trainer>(uid, 'trainer'),
+        loadSnapshot<Client[]>(uid, 'clients'),
+        loadSnapshot<Session[]>(uid, 'sessions'),
+        loadSnapshot<Plan[]>(uid, 'plans'),
+        loadSnapshot<Workout[]>(uid, 'workouts'),
+        loadSnapshot<DietPlan[]>(uid, 'diets'),
+        loadSnapshot<NotificationData[]>(uid, 'notifications'),
+      ]);
+      if (!mounted) return false;
+      let any = false;
+      if (t) { setTrainer((prev) => prev ?? t); any = true; }
+      if (c?.length) { setClients((prev) => (prev.length ? prev : c)); any = true; }
+      if (s?.length) { setSessions((prev) => (prev.length ? prev : s)); any = true; }
+      if (p?.length) { setPlans((prev) => (prev.length ? prev : p)); any = true; }
+      if (w?.length) { setWorkouts((prev) => (prev.length ? prev : w)); any = true; }
+      if (d?.length) { setDiets((prev) => (prev.length ? prev : d)); any = true; }
+      if (n?.length) { setNotifications((prev) => (prev.length ? prev : n)); any = true; }
+      return any;
+    }
+
+    async function fetchAll(hydrated: boolean) {
+      // Only gate on the spinner when there is truly nothing to show yet.
+      if (!hydrated) setLoading(true);
       try {
         const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
@@ -515,17 +544,27 @@ export function AppProvider({ children }: PropsWithChildren) {
         if (activitiesRes.data) setActivities(activitiesRes.data);
         if (workoutsRes.data) setWorkouts(workoutsRes.data);
         if (exercisesRes.data) setExercises(exercisesRes.data);
-        // Default to empty array if table doesn't exist yet (before migration)
-        setDiets(dietsRes.data || []);
-        setMeals(mealsRes.data || []);
-        setNotifications(notifRes.data || []);
-        setClientWorkoutsList(cwRes.data || []);
-        setClientDietsList(cdRes.data || []);
+        // Guarded sets: a failed fetch (offline, table missing pre-migration)
+        // must never wipe hydrated snapshot state back to empty arrays.
+        if (dietsRes.data) setDiets(dietsRes.data);
+        if (mealsRes.data) setMeals(mealsRes.data);
+        if (notifRes.data) setNotifications(notifRes.data);
+        if (cwRes.data) setClientWorkoutsList(cwRes.data);
+        if (cdRes.data) setClientDietsList(cdRes.data);
         // Progress logs might fail if migration not run yet, handle gracefully
         if (progressRes && progressRes.data) setProgressLogs(progressRes.data);
         if (healthSnapshotsRes && healthSnapshotsRes.data) setClientHealthSnapshots(healthSnapshotsRes.data);
-        setTrainerClasses(classesRes.data || []);
-        setLiveClassesList(liveClassesRes?.data || []);
+        if (classesRes.data) setTrainerClasses(classesRes.data);
+        if (liveClassesRes?.data) setLiveClassesList(liveClassesRes.data);
+
+        // Re-save the offline snapshot after every successful fetch.
+        if (trainerRes.data) saveSnapshot(uid, 'trainer', trainerRes.data);
+        if (clientsRes.data) saveSnapshot(uid, 'clients', clientsRes.data);
+        if (sessionsRes.data) saveSnapshot(uid, 'sessions', sessionsRes.data);
+        if (plansRes.data) saveSnapshot(uid, 'plans', plansRes.data);
+        if (workoutsRes.data) saveSnapshot(uid, 'workouts', workoutsRes.data);
+        if (dietsRes.data) saveSnapshot(uid, 'diets', dietsRes.data);
+        if (notifRes.data) saveSnapshot(uid, 'notifications', notifRes.data);
       } catch (err) {
         if (__DEV__) console.error('Error fetching data:', err);
       } finally {
@@ -533,7 +572,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     }
 
-    fetchAll();
+    (async () => {
+      const hydrated = await hydrateFromCache();
+      if (mounted && hydrated) setLoading(false);
+      await fetchAll(hydrated);
+    })();
     return () => { mounted = false; };
   }, [user]);
 
@@ -572,6 +615,15 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (notifRes.data) setNotifications(notifRes.data);
     if (cwRes.data) setClientWorkoutsList(cwRes.data);
     if (cdRes.data) setClientDietsList(cdRes.data);
+
+    // Keep the offline snapshot fresh.
+    if (trainerRes.data) saveSnapshot(user.id, 'trainer', trainerRes.data);
+    if (clientsRes.data) saveSnapshot(user.id, 'clients', clientsRes.data);
+    if (sessionsRes.data) saveSnapshot(user.id, 'sessions', sessionsRes.data);
+    if (plansRes.data) saveSnapshot(user.id, 'plans', plansRes.data);
+    if (workoutsRes.data) saveSnapshot(user.id, 'workouts', workoutsRes.data);
+    if (dietsRes.data) saveSnapshot(user.id, 'diets', dietsRes.data);
+    if (notifRes.data) saveSnapshot(user.id, 'notifications', notifRes.data);
     
     // Check if progress table exists/returned data
     const pRes = await supabase.from('client_progress').select('*').eq('trainer_id', user.id).order('date', { ascending: false });
@@ -596,7 +648,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       .select('*')
       .eq('trainer_id', user.id)
       .order('created_at', { ascending: false });
-    if (data) setClients(data);
+    if (data) {
+      setClients(data);
+      saveSnapshot(user.id, 'clients', data);
+    }
   }, [user]);
 
   // Lightweight refresh — only plans table (1 query, 1 setState)
@@ -607,7 +662,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       .select('*')
       .eq('trainer_id', user.id)
       .order('price');
-    if (data) setPlans(data);
+    if (data) {
+      setPlans(data);
+      saveSnapshot(user.id, 'plans', data);
+    }
   }, [user]);
 
   // Ultra-lightweight: just set sessions from pre-fetched data

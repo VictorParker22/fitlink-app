@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import RollingNumber from '../components/RollingNumber';
+import BoltEmptyState from '../components/mascot/BoltEmptyState';
 
 /**
  * Earnings — design turn 13 "Money".
@@ -333,7 +335,10 @@ export default function EarningsScreen() {
             <View style={styles.headlineCard}>
               <Text style={styles.headlineLabel}>This month, so far</Text>
               <View style={styles.headlineRow}>
-                <Text style={styles.headlineValue}>{formatWhole(thisMonthNet)}</Text>
+                <RollingNumber
+                  text={formatWhole(thisMonthNet)}
+                  style={styles.headlineValue}
+                />
               </View>
               <Text style={styles.headlineDesc}>
                 From {totalSubscribers} active subscription{totalSubscribers === 1 ? '' : 's'}, after the 10% fee.
@@ -449,10 +454,13 @@ export default function EarningsScreen() {
 
             {/* ── Empty State ────────────────────────────── */}
             {plans.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>No earnings yet</Text>
-                <Text style={styles.emptyText}>Create subscription plans and add clients to start tracking your revenue.</Text>
-              </View>
+              <BoltEmptyState
+                pose="flex"
+                title="No earnings yet"
+                subtitle="Money starts moving once a pass exists and an athlete holds it. Build your first pass to open the door."
+                actionLabel="Build a pass"
+                onAction={() => router.push('/create-plan' as any)}
+              />
             )}
 
             <HowPayoutsWork />

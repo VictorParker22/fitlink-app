@@ -19,7 +19,6 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import WorkoutMiniPlayer from '../../components/WorkoutMiniPlayer';
-import OfflineBanner from '../../components/OfflineBanner';
 import { useClient } from '../../context/ClientContext';
 
 // ─── Tab config — mockup 22a bottom bar ──────────────────────────────────────
@@ -125,7 +124,7 @@ function AthleteTabBar({ state, navigation }: any) {
 export default function ClientTabsLayout() {
   return (
     <>
-      <OfflineBanner />
+      {/* OfflineBanner is mounted once at the root (app/_layout.tsx) */}
       <Tabs
         tabBar={(props) => <AthleteTabBar {...props} />}
         screenOptions={{ headerShown: false }}

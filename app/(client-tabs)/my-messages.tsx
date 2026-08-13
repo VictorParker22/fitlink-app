@@ -23,7 +23,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../../lib/supabase';
+import { enqueueMessage, flushOutbox, isNetworkError, loadOutbox, makeTempId, type OutboxMessage } from '../../lib/outbox';
+import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -40,6 +43,8 @@ interface Message {
   created_at: string;
   attachment_url?: string;
   attachment_type?: string;
+  /** Local-only: queued in the outbox, waiting for connectivity. Never shown as sent. */
+  pending?: boolean;
 }
 
 function initials(name: string) {
@@ -48,6 +53,7 @@ function initials(name: string) {
 
 export default function ClientMessagesScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { conversation, trainer, clientData } = useClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -76,7 +82,19 @@ export default function ClientMessagesScreen() {
         .select('*')
         .eq('conversation_id', conversation.id)
         .order('created_at', { ascending: true });
-      if (msgs) setMessages(msgs);
+
+      // Re-attach any queued (unsent) messages so they survive re-entry and
+      // restarts — shown as "Waiting to send".
+      const queued = (await loadOutbox(user?.id)).filter((q) => q.conversationId === conversation.id);
+      const pendingBubbles: Message[] = queued.map((q) => ({
+        id: q.tempId,
+        conversation_id: q.conversationId,
+        sender_type: 'client',
+        content: q.content,
+        created_at: q.createdAt,
+        pending: true,
+      }));
+      if (msgs || pendingBubbles.length) setMessages([...(msgs || []), ...pendingBubbles]);
       setLoading(false);
 
       // Mark trainer messages as read
@@ -95,7 +113,9 @@ export default function ClientMessagesScreen() {
     const channel = supabase
       .channel(`client-msgs:${conversation.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversation.id}` }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message]);
+        const row = payload.new as Message;
+        // Dedupe — a flushed outbox message may already be in state.
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -105,13 +125,79 @@ export default function ClientMessagesScreen() {
     if (messages.length > 0) setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages.length]);
 
+  // Queue a message locally when offline: honest pending bubble now, real
+  // send on reconnect. Never rendered as sent.
+  const queueLocally = useCallback(async (content: string) => {
+    if (!user || !conversation) return;
+    const tempId = makeTempId();
+    const createdAt = new Date().toISOString();
+    await enqueueMessage(user.id, {
+      tempId,
+      conversationId: conversation.id,
+      senderType: 'client',
+      content,
+      createdAt,
+    });
+    setMessages((prev) => [...prev, {
+      id: tempId,
+      conversation_id: conversation.id,
+      sender_type: 'client',
+      content,
+      created_at: createdAt,
+      pending: true,
+    }]);
+  }, [user, conversation]);
+
+  // Replay the queue in order once connectivity returns.
+  const flushQueued = useCallback(async () => {
+    if (!user) return;
+    const flushed = await flushOutbox(user.id, async (m: OutboxMessage) => {
+      const { data, error } = await supabase.from('messages').insert({
+        conversation_id: m.conversationId,
+        sender_type: m.senderType,
+        content: m.content,
+      }).select().single();
+      if (error || !data) return null;
+      await supabase.rpc('increment_conversation_unread', {
+        conv_id: m.conversationId,
+        new_last_message: m.content,
+      });
+      return data;
+    });
+    if (flushed.length) {
+      setMessages((prev) => prev
+        .map((msg) => {
+          const hit = flushed.find((f) => f.tempId === msg.id);
+          return hit ? (hit.row as Message) : msg;
+        })
+        .filter((msg, i, arr) => arr.findIndex((m) => m.id === msg.id) === i));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) flushQueued();
+    });
+    return () => unsubscribe();
+  }, [flushQueued]);
+
   const handleSend = useCallback(async () => {
     const content = newMessage.trim();
     if (!content || sending || !conversation) return;
     setSending(true);
     setNewMessage('');
+
+    // Known-offline: skip the doomed request and queue immediately.
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      await queueLocally(content);
+      setSending(false);
+      return;
+    }
+
     try {
-      await supabase.from('messages').insert({ conversation_id: conversation.id, sender_type: 'client', content });
+      const { error: insertError } = await supabase.from('messages').insert({ conversation_id: conversation.id, sender_type: 'client', content });
+      if (insertError) throw insertError;
       // Update last_message preview AND atomically increment trainer's unread badge.
       // Using raw SQL increment via rpc avoids the stale-closure race where the
       // in-memory conversation.unread_count is boot-time stale and multiple sends
@@ -138,9 +224,16 @@ export default function ClientMessagesScreen() {
       } else {
         if (__DEV__) console.log('[Messages] Trainer has no push token — push skipped');
       }
-    } catch { setNewMessage(content); }
+    } catch (err) {
+      if (isNetworkError(err)) {
+        // Connectivity dropped mid-send — queue for the reconnect flush.
+        await queueLocally(content);
+      } else {
+        setNewMessage(content);
+      }
+    }
     finally { setSending(false); }
-  }, [newMessage, sending, conversation, trainer, clientData]);
+  }, [newMessage, sending, conversation, trainer, clientData, queueLocally]);
 
   const handleImagePick = async () => {
     try {
@@ -408,9 +501,16 @@ export default function ClientMessagesScreen() {
                   accessibilityLabel={`${isMine ? 'You' : coachName} said: ${msg.content}, at ${formatTime(msg.created_at)}`}
                   accessibilityRole="text"
                 >
-                  <View style={[styles.bubble, msg.content === '[IMAGE]' ? { backgroundColor: 'transparent', padding: 0 } : isMine ? styles.bubbleSent : styles.bubbleReceived]}>
-                    {renderMessageContent(msg, isMine)}
-                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>{formatTime(msg.created_at)}</Text>
+                  <View style={[styles.bubble, msg.content === '[IMAGE]' ? { backgroundColor: 'transparent', padding: 0 } : msg.pending ? styles.bubblePending : isMine ? styles.bubbleSent : styles.bubbleReceived]}>
+                    {renderMessageContent(msg, isMine && !msg.pending)}
+                    {msg.pending ? (
+                      <View style={styles.pendingRow}>
+                        <Ionicons name="time-outline" size={10} color={CoachColors.textMuted} />
+                        <Text style={styles.pendingText}>Waiting to send</Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>{formatTime(msg.created_at)}</Text>
+                    )}
                   </View>
                 </View>
               );
@@ -505,6 +605,10 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
   bubbleSent: { backgroundColor: CoachColors.accent, borderBottomRightRadius: 4 },
   bubbleReceived: { backgroundColor: 'rgba(255,255,255,0.07)', borderBottomLeftRadius: 4 },
+  // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
+  bubblePending: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderBottomRightRadius: 4 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
+  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, color: CoachColors.textMuted },
   bubbleText: { fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 21 },
   bubbleTextSent: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodyMedium },
   bubbleTextReceived: { color: CoachColors.textPrimary },
