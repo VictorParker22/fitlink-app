@@ -660,7 +660,7 @@ const s = StyleSheet.create({
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -668,37 +668,37 @@ const s = StyleSheet.create({
   title: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
   countBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   countBadgeDone: {
-    backgroundColor: 'rgba(34,197,94,0.15)',
-    borderColor: 'rgba(34,197,94,0.4)',
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: 'rgba(198,242,78,0.4)',
   },
   countText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.5,
   },
-  countTextDone: { color: '#22C55E' },
+  countTextDone: { color: CoachColors.accent },
   autoSyncLabel: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#5B7FFF',
+    color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },
   progressTrack: {
     height: 2,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: 18,
     marginBottom: 4,
     borderRadius: 1,
@@ -711,7 +711,7 @@ const s = StyleSheet.create({
   allDoneText: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#22C55E',
+    color: CoachColors.accent,
     letterSpacing: 0.3,
     textAlign: 'center',
     paddingVertical: 8,
@@ -745,7 +745,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  habitEmoji: { fontSize: 18 },
   habitText: { flex: 1, gap: 2 },
   habitLabelRow: {
     flexDirection: 'row',
@@ -767,22 +766,23 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.headingBold,
     fontSize: 8,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   habitDesc: {
     fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
   streakBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.bg,
   },
   streakText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.3,
   },
   checkCircle: {
@@ -790,7 +790,7 @@ const s = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#5A5A5E',  // base; overridden inline
+    borderColor: CoachColors.border,  // base; overridden inline
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
@@ -803,12 +803,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.04)',
+    borderTopColor: CoachColors.borderMuted,
     marginTop: 4,
   },
   footerText: {
     fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.25)',
+    color: CoachColors.textFaint,
   },
 });
