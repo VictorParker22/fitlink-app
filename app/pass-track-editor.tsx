@@ -1,22 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Dimensions, Image } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
-import { getWorkoutEmblem } from '../utils/workoutEmblems';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-
-const { width: SCREEN_W } = Dimensions.get('window');
-
-const getTierColor = (price: number) => {
-  if (price >= 200) return '#0EA5E9';
-  if (price >= 100) return '#FBBF24';
-  if (price >= 50) return '#94A3B8';
-  return '#FB923C';
-};
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 export default function PassTrackEditorScreen() {
   const router = useRouter();
@@ -25,8 +15,6 @@ export default function PassTrackEditorScreen() {
   const { plans, workouts, diets, updatePlanTrack } = useApp();
 
   const plan = plans.find(p => p.id === planId);
-  const planColor = (plan as any)?.color || '#3B82F6';
-  const tierColor = plan ? getTierColor(Number(plan.price)) : '#3B82F6';
 
   const [track, setTrack] = useState<TrackNode[]>(() =>
     (plan?.track || []).sort((a, b) => a.order - b.order)
@@ -50,12 +38,8 @@ export default function PassTrackEditorScreen() {
     setTrack(updated);
   };
 
-  const moveNode = (index: number, direction: -1 | 1) => {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= track.length) return;
-    const updated = [...track];
-    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    setTrack(updated.map((n, i) => ({ ...n, order: i })));
+  const onDragEnd = ({ data }: { data: TrackNode[] }) => {
+    setTrack(data.map((n, i) => ({ ...n, order: i })));
   };
 
   const addMilestone = () => {
@@ -82,15 +66,23 @@ export default function PassTrackEditorScreen() {
   if (!plan) {
     return (
       <View style={[st.container, { paddingTop: insets.top }]}>
-        <Text style={st.notFoundText}>Plan not found</Text>
+        <Text style={st.notFoundText}>Pass not found</Text>
       </View>
     );
   }
 
-  const getNodeIcon = (node: TrackNode): string => {
-    if (node.type === 'workout') return 'barbell';
-    if (node.type === 'diet') return 'nutrition';
-    return 'trophy';
+  const getNodeIcon = (node: TrackNode): keyof typeof Ionicons.glyphMap => {
+    if (node.type === 'workout') return 'barbell-outline';
+    if (node.type === 'diet') return 'nutrition-outline';
+    if (node.type === 'class') return 'videocam-outline';
+    return 'trophy-outline';
+  };
+
+  const getNodeTypeLabel = (node: TrackNode): string => {
+    if (node.type === 'workout') return 'Workout';
+    if (node.type === 'diet') return 'Meal plan';
+    if (node.type === 'class') return 'Class';
+    return 'Milestone';
   };
 
   const getNodeLabel = (node: TrackNode): string => {
@@ -98,7 +90,7 @@ export default function PassTrackEditorScreen() {
       return workouts.find(w => w.id === node.id)?.name || 'Workout';
     }
     if (node.type === 'diet' && node.id) {
-      return diets.find(d => d.id === node.id)?.name || 'Meal Plan';
+      return diets.find(d => d.id === node.id)?.name || 'Meal plan';
     }
     return node.label || 'Milestone';
   };
@@ -106,420 +98,423 @@ export default function PassTrackEditorScreen() {
   const getNodeSub = (node: TrackNode): string => {
     if (node.type === 'workout' && node.id) {
       const w = workouts.find(wk => wk.id === node.id);
-      return w?.workout_exercises ? `${w.workout_exercises.length} exercises` : 'Workout';
+      const count = w?.workout_exercises?.length || 0;
+      return `${getNodeTypeLabel(node)} · ${count} exercise${count === 1 ? '' : 's'}`;
     }
     if (node.type === 'diet' && node.id) {
       const d = diets.find(dt => dt.id === node.id);
-      return d?.diet_plan_meals ? `${d.diet_plan_meals.length} meals` : 'Diet Plan';
+      const count = d?.diet_plan_meals?.length || 0;
+      return `${getNodeTypeLabel(node)} · ${count} meal${count === 1 ? '' : 's'}`;
     }
-    return '🏆 Milestone';
+    return getNodeTypeLabel(node);
   };
 
-  const getWorkoutMuscleGroups = (node: TrackNode): string[] | undefined => {
-    if (node.type !== 'workout' || !node.id) return undefined;
-    const w = workouts.find(wk => wk.id === node.id);
-    return w?.workout_exercises?.map(e => e.exercises?.muscle_group).filter(Boolean) as string[] | undefined;
-  };
+  const renderTrackItem = ({ item: node, drag, isActive, getIndex }: RenderItemParams<TrackNode>) => {
+    const index = getIndex() ?? 0;
+    const isMilestone = node.type === 'milestone';
+    return (
+      <ScaleDecorator>
+        <View style={st.trackRow}>
+          {/* Left rail: node marker + connecting line */}
+          <View style={st.rail}>
+            {index > 0 && <View style={st.railLineTop} />}
+            <View style={[st.marker, isMilestone && st.markerMilestone]}>
+              {isMilestone ? (
+                <Ionicons name="trophy" size={18} color={CoachColors.accent} />
+              ) : (
+                <Text style={st.markerText}>{index + 1}</Text>
+              )}
+            </View>
+            <View style={st.railLineBottom} />
+          </View>
 
-  const TYPE_COLORS: Record<string, string> = { workout: '#22C55E', diet: '#A78BFA', milestone: '#FBBF24', class: '#A855F7' };
+          {/* Card */}
+          <TouchableOpacity
+            style={[st.trackCard, isMilestone && st.trackCardMilestone, isActive && st.trackCardActive]}
+            activeOpacity={0.85}
+            onLongPress={drag}
+          >
+            <View style={st.trackCardIcon}>
+              <Ionicons name={getNodeIcon(node)} size={19} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
+            </View>
+
+            <View style={st.trackCardInfo}>
+              <Text style={[st.trackCardName, isMilestone && { color: CoachColors.accent }]} numberOfLines={1}>{getNodeLabel(node)}</Text>
+              <Text style={st.trackCardSub} numberOfLines={1}>{getNodeSub(node)}</Text>
+            </View>
+
+            <TouchableOpacity onPressIn={drag} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={st.dragHandle}>
+              <Ionicons name="reorder-three-outline" size={22} color={CoachColors.textFaint} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => removeNode(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={st.removeBtn}>
+              <Ionicons name="close" size={16} color={CoachColors.textFaint} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+      </ScaleDecorator>
+    );
+  };
 
   return (
     <View style={[st.container, { paddingTop: insets.top }]}>
       {/* ── HEADER ── */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} style={st.closeBtn}>
-          <Ionicons name="close" size={22} color="#FFF" />
+          <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={st.headerTitle}>Track Editor</Text>
-          <Text style={st.headerSub}>{plan.name}</Text>
+          <Text style={st.headerTitle}>Track editor</Text>
+          <Text style={st.headerSub}>{plan.name} · {track.length} node{track.length === 1 ? '' : 's'}</Text>
         </View>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          style={[st.saveBtn, { backgroundColor: planColor }]}
-        >
-          <Text style={st.saveBtnText}>{saving ? '...' : 'Save'}</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving} style={st.saveBtn}>
+          <Text style={st.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ── MINI TRACK PREVIEW ── */}
-        <View style={st.previewSection}>
-          <Text style={st.previewLabel}>TRACK PREVIEW</Text>
-          {track.length === 0 ? (
-            <View style={st.previewEmpty}>
-              <Ionicons name="map-outline" size={24} color="rgba(255,255,255,0.08)" />
-              <Text style={st.previewEmptyText}>Add workouts and milestones below</Text>
+      <DraggableFlatList
+        data={track}
+        onDragEnd={onDragEnd}
+        keyExtractor={(_, i) => `node-${i}`}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        renderItem={renderTrackItem}
+        ListHeaderComponent={
+          <>
+            {/* ── MINI TRACK PREVIEW ── */}
+            <View style={st.previewSection}>
+              <Text style={st.previewLabel}>Track preview</Text>
+              {track.length === 0 ? (
+                <View style={st.previewEmpty}>
+                  <Ionicons name="map-outline" size={22} color={CoachColors.textFaint} />
+                  <Text style={st.previewEmptyText}>Add workouts and milestones below</Text>
+                </View>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.previewTrack}>
+                  {track.map((node, idx) => {
+                    const isMilestone = node.type === 'milestone';
+                    return (
+                      <View key={idx} style={st.previewNodeWrap}>
+                        {idx > 0 && <View style={st.previewConnector} />}
+                        <View style={[st.previewNode, isMilestone && st.previewNodeMilestone]}>
+                          <Ionicons name={getNodeIcon(node)} size={16} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
+                        </View>
+                        <Text style={st.previewNodeLabel} numberOfLines={1}>{getNodeLabel(node)}</Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.previewTrack}>
-              {track.map((node, idx) => {
-                const color = TYPE_COLORS[node.type];
-                return (
-                  <View key={idx} style={st.previewNodeWrap}>
-                    {idx > 0 && <View style={[st.previewConnector, { backgroundColor: color + '30' }]} />}
-                    <View style={[st.previewNode, { borderColor: color }]}>
-                      {node.type === 'workout' && node.id ? (
-                        <Image source={getWorkoutEmblem(node.id, getNodeLabel(node), getWorkoutMuscleGroups(node))} style={st.previewEmblemImg} />
-                      ) : (
-                        <Ionicons name={getNodeIcon(node) as any} size={14} color={color} />
-                      )}
-                    </View>
-                    <Text style={st.previewNodeLabel} numberOfLines={1}>{getNodeLabel(node)}</Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
 
-        {/* ── CURRENT TRACK (reorderable list) ── */}
-        <View style={st.section}>
-          <Text style={st.sectionLabel}>TRACK ORDER · {track.length} nodes</Text>
-          {track.map((node, idx) => {
-            const color = TYPE_COLORS[node.type];
-            return (
-              <View key={idx} style={st.trackItem}>
-                {/* Order number */}
-                <View style={[st.orderBadge, { backgroundColor: color + '15' }]}>
-                  <Text style={[st.orderText, { color }]}>{idx + 1}</Text>
-                </View>
+            <Text style={[st.sectionLabel, { paddingHorizontal: 20 }]}>Track order</Text>
+          </>
+        }
+        ListFooterComponent={
+          <>
+            {/* ── QUICK ADD ── */}
+            <View style={st.quickAdd}>
+              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('workouts')}>
+                <Text style={st.quickAddText}>+ Workout</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('diets')}>
+                <Text style={st.quickAddText}>+ Meal plan</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[st.quickAddPill, st.quickAddPillAccent]} onPress={() => setShowMilestoneInput(true)}>
+                <Text style={[st.quickAddText, { color: CoachColors.accent }]}>+ Milestone</Text>
+              </TouchableOpacity>
+            </View>
 
-                {/* Icon */}
-                {node.type === 'workout' && node.id ? (
-                  <Image source={getWorkoutEmblem(node.id, getNodeLabel(node), getWorkoutMuscleGroups(node))} style={st.trackItemEmblem} />
-                ) : (
-                  <View style={[st.trackItemIcon, { backgroundColor: color + '12' }]}>
-                    <Ionicons name={getNodeIcon(node) as any} size={18} color={color} />
-                  </View>
-                )}
-
-                {/* Info */}
-                <View style={st.trackItemInfo}>
-                  <Text style={st.trackItemName} numberOfLines={1}>{getNodeLabel(node)}</Text>
-                  <Text style={st.trackItemSub}>{getNodeSub(node)}</Text>
-                </View>
-
-                {/* Controls */}
-                <View style={st.trackItemControls}>
-                  <TouchableOpacity onPress={() => moveNode(idx, -1)} disabled={idx === 0} style={st.moveBtn}>
-                    <Ionicons name="chevron-up" size={16} color={idx === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => moveNode(idx, 1)} disabled={idx === track.length - 1} style={st.moveBtn}>
-                    <Ionicons name="chevron-down" size={16} color={idx === track.length - 1 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'} />
+            {/* ── ADD MILESTONE ── */}
+            {showMilestoneInput && (
+              <View style={st.milestoneInput}>
+                <View style={st.milestoneInputRow}>
+                  <Ionicons name="trophy-outline" size={18} color={CoachColors.accent} />
+                  <TextInput
+                    style={st.milestoneTextInput}
+                    placeholder="e.g. Week 1 complete"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={milestoneInput}
+                    onChangeText={setMilestoneInput}
+                    onSubmitEditing={addMilestone}
+                    autoFocus
+                  />
+                  <TouchableOpacity onPress={addMilestone} style={st.milestoneAddBtn}>
+                    <Ionicons name="add" size={18} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity onPress={() => removeNode(idx)} style={st.removeBtn}>
-                  <Ionicons name="close" size={16} color="#EF4444" />
+                <TouchableOpacity onPress={() => setShowMilestoneInput(false)}>
+                  <Text style={st.cancelText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
-            );
-          })}
-        </View>
+            )}
 
-        {/* ── ADD MILESTONE ── */}
-        {showMilestoneInput ? (
-          <View style={st.milestoneInput}>
-            <View style={st.milestoneInputRow}>
-              <Ionicons name="trophy" size={18} color="#FBBF24" />
-              <TextInput
-                style={st.milestoneTextInput}
-                placeholder="e.g. Week 1 Complete!"
-                placeholderTextColor="rgba(255,255,255,0.2)"
-                value={milestoneInput}
-                onChangeText={setMilestoneInput}
-                onSubmitEditing={addMilestone}
-                autoFocus
-              />
-              <TouchableOpacity onPress={addMilestone} style={[st.milestoneAddBtn, { backgroundColor: '#FBBF24' }]}>
-                <Ionicons name="add" size={18} color="#000" />
-              </TouchableOpacity>
+            {/* ── AVAILABLE CONTENT ── */}
+            <View style={st.section}>
+              <View style={st.tabs}>
+                {(['workouts', 'diets'] as const).map(tab => (
+                  <TouchableOpacity
+                    key={tab}
+                    style={[st.tab, activeTab === tab && st.tabActive]}
+                    onPress={() => setActiveTab(tab)}
+                  >
+                    <Ionicons
+                      name={tab === 'workouts' ? 'barbell-outline' : 'nutrition-outline'}
+                      size={16}
+                      color={activeTab === tab ? CoachColors.textPrimary : CoachColors.textFaint}
+                    />
+                    <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
+                      {tab === 'workouts' ? 'Workouts' : 'Meal plans'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {activeTab === 'workouts' ? (
+                workouts.length === 0 ? (
+                  <View style={st.emptyContent}>
+                    <Ionicons name="barbell-outline" size={26} color={CoachColors.textFaint} />
+                    <Text style={st.emptyContentText}>No workouts in your library yet</Text>
+                  </View>
+                ) : (
+                  <View style={st.contentList}>
+                    {workouts.map(w => {
+                      const isUsed = usedWorkoutIds.has(w.id);
+                      return (
+                        <TouchableOpacity
+                          key={w.id}
+                          style={[st.contentCard, isUsed && st.contentCardUsed]}
+                          onPress={() => !isUsed && addNode('workout', w.id)}
+                          activeOpacity={isUsed ? 1 : 0.7}
+                          disabled={isUsed}
+                        >
+                          <View style={st.contentIcon}>
+                            <Ionicons name="barbell-outline" size={18} color={isUsed ? CoachColors.textFaint : CoachColors.textSecondary} />
+                          </View>
+                          <View style={st.contentInfo}>
+                            <Text style={[st.contentName, isUsed && { color: CoachColors.textFaint }]} numberOfLines={1}>{w.name}</Text>
+                            <Text style={[st.contentSub, isUsed && { color: CoachColors.textFaint }]}>
+                              {w.workout_exercises?.length || 0} exercises
+                            </Text>
+                          </View>
+                          {isUsed ? (
+                            <View style={st.usedBadge}>
+                              <Ionicons name="checkmark" size={12} color={CoachColors.textFaint} />
+                              <Text style={st.usedText}>Added</Text>
+                            </View>
+                          ) : (
+                            <View style={st.addContentBtn}>
+                              <Ionicons name="add" size={18} color={CoachColors.accent} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )
+              ) : (
+                diets.length === 0 ? (
+                  <View style={st.emptyContent}>
+                    <Ionicons name="nutrition-outline" size={26} color={CoachColors.textFaint} />
+                    <Text style={st.emptyContentText}>No meal plans in your library yet</Text>
+                  </View>
+                ) : (
+                  <View style={st.contentList}>
+                    {diets.map(d => {
+                      const isUsed = usedDietIds.has(d.id);
+                      return (
+                        <TouchableOpacity
+                          key={d.id}
+                          style={[st.contentCard, isUsed && st.contentCardUsed]}
+                          onPress={() => !isUsed && addNode('diet', d.id)}
+                          activeOpacity={isUsed ? 1 : 0.7}
+                          disabled={isUsed}
+                        >
+                          <View style={st.contentIcon}>
+                            <Ionicons name="nutrition-outline" size={18} color={isUsed ? CoachColors.textFaint : CoachColors.textSecondary} />
+                          </View>
+                          <View style={st.contentInfo}>
+                            <Text style={[st.contentName, isUsed && { color: CoachColors.textFaint }]} numberOfLines={1}>{d.name}</Text>
+                            <Text style={[st.contentSub, isUsed && { color: CoachColors.textFaint }]}>
+                              {d.diet_plan_meals?.length || 0} meals
+                            </Text>
+                          </View>
+                          {isUsed ? (
+                            <View style={st.usedBadge}>
+                              <Ionicons name="checkmark" size={12} color={CoachColors.textFaint} />
+                              <Text style={st.usedText}>Added</Text>
+                            </View>
+                          ) : (
+                            <View style={st.addContentBtn}>
+                              <Ionicons name="add" size={18} color={CoachColors.accent} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )
+              )}
             </View>
-            <TouchableOpacity onPress={() => setShowMilestoneInput(false)}>
-              <Text style={st.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={st.addMilestoneBtn}
-            onPress={() => setShowMilestoneInput(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trophy" size={18} color="#FBBF24" />
-            <Text style={st.addMilestoneBtnText}>Add Milestone</Text>
-          </TouchableOpacity>
-        )}
 
-        {/* ── AVAILABLE CONTENT ── */}
-        <View style={st.section}>
-          {/* Tabs */}
-          <View style={st.tabs}>
-            {(['workouts', 'diets'] as const).map(tab => (
-              <TouchableOpacity
-                key={tab}
-                style={[st.tab, activeTab === tab && st.tabActive]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Ionicons
-                  name={tab === 'workouts' ? 'barbell' : 'nutrition'}
-                  size={16}
-                  color={activeTab === tab ? '#FFF' : 'rgba(255,255,255,0.3)'}
-                />
-                <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
-                  {tab === 'workouts' ? 'Workouts' : 'Diet Plans'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Content list */}
-          {activeTab === 'workouts' ? (
-            workouts.length === 0 ? (
-              <View style={st.emptyContent}>
-                <Ionicons name="barbell-outline" size={28} color="rgba(255,255,255,0.08)" />
-                <Text style={st.emptyContentText}>No workouts created yet</Text>
-              </View>
-            ) : (
-              <View style={st.contentList}>
-                {workouts.map(w => {
-                  const isUsed = usedWorkoutIds.has(w.id);
-                  return (
-                    <TouchableOpacity
-                      key={w.id}
-                      style={[st.contentCard, isUsed && st.contentCardUsed]}
-                      onPress={() => !isUsed && addNode('workout', w.id)}
-                      activeOpacity={isUsed ? 1 : 0.7}
-                      disabled={isUsed}
-                    >
-                      <View style={[st.contentIcon, { backgroundColor: isUsed ? 'rgba(255,255,255,0.03)' : 'rgba(34,197,94,0.1)' }]}>
-                        <Ionicons name="barbell" size={18} color={isUsed ? 'rgba(255,255,255,0.1)' : '#22C55E'} />
-                      </View>
-                      <View style={st.contentInfo}>
-                        <Text style={[st.contentName, isUsed && { color: 'rgba(255,255,255,0.15)' }]}>{w.name}</Text>
-                        <Text style={[st.contentSub, isUsed && { color: 'rgba(255,255,255,0.08)' }]}>
-                          {w.workout_exercises?.length || 0} exercises
-                        </Text>
-                      </View>
-                      {isUsed ? (
-                        <View style={st.usedBadge}>
-                          <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.15)" />
-                          <Text style={st.usedText}>Added</Text>
-                        </View>
-                      ) : (
-                        <View style={[st.addContentBtn, { backgroundColor: 'rgba(34,197,94,0.12)' }]}>
-                          <Ionicons name="add" size={18} color="#22C55E" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )
-          ) : (
-            diets.length === 0 ? (
-              <View style={st.emptyContent}>
-                <Ionicons name="nutrition-outline" size={28} color="rgba(255,255,255,0.08)" />
-                <Text style={st.emptyContentText}>No diet plans created yet</Text>
-              </View>
-            ) : (
-              <View style={st.contentList}>
-                {diets.map(d => {
-                  const isUsed = usedDietIds.has(d.id);
-                  return (
-                    <TouchableOpacity
-                      key={d.id}
-                      style={[st.contentCard, isUsed && st.contentCardUsed]}
-                      onPress={() => !isUsed && addNode('diet', d.id)}
-                      activeOpacity={isUsed ? 1 : 0.7}
-                      disabled={isUsed}
-                    >
-                      <View style={[st.contentIcon, { backgroundColor: isUsed ? 'rgba(255,255,255,0.03)' : 'rgba(167,139,250,0.1)' }]}>
-                        <Ionicons name="nutrition" size={18} color={isUsed ? 'rgba(255,255,255,0.1)' : '#A78BFA'} />
-                      </View>
-                      <View style={st.contentInfo}>
-                        <Text style={[st.contentName, isUsed && { color: 'rgba(255,255,255,0.15)' }]}>{d.name}</Text>
-                        <Text style={[st.contentSub, isUsed && { color: 'rgba(255,255,255,0.08)' }]}>
-                          {d.diet_plan_meals?.length || 0} meals
-                        </Text>
-                      </View>
-                      {isUsed ? (
-                        <View style={st.usedBadge}>
-                          <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.15)" />
-                          <Text style={st.usedText}>Added</Text>
-                        </View>
-                      ) : (
-                        <View style={[st.addContentBtn, { backgroundColor: 'rgba(167,139,250,0.12)' }]}>
-                          <Ionicons name="add" size={18} color="#A78BFA" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )
-          )}
-        </View>
-
-        <View style={{ height: 120 }} />
-      </ScrollView>
+            <View style={{ height: 100 }} />
+          </>
+        }
+      />
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
   closeBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 32, height: 32, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFF', textAlign: 'center' },
-  headerSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
-  saveBtn: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20 },
-  saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FFF' },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.textPrimary, textAlign: 'center' },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  saveBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
+  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
 
   // Preview
-  previewSection: { paddingHorizontal: 20, marginBottom: 24 },
+  previewSection: { paddingHorizontal: 20, paddingTop: 18, marginBottom: 20 },
   previewLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 10,
-    color: 'rgba(255,255,255,0.25)', letterSpacing: 1.5, marginBottom: 10,
+    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 12,
   },
   previewEmpty: {
-    alignItems: 'center', paddingVertical: 30, gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', borderStyle: 'dashed',
+    alignItems: 'center', paddingVertical: 26, gap: 8,
+    backgroundColor: CoachColors.surface, borderRadius: 16,
+    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
   },
-  previewEmptyText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.15)' },
-  previewTrack: { paddingVertical: 10, gap: 0 },
-  previewNodeWrap: { alignItems: 'center', width: 64, position: 'relative' },
+  previewEmptyText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  previewTrack: { paddingVertical: 6, gap: 0 },
+  previewNodeWrap: { alignItems: 'center', width: 72, position: 'relative' },
   previewConnector: {
-    position: 'absolute', top: 15, left: -10, width: 10, height: 2, borderRadius: 1,
+    position: 'absolute', top: 20, left: -12, width: 12, height: 2, borderRadius: 1,
+    backgroundColor: CoachColors.border,
   },
   previewNode: {
-    width: 30, height: 30, borderRadius: 15, borderWidth: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
     overflow: 'hidden',
   },
-  previewEmblemImg: { width: 30, height: 30, borderRadius: 15 },
-  previewNodeLabel: { fontFamily: FontFamily.body, fontSize: 8, color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
+  previewNodeMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+  previewNodeLabel: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted, textAlign: 'center' },
 
   // Section
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 10,
-    color: 'rgba(255,255,255,0.25)', letterSpacing: 1.5, marginBottom: 12,
+    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 12,
   },
 
-  // Track Items
-  trackItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14,
-    padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
-  },
-  orderBadge: {
-    width: 26, height: 26, borderRadius: 8,
+  // Vertical track (draggable)
+  trackRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20 },
+  rail: { width: 40, alignItems: 'center' },
+  railLineTop: { position: 'absolute', top: -12, width: 2, height: 12, backgroundColor: CoachColors.border },
+  railLineBottom: { width: 2, flex: 1, minHeight: 8, backgroundColor: CoachColors.border, marginTop: 4 },
+  marker: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  orderText: { fontFamily: FontFamily.headingExtraBold, fontSize: 11 },
-  trackItemIcon: {
-    width: 38, height: 38, borderRadius: 12,
+  markerMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+  markerText: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: CoachColors.textSecondary },
+
+  trackCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, padding: 12, marginBottom: 12,
+  },
+  trackCardMilestone: { borderColor: 'rgba(198,242,78,0.3)', backgroundColor: CoachColors.accentSofter },
+  trackCardActive: { borderColor: CoachColors.accent },
+  trackCardIcon: {
+    width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  trackItemEmblem: { width: 38, height: 38, borderRadius: 12 },
-  trackItemInfo: { flex: 1, gap: 2 },
-  trackItemName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
-  trackItemSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.25)' },
-  trackItemControls: { gap: 0 },
-  moveBtn: { padding: 4 },
-  removeBtn: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    alignItems: 'center', justifyContent: 'center', marginLeft: 4,
+  trackCardInfo: { flex: 1, gap: 2 },
+  trackCardName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  trackCardSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  dragHandle: { padding: 4 },
+  removeBtn: { padding: 4, marginLeft: 2 },
+
+  // Quick add
+  quickAdd: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, marginBottom: 18 },
+  quickAddPill: {
+    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
+    borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9,
   },
+  quickAddPillAccent: { borderColor: 'rgba(198,242,78,0.4)' },
+  quickAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
 
   // Milestone Input
-  milestoneInput: {
-    paddingHorizontal: 20, marginBottom: 20, gap: 8,
-  },
+  milestoneInput: { paddingHorizontal: 20, marginBottom: 18, gap: 8 },
   milestoneInputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14,
-    paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)',
+    backgroundColor: CoachColors.surface, borderRadius: 14,
+    paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
   milestoneTextInput: {
-    flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: '#FFF', paddingVertical: 14,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, paddingVertical: 14,
   },
   milestoneAddBtn: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  cancelText: {
-    fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.3)', textAlign: 'center',
-  },
-  addMilestoneBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 20, marginBottom: 20, paddingVertical: 12,
-    borderRadius: 12, backgroundColor: 'rgba(251,191,36,0.06)',
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.12)',
-  },
-  addMilestoneBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FBBF24' },
+  cancelText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, textAlign: 'center' },
 
   // Tabs
   tabs: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.03)',
+    flexDirection: 'row', backgroundColor: CoachColors.surface,
     borderRadius: 14, padding: 4, marginBottom: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 11,
   },
-  tabActive: { backgroundColor: 'rgba(255,255,255,0.08)' },
-  tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.3)' },
-  tabTextActive: { color: '#FFF' },
+  tabActive: { backgroundColor: CoachColors.borderMuted },
+  tabText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textFaint },
+  tabTextActive: { color: CoachColors.textPrimary },
 
   // Content List
-  contentList: { gap: 6 },
+  contentList: { gap: 8 },
   contentCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14,
-    padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface, borderRadius: 14,
+    padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   contentCardUsed: { opacity: 0.5 },
   contentIcon: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   contentInfo: { flex: 1, gap: 2 },
-  contentName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
-  contentSub: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.25)' },
+  contentName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  contentSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
   addContentBtn: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
   usedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.borderMuted,
   },
-  usedText: { fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.15)' },
+  usedText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
 
   // Empty
-  emptyContent: {
-    alignItems: 'center', paddingVertical: 32, gap: 8,
-  },
-  emptyContentText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.15)' },
+  emptyContent: { alignItems: 'center', paddingVertical: 30, gap: 8 },
+  emptyContentText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
 
   // Not Found
-  notFoundText: { fontFamily: FontFamily.body, fontSize: 16, color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: 100 },
+  notFoundText: { fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textMuted, textAlign: 'center', marginTop: 100 },
 });

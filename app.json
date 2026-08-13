@@ -113,7 +113,7 @@
         {
           "logo": "./assets/images/logo.png",
           "logoWidth": 130,
-          "background": "#111114",
+          "background": "#101210",
           "assetsOutput": "assets/bootsplash"
         }
       ],

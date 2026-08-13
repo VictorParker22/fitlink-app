@@ -1,24 +1,21 @@
 /**
- * app/session/complete.tsx — Post-Session Smart Summary
+ * app/session/complete.tsx — Post-Session Summary
  *
- * Tonal-inspired session completion screen that:
- *   1. Shows session stats (duration, sets, volume, completion %)
- *   2. Renders a per-exercise breakdown with animated fill bars
- *   3. Chips for muscle groups targeted
- *   4. Coach notes auto-saved on blur (no save button needed)
- *   5. "What's Next" recommendation engine:
- *      - Calculates avg session frequency from client history
- *      - Suggests next date based on frequency
- *      - Suggests complementary session type from muscles targeted
- *      - "Book Next Session" pre-fills book-session.tsx
- *   6. Confetti burst on mount (particles via Reanimated)
+ * Shows what happened in a finished session, saves coach notes, and
+ * surfaces a single next-session recommendation. Two entry points:
  *
- * Entry points:
  *   A) Active tracker → setCompletionData() → router.push('/session/complete?sessionId=X')
+ *      Exercise-level data is available (sets/reps/weight per exercise).
  *   B) Schedule "Complete" button → router.push('/session/complete?sessionId=X')
- *      (no exercise data; shows session info + notes + recommendation only)
+ *      No exercise data — just session info, notes, and the recommendation.
  *
- * Design: #0D0D12 bg, #C8F135 lime, SpaceGrotesk + Epilogue, W*factor sizing
+ * The headline leads with what changed since the client's last session
+ * (duration delta) rather than an inflated score. "Adherence" (the
+ * honest name for percentage of prescribed sets completed) is shown as
+ * one modest stat among others — not a dressed-up hero number.
+ *
+ * Design: fixed dark coach palette (constants/coachDesign.ts), single
+ * lime accent, no emoji.
  */
 
 import React, {
@@ -36,17 +33,14 @@ import Animated, {
   withSpring,
   withTiming,
   withDelay,
-  interpolate,
-  Extrapolation,
   FadeIn,
   FadeInUp,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../../context/AppContext';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
 import {
   getCompletionData,
@@ -54,17 +48,7 @@ import {
   type CompletedExercise,
 } from './sessionCompletionCache';
 
-const { width: W, height: H } = Dimensions.get('window');
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface StatCardProps {
-  value: string | number;
-  label: string;
-  icon: string;
-  color: string;
-  delay?: number;
-}
+const { width: W } = Dimensions.get('window');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -100,9 +84,9 @@ function suggestNextType(muscleGroups: string[], lastType: string): string {
   const hitLower = lower_mg.some(m => lower.some(u => m.includes(u)));
   const hitCore  = lower_mg.some(m => core.some(u => m.includes(u)));
 
-  if (hitUpper && !hitLower) return 'Lower Body';
-  if (hitLower && !hitUpper) return 'Upper Body';
-  if (hitCore)  return 'Strength & Conditioning';
+  if (hitUpper && !hitLower) return 'Lower body';
+  if (hitLower && !hitUpper) return 'Upper body';
+  if (hitCore)  return 'Strength & conditioning';
   return lastType || '1-on-1';
 }
 
@@ -110,12 +94,10 @@ function suggestNextType(muscleGroups: string[], lastType: string): string {
 function suggestNextDate(completedSessions: any[]): Date {
   const now = new Date();
   if (completedSessions.length < 2) {
-    // Default: 3 days from now
     const d = new Date(now);
     d.setDate(d.getDate() + 3);
     return d;
   }
-  // Average gap between the last 6 sessions
   const sorted = [...completedSessions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
@@ -131,8 +113,8 @@ function suggestNextDate(completedSessions: any[]): Date {
   return next;
 }
 
-/** Calculate performance score 0–100 */
-function calcScore(exercises: CompletedExercise[]): number {
+/** Percentage of prescribed sets actually completed (renamed from "performance score") */
+function calcAdherence(exercises: CompletedExercise[]): number {
   if (!exercises.length) return 0;
   const totalSets     = exercises.reduce((s, ex) => s + ex.sets.length, 0);
   const completedSets = exercises.reduce((s, ex) => s + ex.sets.filter(st => st.completed).length, 0);
@@ -145,12 +127,12 @@ const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','S
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function StatCard({ value, label, icon, color, delay = 0 }: StatCardProps) {
-  const opacity   = useSharedValue(0);
-  const translateY = useSharedValue(16);
+function StatTile({ value, label, delay = 0 }: { value: string; label: string; delay?: number }) {
+  const opacity    = useSharedValue(0);
+  const translateY = useSharedValue(10);
 
   useEffect(() => {
-    opacity.value    = withDelay(delay, withTiming(1, { duration: 400 }));
+    opacity.value    = withDelay(delay, withTiming(1, { duration: 350 }));
     translateY.value = withDelay(delay, withSpring(0, { damping: 18, stiffness: 220 }));
   }, []);
 
@@ -160,12 +142,9 @@ function StatCard({ value, label, icon, color, delay = 0 }: StatCardProps) {
   }));
 
   return (
-    <Animated.View style={[st.statCard, aStyle]}>
-      <View style={[st.statIconBg, { backgroundColor: `${color}18` }]}>
-        <Ionicons name={icon as any} size={16} color={color} />
-      </View>
-      <Text style={st.statValue}>{value}</Text>
+    <Animated.View style={[st.statTile, aStyle]}>
       <Text style={st.statLabel}>{label}</Text>
+      <Text style={st.statValue}>{value}</Text>
     </Animated.View>
   );
 }
@@ -177,12 +156,12 @@ function ExerciseBar({
   const completedSets = exercise.sets.filter(s => s.completed).length;
   const totalSets     = exercise.sets.length;
   const pct           = totalSets > 0 ? completedSets / totalSets : 0;
-  const barWidth      = useSharedValue(0);
-  const opacity       = useSharedValue(0);
+  const barWidth       = useSharedValue(0);
+  const opacity        = useSharedValue(0);
 
   useEffect(() => {
-    const delay = 600 + index * 100;
-    opacity.value  = withDelay(delay, withTiming(1, { duration: 300 }));
+    const delay = 500 + index * 90;
+    opacity.value  = withDelay(delay, withTiming(1, { duration: 280 }));
     barWidth.value = withDelay(delay, withSpring(pct, { damping: 18, stiffness: 120 }));
   }, []);
 
@@ -194,28 +173,30 @@ function ExerciseBar({
     opacity: opacity.value,
   }));
 
-  // Volume for this exercise
-  const vol = exercise.sets.reduce((sum, s) => {
-    if (!s.completed) return sum;
-    return sum + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+  // Weight for the heaviest completed set on this exercise (real data, no comparison claimed)
+  const topWeight = exercise.sets.reduce((max, s) => {
+    if (!s.completed) return max;
+    const w = parseFloat(s.weight) || 0;
+    return w > max ? w : max;
   }, 0);
 
-  const color = pct >= 1 ? '#22C55E' : pct >= 0.6 ? '#C8F135' : '#F59E0B';
+  const isPartial = pct < 1;
+  const barColor  = isPartial ? CoachColors.warning : CoachColors.accent;
 
   return (
     <Animated.View style={[st.exRow, rowStyle]}>
       <View style={st.exInfo}>
         <Text style={st.exName} numberOfLines={1}>{exercise.exerciseName}</Text>
-        <Text style={st.exMeta}>
+        <Text style={[st.exMeta, isPartial && st.exMetaWarning]}>
           {completedSets}/{totalSets} sets
-          {vol > 0 ? `  ·  ${formatVolume(vol)} lbs` : ''}
+          {topWeight > 0 ? `  ·  ${topWeight}kg` : ''}
         </Text>
       </View>
       <View style={st.exBarTrack}>
-        <Animated.View style={[st.exBarFill, { backgroundColor: color }, barStyle]} />
+        <Animated.View style={[st.exBarFill, { backgroundColor: barColor }, barStyle]} />
       </View>
-      {pct >= 1 && (
-        <Ionicons name="checkmark-circle" size={16} color="#22C55E" style={st.exCheck} />
+      {!isPartial && (
+        <Ionicons name="checkmark" size={14} color={CoachColors.accent} style={st.exCheck} />
       )}
     </Animated.View>
   );
@@ -258,14 +239,48 @@ export default function SessionCompleteScreen() {
   const totalVolume   = exercises.reduce((sum, ex) =>
     sum + ex.sets.reduce((s2, st) =>
       st.completed ? s2 + (parseFloat(st.weight) || 0) * (parseInt(st.reps) || 0) : s2, 0), 0);
-  const score         = calcScore(exercises);
+  const adherence     = calcAdherence(exercises);
   const muscleGroups  = getMuscleGroups(exercises);
 
-  // ── "What's Next" recommendation ──
+  const hasExerciseData = exercises.length > 0;
+  const firstName = (client?.name ?? '').split(' ')[0] || 'This client';
+
+  // ── Completed sessions for this client (for "what changed" + recommendation) ──
   const completedClientSessions = useMemo(
     () => clientSessions.filter(s => s.status === 'completed'),
     [clientSessions],
   );
+  // Most recent completed session *before* this one, so we can compare honestly —
+  // only session-level fields (duration) are persisted across sessions; per-exercise
+  // weight history is not, so no PR/volume comparison is claimed.
+  const previousSession = useMemo(() => {
+    const prior = completedClientSessions
+      .filter(s => s.id !== session?.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return prior[0] ?? null;
+  }, [completedClientSessions, session]);
+
+  const { headline, subline } = useMemo(() => {
+    if (hasExerciseData) {
+      const title = `${firstName} completed ${completedSets} of ${totalSets} sets.`;
+      if (!previousSession) {
+        return { headline: title, subline: `First tracked session with ${firstName}.` };
+      }
+      const thisMin = Math.round(durationSec / 60);
+      const delta   = thisMin - previousSession.duration;
+      const sub = delta === 0
+        ? `Same length as last time — ${formatDuration(durationSec)}.`
+        : `${Math.abs(delta)} min ${delta > 0 ? 'longer' : 'shorter'} than last time.`;
+      return { headline: title, subline: sub };
+    }
+    const n = completedClientSessions.length;
+    return {
+      headline: `Session ${n} with ${firstName}, logged.`,
+      subline: 'Nothing was tracked in the app for this one — add a note while it\'s fresh.',
+    };
+  }, [hasExerciseData, firstName, completedSets, totalSets, previousSession, durationSec, completedClientSessions.length]);
+
+  // ── "What's Next" recommendation ──
   const nextDate    = useMemo(() => suggestNextDate(completedClientSessions), [completedClientSessions]);
   const nextType    = useMemo(() => suggestNextType(muscleGroups, session?.type ?? '1-on-1'), [muscleGroups, session]);
   const freqDays    = completedClientSessions.length >= 2
@@ -282,21 +297,13 @@ export default function SessionCompleteScreen() {
       })
     : '';
 
-  // ── Hero score animation ──
-  const scoreAnim = useSharedValue(0);
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    scoreAnim.value = withDelay(300, withSpring(score, { damping: 18, stiffness: 80 }));
     // Mark session as completed if not already
     if (session && session.status !== 'completed') {
       updateSession(session.id, { status: 'completed' }).catch(() => {});
     }
   }, []);
-
-  const scoreStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(scoreAnim.value, [0, 20], [0, 1], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(scoreAnim.value, [0, score], [0.6, 1], Extrapolation.CLAMP) }],
-  }));
 
   // ── Save notes on blur ──
   const handleNotesSave = useCallback(async () => {
@@ -333,23 +340,16 @@ export default function SessionCompleteScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={st.emptyText}>Session not found</Text>
           <TouchableOpacity onPress={handleDone} style={st.doneBtn}>
-            <Text style={st.doneBtnText}>Go Back</Text>
+            <Text style={st.doneBtnText}>Go back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  const hasExerciseData = exercises.length > 0;
-  const completionPct   = totalSets > 0 ? Math.round(completedSets / totalSets * 100) : 0;
-
   return (
     <View style={st.root}>
       <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#0D0D12', '#111118', '#0A0A0F']}
-        style={StyleSheet.absoluteFill}
-      />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <KeyboardAvoidingView
@@ -364,121 +364,59 @@ export default function SessionCompleteScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* ── HERO HEADER ─────────────────────────────────────── */}
-            <Animated.View entering={FadeIn.duration(400)}>
-              <LinearGradient
-                colors={['#1A2800', '#0D0D12']}
-                style={st.hero}
-              >
-                {/* Client row */}
-                <View style={st.clientRow}>
-                  {client && (
-                    <Avatar name={client.name} size="md" imageUrl={client.avatar_url} />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.heroName} numberOfLines={1}>
-                      {client?.name ?? session.group_name ?? 'Session'}
-                    </Text>
-                    <Text style={st.heroMeta}>
-                      {sessionDateLabel} · {session.type} · {session.duration} min
-                    </Text>
-                  </View>
-                  <View style={st.completedBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
-                    <Text style={st.completedBadgeText}>Done</Text>
-                  </View>
-                </View>
-
-                {/* Score */}
-                {hasExerciseData && (
-                  <Animated.View style={[st.scoreBlock, scoreStyle]}>
-                    <Text style={st.scoreNumber}>{score}</Text>
-                    <Text style={st.scoreLabel}>PERFORMANCE SCORE</Text>
-                    <Text style={st.scoreDesc}>
-                      {score >= 90 ? 'Perfect execution 🔥' :
-                       score >= 70 ? 'Strong session 💪' :
-                       score >= 50 ? 'Good effort 👍' : 'Keep pushing 🎯'}
-                    </Text>
-                  </Animated.View>
+            <Animated.View entering={FadeIn.duration(350)} style={st.hero}>
+              {/* Client row */}
+              <View style={st.clientRow}>
+                {client && (
+                  <Avatar name={client.name} size="md" imageUrl={client.avatar_url} />
                 )}
-              </LinearGradient>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.heroName} numberOfLines={1}>
+                    {client?.name ?? session.group_name ?? 'Session'}
+                  </Text>
+                  <Text style={st.heroMeta}>
+                    {sessionDateLabel} · {session.type} · {session.duration} min
+                  </Text>
+                </View>
+                <View style={st.completedBadge}>
+                  <Text style={st.completedBadgeText}>{hasExerciseData ? 'Logged' : 'Done'}</Text>
+                </View>
+              </View>
+
+              {/* Headline: what changed since last time */}
+              <Text style={st.headline}>{headline}</Text>
+              <Text style={st.subline}>{subline}</Text>
             </Animated.View>
 
             {/* ── STATS ROW ──────────────────────────────────────── */}
-            <View style={st.statsRow}>
-              <StatCard
-                value={formatDuration(durationSec)}
-                label="Duration"
-                icon="time-outline"
-                color="#60A5FA"
-                delay={100}
-              />
-              {hasExerciseData && (
-                <>
-                  <StatCard
-                    value={`${completedSets}/${totalSets}`}
-                    label="Sets"
-                    icon="barbell-outline"
-                    color="#C8F135"
-                    delay={180}
-                  />
-                  <StatCard
-                    value={exercises.length.toString()}
-                    label="Exercises"
-                    icon="body-outline"
-                    color="#A78BFA"
-                    delay={260}
-                  />
-                  <StatCard
-                    value={`${completionPct}%`}
-                    label="Completion"
-                    icon="trending-up-outline"
-                    color="#22C55E"
-                    delay={340}
-                  />
-                </>
-              )}
-              {!hasExerciseData && totalVolume === 0 && (
-                <StatCard
-                  value={`${completedClientSessions.length}`}
-                  label="Total Sessions"
-                  icon="calendar-outline"
-                  color="#C8F135"
-                  delay={180}
-                />
-              )}
-            </View>
+            {hasExerciseData && (
+              <View style={st.statsRow}>
+                <StatTile value={formatDuration(durationSec)} label="Duration" delay={80} />
+                <StatTile value={`${completedSets}/${totalSets}`} label="Sets done" delay={140} />
+                {totalVolume > 0 && (
+                  <StatTile value={`${formatVolume(totalVolume)}`} label="Volume (kg)" delay={200} />
+                )}
+                <StatTile value={`${adherence}%`} label="Adherence" delay={260} />
+              </View>
+            )}
 
             {/* ── EXERCISE BREAKDOWN ─────────────────────────────── */}
             {hasExerciseData && (
-              <Animated.View entering={FadeInUp.delay(400).duration(350)} style={st.card}>
-                <Text style={st.cardTag}>WHAT YOU ACCOMPLISHED</Text>
-                <Text style={st.cardTitle}>Exercise Breakdown</Text>
+              <Animated.View entering={FadeInUp.delay(350).duration(300)} style={st.card}>
+                <Text style={st.cardTag}>What she did</Text>
+                <Text style={st.cardTitle}>Exercise breakdown</Text>
                 <View style={st.exList}>
                   {exercises.map((ex, i) => (
                     <ExerciseBar key={i} exercise={ex} index={i} />
                   ))}
                 </View>
-
-                {/* Total volume */}
-                {totalVolume > 0 && (
-                  <View style={st.volumeRow}>
-                    <View>
-                      <Text style={st.volumeLabel}>Total Volume</Text>
-                      <Text style={st.volumeValue}>{formatVolume(totalVolume)} lbs</Text>
-                    </View>
-                    <View style={[st.volumeBadge, { backgroundColor: 'rgba(200,241,53,0.1)', borderColor: 'rgba(200,241,53,0.2)' }]}>
-                      <Ionicons name="trending-up" size={13} color="#C8F135" />
-                      <Text style={st.volumeBadgeText}>Tracked</Text>
-                    </View>
-                  </View>
-                )}
               </Animated.View>
             )}
 
             {/* ── MUSCLE GROUPS ──────────────────────────────────── */}
             {muscleGroups.length > 0 && (
-              <Animated.View entering={FadeInUp.delay(500).duration(350)} style={st.card}>
-                <Text style={st.cardTag}>MUSCLES TARGETED</Text>
+              <Animated.View entering={FadeInUp.delay(420).duration(300)} style={st.card}>
+                <Text style={st.cardTag}>Muscles targeted</Text>
                 <View style={st.muscleChips}>
                   {muscleGroups.map((m, i) => (
                     <View key={i} style={st.muscleChip}>
@@ -490,24 +428,18 @@ export default function SessionCompleteScreen() {
             )}
 
             {/* ── COACH NOTES ────────────────────────────────────── */}
-            <Animated.View entering={FadeInUp.delay(560).duration(350)} style={st.card}>
+            <Animated.View entering={FadeInUp.delay(480).duration(300)} style={st.card}>
               <View style={st.cardTitleRow}>
-                <Text style={st.cardTag}>COACH NOTES</Text>
-                {noteSaved && (
-                  <View style={st.savedPill}>
-                    <Ionicons name="checkmark" size={10} color="#22C55E" />
-                    <Text style={st.savedText}>Saved</Text>
-                  </View>
-                )}
+                <Text style={st.cardTag}>Your note</Text>
+                {noteSaved && <Text style={st.savedText}>Saved</Text>}
               </View>
-              <Text style={st.cardTitle}>Post-Session Summary</Text>
               <TextInput
                 style={st.notesInput}
                 value={notes}
                 onChangeText={setNotes}
                 onBlur={handleNotesSave}
-                placeholder="Record observations, areas to improve, weight adjustments for next session…"
-                placeholderTextColor="rgba(255,255,255,0.22)"
+                placeholder="What you covered, what to change next time…"
+                placeholderTextColor={CoachColors.textFaint}
                 multiline
                 textAlignVertical="top"
                 returnKeyType="default"
@@ -516,64 +448,16 @@ export default function SessionCompleteScreen() {
             </Animated.View>
 
             {/* ── WHAT'S NEXT ────────────────────────────────────── */}
-            <Animated.View entering={FadeInUp.delay(640).duration(350)} style={[st.card, st.nextCard]}>
-              <Text style={st.cardTag}>WHAT'S NEXT</Text>
-              <Text style={st.cardTitle}>Recommended Next Session</Text>
+            <Animated.View entering={FadeInUp.delay(540).duration(300)} style={[st.card, st.nextCard]}>
+              <Text style={st.cardTag}>Next session</Text>
+              <Text style={st.cardTitle}>
+                {DAY_FULL[nextDate.getDay()]}, {nextType.toLowerCase()}
+              </Text>
+              <Text style={st.nextDesc}>
+                Trains every {freqDays} {freqDays === 1 ? 'day' : 'days'} on average · suggested{' '}
+                {DAY_FULL[nextDate.getDay()]}, {MONTH_SHORT[nextDate.getMonth()]} {nextDate.getDate()}
+              </Text>
 
-              <View style={st.nextBody}>
-                {/* Recommended date */}
-                <View style={st.nextRow}>
-                  <View style={[st.nextIconBg, { backgroundColor: 'rgba(200,241,53,0.12)' }]}>
-                    <Ionicons name="calendar" size={16} color="#C8F135" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.nextRowLabel}>Suggested date</Text>
-                    <Text style={st.nextRowValue}>
-                      {DAY_FULL[nextDate.getDay()]}, {MONTH_SHORT[nextDate.getMonth()]} {nextDate.getDate()}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Session type */}
-                <View style={st.nextRow}>
-                  <View style={[st.nextIconBg, { backgroundColor: 'rgba(167,139,250,0.12)' }]}>
-                    <Ionicons name="fitness" size={16} color="#A78BFA" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.nextRowLabel}>Session focus</Text>
-                    <Text style={st.nextRowValue}>{nextType}</Text>
-                  </View>
-                </View>
-
-                {/* Frequency insight */}
-                <View style={st.nextRow}>
-                  <View style={[st.nextIconBg, { backgroundColor: 'rgba(96,165,250,0.12)' }]}>
-                    <Ionicons name="repeat" size={16} color="#60A5FA" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.nextRowLabel}>Training frequency</Text>
-                    <Text style={st.nextRowValue}>
-                      Every {freqDays} {freqDays === 1 ? 'day' : 'days'} based on history
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Client motivation copy */}
-                {client && (
-                  <View style={st.motivationBlock}>
-                    <Ionicons name="sparkles" size={13} color="#F59E0B" />
-                    <Text style={st.motivationText}>
-                      {client.name} has trained {completedClientSessions.length} session
-                      {completedClientSessions.length !== 1 ? 's' : ''} with you.
-                      {completedClientSessions.length >= 5
-                        ? ' Consistency is building — keep the momentum going.'
-                        : ' Early progress is real — book the next one now.'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Book CTA */}
               <TouchableOpacity
                 style={st.bookCTA}
                 onPress={handleBookNext}
@@ -581,31 +465,24 @@ export default function SessionCompleteScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Book next session"
               >
-                <LinearGradient
-                  colors={['#C8F135', '#A8D420']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={st.bookCTAGradient}
-                >
-                  <Ionicons name="add-circle" size={18} color="#0D0D12" />
-                  <Text style={st.bookCTAText}>Book Next Session</Text>
-                </LinearGradient>
+                <Text style={st.bookCTAText}>
+                  Book {DAY_FULL[nextDate.getDay()]} {MONTH_SHORT[nextDate.getMonth()]} {nextDate.getDate()}
+                </Text>
               </TouchableOpacity>
             </Animated.View>
 
-            {/* ── DONE BUTTON ────────────────────────────────────── */}
+            {/* ── DONE ────────────────────────────────────────────── */}
             <Animated.View
-              entering={FadeInUp.delay(700).duration(300)}
+              entering={FadeInUp.delay(600).duration(280)}
               style={st.doneRow}
             >
               <TouchableOpacity
-                style={st.doneBtn}
                 onPress={handleDone}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Done, close summary"
+                accessibilityLabel="Close summary"
               >
-                <Text style={st.doneBtnText}>Done</Text>
+                <Text style={st.doneBtnText}>Close</Text>
               </TouchableOpacity>
             </Animated.View>
 
@@ -621,182 +498,155 @@ export default function SessionCompleteScreen() {
 const st = StyleSheet.create({
   root: {
     flex:            1,
-    backgroundColor: '#0D0D12',
+    backgroundColor: CoachColors.bg,
   },
   scrollContent: {
     paddingBottom: 60,
   },
   emptyText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.04,
-    color:      'rgba(255,255,255,0.5)',
+    color:      CoachColors.textSecondary,
   },
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   hero: {
-    paddingHorizontal: W * 0.05,
-    paddingTop:        W * 0.06,
-    paddingBottom:     W * 0.07,
-    marginBottom:      2,
+    paddingHorizontal: 20,
+    paddingTop:        W * 0.14,
+    paddingBottom:     0,
   },
   clientRow: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           12,
-    marginBottom:  W * 0.05,
+    marginBottom:  24,
   },
   heroName: {
-    fontFamily:    FontFamily.headingExtraBold,
-    fontSize:      W * 0.052,
-    color:         '#FFFFFF',
-    letterSpacing: -0.5,
+    fontFamily:    CoachFonts.headingBold,
+    fontSize:      18,
+    color:         CoachColors.textPrimary,
+    letterSpacing: -0.4,
   },
   heroMeta: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.032,
-    color:      'rgba(255,255,255,0.45)',
-    marginTop:  2,
+    fontFamily: CoachFonts.body,
+    fontSize:   12,
+    color:      CoachColors.textMuted,
+    marginTop:  1,
   },
   completedBadge: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            4,
     paddingHorizontal: 10,
-    paddingVertical:   6,
-    borderRadius:   20,
-    backgroundColor:'rgba(34,197,94,0.12)',
-    borderWidth:    1,
-    borderColor:    'rgba(34,197,94,0.25)',
+    paddingVertical:   4,
+    borderRadius:      999,
+    borderWidth:        1,
+    borderColor:        'rgba(198,242,78,0.35)',
   },
   completedBadgeText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize:   W * 0.03,
-    color:      '#22C55E',
+    fontFamily: CoachFonts.bodyBold,
+    fontSize:   11,
+    color:      CoachColors.accent,
   },
-  scoreBlock: {
-    alignItems: 'center',
-    paddingTop: 8,
+  headline: {
+    fontFamily:    CoachFonts.headingBold,
+    fontSize:      26,
+    color:         CoachColors.textPrimary,
+    letterSpacing: -0.5,
+    lineHeight:    32,
   },
-  scoreNumber: {
-    fontFamily:    FontFamily.headingExtraBold,
-    fontSize:      W * 0.22,
-    color:         '#FFFFFF',
-    letterSpacing: -4,
-    lineHeight:    W * 0.24,
-  },
-  scoreLabel: {
-    fontFamily:    FontFamily.bodyBold,
-    fontSize:      W * 0.028,
-    color:         'rgba(255,255,255,0.35)',
-    letterSpacing: 2.5,
-    marginTop:     4,
-    marginBottom:  8,
-  },
-  scoreDesc: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize:   W * 0.038,
-    color:      '#C8F135',
+  subline: {
+    fontFamily: CoachFonts.body,
+    fontSize:   13.5,
+    color:      CoachColors.textSecondary,
+    marginTop:  9,
+    lineHeight: 19,
   },
 
   // ── Stats row ─────────────────────────────────────────────────────────────
   statsRow: {
     flexDirection:     'row',
-    paddingHorizontal: W * 0.04,
-    gap:               8,
-    marginTop:         W * 0.04,
-    marginBottom:      W * 0.02,
+    paddingHorizontal: 20,
+    gap:               10,
+    marginTop:         20,
   },
-  statCard: {
+  statTile: {
     flex:            1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius:    14,
+    backgroundColor: CoachColors.surface,
+    borderRadius:    12,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.08)',
-    padding:         10,
-    alignItems:      'center',
-    gap:             4,
-  },
-  statIconBg: {
-    width:          28,
-    height:         28,
-    borderRadius:   9,
-    alignItems:     'center',
-    justifyContent: 'center',
-    marginBottom:   2,
-  },
-  statValue: {
-    fontFamily:    FontFamily.headingExtraBold,
-    fontSize:      W * 0.042,
-    color:         '#FFFFFF',
-    letterSpacing: -0.5,
-    textAlign:     'center',
+    borderColor:     CoachColors.borderMuted,
+    padding:         12,
   },
   statLabel: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.026,
-    color:      'rgba(255,255,255,0.38)',
-    textAlign:  'center',
+    fontFamily: CoachFonts.body,
+    fontSize:   11,
+    color:      CoachColors.textMuted,
+  },
+  statValue: {
+    fontFamily:    CoachFonts.headingBold,
+    fontSize:      17,
+    color:         CoachColors.textPrimary,
+    marginTop:     2,
   },
 
   // ── Cards ─────────────────────────────────────────────────────────────────
   card: {
-    marginHorizontal: W * 0.04,
-    marginTop:        W * 0.035,
-    backgroundColor:  '#111118',
-    borderRadius:     18,
+    marginHorizontal: 20,
+    marginTop:        24,
+    backgroundColor:  CoachColors.surface,
+    borderRadius:     14,
     borderWidth:      1,
-    borderColor:      'rgba(255,255,255,0.08)',
-    padding:          W * 0.05,
+    borderColor:      CoachColors.borderMuted,
+    padding:          15,
   },
   nextCard: {
-    borderColor: 'rgba(200,241,53,0.2)',
-    backgroundColor: 'rgba(200,241,53,0.03)',
+    borderColor:     CoachColors.border,
   },
   cardTag: {
-    fontFamily:    FontFamily.bodyBold,
-    fontSize:      W * 0.026,
-    color:         'rgba(255,255,255,0.35)',
-    letterSpacing: 1.8,
+    fontFamily:    CoachFonts.bodyBold,
+    fontSize:      11,
+    color:         CoachColors.textFaint,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
-    marginBottom:  4,
   },
   cardTitleRow: {
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'space-between',
-    marginBottom:   4,
   },
   cardTitle: {
-    fontFamily:    FontFamily.headingExtraBold,
-    fontSize:      W * 0.048,
-    color:         '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom:  W * 0.04,
+    fontFamily:    CoachFonts.headingBold,
+    fontSize:      16,
+    color:         CoachColors.textPrimary,
+    letterSpacing: -0.3,
+    marginTop:     6,
+    marginBottom:  14,
   },
 
   // ── Exercise bars ─────────────────────────────────────────────────────────
-  exList: { gap: 14 },
+  exList: { gap: 13, marginTop: 14 },
   exRow: {
     flexDirection: 'row',
     alignItems:    'center',
-    gap:           10,
+    gap:           11,
   },
-  exInfo: { width: W * 0.34 },
+  exInfo: { width: W * 0.3 },
   exName: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize:   W * 0.033,
-    color:      '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize:   13,
+    color:      CoachColors.textPrimary,
   },
   exMeta: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.028,
-    color:      'rgba(255,255,255,0.38)',
-    marginTop:  2,
+    fontFamily: CoachFonts.body,
+    fontSize:   11,
+    color:      CoachColors.textMuted,
+    marginTop:  1,
+  },
+  exMetaWarning: {
+    color: CoachColors.warning,
   },
   exBarTrack: {
     flex:            1,
     height:          6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius:    3,
     overflow:        'hidden',
   },
@@ -804,175 +654,86 @@ const st = StyleSheet.create({
     height:       '100%',
     borderRadius: 3,
   },
-  exCheck: { marginLeft: 4 },
-
-  // ── Volume ────────────────────────────────────────────────────────────────
-  volumeRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    marginTop:      W * 0.04,
-    paddingTop:     W * 0.04,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  volumeLabel: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.03,
-    color:      'rgba(255,255,255,0.4)',
-  },
-  volumeValue: {
-    fontFamily:    FontFamily.headingExtraBold,
-    fontSize:      W * 0.048,
-    color:         '#FFFFFF',
-    letterSpacing: -0.5,
-    marginTop:     2,
-  },
-  volumeBadge: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           4,
-    paddingHorizontal: 10,
-    paddingVertical:   6,
-    borderRadius:  20,
-    borderWidth:   1,
-  },
-  volumeBadgeText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize:   W * 0.03,
-    color:      '#C8F135',
-  },
+  exCheck: { marginLeft: 2 },
 
   // ── Muscle chips ──────────────────────────────────────────────────────────
   muscleChips: {
     flexDirection: 'row',
     flexWrap:      'wrap',
-    gap:           8,
+    gap:           7,
+    marginTop:     11,
   },
   muscleChip: {
-    paddingHorizontal: 12,
-    paddingVertical:   6,
-    borderRadius:      20,
-    backgroundColor:   'rgba(167,139,250,0.12)',
+    paddingHorizontal: 11,
+    paddingVertical:   5,
+    borderRadius:      999,
     borderWidth:       1,
-    borderColor:       'rgba(167,139,250,0.25)',
+    borderColor:       CoachColors.borderMuted,
   },
   muscleChipText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize:   W * 0.032,
-    color:      '#A78BFA',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize:   11.5,
+    color:      CoachColors.textSecondary,
   },
 
   // ── Notes ─────────────────────────────────────────────────────────────────
-  savedPill: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           3,
-    paddingHorizontal: 8,
-    paddingVertical:   3,
-    borderRadius:  20,
-    backgroundColor:'rgba(34,197,94,0.1)',
-  },
   savedText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize:   W * 0.026,
-    color:      '#22C55E',
+    fontFamily: CoachFonts.bodyBold,
+    fontSize:   11,
+    color:      CoachColors.accent,
   },
   notesInput: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.bg,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.08)',
-    padding:         14,
-    fontFamily:      FontFamily.body,
-    fontSize:        W * 0.035,
-    color:           '#FFFFFF',
-    minHeight:       100,
-    lineHeight:      W * 0.052,
+    borderColor:     CoachColors.borderMuted,
+    padding:         13,
+    marginTop:       9,
+    fontFamily:      CoachFonts.body,
+    fontSize:        14,
+    color:           CoachColors.textPrimary,
+    minHeight:       84,
+    lineHeight:      20,
   },
 
   // ── What's Next ───────────────────────────────────────────────────────────
-  nextBody: { gap: 14, marginBottom: W * 0.04 },
-  nextRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           12,
-  },
-  nextIconBg: {
-    width:          38,
-    height:         38,
-    borderRadius:   12,
-    alignItems:     'center',
-    justifyContent: 'center',
-    flexShrink:     0,
-  },
-  nextRowLabel: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.03,
-    color:      'rgba(255,255,255,0.42)',
-  },
-  nextRowValue: {
-    fontFamily:    FontFamily.headingSemiBold,
-    fontSize:      W * 0.038,
-    color:         '#FFFFFF',
-    marginTop:     2,
-    letterSpacing: -0.2,
-  },
-  motivationBlock: {
-    flexDirection:  'row',
-    alignItems:     'flex-start',
-    gap:            8,
-    backgroundColor:'rgba(245,158,11,0.06)',
-    borderRadius:   12,
-    borderWidth:    1,
-    borderColor:    'rgba(245,158,11,0.15)',
-    padding:        12,
-  },
-  motivationText: {
-    fontFamily: FontFamily.body,
-    fontSize:   W * 0.032,
-    color:      'rgba(255,255,255,0.6)',
-    lineHeight: W * 0.048,
-    flex:       1,
+  nextDesc: {
+    fontFamily: CoachFonts.body,
+    fontSize:   12.5,
+    color:      CoachColors.textSecondary,
+    marginTop:  -8,
+    marginBottom: 15,
+    lineHeight: 18,
   },
   bookCTA: {
-    borderRadius: 14,
-    overflow:     'hidden',
-  },
-  bookCTAGradient: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            8,
-    paddingVertical:15,
-    minHeight:      52,
+    backgroundColor: CoachColors.accent,
+    borderRadius:    999,
+    alignItems:      'center',
+    justifyContent:  'center',
+    paddingVertical: 14,
+    minHeight:       50,
   },
   bookCTAText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize:   W * 0.042,
-    color:      '#0D0D12',
-    letterSpacing: -0.2,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize:   14,
+    color:      CoachColors.onAccent,
   },
 
   // ── Done ──────────────────────────────────────────────────────────────────
   doneRow: {
-    paddingHorizontal: W * 0.04,
-    marginTop:         W * 0.04,
+    alignItems: 'center',
+    marginTop:  22,
+    marginBottom: 8,
   },
   doneBtn: {
     alignItems:      'center',
     justifyContent:  'center',
     paddingVertical: 16,
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    minHeight:       52,
+    paddingHorizontal: 24,
   },
   doneBtnText: {
-    fontFamily:    FontFamily.headingSemiBold,
-    fontSize:      W * 0.04,
-    color:         'rgba(255,255,255,0.7)',
-    letterSpacing: -0.2,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize:   13.5,
+    color:      CoachColors.textMuted,
   },
 });

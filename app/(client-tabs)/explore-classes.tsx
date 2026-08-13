@@ -286,7 +286,7 @@ export default function ExploreClassesScreen() {
               brand: item.brand,
               durationMin: String(item.durationMin),
               thumbnail: item.thumbnail,
-              is_free: String(item.isFree),   // ← required for class-detail paywall gate
+              is_free: item.isFree ? 'true' : 'false',   // ← required for class-detail paywall gate
             },
           });
         }}

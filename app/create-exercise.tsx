@@ -1,18 +1,18 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { useApp, sanitizeCategory, sanitizeEquipment } from '../context/AppContext';
-import { Spacing, FontFamily, FontSize, Radius, Colors } from '../constants/theme';
+import { useApp, sanitizeCategory } from '../context/AppContext';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core', 'Cardio', 'Full Body', 'Flexibility'];
 const MUSCLE_GROUPS = [
-  'Pectorals', 'Latissimus Dorsi', 'Quadriceps', 'Hamstrings', 'Glutes', 
+  'Pectorals', 'Latissimus Dorsi', 'Quadriceps', 'Hamstrings', 'Glutes',
   'Biceps', 'Triceps', 'Deltoids', 'Trapezius', 'Abs', 'Obliques', 'Calves', 'Cardiovascular'
 ];
 const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Machine', 'Cables', 'Kettlebell', 'Bands', 'Bodyweight', 'Plate', 'None'];
@@ -21,7 +21,7 @@ export default function CreateExerciseScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const editId = params.editId as string | undefined;
-  
+
   const { exercises, createExercise, updateExercise } = useApp();
   const { showAlert } = useAlert();
 
@@ -34,27 +34,28 @@ export default function CreateExerciseScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
 
   useEffect(() => {
     if (editId && exercises.length > 0) {
       const existing = exercises.find(e => e.id === editId);
       if (existing) {
         setName(existing.name);
-        
+
         // Find closest matching category
         const matchCat = CATEGORIES.find(c => c.toLowerCase() === existing.category.toLowerCase());
         if (matchCat) setCategory(matchCat);
-        
+
         // Find closest matching muscle group
         const matchMuscle = MUSCLE_GROUPS.find(m => m.toLowerCase() === existing.muscle_group.toLowerCase());
         if (matchMuscle) setMuscleGroup(matchMuscle);
-        
+
         // Find closest matching equipment
         if (existing.equipment) {
           const matchEq = EQUIPMENT_OPTIONS.find(eq => existing.equipment && eq.toLowerCase().includes(existing.equipment.toLowerCase()));
           if (matchEq) setEquipment(matchEq);
         }
-        
+
         setInstructions(existing.instructions || '');
         setImageUrl(existing.image_url || null);
       }
@@ -64,7 +65,7 @@ export default function CreateExerciseScreen() {
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      showAlert({ type: 'warning', title: 'Permission Needed', message: 'Gallery access is required.' });
+      showAlert({ type: 'warning', title: 'Permission needed', message: 'Gallery access is required.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -74,16 +75,13 @@ export default function CreateExerciseScreen() {
       aspect: [1, 1],
     });
     if (result.canceled || !result.assets[0]) return;
-    
+
     setUploadingImage(true);
     try {
       const asset = result.assets[0];
       const ext = asset.uri.split('.').pop() || 'jpg';
       const fileName = `exercise-img-${Date.now()}.${ext}`;
-      
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      
+
       const formData = new FormData();
       formData.append('', {
         uri: asset.uri,
@@ -110,7 +108,7 @@ export default function CreateExerciseScreen() {
       const { data: urlData } = supabase.storage.from('exercise-videos').getPublicUrl(fileName);
       setImageUrl(urlData.publicUrl);
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Upload Failed', message: err.message || 'Failed to upload image' });
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Failed to upload image' });
     } finally {
       setUploadingImage(false);
     }
@@ -128,7 +126,7 @@ export default function CreateExerciseScreen() {
 
       if (error) throw error;
       if (data) {
-        // Validate AI response against allowed lists before setting state
+        // Validate response against allowed lists before setting state
         if (data.category) {
           const matchCat = CATEGORIES.find(c => c.toLowerCase() === data.category.toLowerCase());
           if (matchCat) {
@@ -149,26 +147,26 @@ export default function CreateExerciseScreen() {
           setEquipment(matchEq || EQUIPMENT_OPTIONS[8]); // 'None'
         }
         if (data.instructions) setInstructions(data.instructions);
-        
-        showAlert({
-          type: 'success',
-          title: 'Success!',
-          message: `Generated details for "${name.trim()}".`
-        });
+
+        setAutoFilled(true);
       }
     } catch (err: any) {
-      console.error('AI Generation Error:', err);
+      console.error('Exercise generation error:', err);
+      setAutoFilled(false);
       showAlert({
         type: 'error',
-        title: 'AI Generation Failed',
-        message: err.message || 'Could not auto-fill this exercise. Please fill it in manually.'
+        title: 'Auto-fill failed',
+        message: err.message && !err.message.includes('generate-exercise')
+          ? err.message
+          : 'Could not auto-fill this exercise. Please fill it in manually.'
       });
     } finally {
       setGenerating(false);
     }
   };
 
-  // Auto-trigger AI generation if passed via params
+  // Auto-trigger generation if passed via params (from the workout builder's
+  // "Not here? Create an exercise" flow)
   useEffect(() => {
     if (params.autoGenerate === 'true' && params.initialName) {
       handleGenerateAI(params.initialName as string);
@@ -177,7 +175,7 @@ export default function CreateExerciseScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      showAlert({ type: 'warning', title: 'Name Required', message: 'Please enter an exercise name.' });
+      showAlert({ type: 'warning', title: 'Name required', message: 'Please enter an exercise name.' });
       return;
     }
 
@@ -195,7 +193,7 @@ export default function CreateExerciseScreen() {
         );
         showAlert({
           type: 'success',
-          title: 'Exercise Updated!',
+          title: 'Exercise updated',
           message: `"${name.trim()}" has been updated.`,
           buttons: [{ text: 'OK', onPress: () => router.back() }]
         });
@@ -210,7 +208,7 @@ export default function CreateExerciseScreen() {
         );
         showAlert({
           type: 'success',
-          title: 'Exercise Created!',
+          title: 'Exercise created',
           message: `"${name.trim()}" has been added to your library.`,
           buttons: [{ text: 'OK', onPress: () => router.back() }]
         });
@@ -224,156 +222,159 @@ export default function CreateExerciseScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          
+
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <View style={s.header}>
+            <TouchableOpacity onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{editId ? 'Edit Exercise' : 'New Exercise'}</Text>
-            <View style={{ width: 40 }} />
+            <Text style={s.headerTitle}>{editId ? 'Edit exercise' : 'New exercise'}</Text>
+            <View style={{ width: 36 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            
-            {/* Image Upload */}
-            <View style={styles.imageUploadContainer}>
-              <TouchableOpacity style={styles.imageUploadBtn} onPress={handlePickImage} disabled={uploadingImage}>
-                {uploadingImage ? (
-                  <ActivityIndicator color="#FF6B35" />
-                ) : imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={styles.uploadedImage} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.4)" />
-                    <Text style={styles.imagePlaceholderText}>Add Photo</Text>
-                  </View>
-                )}
-                {imageUrl && (
-                  <View style={styles.editImageOverlay}>
-                    <Ionicons name="pencil" size={16} color="#FFFFFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-            {/* Exercise Name */}
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.label}>EXERCISE NAME</Text>
+            {/* Name */}
+            <Section label="Name">
+              <View style={s.nameRow}>
+                <TextInput
+                  style={[s.input, { flex: 1 }]}
+                  placeholder="e.g. Landmine Press"
+                  placeholderTextColor={CoachColors.textFaint}
+                  value={name}
+                  onChangeText={(t) => { setName(t); setAutoFilled(false); }}
+                  autoCapitalize="words"
+                  selectionColor={CoachColors.accent}
+                />
                 <TouchableOpacity
-                  style={[styles.aiBtn, (!name.trim() || generating) && styles.aiBtnDisabled]}
+                  style={[s.autoFillBtn, (!name.trim() || generating) && s.autoFillBtnDisabled]}
                   onPress={() => handleGenerateAI()}
                   disabled={!name.trim() || generating}
                   activeOpacity={0.7}
                 >
                   {generating ? (
-                    <ActivityIndicator size="small" color="#000000" style={{ transform: [{ scale: 0.8 }] }} />
+                    <ActivityIndicator size="small" color={CoachColors.accent} />
                   ) : (
-                    <>
-                      <Ionicons name="sparkles" size={12} color="#000000" />
-                      <Text style={styles.aiBtnText}>Auto-Fill with AI</Text>
-                    </>
+                    <Text style={s.autoFillBtnText}>Auto-fill</Text>
                   )}
                 </TouchableOpacity>
               </View>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Incline Dumbbell Press"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                selectionColor="#FFFFFF"
-              />
-            </View>
+            </Section>
 
-            {/* Category selection chips */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>CATEGORY</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
+            {/* Auto-fill confirmation banner */}
+            {autoFilled && !generating && (
+              <View style={s.confirmBanner}>
+                <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
+                <Text style={s.confirmBannerText}>
+                  Category, muscle group and instructions filled in from the name. Check them before saving.
+                </Text>
+              </View>
+            )}
+
+            {/* Category */}
+            <Section label="Category">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity
                     key={cat}
-                    style={[styles.chip, category === cat && styles.chipActive]}
+                    style={[s.chip, category === cat && s.chipActive]}
                     onPress={() => setCategory(cat)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>{cat}</Text>
+                    <Text style={[s.chipText, category === cat && s.chipTextActive]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            </Section>
 
-            {/* Muscle Group selection chips */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>TARGET MUSCLE GROUP</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
+            {/* Target muscle */}
+            <Section label="Target muscle">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {MUSCLE_GROUPS.map((mg) => (
                   <TouchableOpacity
                     key={mg}
-                    style={[styles.chip, muscleGroup === mg && styles.chipActive]}
+                    style={[s.chip, muscleGroup === mg && s.chipActive]}
                     onPress={() => setMuscleGroup(mg)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.chipText, muscleGroup === mg && styles.chipTextActive]}>{mg}</Text>
+                    <Text style={[s.chipText, muscleGroup === mg && s.chipTextActive]}>{mg}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            </Section>
 
-            {/* Equipment selection chips */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EQUIPMENT</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
+            {/* Equipment */}
+            <Section label="Equipment">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {EQUIPMENT_OPTIONS.map((eq) => (
                   <TouchableOpacity
                     key={eq}
-                    style={[styles.chip, equipment === eq && styles.chipActive]}
+                    style={[s.chip, equipment === eq && s.chipActive]}
                     onPress={() => setEquipment(eq)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>{eq}</Text>
+                    <Text style={[s.chipText, equipment === eq && s.chipTextActive]}>{eq}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            </Section>
 
             {/* Instructions */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>INSTRUCTIONS (OPTIONAL)</Text>
+            <Section label="Instructions">
               <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Provide a step-by-step description of how to perform the movement safely and effectively..."
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                style={[s.input, s.textArea]}
+                placeholder="Describe how to perform the movement safely and effectively..."
+                placeholderTextColor={CoachColors.textFaint}
                 value={instructions}
                 onChangeText={setInstructions}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                selectionColor="#FFFFFF"
+                selectionColor={CoachColors.accent}
               />
-            </View>
+            </Section>
+
+            {/* Photo / demo clip */}
+            <TouchableOpacity style={s.mediaRow} onPress={handlePickImage} disabled={uploadingImage} activeOpacity={0.7}>
+              {uploadingImage ? (
+                <View style={s.mediaThumb}>
+                  <ActivityIndicator color={CoachColors.accent} />
+                </View>
+              ) : imageUrl ? (
+                <View style={s.mediaThumb}>
+                  <Image source={{ uri: imageUrl }} style={s.mediaThumbImage} />
+                  <View style={s.mediaEditBadge}>
+                    <Ionicons name="pencil" size={11} color={CoachColors.onAccent} />
+                  </View>
+                </View>
+              ) : (
+                <View style={s.mediaThumb}>
+                  <Ionicons name="image-outline" size={20} color={CoachColors.textFaint} />
+                </View>
+              )}
+              <Text style={s.mediaRowText}>Add a photo or demo clip</Text>
+              <Text style={s.mediaRowOptional}>Optional</Text>
+            </TouchableOpacity>
 
             {/* Action buttons */}
-            <View style={styles.btnRow}>
+            <View style={s.btnRow}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={s.cancelBtn}
                 onPress={() => router.back()}
                 disabled={saving}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+              <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
                 {saving ? (
-                  <ActivityIndicator size="small" color="#000000" />
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
                 ) : (
-                  <Text style={styles.saveBtnText}>{editId ? 'Save Changes' : 'Create Exercise'}</Text>
+                  <Text style={s.saveBtnText}>Save to library</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -385,181 +386,225 @@ export default function CreateExerciseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// ── Sub-components ──────────────────────────────────────────────────────────
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: CoachColors.borderMuted,
   },
-  backBtn: {
-    padding: 8,
+  headerBack: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing['2xl'] + 40,
+  scroll: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 48,
   },
-  imageUploadContainer: {
+
+  section: {
+    marginBottom: 22,
+  },
+  sectionLabel: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    color: CoachColors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+
+  nameRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    gap: 10,
   },
-  imageUploadBtn: {
-    width: 120,
-    height: 120,
-    borderRadius: Radius.sm,
-    backgroundColor: '#0F0F0F',
+  autoFillBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    overflow: 'hidden',
-    justifyContent: 'center',
+    borderColor: CoachColors.accent,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 76,
   },
-  uploadedImage: {
+  autoFillBtnDisabled: {
+    borderColor: CoachColors.borderMuted,
+    opacity: 0.6,
+  },
+  autoFillBtnText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12.5,
+    color: CoachColors.accent,
+  },
+
+  confirmBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1,
+    borderColor: CoachColors.accent,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 22,
+    marginTop: -6,
+  },
+  confirmBannerText: {
+    flex: 1,
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: CoachColors.textPrimary,
+  },
+
+  input: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    fontFamily: CoachFonts.body,
+    fontSize: 15,
+    color: CoachColors.textPrimary,
+  },
+  textArea: {
+    height: 110,
+    paddingTop: 14,
+  },
+
+  chipScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  chip: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  chipActive: {
+    backgroundColor: CoachColors.accentSofter,
+    borderColor: CoachColors.accent,
+  },
+  chipText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12.5,
+    color: CoachColors.textSecondary,
+  },
+  chipTextActive: {
+    color: CoachColors.accent,
+  },
+
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 26,
+  },
+  mediaThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  mediaThumbImage: {
     width: '100%',
     height: '100%',
   },
-  imagePlaceholder: {
+  mediaEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imagePlaceholderText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 8,
-    letterSpacing: 0.5,
+  mediaRowText: {
+    flex: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14,
+    color: CoachColors.textPrimary,
   },
-  editImageOverlay: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    padding: 6,
-    borderRadius: Radius.xs,
+  mediaRowOptional: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textFaint,
   },
-  inputGroup: {
-    marginBottom: Spacing.xl,
-  },
-  label: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.4)',
-    letterSpacing: 1.5,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  aiBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.xs,
-  },
-  aiBtnDisabled: {
-    opacity: 0.5,
-  },
-  aiBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: '#000000',
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 0,
-    paddingVertical: Spacing.sm,
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  textArea: {
-    height: 100,
-    paddingTop: Spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.xs,
-    backgroundColor: '#050505',
-  },
-  chipScroll: {
-    gap: 8,
-    paddingVertical: Spacing.xs,
-  },
-  chip: {
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
-  },
-  chipText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 0.5,
-  },
-  chipTextActive: {
-    fontFamily: FontFamily.headingExtraBold,
-    color: '#000000',
-  },
+
   btnRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: 12,
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: Radius.sm,
+    paddingVertical: 15,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0A0A0A',
+    backgroundColor: CoachColors.surface,
   },
   cancelBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14,
+    color: CoachColors.textSecondary,
   },
   saveBtn: {
     flex: 2,
-    paddingVertical: 14,
-    borderRadius: Radius.sm,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 15,
+    borderRadius: 999,
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 12,
-    color: '#000000',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.headingSemiBold,
+    fontSize: 14,
+    color: CoachColors.onAccent,
   },
 });

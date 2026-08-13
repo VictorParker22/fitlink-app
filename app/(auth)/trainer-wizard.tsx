@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, Share,
+  KeyboardAvoidingView, Platform, ScrollView, Alert,
   Dimensions, Linking, ActivityIndicator, Image,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -14,26 +14,26 @@ import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { useTheme } from '../../context/ThemeContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Three steps. A first-athlete invite used to live here as step 3, duplicating
+// the dedicated add-client flow (app/add-client.tsx) in a weaker form — that
+// same task is also step 4 of the home checklist. It's been cut from the
+// wizard; the done screen below hands off to add-client instead of copying it.
 const STEPS = [
-  { title: 'Set Up Your Profile', subtitle: 'Let your clients know who you are' },
-  { title: 'Set Your Availability', subtitle: 'Choose which days you train clients' },
-  { title: 'Invite Your First Client', subtitle: 'Get started by adding someone to your roster' },
-  { title: 'Set Up Payments', subtitle: 'Get paid for your coaching' },
+  { title: 'Who are your\nathletes training with?', subtitle: 'This is what they see when they open your profile.' },
+  { title: 'When do athletes\nbook you?', subtitle: 'Rough hours are fine — you can change any day later.' },
+  { title: 'Where should the\nmoney go?', subtitle: 'Athletes pay in the app. Stripe pays out to your bank.' },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function TrainerWizardScreen() {
   const router = useRouter();
-  const { trainer, updateTrainer, addClient } = useApp();
+  const { trainer, updateTrainer } = useApp();
   const { user } = useAuth();
-  const { colors, isDark } = useTheme();
 
   const [step, setStep] = useState(0);
   const slideAnim = useSharedValue(0);
@@ -41,17 +41,9 @@ export default function TrainerWizardScreen() {
   const [completionVisible, setCompletionVisible] = useState(false);
   const progressAnim = useSharedValue(1 / STEPS.length);
 
-  useEffect(() => {
-    progressAnim.value = withTiming((step + 1) / STEPS.length, { duration: 350 });
-  }, [step]);
-
-  useEffect(() => {
-    if (!completionVisible) return;
-    const timer = setTimeout(() => {
-      router.replace('/(tabs)');
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [completionVisible]);
+  const setProgress = (nextStep: number) => {
+    progressAnim.value = withTiming((nextStep + 1) / STEPS.length, { duration: 350 });
+  };
 
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progressAnim.value * 100}%`,
@@ -89,12 +81,7 @@ export default function TrainerWizardScreen() {
     }), {} as Record<string, boolean>)
   );
 
-  // Step 3 — Invite Client
-  const [clientName, setClientName] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
-  const [clientAdded, setClientAdded] = useState(false);
-
-  // Step 4 — Payments
+  // Step 3 — Payments
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeComplete, setStripeComplete] = useState(false);
 
@@ -106,6 +93,7 @@ export default function TrainerWizardScreen() {
     slideAnim.value = withTiming(-direction * SCREEN_WIDTH, { duration: 200 }, (finished) => {
       if (finished) {
         runOnJS(setStep)(nextStep);
+        runOnJS(setProgress)(nextStep);
         slideAnim.value = direction * SCREEN_WIDTH;
         slideAnim.value = withTiming(0, { duration: 250 });
       }
@@ -117,7 +105,7 @@ export default function TrainerWizardScreen() {
       // Validate & save profile
       if (!name.trim()) return Alert.alert('Required', 'Please enter your name.');
       setSaving(true);
-      
+
       // Upload avatar if selected
       let avatarUrl: string | undefined;
       if (avatarUri) {
@@ -140,7 +128,7 @@ export default function TrainerWizardScreen() {
           setAvatarUploading(false);
         }
       }
-      
+
       try {
         await updateTrainer({
           name: name.trim(),
@@ -175,12 +163,9 @@ export default function TrainerWizardScreen() {
       }
       setSaving(false);
       animateToStep(2);
-    } else if (step === 2) {
-      // Advance to payments step
-      animateToStep(3);
     } else {
-      // Complete wizard
-      await completeWizard();
+      // Step 3 (payments) — connect bank, then finish
+      await handleConnectBank();
     }
   };
 
@@ -188,36 +173,8 @@ export default function TrainerWizardScreen() {
     if (step > 0) animateToStep(step - 1);
   };
 
-  const handleAddClient = async () => {
-    if (!clientName.trim()) return Alert.alert('Required', 'Please enter a client name.');
-    setSaving(true);
-    try {
-      await addClient({
-        name: clientName.trim(),
-        email: clientEmail.trim() || undefined,
-        status: 'trial',
-      });
-      setClientAdded(true);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add client');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleShareInvite = async () => {
-    try {
-      await Share.share({
-        message: `Hey! Join me on FitLink to track your workouts and schedule sessions. Download here: https://fitlink.coach`,
-        title: 'Join me on FitLink',
-      });
-    } catch {
-      // User cancelled
-    }
-  };
-
   const handleStripeSetup = async () => {
-    if (!user) return;
+    if (!user) return false;
     setStripeLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -240,11 +197,22 @@ export default function TrainerWizardScreen() {
       if (data.error) throw new Error(data.error);
       await Linking.openURL(data.url);
       setStripeComplete(true);
+      return true;
     } catch (err: any) {
       Alert.alert('Setup Error', err.message || 'Failed to start payment setup');
+      return false;
     } finally {
       setStripeLoading(false);
     }
+  };
+
+  const handleConnectBank = async () => {
+    const started = await handleStripeSetup();
+    if (started) await completeWizard();
+  };
+
+  const handleSkipPayments = async () => {
+    await completeWizard();
   };
 
   const completeWizard = async () => {
@@ -257,27 +225,72 @@ export default function TrainerWizardScreen() {
     } catch (e) {
       // Non-critical — SecureStore fallback still works
     }
-    // Show completion animation before navigating (handled by completionVisible state)
     setCompletionVisible(true);
   };
 
+  const activeDayCount = DAYS.filter(d => activeDays[d]).length;
+  const bookableHours = activeDayCount * 8;
+
+  if (completionVisible) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.doneBody}>
+          <View style={styles.doneCheckCircle}>
+            <Ionicons name="checkmark" size={32} color={CoachColors.onAccent} />
+          </View>
+          <Text style={styles.doneTitle}>{`You're set up${name.trim() ? `,\n${name.trim().split(' ')[0]}` : ''}`}</Text>
+          <Text style={styles.doneSubtitle}>
+            {stripeComplete
+              ? "Payments are connected and your week is bookable. One thing left before the app has anything to show you."
+              : "Your week is bookable — you can connect payments anytime from settings. One thing left before the app has anything to show you."}
+          </Text>
+
+          <View style={styles.doneCard}>
+            <Text style={styles.doneCardEyebrow}>Last step</Text>
+            <Text style={styles.doneCardTitle}>Bring in your first athlete</Text>
+            <Text style={styles.doneCardSubtitle}>Someone you already train is the easiest place to start.</Text>
+            <TouchableOpacity
+              style={styles.doneCardBtn}
+              onPress={() => router.push('/add-client' as any)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Add an athlete"
+            >
+              <Text style={styles.doneCardBtnText}>Add an athlete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.doneFooter}>
+          <TouchableOpacity
+            onPress={() => router.replace('/(tabs)')}
+            accessibilityRole="button"
+            accessibilityLabel="Go to my dashboard"
+          >
+            <Text style={styles.doneFooterLink}>Take me to my dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         {step > 0 ? (
-          <TouchableOpacity onPress={handleBack} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]} accessibilityRole="button" accessibilityLabel="Go back to previous step">
-            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back to previous step">
+            <Ionicons name="arrow-back" size={18} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 36 }} />
         )}
-        <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>Step {step + 1} of {STEPS.length}</Text>
+        <Text style={styles.stepLabel}>Step {step + 1} of {STEPS.length}</Text>
         <View style={{ width: 36 }} />
       </View>
 
       {/* Progress Bar */}
-      <View style={[styles.progressTrack, { backgroundColor: colors.bgElevated }]}>
+      <View style={styles.progressTrack}>
         <Animated.View style={[styles.progressFill, progressStyle]} />
       </View>
 
@@ -285,8 +298,8 @@ export default function TrainerWizardScreen() {
         <Animated.View style={[styles.stepContainer, slideStyle]}>
           {/* Step Title */}
           <View style={styles.titleBlock}>
-            <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>{STEPS[step].title}</Text>
-            <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>{STEPS[step].subtitle}</Text>
+            <Text style={styles.stepTitle}>{STEPS[step].title}</Text>
+            <Text style={styles.stepSubtitle}>{STEPS[step].subtitle}</Text>
           </View>
 
           <ScrollView
@@ -297,65 +310,73 @@ export default function TrainerWizardScreen() {
             {/* ============ STEP 1: Profile ============ */}
             {step === 0 && (
               <>
-                {/* Avatar Picker */}
-                <TouchableOpacity
-                  onPress={handlePickAvatar}
-                  activeOpacity={0.8}
-                  style={styles.avatarPickerContainer}
-                  accessibilityRole="button"
-                  accessibilityLabel="Upload profile photo"
-                >
-                  {avatarUri ? (
-                    <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Ionicons name="camera-outline" size={28} color="rgba(255,255,255,0.5)" />
-                      <Text style={styles.avatarPlaceholderText}>Add Photo</Text>
+                <View style={styles.avatarRow}>
+                  <TouchableOpacity
+                    onPress={handlePickAvatar}
+                    activeOpacity={0.8}
+                    style={styles.avatarPickerContainer}
+                    accessibilityRole="button"
+                    accessibilityLabel="Upload profile photo"
+                  >
+                    {avatarUri ? (
+                      <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Ionicons name="person-outline" size={28} color={CoachColors.textFaint} />
+                      </View>
+                    )}
+                    <View style={styles.avatarBadge}>
+                      <Ionicons name="camera-outline" size={13} color={CoachColors.onAccent} />
                     </View>
-                  )}
-                  {avatarUploading && (
-                    <View style={styles.avatarOverlay}>
-                      <ActivityIndicator color="#FFF" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                  <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Your Name *</Text>
+                    {avatarUploading && (
+                      <View style={styles.avatarOverlay}>
+                        <ActivityIndicator color={CoachColors.textPrimary} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <View style={styles.avatarCopy}>
+                    <Text style={styles.avatarCopyTitle}>Add a photo</Text>
+                    <Text style={styles.avatarCopySub}>Coaches with a photo get roughly twice the replies to an invite.</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.fieldRow, name.trim() && styles.fieldRowFilled]}>
+                  <Text style={styles.fieldLabel}>Your name</Text>
                   <TextInput
-                    style={[styles.input, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
+                    style={styles.fieldInput}
                     value={name}
                     onChangeText={setName}
                     placeholder="e.g. Coach Mike"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={CoachColors.textFaint}
                     autoFocus
                     accessibilityLabel="Your name"
                   />
                 </View>
 
-                <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                  <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Bio</Text>
+                <View style={[styles.fieldRow, specialization.trim() && styles.fieldRowFilled]}>
+                  <Text style={styles.fieldLabel}>What you coach</Text>
                   <TextInput
-                    style={[styles.textArea, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
-                    value={bio}
-                    onChangeText={setBio}
-                    placeholder="Tell your clients a bit about yourself..."
-                    placeholderTextColor={colors.textTertiary}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                    accessibilityLabel="Bio"
+                    style={styles.fieldInput}
+                    value={specialization}
+                    onChangeText={setSpecialization}
+                    placeholder="Strength & conditioning, HIIT…"
+                    placeholderTextColor={CoachColors.textFaint}
+                    accessibilityLabel="What you coach"
                   />
                 </View>
 
-                <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                  <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Specialization</Text>
+                <View style={[styles.fieldRow, bio.trim() && styles.fieldRowFilled, { minHeight: 76 }]}>
+                  <Text style={styles.fieldLabel}>Short bio</Text>
                   <TextInput
-                    style={[styles.input, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
-                    value={specialization}
-                    onChangeText={setSpecialization}
-                    placeholder="e.g. Strength & Conditioning, HIIT, Yoga"
-                    placeholderTextColor={colors.textTertiary}
-                    accessibilityLabel="Specialization"
+                    style={[styles.fieldInput, styles.fieldTextArea]}
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="A sentence or two about how you work…"
+                    placeholderTextColor={CoachColors.textFaint}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    accessibilityLabel="Short bio"
                   />
                 </View>
               </>
@@ -363,37 +384,23 @@ export default function TrainerWizardScreen() {
 
             {/* ============ STEP 2: Availability ============ */}
             {step === 1 && (
-              <View style={[styles.daysCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                <Text style={[styles.daysHint, { color: colors.textTertiary }]}>
-                  Tap to toggle your training days. You can fine-tune hours later in Settings.
-                </Text>
-                {DAYS.map((day, i) => {
+              <View style={{ gap: 8 }}>
+                {DAYS.map((day) => {
                   const isActive = activeDays[day];
                   return (
                     <TouchableOpacity
                       key={day}
-                      style={[
-                        styles.dayRow,
-                        i < DAYS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                      ]}
+                      style={[styles.dayRow, isActive ? styles.dayRowActive : styles.dayRowInactive]}
                       onPress={() => setActiveDays(prev => ({ ...prev, [day]: !prev[day] }))}
                       activeOpacity={0.7}
                       accessibilityRole="button"
                       accessibilityLabel={`Toggle ${day} ${isActive ? 'off' : 'on'}`}
                     >
-                      <View style={styles.dayLeft}>
-                        <View style={[
-                          styles.dayCheck,
-                          { borderColor: isActive ? Colors.accent : colors.borderStrong },
-                          isActive && { backgroundColor: Colors.accent, borderColor: Colors.accent },
-                        ]}>
-                          {isActive && <Ionicons name="checkmark" size={14} color={Colors.white} />}
-                        </View>
-                        <Text style={[styles.dayName, { color: isActive ? colors.textPrimary : colors.textTertiary }]}>
-                          {day}
-                        </Text>
+                      <View style={[styles.dayCheck, isActive && styles.dayCheckActive]}>
+                        {isActive && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
                       </View>
-                      <Text style={[styles.dayHours, { color: colors.textTertiary }]}>
+                      <Text style={[styles.dayName, !isActive && styles.dayNameInactive]}>{day}</Text>
+                      <Text style={[styles.dayHours, !isActive && styles.dayHoursInactive]}>
                         {isActive ? '9:00 AM – 5:00 PM' : 'Off'}
                       </Text>
                     </TouchableOpacity>
@@ -402,332 +409,202 @@ export default function TrainerWizardScreen() {
               </View>
             )}
 
-            {/* ============ STEP 3: Invite Client ============ */}
+            {/* ============ STEP 3: Payments ============ */}
             {step === 2 && (
               <>
-                {!clientAdded ? (
-                  <>
-                    {/* Manual Add */}
-                    <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                      <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Client Name</Text>
-                      <TextInput
-                        style={[styles.input, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
-                        value={clientName}
-                        onChangeText={setClientName}
-                        placeholder="e.g. Sarah Johnson"
-                        placeholderTextColor={colors.textTertiary}
-                        accessibilityLabel="Client name"
-                      />
-                    </View>
-                    <View style={[styles.inputGroup, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                      <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Client Email (optional)</Text>
-                      <TextInput
-                        style={[styles.input, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
-                        value={clientEmail}
-                        onChangeText={setClientEmail}
-                        placeholder="sarah@email.com"
-                        placeholderTextColor={colors.textTertiary}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        accessibilityLabel="Client email"
-                      />
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.addClientBtn, { backgroundColor: Colors.accent }]}
-                      onPress={handleAddClient}
-                      activeOpacity={0.85}
-                      disabled={saving}
-                      accessibilityRole="button"
-                      accessibilityLabel={saving ? 'Adding client' : 'Add client'}
-                    >
-                      <Ionicons name="person-add" size={18} color={Colors.white} />
-                      <Text style={styles.addClientBtnText}>{saving ? 'Adding...' : 'Add Client'}</Text>
-                    </TouchableOpacity>
-
-                    {/* Divider */}
-                    <View style={styles.dividerRow}>
-                      <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                      <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
-                      <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                    </View>
-
-                    {/* Share Link */}
-                    <TouchableOpacity
-                      style={[styles.shareBtn, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}
-                      onPress={handleShareInvite}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Share invite link"
-                    >
-                      <Ionicons name="share-outline" size={20} color={Colors.purple} />
-                      <Text style={[styles.shareBtnText, { color: colors.textPrimary }]}>Share Invite Link</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <View style={[styles.successCard, { backgroundColor: `${Colors.green}12` }]}>
-                    <View style={[styles.successIcon, { backgroundColor: Colors.greenSoft }]}>
-                      <Ionicons name="checkmark-circle" size={32} color={Colors.green} />
-                    </View>
-                    <Text style={[styles.successTitle, { color: colors.textPrimary }]}>Client Added!</Text>
-                    <Text style={[styles.successSub, { color: colors.textSecondary }]}>
-                      {clientName} has been added to your roster. You can add more clients from the dashboard anytime.
-                    </Text>
+                <View style={styles.payCard}>
+                  <Text style={styles.payEyebrow}>On a $180 pass</Text>
+                  <View style={styles.payAmountRow}>
+                    <Text style={styles.payAmount}>$162</Text>
+                    <Text style={styles.payAmountLabel}>reaches you</Text>
                   </View>
-                )}
-              </>
-            )}
-
-            {/* ============ STEP 4: Payments ============ */}
-            {step === 3 && (
-              <View style={styles.stepContent}>
-                <View style={{ alignItems: 'center', marginBottom: 24 }}>
-                  <View style={{
-                    width: 80, height: 80, borderRadius: 40,
-                    backgroundColor: colors.accentSoft,
-                    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-                  }}>
-                    <Ionicons name="wallet-outline" size={36} color={colors.accent} />
+                  <View style={styles.paySplitTrack}>
+                    <View style={styles.paySplitFill} />
                   </View>
-                  <Text style={[styles.stepTitle, { textAlign: 'center' }]}>
-                    Get paid for your coaching
-                  </Text>
-                  <Text style={[styles.stepSubtitle, { textAlign: 'center', marginTop: 8 }]}>
-                    Connect your bank account through Stripe to receive payments from your clients. FitLink handles all payment processing with a 10% platform fee.
-                  </Text>
+                  <View style={styles.paySplitLabels}>
+                    <Text style={styles.paySplitYou}>Your 90%</Text>
+                    <Text style={styles.paySplitFee}>FitLink fee 10% · $18</Text>
+                  </View>
+                  <Text style={styles.payFootnote}>Payouts land 2 business days after an athlete is charged.</Text>
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.continueBtn, stripeLoading && { opacity: 0.7 }]}
-                  onPress={handleStripeSetup}
-                  disabled={stripeLoading}
-                  activeOpacity={0.8}
-                >
-                  {stripeLoading ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="card-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                      <Text style={styles.continueBtnText}>
-                        {stripeComplete ? 'Continue Setup' : 'Connect Bank Account'}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {stripeComplete && (
-                  <Text style={[styles.stepSubtitle, { textAlign: 'center', marginTop: 12, color: colors.green || '#34C759' }]}>
-                    ✓ Stripe setup started — you can finish it anytime from Settings
-                  </Text>
-                )}
-              </View>
+                <View style={styles.payInfoList}>
+                  <View style={styles.payInfoRow}>
+                    <View style={styles.payInfoIcon}>
+                      <Ionicons name="lock-closed-outline" size={14} color={CoachColors.accent} />
+                    </View>
+                    <Text style={styles.payInfoText}>Stripe holds your bank details, not FitLink</Text>
+                  </View>
+                  <View style={styles.payInfoRow}>
+                    <View style={styles.payInfoIcon}>
+                      <Ionicons name="time-outline" size={14} color={CoachColors.accent} />
+                    </View>
+                    <Text style={styles.payInfoText}>Takes about 4 minutes, needs your ID</Text>
+                  </View>
+                </View>
+              </>
             )}
           </ScrollView>
         </Animated.View>
 
         {/* Footer */}
-        <View style={[styles.footer, { borderTopColor: colors.border }]}>
-          {step === 2 && !clientAdded && (
-            <TouchableOpacity onPress={() => animateToStep(3)} style={[styles.skipBtn, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Skip adding client for now">
-              <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip for now</Text>
-            </TouchableOpacity>
-          )}
-          {step === 3 && (
-            <TouchableOpacity onPress={completeWizard} style={[styles.skipBtn, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
-              <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip for now</Text>
-            </TouchableOpacity>
-          )}
+        <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.nextBtn, saving && { opacity: 0.6 }]}
+            style={[styles.nextBtn, (saving || stripeLoading) && { opacity: 0.6 }]}
             onPress={handleNext}
             activeOpacity={0.85}
-            disabled={saving}
+            disabled={saving || stripeLoading}
             accessibilityRole="button"
-            accessibilityLabel={step === 3 ? 'Finish setup' : step === 2 ? (clientAdded ? 'Continue to payments' : 'Continue') : 'Continue to next step'}
+            accessibilityLabel={step === 2 ? 'Connect my bank' : 'Continue to next step'}
           >
-            <Text style={styles.nextBtnText}>
-              {step === 3 ? "Let's Go!" : step === 2 ? (clientAdded ? 'Continue' : 'Continue') : 'Continue'}
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+            {(saving || stripeLoading) ? (
+              <ActivityIndicator color={CoachColors.onAccent} />
+            ) : (
+              <Text style={styles.nextBtnText}>{step === 2 ? 'Connect my bank' : 'Continue'}</Text>
+            )}
           </TouchableOpacity>
+
+          {step === 1 && (
+            <Text style={styles.footerCaption}>{activeDayCount} days a week, {bookableHours} bookable hours</Text>
+          )}
+
+          {step === 2 && (
+            <TouchableOpacity onPress={handleSkipPayments} disabled={saving || stripeLoading} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
+              <Text style={styles.skipText}>I'll do this later</Text>
+            </TouchableOpacity>
+          )}
+          {step === 2 && (
+            <Text style={styles.skipCaption}>You can add athletes now, but not charge them</Text>
+          )}
         </View>
       </KeyboardAvoidingView>
-
-      {/* Completion overlay — shown after wizard finishes, before navigation */}
-      {completionVisible && (
-        <View style={styles.completionOverlay}>
-          <View style={styles.completionCheckCircle}>
-            <Ionicons name="checkmark" size={64} color="#FF6B35" />
-          </View>
-          <Text style={styles.completionTitle}>You're all set!</Text>
-          <Text style={styles.completionSub}>Your coaching profile is ready. Let's build your business.</Text>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
 
-  avatarPickerContainer: {
-    alignSelf: 'center',
-    marginBottom: 28,
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderStyle: 'dashed',
-  },
-  avatarPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    gap: 4,
-  },
-  avatarPlaceholderText: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-  },
-  avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  completionOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0D0D12',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    gap: 16,
-    paddingHorizontal: 40,
-  },
-  completionCheckCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  completionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 28,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  completionSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-
+  // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 0,
   },
-  backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  stepLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, textTransform: 'uppercase', letterSpacing: 1 },
-
-  progressTrack: { height: 4, marginHorizontal: Spacing.lg, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: Colors.accent, borderRadius: 2 },
-
-  stepContainer: { flex: 1, paddingHorizontal: Spacing.lg },
-  titleBlock: { marginTop: Spacing.xl, marginBottom: Spacing.xl },
-  stepTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 26, letterSpacing: -0.5 },
-  stepSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 6, lineHeight: 20 },
-
-  formContent: { paddingBottom: Spacing['3xl'] },
-  stepContent: { paddingVertical: Spacing.md },
-  continueBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 15,
-    width: '100%',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  continueBtnText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white },
+  stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted },
 
-  // Input groups
-  inputGroup: { padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginBottom: Spacing.md },
-  inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, marginBottom: Spacing.sm },
-  input: { height: 48, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, fontFamily: FontFamily.body, fontSize: FontSize.base },
-  textArea: { minHeight: 88, borderRadius: Radius.sm, padding: Spacing.md, fontFamily: FontFamily.body, fontSize: FontSize.base },
+  progressTrack: { height: 4, marginHorizontal: 20, marginTop: 14, borderRadius: 2, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
 
-  // Day toggles
-  daysCard: { borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden' },
-  daysHint: { fontFamily: FontFamily.body, fontSize: FontSize.xs, padding: Spacing.md, paddingBottom: Spacing.sm },
-  dayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: Spacing.md },
-  dayLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  dayCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  dayName: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
-  dayHours: { fontFamily: FontFamily.body, fontSize: FontSize.xs },
+  stepContainer: { flex: 1, paddingHorizontal: 20 },
+  titleBlock: { marginTop: 26 },
+  stepTitle: { fontFamily: CoachFonts.headingBold, fontSize: 26, letterSpacing: -0.7, lineHeight: 30, color: CoachColors.textPrimary },
+  stepSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, marginTop: 9, lineHeight: 19, color: CoachColors.textSecondary },
 
-  // Client add
-  addClientBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: 14, borderRadius: Radius.md, marginTop: Spacing.sm,
+  formContent: { paddingTop: 24, paddingBottom: 32, gap: 11 },
+
+  // Avatar
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 13 },
+  avatarPickerContainer: { width: 76, height: 76, position: 'relative' },
+  avatarPreview: { width: 76, height: 76, borderRadius: 38 },
+  avatarPlaceholder: {
+    width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  addClientBtnText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: Colors.white },
-
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.lg },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs },
-
-  shareBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1,
+  avatarBadge: {
+    position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13,
+    backgroundColor: CoachColors.accent, borderWidth: 2, borderColor: CoachColors.bg,
+    alignItems: 'center', justifyContent: 'center',
   },
-  shareBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject, borderRadius: 38, backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarCopy: { flex: 1 },
+  avatarCopyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  avatarCopySub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3, lineHeight: 17 },
 
-  // Success state
-  successCard: { alignItems: 'center', padding: Spacing['2xl'], borderRadius: Radius.lg },
-  successIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  successTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
-  successSub: { fontFamily: FontFamily.body, fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
+  // Fields
+  fieldRow: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13,
+  },
+  fieldRowFilled: { borderColor: CoachColors.border },
+  fieldLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.textFaint },
+  fieldInput: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary,
+    marginTop: 2, padding: 0,
+  },
+  fieldTextArea: { minHeight: 44 },
+
+  // Availability
+  dayRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 13,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, borderWidth: 1,
+  },
+  dayRowActive: { backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
+  dayRowInactive: { backgroundColor: 'transparent', borderColor: CoachColors.borderMuted },
+  dayCheck: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dayCheckActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  dayName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  dayNameInactive: { color: CoachColors.textFaint },
+  dayHours: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: '#C9CEC2' },
+  dayHoursInactive: { color: CoachColors.textFaint },
+
+  // Payments
+  payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
+  payEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
+  payAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
+  payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 32, letterSpacing: -0.9, color: CoachColors.accent },
+  payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
+  paySplitFill: { width: '90%', height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999 },
+  paySplitLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
+  paySplitYou: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textSecondary },
+  paySplitFee: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  payFootnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 12, lineHeight: 17 },
+
+  payInfoList: { marginTop: 9, gap: 11 },
+  payInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  payInfoIcon: {
+    width: 26, height: 26, borderRadius: 13, backgroundColor: CoachColors.borderMuted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: '#C9CEC2' },
 
   // Footer
-  footer: {
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg, paddingBottom: Spacing.xl,
-    borderTopWidth: 1, alignItems: 'center', gap: Spacing.md,
-  },
-  skipBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    width: '100%',
-  },
-  skipText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-  },
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, alignItems: 'center', gap: 9 },
   nextBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 15,
-    width: '100%',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    width: '100%', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15,
   },
-  nextBtnText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white },
+  nextBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.onAccent },
+  footerCaption: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
+  skipCaption: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+
+  // Done screen
+  doneBody: { flex: 1, paddingHorizontal: 26, paddingTop: 56 },
+  doneCheckCircle: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 30, letterSpacing: -0.9, lineHeight: 34, color: CoachColors.textPrimary, marginTop: 22 },
+  doneSubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 11, lineHeight: 20 },
+
+  doneCard: { marginTop: 26, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
+  doneCardEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
+  doneCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, marginTop: 6 },
+  doneCardSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginTop: 6, lineHeight: 18 },
+  doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
+  doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.onAccent },
+
+  doneFooter: { paddingHorizontal: 26, paddingBottom: 30, alignItems: 'center' },
+  doneFooterLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
 });

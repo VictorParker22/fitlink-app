@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -26,15 +26,20 @@ const DURATIONS = [20, 30, 45, 60, 75, 90];
 export default function CreateLiveClassScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { createLiveClass } = useApp();
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const { createLiveClass, updateLiveClass, liveClasses } = useApp();
   const { showAlert }       = useAlert();
 
-  // Form state
-  const [title,    setTitle]    = useState('');
-  const [desc,     setDesc]     = useState('');
-  const [category, setCategory] = useState<string | null>(null);
-  const [duration, setDuration] = useState<number | null>(45);
+  const editing = liveClasses.find((c) => c.id === editId) || null;
+  const isEditMode = !!editId;
+
+  // Form state — prefilled from the existing class when editing
+  const [title,    setTitle]    = useState(editing?.title || '');
+  const [desc,     setDesc]     = useState(editing?.description || '');
+  const [category, setCategory] = useState<string | null>(editing?.category || null);
+  const [duration, setDuration] = useState<number | null>(editing?.duration_minutes ?? 45);
   const [date,     setDate]     = useState<Date>(() => {
+    if (editing?.scheduled_for) return new Date(editing.scheduled_for);
     // Default to tomorrow at 7:00 AM
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -83,17 +88,28 @@ export default function CreateLiveClassScreen() {
 
     setSaving(true);
     try {
-      await createLiveClass({
-        title:            title.trim(),
-        description:      desc.trim() || undefined,
-        scheduled_for:    date.toISOString(),
-        category:         category ?? undefined,
-        duration_minutes: duration ?? undefined,
-      });
-      showAlert({ type: 'success', title: 'Class Scheduled!', message: 'Your class has been added to the Studio queue.' });
+      if (isEditMode && editing) {
+        await updateLiveClass(editing.id, {
+          title:            title.trim(),
+          description:      desc.trim() || undefined,
+          scheduled_for:    date.toISOString(),
+          category:         category ?? undefined,
+          duration_minutes: duration ?? undefined,
+        });
+        showAlert({ type: 'success', title: 'Class updated', message: 'Your changes have been saved.' });
+      } else {
+        await createLiveClass({
+          title:            title.trim(),
+          description:      desc.trim() || undefined,
+          scheduled_for:    date.toISOString(),
+          category:         category ?? undefined,
+          duration_minutes: duration ?? undefined,
+        });
+        showAlert({ type: 'success', title: 'Class Scheduled!', message: 'Your class has been added to the Studio queue.' });
+      }
       router.back();
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Failed', message: err.message || 'Could not schedule the class.' });
+      showAlert({ type: 'error', title: 'Failed', message: err.message || 'Could not save the class.' });
     } finally {
       setSaving(false);
     }
@@ -115,7 +131,7 @@ export default function CreateLiveClassScreen() {
           <TouchableOpacity onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Schedule a Class</Text>
+          <Text style={s.headerTitle}>{isEditMode ? 'Edit class' : 'Schedule a Class'}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -222,7 +238,7 @@ export default function CreateLiveClassScreen() {
             ) : (
               <>
                 <Ionicons name="radio" size={18} color="#000000" />
-                <Text style={s.ctaBtnText}>SCHEDULE CLASS</Text>
+                <Text style={s.ctaBtnText}>{isEditMode ? 'SAVE CHANGES' : 'SCHEDULE CLASS'}</Text>
                 <Ionicons name="arrow-forward" size={16} color="#000000" />
               </>
             )}

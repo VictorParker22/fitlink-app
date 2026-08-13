@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, TextInput, Modal, Linking, Share, ActivityIndicator, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, TextInput, Modal, Linking, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -12,8 +12,8 @@ import { useApp } from '../../context/AppContext';
 import { proxyGifUrl, proxyGifStill } from '../../lib/exercisedb';
 import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
-import { Spacing, FontFamily, FontSize, Radius, Colors } from '../../constants/theme';
-import { getWorkoutEmblem } from '../../utils/workoutEmblems';
+import { Spacing, FontSize, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import ExerciseThumbnail from '../../components/shared/exercise/ExerciseThumbnail';
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
@@ -31,9 +31,9 @@ const ExerciseVideoPlayer = ({ url }: { url: string }) => {
     p.play();
   });
   return (
-    <VideoView 
-      player={player} 
-      style={{ width: '100%', height: 200, borderRadius: Radius.md, backgroundColor: '#000000', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: Spacing.xl }} 
+    <VideoView
+      player={player}
+      style={{ width: '100%', height: 200, borderRadius: Radius.md, backgroundColor: '#000000', borderWidth: 1, borderColor: CoachColors.borderMuted, marginBottom: Spacing.xl }}
       nativeControls={false}
       contentFit="cover"
     />
@@ -135,7 +135,7 @@ export default function WorkoutDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyState}>
@@ -250,26 +250,26 @@ export default function WorkoutDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
           <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.assignHeaderTitle}>Assign to Client</Text>
+          <Text style={styles.assignHeaderTitle}>Assign to client</Text>
           <View style={{ width: 36 }} />
         </View>
 
         <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={20} color="rgba(255,255,255,0.6)" />
+            <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search clients..."
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              placeholderTextColor={CoachColors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              selectionColor="#FFFFFF"
+              selectionColor={CoachColors.accent}
             />
             {searchQuery !== '' && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="close-circle" size={20} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -304,7 +304,7 @@ export default function WorkoutDetailScreen() {
                     </View>
                   ) : (
                     <View style={styles.assignAddBtn}>
-                      <Ionicons name="add" size={16} color="#000000" />
+                      <Ionicons name="add" size={16} color={CoachColors.onAccent} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -322,28 +322,28 @@ export default function WorkoutDetailScreen() {
         {/* Custom Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{workout.name}</Text>
           <View style={styles.headerRightActions}>
             <TouchableOpacity onPress={() => router.push(`/create-workout?editId=${workout.id}` as any)} style={styles.navBtn} accessibilityLabel="Edit">
-              <Ionicons name="pencil" size={22} color="#FFFFFF" />
+              <Ionicons name="pencil" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDuplicate} style={styles.navBtn} accessibilityLabel="Duplicate" disabled={duplicating}>
-              <Ionicons name="copy-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="copy-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => { setIsFavorite(!isFavorite); }} 
-              style={styles.navBtn} 
+            <TouchableOpacity
+              onPress={() => { setIsFavorite(!isFavorite); }}
+              style={styles.navBtn}
               accessibilityLabel="Favorite"
             >
-              <Ionicons name={isFavorite ? "star" : "star-outline"} size={22} color={isFavorite ? "#FFD700" : "#FFFFFF"} />
+              <Ionicons name={isFavorite ? "star" : "star-outline"} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDelete} style={[styles.navBtn, { marginLeft: 4 }]} accessibilityLabel="Delete" disabled={deleting}>
-              <Ionicons name="trash-outline" size={22} color="#EF4444" />
+              <Ionicons name="trash-outline" size={22} color={CoachColors.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -352,14 +352,16 @@ export default function WorkoutDetailScreen() {
           {/* Description */}
           <View style={styles.descSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
-              <RNImage source={getWorkoutEmblem(workout.id, workout.name, exercises.map(e => e.exercises?.muscle_group).filter(Boolean) as string[])} style={{ width: 52, height: 52, borderRadius: Radius.xs }} />
+              <View style={styles.workoutIconCircle}>
+                <Ionicons name="barbell-outline" size={24} color={CoachColors.textSecondary} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.descText}>
                   {workout.description || 'A custom workout routine designed to hit your goals.'}
                 </Text>
               </View>
             </View>
-            
+
             {/* Meta Row */}
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{estTime} mins</Text>
@@ -388,12 +390,13 @@ export default function WorkoutDetailScreen() {
 
           {/* Session Breakdown */}
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Session Breakdown</Text>
+            <Text style={styles.sectionTitle}>Session breakdown</Text>
             
             <View style={styles.breakdownHeaderRow}>
               <Text style={styles.breakdownGroupTitle}>Exercises</Text>
               <Text style={styles.breakdownGroupSubtitle}>{exercises.length} moves</Text>
             </View>
+
 
             <View style={styles.breakdownCard}>
               {groupedExercises.map((group, gIndex) => {
@@ -408,10 +411,11 @@ export default function WorkoutDetailScreen() {
                         onPress={() => setExpandedExerciseId(prev => prev === we.id ? null : we.id)}
                       >
                         <View style={{ marginRight: 12 }}>
-                          <ExerciseThumbnail 
-                            imageUrl={we.exercises?.image_url} 
-                            hasVideo={!!we.video_url} 
-                            size={44} 
+                          <ExerciseThumbnail
+                            imageUrl={we.exercises?.image_url}
+                            hasVideo={!!we.video_url}
+                            size={44}
+                            iconColor={CoachColors.textSecondary}
                           />
                         </View>
                         <View style={styles.exerciseInfoCol}>
@@ -420,8 +424,8 @@ export default function WorkoutDetailScreen() {
                             {we.sets} sets  {we.reps} reps {we.rest_seconds > 0 ? ` ${we.rest_seconds}s rest` : ''}
                           </Text>
                         </View>
-                        
-                        <Ionicons name={expandedExerciseId === we.id ? 'chevron-up' : 'chevron-down'} size={20} color="rgba(255,255,255,0.4)" />
+
+                        <Ionicons name={expandedExerciseId === we.id ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textMuted} />
                       </TouchableOpacity>
 
                       {expandedExerciseId === we.id && (
@@ -449,8 +453,8 @@ export default function WorkoutDetailScreen() {
                   return (
                     <View key={`group-${group.groupId || gIndex}`} style={styles.supersetContainer}>
                       <View style={styles.supersetHeader}>
-                        <Ionicons name="link" size={16} color="#EF4444" />
-                        <Text style={styles.supersetHeaderText}>SUPERSET</Text>
+                        <Ionicons name="link" size={16} color={CoachColors.accent} />
+                        <Text style={styles.supersetHeaderText}>Superset</Text>
                       </View>
                       {renderItems()}
                     </View>
@@ -478,7 +482,7 @@ export default function WorkoutDetailScreen() {
           onPress={() => setShowAssign(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.bottomBtnText}>Assign to Client</Text>
+          <Text style={styles.bottomBtnText}>Assign to client</Text>
         </TouchableOpacity>
       </View>
 
@@ -495,10 +499,10 @@ export default function WorkoutDetailScreen() {
               style={styles.videoCloseBtn}
               onPress={() => { setShowVideoModal(false); setVideoUrl(null); }}
             >
-              <Ionicons name="close" size={22} color="#FFFFFF" />
+              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.videoModalTitleWrap}>
-              <Ionicons name="videocam" size={18} color="#FF6B35" />
+              <Ionicons name="videocam" size={18} color={CoachColors.accent} />
               <Text style={styles.videoModalTitle} numberOfLines={1}>
                 {videoExerciseName}
               </Text>
@@ -529,8 +533,8 @@ export default function WorkoutDetailScreen() {
       >
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#FF6B35" style={{ marginBottom: 16 }} />
-            <Text style={styles.loadingTitle}>Generating Voice</Text>
+            <ActivityIndicator size="large" color={CoachColors.accent} style={{ marginBottom: 16 }} />
+            <Text style={styles.loadingTitle}>Generating voice</Text>
             <Text style={styles.loadingSubtitle}>
               Creating a natural voice guide for this exercise. This only happens once.
             </Text>
@@ -547,11 +551,11 @@ export default function WorkoutDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#000000' 
+  container: {
+    flex: 1,
+    backgroundColor: CoachColors.bg,
   },
-  
+
   // Custom Header
   headerRow: {
     flexDirection: 'row',
@@ -560,16 +564,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   navBtn: {
     padding: 8,
   },
   headerTitle: {
     flex: 1,
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginHorizontal: 12,
   },
@@ -588,10 +592,20 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl,
     alignItems: 'center',
   },
+  workoutIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.xs,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   descText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing.md,
@@ -602,19 +616,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metaText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   metaDot: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
 
   dividerLine: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: Spacing.lg,
   },
 
@@ -623,9 +637,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: Spacing.lg,
   },
   equipmentGrid: {
@@ -636,15 +650,15 @@ const styles = StyleSheet.create({
   equipmentItem: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.border,
   },
   equipmentText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
 
   breakdownHeaderRow: {
@@ -654,23 +668,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   breakdownGroupTitle: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 9,
+    color: CoachColors.textFaint,
+    letterSpacing: 1.8,
   },
   breakdownGroupSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
 
   breakdownCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: CoachColors.borderMuted,
     overflow: 'hidden',
   },
   exerciseRow: {
@@ -680,62 +693,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
   },
-  exerciseThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.2)',
-    overflow: 'hidden',
-  },
-  miniPlayIcon: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   exerciseInfoCol: {
     flex: 1,
   },
   exerciseNameText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   exerciseStatsText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
   expandedContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
   },
-  exerciseDescription: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: 20,
-  },
   rowDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: Spacing.lg,
   },
 
   // Superset
   supersetContainer: {
     borderLeftWidth: 3,
-    borderLeftColor: '#EF4444',
+    borderLeftColor: CoachColors.accent,
     marginVertical: 4,
   },
   supersetHeader: {
@@ -746,82 +731,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   supersetHeaderText: {
-    fontFamily: FontFamily.bodyBold,
-    fontSize: 11,
-    color: '#EF4444',
-    letterSpacing: 1.5,
-  },
-
-  // Voice & Text Controls
-  instructionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  voiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.25)',
-  },
-  voiceBtnActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
-  },
-  voiceBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: '#FF6B35',
-  },
-  voiceBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  showTextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  showTextBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  instructionTextWrap: {
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-
-  // Watch Video
-  watchVideoBtn: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: Radius.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  watchVideoText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12,
+    color: CoachColors.accent,
   },
 
   // Bottom CTA
@@ -837,21 +749,20 @@ const styles = StyleSheet.create({
   bottomBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 16,
     borderRadius: Radius.sm,
   },
   bottomBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.sm,
-    color: '#000000',
-    letterSpacing: 1,
+    color: CoachColors.onAccent,
   },
 
   // Video Modal
   videoModalOverlay: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   videoModalHeader: {
     flexDirection: 'row',
@@ -865,7 +776,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.xs,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -877,10 +790,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   videoModalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+    color: CoachColors.textPrimary,
   },
   videoModalContent: {
     flex: 1,
@@ -892,9 +804,9 @@ const styles = StyleSheet.create({
     height: 300,
   },
   videoModalHint: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     paddingBottom: 40,
   },
@@ -911,17 +823,18 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.xs,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   assignHeaderTitle: {
     flex: 1,
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
-    letterSpacing: 0.5,
   },
   assignList: {
     paddingHorizontal: Spacing.lg,
@@ -933,38 +846,38 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   assignName: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: FontSize.base,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   assignMeta: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     marginTop: 1,
   },
   assignedBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: '#0F1A12',
+    backgroundColor: CoachColors.accentSofter,
     borderWidth: 1,
-    borderColor: '#22C55E',
+    borderColor: CoachColors.accent,
     borderRadius: 4,
   },
   assignedBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 8,
-    color: '#22C55E',
-    letterSpacing: 0.5,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 10,
+    color: CoachColors.accent,
+    letterSpacing: 0.3,
   },
   assignAddBtn: {
     width: 32,
     height: 32,
     borderRadius: Radius.xs,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -976,13 +889,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.15)',
+    borderBottomColor: CoachColors.border,
   },
   searchInput: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: FontSize.sm,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     padding: 0,
   },
 
@@ -992,28 +905,28 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: FontSize.lg,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   emptyText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
   },
 
   // Loading Overlay
   loadingOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(16,18,16,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingCard: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: CoachColors.border,
     paddingVertical: 40,
     paddingHorizontal: 32,
     alignItems: 'center',
@@ -1021,16 +934,16 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
   loadingTitle: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   loadingSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -1043,6 +956,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF6B35',
+    backgroundColor: CoachColors.accent,
   },
 });

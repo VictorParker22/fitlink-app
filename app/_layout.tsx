@@ -6,7 +6,7 @@ configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
@@ -22,8 +22,10 @@ import { Colors, Spacing, Radius, FontFamily, FontSize } from '../constants/them
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
+import { isBroadcastDndEnabled, loadBroadcastDnd } from '../lib/broadcastFocus';
 import { ErrorBoundaryProps } from 'expo-router';
 import Button from '../components/Button';
+import SplashOverlay from '../components/SplashOverlay';
 import LottieView from 'lottie-react-native';
 
 // Platform-specific: .native.ts re-exports @stripe/stripe-react-native,
@@ -51,14 +53,20 @@ try {
   registerForPushNotificationsAsync = require('../utils/registerForPushNotificationsAsync').registerForPushNotificationsAsync;
 
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async () => {
+      // Studio's "Do not disturb" mutes FitLink's own sound/banner while
+      // live — it can't silence real phone calls, only its own alerts.
+      const quiet = isBroadcastDndEnabled();
+      return {
+        shouldShowAlert: !quiet,
+        shouldPlaySound: !quiet,
+        shouldSetBadge: false,
+        shouldShowBanner: !quiet,
+        shouldShowList: true,
+      };
+    },
   });
+  loadBroadcastDnd();
 } catch {
   // expo-notifications not available (e.g. Expo Go SDK 53+)
   console.warn('Push notifications not available in this environment');
@@ -66,7 +74,7 @@ try {
 
 
 
-function AuthGuard() {
+function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   const { isAuthenticated, loading, userRole } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -109,6 +117,11 @@ function AuthGuard() {
     };
   }, []);
 
+  // Splash bar milestone: the Supabase session and the onboarding flags are in.
+  useEffect(() => {
+    if (!loading && hasOnboarded !== null) onProgress?.(0.66);
+  }, [loading, hasOnboarded, onProgress]);
+
   useEffect(() => {
     if (loading || hasOnboarded === null) return;
 
@@ -147,6 +160,8 @@ function AuthGuard() {
     // Hide splash after initial navigation (or if already on correct screen)
     if (!hasNavigated.current) {
       hasNavigated.current = true;
+      // Route is settled — the splash bar is honestly full now.
+      onProgress?.(1);
       // Fade out the native splash screen (no-op if running in Expo Go)
       setTimeout(() => BootSplash?.hide({ fade: true }), 150);
     }
@@ -177,6 +192,8 @@ function AuthGuard() {
       <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="add-client" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="create-plan" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="pass-track-editor" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="pass-holders" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="book-session" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="session/[id]" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
       <Stack.Screen name="session/complete" options={{ animation: 'fade', gestureEnabled: false }} />
@@ -200,6 +217,9 @@ function AuthGuard() {
 
 export default function RootLayout() {
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
+  // Real startup milestones, fed to the splash's determinate bar:
+  // fonts .33 → session + onboarding flags .66 → route settled 1.
+  const [startupProgress, setStartupProgress] = useState(0.15);
   const [fontsLoaded] = useFonts({
     'Epilogue-Regular': require('../assets/fonts/Epilogue-Regular.ttf'),
     'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
@@ -211,10 +231,14 @@ export default function RootLayout() {
     JetBrainsMono_500Medium,
   });
 
-  // DON'T hide splash here — AuthGuard handles it after navigation
+  // DON'T hide splash here — AuthGuard handles it after navigation.
+  // Fonts aren't up yet: show the splash rather than a black frame.
+  // fontsReady={false} keeps it off the missing font family.
   if (!fontsLoaded) {
-    return null;
+    return <SplashOverlay progress={0.15} fontsReady={false} />;
   }
+
+  const progress = Math.max(startupProgress, 0.33);
 
   return (
     <LayersAnalyticsProvider>
@@ -234,7 +258,7 @@ export default function RootLayout() {
                       <WorkoutProvider>
                         <HealthProvider>
                           <ThemedStatusBar />
-                          <AuthGuard />
+                          <AuthGuard onProgress={setStartupProgress} />
                         </HealthProvider>
                       </WorkoutProvider>
                     </ClientProvider>
@@ -246,7 +270,10 @@ export default function RootLayout() {
         </NetworkProvider>
       </StripeProvider>
       {bootSplashVisible && (
-        <AnimatedBootSplash onAnimationEnd={() => setBootSplashVisible(false)} />
+        <AnimatedBootSplash
+          progress={progress}
+          onAnimationEnd={() => setBootSplashVisible(false)}
+        />
       )}
     </GestureHandlerRootView>
     </LayersAnalyticsProvider>
@@ -258,118 +285,56 @@ function ThemedStatusBar() {
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
-function AnimatedBootSplash({ onAnimationEnd }: { onAnimationEnd: () => void }) {
-  const [opacity] = useState(() => new Animated.Value(1));
-  const [scale] = useState(() => new Animated.Value(1));
+type SplashPathProps = { progress: number; onAnimationEnd: () => void };
 
-  // ── Native path (EAS dev client / production) ───────────────────────────
-  if (BootSplash?.useHideAnimation) {
-    const { container, logo } = BootSplash.useHideAnimation({
-      manifest: require('../assets/bootsplash/manifest.json'),
-      logo: require('../assets/bootsplash/logo.png'),
-      animate: () => {
-        Animated.sequence([
-          Animated.spring(scale, {
-            toValue: 1.08,
-            useNativeDriver: true,
-            speed: 30,
-            bounciness: 10,
-          }),
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            speed: 30,
-            bounciness: 5,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ]).start(onAnimationEnd);
-      },
-    });
-
-    return (
-      <Animated.View
-        {...container}
-        style={[
-          container.style,
-          { opacity, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111114' },
-        ]}
-      >
-        <Animated.Image
-          {...logo}
-          style={[logo.style, { borderRadius: 28, transform: [{ scale }] }]}
-        />
-      </Animated.View>
-    );
-  }
-
-  // ── JS fallback (Expo Go) ────────────────────────────────────────────────
-  // Same visual: dark background + centered logo, fades out after a brief hold.
-  return <JSSplashFallback opacity={opacity} scale={scale} onAnimationEnd={onAnimationEnd} />;
+// Only picks a branch — the hooks live in the two leaf components so they stay
+// unconditional.
+function AnimatedBootSplash(props: SplashPathProps) {
+  return BootSplash?.useHideAnimation ? (
+    <NativeBootSplash {...props} />
+  ) : (
+    <JSBootSplash {...props} />
+  );
 }
 
-function JSSplashFallback({
-  opacity,
-  scale,
-  onAnimationEnd,
-}: {
-  opacity: Animated.Value;
-  scale: Animated.Value;
-  onAnimationEnd: () => void;
-}) {
+// ── Native path (EAS dev client / production) ──────────────────────────────
+function NativeBootSplash({ progress, onAnimationEnd }: SplashPathProps) {
+  // The native splash sits underneath us until `animate` fires, so we can't
+  // start fading before then or the old frame shows through.
+  const [handedOver, setHandedOver] = useState(false);
+
+  const { container } = BootSplash.useHideAnimation({
+    manifest: require('../assets/bootsplash/manifest.json'),
+    logo: require('../assets/bootsplash/logo.png'),
+    animate: () => setHandedOver(true),
+  });
+
+  return (
+    <View {...container} style={[container.style, { zIndex: 9999 }]}>
+      <SplashOverlay
+        progress={progress}
+        done={handedOver && progress >= 1}
+        onFadeComplete={onAnimationEnd}
+      />
+    </View>
+  );
+}
+
+// ── JS path (Expo Go / no native module) ───────────────────────────────────
+function JSBootSplash({ progress, onAnimationEnd }: SplashPathProps) {
+  const [minHoldPassed, setMinHoldPassed] = useState(false);
+
   useEffect(() => {
-    // Hold for 700 ms then run the same pulse + fade animation
-    const timer = setTimeout(() => {
-      Animated.sequence([
-        Animated.spring(scale, {
-          toValue: 1.08,
-          useNativeDriver: true,
-          speed: 30,
-          bounciness: 10,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true,
-          speed: 30,
-          bounciness: 5,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]).start(onAnimationEnd);
-    }, 700);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setMinHoldPassed(true), 700);
+    return () => clearTimeout(t);
   }, []);
 
   return (
-    <Animated.View
-      style={[
-        StyleSheet.absoluteFill,
-        {
-          opacity,
-          backgroundColor: '#111114',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-        },
-      ]}
-    >
-      <Animated.Image
-        source={require('../assets/images/logo.png')}
-        style={{
-          width: 130,
-          height: 130,
-          borderRadius: 28,
-          transform: [{ scale }],
-        }}
-        resizeMode="contain"
-      />
-    </Animated.View>
+    <SplashOverlay
+      progress={progress}
+      done={minHoldPassed && progress >= 1}
+      onFadeComplete={onAnimationEnd}
+    />
   );
 }
 

@@ -353,6 +353,7 @@ interface AppContextType {
   deleteLiveClass: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
   refreshClients: () => Promise<void>;
+  refreshPlans: () => Promise<void>;
   refreshSessions: (data: Session[]) => void;
   createStripeConnectAccount: () => Promise<{ url: string; accountId: string }>;
   fetchAnalytics: () => Promise<{
@@ -436,19 +437,19 @@ export function AppProvider({ children }: PropsWithChildren) {
         const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('plans').select('*').order('price'),
-          supabase.from('sessions').select('*').order('date'),
-          supabase.from('referrals').select('*').order('date', { ascending: false }),
-          supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
-          supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
-          supabase.from('exercises').select('*').order('name'),
-          supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
-          supabase.from('meals').select('*').order('name'),
-          supabase.from('notifications').select('*').order('created_at', { ascending: false }),
-          supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
-          supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
-          supabase.from('client_progress').select('*').order('date', { ascending: false }),
-          supabase.from('client_health_snapshots').select('*').order('date', { ascending: false }),
+          supabase.from('plans').select('*').eq('trainer_id', user!.id).order('price'),
+          supabase.from('sessions').select('*').eq('trainer_id', user!.id).order('date'),
+          supabase.from('referrals').select('*').eq('trainer_id', user!.id).order('date', { ascending: false }),
+          supabase.from('activities').select('*').eq('trainer_id', user!.id).order('timestamp', { ascending: false }).limit(20),
+          supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('exercises').select('*').or(`is_custom.eq.false,trainer_id.eq.${user!.id}`).order('name'),
+          supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('meals').select('*').or(`is_custom.eq.false,trainer_id.eq.${user!.id}`).order('name'),
+          supabase.from('notifications').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('client_workouts').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user!.id).order('assigned_date', { ascending: false }),
+          supabase.from('client_diets').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user!.id).order('assigned_date', { ascending: false }),
+          supabase.from('client_progress').select('*').eq('trainer_id', user!.id).order('date', { ascending: false }),
+          supabase.from('client_health_snapshots').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user!.id).order('date', { ascending: false }),
           supabase.from('classes').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
           supabase.from('live_classes').select('*').eq('trainer_id', user!.id).order('scheduled_for', { ascending: true }),
         ]);
@@ -489,22 +490,21 @@ export function AppProvider({ children }: PropsWithChildren) {
     const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('plans').select('*').order('price'),
-      supabase.from('sessions').select('*').order('date'),
-      supabase.from('referrals').select('*').order('date', { ascending: false }),
-      supabase.from('activities').select('*').order('timestamp', { ascending: false }).limit(20),
-      supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').order('created_at', { ascending: false }),
-      supabase.from('exercises').select('*').order('name'),
-      supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').order('created_at', { ascending: false }),
-      supabase.from('meals').select('*').order('name'),
-      supabase.from('notifications').select('*').order('created_at', { ascending: false }),
-      supabase.from('client_workouts').select('*').order('assigned_date', { ascending: false }),
-      supabase.from('client_diets').select('*').order('assigned_date', { ascending: false }),
-      supabase.from('client_progress').select('*').order('date', { ascending: false }),
+      supabase.from('plans').select('*').eq('trainer_id', user.id).order('price'),
+      supabase.from('sessions').select('*').eq('trainer_id', user.id).order('date'),
+      supabase.from('referrals').select('*').eq('trainer_id', user.id).order('date', { ascending: false }),
+      supabase.from('activities').select('*').eq('trainer_id', user.id).order('timestamp', { ascending: false }).limit(20),
+      supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('exercises').select('*').or(`is_custom.eq.false,trainer_id.eq.${user.id}`).order('name'),
+      supabase.from('diet_plans').select('*, diet_plan_meals(*, meals(*))').eq('trainer_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('meals').select('*').or(`is_custom.eq.false,trainer_id.eq.${user.id}`).order('name'),
+      supabase.from('notifications').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('client_workouts').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user.id).order('assigned_date', { ascending: false }),
+      supabase.from('client_diets').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user.id).order('assigned_date', { ascending: false }),
     ]);
-    
+
     // Check if health snapshots table exists/returned data
-    const hsRes = await supabase.from('client_health_snapshots').select('*').order('date', { ascending: false });
+    const hsRes = await supabase.from('client_health_snapshots').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user.id).order('date', { ascending: false });
     if (hsRes.data) setClientHealthSnapshots(hsRes.data);
 
     if (trainerRes.data) setTrainer(trainerRes.data);
@@ -522,7 +522,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (cdRes.data) setClientDietsList(cdRes.data);
     
     // Check if progress table exists/returned data
-    const pRes = await supabase.from('client_progress').select('*').order('date', { ascending: false });
+    const pRes = await supabase.from('client_progress').select('*').eq('trainer_id', user.id).order('date', { ascending: false });
     if (pRes.data) setProgressLogs(pRes.data);
 
     // Refresh classes
@@ -545,6 +545,17 @@ export function AppProvider({ children }: PropsWithChildren) {
       .eq('trainer_id', user.id)
       .order('created_at', { ascending: false });
     if (data) setClients(data);
+  }, [user]);
+
+  // Lightweight refresh — only plans table (1 query, 1 setState)
+  const refreshPlans = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('plans')
+      .select('*')
+      .eq('trainer_id', user.id)
+      .order('price');
+    if (data) setPlans(data);
   }, [user]);
 
   // Ultra-lightweight: just set sessions from pre-fetched data
@@ -1765,6 +1776,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     deleteLiveClass,
     refreshData,
     refreshClients,
+    refreshPlans,
     refreshSessions,
     createStripeConnectAccount,
     fetchAnalytics,

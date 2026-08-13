@@ -1,19 +1,17 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, useWindowDimensions, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, Image as RNImage } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import RenderHtml from 'react-native-render-html';
 import { useLocalSearchParams } from 'expo-router';
 
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { Spacing, FontFamily, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
-import { getWorkoutEmblem, getWorkoutEmblemGlow, EMBLEM_IMAGES } from '../utils/workoutEmblems';
 import { proxyGifUrl, proxyGifStill } from '../lib/exercisedb';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -39,24 +37,27 @@ const stripHtml = (html?: string) => {
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim();
 };
 
+const cap = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
+type Mode = 'setup' | 'describe' | 'builder';
+
 export default function CreateWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const editId = params.editId as string | undefined;
-  
+
   const insets = useSafeAreaInsets();
-  const { exercises, workouts, createWorkout, updateWorkout, importExercise, autoAddExerciseId, setAutoAddExerciseId } = useApp();
+  const { exercises, workouts, createWorkout, updateWorkout, importExercise, autoAddExerciseId, setAutoAddExerciseId, activeClients, plans, assignWorkout } = useApp();
   const { showAlert } = useAlert();
-  const { width } = useWindowDimensions();
-  
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
   const [showPicker, setShowPicker] = useState(false);
-  
+
   // Picker state
   const [exerciseSearch, setExerciseSearch] = useState('');
-  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>('chest');
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
   const [failedGifs, setFailedGifs] = useState<Set<string>>(new Set());
 
   // Body part -> category mapping for filtering
@@ -73,15 +74,20 @@ export default function CreateWorkoutScreen() {
     'neck': ['shoulders'],
   };
 
-  // ── WIZARD STATE ──
-  const [wizardStep, setWizardStep] = useState<number>(editId ? -1 : 1);
+  // ── FLOW STATE ──
+  const [mode, setMode] = useState<Mode>(editId ? 'builder' : 'setup');
   const [selectedFocus, setSelectedFocus] = useState<string[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
 
-  // ── AI GENERATE STATE ──
-  const [showAiSheet, setShowAiSheet] = useState(false);
+  // ── AI DESCRIBE STATE ──
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+
+  // ── SAVE / ASSIGN STATE ──
+  const [saving, setSaving] = useState(false);
+  const [savedWorkout, setSavedWorkout] = useState<{ id: string; name: string } | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [enrollmentByClient, setEnrollmentByClient] = useState<Record<string, { planName: string; position: number } | null>>({});
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;
@@ -117,12 +123,12 @@ export default function CreateWorkoutScreen() {
         ));
       }
 
-      // Match exercises to database entries by name similarity
+      // Match exercises to database entries by name similarity — never invent, only match the coach's library
+      let matchedCount = 0;
       if (data.exercises && Array.isArray(data.exercises)) {
         const matched: SelectedExercise[] = [];
         for (const aiEx of data.exercises) {
           const exName = (aiEx.exercise_name || '').toLowerCase();
-          // Find exact or closest match
           let match = exercises.find(e => e.name.toLowerCase() === exName);
           if (!match) {
             match = exercises.find(e => e.name.toLowerCase().includes(exName) || exName.includes(e.name.toLowerCase()));
@@ -142,54 +148,61 @@ export default function CreateWorkoutScreen() {
           }
         }
         if (matched.length > 0) setSelectedExercises(matched);
+        matchedCount = matched.length;
       }
 
-      setShowAiSheet(false);
       setAiPrompt('');
-      setWizardStep(-1); // Skip to builder
-      showAlert({ type: 'success', title: '✨ Workout Generated!', message: `"${data.name}" with ${data.exercises?.length || 0} exercises` });
+      setMode('builder');
+      showAlert({
+        type: 'success',
+        title: 'Workout ready',
+        message: `Matched ${matchedCount} exercise${matchedCount === 1 ? '' : 's'} from your library.`,
+      });
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'AI Error', message: err.message || 'Failed to generate workout' });
+      showAlert({ type: 'error', title: 'Couldn’t generate', message: err.message || 'Failed to generate workout' });
     } finally {
       setAiLoading(false);
     }
   };
 
   const BODY_FOCUS = [
-    { key: 'chest', label: 'Chest', emblem: EMBLEM_IMAGES.chest, glow: '#EF4444', filter: 'chest' },
-    { key: 'back', label: 'Back', emblem: EMBLEM_IMAGES.back, glow: '#06B6D4', filter: 'back' },
-    { key: 'legs', label: 'Legs', emblem: EMBLEM_IMAGES.legs, glow: '#A855F7', filter: 'upper legs' },
-    { key: 'arms', label: 'Arms', emblem: EMBLEM_IMAGES.arms, glow: '#3B82F6', filter: 'upper arms' },
-    { key: 'shoulders', label: 'Shoulders', emblem: EMBLEM_IMAGES.shoulders, glow: '#F59E0B', filter: 'shoulders' },
-    { key: 'core', label: 'Core', emblem: EMBLEM_IMAGES.core, glow: '#22C55E', filter: 'waist' },
-    { key: 'cardio', label: 'Cardio', emblem: EMBLEM_IMAGES.cardio, glow: '#EC4899', filter: 'cardio' },
-    { key: 'fullbody', label: 'Full Body', emblem: EMBLEM_IMAGES.fullbody, glow: '#94A3B8', filter: null },
+    { key: 'chest', label: 'Chest', filter: 'chest' },
+    { key: 'back', label: 'Back', filter: 'back' },
+    { key: 'legs', label: 'Legs', filter: 'upper legs' },
+    { key: 'arms', label: 'Arms', filter: 'upper arms' },
+    { key: 'shoulders', label: 'Shoulders', filter: 'shoulders' },
+    { key: 'core', label: 'Core', filter: 'waist' },
+    { key: 'cardio', label: 'Cardio', filter: 'cardio' },
+    { key: 'fullbody', label: 'Full body', filter: null },
   ] as const;
 
   const EQUIPMENT_TAGS = [
-    { key: 'barbell', label: 'Barbell', icon: 'barbell' as const },
-    { key: 'dumbbell', label: 'Dumbbell', icon: 'fitness' as const },
-    { key: 'cable', label: 'Cable', icon: 'git-pull-request' as const },
-    { key: 'machine', label: 'Machine', icon: 'cog' as const },
-    { key: 'bodyweight', label: 'Bodyweight', icon: 'body' as const },
-    { key: 'bands', label: 'Bands', icon: 'link' as const },
-    { key: 'kettlebell', label: 'Kettlebell', icon: 'ellipse' as const },
+    { key: 'barbell', label: 'Barbell' },
+    { key: 'dumbbell', label: 'Dumbbell' },
+    { key: 'cable', label: 'Cable' },
+    { key: 'machine', label: 'Machine' },
+    { key: 'bodyweight', label: 'Bodyweight' },
+    { key: 'bands', label: 'Bands' },
+    { key: 'kettlebell', label: 'Kettlebell' },
   ];
 
+  const focusLabel = (key: string) => BODY_FOCUS.find(b => b.key === key)?.label || key;
+  const equipmentLabel = (key: string) => EQUIPMENT_TAGS.find(e => e.key === key)?.label || key;
+
   const NAME_TEMPLATES: Record<string, string[]> = {
-    'chest': ['Chest Crusher', 'Push Day Power', 'Pec Blaster', 'Chest Pump'],
-    'back': ['Pull Day Fury', 'Back Builder', 'Lat Attack', 'Row Rampage'],
-    'legs': ['Leg Day Destroyer', 'Lower Body Blitz', 'Squat Storm', 'Quad Quake'],
-    'arms': ['Arm Assault', 'Gun Show', 'Bicep & Tricep Blast', 'Arm Day Finisher'],
-    'shoulders': ['Boulder Shoulders', 'Delt Domination', 'Shoulder Sculptor', 'Press Protocol'],
-    'core': ['Core Crusher', 'Ab Inferno', 'Midline Mayhem', 'Core Strength Circuit'],
-    'cardio': ['Cardio Blitz', 'HIIT Fury', 'Endurance Engine', 'Heart Rate Spike'],
-    'fullbody': ['Total Body Burn', 'Full Body Fury', 'Compound Crusher', 'Functional Fitness'],
-    'chest,back': ['Push-Pull Power', 'Upper Body Domination'],
-    'chest,shoulders': ['Press Day Protocol', 'Chest & Shoulders Blast'],
-    'chest,arms': ['Chest & Arms Pump', 'Upper Push Finisher'],
-    'back,arms': ['Pull & Curl Power', 'Back & Biceps Day'],
-    'legs,core': ['Legs & Core Circuit', 'Lower Body & Abs'],
+    'chest': ['Chest crusher', 'Push day power', 'Pec blaster', 'Chest pump'],
+    'back': ['Pull day fury', 'Back builder', 'Lat attack', 'Row rampage'],
+    'legs': ['Leg day destroyer', 'Lower body blitz', 'Squat storm', 'Quad quake'],
+    'arms': ['Arm assault', 'Gun show', 'Bicep & tricep blast', 'Arm day finisher'],
+    'shoulders': ['Boulder shoulders', 'Delt domination', 'Shoulder sculptor', 'Press protocol'],
+    'core': ['Core crusher', 'Ab inferno', 'Midline mayhem', 'Core strength circuit'],
+    'cardio': ['Cardio blitz', 'HIIT fury', 'Endurance engine', 'Heart rate spike'],
+    'fullbody': ['Total body burn', 'Full body fury', 'Compound crusher', 'Functional fitness'],
+    'chest,back': ['Push-pull power', 'Upper body domination'],
+    'chest,shoulders': ['Press day protocol', 'Chest & shoulders blast'],
+    'chest,arms': ['Chest & arms pump', 'Upper push finisher'],
+    'back,arms': ['Pull & curl power', 'Back & biceps day'],
+    'legs,core': ['Legs & core circuit', 'Lower body & abs'],
   };
 
   const suggestedNames = useMemo(() => {
@@ -199,46 +212,8 @@ export default function CreateWorkoutScreen() {
     const combos = NAME_TEMPLATES[key] || [];
     const singles = NAME_TEMPLATES[singleKey] || [];
     const all = [...new Set([...combos, ...singles])];
-    return all.slice(0, 5);
+    return all.slice(0, 3);
   }, [selectedFocus]);
-
-  const primaryEmblem = useMemo(() => {
-    if (selectedFocus.length === 0) return null;
-    const focus = BODY_FOCUS.find(b => b.key === selectedFocus[0]);
-    return focus || null;
-  }, [selectedFocus]);
-
-  const suggestedExercises = useMemo(() => {
-    if (selectedFocus.length === 0) return [];
-    const focusFilters = selectedFocus
-      .map(f => BODY_FOCUS.find(b => b.key === f)?.filter)
-      .filter(Boolean) as string[];
-    // If only "Full Body" was selected (filter is null), show all exercises
-    if (focusFilters.length === 0) {
-      const withImg = exercises.filter(e => e.image_url);
-      const withoutImg = exercises.filter(e => !e.image_url);
-      let all = [...withImg, ...withoutImg];
-      if (selectedEquipment.length > 0) {
-        all = all.filter(e => {
-          const eq = (e.equipment || 'bodyweight').toLowerCase();
-          return selectedEquipment.some(sel => eq.includes(sel));
-        });
-      }
-      return all.slice(0, 8);
-    }
-    const categories = focusFilters.flatMap(f => (bodyPartCategoryMap as Record<string, string[]>)[f] || []);
-    let filtered = exercises.filter(e => categories.includes(e.category?.toLowerCase()));
-    if (selectedEquipment.length > 0) {
-      filtered = filtered.filter(e => {
-        const eq = (e.equipment || 'bodyweight').toLowerCase();
-        return selectedEquipment.some(sel => eq.includes(sel));
-      });
-    }
-    // Prioritize exercises with images, limit to 8
-    const withImg = filtered.filter(e => e.image_url);
-    const withoutImg = filtered.filter(e => !e.image_url);
-    return [...withImg, ...withoutImg].slice(0, 8);
-  }, [selectedFocus, selectedEquipment, exercises]);
 
   const toggleFocus = (key: string) => {
     setSelectedFocus(prev =>
@@ -252,46 +227,37 @@ export default function CreateWorkoutScreen() {
     );
   };
 
-  const handleWizardComplete = () => {
+  const goToBuilder = () => {
     // Pre-fill the body part filter for the picker
     if (selectedFocus.length > 0) {
       const firstFocus = BODY_FOCUS.find(b => b.key === selectedFocus[0]);
-      if (firstFocus?.filter) setSelectedBodyPart(firstFocus.filter);
+      setSelectedBodyPart(firstFocus?.filter ?? null);
+    } else {
+      setSelectedBodyPart(null);
     }
     // Auto-fill description from equipment
     if (selectedEquipment.length > 0 && !description) {
-      setDescription(selectedEquipment.map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(', '));
+      setDescription(selectedEquipment.map(equipmentLabel).join(', '));
     }
-    setWizardStep(-1);
+    setMode('builder');
   };
 
-  const quickAddExercise = (exercise: typeof exercises[0]) => {
-    if (selectedExercises.find(e => e.exercise_id === exercise.id)) return;
-    setSelectedExercises(prev => [...prev, {
-      exercise_id: exercise.id,
-      name: exercise.name,
-      muscle_group: exercise.muscle_group,
-      instructions: exercise.instructions,
-      sets: 3,
-      reps: 10,
-      rest_seconds: 60,
-      image_url: exercise.image_url,
-      notes: stripHtml(exercise.instructions),
-    }]);
+  const skipSetup = () => {
+    setSelectedFocus([]);
+    setSelectedEquipment([]);
+    setSelectedBodyPart(null);
+    setMode('builder');
   };
-
 
   // Filter exercises from Supabase (already loaded via AppContext)
   const filteredPickerExercises = useMemo(() => {
     let filtered = exercises;
 
-    // Filter by body part/category
     if (selectedBodyPart) {
       const categories = bodyPartCategoryMap[selectedBodyPart] || [selectedBodyPart];
       filtered = filtered.filter(e => categories.includes(e.category?.toLowerCase()));
     }
 
-    // Filter by search
     if (exerciseSearch.trim()) {
       const q = exerciseSearch.toLowerCase();
       filtered = filtered.filter(e =>
@@ -303,7 +269,7 @@ export default function CreateWorkoutScreen() {
 
     return filtered;
   }, [exercises, selectedBodyPart, exerciseSearch]);
-  const [saving, setSaving] = useState(false);
+
   const [videoModalExercise, setVideoModalExercise] = useState<string | null>(null);
   const [videoUrlInput, setVideoUrlInput] = useState('');
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -314,7 +280,6 @@ export default function CreateWorkoutScreen() {
   const [soundRef, setSoundRef] = useState<Audio.Sound | null>(null);
 
   const handleSpeak = useCallback(async (exerciseId: string, text?: string) => {
-    // If already playing this exercise, stop it
     if (speakingExerciseId === exerciseId) {
       if (soundRef) {
         await soundRef.stopAsync();
@@ -327,11 +292,10 @@ export default function CreateWorkoutScreen() {
 
     const plainText = stripHtml(text);
     if (!plainText) {
-      showAlert({ type: 'info', title: 'No Instructions', message: 'This exercise has no instructions to read aloud yet.' });
+      showAlert({ type: 'info', title: 'No instructions', message: 'This exercise has no instructions to read aloud yet.' });
       return;
     }
 
-    // Stop any currently playing audio
     if (soundRef) {
       await soundRef.stopAsync();
       await soundRef.unloadAsync();
@@ -341,7 +305,6 @@ export default function CreateWorkoutScreen() {
     try {
       setLoadingAudioId(exerciseId);
 
-      // Call edge function to generate/get cached audio
       const { data, error } = await supabase.functions.invoke('text-to-speech', {
         body: { exercise_id: exerciseId, text: plainText }
       });
@@ -350,7 +313,6 @@ export default function CreateWorkoutScreen() {
         throw new Error(error?.message || 'Failed to generate audio');
       }
 
-      // Play the audio
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       const { sound } = await Audio.Sound.createAsync(
         { uri: data.audio_url },
@@ -359,7 +321,6 @@ export default function CreateWorkoutScreen() {
       setSoundRef(sound);
       setSpeakingExerciseId(exerciseId);
 
-      // Listen for playback completion
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
           setSpeakingExerciseId(null);
@@ -369,7 +330,7 @@ export default function CreateWorkoutScreen() {
       });
     } catch (err: any) {
       console.error('TTS error:', err);
-      showAlert({ type: 'error', title: 'Voice Error', message: String(err?.message || 'Could not generate voice audio') });
+      showAlert({ type: 'error', title: 'Voice error', message: String(err?.message || 'Could not generate voice audio') });
       setSpeakingExerciseId(null);
     } finally {
       setLoadingAudioId(null);
@@ -389,7 +350,7 @@ export default function CreateWorkoutScreen() {
               const baseEx = exercises.find(e => e.id === we.exercise_id) || we.exercises;
               return {
                 exercise_id: we.exercise_id,
-                name: baseEx?.name || 'Unknown Exercise',
+                name: baseEx?.name || 'Unknown exercise',
                 muscle_group: baseEx?.muscle_group || '',
                 instructions: baseEx?.instructions,
                 image_url: baseEx?.image_url,
@@ -408,7 +369,6 @@ export default function CreateWorkoutScreen() {
     }
   }, [editId, workouts]);
 
-
   // Auto-add newly created custom exercises
   useEffect(() => {
     if (autoAddExerciseId && exercises.length > 0) {
@@ -417,7 +377,7 @@ export default function CreateWorkoutScreen() {
         addExercise(match);
         showAlert({
           type: 'success',
-          title: 'Added!',
+          title: 'Added',
           message: `"${match.name}" was added to your workout.`
         });
       }
@@ -426,27 +386,34 @@ export default function CreateWorkoutScreen() {
   }, [autoAddExerciseId, exercises]);
 
   const addExercise = (exercise: typeof exercises[0]) => {
-    if (selectedExercises.find((e) => e.exercise_id === exercise.id)) return;
-    setSelectedExercises((prev) => [...prev, {
-      exercise_id: exercise.id,
-      name: exercise.name,
-      muscle_group: exercise.muscle_group,
-      instructions: exercise.instructions,
-      sets: 3,
-      reps: 10,
-      rest_seconds: 60,
-      image_url: exercise.image_url,
-      notes: stripHtml(exercise.instructions),
-    }]);
-    setShowPicker(false);
-    setExerciseSearch('');
-    setExpandedExerciseId(exercise.id);
+    setSelectedExercises((prev) => {
+      if (prev.find((e) => e.exercise_id === exercise.id)) return prev;
+      return [...prev, {
+        exercise_id: exercise.id,
+        name: exercise.name,
+        muscle_group: exercise.muscle_group,
+        instructions: exercise.instructions,
+        sets: 3,
+        reps: 10,
+        rest_seconds: 60,
+        image_url: exercise.image_url,
+        notes: stripHtml(exercise.instructions),
+      }];
+    });
   };
 
-
+  const toggleExerciseInPicker = (exercise: typeof exercises[0]) => {
+    const isAdded = selectedExercises.some(e => e.exercise_id === exercise.id);
+    if (isAdded) {
+      setSelectedExercises(prev => prev.filter(e => e.exercise_id !== exercise.id));
+    } else {
+      addExercise(exercise);
+      setExpandedExerciseId(exercise.id);
+    }
+  };
 
   const removeExercise = (id: string) => {
-    Alert.alert('Remove Exercise', 'Are you sure you want to remove this exercise?', [
+    Alert.alert('Remove exercise', 'Are you sure you want to remove this exercise?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => {
         setSelectedExercises((prev) => prev.filter((e) => e.exercise_id !== id));
@@ -478,9 +445,6 @@ export default function CreateWorkoutScreen() {
     const ext = asset.uri.split('.').pop() || 'mp4';
     const fileName = `exercise-${videoModalExercise}-${Date.now()}.${ext}`;
     const mimeType = asset.mimeType || 'video/mp4';
-
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
 
     const formData = new FormData();
     formData.append('', {
@@ -528,7 +492,7 @@ export default function CreateWorkoutScreen() {
       setVideoModalExercise(null);
       setVideoUrlInput('');
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Upload Failed', message: err.message || 'Failed to upload video' });
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Failed to upload video' });
     } finally {
       setUploadingVideo(false);
     }
@@ -538,7 +502,7 @@ export default function CreateWorkoutScreen() {
     if (!videoModalExercise) return;
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      showAlert({ type: 'warning', title: 'Permission Needed', message: 'Camera access is required to record videos' });
+      showAlert({ type: 'warning', title: 'Permission needed', message: 'Camera access is required to record videos' });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -554,19 +518,56 @@ export default function CreateWorkoutScreen() {
       setVideoModalExercise(null);
       setVideoUrlInput('');
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Upload Failed', message: err.message || 'Failed to upload video' });
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Failed to upload video' });
     } finally {
       setUploadingVideo(false);
     }
   };
 
+  // ── Stats (shared between builder header and the assign sheet) ──
+  const totalSets = selectedExercises.reduce((acc, e) => acc + e.sets, 0);
+  const estMinutes = selectedExercises.length === 0 ? 0 : Math.max(1, Math.round(
+    selectedExercises.reduce((acc, e) => acc + e.sets * (e.rest_seconds + 40), 0) / 60
+  ));
+  const statsLine = `${selectedExercises.length} exercise${selectedExercises.length === 1 ? '' : 's'} · ${totalSets} set${totalSets === 1 ? '' : 's'} · ~${estMinutes} min`;
+  const summaryLine = [
+    selectedFocus.length ? selectedFocus.map(focusLabel).join(', ') : null,
+    selectedEquipment.length ? selectedEquipment.map(equipmentLabel).join(', ') : null,
+  ].filter(Boolean).join(' · ');
+
+  // ── Load enrollment info for the assign sheet (best-effort; falls back to name-only) ──
+  const loadEnrollments = useCallback(async () => {
+    if (activeClients.length === 0) return;
+    try {
+      const clientIds = activeClients.map(c => c.id);
+      const { data, error } = await supabase
+        .from('client_plan_enrollments')
+        .select('client_id, plan_id, track_position, status')
+        .in('client_id', clientIds);
+      if (error || !data) return;
+      const byClient: Record<string, { planName: string; position: number } | null> = {};
+      data.forEach((row: any) => {
+        if (row.status === 'completed') return;
+        const plan = plans.find(p => p.id === row.plan_id);
+        if (!plan) return;
+        // Keep the first active enrollment found per client
+        if (!byClient[row.client_id]) {
+          byClient[row.client_id] = { planName: plan.name, position: row.track_position || 0 };
+        }
+      });
+      setEnrollmentByClient(byClient);
+    } catch {
+      // Non-fatal — the sheet just shows client names without a pass subtitle.
+    }
+  }, [activeClients, plans]);
+
   const handleSave = async () => {
     if (!name.trim()) {
-      showAlert({ type: 'warning', title: 'Missing Name', message: 'Please enter a name for the workout.' });
+      showAlert({ type: 'warning', title: 'Missing name', message: 'Please enter a name for the workout.' });
       return;
     }
     if (selectedExercises.length === 0) {
-      showAlert({ type: 'warning', title: 'No Exercises', message: 'Please add at least one exercise to the workout.' });
+      showAlert({ type: 'warning', title: 'No exercises', message: 'Please add at least one exercise to the workout.' });
       return;
     }
 
@@ -584,506 +585,378 @@ export default function CreateWorkoutScreen() {
       }));
       if (editId) {
         await updateWorkout(editId, name.trim(), description.trim(), exercisePayload);
+        router.back();
       } else {
-        await createWorkout(name.trim(), description.trim(), exercisePayload);
+        const created = await createWorkout(name.trim(), description.trim(), exercisePayload);
+        setSavedWorkout({ id: created.id, name: name.trim() });
+        setSelectedClientId(activeClients[0]?.id ?? null);
+        loadEnrollments();
       }
-      router.back();
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Save Failed', message: err.message || 'Failed to save workout' });
+      showAlert({ type: 'error', title: 'Save failed', message: err.message || 'Failed to save workout' });
     } finally {
       setSaving(false);
     }
   };
 
-  // Exercise picker modal
+  const closeAssignSheet = () => {
+    setSavedWorkout(null);
+    router.back();
+  };
+
+  const handleAssign = async () => {
+    if (!savedWorkout || !selectedClientId) return;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await assignWorkout(savedWorkout.id, selectedClientId, today);
+      showAlert({ type: 'success', title: 'Assigned', message: 'The workout was added to their plan.' });
+      closeAssignSheet();
+    } catch (err: any) {
+      showAlert({ type: 'error', title: 'Assign failed', message: err.message || 'Could not assign the workout' });
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Exercise picker (18e)
+  // ─────────────────────────────────────────────────────────────────────────
   if (showPicker) {
+    const pickerCategories = [
+      { key: null, label: 'All' },
+      { key: 'chest', label: 'Chest' },
+      { key: 'back', label: 'Back' },
+      { key: 'upper legs', label: 'Legs' },
+      { key: 'shoulders', label: 'Shoulders' },
+      { key: 'upper arms', label: 'Arms' },
+      { key: 'waist', label: 'Core' },
+      { key: 'lower arms', label: 'Forearms' },
+      { key: 'lower legs', label: 'Calves' },
+      { key: 'cardio', label: 'Cardio' },
+      { key: 'neck', label: 'Neck' },
+    ];
+    const activeCategoryLabel = pickerCategories.find(c => c.key === selectedBodyPart)?.label || 'All';
+
     return (
-      <GestureHandlerRootView style={styles.container}>
+      <GestureHandlerRootView style={s.container}>
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-          <View style={styles.pickerHeader}>
-            <TouchableOpacity onPress={() => { setShowPicker(false); setExerciseSearch(''); }}>
-              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <View style={s.pickerHeader}>
+            <TouchableOpacity onPress={() => { setShowPicker(false); setExerciseSearch(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.pickerTitle}>Global Database</Text>
-            <View style={{ width: 24 }} />
+            <Text style={s.pickerTitle}>Add exercises</Text>
+            <TouchableOpacity onPress={() => setShowPicker(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={s.pickerDone}>Done · {selectedExercises.length}</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color="rgba(255,255,255,0.6)" />
+          <View style={s.searchBox}>
+            <Ionicons name="search" size={18} color={CoachColors.textFaint} />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search exercises..."
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              style={s.searchInput}
+              placeholder={`Search ${exercises.length} exercises`}
+              placeholderTextColor={CoachColors.textFaint}
               value={exerciseSearch}
               onChangeText={setExerciseSearch}
-              selectionColor="#FFFFFF"
+              selectionColor={CoachColors.accent}
             />
             {exerciseSearch.length > 0 && (
               <TouchableOpacity onPress={() => setExerciseSearch('')}>
-                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.5)" />
+                <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Body Part Filter Chips */}
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             style={{ flexGrow: 0, flexShrink: 0 }}
             contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingVertical: 8, alignItems: 'center' }}
           >
-            {[
-              { key: null, label: 'All' },
-              { key: 'chest', label: 'Chest' },
-              { key: 'back', label: 'Back' },
-              { key: 'upper legs', label: 'Legs' },
-              { key: 'shoulders', label: 'Shoulders' },
-              { key: 'upper arms', label: 'Arms' },
-              { key: 'waist', label: 'Core' },
-              { key: 'lower arms', label: 'Forearms' },
-              { key: 'lower legs', label: 'Calves' },
-              { key: 'cardio', label: 'Cardio' },
-              { key: 'neck', label: 'Neck' },
-            ].map((bp, i) => (
+            {pickerCategories.map((bp, i) => (
               <TouchableOpacity
                 key={bp.label}
                 onPress={() => setSelectedBodyPart(bp.key)}
-                style={[
-                  styles.bodyPartChip,
-                  selectedBodyPart === bp.key && styles.bodyPartChipActive,
-                  i > 0 && { marginLeft: 8 },
-                ]}
+                style={[s.filterChip, selectedBodyPart === bp.key && s.filterChipActive, i > 0 && { marginLeft: 8 }]}
                 activeOpacity={0.7}
               >
-                <Text style={[
-                  styles.bodyPartChipText,
-                  selectedBodyPart === bp.key && styles.bodyPartChipTextActive,
-                ]}>{bp.label}</Text>
+                <Text style={[s.filterChipText, selectedBodyPart === bp.key && s.filterChipTextActive]}>{bp.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
+          <Text style={s.resultCount}>{filteredPickerExercises.length} in {activeCategoryLabel}</Text>
+
           <FlatList
             data={filteredPickerExercises}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
-              showsVerticalScrollIndicator={false}
-              initialNumToRender={20}
-              maxToRenderPerBatch={15}
-              windowSize={5}
-              ListEmptyComponent={() => (
-                <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
-                  <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.2)" />
-                  <Text style={{ fontFamily: FontFamily.bodyMedium, fontSize: 16, color: 'rgba(255,255,255,0.6)', marginTop: 16, textAlign: 'center' }}>
-                    No exercises found.
-                  </Text>
-                  {exerciseSearch.trim() && (
-                    <TouchableOpacity 
-                      style={{ marginTop: 24, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: Radius.full, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                      onPress={() => {
-                        setShowPicker(false);
-                        router.push({ 
-                          pathname: '/create-exercise', 
-                          params: { initialName: exerciseSearch, autoGenerate: 'true' } 
-                        });
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="sparkles" size={16} color="#000000" />
-                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000000' }}>
-                        Auto-Create with AI
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-              ListHeaderComponent={
-                <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)', paddingBottom: 8 }}>
-                  {filteredPickerExercises.length} exercises
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={20}
+            maxToRenderPerBatch={15}
+            windowSize={5}
+            ListEmptyComponent={() => (
+              <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
+                <Ionicons name="search-outline" size={48} color={CoachColors.borderMuted} />
+                <Text style={{ fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textMuted, marginTop: 16, textAlign: 'center' }}>
+                  No exercises found.
                 </Text>
-              }
-              renderItem={({ item }) => {
-                const isAdded = selectedExercises.some(e => e.exercise_id === item.id);
-                const equipLabel = !item.equipment || item.equipment === 'bodyweight' ? 'Bodyweight' : (item.equipment.charAt(0).toUpperCase() + item.equipment.slice(1));
-                const difficultyColors: Record<string, string> = {
-                  'beginner': '#34D399',
-                  'intermediate': '#FBBF24',
-                  'expert': '#F87171',
-                };
-                const diffColor = difficultyColors[item.difficulty || ''] || 'rgba(255,255,255,0.3)';
-                const diffLabel = item.difficulty ? item.difficulty.charAt(0).toUpperCase() + item.difficulty.slice(1) : null;
-                
-                return (
-                  <TouchableOpacity
-                    style={[styles.exercisePickItem, isAdded && styles.exercisePickItemAdded]}
-                    onPress={() => addExercise(item)}
-                    disabled={isAdded}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.exercisePickIcon, { backgroundColor: isAdded ? 'rgba(255,255,255,0.2)' : 'rgba(255,107,53,0.08)', overflow: 'hidden' }]}>
-                      {item.image_url && !failedGifs.has(item.image_url) ? (
-                        <Image 
-                          source={{ uri: item.image_url }} 
-                          style={{ width: '100%', height: '100%', borderRadius: 8 }} 
-                          contentFit="cover"
-                          cachePolicy="disk"
-                          onError={() => setFailedGifs(prev => new Set(prev).add(item.image_url!))}
-                        />
-                      ) : (
-                        <Ionicons name="barbell-outline" size={20} color={isAdded ? '#FFFFFF' : '#FF6B35'} />
-                      )}
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Text style={[styles.exercisePickName, { flex: 1 }]} numberOfLines={1}>{item.name}</Text>
-                        {diffLabel && (
-                          <View style={{ backgroundColor: diffColor + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: diffColor }}>{diffLabel}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.exerciseTags}>
-                        <Text style={styles.exerciseTag}>{item.muscle_group || 'Full Body'}</Text>
-                        <Text style={styles.exerciseTagDot}>·</Text>
-                        <Text style={styles.exerciseTag}>{equipLabel}</Text>
-                        {item.secondary_muscles && item.secondary_muscles.length > 0 ? (
-                          <><Text style={styles.exerciseTagDot}>·</Text><Text style={styles.exerciseTag}>{item.secondary_muscles.slice(0, 2).join(', ')}</Text></>
-                        ) : null}
-                      </View>
-                      {item.description ? (
-                        <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }} numberOfLines={1}>
-                          {item.description}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {isAdded ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+              </View>
+            )}
+            renderItem={({ item }) => {
+              const isAdded = selectedExercises.some(e => e.exercise_id === item.id);
+              const equipLabelText = !item.equipment || item.equipment === 'bodyweight' ? 'Bodyweight' : cap(item.equipment);
+              const diffLabel = item.difficulty ? cap(item.difficulty) : null;
+              const subtitle = [item.muscle_group || 'Full body', equipLabelText, diffLabel].filter(Boolean).join(' · ');
+
+              return (
+                <TouchableOpacity
+                  style={s.exercisePickItem}
+                  onPress={() => toggleExerciseInPicker(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.exercisePickIcon, { overflow: 'hidden' }]}>
+                    {item.image_url && !failedGifs.has(item.image_url) ? (
+                      <Image
+                        source={{ uri: item.image_url }}
+                        style={{ width: '100%', height: '100%', borderRadius: 8 }}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        onError={() => setFailedGifs(prev => new Set(prev).add(item.image_url!))}
+                      />
                     ) : (
-                      <Ionicons name="add-circle-outline" size={22} color="rgba(255,255,255,0.8)" />
+                      <Ionicons name="barbell-outline" size={20} color={CoachColors.textFaint} />
                     )}
-                  </TouchableOpacity>
-                );
-              }}
-              ItemSeparatorComponent={() => <View style={styles.separatorModal} />}
-            />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={s.exercisePickName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={s.exercisePickSub} numberOfLines={1}>{subtitle}</Text>
+                  </View>
+                  {isAdded ? (
+                    <View style={s.addCircleActive}>
+                      <Ionicons name="checkmark" size={16} color={CoachColors.onAccent} />
+                    </View>
+                  ) : (
+                    <View style={s.addCircle}>
+                      <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+            ItemSeparatorComponent={() => <View style={s.separatorModal} />}
+            ListFooterComponent={
+              <TouchableOpacity
+                style={s.createExerciseRow}
+                onPress={() => {
+                  setShowPicker(false);
+                  router.push({
+                    pathname: '/create-exercise',
+                    params: { initialName: exerciseSearch, autoGenerate: 'true' }
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={CoachColors.accent} />
+                <Text style={s.createExerciseRowText}>Not here? Create an exercise</Text>
+              </TouchableOpacity>
+            }
+          />
         </SafeAreaView>
       </GestureHandlerRootView>
     );
   }
 
-  // ── WIZARD UI ──
-  if (wizardStep > 0) {
-    const progressPct = (wizardStep / 3) * 100;
+  // ─────────────────────────────────────────────────────────────────────────
+  // AI describe-it flow (18c)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (mode === 'describe') {
+    const examplePrompts = [
+      'Full body HIIT, 30 min',
+      'Back and biceps, heavy',
+      'Push day, dumbbells only, 45 min',
+    ];
+
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Progress Bar */}
-        <View style={wz.progressBar}>
-          <View style={[wz.progressFill, { width: `${progressPct}%` }]} />
-        </View>
-
-        {/* Header */}
-        <View style={wz.header}>
-          <TouchableOpacity
-            onPress={() => wizardStep === 1 ? router.back() : setWizardStep(wizardStep - 1)}
-            style={wz.backBtn}
-          >
-            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={22} color="#FFF" />
+      <View style={[s.container, { paddingTop: insets.top }]}>
+        <View style={s.setupHeader}>
+          <TouchableOpacity onPress={() => setMode('setup')} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={wz.stepLabel}>Step {wizardStep} of 3</Text>
-          {wizardStep < 3 ? (
-            <TouchableOpacity onPress={() => { handleWizardComplete(); }} style={wz.skipBtn}>
-              <Text style={wz.skipText}>Skip</Text>
-            </TouchableOpacity>
-          ) : <View style={{ width: 50 }} />}
+          <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={wz.scroll} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={s.setupScroll} keyboardShouldPersistTaps="handled">
+            <Text style={s.title}>Describe the workout</Text>
+            <Text style={s.subtitle}>Exercises are picked from your library — nothing invented that you can't assign.</Text>
 
-          {/* ── STEP 1: BODY FOCUS ── */}
-          {wizardStep === 1 && (
-            <>
-              <Text style={wz.title}>What will this{'\n'}workout target?</Text>
-              <View style={wz.subtitleRow}>
-                <Text style={wz.subtitle}>Select one or more body parts</Text>
-                <TouchableOpacity style={wz.aiGenerateBtn} onPress={() => setShowAiSheet(true)} activeOpacity={0.7}>
-                  <Ionicons name="sparkles" size={14} color="#FBBF24" />
-                  <Text style={wz.aiGenerateBtnText}>AI Generate</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={wz.focusGrid}>
-                {BODY_FOCUS.map(bp => {
-                  const isActive = selectedFocus.includes(bp.key);
-                  return (
-                    <TouchableOpacity
-                      key={bp.key}
-                      style={[wz.focusCard, isActive && { borderColor: bp.glow + '60', backgroundColor: bp.glow + '08' }]}
-                      onPress={() => toggleFocus(bp.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Image source={bp.emblem} style={[wz.focusEmblem, !isActive && { opacity: 0.35 }]} contentFit="cover" />
-                      <Text style={[wz.focusLabel, isActive && { color: '#FFF' }]}>{bp.label}</Text>
-                      {isActive && (
-                        <View style={[wz.focusCheck, { backgroundColor: bp.glow }]}>
-                          <Ionicons name="checkmark" size={12} color="#FFF" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          {/* ── STEP 2: NAME & EQUIPMENT ── */}
-          {wizardStep === 2 && (
-            <>
-              {/* Emblem preview */}
-              {primaryEmblem && (
-                <View style={wz.emblemPreview}>
-                  <View style={[wz.emblemGlow, { shadowColor: primaryEmblem.glow, backgroundColor: primaryEmblem.glow }]} />
-                  <Image source={primaryEmblem.emblem} style={wz.emblemImage} contentFit="cover" />
-                </View>
-              )}
-
-              <Text style={wz.title}>Name your workout</Text>
-
-              {/* Suggested names */}
-              {suggestedNames.length > 0 && (
-                <View style={wz.nameChips}>
-                  <View style={wz.aiLabel}>
-                    <Ionicons name="sparkles" size={12} color="#FBBF24" />
-                    <Text style={wz.aiLabelText}>SUGGESTED</Text>
-                  </View>
-                  <View style={wz.chipRow}>
-                    {suggestedNames.map(n => (
-                      <TouchableOpacity
-                        key={n}
-                        style={[wz.nameChip, name === n && { backgroundColor: (primaryEmblem?.glow || '#3B82F6') + '20', borderColor: (primaryEmblem?.glow || '#3B82F6') + '40' }]}
-                        onPress={() => setName(n)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[wz.nameChipText, name === n && { color: '#FFF' }]}>{n}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Custom name input */}
-              <View style={wz.nameInputWrap}>
-                <Ionicons name="create-outline" size={18} color="rgba(255,255,255,0.2)" />
-                <TextInput
-                  style={wz.nameInput}
-                  placeholder="Or type your own name..."
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-                {name.length > 0 && (
-                  <TouchableOpacity onPress={() => setName('')}>
-                    <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.2)" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Equipment */}
-              <Text style={wz.sectionLabel}>EQUIPMENT</Text>
-              <View style={wz.equipGrid}>
-                {EQUIPMENT_TAGS.map(eq => {
-                  const isActive = selectedEquipment.includes(eq.key);
-                  return (
-                    <TouchableOpacity
-                      key={eq.key}
-                      style={[wz.equipTag, isActive && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' }]}
-                      onPress={() => toggleEquipment(eq.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name={eq.icon} size={14} color={isActive ? '#FFF' : 'rgba(255,255,255,0.3)'} />
-                      <Text style={[wz.equipTagText, isActive && { color: '#FFF' }]}>{eq.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          {/* ── STEP 3: SMART SUGGESTIONS ── */}
-          {wizardStep === 3 && (
-            <>
-              <Text style={wz.title}>Quick-add exercises</Text>
-              <Text style={wz.subtitle}>
-                Based on your selections · Tap to add
-              </Text>
-
-              {suggestedExercises.length === 0 ? (
-                <View style={wz.emptyExercises}>
-                  <Ionicons name="barbell-outline" size={32} color="rgba(255,255,255,0.08)" />
-                  <Text style={wz.emptyText}>No exercises match your filters</Text>
-                  <Text style={wz.emptySubtext}>You can add exercises from the full library in the builder</Text>
-                </View>
-              ) : (
-                <View style={wz.exerciseList}>
-                  {suggestedExercises.map(ex => {
-                    const isAdded = selectedExercises.some(e => e.exercise_id === ex.id);
-                    return (
-                      <TouchableOpacity
-                        key={ex.id}
-                        style={[wz.exerciseCard, isAdded && { opacity: 0.4 }]}
-                        onPress={() => quickAddExercise(ex)}
-                        disabled={isAdded}
-                        activeOpacity={0.7}
-                      >
-                        <View style={wz.exerciseThumb}>
-                          {ex.image_url && !failedGifs.has(ex.image_url) ? (
-                            <Image
-                              source={{ uri: ex.image_url }}
-                              style={{ width: '100%', height: '100%', borderRadius: 10 }}
-                              contentFit="cover"
-                              cachePolicy="disk"
-                              onError={() => setFailedGifs(prev => new Set(prev).add(ex.image_url!))}
-                            />
-                          ) : (
-                            <Ionicons name="barbell-outline" size={20} color="rgba(255,255,255,0.15)" />
-                          )}
-                        </View>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={wz.exerciseName} numberOfLines={1}>{ex.name}</Text>
-                          <Text style={wz.exerciseMeta}>
-                            {ex.muscle_group} · {ex.equipment || 'Bodyweight'}
-                          </Text>
-                        </View>
-                        {isAdded ? (
-                          <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
-                        ) : (
-                          <View style={wz.quickAddBtn}>
-                            <Ionicons name="add" size={18} color="#FFFFFF" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {selectedExercises.length > 0 && (
-                <View style={wz.addedBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
-                  <Text style={wz.addedText}>{selectedExercises.length} EXERCISE{selectedExercises.length !== 1 ? 'S' : ''} ADDED</Text>
-                </View>
-              )}
-            </>
-          )}
-
-          <View style={{ height: 100 }} />
-        </ScrollView>
-
-        {/* Footer CTA */}
-        <View style={[wz.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <TouchableOpacity
-            style={[wz.nextBtn, selectedFocus.length === 0 && wizardStep === 1 && { opacity: 0.4 }]}
-            onPress={() => {
-              if (wizardStep < 3) {
-                setWizardStep(wizardStep + 1);
-              } else {
-                handleWizardComplete();
-              }
-            }}
-            disabled={wizardStep === 1 && selectedFocus.length === 0}
-            activeOpacity={0.85}
-          >
-            <View style={wz.nextBtnGradient}>
-              <Text style={wz.nextBtnText}>
-                {wizardStep === 3 ? 'START BUILDING' : 'CONTINUE'}
-              </Text>
-              <Ionicons name={wizardStep === 3 ? 'hammer' : 'arrow-forward'} size={16} color="#000000" />
+            <View style={[s.describeInputWrap, aiLoading && { opacity: 0.5 }]}>
+              <TextInput
+                style={s.describeInput}
+                placeholder="Push day for an intermediate lifter, dumbbells only, 45 minutes"
+                placeholderTextColor={CoachColors.textFaint}
+                value={aiPrompt}
+                onChangeText={setAiPrompt}
+                multiline
+                editable={!aiLoading}
+                selectionColor={CoachColors.accent}
+              />
             </View>
-          </TouchableOpacity>
-        </View>
 
-        {/* AI Generate Bottom Sheet */}
-        <Modal visible={showAiSheet} transparent animationType="slide" onRequestClose={() => !aiLoading && setShowAiSheet(false)}>
-          <TouchableOpacity style={wz.sheetOverlay} activeOpacity={1} onPress={() => !aiLoading && setShowAiSheet(false)}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              <TouchableOpacity activeOpacity={1} style={wz.sheetContent}>
-                <View style={wz.sheetHandle} />
-                <View style={wz.sheetHeader}>
-                  <Ionicons name="sparkles" size={24} color="#FBBF24" />
-                  <Text style={wz.sheetTitle}>AI Workout Generator</Text>
-                </View>
-                <Text style={wz.sheetDesc}>Describe the workout and AI will build it for you</Text>
-
-                {/* Example prompts */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={wz.exampleScroll}>
-                  {[
-                    'Push day, intermediate, dumbbells',
-                    'Full body HIIT, 30 min, bodyweight',
-                    'Back and biceps, heavy, barbell'
-                  ].map(ex => (
-                    <TouchableOpacity
-                      key={ex}
-                      style={wz.exampleChip}
-                      onPress={() => setAiPrompt(ex)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={wz.exampleChipText}>{ex}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <View style={wz.aiInputRow}>
-                  <TextInput
-                    style={wz.aiInput}
-                    placeholder="e.g. Leg day for beginner, machines only, 45 min"
-                    placeholderTextColor="rgba(255,255,255,0.15)"
-                    value={aiPrompt}
-                    onChangeText={setAiPrompt}
-                    multiline
-                    editable={!aiLoading}
-                  />
-                </View>
-
+            <View style={s.chipRow}>
+              {examplePrompts.map(ex => (
                 <TouchableOpacity
-                  style={[wz.aiSubmitBtn, (!aiPrompt.trim() || aiLoading) && { opacity: 0.4 }]}
-                  onPress={handleAiGenerate}
-                  disabled={!aiPrompt.trim() || aiLoading}
-                  activeOpacity={0.85}
+                  key={ex}
+                  style={s.exampleChip}
+                  onPress={() => !aiLoading && setAiPrompt(ex)}
+                  activeOpacity={0.7}
+                  disabled={aiLoading}
                 >
-                  <LinearGradient colors={['#FBBF24', '#F59E0B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={wz.aiSubmitGradient}>
-                    {aiLoading ? (
-                      <><ActivityIndicator size="small" color="#000" /><Text style={wz.aiSubmitText}>Generating...</Text></>
-                    ) : (
-                      <><Ionicons name="sparkles" size={18} color="#000" /><Text style={wz.aiSubmitText}>Generate Workout</Text></>
-                    )}
-                  </LinearGradient>
+                  <Text style={s.exampleChipText}>{ex}</Text>
                 </TouchableOpacity>
-              </TouchableOpacity>
-            </KeyboardAvoidingView>
-          </TouchableOpacity>
-        </Modal>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+            <TouchableOpacity
+              style={[s.primaryBtn, (!aiPrompt.trim() || aiLoading) && { opacity: 0.5 }]}
+              onPress={handleAiGenerate}
+              disabled={!aiPrompt.trim() || aiLoading}
+              activeOpacity={0.85}
+            >
+              {aiLoading ? (
+                <>
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                  <Text style={s.primaryBtnText}>Matching your exercises…</Text>
+                </>
+              ) : (
+                <Text style={s.primaryBtnText}>Generate workout</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     );
   }
 
-  return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
-          {/* Header */}
-          <View style={[styles.header, { paddingTop: insets.top }]}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+  // ─────────────────────────────────────────────────────────────────────────
+  // Setup screen (18b) — single screen, skippable, never blocks
+  // ─────────────────────────────────────────────────────────────────────────
+  if (mode === 'setup') {
+    return (
+      <View style={[s.container, { paddingTop: insets.top }]}>
+        <View style={s.setupHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={skipSetup} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={s.skipText}>Skip setup</Text>
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={s.setupScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.title}>What does this workout target?</Text>
+            <Text style={s.subtitle}>Only used to pre-filter the exercise list. Change anything later in the builder.</Text>
+
+            <Text style={s.sectionLabel}>Focus</Text>
+            <View style={s.chipGrid}>
+              {BODY_FOCUS.map(bp => {
+                const isActive = selectedFocus.includes(bp.key);
+                return (
+                  <TouchableOpacity
+                    key={bp.key}
+                    style={[s.chip, isActive && s.chipActive]}
+                    onPress={() => toggleFocus(bp.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, isActive && s.chipTextActive]}>{bp.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[s.sectionLabel, { marginTop: Spacing.xl }]}>Equipment available</Text>
+            <View style={s.chipGrid}>
+              {EQUIPMENT_TAGS.map(eq => {
+                const isActive = selectedEquipment.includes(eq.key);
+                return (
+                  <TouchableOpacity
+                    key={eq.key}
+                    style={[s.chip, isActive && s.chipActive]}
+                    onPress={() => toggleEquipment(eq.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, isActive && s.chipTextActive]}>{eq.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[s.sectionLabel, { marginTop: Spacing.xl }]}>Name</Text>
+            <TextInput
+              style={s.nameField}
+              placeholder="Name your workout"
+              placeholderTextColor={CoachColors.textFaint}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              selectionColor={CoachColors.accent}
+            />
+            {suggestedNames.length > 0 && (
+              <View style={[s.chipRow, { marginTop: Spacing.sm }]}>
+                {suggestedNames.map(n => (
+                  <TouchableOpacity
+                    key={n}
+                    style={[s.chip, name === n && s.chipActive]}
+                    onPress={() => setName(n)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, name === n && s.chipTextActive]}>{n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity style={s.describeCard} onPress={() => setMode('describe')} activeOpacity={0.8}>
+              <View style={s.describeCardIcon}>
+                <Ionicons name="chatbubble-outline" size={20} color={CoachColors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.describeCardTitle}>Describe it instead</Text>
+                <Text style={s.describeCardHint} numberOfLines={1}>"Push day for an intermediate lifter, dumbbells only, 45 minutes"</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{editId ? 'Edit Workout' : 'Build Workout'}</Text>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          </ScrollView>
+
+          <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+            <TouchableOpacity style={s.primaryBtn} onPress={goToBuilder} activeOpacity={0.85}>
+              <Text style={s.primaryBtnText}>Start building</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Builder screen (18d)
+  // ─────────────────────────────────────────────────────────────────────────
+  return (
+    <GestureHandlerRootView style={s.container}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={s.builderHeader}>
+            <TouchableOpacity style={s.iconBtn} onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={s.builderHeaderTitle}>{editId ? 'Edit workout' : 'Build workout'}</Text>
+            <TouchableOpacity style={s.createBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
-                <ActivityIndicator size="small" color="#000000" />
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : (
-                <Text style={styles.saveBtnText}>{editId ? 'Save' : 'Create'}</Text>
+                <Text style={s.createBtnText}>{editId ? 'Save' : 'Create'}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1092,67 +965,36 @@ export default function CreateWorkoutScreen() {
             data={selectedExercises}
             onDragEnd={({ data }) => setSelectedExercises(data)}
             keyExtractor={(item) => item.exercise_id}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
-              <>
-                <View style={styles.wysiwygHeader}>
-                  {/* Emblem + Title Row */}
-                  {primaryEmblem && (
-                    <View style={wz.builderEmblemRow}>
-                      <View style={wz.builderEmblemWrap}>
-                        <View style={[wz.builderEmblemGlow, { backgroundColor: primaryEmblem.glow, shadowColor: primaryEmblem.glow }]} />
-                        <Image source={primaryEmblem.emblem} style={wz.builderEmblemImg} contentFit="cover" />
-                      </View>
-                      <View style={wz.builderFocusTags}>
-                        {selectedFocus.map(f => {
-                          const bp = BODY_FOCUS.find(b => b.key === f);
-                          return bp ? (
-                            <View key={f} style={[wz.builderFocusTag, { backgroundColor: bp.glow + '15', borderColor: bp.glow + '30' }]}>
-                              <Text style={[wz.builderFocusTagText, { color: bp.glow }]}>{bp.label}</Text>
-                            </View>
-                          ) : null;
-                        })}
-                      </View>
-                    </View>
-                  )}
-                  <TextInput
-                    style={styles.titleInput}
-                    placeholder="Workout Title"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={name}
-                    onChangeText={setName}
-                    selectionColor="#FFFFFF"
-                    autoFocus={!name}
-                  />
-                  <TextInput
-                    style={styles.subtitleInput}
-                    placeholder="Equipment: e.g. Open Space, Bodyweight"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={description}
-                    onChangeText={setDescription}
-                    selectionColor="#FFFFFF"
-                    multiline
-                  />
-                </View>
-                <View style={[styles.blockHeader, { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md }]}>
-                  <Text style={styles.blockHeaderText}>Workout Flow</Text>
-                </View>
-              </>
+              <View style={s.builderIntro}>
+                <TextInput
+                  style={s.titleInput}
+                  placeholder="Workout name"
+                  placeholderTextColor={CoachColors.textFaint}
+                  value={name}
+                  onChangeText={setName}
+                  selectionColor={CoachColors.accent}
+                  autoFocus={!name}
+                />
+                {summaryLine ? <Text style={s.summaryLine}>{summaryLine}</Text> : null}
+                <Text style={s.statsLine}>{statsLine}</Text>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={s.emptyBuilder}>
+                <Ionicons name="barbell-outline" size={28} color={CoachColors.borderMuted} />
+                <Text style={s.emptyBuilderText}>No exercises yet — add your first one below.</Text>
+              </View>
             }
             ListFooterComponent={
               <>
-                <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl }}>
-                  <TouchableOpacity 
-                    style={styles.addExerciseGhost} 
-                    onPress={() => setShowPicker(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.accordionThumb, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderStyle: 'dashed' }]}>
-                      <Ionicons name="add" size={24} color="rgba(255,255,255,0.5)" />
-                    </View>
-                    <Text style={styles.addExerciseGhostText}>Add Exercise...</Text>
+                <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xl }}>
+                  <TouchableOpacity style={s.addExerciseBtn} onPress={() => setShowPicker(true)} activeOpacity={0.8}>
+                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                    <Text style={s.addExerciseBtnText}>Add exercise</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={{ height: 120 }} />
@@ -1162,52 +1004,51 @@ export default function CreateWorkoutScreen() {
               const index = getIndex();
               const isExpanded = expandedExerciseId === ex.exercise_id;
               const isGrouped = ex.group_id !== null && ex.group_id !== undefined;
+              const isLinkedToPrev = !!(ex.group_id && index !== undefined && index > 0 && selectedExercises[index - 1].group_id === ex.group_id);
               return (
                 <ScaleDecorator>
                   <View style={[
-                    styles.accordionContainer, 
-                    isActive && { backgroundColor: 'rgba(255,255,255,0.05)' },
-                    isGrouped && { borderLeftWidth: 3, borderLeftColor: '#EF4444', marginLeft: Spacing.sm }
+                    s.accordionContainer,
+                    isActive && { backgroundColor: CoachColors.surface },
+                    isGrouped && { borderLeftWidth: 3, borderLeftColor: CoachColors.accent, marginLeft: Spacing.sm }
                   ]}>
-                    <TouchableOpacity 
-                      style={styles.accordionHeader} 
+                    <TouchableOpacity
+                      style={s.accordionHeader}
                       onPress={() => setExpandedExerciseId(isExpanded ? null : ex.exercise_id)}
                       onLongPress={drag}
                       activeOpacity={0.7}
                     >
-                      <TouchableOpacity onPressIn={drag} style={{ marginRight: Spacing.sm }}>
-                        <Ionicons name="menu" size={24} color="rgba(255,255,255,0.3)" />
+                      <TouchableOpacity onPressIn={drag} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: Spacing.sm }}>
+                        <Ionicons name="reorder-three-outline" size={22} color={CoachColors.textFaint} />
                       </TouchableOpacity>
-                      <View style={[styles.accordionThumb, ex.image_url && !failedGifs.has(ex.image_url) ? { backgroundColor: 'transparent', padding: 0, overflow: 'hidden' } : {}]}>
+                      <View style={[s.accordionThumb, ex.image_url && !failedGifs.has(ex.image_url) ? { padding: 0, overflow: 'hidden' } : {}]}>
                         {ex.image_url && !failedGifs.has(ex.image_url) ? (
-                          <Image 
-                            source={proxyGifStill(ex.image_url)} 
-                            style={{ width: '100%', height: '100%', borderRadius: 8 }} 
+                          <Image
+                            source={proxyGifStill(ex.image_url)}
+                            style={{ width: '100%', height: '100%', borderRadius: 8 }}
                             contentFit="cover"
                             cachePolicy="disk"
                             onError={() => setFailedGifs(prev => new Set(prev).add(ex.image_url!))}
                           />
                         ) : (
-                          <Ionicons name="barbell" size={24} color="rgba(255,255,255,0.4)" />
+                          <Ionicons name="barbell" size={22} color={CoachColors.textFaint} />
                         )}
                       </View>
-                      <View style={styles.accordionInfo}>
-                        <Text style={styles.accordionName}>{ex.name}</Text>
-                        <Text style={styles.accordionSub}>{ex.reps} reps</Text>
+                      <View style={s.accordionInfo}>
+                        <Text style={s.accordionName} numberOfLines={1}>{ex.name}</Text>
+                        <Text style={s.accordionSub}>{ex.sets} × {ex.reps} · {ex.rest_seconds}s rest</Text>
                       </View>
-                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#FFFFFF" />
+                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textSecondary} />
                     </TouchableOpacity>
 
                     {isExpanded && (
-                      <View style={styles.expandedContent}>
-                        {/* Link to Previous */}
+                      <View style={s.expandedContent}>
                         {index !== undefined && index > 0 && (
-                          <TouchableOpacity 
-                            style={styles.linkGroupBtn} 
+                          <TouchableOpacity
+                            style={s.linkGroupBtn}
                             onPress={() => {
                               const prev = selectedExercises[index - 1];
                               if (ex.group_id && prev.group_id === ex.group_id) {
-                                // Unlink — and clean up orphan if only 1 member remains
                                 const orphanGroupId = ex.group_id;
                                 updateExercise(ex.exercise_id, 'group_id', null);
                                 const remaining = selectedExercises.filter(
@@ -1217,61 +1058,45 @@ export default function CreateWorkoutScreen() {
                                   updateExercise(remaining[0].exercise_id, 'group_id', null);
                                 }
                               } else {
-                                // Link
                                 const newGroupId = prev.group_id || `ss-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
                                 if (!prev.group_id) updateExercise(prev.exercise_id, 'group_id', newGroupId);
                                 updateExercise(ex.exercise_id, 'group_id', newGroupId);
                               }
                             }}
                           >
-                            <Ionicons name={(ex.group_id && index > 0 && selectedExercises[index-1].group_id === ex.group_id) ? "link" : "link-outline"} size={20} color="#EF4444" />
-                            <Text style={styles.linkGroupText}>
-                              {(ex.group_id && index > 0 && selectedExercises[index-1].group_id === ex.group_id) ? "Unlink from Previous" : "Link with Previous (Superset)"}
+                            <Ionicons name={isLinkedToPrev ? 'link' : 'link-outline'} size={18} color={CoachColors.accent} />
+                            <Text style={s.linkGroupText}>
+                              {isLinkedToPrev ? 'Unlink from previous' : 'Link with previous (superset)'}
                             </Text>
                           </TouchableOpacity>
                         )}
 
-                        {/* Exercise Info: Description, Difficulty, Secondary Muscles */}
                         {(() => {
                           const baseExercise = exercises.find(e => e.id === ex.exercise_id);
                           if (!baseExercise?.description && !baseExercise?.difficulty && !baseExercise?.secondary_muscles?.length) return null;
-                          
-                          const diffColors: Record<string, string> = { 'beginner': '#34D399', 'intermediate': '#FBBF24', 'expert': '#F87171' };
-                          const dc = diffColors[baseExercise?.difficulty || ''] || 'rgba(255,255,255,0.4)';
-                          
                           return (
-                            <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 14, marginBottom: 12, gap: 10 }}>
-                              {/* Difficulty + Secondary Muscles row */}
+                            <View style={s.infoCard}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                                 {baseExercise?.difficulty && (
-                                  <View style={{ backgroundColor: dc + '18', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dc }} />
-                                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: dc }}>
-                                      {baseExercise.difficulty.charAt(0).toUpperCase() + baseExercise.difficulty.slice(1)}
-                                    </Text>
+                                  <View style={s.metaTag}>
+                                    <Text style={s.metaTagText}>{cap(baseExercise.difficulty)}</Text>
                                   </View>
                                 )}
                                 {baseExercise?.secondary_muscles?.map((m, i) => (
-                                  <View key={i} style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
-                                    <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                                      {m.charAt(0).toUpperCase() + m.slice(1)}
-                                    </Text>
+                                  <View key={i} style={s.metaTag}>
+                                    <Text style={s.metaTagText}>{cap(m)}</Text>
                                   </View>
                                 ))}
                               </View>
-                              {/* Description */}
                               {baseExercise?.description && (
-                                <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 18 }}>
-                                  {baseExercise.description}
-                                </Text>
+                                <Text style={s.infoCardDesc}>{baseExercise.description}</Text>
                               )}
                             </View>
                           );
                         })()}
 
-                        {/* Media Placeholder */}
-                        <TouchableOpacity 
-                          style={styles.mediaPlaceholder} 
+                        <TouchableOpacity
+                          style={s.mediaPlaceholder}
                           onPress={() => {
                             setVideoModalExercise(ex.exercise_id);
                             setVideoUrlInput(ex.video_url || '');
@@ -1279,116 +1104,115 @@ export default function CreateWorkoutScreen() {
                           activeOpacity={0.8}
                         >
                           {ex.video_url ? (
-                            <View style={styles.mediaPresent}>
-                              <Ionicons name="play-circle-outline" size={48} color="#FFFFFF" />
-                              <Text style={styles.mediaLabel}>Video Added</Text>
+                            <View style={s.mediaPresent}>
+                              <Ionicons name="play-circle-outline" size={44} color={CoachColors.textPrimary} />
+                              <Text style={s.mediaLabel}>Demo video added</Text>
                             </View>
                           ) : ex.image_url && !failedGifs.has(ex.image_url) ? (
                             <View style={{ width: '100%', height: '100%', position: 'relative' }}>
-                              <RNImage 
-                                source={{ uri: proxyGifUrl(ex.image_url)! }} 
-                                style={{ width: '100%', height: '100%', borderRadius: 12 }} 
+                              <RNImage
+                                source={{ uri: proxyGifUrl(ex.image_url)! }}
+                                style={{ width: '100%', height: '100%', borderRadius: 12 }}
                                 resizeMode="cover"
                                 onError={() => setFailedGifs(prev => new Set(prev).add(ex.image_url!))}
                               />
-                              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>ExerciseDB Demo</Text>
+                              <View style={s.mediaOverlayBar}>
+                                <Text style={s.mediaOverlayText}>Demo video</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                  <Ionicons name="camera-outline" size={14} color="rgba(255,255,255,0.7)" />
-                                  <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Replace</Text>
+                                  <Ionicons name="camera-outline" size={14} color={CoachColors.textSecondary} />
+                                  <Text style={s.mediaOverlayText}>Replace</Text>
                                 </View>
                               </View>
                             </View>
                           ) : (
-                            <View style={styles.mediaEmpty}>
-                              <Ionicons name="videocam-outline" size={32} color="rgba(255,255,255,0.4)" />
-                              <Text style={styles.mediaLabel}>Add Demo Media</Text>
+                            <View style={s.mediaEmpty}>
+                              <Ionicons name="videocam-outline" size={28} color={CoachColors.textFaint} />
+                              <Text style={s.mediaLabel}>Demo video</Text>
                             </View>
                           )}
                         </TouchableOpacity>
 
-                        {/* Voice + Text Controls */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
                           <TouchableOpacity
-                            style={[styles.voiceBtn, (speakingExerciseId === ex.exercise_id || loadingAudioId === ex.exercise_id) && styles.voiceBtnActive]}
+                            style={s.voiceBtn}
                             onPress={() => handleSpeak(ex.exercise_id, ex.notes || ex.instructions)}
                             activeOpacity={0.7}
                             disabled={loadingAudioId !== null && loadingAudioId !== ex.exercise_id}
                           >
                             {loadingAudioId === ex.exercise_id ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
+                              <ActivityIndicator size="small" color={CoachColors.textSecondary} />
                             ) : (
-                              <Ionicons 
-                                name={speakingExerciseId === ex.exercise_id ? 'stop-circle' : 'volume-high'} 
-                                size={18} 
-                                color={(speakingExerciseId === ex.exercise_id || loadingAudioId === ex.exercise_id) ? '#FFFFFF' : '#FF6B35'} 
+                              <Ionicons
+                                name={speakingExerciseId === ex.exercise_id ? 'stop-circle' : 'volume-high-outline'}
+                                size={16}
+                                color={CoachColors.textSecondary}
                               />
                             )}
-                            <Text style={[styles.voiceBtnText, (speakingExerciseId === ex.exercise_id || loadingAudioId === ex.exercise_id) && styles.voiceBtnTextActive]}>
-                              {loadingAudioId === ex.exercise_id ? 'Generating...' : speakingExerciseId === ex.exercise_id ? 'Stop' : 'Listen'}
+                            <Text style={s.voiceBtnText}>
+                              {loadingAudioId === ex.exercise_id ? 'Generating…' : speakingExerciseId === ex.exercise_id ? 'Stop' : 'Listen'}
                             </Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
-                            style={styles.showTextBtn}
+                            style={s.voiceBtn}
                             onPress={() => setShowNotesExerciseId(prev => prev === ex.exercise_id ? null : ex.exercise_id)}
                             activeOpacity={0.7}
                           >
-                            <Ionicons name={showNotesExerciseId === ex.exercise_id ? 'eye-off-outline' : 'create-outline'} size={16} color="rgba(255,255,255,0.5)" />
-                            <Text style={styles.showTextBtnText}>
-                              {showNotesExerciseId === ex.exercise_id ? 'Hide' : 'Edit Text'}
+                            <Ionicons name={showNotesExerciseId === ex.exercise_id ? 'eye-off-outline' : 'create-outline'} size={16} color={CoachColors.textSecondary} />
+                            <Text style={s.voiceBtnText}>
+                              {showNotesExerciseId === ex.exercise_id ? 'Hide note' : 'Note for the athlete'}
                             </Text>
                           </TouchableOpacity>
                         </View>
 
                         {showNotesExerciseId === ex.exercise_id && (
-                          <View style={{ marginBottom: Spacing.xl }}>
+                          <View style={{ marginBottom: Spacing.lg }}>
                             <TextInput
-                              style={[styles.exerciseDescription, { padding: Spacing.sm, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.sm, minHeight: 80 }]}
-                              placeholder="Add a workout-specific note or modify instructions..."
-                              placeholderTextColor="rgba(255,255,255,0.3)"
+                              style={s.notesInput}
+                              placeholder="Add a workout-specific note or modify instructions…"
+                              placeholderTextColor={CoachColors.textFaint}
                               value={ex.notes}
                               onChangeText={(text) => updateExercise(ex.exercise_id, 'notes', text)}
                               multiline
                               textAlignVertical="top"
-                              selectionColor="#FFFFFF"
+                              selectionColor={CoachColors.accent}
                             />
                           </View>
                         )}
 
-                        <View style={styles.inlineControlsRow}>
+                        <View style={s.inlineControlsRow}>
                           {[
-                            { label: 'Sets', field: 'sets', value: ex.sets },
-                            { label: 'Reps', field: 'reps', value: ex.reps },
-                            { label: 'Rest (s)', field: 'rest_seconds', value: ex.rest_seconds },
+                            { label: 'Sets', field: 'sets', value: ex.sets, step: 1 },
+                            { label: 'Reps', field: 'reps', value: ex.reps, step: 1 },
+                            { label: 'Rest (s)', field: 'rest_seconds', value: ex.rest_seconds, step: 15 },
                           ].map((param) => (
-                            <View key={param.field} style={styles.inlineControl}>
-                              <Text style={styles.inlineControlLabel}>{param.label}</Text>
-                              <View style={styles.inlineControlStepper}>
-                                <TouchableOpacity 
-                                  style={styles.stepperBtn}
-                                  onPress={() => updateExercise(ex.exercise_id, param.field, Math.max(1, (param.value as number) - (param.field === 'rest_seconds' ? 15 : 1)))}
+                            <View key={param.field} style={s.inlineControl}>
+                              <Text style={s.inlineControlLabel}>{param.label}</Text>
+                              <View style={s.inlineControlStepper}>
+                                <TouchableOpacity
+                                  style={s.stepperBtn}
+                                  onPress={() => updateExercise(ex.exercise_id, param.field, Math.max(1, (param.value as number) - param.step))}
                                 >
-                                  <Ionicons name="remove" size={16} color="#FFFFFF" />
+                                  <Ionicons name="remove" size={16} color={CoachColors.textPrimary} />
                                 </TouchableOpacity>
-                                <Text style={styles.inlineControlValue}>{param.value}</Text>
-                                <TouchableOpacity 
-                                  style={styles.stepperBtn}
-                                  onPress={() => updateExercise(ex.exercise_id, param.field, (param.value as number) + (param.field === 'rest_seconds' ? 15 : 1))}
+                                <Text style={s.inlineControlValue}>{param.value}</Text>
+                                <TouchableOpacity
+                                  style={s.stepperBtn}
+                                  onPress={() => updateExercise(ex.exercise_id, param.field, (param.value as number) + param.step)}
                                 >
-                                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                                  <Ionicons name="add" size={16} color={CoachColors.textPrimary} />
                                 </TouchableOpacity>
                               </View>
                             </View>
                           ))}
                         </View>
 
-                        <TouchableOpacity style={styles.removeBtn} onPress={() => removeExercise(ex.exercise_id)}>
-                          <Text style={styles.removeBtnText}>Remove Exercise</Text>
+                        <TouchableOpacity style={s.removeBtn} onPress={() => removeExercise(ex.exercise_id)}>
+                          <Text style={s.removeBtnText}>Remove exercise</Text>
                         </TouchableOpacity>
                       </View>
                     )}
-                    <View style={styles.separator} />
+                    <View style={s.separator} />
                   </View>
                 </ScaleDecorator>
               );
@@ -1404,72 +1228,70 @@ export default function CreateWorkoutScreen() {
         animationType="slide"
         onRequestClose={() => { setVideoModalExercise(null); setVideoUrlInput(''); }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Demo Video</Text>
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Add demo video</Text>
               <TouchableOpacity onPress={() => { setVideoModalExercise(null); setVideoUrlInput(''); }}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
             {uploadingVideo ? (
-              <View style={styles.uploadingContainer}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={styles.uploadingText}>Uploading video...</Text>
+              <View style={s.uploadingContainer}>
+                <ActivityIndicator size="large" color={CoachColors.accent} />
+                <Text style={s.uploadingText}>Uploading video…</Text>
               </View>
             ) : (
               <>
-                {/* Paste URL Option */}
-                <Text style={styles.modalLabel}>Paste a video link</Text>
-                <View style={styles.urlInputRow}>
+                <Text style={s.modalLabel}>Paste a video link</Text>
+                <View style={s.urlInputRow}>
                   <TextInput
-                    style={styles.urlInput}
+                    style={s.urlInput}
                     placeholder="YouTube, Instagram, or any video URL"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    placeholderTextColor={CoachColors.textFaint}
                     value={videoUrlInput}
                     onChangeText={setVideoUrlInput}
                     autoCapitalize="none"
                     autoCorrect={false}
                     keyboardType="url"
-                    selectionColor="#FFFFFF"
+                    selectionColor={CoachColors.accent}
                   />
                   <TouchableOpacity
-                    style={[styles.urlPasteBtn, !videoUrlInput.trim() && { opacity: 0.5 }]}
+                    style={[s.urlPasteBtn, !videoUrlInput.trim() && { opacity: 0.5 }]}
                     onPress={handlePasteVideoUrl}
                     disabled={!videoUrlInput.trim()}
                   >
-                    <Ionicons name="checkmark" size={20} color="#000000" />
+                    <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
+                <View style={s.dividerRow}>
+                  <View style={s.dividerLine} />
+                  <Text style={s.dividerText}>or</Text>
+                  <View style={s.dividerLine} />
                 </View>
 
-                {/* Upload / Record Options */}
-                <TouchableOpacity style={styles.videoOptionBtn} onPress={handlePickVideo}>
-                  <View style={styles.videoOptionIcon}>
-                    <Ionicons name="cloud-upload-outline" size={22} color="#FFFFFF" />
+                <TouchableOpacity style={s.videoOptionBtn} onPress={handlePickVideo}>
+                  <View style={s.videoOptionIcon}>
+                    <Ionicons name="cloud-upload-outline" size={20} color={CoachColors.textPrimary} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.videoOptionTitle}>Upload from gallery</Text>
-                    <Text style={styles.videoOptionSub}>Choose a video from your phone</Text>
+                    <Text style={s.videoOptionTitle}>Upload from gallery</Text>
+                    <Text style={s.videoOptionSub}>Choose a video from your phone</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.videoOptionBtn} onPress={handleRecordVideo}>
-                  <View style={[styles.videoOptionIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                    <Ionicons name="recording-outline" size={22} color="#FFFFFF" />
+                <TouchableOpacity style={s.videoOptionBtn} onPress={handleRecordVideo}>
+                  <View style={s.videoOptionIcon}>
+                    <Ionicons name="recording-outline" size={20} color={CoachColors.textPrimary} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.videoOptionTitle}>Record a demo</Text>
-                    <Text style={styles.videoOptionSub}>Film the exercise with your camera</Text>
+                    <Text style={s.videoOptionTitle}>Record a demo</Text>
+                    <Text style={s.videoOptionSub}>Film the exercise with your camera</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               </>
             )}
@@ -1477,29 +1299,88 @@ export default function CreateWorkoutScreen() {
         </View>
       </Modal>
 
+      {/* Saved → assign sheet (18g) */}
+      <Modal visible={savedWorkout !== null} transparent animationType="slide" onRequestClose={closeAssignSheet}>
+        <View style={s.modalOverlay}>
+          <View style={s.assignSheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.assignTitle}>{savedWorkout?.name} is saved</Text>
+            <Text style={s.assignSubtitle}>{statsLine}. Assign it now or leave it in the library.</Text>
+
+            {activeClients.length === 0 ? (
+              <Text style={s.assignEmptyText}>No active clients yet.</Text>
+            ) : (
+              <View style={{ gap: 4, marginTop: Spacing.md }}>
+                {activeClients.slice(0, 6).map(client => {
+                  const enrollment = enrollmentByClient[client.id];
+                  const subtitle = enrollment ? `${enrollment.planName} · week ${enrollment.position}` : 'On-demand pass';
+                  const initials = client.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                  const isSelected = selectedClientId === client.id;
+                  return (
+                    <TouchableOpacity
+                      key={client.id}
+                      style={s.clientRow}
+                      onPress={() => setSelectedClientId(client.id)}
+                      activeOpacity={0.7}
+                    >
+                      {client.avatar_url ? (
+                        <Image source={{ uri: client.avatar_url }} style={s.clientAvatarImg} contentFit="cover" />
+                      ) : (
+                        <View style={s.clientAvatar}>
+                          <Text style={s.clientAvatarText}>{initials}</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={s.clientName}>{client.name}</Text>
+                        <Text style={s.clientSub}>{subtitle}</Text>
+                      </View>
+                      <View style={[s.radioCircle, isSelected && s.radioCircleActive]}>
+                        {isSelected && <View style={s.radioDot} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={s.passTrackRow}
+              onPress={() => { setSavedWorkout(null); router.push('/(tabs)/programs'); }}
+              activeOpacity={0.7}
+            >
+              <Text style={s.passTrackRowText}>Add to a pass track instead</Text>
+              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[s.primaryBtn, { marginTop: Spacing.lg }, !selectedClientId && { opacity: 0.5 }]}
+              onPress={handleAssign}
+              disabled={!selectedClientId}
+              activeOpacity={0.85}
+            >
+              <Text style={s.primaryBtnText}>
+                Assign to {activeClients.find(c => c.id === selectedClientId)?.name.split(' ')[0] || '…'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={closeAssignSheet} style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <Text style={s.notNowText}>Not now</Text>
+            </TouchableOpacity>
+
+            <Text style={s.assignFootnote}>
+              Try next: 'supersets in the builder' · 'duplicate a workout' · 'exercises tab of the library'
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       {/* Loading Overlay */}
-      <Modal
-        visible={loadingAudioId !== null}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-      >
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#FF6B35" style={{ marginBottom: 16 }} />
-            <Text style={styles.loadingTitle}>
-              {loadingAudioId ? 'Generating Voice' : 'Importing Exercise'}
-            </Text>
-            <Text style={styles.loadingSubtitle}>
-              {loadingAudioId
-                ? 'Creating a natural voice guide for this exercise. This only happens once.'
-                : 'Setting up exercise details with AI. Hang tight...'}
-            </Text>
-            <View style={styles.loadingDots}>
-              <View style={[styles.loadingDot, { opacity: 0.4 }]} />
-              <View style={[styles.loadingDot, { opacity: 0.7 }]} />
-              <View style={[styles.loadingDot, { opacity: 1 }]} />
-            </View>
+      <Modal visible={loadingAudioId !== null} transparent animationType="fade" statusBarTranslucent>
+        <View style={s.modalOverlay}>
+          <View style={s.loadingCard}>
+            <ActivityIndicator size="large" color={CoachColors.accent} style={{ marginBottom: 16 }} />
+            <Text style={s.loadingTitle}>Generating voice</Text>
+            <Text style={s.loadingSubtitle}>Creating a natural voice guide for this exercise. This only happens once.</Text>
           </View>
         </View>
       </Modal>
@@ -1507,807 +1388,281 @@ export default function CreateWorkoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#000000' 
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  backBtn: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  headerTitle: {
-    flex: 1,
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 18,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginHorizontal: 12,
-  },
-  saveBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.full,
-  },
-  saveBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 14,
-    color: '#000000',
-  },
-
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: 120,
-  },
-
-  // WYSIWYG Headers
-  wysiwygHeader: {
-    marginBottom: Spacing.xl,
-  },
-  titleInput: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 28,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  subtitleInput: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-
-  // Workout Block Container
-  workoutBlock: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-  },
-  blockHeader: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  blockHeaderText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-
-  // Accordion Items
-  accordionContainer: {
-    backgroundColor: 'transparent',
-  },
-  accordionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  accordionThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.sm,
-    backgroundColor: '#2C2C2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  accordionInfo: {
-    flex: 1,
-  },
-  accordionName: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  accordionSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-  },
-
-  // Expanded View
-  expandedContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
-  mediaPlaceholder: {
-    width: '100%',
-    aspectRatio: 16/9,
-    backgroundColor: '#000000',
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  mediaEmpty: {
-    alignItems: 'center',
-  },
-  mediaPresent: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-  },
-  mediaLabel: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 8,
-  },
-  exerciseDescription: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: 20,
-    marginBottom: Spacing.xl,
-  },
-  voiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.25)',
-  },
-  voiceBtnActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
-  },
-  voiceBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: '#FF6B35',
-  },
-  voiceBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  showTextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  showTextBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  inlineControlsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  inlineControl: {
-    flex: 1,
-    backgroundColor: '#000000',
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    alignItems: 'center',
-  },
-  inlineControlLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inlineControlStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 4,
-  },
-  stepperBtn: {
-    padding: 4,
-  },
-  inlineControlValue: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  removeBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: Spacing.sm,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: Radius.md,
-  },
-  removeBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    color: '#EF4444',
-  },
-
-  // Add Exercise Ghost
-  addExerciseGhost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  addExerciseGhostText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
-  },
-
-  linkGroupBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderRadius: Radius.sm,
-    marginBottom: Spacing.xl,
-  },
-  linkGroupText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 14,
-    color: '#EF4444',
-  },
-
-  separator: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginHorizontal: Spacing.lg,
-  },
-  separatorModal: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-
-  // Picker styling preserved from previous layout
-  pickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  pickerTitle: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    backgroundColor: '#0A0A0A',
-    borderRadius: Radius.xs,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 4,
-  },
-  tabBtnActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  tabText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.5,
-  },
-  tabTextActive: {
-    color: '#000000',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.15)',
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    paddingHorizontal: 0,
-    paddingVertical: 8,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: FontFamily.body,
-    fontSize: 15,
-    color: '#FFFFFF',
-    height: '100%',
-  },
-  createExercisePrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: '#0F0F0F',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: Radius.xs,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  createExercisePromptText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  exercisePickItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  exercisePickItemAdded: {
-    opacity: 0.5,
-  },
-  exercisePickIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.sm,
-    backgroundColor: '#111111',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exercisePickName: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  exerciseTags: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  exerciseTag: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  exerciseTagDot: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
-  // Modal styling preserved
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#0A0A0A',
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.lg,
-    paddingBottom: Spacing['3xl'],
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  modalLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  urlInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  urlInput: {
-    flex: 1,
-    backgroundColor: '#050505',
-    borderRadius: Radius.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  urlPasteBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.xs,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginVertical: Spacing.xl,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  dividerText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 0.5,
-  },
-  videoOptionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  videoOptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.xs,
-    backgroundColor: '#111111',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  videoOptionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 13,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  videoOptionSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 2,
-  },
-  uploadingContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing['2xl'],
-    gap: Spacing.md,
-  },
-  uploadingText: {
-    fontFamily: FontFamily.bodyMedium,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-  },
-
-  // Loading Overlay
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingCard: {
-    backgroundColor: '#0A0A0A',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 40,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    width: '80%',
-    maxWidth: 320,
-  },
-  loadingTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  loadingSubtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  loadingDots: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
-  },
-
-  // Body Part Filter Chips
-  bodyPartChip: {
-    flexShrink: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  bodyPartChipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
-  },
-  bodyPartChipText: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-  },
-  bodyPartChipTextActive: {
-    color: '#000000',
-    fontFamily: FontFamily.headingExtraBold,
-  },
-});
-
-// ── WIZARD STYLES ──
-const wz = StyleSheet.create({
-  progressBar: {
-    height: 3, backgroundColor: 'rgba(255,255,255,0.06)', marginHorizontal: 20, marginTop: 8, borderRadius: 2,
-  },
-  progressFill: {
-    height: '100%', borderRadius: 2, backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: 'rgba(255,255,255,0.06)',
+  iconBtn: {
+    width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepLabel: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1,
+
+  // ── Setup / describe screens ──
+  setupHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  skipBtn: { paddingHorizontal: 12, paddingVertical: 8 },
-  skipText: { fontFamily: FontFamily.heading, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-  scroll: { paddingHorizontal: 24 },
+  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  setupScroll: { paddingHorizontal: Spacing.lg, paddingBottom: 40 },
   title: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 26, color: '#FFF',
-    lineHeight: 32, marginBottom: 8, marginTop: 8, letterSpacing: -0.5,
+    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
+    lineHeight: 30, marginBottom: 8, marginTop: 4,
   },
   subtitle: {
-    fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.4)',
-    marginBottom: 24,
-  },
-
-  // Step 1: Focus grid
-  focusGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
-  },
-  focusCard: {
-    width: '47%' as any, aspectRatio: 1.3,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.sm,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center', gap: 6,
-    position: 'relative', overflow: 'hidden',
-  },
-  focusEmblem: { width: 48, height: 48, borderRadius: Radius.xs },
-  focusLabel: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5,
-  },
-  focusCheck: {
-    position: 'absolute', top: 8, right: 8,
-    width: 20, height: 20, borderRadius: 4,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Step 2: Name & Equipment
-  emblemPreview: {
-    alignItems: 'center', justifyContent: 'center',
-    height: 100, marginBottom: 8, marginTop: 12,
-  },
-  emblemGlow: {
-    position: 'absolute', width: 80, height: 80, borderRadius: 40,
-    opacity: 0.12,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 24,
-  },
-  emblemImage: { width: 72, height: 72, borderRadius: 36 },
-  nameChips: { marginBottom: 16 },
-  aiLabel: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10,
-  },
-  aiLabelText: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: '#FBBF24',
-    letterSpacing: 1.2,
-  },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  nameChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4,
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  nameChipText: {
-    fontFamily: FontFamily.headingSemiBold, fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5,
-  },
-  nameInputWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 0,
-    marginBottom: 28,
-  },
-  nameInput: {
-    flex: 1, fontFamily: FontFamily.body, fontSize: 16, color: '#FFF', paddingVertical: 12,
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    lineHeight: 18, marginBottom: 24,
   },
   sectionLabel: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1.5, marginBottom: 12,
-  },
-  equipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  equipTag: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 4,
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  equipTagText: {
-    fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary,
+    marginBottom: 10,
   },
 
-  // Step 3: Exercise suggestions
-  exerciseList: { gap: 6 },
-  exerciseCard: {
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
+  },
+  chipActive: {
+    backgroundColor: CoachColors.accentSoft,
+    borderColor: CoachColors.accent,
+  },
+  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  chipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
+
+  nameField: {
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 12,
+  },
+
+  describeCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#0A0A0A', borderRadius: Radius.sm,
-    padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: Radius.md, padding: 14, marginTop: Spacing.xl,
   },
-  exerciseThumb: {
-    width: 44, height: 44, borderRadius: Radius.xs,
-    backgroundColor: '#111111',
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  exerciseName: { fontFamily: FontFamily.headingSemiBold, fontSize: 14, color: '#FFF' },
-  exerciseMeta: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.3)' },
-  quickAddBtn: {
-    width: 32, height: 32, borderRadius: Radius.xs,
-    backgroundColor: '#141414', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  describeCardIcon: {
+    width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
-  emptyExercises: {
-    alignItems: 'center', paddingVertical: 48, gap: 8,
-  },
-  emptyText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: 'rgba(255,255,255,0.2)', letterSpacing: 1 },
-  emptySubtext: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.2)', textAlign: 'center' },
-  addedBadge: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 16, paddingVertical: 10, borderRadius: Radius.xs,
-    backgroundColor: '#0F1A12', borderWidth: 1, borderColor: '#22C55E',
-  },
-  addedText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: '#22C55E', letterSpacing: 0.5 },
+  describeCardTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
+  describeCardHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, fontStyle: 'italic' },
 
-  // Footer
-  footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
-  nextBtn: { borderRadius: Radius.sm, backgroundColor: '#FFFFFF', height: 50, justifyContent: 'center', alignItems: 'center' },
-  nextBtnGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-  },
-  nextBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000000', letterSpacing: 1 },
-
-  // Builder emblem in header
-  builderEmblemRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12,
-  },
-  builderEmblemWrap: {
-    width: 48, height: 48, alignItems: 'center', justifyContent: 'center',
-  },
-  builderEmblemGlow: {
-    position: 'absolute', width: 48, height: 48, borderRadius: 24,
-    opacity: 0.15,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 12,
-  },
-  builderEmblemImg: { width: 44, height: 44, borderRadius: 22 },
-  builderFocusTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  builderFocusTag: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4,
-    borderWidth: 1,
-  },
-  builderFocusTagText: { fontFamily: FontFamily.headingExtraBold, fontSize: 9, letterSpacing: 0.5 },
-
-  // AI Generate
-  subtitleRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 28,
-  },
-  aiGenerateBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.xs,
-    backgroundColor: '#1C1505',
-    borderWidth: 1, borderColor: '#FBBF24',
-  },
-  aiGenerateBtnText: { fontFamily: FontFamily.headingExtraBold, fontSize: 10, color: '#FBBF24', letterSpacing: 0.5 },
-
-  // AI Bottom Sheet
-  sheetOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end',
-  },
-  sheetContent: {
-    backgroundColor: '#0A0A0A', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
-    padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-  },
-  sheetHandle: {
-    width: 32, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)',
-    alignSelf: 'center', marginBottom: 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6,
-  },
-  sheetTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: '#FFF', letterSpacing: 0.5 },
-  sheetDesc: {
-    fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16,
-  },
-  exampleScroll: { flexGrow: 0, marginBottom: 16 },
-  exampleChip: {
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4,
-    backgroundColor: '#121212',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    marginRight: 8,
-  },
-  exampleChipText: { fontFamily: FontFamily.headingSemiBold, fontSize: 10, color: 'rgba(255,255,255,0.5)' },
-  aiInputRow: {
-    backgroundColor: '#050505', borderRadius: Radius.xs,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  describeInputWrap: {
+    backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
+    borderWidth: 1, borderColor: CoachColors.border,
     paddingHorizontal: 14, marginBottom: 16,
   },
-  aiInput: {
-    fontFamily: FontFamily.body, fontSize: 14, color: '#FFF',
-    paddingVertical: 12, minHeight: 60, textAlignVertical: 'top',
+  describeInput: {
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    paddingVertical: 12, minHeight: 90, textAlignVertical: 'top',
   },
-  aiSubmitBtn: { borderRadius: Radius.sm, backgroundColor: '#FFFFFF', height: 48, justifyContent: 'center', alignItems: 'center' },
-  aiSubmitGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10,
+  exampleChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
   },
-  aiSubmitText: { fontFamily: FontFamily.headingExtraBold, fontSize: 12, color: '#000', letterSpacing: 1 },
+  exampleChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+
+  // ── Footer / primary CTA (shared) ──
+  footer: { paddingHorizontal: Spacing.lg, paddingTop: 12 },
+  primaryBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: Radius.full, backgroundColor: CoachColors.accent, height: 52,
+  },
+  primaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+
+  // ── Builder ──
+  builderHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+  },
+  builderHeaderTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, minWidth: 64, alignItems: 'center' },
+  createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+
+  scrollContent: { paddingBottom: 120 },
+  builderIntro: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
+  titleInput: {
+    fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 6, padding: 0,
+  },
+  summaryLine: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 4 },
+  statsLine: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+
+  emptyBuilder: { alignItems: 'center', paddingVertical: 40, gap: 10, paddingHorizontal: Spacing.lg },
+  emptyBuilderText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center' },
+
+  addExerciseBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md,
+    paddingVertical: 14,
+  },
+  addExerciseBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+
+  accordionContainer: { backgroundColor: 'transparent' },
+  accordionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  accordionThumb: {
+    width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.surface,
+    alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
+  },
+  accordionInfo: { flex: 1 },
+  accordionName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 3 },
+  accordionSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+
+  expandedContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
+
+  linkGroupBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md,
+    backgroundColor: CoachColors.accentSofter, borderRadius: Radius.sm, marginBottom: Spacing.lg,
+  },
+  linkGroupText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.accent },
+
+  infoCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 14, marginBottom: Spacing.md, gap: 10 },
+  metaTag: { backgroundColor: CoachColors.borderMuted, paddingHorizontal: 9, paddingVertical: 3, borderRadius: Radius.full },
+  metaTagText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary },
+  infoCardDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 18 },
+
+  mediaPlaceholder: {
+    width: '100%', aspectRatio: 16 / 9, backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
+    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md, overflow: 'hidden',
+  },
+  mediaEmpty: { alignItems: 'center' },
+  mediaPresent: { alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', backgroundColor: CoachColors.surface },
+  mediaLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary, marginTop: 8 },
+  mediaOverlayBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 6, paddingHorizontal: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  mediaOverlayText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary },
+
+  voiceBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: Radius.full, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+  },
+  voiceBtnText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+
+  notesInput: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, lineHeight: 19,
+    padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, minHeight: 80,
+  },
+
+  inlineControlsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
+  inlineControl: { flex: 1, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
+  inlineControlLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textFaint, marginBottom: 8 },
+  inlineControlStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 4 },
+  stepperBtn: { padding: 4 },
+  inlineControlValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
+
+  removeBtn: { alignItems: 'center', paddingVertical: 12, marginTop: Spacing.sm, backgroundColor: CoachColors.dangerSoft, borderRadius: Radius.md },
+  removeBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.danger },
+
+  separator: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: Spacing.lg },
+  separatorModal: { height: 1, backgroundColor: CoachColors.borderMuted },
+
+  // ── Picker ──
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  pickerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  pickerDone: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderRadius: Radius.sm,
+    paddingHorizontal: 12, height: 44,
+  },
+  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, height: '100%' },
+
+  filterChip: {
+    flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+  },
+  filterChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  filterChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  filterChipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
+
+  resultCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, paddingHorizontal: Spacing.lg, paddingBottom: 8 },
+
+  exercisePickItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md },
+  exercisePickIcon: {
+    width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
+  },
+  exercisePickName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  exercisePickSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+
+  addCircle: {
+    width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  addCircleActive: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  createExerciseRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, marginTop: 8,
+  },
+  createExerciseRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+
+  // ── Modals shared ──
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xl },
+  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginBottom: 8 },
+  urlInputRow: { flexDirection: 'row', gap: 8 },
+  urlInput: {
+    flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: 12,
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, borderWidth: 1, borderColor: CoachColors.border,
+  },
+  urlPasteBtn: { width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.xl },
+  dividerLine: { flex: 1, height: 1, backgroundColor: CoachColors.borderMuted },
+  dividerText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
+  videoOptionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
+  videoOptionIcon: { width: 38, height: 38, borderRadius: Radius.sm, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  videoOptionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  videoOptionSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  uploadingContainer: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.md },
+  uploadingText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary },
+
+  loadingCard: {
+    backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderWidth: 1, borderColor: CoachColors.border,
+    paddingVertical: 36, paddingHorizontal: 32, alignItems: 'center', width: '80%', maxWidth: 320, alignSelf: 'center', marginBottom: 'auto', marginTop: 'auto',
+  },
+  loadingTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  loadingSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 18 },
+
+  // ── Assign sheet (18g) ──
+  assignSheet: {
+    backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    padding: Spacing.lg, paddingBottom: Spacing['2xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0,
+  },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border, alignSelf: 'center', marginBottom: 18 },
+  assignTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, marginBottom: 6 },
+  assignSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 18 },
+  assignEmptyText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: Spacing.lg },
+
+  clientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  clientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  clientAvatarImg: { width: 40, height: 40, borderRadius: 20 },
+  clientAvatarText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  clientSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  radioCircleActive: { borderColor: CoachColors.accent },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: CoachColors.accent },
+
+  passTrackRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, marginTop: 8, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
+  },
+  passTrackRowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+
+  notNowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  assignFootnote: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 16, marginTop: 4 },
 });

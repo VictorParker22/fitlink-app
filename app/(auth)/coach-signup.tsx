@@ -1,22 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Dimensions,
+  KeyboardAvoidingView, Platform, ScrollView,
   StatusBar, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { Spacing, FontFamily } from '../../constants/theme';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 type AuthMode = 'phone' | 'email';
 type Step = 'info' | 'otp';
 
+const OTP_LENGTH = 6;
+
+/**
+ * FitLink coach signup — design #14b/#14c ("Getting in").
+ *
+ * A three-field form (name, email, password — no confirm box, the password
+ * is simply shown as you type) behind a solid lime pill, no ghost/outline
+ * button and no green progress dots. The phone path's OTP step reuses the
+ * same shell as #14c: six boxes standing in for a single hidden input.
+ */
 export default function CoachSignupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signUp, signInWithPhone, verifyOtp } = useAuth();
 
   const [authMode, setAuthMode] = useState<AuthMode>('email');
@@ -30,10 +39,9 @@ export default function CoachSignupScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const otpInputRef = useRef<TextInput>(null);
   const hasAutoSubmitted = useRef(false);
 
   // Animation
@@ -51,12 +59,14 @@ export default function CoachSignupScreen() {
   };
 
   // --- Email Sign Up ---
+  // Note: the design drops the separate "confirm password" box — the value
+  // is shown in the clear as you type instead, so a mismatch can't happen.
+  // We keep `confirmPassword` state out entirely rather than fake a check.
   const handleEmailSignup = async () => {
     setError(''); setSuccess('');
     if (!name.trim()) return setError('Enter your name');
     if (!email.trim() || !email.includes('@')) return setError('Enter a valid email');
     if (password.length < 6) return setError('Password must be 6+ characters');
-    if (password !== confirmPassword) return setError("Passwords don't match");
 
     setLoading(true);
     try {
@@ -95,7 +105,7 @@ export default function CoachSignupScreen() {
 
   const handleVerifyOtp = async () => {
     setError(''); setSuccess('');
-    if (otpCode.length < 6) return setError('Enter the 6-digit code');
+    if (otpCode.length < OTP_LENGTH) return setError('Enter the 6-digit code');
 
     setLoading(true);
     try {
@@ -113,11 +123,11 @@ export default function CoachSignupScreen() {
 
   // Auto-submit OTP
   useEffect(() => {
-    if (otpCode.length === 6 && !hasAutoSubmitted.current && !loading) {
+    if (otpCode.length === OTP_LENGTH && !hasAutoSubmitted.current && !loading) {
       hasAutoSubmitted.current = true;
       handleVerifyOtp();
     }
-    if (otpCode.length < 6) hasAutoSubmitted.current = false;
+    if (otpCode.length < OTP_LENGTH) hasAutoSubmitted.current = false;
   }, [otpCode]);
 
   const switchMode = (mode: AuthMode) => {
@@ -127,9 +137,7 @@ export default function CoachSignupScreen() {
     setOtpCode('');
   };
 
-  // Step indicator
-  const currentStepNum = step === 'otp' ? 2 : 1;
-  const totalSteps = authMode === 'phone' ? 2 : 1;
+  const otpReady = otpCode.length === OTP_LENGTH;
 
   return (
     <View style={styles.container}>
@@ -137,14 +145,14 @@ export default function CoachSignupScreen() {
 
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 34 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <Animated.View style={{ opacity: fadeAnim }}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => step === 'otp' ? setStep('info') : router.back()}
@@ -152,316 +160,384 @@ export default function CoachSignupScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Go back"
               >
-                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.headerLogo}>FITLINK</Text>
+              <View style={styles.backButton} />
             </View>
 
-            {/* Step indicator */}
-            {authMode === 'phone' && (
-              <View style={styles.stepRow}>
-                <View style={[styles.stepDot, currentStepNum >= 1 && styles.stepDotActive]} />
-                <View style={[styles.stepLine, currentStepNum >= 2 && styles.stepLineActive]} />
-                <View style={[styles.stepDot, currentStepNum >= 2 && styles.stepDotActive]} />
-              </View>
-            )}
-
-            {/* Title */}
-            <Text style={styles.title}>
-              {step === 'otp' ? 'Verify your\nphone' : 'Create your\naccount'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {step === 'otp'
-                ? `Enter the code sent to ${phone}`
-                : 'Start building your coaching business on FitLink.'}
-            </Text>
-
-            {/* Auth Mode Tabs */}
-            {step === 'info' && (
-              <View style={styles.authTabs}>
-                <TouchableOpacity
-                  style={[styles.authTab, authMode === 'email' && styles.authTabActive]}
-                  onPress={() => switchMode('email')}
-                  accessibilityRole="tab"
-                  accessibilityLabel="Sign up with email"
-                >
-                  <Text style={[styles.authTabText, authMode === 'email' && styles.authTabTextActive]}>Email</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.authTab, authMode === 'phone' && styles.authTabActive]}
-                  onPress={() => switchMode('phone')}
-                  accessibilityRole="tab"
-                  accessibilityLabel="Sign up with phone"
-                >
-                  <Text style={[styles.authTabText, authMode === 'phone' && styles.authTabTextActive]}>Phone</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Messages */}
-            {error ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="alert-circle" size={18} color="#FF4444" />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-            {success ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                <Text style={styles.successText}>{success}</Text>
-              </View>
-            ) : null}
-
-            {/* ===== INFO STEP ===== */}
-            {step === 'info' && (
+            {step === 'info' ? (
               <>
-                {/* Name */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Full name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Coach Mike Johnson"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={name}
-                    onChangeText={setName}
-                    autoComplete="name"
-                    accessibilityLabel="Full name"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={styles.inputLine} />
+                {/* Title */}
+                <View style={styles.titleBlock}>
+                  <Text style={styles.title}>Set up your{'\n'}coaching account</Text>
+                  <Text style={styles.subtitle}>Free while you have fewer than three athletes.</Text>
                 </View>
 
-                {authMode === 'email' ? (
-                  <>
-                    {/* Email */}
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Email</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="coach@example.com"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        accessibilityLabel="Email address"
-                        selectionColor="rgba(255,255,255,0.5)"
-                      />
-                      <View style={styles.inputLine} />
-                    </View>
+                {/* Auth Mode Tabs */}
+                <View style={styles.authTabs}>
+                  <TouchableOpacity
+                    style={[styles.authTab, authMode === 'email' && styles.authTabActive]}
+                    onPress={() => switchMode('email')}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Sign up with email"
+                  >
+                    <Text style={[styles.authTabText, authMode === 'email' && styles.authTabTextActive]}>Email</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.authTab, authMode === 'phone' && styles.authTabActive]}
+                    onPress={() => switchMode('phone')}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Sign up with phone"
+                  >
+                    <Text style={[styles.authTabText, authMode === 'phone' && styles.authTabTextActive]}>Phone</Text>
+                  </TouchableOpacity>
+                </View>
 
-                    {/* Password */}
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Password</Text>
-                      <View style={styles.passwordRow}>
-                        <TextInput
-                          style={[styles.input, styles.passwordInput]}
-                          placeholder="6+ characters"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry={!showPassword}
-                          accessibilityLabel="Password"
-                          selectionColor="rgba(255,255,255,0.5)"
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                          <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.inputLine} />
-                    </View>
+                <Messages error={error} success={success} />
 
-                    {/* Confirm Password */}
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Confirm password</Text>
-                      <View style={styles.passwordRow}>
-                        <TextInput
-                          style={[styles.input, styles.passwordInput]}
-                          placeholder="••••••••"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
-                          value={confirmPassword}
-                          onChangeText={setConfirmPassword}
-                          secureTextEntry={!showConfirmPassword}
-                          accessibilityLabel="Confirm password"
-                          selectionColor="rgba(255,255,255,0.5)"
-                        />
-                        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn} accessibilityRole="button" accessibilityLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
-                          <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
-                      {confirmPassword && password !== confirmPassword && (
-                        <Text style={styles.fieldError}>Passwords don't match</Text>
-                      )}
-                    </View>
-                  </>
-                ) : (
-                  /* Phone */
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Phone number</Text>
+                <View style={styles.form}>
+                  <Field label="Your name">
                     <TextInput
                       style={styles.input}
-                      placeholder="(555) 123-4567"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      value={phone}
-                      onChangeText={setPhone}
-                      keyboardType="phone-pad"
-                      autoComplete="tel"
-                      accessibilityLabel="Phone number"
-                      selectionColor="rgba(255,255,255,0.5)"
+                      placeholder="Coach Mike Johnson"
+                      placeholderTextColor={CoachColors.textFaint}
+                      value={name}
+                      onChangeText={setName}
+                      autoComplete="name"
+                      accessibilityLabel="Full name"
+                      selectionColor={CoachColors.accent}
                     />
-                    <View style={styles.inputLine} />
-                    <Text style={styles.inputHint}>We'll send a verification code via SMS</Text>
-                  </View>
-                )}
+                  </Field>
 
-                {/* Terms */}
-                <Text style={styles.termsText}>
-                  By creating an account, you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms and Conditions</Text> and consent to our{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>.
-                </Text>
+                  {authMode === 'email' ? (
+                    <>
+                      <Field label="Email">
+                        <TextInput
+                          style={styles.input}
+                          placeholder="coach@example.com"
+                          placeholderTextColor={CoachColors.textFaint}
+                          value={email}
+                          onChangeText={setEmail}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoComplete="email"
+                          accessibilityLabel="Email address"
+                          selectionColor={CoachColors.accent}
+                        />
+                      </Field>
 
-                {/* Submit */}
+                      <Field
+                        label="Password"
+                        hint="Shown as you type, so there's no second box to fill in."
+                      >
+                        <View style={styles.rowBetween}>
+                          <TextInput
+                            style={[styles.input, styles.flex1]}
+                            placeholder="At least 6 characters"
+                            placeholderTextColor={CoachColors.textFaint}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!showPassword}
+                            accessibilityLabel="Password"
+                            selectionColor={CoachColors.accent}
+                          />
+                          <TouchableOpacity
+                            onPress={() => setShowPassword(!showPassword)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            <Ionicons
+                              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                              size={18}
+                              color={CoachColors.textFaint}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </Field>
+                    </>
+                  ) : (
+                    <Field label="Phone number" hint="We'll send a verification code via text.">
+                      <TextInput
+                        style={styles.input}
+                        placeholder="(555) 123-4567"
+                        placeholderTextColor={CoachColors.textFaint}
+                        value={phone}
+                        onChangeText={setPhone}
+                        keyboardType="phone-pad"
+                        autoComplete="tel"
+                        accessibilityLabel="Phone number"
+                        selectionColor={CoachColors.accent}
+                      />
+                    </Field>
+                  )}
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Title */}
+                <View style={styles.titleBlock}>
+                  <Text style={styles.title}>Check your{'\n'}messages</Text>
+                  <Text style={styles.subtitle}>
+                    We sent a six-digit code to <Text style={styles.subtitleStrong}>{phone}</Text>.{' '}
+                    <Text style={styles.subtitleLink} onPress={() => setStep('info')}>Wrong number?</Text>
+                  </Text>
+                </View>
+
+                <Messages error={error} success={success} />
+
+                <OtpBoxes
+                  inputRef={otpInputRef}
+                  value={otpCode}
+                  onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                />
+
                 <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  activeOpacity={0.85}
-                  onPress={authMode === 'email' ? handleEmailSignup : handleSendOtp}
-                  disabled={loading}
+                  onPress={handleSendOtp}
+                  style={styles.resendRow}
                   accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Creating account' : 'Create account'}
+                  accessibilityLabel="Resend code"
                 >
-                  <Text style={styles.submitText}>
-                    {loading ? 'Creating...' : (authMode === 'email' ? 'Create account' : 'Send code')}
+                  <Text style={styles.resendText}>
+                    Didn't arrive? <Text style={styles.resendLink}>Resend code</Text>
                   </Text>
                 </TouchableOpacity>
               </>
             )}
-
-            {/* ===== OTP STEP ===== */}
-            {step === 'otp' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Verification code</Text>
-                  <TextInput
-                    style={[styles.input, styles.otpInput]}
-                    placeholder="000000"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={otpCode}
-                    onChangeText={(t) => setOtpCode(t.replace(/\D/g, ''))}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                    autoFocus
-                    accessibilityLabel="Verification code"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={styles.inputLine} />
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  activeOpacity={0.85}
-                  onPress={handleVerifyOtp}
-                  disabled={loading}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Verifying' : 'Verify and continue'}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Verifying...' : 'Verify & continue'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleSendOtp} style={styles.linkRow} accessibilityRole="button" accessibilityLabel="Resend code">
-                  <Text style={styles.linkText}>Didn't receive it? <Text style={styles.linkUnderline}>Resend code</Text></Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* Footer */}
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/login')}
-              style={styles.footerRow}
-              accessibilityRole="button"
-              accessibilityLabel="Go to sign in"
-            >
-              <Text style={styles.footerText}>
-                Already have an account? <Text style={styles.footerLink}>Sign in</Text>
-              </Text>
-            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sticky footer: primary action + terms/sign-in links */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+        {step === 'info' ? (
+          <>
+            <PrimaryButton
+              title={loading ? 'Creating…' : (authMode === 'email' ? 'Create account' : 'Send code')}
+              disabled={loading}
+              onPress={authMode === 'email' ? handleEmailSignup : handleSendOtp}
+            />
+            <Text style={styles.termsText}>
+              By continuing you agree to the <Text style={styles.termsLink}>Terms</Text> and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>.
+            </Text>
+          </>
+        ) : (
+          <>
+            <PrimaryButton
+              title={loading ? 'Verifying…' : 'Verify'}
+              disabled={!otpReady || loading}
+              onPress={handleVerifyOtp}
+            />
+            <Text style={styles.termsText}>Submits on its own once all six are in</Text>
+          </>
+        )}
+
+        <TouchableOpacity
+          onPress={() => router.push('/(auth)/login')}
+          accessibilityRole="button"
+          accessibilityLabel="Go to sign in"
+        >
+          <Text style={styles.footerLinkRow}>
+            Already have an account? <Text style={styles.footerLinkStrong}>Sign in</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldBox}>{children}</View>
+      {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function Messages({ error, success }: { error: string; success: string }) {
+  if (!error && !success) return null;
+  return (
+    <View style={styles.messages}>
+      {error ? (
+        <View style={styles.messageRow}>
+          <Ionicons name="alert-circle" size={16} color={CoachColors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+      {success ? (
+        <View style={styles.messageRow}>
+          <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+          <Text style={styles.successText}>{success}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PrimaryButton({ title, onPress, disabled }: { title: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <TouchableOpacity
+      style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
+      activeOpacity={0.85}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Text style={[styles.primaryBtnText, disabled && styles.primaryBtnTextDisabled]}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * Six-box OTP display (#14c) backed by one hidden TextInput so the native
+ * keyboard, paste and autofill-from-SMS all keep working — only the visual
+ * layer changes.
+ */
+function OtpBoxes({
+  inputRef, value, onChangeText,
+}: {
+  inputRef: React.RefObject<TextInput | null>;
+  value: string;
+  onChangeText: (t: string) => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      style={styles.otpRow}
+      onPress={() => inputRef.current?.focus()}
+    >
+      {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+        const digit = value[i];
+        const isCursor = i === value.length;
+        return (
+          <View
+            key={i}
+            style={[
+              styles.otpBox,
+              digit !== undefined && styles.otpBoxFilled,
+              isCursor && styles.otpBoxActive,
+            ]}
+          >
+            {digit !== undefined ? (
+              <Text style={styles.otpDigit}>{digit}</Text>
+            ) : isCursor ? (
+              <View style={styles.otpCursor} />
+            ) : null}
+          </View>
+        );
+      })}
+      <TextInput
+        ref={inputRef}
+        style={styles.otpHiddenInput}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="number-pad"
+        maxLength={OTP_LENGTH}
+        autoComplete="one-time-code"
+        autoFocus
+        accessibilityLabel="Verification code"
+      />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingBottom: 40 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24 },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: SCREEN_HEIGHT * 0.06, paddingBottom: Spacing.md,
+    paddingBottom: 8,
   },
-  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerLogo: { fontFamily: FontFamily.headingExtraBold, fontSize: 16, color: 'rgba(255,255,255,0.6)', letterSpacing: 4 },
-
-  // Step indicator
-  stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xl, gap: 0 },
-  stepDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'transparent' },
-  stepDotActive: { borderColor: '#4CAF50', backgroundColor: '#4CAF50' },
-  stepLine: { width: 40, height: 1.5, backgroundColor: 'rgba(255,255,255,0.15)' },
-  stepLineActive: { backgroundColor: '#4CAF50' },
+  backButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  headerLogo: {
+    fontFamily: CoachFonts.headingBold, fontSize: 13, letterSpacing: 2.8,
+    color: CoachColors.textFaint,
+  },
 
   // Title
-  title: { fontFamily: FontFamily.headingExtraBold, fontSize: 34, color: '#FFFFFF', lineHeight: 40, marginBottom: Spacing.sm },
-  subtitle: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 20, marginBottom: Spacing.xl },
+  titleBlock: { paddingTop: 28 },
+  title: {
+    fontFamily: CoachFonts.headingBold, fontSize: 30, lineHeight: 35,
+    letterSpacing: -0.6, color: CoachColors.textPrimary,
+  },
+  subtitle: {
+    fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 20,
+    color: CoachColors.textSecondary, marginTop: 10,
+  },
+  subtitleStrong: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
+  subtitleLink: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
 
   // Tabs
-  authTabs: { flexDirection: 'row', marginBottom: Spacing['2xl'], gap: 24 },
-  authTab: { paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  authTabActive: { borderBottomColor: '#FFFFFF' },
-  authTabText: { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.4)' },
-  authTabTextActive: { color: '#FFFFFF', fontFamily: FontFamily.bodySemiBold },
+  authTabs: { flexDirection: 'row', marginTop: 24, gap: 22, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
+  authTab: { paddingBottom: 11, borderBottomWidth: 2, borderBottomColor: 'transparent', marginBottom: -1 },
+  authTabActive: { borderBottomColor: CoachColors.accent },
+  authTabText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+  authTabTextActive: { color: CoachColors.textPrimary, fontFamily: CoachFonts.bodyBold },
 
   // Messages
-  messageBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, marginBottom: Spacing.lg },
-  errorText: { fontFamily: FontFamily.body, fontSize: 13, color: '#FF6B6B', flex: 1 },
-  successText: { fontFamily: FontFamily.body, fontSize: 13, color: '#4CAF50', flex: 1 },
+  messages: { marginTop: 18, gap: 8 },
+  messageRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.danger, flex: 1 },
+  successText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.accent, flex: 1 },
 
-  // Input
-  inputGroup: { marginBottom: 28 },
-  inputLabel: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
-  input: { fontSize: 16, fontFamily: FontFamily.body, color: '#FFFFFF', paddingVertical: 8, paddingHorizontal: 0 },
-  inputLine: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 2 },
-  inputLineError: { backgroundColor: '#FF4444' },
-  inputHint: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 8 },
-  fieldError: { fontFamily: FontFamily.body, fontSize: 12, color: '#FF6B6B', marginTop: 6 },
+  // Form
+  form: { marginTop: 22, gap: 16 },
+  field: {},
+  fieldLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 7 },
+  fieldBox: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 12, paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 13 : 4,
+  },
+  fieldHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginTop: 7 },
+  input: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, padding: 0 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  flex1: { flex: 1 },
 
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  passwordInput: { flex: 1 },
-  eyeBtn: { padding: 8 },
+  // OTP
+  otpRow: { flexDirection: 'row', gap: 9, marginTop: 30, position: 'relative' },
+  otpBox: {
+    flex: 1, aspectRatio: 1 / 1.25, backgroundColor: CoachColors.surface,
+    borderWidth: 1.5, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  otpBoxFilled: { borderColor: CoachColors.border },
+  otpBoxActive: { borderColor: CoachColors.accent },
+  otpDigit: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  otpCursor: { width: 2, height: 24, backgroundColor: CoachColors.accent },
+  otpHiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%' },
 
-  otpInput: { letterSpacing: 8, fontFamily: FontFamily.headingSemiBold, fontSize: 22 },
+  resendRow: { alignItems: 'center', marginTop: 20 },
+  resendText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  resendLink: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textFaint },
 
-  // Terms
-  termsText: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 18, marginBottom: Spacing.xl },
-  termsLink: { textDecorationLine: 'underline', color: 'rgba(255,255,255,0.6)' },
+  // Sticky footer
+  footer: { paddingHorizontal: 24, paddingTop: 18 },
 
-  // Submit
-  submitBtn: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)', borderRadius: 4, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  submitBtnDisabled: { opacity: 0.4 },
-  submitText: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#FFFFFF', letterSpacing: 0.5 },
+  primaryBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+  },
+  primaryBtnDisabled: { backgroundColor: CoachColors.borderMuted },
+  primaryBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.onAccent },
+  primaryBtnTextDisabled: { color: CoachColors.textFaint },
 
-  // Links
-  linkRow: { alignItems: 'center', marginTop: Spacing.lg },
-  linkText: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
-  linkUnderline: { fontFamily: FontFamily.bodySemiBold, color: '#FFFFFF', textDecorationLine: 'underline' },
+  termsText: {
+    fontFamily: CoachFonts.body, fontSize: 11.5, lineHeight: 17, color: CoachColors.textFaint,
+    marginTop: 14, textAlign: 'center',
+  },
+  termsLink: { color: CoachColors.textSecondary, textDecorationLine: 'underline' },
 
-  // Footer
-  footerRow: { alignItems: 'center', marginTop: Spacing['2xl'], paddingBottom: Spacing.xl },
-  footerText: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
-  footerLink: { fontFamily: FontFamily.bodySemiBold, color: '#FFFFFF', textDecorationLine: 'underline' },
+  footerLinkRow: {
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted,
+    marginTop: 18, textAlign: 'center',
+  },
+  footerLinkStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
 });

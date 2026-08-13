@@ -299,14 +299,20 @@ export default function ClientProfileScreen() {
             <View style={s.modalButtons}>
               <TouchableOpacity
                 style={[s.modalBtn, s.modalBtnCancel]}
-                onPress={() => setShowDeleteModal(false)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowDeleteModal(false);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={s.modalBtnCancelText}>CANCEL</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.3 }]}
-                onPress={handleConfirmDelete}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleConfirmDelete();
+                }}
                 activeOpacity={0.7}
                 disabled={deleteInput !== 'DELETE'}
               >

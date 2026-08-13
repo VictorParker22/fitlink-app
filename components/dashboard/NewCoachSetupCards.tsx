@@ -1,39 +1,36 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, Animated,
+  View, Text, StyleSheet, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { useApp } from '../../context/AppContext';
-import { FontFamily, Spacing, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import PayoutSetupModal from './PayoutSetupModal';
 
 /**
- * Setup Checklist with Progress Ring — replaces scattered onboarding cards.
+ * Setup checklist with a step-progress ring — the coach's day-one empty
+ * state. Grounded in the original NewCoachSetupCards, restyled to the
+ * fixed dark palette: single lime accent, no gold tag, sentence case.
  *
- * Research-backed approach:
- *   - Zeigarnik Effect: humans complete unfinished tasks → progress ring
- *   - 3-5 steps max to avoid overwhelm
- *   - Each item is a direct link to the action
- *   - Auto-dismisses when all steps are complete
- *   - "Takes ~3 min" to reduce friction
+ *   - Zeigarnik effect: humans complete unfinished tasks → progress ring
+ *   - 4 steps max, each a direct link to the action
+ *   - Auto-dismisses (returns null) once every step is complete
  */
 
 interface ChecklistItem {
   id: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
+  sublabel?: string;
   complete: boolean;
   onPress: () => void;
 }
 
 export default function NewCoachSetupCards() {
   const router = useRouter();
-  const { trainer, clients, plans, workouts } = useApp();
+  const { trainer, clients, plans } = useApp();
   const [showPayoutModal, setShowPayoutModal] = useState(false);
 
   // ── Derive completion state from real data ──
@@ -46,16 +43,13 @@ export default function NewCoachSetupCards() {
     {
       id: 'account',
       label: 'Create your account',
-      icon: 'checkmark-circle',
-      color: '#22C55E',
       complete: hasAccount,
       onPress: () => {},
     },
     {
       id: 'payments',
       label: 'Connect payments',
-      icon: 'card-outline',
-      color: '#C9A96E',
+      sublabel: "You can't get paid until this is done",
       complete: hasPayouts,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -64,9 +58,7 @@ export default function NewCoachSetupCards() {
     },
     {
       id: 'season-pass',
-      label: 'Create your first Season Pass',
-      icon: 'ticket-outline',
-      color: '#A855F7',
+      label: 'Build your first pass',
       complete: hasSeasonPass,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -75,9 +67,7 @@ export default function NewCoachSetupCards() {
     },
     {
       id: 'client',
-      label: 'Invite your first client',
-      icon: 'person-add-outline',
-      color: '#6C9BF2',
+      label: 'Invite your first athlete',
       complete: hasClient,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -106,28 +96,24 @@ export default function NewCoachSetupCards() {
 
   return (
     <View style={styles.container}>
-      {/* ── Checklist Card ── */}
       <View style={styles.card}>
         {/* Header row: progress ring + label + time estimate */}
         <View style={styles.headerRow}>
-          {/* Progress Ring */}
           <View style={styles.ringContainer}>
             <Svg width={ringSize} height={ringSize} style={styles.ringSvg}>
-              {/* Background circle */}
               <Circle
                 cx={ringSize / 2}
                 cy={ringSize / 2}
                 r={radius}
-                stroke="rgba(255,255,255,0.08)"
+                stroke={CoachColors.borderMuted}
                 strokeWidth={strokeWidth}
                 fill="none"
               />
-              {/* Progress circle */}
               <Circle
                 cx={ringSize / 2}
                 cy={ringSize / 2}
                 r={radius}
-                stroke="#C9A96E"
+                stroke={CoachColors.accent}
                 strokeWidth={strokeWidth}
                 fill="none"
                 strokeDasharray={`${circumference}`}
@@ -144,18 +130,10 @@ export default function NewCoachSetupCards() {
           </View>
 
           <View style={styles.headerText}>
-            <Text style={styles.headerTag}>// YOUR SETUP</Text>
-            <Text style={styles.headerTitle}>Get Started</Text>
-          </View>
-
-          <View style={styles.timeBadge}>
-            <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.4)" />
-            <Text style={styles.timeText}>~3 min</Text>
+            <Text style={styles.headerTitle}>Set up your coaching</Text>
+            <Text style={styles.headerSub}>About 3 minutes</Text>
           </View>
         </View>
-
-        {/* Divider */}
-        <View style={styles.divider} />
 
         {/* Checklist items */}
         <View style={styles.checklist}>
@@ -172,40 +150,46 @@ export default function NewCoachSetupCards() {
                 activeOpacity={item.complete ? 1 : 0.7}
                 disabled={item.complete}
               >
-                {/* Check / circle indicator */}
+                {/* Check / number indicator */}
                 <View style={[
                   styles.checkCircle,
-                  item.complete && { backgroundColor: item.color, borderColor: item.color },
-                  isNext && { borderColor: item.color },
+                  item.complete && styles.checkCircleDone,
+                  isNext && styles.checkCircleNext,
                 ]}>
                   {item.complete ? (
-                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />
                   ) : (
-                    <Text style={styles.checkNumber}>{index + 1}</Text>
+                    <Text style={[styles.checkNumber, isNext && styles.checkNumberNext]}>
+                      {index + 1}
+                    </Text>
                   )}
                 </View>
 
                 {/* Label */}
-                <Text style={[
-                  styles.checkLabel,
-                  item.complete && styles.checkLabelDone,
-                  isNext && styles.checkLabelNext,
-                ]}>
-                  {item.label}
-                </Text>
+                <View style={styles.checkLabelWrap}>
+                  <Text style={[
+                    styles.checkLabel,
+                    item.complete && styles.checkLabelDone,
+                    isNext && styles.checkLabelNext,
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {isNext && item.sublabel && (
+                    <Text style={styles.checkSublabel}>{item.sublabel}</Text>
+                  )}
+                </View>
 
                 {/* Arrow for actionable items */}
                 {!item.complete && (
-                  <Ionicons name="chevron-forward" size={16} color={isNext ? item.color : 'rgba(255,255,255,0.15)'} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={15}
+                    color={isNext ? CoachColors.accent : CoachColors.borderMuted}
+                  />
                 )}
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        {/* Progress bar */}
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${progressPercent * 100}%` }]} />
         </View>
       </View>
 
@@ -220,18 +204,16 @@ export default function NewCoachSetupCards() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
+    paddingHorizontal: 0,
   },
 
   // ── Card ──
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    padding: 20,
+    borderColor: CoachColors.border,
+    borderRadius: 16,
+    padding: 18,
   },
 
   // ── Header ──
@@ -252,108 +234,95 @@ const styles = StyleSheet.create({
   ringLabel: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    gap: 1,
   },
   ringNumber: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 15,
+    color: CoachColors.textPrimary,
   },
   ringOf: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   headerText: {
     flex: 1,
     gap: 2,
   },
-  headerTag: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 9,
-    color: '#C9A96E',
-    letterSpacing: 2.5,
-  },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
-  timeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: Radius.xs,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  timeText: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
-  // ── Divider ──
-  divider: {
-    height: 1,
-    backgroundColor: '#1C1C1E',
-    marginVertical: 16,
+  headerSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textMuted,
   },
 
   // ── Checklist ──
   checklist: {
-    gap: 4,
+    flexDirection: 'column',
+    gap: 2,
+    marginTop: 16,
   },
   checkItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 13,
     paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: Radius.xs,
+    paddingHorizontal: 2,
+    borderRadius: 10,
   },
   checkItemHighlight: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.accentSofter,
+    paddingHorizontal: 10,
   },
   checkCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  checkCircleDone: {
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
+  },
+  checkCircleNext: {
+    borderColor: CoachColors.accent,
+  },
   checkNumber: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 12,
+    color: CoachColors.textFaint,
+  },
+  checkNumberNext: {
+    color: CoachColors.accent,
+  },
+  checkLabelWrap: {
+    flex: 1,
   },
   checkLabel: {
-    flex: 1,
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
   },
   checkLabelDone: {
-    color: 'rgba(255,255,255,0.25)',
+    color: CoachColors.textFaint,
     textDecorationLine: 'line-through',
   },
   checkLabelNext: {
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    color: CoachColors.textPrimary,
   },
-
-  // ── Progress bar ──
-  progressBarBg: {
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 2,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#C9A96E',
-    borderRadius: 2,
+  checkSublabel: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+    marginTop: 2,
   },
 });

@@ -8,114 +8,352 @@ import {
   Dimensions,
   ActivityIndicator,
   Animated,
-  Switch,
   Modal,
+  Platform,
+  Linking,
+  Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { LineChart } from 'react-native-gifted-charts';
+import Svg, { Pattern, Line, Rect } from 'react-native-svg';
+import NetInfo from '@react-native-community/netinfo';
+import { Audio } from 'expo-av';
 
 import { useApp, LiveClassItem } from '../../context/AppContext';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { useRevenueCat } from '../../context/RevenueCatContext';
+import { isBroadcastDndEnabled, setBroadcastDnd } from '../../lib/broadcastFocus';
 
 const { width } = Dimensions.get('window');
 
-// ── Toggle row (Twitch stream-setup style) ────────────────────────────────────
-function SettingRow({
-  icon,
-  label,
-  sublabel,
-  value,
-  onChange,
-  isLast = false,
-}: {
-  icon: any;
-  label: string;
-  sublabel?: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-  isLast?: boolean;
-}) {
+// ── Real device-check module ──────────────────────────────────────────────────
+// expo-camera-rtmp-publisher exposes non-prompting *get* functions (as opposed
+// to the prompting *request* functions used in app/broadcast/[id].tsx) so the
+// Studio tab can report actual permission state without triggering a system
+// dialog just for glancing at the screen. iOS-only, native-build-only — the
+// require throws in Expo Go, matching the guard already used in broadcast/[id].tsx.
+let getCameraPermissionsAsync: (() => Promise<{ granted: boolean }>) | null = null;
+let getMicrophonePermissionsAsync: (() => Promise<{ granted: boolean }>) | null = null;
+if (Platform.OS === 'ios') {
+  try {
+    const RtmpModule = require('expo-camera-rtmp-publisher');
+    getCameraPermissionsAsync = RtmpModule.getCameraPermissionsAsync;
+    getMicrophonePermissionsAsync = RtmpModule.getMicrophonePermissionsAsync;
+  } catch (e) {
+    // Expected in Expo Go — the native RTMP module requires a dev/production build.
+    console.log('[Studio] RTMP native module unavailable (Expo Go or missing pod). Use a dev build.');
+  }
+}
+
+type DeviceStatus = 'checking' | 'granted' | 'denied' | 'unavailable';
+
+// The actual encode settings a broadcast starts with (see app/broadcast/[id].tsx —
+// videoWidth: 720, videoHeight: 1280, front camera by default). Stated here rather
+// than measured, but true to what a stream will actually go out at.
+const BROADCAST_RESOLUTION_LABEL = '720p';
+
+type ConnectionStatus = 'checking' | 'wifi' | 'cellular' | 'offline';
+
+// ── Camera preview placeholder — diagonal hatch, matches the design mock ─────
+function CameraPreviewPlaceholder() {
   return (
-    <TouchableOpacity
-      style={[s.settingRow, !isLast && s.settingRowBorder]}
-      onPress={() => onChange(!value)}
-      activeOpacity={0.7}
-    >
-      <View style={[s.settingIconBox, value && s.settingIconBoxActive]}>
-        <Ionicons name={icon} size={15} color={value ? '#ffffff' : 'rgba(255,255,255,0.4)'} />
-      </View>
-      <View style={s.settingLabelWrap}>
-        <Text style={s.settingLabel}>{label}</Text>
-        {sublabel ? <Text style={s.settingSubLabel}>{sublabel}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(74,222,128,0.6)' }}
-        thumbColor="#ffffff"
-        ios_backgroundColor="rgba(255,255,255,0.1)"
-      />
-    </TouchableOpacity>
+    <View style={StyleSheet.absoluteFill}>
+      <Svg width="100%" height="100%">
+        <Pattern id="hatch" patternUnits="userSpaceOnUse" width={10} height={10} patternTransform="rotate(45)">
+          <Line x1={0} y1={0} x2={0} y2={10} stroke={CoachColors.border} strokeWidth={1} />
+        </Pattern>
+        <Rect width="100%" height="100%" fill="url(#hatch)" />
+      </Svg>
+    </View>
   );
 }
 
-// ── Queue card (Peloton "upcoming live" style) ────────────────────────────────
-function QueueCard({
+// ── Stream health row — reports real permission signal, not a manual toggle ──
+function DeviceRow({
+  icon,
+  label,
+  status,
+  readyDetail,
+  isLast = false,
+  right,
+}: {
+  icon: any;
+  label: string;
+  status: DeviceStatus;
+  readyDetail: string;
+  isLast?: boolean;
+  right?: React.ReactNode;
+}) {
+  const detail =
+    status === 'granted' ? readyDetail :
+    status === 'denied' ? 'Permission needed — tap to open settings' :
+    status === 'unavailable' ? 'Checked automatically when you go live' :
+    'Checking…';
+
+  const iconColor = status === 'granted' ? CoachColors.accent
+    : status === 'denied' ? CoachColors.warning
+    : CoachColors.textFaint;
+
+  const content = (
+    <View style={[dr.row, !isLast && dr.rowBorder]}>
+      <Ionicons name={icon} size={17} color={iconColor} />
+      <View style={dr.labelWrap}>
+        <Text style={dr.label}>{label}</Text>
+        <Text style={[dr.detail, status === 'denied' && { color: CoachColors.warning }]}>{detail}</Text>
+      </View>
+      {right !== undefined ? right : status === 'checking' ? (
+        <ActivityIndicator size="small" color={CoachColors.textFaint} />
+      ) : status === 'granted' ? (
+        <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+      ) : status === 'denied' ? (
+        <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
+      ) : null}
+    </View>
+  );
+
+  if (status === 'denied') {
+    return (
+      <TouchableOpacity activeOpacity={0.7} onPress={() => Linking.openSettings()}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
+}
+
+// ── Connection row — real network type + a genuine measured upload speed ─────
+function ConnectionRow({
+  status, mbps, testing, onRetest, isLast = false,
+}: {
+  status: ConnectionStatus; mbps: number | null; testing: boolean; onRetest: () => void; isLast?: boolean;
+}) {
+  const belowBitrate = mbps !== null && mbps < BROADCAST_BITRATE_MBPS;
+  const comfortable = mbps !== null && mbps >= BROADCAST_BITRATE_MBPS * 1.4;
+
+  const detail =
+    status === 'offline' ? "No connection — you can't go live right now" :
+    status === 'checking' ? 'Checking…' :
+    testing || mbps === null ? `${status === 'wifi' ? 'Wi-Fi' : 'Cellular'} · measuring upload speed…` :
+    belowBitrate ? `${status === 'wifi' ? 'Wi-Fi' : 'Cellular'} · ${mbps.toFixed(1)} Mbps up — too slow, expect drops` :
+    comfortable ? `${status === 'wifi' ? 'Wi-Fi' : 'Cellular'} · ${mbps.toFixed(1)} Mbps up — comfortable for ${BROADCAST_RESOLUTION_LABEL}` :
+    `${status === 'wifi' ? 'Wi-Fi' : 'Cellular'} · ${mbps.toFixed(1)} Mbps up — fine for ${BROADCAST_RESOLUTION_LABEL}, could buffer`;
+
+  const iconColor = status === 'offline' ? CoachColors.warning
+    : belowBitrate ? CoachColors.warning
+    : status !== 'checking' && mbps !== null ? CoachColors.accent
+    : CoachColors.textFaint;
+
+  return (
+    <View style={[dr.row, !isLast && dr.rowBorder]}>
+      <Ionicons name="wifi" size={17} color={iconColor} />
+      <View style={dr.labelWrap}>
+        <Text style={dr.label}>Connection</Text>
+        <Text style={[dr.detail, belowBitrate && { color: CoachColors.warning }]}>{detail}</Text>
+      </View>
+      {status === 'offline' ? (
+        <Ionicons name="alert-circle" size={16} color={CoachColors.warning} />
+      ) : testing ? (
+        <ActivityIndicator size="small" color={CoachColors.textFaint} />
+      ) : (
+        <TouchableOpacity onPress={onRetest} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent }}>Retest</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// ── Signal bars — decorative strength indicator next to Camera, reflects real permission state ──
+function SignalBars({ good }: { good: boolean }) {
+  const color = good ? CoachColors.accent : CoachColors.textFaint;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 14 }}>
+      {[5, 8, 11, 14].map((h, i) => (
+        <View key={i} style={{ width: 3, height: h, borderRadius: 1.5, backgroundColor: color, opacity: good ? 1 : 0.35 }} />
+      ))}
+    </View>
+  );
+}
+
+// ── Mic level bars — real metering from a live (unsaved) recording, not a fake animation ──
+function MicLevelBars({ level }: { level: number }) {
+  // level: 0..1, derived from real dBFS metering
+  const bars = [0.2, 0.45, 0.7, 1];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 14 }}>
+      {bars.map((threshold, i) => (
+        <View
+          key={i}
+          style={{
+            width: 3, height: 5 + i * 3, borderRadius: 1.5,
+            backgroundColor: level >= threshold ? CoachColors.accent : CoachColors.borderMuted,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function useMicLevel(active: boolean) {
+  const [level, setLevel] = useState(0); // 0..1
+  const [permission, setPermission] = useState<'checking' | 'granted' | 'denied'>('checking');
+  const recordingRef = useRef<Audio.Recording | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let poll: ReturnType<typeof setInterval> | null = null;
+
+    async function start() {
+      if (!active) return;
+      const perm = await Audio.getPermissionsAsync();
+      if (cancelled) return;
+      if (!perm.granted) { setPermission('denied'); return; }
+      setPermission('granted');
+      try {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+        const { recording } = await Audio.Recording.createAsync(
+          { ...Audio.RecordingOptionsPresets.LOW_QUALITY, isMeteringEnabled: true },
+          undefined,
+          200
+        );
+        if (cancelled) { await recording.stopAndUnloadAsync().catch(() => {}); return; }
+        recordingRef.current = recording;
+        poll = setInterval(async () => {
+          try {
+            const status = await recording.getStatusAsync();
+            if (typeof status.metering === 'number') {
+              // dBFS: -160 (silence) to 0 (max). Map a usable speaking range to 0..1.
+              const norm = Math.max(0, Math.min(1, (status.metering + 50) / 50));
+              setLevel(norm);
+            }
+          } catch { /* recording may have just stopped */ }
+        }, 200);
+      } catch {
+        setPermission('denied');
+      }
+    }
+
+    start();
+    return () => {
+      cancelled = true;
+      if (poll) clearInterval(poll);
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+      setLevel(0);
+    };
+  }, [active]);
+
+  return { level, permission };
+}
+
+// ── Connection speed — real small-upload timing test against Supabase storage ──
+// Not a rigorous benchmark (one small sample), but a genuine measurement rather
+// than a fabricated number. Compared against the app's real broadcast bitrate
+// (2.5 Mbps, see app/broadcast/[id].tsx) with headroom, not an invented target.
+const BROADCAST_BITRATE_MBPS = 2.5;
+const SPEED_TEST_BYTES = 300 * 1024; // 300KB
+
+function useConnectionSpeed(active: boolean) {
+  const [mbps, setMbps] = useState<number | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const runTest = useCallback(async () => {
+    setTesting(true);
+    const path = `speed-test/${Date.now()}.bin`;
+    try {
+      const payload = new Uint8Array(SPEED_TEST_BYTES);
+      const start = Date.now();
+      const { error } = await supabase.storage
+        .from('chat-attachments')
+        .upload(path, payload, { contentType: 'application/octet-stream' });
+      const seconds = (Date.now() - start) / 1000;
+      if (!error && seconds > 0) {
+        setMbps((SPEED_TEST_BYTES * 8) / 1_000_000 / seconds);
+      }
+      if (!error) {
+        supabase.storage.from('chat-attachments').remove([path]).catch(() => {});
+      }
+    } catch {
+      // leave mbps as-is; row falls back to "checking" copy
+    } finally {
+      setTesting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (active && mbps === null && !testing) runTest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  return { mbps, testing, runTest };
+}
+
+// ── Do not disturb — mutes FitLink's own alerts while live, not real phone calls ──
+function DoNotDisturbRow({ isLast = false }: { isLast?: boolean }) {
+  const [on, setOn] = useState(isBroadcastDndEnabled());
+  return (
+    <View style={[dr.row, !isLast && dr.rowBorder]}>
+      <Ionicons name="moon-outline" size={17} color={on ? CoachColors.accent : CoachColors.textFaint} />
+      <View style={dr.labelWrap}>
+        <Text style={dr.label}>Do not disturb</Text>
+        <Text style={dr.detail}>
+          {on ? 'On — FitLink alerts stay silent while you’re live' : 'Off — FitLink alerts may play during your stream'}
+        </Text>
+      </View>
+      <Switch
+        value={on}
+        onValueChange={(v) => { setOn(v); setBroadcastDnd(v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+        trackColor={{ false: CoachColors.borderMuted, true: CoachColors.accentSoft }}
+        thumbColor={on ? CoachColors.accent : '#555'}
+        ios_backgroundColor={CoachColors.borderMuted}
+      />
+    </View>
+  );
+}
+
+// ── Scheduled list row (compact — used for everything after "Next up") ───────
+function ScheduledRow({
   item,
-  relativeTime,
-  onLaunch,
+  onPress,
   onDelete,
+  isLast = false,
 }: {
   item: LiveClassItem;
-  relativeTime: string;
-  onLaunch: () => void;
+  onPress: () => void;
   onDelete: () => void;
+  isLast?: boolean;
 }) {
   const d = new Date(item.scheduled_for);
-  const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
+  const dayNum = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <TouchableOpacity style={s.queueCard} onPress={onLaunch} activeOpacity={0.9}>
-      {/* Layered gradient background */}
-      <View style={s.queueCardBg} />
-      <View style={s.queueCardGradientTop} />
-      <View style={s.queueCardGradientBottom} />
-
-      {/* Content */}
-      <View style={s.queueCardContent}>
-        {/* Top: badge + delete */}
-        <View style={s.queueCardTop}>
-          <View style={s.scheduledBadge}>
-            <View style={s.scheduledBadgeDot} />
-            <Text style={s.scheduledBadgeText}>SCHEDULED</Text>
-          </View>
-          <TouchableOpacity
-            onPress={onDelete}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="trash-outline" size={13} color="rgba(255,255,255,0.35)" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom: date + relative time + title */}
-        <View style={s.queueCardBottom}>
-          <View style={s.queueRelativeRow}>
-            <Text style={s.queueCardTime}>{dateStr} · {timeStr}</Text>
-            <Text style={s.queueRelativeTime}>{relativeTime}</Text>
-          </View>
-          <Text style={s.queueCardTitle} numberOfLines={2}>{item.title}</Text>
-          {item.category ? (
-            <Text style={s.queueCardCategory}>{item.category.toUpperCase()}</Text>
-          ) : null}
-        </View>
+    <TouchableOpacity
+      style={[sr.row, !isLast && sr.rowBorder]}
+      onPress={onPress}
+      onLongPress={onDelete}
+      activeOpacity={0.7}
+    >
+      <View style={sr.dateBox}>
+        <Text style={sr.dateWeekday}>{weekday}</Text>
+        <Text style={sr.dateNum}>{dayNum}</Text>
       </View>
+      <View style={sr.sep} />
+      <View style={{ flex: 1 }}>
+        <Text style={sr.title} numberOfLines={1}>{item.title}</Text>
+        <Text style={sr.meta}>{timeStr}{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
     </TouchableOpacity>
   );
 }
@@ -139,15 +377,9 @@ function CoachElitePaywallModal({
 
   const handleRestore = async () => {
     setRestoring(true);
-    const { success, restored, error } = await restorePurchases();
+    const { restored } = await restorePurchases();
     setRestoring(false);
-    if (restored) {
-      onClose();
-    } else if (success) {
-      // nothing found — Alert is shown inside restorePurchases via the context
-    } else if (error) {
-      // error already surfaced inside restorePurchases
-    }
+    if (restored) onClose();
   };
 
   useEffect(() => {
@@ -166,7 +398,7 @@ function CoachElitePaywallModal({
 
   const PERKS = [
     { icon: 'radio-outline',       text: 'Unlimited live broadcasts to all clients' },
-    { icon: 'people-outline',      text: 'Real-time viewer chat + reactions' },
+    { icon: 'people-outline',      text: 'Real-time viewer chat and reactions' },
     { icon: 'videocam-outline',    text: 'Auto-save replays to your class library' },
     { icon: 'flash-outline',       text: 'Autoflow — auto-assign workouts on subscribe' },
     { icon: 'ribbon-outline',      text: 'Elite badge on your public coach profile' },
@@ -184,63 +416,64 @@ function CoachElitePaywallModal({
       <Animated.View style={[pw.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
         <Animated.View style={[pw.sheet, { transform: [{ translateY: slideAnim }] }]}>
-          {/* Handle */}
           <View style={pw.handle} />
 
-          {/* Hero */}
           <View style={pw.hero}>
             <View style={pw.eliteBadge}>
-              <Ionicons name="ribbon" size={18} color="#FFD700" />
-              <Text style={pw.eliteBadgeText}>COACH ELITE</Text>
+              <Ionicons name="ribbon" size={18} color={CoachColors.accent} />
+              <Text style={pw.eliteBadgeText}>Coach Elite</Text>
             </View>
-            <Text style={pw.heroTitle}>Unlock Go Live</Text>
+            <Text style={pw.heroTitle}>Unlock go live</Text>
             <Text style={pw.heroSub}>
-              Go Live is a Coach Elite feature. Upgrade to broadcast to your clients in real time.
+              Go live is a Coach Elite feature. Upgrade to broadcast to your clients in real time.
             </Text>
           </View>
 
-          {/* Perks list */}
           <View style={pw.perks}>
             {PERKS.map((p, i) => (
               <View key={i} style={pw.perkRow}>
                 <View style={pw.perkIcon}>
-                  <Ionicons name={p.icon as any} size={15} color="#FFD700" />
+                  <Ionicons name={p.icon as any} size={15} color={CoachColors.accent} />
                 </View>
                 <Text style={pw.perkText}>{p.text}</Text>
               </View>
             ))}
           </View>
 
-          {/* Pricing badge */}
           <View style={pw.pricing}>
             <Text style={pw.priceAmount}>$29</Text>
             <Text style={pw.pricePer}>/mo · cancel anytime · 7-day free trial</Text>
           </View>
 
-          {/* CTA */}
           <TouchableOpacity
             style={[pw.cta, isPurchasing && pw.ctaLoading]}
-            onPress={onUpgrade}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onUpgrade();
+            }}
             activeOpacity={0.85}
             disabled={isPurchasing}
           >
             {isPurchasing ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="ribbon" size={16} color="#000" style={{ marginRight: 8 }} />
-                <Text style={pw.ctaText}>Start Free Trial</Text>
+                <Ionicons name="ribbon" size={16} color={CoachColors.onAccent} style={{ marginRight: 8 }} />
+                <Text style={pw.ctaText}>Start free trial</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={handleRestore}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              handleRestore();
+            }}
             disabled={restoring || isPurchasing}
             style={pw.restoreBtn}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+              <ActivityIndicator size="small" color={CoachColors.textFaint} />
             ) : (
               <Text style={pw.restoreText}>Restore purchases</Text>
             )}
@@ -258,7 +491,7 @@ function CoachElitePaywallModal({
 export default function StudioScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass } = useApp();
+  const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass, activeClients } = useApp();
   const { showAlert } = useAlert();
   const { isCoachElite, offerings, purchasePackage } = useRevenueCat();
   const [showPaywall, setShowPaywall] = useState(false);
@@ -280,16 +513,52 @@ export default function StudioScreen() {
   // Abrupt stream disconnect
   const [abruptEndedClass, setAbruptEndedClass] = useState<LiveClassItem | null>(null);
   const [isSavingVod, setIsSavingVod] = useState(false);
-  // Prevents parallel updateLiveClass calls if liveClasses changes rapidly
   const isEndingStreamRef = useRef(false);
 
-  // Tech check
-  const [checklist, setChecklist] = useState({
-    cameraReady: true,
-    micReady: true,
-    lightingChecked: false,
-    doNotDisturb: true,
-  });
+  // Real device check (camera / mic permission signal — no manual toggles)
+  const [cameraStatus, setCameraStatus] = useState<DeviceStatus>('checking');
+  const [micStatus, setMicStatus] = useState<DeviceStatus>('checking');
+
+  const refreshDeviceStatus = useCallback(async () => {
+    if (!getCameraPermissionsAsync || !getMicrophonePermissionsAsync) {
+      setCameraStatus('unavailable');
+      setMicStatus('unavailable');
+      return;
+    }
+    try {
+      const [cam, mic] = await Promise.all([getCameraPermissionsAsync(), getMicrophonePermissionsAsync()]);
+      setCameraStatus(cam?.granted ? 'granted' : 'denied');
+      setMicStatus(mic?.granted ? 'granted' : 'denied');
+    } catch {
+      setCameraStatus('unavailable');
+      setMicStatus('unavailable');
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshDeviceStatus();
+    }, [refreshDeviceStatus])
+  );
+
+  // Real connection type — NetInfo, not a fabricated Mbps reading.
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      NetInfo.fetch().then(state => {
+        if (!mounted) return;
+        if (!state.isConnected) setConnectionStatus('offline');
+        else if (state.type === 'wifi') setConnectionStatus('wifi');
+        else if (state.type === 'cellular') setConnectionStatus('cellular');
+        else setConnectionStatus(state.isConnected ? 'wifi' : 'offline');
+      });
+      return () => { mounted = false; };
+    }, [])
+  );
+
+  // Live elapsed timer
+  const [liveElapsed, setLiveElapsed] = useState('0:00');
 
   // Countdown timer for next scheduled stream
   const [countdown, setCountdown] = useState<string>('');
@@ -336,11 +605,6 @@ export default function StudioScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveClasses]);
 
-  const toggleCheck = (key: keyof typeof checklist) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   // Real-time countdown to next scheduled stream
   const nextScheduledStream = useMemo(
     () => liveClasses.find((c) => c.status === 'scheduled'),
@@ -354,14 +618,14 @@ export default function StudioScreen() {
       if (diff <= 0) { setCountdown('Starting now'); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
+      const secs = Math.floor((diff % 60000) / 1000);
       if (h >= 24) {
         const d = Math.floor(h / 24);
         setCountdown(`in ${d}d ${h % 24}h`);
       } else if (h > 0) {
         setCountdown(`in ${h}h ${String(m).padStart(2, '0')}m`);
       } else {
-        setCountdown(`in ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`);
+        setCountdown(`in ${String(m).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`);
       }
     };
     tick();
@@ -375,16 +639,16 @@ export default function StudioScreen() {
     [liveClasses]
   );
   const upcomingStreams = useMemo(() => liveClasses.filter((c) => c.status === 'scheduled'), [liveClasses]);
+  const restOfQueue = useMemo(
+    () => upcomingStreams.filter((c) => c.id !== nextScheduledStream?.id),
+    [upcomingStreams, nextScheduledStream]
+  );
   const pastStreams = useMemo(
     () => liveClasses.filter((c) => c.status === 'ended' || c.status === 'cancelled'),
     [liveClasses]
   );
   const totalViews = useMemo(
     () => classes.reduce((sum, c) => sum + (c.take_count || 0), 0) + pastStreams.length * 12,
-    [classes, pastStreams]
-  );
-  const totalClassesTaught = useMemo(
-    () => classes.length + pastStreams.length,
     [classes, pastStreams]
   );
   const lastStreamDate = useMemo(() => {
@@ -394,11 +658,10 @@ export default function StudioScreen() {
     );
     const d = new Date(sorted[0].scheduled_for);
     const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${Math.floor(diffDays / 7)}w ago`;
   }, [pastStreams]);
   const sparklineData = useMemo(() => {
     const src = realAnalytics.length > 0 ? realAnalytics : classes.slice(-6);
@@ -406,23 +669,36 @@ export default function StudioScreen() {
     return src.map((c, i) => ({ value: Math.max(c.take_count || 0, 1), label: `${i + 1}` }));
   }, [realAnalytics, classes]);
 
-  // Relative time helper for queue cards
-  const getRelativeTime = useCallback((dateStr: string) => {
-    const d = new Date(dateStr);
-    const diffMs = d.getTime() - Date.now();
-    const diffH = Math.floor(diffMs / 3600000);
-    const diffD = Math.floor(diffMs / 86400000);
-    if (diffMs < 0) return 'Overdue';
-    if (diffH < 1) return 'Starting soon';
-    if (diffH < 24) return `in ${diffH}h ${String(Math.floor((diffMs % 3600000) / 60000)).padStart(2,'0')}m`;
-    if (diffD === 1) return 'Tomorrow';
-    if (diffD < 7) return `in ${diffD} days`;
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }, []);
-
   const isLive = activeStream?.status === 'live';
-  const isScheduled = activeStream?.status === 'scheduled';
-  const allReady = Object.values(checklist).every(Boolean);
+  const hasNeverBroadcast = !activeStream && pastStreams.length === 0 && upcomingStreams.length === 0;
+
+  // Real mic level (metering) and a genuine measured upload speed — both only
+  // run while idle AND actually focused on this tab (never while live, and
+  // never in the background after the coach navigates away — an open mic
+  // recording with the screen off-screen would be a real privacy problem).
+  const isFocused = useIsFocused();
+  const micActive = isFocused && !isLive;
+  const { level: micLevel, permission: micPermission } = useMicLevel(micActive);
+  const { mbps: connectionMbps, testing: speedTesting, runTest: retestConnection } = useConnectionSpeed(micActive && connectionStatus !== 'offline');
+
+  const deviceReady = cameraStatus === 'granted'
+    && micPermission === 'granted'
+    && connectionMbps !== null && connectionMbps >= BROADCAST_BITRATE_MBPS;
+
+  // Live elapsed timer tick
+  useEffect(() => {
+    if (!isLive || !activeStream) return;
+    const startedAt = new Date(activeStream.went_live_at || activeStream.updated_at || activeStream.scheduled_for).getTime();
+    const tick = () => {
+      const diff = Math.max(0, Date.now() - startedAt);
+      const m = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setLiveElapsed(`${m}:${String(secs).padStart(2, '0')}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isLive, activeStream]);
 
   // Handlers
   const handleEnterStudio = (cls: LiveClassItem) => {
@@ -441,11 +717,9 @@ export default function StudioScreen() {
     router.push('/create-live-class' as any);
   };
 
-  // Paywall purchase handler
   const handleUpgrade = useCallback(async () => {
     const pkg = offerings?.availablePackages?.[0];
     if (!pkg) {
-      // RC not available (e.g., dev/Android without native module) — skip to broadcast
       setShowPaywall(false);
       router.push('/broadcast/setup' as any);
       return;
@@ -458,14 +732,15 @@ export default function StudioScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push('/broadcast/setup' as any);
     } else if (error) {
-      showAlert({ type: 'error', title: 'Purchase Failed', message: error });
+      showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
   }, [offerings, purchasePackage, router, showAlert]);
+
   const handleDelete = (id: string, title: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showAlert({
       type: 'warning',
-      title: 'Delete Stream',
+      title: 'Delete stream',
       message: `Delete "${title}"?`,
       buttons: [
         { text: 'Cancel', style: 'cancel' },
@@ -481,6 +756,7 @@ export default function StudioScreen() {
       ],
     });
   };
+
   const handleSaveVod = async () => {
     if (!abruptEndedClass) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -501,29 +777,20 @@ export default function StudioScreen() {
         is_free: false,
         status: 'draft',
       });
-      showAlert({ type: 'success', title: 'Saved!', message: 'Recording saved to your library as a Draft.' });
+      showAlert({ type: 'success', title: 'Saved', message: 'Recording saved to your library as a draft.' });
       setAbruptEndedClass(null);
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Save Failed', message: err.message || 'Could not save.' });
+      showAlert({ type: 'error', title: 'Save failed', message: err.message || 'Could not save.' });
     } finally {
       setIsSavingVod(false);
     }
   };
 
+  const notifyCount = activeClients?.length || 0;
+
   return (
     <>
     <SafeAreaView style={s.container} edges={['top']}>
-
-      {/* ── Header (Twitch-style: title centered, action right) ─────── */}
-      <View style={s.header}>
-        <View style={s.headerLeft}>
-          <View style={[s.headerStatusDot, isLive && s.headerStatusDotLive]} />
-        </View>
-        <Text style={s.headerTitle}>Live Studio</Text>
-        <TouchableOpacity style={s.headerRightBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
-          <Ionicons name="calendar-outline" size={20} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
-      </View>
 
       <ScrollView
         style={s.scrollFlex}
@@ -531,21 +798,43 @@ export default function StudioScreen() {
         showsVerticalScrollIndicator={false}
       >
 
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <View style={s.header}>
+          <View>
+            <View style={s.headerTitleRow}>
+              {isLive && <Animated.View style={[s.liveDot, { opacity: pulseAnim }]} />}
+              <Text style={s.headerTitle}>Studio</Text>
+            </View>
+            <Text style={s.headerSub}>
+              {isLive
+                ? `Live · ${liveElapsed}`
+                : hasNeverBroadcast
+                ? "You haven't gone live yet"
+                : lastStreamDate
+                ? `Last broadcast ${lastStreamDate} · ${totalViews.toLocaleString()} watched`
+                : 'Ready when you are'}
+            </Text>
+          </View>
+          <TouchableOpacity style={s.headerBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
+            <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         {/* ── Abrupt disconnect alert ─────────────────────────────────── */}
         {abruptEndedClass && (
           <View style={s.alertCard}>
             <View style={s.alertCardLeft} />
             <View style={s.alertCardBody}>
               <View style={s.alertCardTitleRow}>
-                <Ionicons name="warning" size={14} color="#FF6B35" />
-                <Text style={s.alertCardTitle}>Stream Ended Abruptly</Text>
+                <Ionicons name="warning" size={14} color={CoachColors.warning} />
+                <Text style={s.alertCardTitle}>Stream ended abruptly</Text>
               </View>
               <Text style={s.alertCardSub} numberOfLines={1}>{abruptEndedClass.title}</Text>
               <View style={s.alertCardActions}>
                 <TouchableOpacity style={s.alertSaveBtn} onPress={handleSaveVod} disabled={isSavingVod}>
                   {isSavingVod
-                    ? <ActivityIndicator color="#000" size="small" />
-                    : <Text style={s.alertSaveBtnText}>Save to Library</Text>
+                    ? <ActivityIndicator color={CoachColors.onAccent} size="small" />
+                    : <Text style={s.alertSaveBtnText}>Save to library</Text>
                   }
                 </TouchableOpacity>
                 <TouchableOpacity style={s.alertDismissBtn} onPress={() => setAbruptEndedClass(null)} disabled={isSavingVod}>
@@ -556,226 +845,242 @@ export default function StudioScreen() {
           </View>
         )}
 
-        {/* ── Hero (Tonal-inspired: tall card with gradient + overlay text) */}
-        <View style={[s.hero, isLive && s.heroLive]}>
-          {/* Background layers */}
-          <View style={s.heroBgBase} />
-          <View style={s.heroBgMid} />
-          <View style={s.heroBgBottom} />
+        {/* ── LIVE — the one place red belongs ──────────────────────────── */}
+        {isLive && activeStream && (
+          <View style={s.liveCard}>
+            <View style={s.liveCardTop}>
+              <View style={s.liveBadge}>
+                <View style={s.liveBadgeDot} />
+                <Text style={s.liveBadgeText}>Live</Text>
+              </View>
+              <Text style={s.liveTimer}>{liveElapsed}</Text>
+              <View style={s.liveViewers}>
+                <Ionicons name="eye-outline" size={13} color={CoachColors.textSecondary} />
+                <Text style={s.liveViewersText}>{activeStream.viewer_count ?? 0} watching</Text>
+              </View>
+            </View>
+            <Text style={s.liveTitle} numberOfLines={2}>{activeStream.title}</Text>
+            <TouchableOpacity style={s.liveReenterBtn} onPress={() => handleEnterStudio(activeStream)} activeOpacity={0.85}>
+              <Ionicons name="videocam" size={16} color="#FFFFFF" />
+              <Text style={s.liveReenterBtnText}>Return to broadcast</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          </View>
+        )}
 
-          {/* Content */}
-          <View style={s.heroContent}>
-            {/* Status pill */}
-            <View style={[s.heroStatusPill, isLive && s.heroStatusPillLive, isScheduled && s.heroStatusPillScheduled]}>
-              <Animated.View style={[s.heroStatusDot, isLive && s.heroStatusDotLive, isLive && { opacity: pulseAnim }]} />
-              <Text style={[s.heroStatusText, isLive && s.heroStatusTextLive, isScheduled && s.heroStatusTextScheduled]}>
-                {isLive ? 'LIVE IN PROGRESS' : isScheduled ? 'NEXT UP' : 'OFFLINE'}
+        {/* ── Never broadcast — empty state ─────────────────────────────── */}
+        {hasNeverBroadcast && !isLive && (
+          <View style={s.emptyCard}>
+            <View style={s.emptyPreview}>
+              <CameraPreviewPlaceholder />
+              <Text style={s.emptyPreviewLabel}>camera preview</Text>
+            </View>
+            <View style={s.emptyBody}>
+              <Text style={s.emptyTitle}>Run a class from your phone</Text>
+              <Text style={s.emptySub}>
+                Athletes get a push when you start, join from their app, and the replay saves to your library.
+              </Text>
+              <TouchableOpacity style={s.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
+                <View style={s.goLiveDot} />
+                <Text style={s.goLiveBtnText}>Go live now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.scheduleInsteadBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
+                <Text style={s.scheduleInsteadBtnText}>Schedule one instead</Text>
+              </TouchableOpacity>
+              <Text style={s.emptyFootnote}>
+                {notifyCount > 0
+                  ? `${notifyCount} athlete${notifyCount === 1 ? '' : 's'} will get a push when you start`
+                  : 'No athletes to notify yet — add someone first'}
               </Text>
             </View>
-
-            {/* Countdown (scheduled only) */}
-            {isScheduled && countdown ? (
-              <Text style={s.heroCountdown}>{countdown}</Text>
-            ) : null}
-
-            {/* Main headline */}
-            <Text style={s.heroTitle} numberOfLines={2}>
-              {activeStream ? activeStream.title : 'Ready to Broadcast'}
-            </Text>
-            <Text style={s.heroSub}>
-              {activeStream
-                ? (isLive
-                  ? 'Your community is watching live right now'
-                  : new Date(activeStream.scheduled_for).toLocaleString(undefined, {
-                    weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                  }))
-                : 'Your community is waiting — go live or schedule your next class.'
-              }
-            </Text>
           </View>
+        )}
 
-          {/* Bottom bar: if active stream, show enter button */}
-          {activeStream && (
-            <TouchableOpacity
-              style={[s.heroEnterBtn, isLive && s.heroEnterBtnLive]}
-              onPress={() => handleEnterStudio(activeStream)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name={isLive ? 'videocam' : 'radio-outline'} size={16} color={isLive ? '#fff' : 'rgba(255,255,255,0.8)'} />
-              <Text style={s.heroEnterBtnText}>
-                {isLive ? 'Re-enter Live Studio' : 'Enter Broadcast Studio'}
+        {/* ── Next up — the single scheduled-stream card ─────────────────── */}
+        {!isLive && nextScheduledStream && (
+          <View style={s.nextCard}>
+            <View style={s.nextBadgeRow}>
+              <View style={s.nextBadgeDot} />
+              <Text style={s.nextBadgeText}>Next up</Text>
+            </View>
+            <Text style={s.nextTitle} numberOfLines={2}>{nextScheduledStream.title}</Text>
+            <View style={s.nextMetaRow}>
+              <Text style={s.nextCountdown}>{countdown}</Text>
+              <Text style={s.nextDate}>
+                {new Date(nextScheduledStream.scheduled_for).toLocaleString(undefined, {
+                  weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                })}
+                {notifyCount > 0 ? ` · ${notifyCount} notified` : ''}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Stats (Peloton metadata bar) ─────────────────────────────── */}
-        <View style={s.statsRow}>
-          <View style={s.statBlock}>
-            <Text style={s.statNum}>{totalViews.toLocaleString()}</Text>
-            <Text style={s.statLabel}>Total Views</Text>
-          </View>
-          <View style={s.statSep} />
-          <View style={s.statBlock}>
-            <Text style={s.statNum}>{totalClassesTaught}</Text>
-            <Text style={s.statLabel}>Classes Taught</Text>
-          </View>
-          <View style={s.statSep} />
-          <View style={s.statBlock}>
-            <Text style={[s.statNum, { color: '#4ADE80', fontSize: lastStreamDate && lastStreamDate.length > 5 ? 15 : 21 }]}>
-              {lastStreamDate || '—'}
-            </Text>
-            <Text style={s.statLabel}>Last Stream</Text>
-          </View>
-        </View>
-
-        {/* ── Upcoming streams — moved above tech check (more actionable) ── */}
-        <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Stream Queue</Text>
-            <TouchableOpacity style={s.sectionAddBtn} onPress={handleScheduleNew}>
-              <Ionicons name="add" size={16} color="#C8F135" />
-              <Text style={[s.sectionAddBtnText, { color: '#C8F135' }]}>Schedule</Text>
-            </TouchableOpacity>
-          </View>
-
-          {upcomingStreams.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.queueScroll}>
-              {upcomingStreams.map((item) => (
-                <QueueCard
-                  key={item.id}
-                  item={item}
-                  relativeTime={getRelativeTime(item.scheduled_for)}
-                  onLaunch={() => handleEnterStudio(item)}
-                  onDelete={() => handleDelete(item.id, item.title)}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={s.emptyQueueCard}>
-              <Ionicons name="radio-outline" size={36} color="rgba(255,255,255,0.1)" />
-              <Text style={s.emptyQueueTitle}>No upcoming broadcasts</Text>
-              <Text style={s.emptyQueueSub}>
-                Schedule a live class to connect with your community in real time.
-              </Text>
-              <TouchableOpacity style={s.emptyQueueBtn} onPress={handleScheduleNew}>
-                <Ionicons name="add" size={13} color="#C8F135" />
-                <Text style={s.emptyQueueBtnText}>Schedule a Class</Text>
+            </View>
+            <View style={s.nextActionsRow}>
+              <TouchableOpacity
+                style={s.nextStartBtn}
+                onPress={() => handleEnterStudio(nextScheduledStream)}
+                activeOpacity={0.85}
+              >
+                <View style={s.goLiveDot} />
+                <Text style={s.goLiveBtnText}>Start early</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.editClassBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/create-live-class?editId=${nextScheduledStream.id}` as any);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={s.editClassBtnText}>Edit class</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-        {/* ── Pre-Flight Check (Twitch stream-setup toggle rows) ────────── */}
-        <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Pre-Flight Check</Text>
-            {allReady && (
-              <View style={s.allReadyBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#4ADE80" />
-                <Text style={s.allReadyText}>All good</Text>
-              </View>
-            )}
           </View>
+        )}
 
-          <View style={s.settingsCard}>
-            <SettingRow
-              icon="videocam-outline"
-              label="Camera & Framing"
-              sublabel="Position and resolution verified"
-              value={checklist.cameraReady}
-              onChange={(v) => toggleCheck('cameraReady')}
-            />
-            <SettingRow
-              icon="mic-outline"
-              label="Microphone"
-              sublabel="Audio gain and clarity checked"
-              value={checklist.micReady}
-              onChange={(v) => toggleCheck('micReady')}
-            />
-            <SettingRow
-              icon="sunny-outline"
-              label="Studio Lighting"
-              sublabel="High-contrast illumination"
-              value={checklist.lightingChecked}
-              onChange={(v) => toggleCheck('lightingChecked')}
-            />
-            <SettingRow
-              icon="moon-outline"
-              label="Do Not Disturb"
-              sublabel="Silence notifications during broadcast"
-              value={checklist.doNotDisturb}
-              onChange={(v) => toggleCheck('doNotDisturb')}
-              isLast
-            />
-          </View>
-        </View>
-
-        {/* ── Student Engagement (chart) ────────────────────────────────── */}
-        <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Student Engagement</Text>
-            <Text style={s.sectionSeeAll}>Last {sparklineData.length} classes</Text>
-          </View>
-
-          <View style={s.chartCard}>
-            <View style={s.chartCardTop}>
-              <Text style={s.chartBigNum}>{sparklineData.reduce((a, b) => a + b.value, 0).toLocaleString()}</Text>
-              <Text style={s.chartBigLabel}>total takes</Text>
+        {/* ── Stats ──────────────────────────────────────────────────────── */}
+        {!hasNeverBroadcast && (
+          <View style={s.statsRow}>
+            <View style={s.statBlock}>
+              <Text style={s.statNum}>{totalViews.toLocaleString()}</Text>
+              <Text style={s.statLabel}>Total views</Text>
             </View>
-            <View style={s.chartWrapper}>
-              <LineChart
-                data={sparklineData}
-                height={90}
-                width={width - 96}
-                color="#C8F135"
-                thickness={2.5}
-                startFillColor="rgba(200,241,53,0.12)"
-                endFillColor="rgba(200,241,53,0)"
-                areaChart
-                hideRules
-                hideYAxisText
-                xAxisColor="rgba(255,255,255,0.05)"
-                yAxisColor="transparent"
-                initialSpacing={10}
-                spacing={45}
-                dataPointsColor="#FF6B35"
-                dataPointsRadius={4}
-              />
+            <View style={s.statSep} />
+            <View style={s.statBlock}>
+              <Text style={s.statNum}>{pastStreams.length}</Text>
+              <Text style={s.statLabel}>Broadcasts</Text>
+            </View>
+            <View style={s.statSep} />
+            <View style={s.statBlock}>
+              <Text style={[s.statNum, { fontSize: lastStreamDate && lastStreamDate.length > 5 ? 15 : 21 }]}>
+                {lastStreamDate || '—'}
+              </Text>
+              <Text style={s.statLabel}>Last stream</Text>
             </View>
           </View>
-        </View>
+        )}
 
-        {/* ── Broadcast Archive ─────────────────────────────────────────── */}
-        {pastStreams.length > 0 && (
+        {/* ── Stream health — real signal, not a self-report checklist ──── */}
+        {!isLive && (
           <View style={s.section}>
             <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionTitle}>Broadcast Archive</Text>
-              <Text style={s.sectionSeeAll}>{pastStreams.length} streams</Text>
+              <Text style={s.sectionTitle}>Stream health</Text>
+              {deviceReady && (
+                <View style={s.readyBadgeRow}>
+                  <View style={s.readyDot} />
+                  <Text style={s.readyBadgeText}>Ready</Text>
+                </View>
+              )}
             </View>
 
-            <View style={s.archiveCard}>
+            <View style={s.healthCard}>
+              <DeviceRow
+                icon="videocam-outline"
+                label="Camera"
+                status={cameraStatus}
+                readyDetail={`Front · ${BROADCAST_RESOLUTION_LABEL}`}
+                right={cameraStatus === 'granted' ? <SignalBars good /> : undefined}
+              />
+              <DeviceRow
+                icon="mic-outline"
+                label="Microphone"
+                status={micPermission}
+                readyDetail={micLevel > 0.15 ? 'Levels good — speak to test' : 'Quiet — speak to test'}
+                right={micPermission === 'granted' ? <MicLevelBars level={micLevel} /> : undefined}
+              />
+              <ConnectionRow status={connectionStatus} mbps={connectionMbps} testing={speedTesting} onRetest={retestConnection} />
+              <DoNotDisturbRow isLast />
+            </View>
+            {cameraStatus === 'unavailable' && (
+              <Text style={s.healthFootnote}>
+                Full device check runs on a native build — this is a development preview.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* ── Scheduled (everything after "Next up") ─────────────────────── */}
+        {!isLive && restOfQueue.length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionTitle}>Scheduled</Text>
+              <TouchableOpacity onPress={handleScheduleNew}>
+                <Text style={s.sectionAction}>Schedule new</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={s.listCard}>
+              {restOfQueue.map((item, idx) => (
+                <ScheduledRow
+                  key={item.id}
+                  item={item}
+                  onPress={() => handleEnterStudio(item)}
+                  onDelete={() => handleDelete(item.id, item.title)}
+                  isLast={idx === restOfQueue.length - 1}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── Student engagement (chart) ─────────────────────────────────── */}
+        {!hasNeverBroadcast && !isLive && (
+          <View style={s.section}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionTitle}>Student engagement</Text>
+              <Text style={s.sectionMuted}>Last {sparklineData.length} classes</Text>
+            </View>
+
+            <View style={s.chartCard}>
+              <View style={s.chartCardTop}>
+                <Text style={s.chartBigNum}>{sparklineData.reduce((a, b) => a + b.value, 0).toLocaleString()}</Text>
+                <Text style={s.chartBigLabel}>total takes</Text>
+              </View>
+              <View style={s.chartWrapper}>
+                <LineChart
+                  data={sparklineData}
+                  height={90}
+                  width={width - 96}
+                  color={CoachColors.accent}
+                  thickness={2.5}
+                  startFillColor="rgba(198,242,78,0.14)"
+                  endFillColor="rgba(198,242,78,0)"
+                  areaChart
+                  hideRules
+                  hideYAxisText
+                  xAxisColor={CoachColors.borderMuted}
+                  yAxisColor="transparent"
+                  initialSpacing={10}
+                  spacing={45}
+                  dataPointsColor={CoachColors.accent}
+                  dataPointsRadius={4}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Past broadcasts ────────────────────────────────────────────── */}
+        {pastStreams.length > 0 && !isLive && (
+          <View style={s.section}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionTitle}>Past broadcasts</Text>
+              <Text style={s.sectionMuted}>{pastStreams.length} total</Text>
+            </View>
+
+            <View style={s.listCard}>
               {pastStreams.slice(0, 4).map((item, idx) => (
                 <View
                   key={item.id}
-                  style={[s.archiveRow, idx === Math.min(pastStreams.length, 4) - 1 && { borderBottomWidth: 0 }]}
+                  style={[sr.row, idx < Math.min(pastStreams.length, 4) - 1 && sr.rowBorder]}
                 >
-                  <View style={s.archiveIconBox}>
-                    <Ionicons name="videocam" size={14} color="rgba(255,255,255,0.3)" />
-                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.archiveTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={s.archiveMeta}>
+                    <Text style={sr.title} numberOfLines={1}>{item.title}</Text>
+                    <Text style={sr.meta}>
                       {new Date(item.scheduled_for).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       {item.category ? ` · ${item.category}` : ''}
                     </Text>
                   </View>
-                  <View style={[s.archiveBadge, item.status === 'cancelled' && s.archiveBadgeCancelled]}>
-                    <Text style={[s.archiveBadgeText, item.status === 'cancelled' && s.archiveBadgeTextCancelled]}>
-                      {item.status === 'cancelled' ? 'Cancelled' : 'Ended'}
-                    </Text>
-                  </View>
+                  <Text style={[s.archiveStatusText, item.status === 'cancelled' && { color: CoachColors.textFaint }]}>
+                    {item.status === 'cancelled' ? 'Cancelled' : 'Replay saved'}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -784,39 +1089,20 @@ export default function StudioScreen() {
 
       </ScrollView>
 
-      {/* ── Sticky CTA ─────────────────────────────────────────────── */}
-      {/*
-        TAB BAR CLEARANCE:
-        The custom AnimatedTabBar is position:absolute at bottom:0.
-        Its total height = BAR_H(80) + Math.max(insets.bottom, 12).
-        This stickyBottom must sit ABOVE that entirely.
-      */}
+      {/* ── Sticky CTA — one primary action per state ────────────────── */}
       <View style={[s.stickyBottom, {
         paddingBottom: Math.max(insets.bottom, 12) + 80 + 12,
       }]}>
-        {activeStream ? (
-          /* Active stream: re-enter */
-          <TouchableOpacity
-            style={[s.goLiveBtn, isLive ? s.goLiveBtnLive : s.goLiveBtnScheduled]}
-            onPress={() => handleEnterStudio(activeStream)}
-            activeOpacity={0.85}
-          >
-            <View style={[s.goLiveDot, isLive && s.goLiveDotLive]} />
-            <Text style={[s.goLiveBtnText, isLive && s.goLiveBtnTextLive]}>
-              {isLive ? 'Re-enter Live Studio' : `Enter Studio · ${countdown || 'Scheduled'}`}
-            </Text>
+        {isLive && activeStream ? (
+          <TouchableOpacity style={s.stickyLiveBtn} onPress={() => handleEnterStudio(activeStream)} activeOpacity={0.85}>
+            <View style={s.liveBadgeDot} />
+            <Text style={s.stickyLiveBtnText}>Return to broadcast</Text>
           </TouchableOpacity>
-        ) : (
-          /* Idle: GO LIVE NOW lime + Schedule calendar icon */
-          <View style={s.stickyBtnRow}>
-            <TouchableOpacity style={s.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
-              <View style={s.goLiveDot} />
-              <Text style={s.goLiveBtnText}>Go Live Now</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.scheduleBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
-              <Ionicons name="calendar-outline" size={18} color="rgba(255,255,255,0.7)" />
-            </TouchableOpacity>
-          </View>
+        ) : hasNeverBroadcast ? null : (
+          <TouchableOpacity style={s.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
+            <View style={s.goLiveDot} />
+            <Text style={s.goLiveBtnText}>Go live now</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -834,87 +1120,83 @@ export default function StudioScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A10' },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+
+  scrollFlex: { flex: 1 },
+  scroll: { paddingHorizontal: Spacing.lg, paddingTop: 8 },
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  headerLeft: {
-    width: 40,
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 18,
+  },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 24,
+    color: CoachColors.textPrimary,
+    letterSpacing: -0.4,
+  },
+  headerSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12.5,
+    color: CoachColors.textMuted,
+    marginTop: 2,
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  headerStatusDot: {
+  liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: CoachColors.danger,
   },
-  headerStatusDotLive: {
-    backgroundColor: '#EF4444',
-  },
-  headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 17,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  headerRightBtn: {
-    width: 40,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-
-  // ── Scroll ──────────────────────────────────────────────────────────────────
-  // flex: 1 is CRITICAL — without it, ScrollView doesn't bound properly above stickyBottom
-  scrollFlex: { flex: 1 },
-  scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
 
   // ── Alert card ──────────────────────────────────────────────────────────────
   alertCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,107,53,0.07)',
+    backgroundColor: CoachColors.warningSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.3)',
+    borderColor: 'rgba(224,184,78,0.3)',
     borderRadius: Radius.sm,
     marginBottom: Spacing.lg,
     overflow: 'hidden',
   },
-  alertCardLeft: {
-    width: 4,
-    backgroundColor: '#FF6B35',
-  },
+  alertCardLeft: { width: 4, backgroundColor: CoachColors.warning },
   alertCardBody: { flex: 1, padding: Spacing.md },
   alertCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   alertCardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   alertCardSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textMuted,
     marginBottom: 10,
   },
   alertCardActions: { flexDirection: 'row', gap: 8 },
   alertSaveBtn: {
-    backgroundColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
     borderRadius: Radius.xs,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   alertSaveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },
   alertDismissBtn: {
@@ -922,164 +1204,218 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: CoachColors.borderMuted,
   },
   alertDismissBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
   },
 
-  // ── Hero card ───────────────────────────────────────────────────────────────
-  hero: {
-    borderRadius: Radius.md,
-    marginBottom: Spacing.md,
-    minHeight: 210,
-    overflow: 'hidden',
+  // ── Live card (red reserved exclusively for this state) ─────────────────────
+  liveCard: {
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-  },
-  heroLive: {
-    borderColor: 'rgba(239,68,68,0.4)',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  heroBgBase: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F0D1E',
-  },
-  heroBgMid: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-    backgroundColor: 'rgba(80,50,140,0.1)',
-  },
-  heroBgBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '45%',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  heroContent: {
+    borderColor: 'rgba(224,92,92,0.4)',
+    borderRadius: Radius.md,
     padding: Spacing.lg,
-    flex: 1,
-    paddingBottom: 0,
+    marginBottom: Spacing.lg,
+    shadowColor: CoachColors.danger,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 18,
+    elevation: 4,
   },
-  heroStatusPill: {
+  liveCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: CoachColors.dangerSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: Radius.full,
-    marginBottom: 14,
   },
-  heroStatusPillLive: {
-    backgroundColor: 'rgba(239,68,68,0.15)',
-    borderColor: 'rgba(239,68,68,0.4)',
+  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.danger },
+  liveBadgeText: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 10.5,
+    color: CoachColors.danger,
+    letterSpacing: 0.8,
   },
-  heroStatusPillScheduled: {
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    borderColor: 'rgba(255,107,53,0.3)',
+  liveTimer: {
+    fontFamily: CoachFonts.mono,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
   },
-  heroStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  heroStatusDotLive: { backgroundColor: '#EF4444' },
-  heroStatusText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 1.2,
-  },
-  heroStatusTextLive: { color: '#EF4444' },
-  heroStatusTextScheduled: { color: '#FF6B35' },
-  heroTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 26,
-    color: '#FFFFFF',
-    lineHeight: 30,
-    marginBottom: 8,
-    letterSpacing: -0.3,
-  },
-  heroCountdown: {
-    fontFamily: FontFamily.mono,
-    fontSize: 32,
-    color: '#FF6B35',
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  heroSub: {
-    fontFamily: FontFamily.bodySemiBold,
+  liveViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
+  liveViewersText: {
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: Spacing.lg,
-    lineHeight: 17,
+    color: CoachColors.textSecondary,
   },
-  heroEnterBtn: {
+  liveTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 19,
+    color: CoachColors.textPrimary,
+    marginBottom: 16,
+    lineHeight: 24,
+  },
+  liveReenterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.lg,
+    backgroundColor: CoachColors.danger,
+    paddingVertical: 15,
+    borderRadius: Radius.full,
   },
-  heroEnterBtnLive: {
-    backgroundColor: '#EF4444',
-    borderTopColor: 'transparent',
-  },
-  heroEnterBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 13,
+  liveReenterBtnText: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 14,
     color: '#FFFFFF',
-    letterSpacing: 0.3,
-    flex: 1,
+  },
+
+  // ── Never-broadcast empty state ──────────────────────────────────────────────
+  emptyCard: {
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
+  },
+  emptyPreview: {
+    height: 158,
+    backgroundColor: CoachColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  emptyPreviewLabel: {
+    fontFamily: CoachFonts.mono,
+    fontSize: 11,
+    color: CoachColors.textFaint,
+    letterSpacing: 0.5,
+  },
+  emptyBody: { padding: Spacing.lg, backgroundColor: CoachColors.surface },
+  emptyTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 17,
+    color: CoachColors.textPrimary,
+  },
+  emptySub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
+    marginTop: 8,
+    lineHeight: 19,
+  },
+  scheduleInsteadBtn: {
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 9,
+  },
+  scheduleInsteadBtnText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13.5,
+    color: CoachColors.textSecondary,
+  },
+  emptyFootnote: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textFaint,
     textAlign: 'center',
+    marginTop: 10,
+  },
+
+  // ── Next up card ──────────────────────────────────────────────────────────
+  nextCard: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  nextBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  nextBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.accent },
+  nextBadgeText: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 10.5,
+    color: CoachColors.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  nextTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 21,
+    color: CoachColors.textPrimary,
+    marginTop: 10,
+    lineHeight: 26,
+  },
+  nextMetaRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8, marginBottom: 16 },
+  nextCountdown: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 14.5,
+    color: CoachColors.accent,
+  },
+  nextDate: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: CoachColors.textMuted,
+    flexShrink: 1,
+  },
+  nextActionsRow: { flexDirection: 'row', gap: 10 },
+  nextStartBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: CoachColors.accent,
+    paddingVertical: 14,
+    borderRadius: Radius.full,
+  },
+  editClassBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    paddingVertical: 14,
+    borderRadius: Radius.full,
+  },
+  editClassBtnText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 14.5,
+    color: CoachColors.textPrimary,
   },
 
   // ── Stats row ───────────────────────────────────────────────────────────────
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
     marginBottom: Spacing.xl,
     paddingVertical: 12,
   },
   statBlock: { flex: 1, alignItems: 'center', gap: 3 },
-  statSep: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 6,
-  },
+  statSep: { width: StyleSheet.hairlineWidth, backgroundColor: CoachColors.border, marginVertical: 6 },
   statNum: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 21,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   statLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
   },
 
   // ── Section ─────────────────────────────────────────────────────────────────
@@ -1091,364 +1427,197 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.1,
   },
-  sectionSeeAll: {
-    fontFamily: FontFamily.bodySemiBold,
+  sectionMuted: {
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
-  sectionAddBtn: {
+  sectionAction: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 12,
+    color: CoachColors.accent,
+  },
+  readyBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  sectionAddBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+  readyDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: CoachColors.accent,
+  },
+  readyBadgeText: {
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#EF4444',
-    letterSpacing: 0.2,
-  },
-  allReadyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(74,222,128,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,222,128,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  allReadyText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 10,
-    color: '#4ADE80',
+    color: CoachColors.accent,
   },
 
-  // ── Settings card (Twitch stream-setup style) ────────────────────────────────
-  settingsCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+  // ── Stream health card ────────────────────────────────────────────────────
+  healthCard: {
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
     overflow: 'hidden',
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: Spacing.md,
-    gap: 12,
-  },
-  settingRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
-  },
-  settingIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingIconBoxActive: {
-    backgroundColor: 'rgba(74,222,128,0.12)',
-  },
-  settingLabelWrap: { flex: 1, gap: 1 },
-  settingLabel: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  settingSubLabel: {
-    fontFamily: FontFamily.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
-    lineHeight: 15,
+  healthFootnote: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textFaint,
+    marginTop: 8,
+    lineHeight: 16,
   },
 
   // ── Chart ───────────────────────────────────────────────────────────────────
   chartCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
     padding: Spacing.md,
   },
-  chartCardTop: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-    marginBottom: 10,
-  },
+  chartCardTop: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
   chartBigNum: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   chartBigLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
   chartWrapper: { alignItems: 'center', overflow: 'hidden' },
 
-  // ── Queue cards (Peloton upcoming live workouts) ─────────────────────────────
-  queueScroll: { gap: 10 },
-  queueCard: {
-    width: 168,
-    height: 210,
-    borderRadius: Radius.sm,
-    overflow: 'hidden',
+  // ── List card (scheduled / past broadcasts) ──────────────────────────────
+  listCard: {
+    backgroundColor: CoachColors.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-  },
-  queueCardBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#12101E',
-  },
-  queueCardGradientTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '40%',
-    backgroundColor: 'rgba(60,30,100,0.25)',
-  },
-  queueCardGradientBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  queueCardContent: {
-    flex: 1,
-    padding: Spacing.md,
-    justifyContent: 'space-between',
-  },
-  queueCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  scheduledBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,107,53,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.35)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-  },
-  scheduledBadgeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#FF6B35',
-  },
-  scheduledBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 7,
-    color: '#FF6B35',
-    letterSpacing: 0.8,
-  },
-  queueCardBottom: { gap: 4 },
-  queueRelativeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  queueCardTime: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  queueRelativeTime: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: '#FF6B35',
-    letterSpacing: 0.3,
-  },
-  queueCardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 18,
-  },
-  queueCardCategory: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1,
-  },
-  emptyQueueCard: {
-    backgroundColor: 'rgba(255,255,255,0.025)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: Radius.sm,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyQueueTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 8,
-  },
-  emptyQueueSub: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.25)',
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 8,
-  },
-  emptyQueueBtn: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(200,241,53,0.35)',
-    backgroundColor: 'rgba(200,241,53,0.06)',
-  },
-  emptyQueueBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: '#C8F135',
-    letterSpacing: 0.3,
-  },
-
-  // ── Archive ──────────────────────────────────────────────────────────────────
-  archiveCard: {
-    backgroundColor: 'rgba(255,255,255,0.025)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
     overflow: 'hidden',
   },
-  archiveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  archiveIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  archiveTitle: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
-  },
-  archiveMeta: {
-    fontFamily: FontFamily.body,
+  archiveStatusText: {
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
-    marginTop: 1,
+    color: CoachColors.accent,
   },
-  archiveBadge: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  archiveBadgeCancelled: { borderColor: 'rgba(239,68,68,0.3)' },
-  archiveBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 0.5,
-  },
-  archiveBadgeTextCancelled: { color: '#EF4444' },
 
-  // ── Sticky bottom CTA (Peloton-style) ───────────────────────────────────────
+  // ── Sticky bottom CTA ─────────────────────────────────────────────────────
   stickyBottom: {
     paddingHorizontal: Spacing.lg,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-    backgroundColor: '#0A0A10',
+    borderTopColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
   },
-  stickyBtnRow: { flexDirection: 'row', gap: 10 },
   goLiveBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 16,
-    borderRadius: Radius.sm,
-    shadowColor: '#C8F135',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  // Scheduled state: muted, less shadow
-  goLiveBtnScheduled: {
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  // LIVE state: red with glow
-  goLiveBtnLive: {
-    backgroundColor: '#EF4444',
-    shadowColor: '#EF4444',
-    shadowOpacity: 0.35,
+    borderRadius: Radius.full,
+    marginTop: 14,
   },
   goLiveDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  goLiveDotLive: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(16,18,16,0.55)',
   },
   goLiveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 14,
-    color: '#000000',
-    letterSpacing: 0.3,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 14.5,
+    color: CoachColors.onAccent,
+    letterSpacing: 0.2,
   },
-  goLiveBtnTextLive: {
-    color: '#FFFFFF',
-  },
-  scheduleBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  stickyLiveBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: CoachColors.danger,
+    paddingVertical: 16,
+    borderRadius: Radius.full,
+  },
+  stickyLiveBtnText: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 14.5,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+});
+
+// ── Device row styles ──────────────────────────────────────────────────────────
+const dr = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: Spacing.md,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: CoachColors.borderMuted,
+  },
+  labelWrap: { flex: 1, gap: 1 },
+  label: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13.5,
+    color: CoachColors.textPrimary,
+  },
+  detail: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+  },
+});
+
+// ── Scheduled row styles ────────────────────────────────────────────────────────
+const sr = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: CoachColors.borderMuted,
+  },
+  dateBox: { width: 44, alignItems: 'center' },
+  dateWeekday: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 13,
+    color: CoachColors.textPrimary,
+  },
+  dateNum: {
+    fontFamily: CoachFonts.body,
+    fontSize: 10.5,
+    color: CoachColors.textFaint,
+    marginTop: 1,
+  },
+  sep: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: CoachColors.borderMuted },
+  title: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13.5,
+    color: CoachColors.textPrimary,
+  },
+  meta: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11.5,
+    color: CoachColors.textMuted,
+    marginTop: 1,
   },
 });
 
@@ -1460,80 +1629,70 @@ const pw = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111118',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,215,0,0.15)',
+    borderTopColor: CoachColors.border,
   },
   handle: {
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginBottom: 20,
   },
-  hero: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
+  hero: { alignItems: 'center', marginBottom: 24 },
   eliteBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255,215,0,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
+    borderColor: 'rgba(198,242,78,0.3)',
     borderRadius: 100,
     paddingHorizontal: 12,
     paddingVertical: 5,
     marginBottom: 16,
   },
   eliteBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
-    color: '#FFD700',
+    color: CoachColors.accent,
     letterSpacing: 1.2,
   },
   heroTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 26,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   heroSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
-  perks: {
-    marginBottom: 24,
-    gap: 10,
-  },
-  perkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  perks: { marginBottom: 24, gap: 10 },
+  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   perkIcon: {
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: CoachColors.accentSofter,
     alignItems: 'center',
     justifyContent: 'center',
   },
   perkText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
+    color: CoachColors.textPrimary,
     flex: 1,
   },
   pricing: {
@@ -1544,55 +1703,41 @@ const pw = StyleSheet.create({
     justifyContent: 'center',
   },
   priceAmount: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 36,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   pricePer: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
   },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFD700',
+    backgroundColor: CoachColors.accent,
     borderRadius: Radius.md,
     height: 54,
     marginBottom: 12,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
-  ctaLoading: {
-    opacity: 0.7,
-  },
+  ctaLoading: { opacity: 0.7 },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
-  restoreBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
+  restoreBtn: { alignItems: 'center', paddingVertical: 10 },
   restoreText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textDecorationLine: 'underline',
   },
-  skipBtn: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
+  skipBtn: { alignItems: 'center', paddingVertical: 8 },
   skipText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
   },
 });
-

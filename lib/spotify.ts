@@ -1,18 +1,23 @@
 /**
- * Spotify Integration — Authorization Code Flow
- * 
- * Uses Auth Code flow with client secret for token exchange.
- * Scopes are read-only (now playing) so risk is minimal.
+ * Spotify Integration — Authorization Code + PKCE
+ *
+ * PKCE (no client secret) is the correct OAuth flow for a distributed
+ * mobile app — a client secret embedded in a shipped app binary can always
+ * be extracted by decompiling it, so Spotify (like most providers) supports
+ * PKCE specifically so public clients never need one. Scopes are read-only
+ * (now playing) so risk is minimal either way.
  */
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import { encode as base64Encode } from 'base64-arraybuffer';
 import { createURL } from 'expo-linking';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Spotify App credentials
+// Spotify App credentials — the client ID is public by design (it's sent in
+// the authorize URL); PKCE means no client secret is needed at all.
 const SPOTIFY_CLIENT_ID = '763200d8ed4248ec8bed9b08032ab121';
-const SPOTIFY_CLIENT_SECRET = '187c1c899ed6431588f58f2b7395860e';
 const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
 
 // Redirect URI
@@ -22,6 +27,29 @@ const REDIRECT_URI = createURL('spotify-callback');
 const TOKEN_KEY = 'spotify_access_token';
 const REFRESH_KEY = 'spotify_refresh_token';
 const EXPIRY_KEY = 'spotify_token_expiry';
+
+// Holds the PKCE code_verifier for the duration of one login attempt —
+// generated in loginWithSpotify(), consumed in exchangeCodeForTokens().
+let pendingCodeVerifier: string | null = null;
+
+// ── PKCE helpers ──
+function base64UrlEncode(base64: string): string {
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function generateCodeVerifier(): Promise<string> {
+  const bytes = await Crypto.getRandomBytesAsync(64);
+  return base64UrlEncode(base64Encode(bytes.buffer as ArrayBuffer));
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const digestBase64 = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    verifier,
+    { encoding: Crypto.CryptoEncoding.BASE64 }
+  );
+  return base64UrlEncode(digestBase64);
+}
 
 export async function getStoredToken(): Promise<string | null> {
   try {
@@ -54,14 +82,14 @@ async function refreshAccessToken(): Promise<string | null> {
     const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
     if (!refreshToken) return null;
 
-    const credentials = btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`);
+    // PKCE public clients refresh with just client_id in the body — no
+    // Authorization header / secret needed.
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${credentials}`,
-      },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:
+        `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}` +
+        `&client_id=${SPOTIFY_CLIENT_ID}`,
     });
 
     const data = await response.json();
@@ -75,15 +103,21 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-// ── Auth (Authorization Code Flow) ──
+// ── Auth (Authorization Code + PKCE) ──
 export async function loginWithSpotify(): Promise<boolean> {
   try {
+    const verifier = await generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    pendingCodeVerifier = verifier;
+
     const authUrl =
       `https://accounts.spotify.com/authorize` +
       `?client_id=${SPOTIFY_CLIENT_ID}` +
       `&response_type=code` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
       `&scope=${encodeURIComponent(SPOTIFY_SCOPES)}` +
+      `&code_challenge_method=S256` +
+      `&code_challenge=${challenge}` +
       `&show_dialog=true`;
 
     if (__DEV__) console.log('[Spotify] Redirect URI:', REDIRECT_URI);
@@ -103,6 +137,8 @@ export async function loginWithSpotify(): Promise<boolean> {
   } catch (e) {
     if (__DEV__) console.log('[Spotify] Login error:', e);
     return false;
+  } finally {
+    pendingCodeVerifier = null;
   }
 }
 
@@ -114,14 +150,20 @@ function extractParam(url: string, param: string): string | null {
 
 async function exchangeCodeForTokens(code: string): Promise<boolean> {
   try {
-    const credentials = btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`);
+    const verifier = pendingCodeVerifier;
+    if (!verifier) {
+      if (__DEV__) console.log('[Spotify] Token exchange failed: missing code_verifier');
+      return false;
+    }
+
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${credentials}`,
-      },
-      body: `grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:
+        `grant_type=authorization_code&code=${encodeURIComponent(code)}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+        `&client_id=${SPOTIFY_CLIENT_ID}` +
+        `&code_verifier=${encodeURIComponent(verifier)}`,
     });
 
     const data = await response.json();

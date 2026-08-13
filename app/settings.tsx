@@ -12,6 +12,7 @@ import { useTheme, type ThemeMode } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
 import type { ThemeColors } from '../constants/theme';
+import { useHaptic } from '../hooks/useHaptic';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -21,6 +22,7 @@ export default function SettingsScreen() {
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
+  const haptic = useHaptic();
 
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
@@ -200,7 +202,10 @@ export default function SettingsScreen() {
                 )}
                 <Switch
                   value={workingHours[day].enabled}
-                  onValueChange={() => toggleDay(day)}
+                  onValueChange={() => {
+                    haptic.trigger('light');
+                    toggleDay(day);
+                  }}
                   trackColor={{ false: colors.border, true: colors.textPrimary }}
                   thumbColor={colors.bgPrimary}
                   accessibilityLabel={`${day} working hours toggle`}
@@ -228,7 +233,10 @@ export default function SettingsScreen() {
                 </View>
                 <Switch
                   value={item.value}
-                  onValueChange={item.onToggle}
+                  onValueChange={(val) => {
+                    haptic.trigger('light');
+                    item.onToggle(val);
+                  }}
                   trackColor={{ false: colors.border, true: colors.textPrimary }}
                   thumbColor={colors.bgPrimary}
                   accessibilityLabel={`${item.label} toggle`}

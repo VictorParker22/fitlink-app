@@ -1,5 +1,11 @@
 /**
- * clients.tsx — Coach Roster Screen
+ * clients.tsx — Coach Roster Screen ("Athletes")
+ *
+ * Design: Fitlink Coach Dashboard Redesign, turn 4a "Athletes — roster".
+ * Fixed dark palette, one lime accent — see constants/coachDesign.ts.
+ * Attention leads: a "Needs you first" section surfaces athletes who need
+ * setup, a nudge (quiet), or trial conversion above the full roster.
+ * Aggregate counts are demoted to a small footer row below the list.
  *
  * Swipe implementation: ReanimatedSwipeable (react-native-gesture-handler/ReanimatedSwipeable)
  * This is the OFFICIAL recommended API for 2024-2025 per RNGH docs — replaces the deprecated
@@ -8,12 +14,6 @@
  * `dragAnimatedValue` froze at the release position.
  *
  * Source: https://docs.swmansion.com/react-native-gesture-handler/docs/components/swipeable
- *
- * Design system (matches coach home dashboard):
- *   • #0D0D12 dark navy + LinearGradient
- *   • #C8F135 lime accent
- *   • Frosted glass cards
- *   • SpaceGrotesk + Epilogue
  *
  * Responsiveness: ALL sizes derived from W = Dimensions.get('window').width — zero hard-coded px.
  *
@@ -36,9 +36,8 @@ import Reanimated, {
   useAnimatedStyle, interpolate, Extrapolation, type SharedValue,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
-import { FontFamily, getAvatarColor } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useHaptic } from '../../hooks/useHaptic';
 import type { Client } from '../../context/AppContext';
 
@@ -56,6 +55,7 @@ const ACTIONS_W = BTN_W * 3 + BTN_GAP * 2 + BTN_PAD_LEFT;
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabFilter = 'all' | 'active' | 'trial';
+type AttentionKind = 'setup' | 'quiet' | 'trial';
 
 interface ActionDef {
   id: string;
@@ -64,6 +64,15 @@ interface ActionDef {
   label: string;
   a11yLabel: string;
   onPress: () => void;
+}
+
+interface AttentionItem {
+  client: Client;
+  kind: AttentionKind;
+  tag: string;
+  meta: string;
+  cta: string;
+  color: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,21 +85,15 @@ function getDaysLeft(iso: string): number {
   return Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
-const STATUS_RING: Record<string, string> = {
-  active:   '#C8F135',
-  trial:    '#F59E0B',
-  inactive: 'rgba(255,255,255,0.12)',
-};
-
-// Engagement ring: based on completed_workouts instead of subscription status.
+// Engagement: based on completed_workouts instead of subscription status.
 // A coach needs to know who is actually showing up, not just who is paying.
-// Thresholds: ≥10 sessions = on track (green), ≥4 = check-in-soon (amber), <4 = at risk (red).
+// Thresholds: ≥10 sessions = on track, ≥4 = check-in-soon, <4 = at risk (quiet).
 function getEngagementColor(client: Client): string {
-  if (client.status === 'inactive') return 'rgba(255,255,255,0.12)';
+  if (client.status === 'inactive') return CoachColors.textFaint;
   const count = client.completed_workouts ?? 0;
-  if (count >= 10) return '#22C55E'; // on track
-  if (count >= 4)  return '#F59E0B'; // check in soon
-  return '#EF4444';                  // at risk
+  if (count >= 10) return CoachColors.accent;
+  if (count >= 4)  return CoachColors.warning;
+  return CoachColors.danger;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -137,7 +140,7 @@ function SwipeActionsPanel({ prog, actions }: SwipeActionsPanelProps) {
           accessibilityRole="button"
           accessibilityLabel={a.a11yLabel}
         >
-          <Ionicons name={a.icon as any} size={18} color="#FFFFFF" />
+          <Ionicons name={a.icon as any} size={18} color={CoachColors.textPrimary} />
           <Text style={styles.swipeBtnLabel}>{a.label}</Text>
         </TouchableOpacity>
       ))}
@@ -198,6 +201,45 @@ export default function ClientsScreen() {
     return map;
   }, [notifications]);
 
+  // ── "Needs you first" — attention leads, stats demoted ───────────────────────
+  // Priority: quiet (at risk) > setup needed > trial ending soon. Capped at 3.
+  const attentionItems = useMemo((): AttentionItem[] => {
+    const items: AttentionItem[] = [];
+
+    clients.forEach(client => {
+      const hasAssessment = !!(client.assessment_data as any)?.fitness_goals?.length;
+      if (!hasAssessment) {
+        items.push({
+          client, kind: 'setup', tag: 'Setup',
+          meta: 'New · no assessment yet',
+          cta: 'Set up', color: CoachColors.warning,
+        });
+        return;
+      }
+      if (client.status === 'trial' && client.trial_end_date) {
+        const days = getDaysLeft(client.trial_end_date);
+        if (days <= 6) {
+          items.push({
+            client, kind: 'trial', tag: days === 0 ? 'Trial ends today' : `Trial ${days}d`,
+            meta: days === 0 ? 'Trial expires today' : `${days} day${days === 1 ? '' : 's'} left`,
+            cta: 'Convert', color: days <= 2 ? CoachColors.danger : CoachColors.warning,
+          });
+          return;
+        }
+      }
+      if (client.status === 'active' && getEngagementColor(client) === CoachColors.danger) {
+        items.push({
+          client, kind: 'quiet', tag: 'Quiet',
+          meta: "Hasn't logged a session in a while",
+          cta: 'Nudge', color: CoachColors.danger,
+        });
+      }
+    });
+
+    const priority: Record<AttentionKind, number> = { quiet: 0, setup: 1, trial: 2 };
+    return items.sort((a, b) => priority[a.kind] - priority[b.kind]).slice(0, 3);
+  }, [clients]);
+
   // ── Swipe affordance bounce ──────────────────────────────────────────────────
   useEffect(() => {
     if (filtered.length > 0 && !hasBounced.current) {
@@ -217,13 +259,13 @@ export default function ClientsScreen() {
   const getMetaLine = (item: Client): { text: string; color: string } => {
     if (item.status === 'trial' && item.trial_end_date) {
       const days = getDaysLeft(item.trial_end_date);
-      if (days === 0) return { text: 'Expires today',       color: '#EF4444' };
-      if (days <= 2)  return { text: `Expires in ${days}d`, color: '#EF4444' };
-      if (days <= 6)  return { text: `${days} days left`,   color: '#F59E0B' };
+      if (days === 0) return { text: 'Expires today',       color: CoachColors.danger };
+      if (days <= 2)  return { text: `Expires in ${days}d`, color: CoachColors.danger };
+      if (days <= 6)  return { text: `${days} days left`,   color: CoachColors.warning };
     }
     const goals = (item.assessment_data as any)?.fitness_goals as string[] | undefined;
-    if (goals?.length) return { text: goals.map(toTitleCase).join(', '), color: 'rgba(255,255,255,0.35)' };
-    return { text: 'Complete profile →', color: '#C8F135' };
+    if (goals?.length) return { text: goals.map(toTitleCase).join(', '), color: CoachColors.textMuted };
+    return { text: 'Complete profile', color: CoachColors.accent };
   };
 
   // ── Build actions array for a given client ───────────────────────────────────
@@ -232,17 +274,17 @@ export default function ClientsScreen() {
     const name = toTitleCase(item.name);
     return [
       {
-        id: 'message', icon: 'chatbubble', color: '#60A5FA', label: 'Message',
+        id: 'message', icon: 'chatbubble', color: '#4B7FD1', label: 'Message',
         a11yLabel: `Message ${name}`,
         onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/messages'); },
       },
       {
-        id: 'schedule', icon: 'calendar', color: '#A78BFA', label: 'Schedule',
+        id: 'schedule', icon: 'calendar', color: '#7A6AC7', label: 'Schedule',
         a11yLabel: `Schedule session with ${name}`,
         onPress: () => { haptic.trigger('medium'); router.push('/(tabs)/schedule'); },
       },
       {
-        id: 'call', icon: 'call', color: '#1E293B', label: 'Call',
+        id: 'call', icon: 'call', color: CoachColors.surface, label: 'Call',
         a11yLabel: `Call ${name}`,
         onPress: () => {
           haptic.trigger('medium');
@@ -253,16 +295,42 @@ export default function ClientsScreen() {
     ];
   };
 
+  // ── Attention row ──────────────────────────────────────────────────────────
+  const renderAttentionRow = (item: AttentionItem) => {
+    const displayName = toTitleCase(item.client.name);
+    const initials     = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    return (
+      <TouchableOpacity
+        key={item.client.id}
+        style={styles.attnRow}
+        activeOpacity={0.75}
+        onPress={() => { haptic.trigger('light'); router.push(`/client/${item.client.id}` as any); }}
+        accessibilityRole="button"
+        accessibilityLabel={`${displayName}, ${item.tag}`}
+      >
+        <View style={[styles.attnAvatar, { borderColor: item.color }]}>
+          <Text style={[styles.attnAvatarText, { color: item.color }]}>{initials}</Text>
+        </View>
+        <View style={styles.attnBody}>
+          <View style={styles.attnNameRow}>
+            <Text style={styles.attnName} numberOfLines={1}>{displayName}</Text>
+            <View style={[styles.attnTag, { borderColor: item.color + '55' }]}>
+              <Text style={[styles.attnTagText, { color: item.color }]}>{item.tag.toUpperCase()}</Text>
+            </View>
+          </View>
+          <Text style={styles.attnMeta} numberOfLines={1}>{item.meta}</Text>
+        </View>
+        <Text style={styles.attnCta}>{item.cta}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   // ── Client row ───────────────────────────────────────────────────────────────
   const renderClient = ({ item, index }: { item: Client; index: number }) => {
     const displayName   = toTitleCase(item.name);
     const initials      = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-    const avatarColor   = getAvatarColor(item.name);
-    const planName      = getPlanName(item.plan_id);
     const meta          = getMetaLine(item);
     const unread        = unreadByClient[item.id] || 0;
-    const ringColor     = getEngagementColor(item);
-    const statusDotColor = STATUS_RING[item.status] ?? 'rgba(255,255,255,0.12)';
     const hasAssessment = !!(item.assessment_data as any)?.fitness_goals?.length;
     const actions       = buildActions(item);
 
@@ -275,6 +343,7 @@ export default function ClientsScreen() {
         overshootFriction={8}
         friction={1}
         containerStyle={{ overflow: 'visible' }}
+        onSwipeableOpen={() => haptic.trigger('light')}
       >
         <TouchableOpacity
           style={styles.card}
@@ -284,11 +353,11 @@ export default function ClientsScreen() {
             router.push(`/client/${item.id}` as any);
           }}
           accessibilityRole="button"
-          accessibilityLabel={`${displayName}, ${STATUS_LABEL[item.status]}, ${planName}`}
+          accessibilityLabel={`${displayName}, ${STATUS_LABEL[item.status]}, ${meta.text}`}
           accessibilityHint="Double-tap to view profile. Swipe left for quick actions."
         >
-          {/* Avatar ring */}
-          <View style={[styles.avatarRing, { borderColor: ringColor }]}>
+          {/* Avatar */}
+          <View style={styles.avatarWrap}>
             {item.avatar_url ? (
               <Image
                 source={{ uri: item.avatar_url }}
@@ -298,8 +367,8 @@ export default function ClientsScreen() {
                 accessibilityLabel={`${displayName} profile photo`}
               />
             ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: avatarColor + '28' }]}>
-                <Text style={[styles.avatarInitials, { color: avatarColor }]}>{initials}</Text>
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
               </View>
             )}
             {unread > 0 && (
@@ -315,23 +384,23 @@ export default function ClientsScreen() {
               <Text style={styles.clientName} numberOfLines={1}>{displayName}</Text>
               {!hasAssessment && (
                 <View style={styles.setupBadge} accessibilityLabel="Setup needed">
-                  <Text style={styles.setupBadgeText}>Setup needed</Text>
+                  <Text style={styles.setupBadgeText}>SETUP</Text>
                 </View>
               )}
             </View>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: statusDotColor }]} />
-              <Text style={styles.statusText}>{STATUS_LABEL[item.status]} · {planName}</Text>
-            </View>
             <Text style={[styles.metaText, { color: meta.color }]} numberOfLines={1}>
-              {meta.text}
+              {STATUS_LABEL[item.status]} · {meta.text}
             </Text>
           </View>
+
+          <Text style={styles.freqText}>
+            {(item.completed_workouts ?? 0) > 0 ? `${item.completed_workouts}× total` : ''}
+          </Text>
 
           <Ionicons
             name="chevron-forward"
             size={14}
-            color="rgba(255,255,255,0.18)"
+            color={CoachColors.textFaint}
             style={styles.chevron}
             accessibilityElementsHidden
           />
@@ -340,122 +409,152 @@ export default function ClientsScreen() {
     );
   };
 
+  // ── List header: search, filters, needs-you-first, all-athletes label ────────
+  const listHeader = (
+    <View>
+      {/* Search */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={15} color={CoachColors.textFaint} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search athletes"
+          placeholderTextColor={CoachColors.textFaint}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          selectionColor={CoachColors.accent}
+          autoCapitalize="words"
+          returnKeyType="search"
+          accessibilityLabel="Search athletes"
+          accessibilityRole="search"
+        />
+        {searchQuery !== '' && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            style={styles.searchClear}
+            accessibilityLabel="Clear search"
+            accessibilityRole="button"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Filter pills */}
+      <View style={styles.filterRow}>
+        {(['all', 'active', 'trial'] as TabFilter[]).map(tab => {
+          const count = tab === 'all' ? clients.length : clients.filter(c => c.status === tab).length;
+          const isActive = activeTab === tab;
+          const label = tab === 'all' ? 'All' : toTitleCase(tab);
+          return (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.filterPill, isActive && styles.filterPillActive]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={`${label}, ${count} athletes`}
+              accessibilityState={{ selected: isActive }}
+            >
+              <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+                {label} {count}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Needs you first — attention leads */}
+      {attentionItems.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionLabel}>Needs you first</Text>
+          <View style={{ gap: 10 }}>
+            {attentionItems.map(renderAttentionRow)}
+          </View>
+        </View>
+      )}
+
+      <View style={[styles.sectionBlock, { marginBottom: 4 }]}>
+        <Text style={styles.sectionLabel}>All athletes</Text>
+      </View>
+    </View>
+  );
+
+  // ── List footer: demoted aggregate stats ──────────────────────────────────────
+  const listFooter = clients.length > 0 ? (
+    <View style={styles.statsFooter}>
+      <View style={styles.statCard}>
+        <Text style={styles.statCardLabel}>Active</Text>
+        <Text style={styles.statCardValue}>{activeCount}</Text>
+      </View>
+      <View style={styles.statCard}>
+        <Text style={styles.statCardLabel}>On trial</Text>
+        <Text style={styles.statCardValue}>{trialCount}</Text>
+      </View>
+      <View style={styles.statCard}>
+        <Text style={styles.statCardLabel}>Inactive</Text>
+        <Text style={styles.statCardValue}>{inactiveCount}</Text>
+      </View>
+    </View>
+  ) : null;
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#0D0D12', '#111118', '#0A0A0F']} style={StyleSheet.absoluteFill} />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Roster</Text>
-            <Text style={styles.headerSub}>{clients.length} total clients</Text>
+            <Text style={styles.headerTitle}>Athletes</Text>
+            <Text style={styles.headerSub}>
+              {clients.length > 0 ? `${clients.length} total athletes` : 'No one yet'}
+            </Text>
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => router.push('/add-client' as any)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Add new client"
-          >
-            <Ionicons name="add" size={18} color="#0D0D12" />
-            <Text style={styles.addBtnText}>Add Client</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Stats strip */}
-        <View style={styles.statsStrip}>
-          <StatChip icon="checkmark-circle" label="Active"   value={activeCount}   color="#C8F135" />
-          <View style={styles.stripDivider} />
-          <StatChip icon="timer-outline"    label="Trial"    value={trialCount}    color="#F59E0B" />
-          <View style={styles.stripDivider} />
-          <StatChip icon="pause-circle"     label="Inactive" value={inactiveCount} color="rgba(255,255,255,0.3)" />
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchWrap}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color="rgba(255,255,255,0.35)" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by name…"
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              selectionColor="#C8F135"
-              autoCapitalize="words"
-              returnKeyType="search"
-              accessibilityLabel="Search clients"
-              accessibilityRole="search"
-            />
-            {searchQuery !== '' && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                style={styles.searchClear}
-                accessibilityLabel="Clear search"
-                accessibilityRole="button"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.35)" />
-              </TouchableOpacity>
-            )}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.libraryBtn}
+              onPress={() => router.push('/(tabs)/programs?tab=workouts' as any)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Open workout and pass library"
+            >
+              <Ionicons name="barbell-outline" size={16} color={CoachColors.textPrimary} />
+              <Text style={styles.libraryBtnText}>Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => router.push('/add-client' as any)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Add new athlete"
+            >
+              <Ionicons name="add" size={18} color={CoachColors.onAccent} />
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Filter pills */}
-        <View style={styles.filterRow}>
-          {(['all', 'active', 'trial'] as TabFilter[]).map(tab => {
-            const count = tab === 'all' ? clients.length : clients.filter(c => c.status === tab).length;
-            const isActive = activeTab === tab;
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.filterPill, isActive && styles.filterPillActive]}
-                onPress={() => setActiveTab(tab)}
-                activeOpacity={0.7}
-                accessibilityRole="tab"
-                accessibilityLabel={`${tab === 'all' ? 'All' : toTitleCase(tab)}, ${count} clients`}
-                accessibilityState={{ selected: isActive }}
-              >
-                <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
-                  {tab === 'all' ? 'All' : toTitleCase(tab)}
-                </Text>
-                {count > 0 && (
-                  <View style={[styles.filterCount, isActive && styles.filterCountActive]}>
-                    <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>
-                      {count}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Results count */}
-        <View style={styles.resultsRow}>
-          <Text style={styles.resultsText}>
-            {filtered.length} {filtered.length === 1 ? 'client' : 'clients'}
-            {searchQuery ? ` matching "${searchQuery}"` : ''}
-          </Text>
-        </View>
-
-        {/* List */}
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          renderItem={renderClient}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C8F135" />
-          }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={
-            <EmptyState tab={activeTab} onAdd={() => router.push('/add-client' as any)} />
-          }
-        />
+        {clients.length === 0 ? (
+          <EmptyRoster onAdd={() => router.push('/add-client' as any)} insets={insets} />
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={item => item.id}
+            renderItem={renderClient}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />
+            }
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListHeaderComponent={listHeader}
+            ListFooterComponent={listFooter}
+            ListEmptyComponent={
+              <FilteredEmptyState tab={activeTab} onShowAll={() => setActiveTab('all')} />
+            }
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -463,56 +562,63 @@ export default function ClientsScreen() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatChip({ icon, label, value, color }: {
-  icon: string; label: string; value: number; color: string;
-}) {
+/** Whole-screen empty state — no athletes at all yet. Turn 10b "Athletes — none yet". */
+function EmptyRoster({ onAdd, insets }: { onAdd: () => void; insets: { bottom: number } }) {
   return (
-    <View style={styles.statChip} accessibilityLabel={`${value} ${label}`}>
-      <Ionicons name={icon as any} size={13} color={color} />
-      <Text style={[styles.statChipValue, { color }]}>{value}</Text>
-      <Text style={styles.statChipLabel}>{label}</Text>
+    <View style={[styles.emptyRootWrap, { paddingBottom: insets.bottom + 24 }]}>
+      <View style={styles.emptyHeroCard}>
+        <Text style={styles.emptyHeroTitle}>Bring your first athlete across</Text>
+        <Text style={styles.emptyHeroSub}>
+          Most coaches start with someone they already train. Add them and FitLink sends the invite.
+        </Text>
+        <TouchableOpacity
+          style={styles.emptyHeroBtn}
+          onPress={onAdd}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Add an athlete"
+        >
+          <Text style={styles.emptyHeroBtnText}>Add an athlete</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.emptyPreviewSection}>
+        <Text style={styles.sectionLabel}>What you'll see here</Text>
+        <View style={{ gap: 12, opacity: 0.45 }}>
+          {[120, 96, 132].map((w, i) => (
+            <View key={i} style={styles.emptyPreviewRow}>
+              <View style={styles.emptyPreviewAvatar} />
+              <View style={{ flex: 1, gap: 7 }}>
+                <View style={[styles.emptyPreviewLine, { width: w }]} />
+                <View style={[styles.emptyPreviewLineSub, { width: w + 60 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.emptyPreviewCaption}>
+          Anyone who needs a nudge, a reply or a booking rises to the top of this list.
+        </Text>
+      </View>
     </View>
   );
 }
 
-function EmptyState({ tab, onAdd }: { tab: TabFilter; onAdd: () => void }) {
-  const isAll = tab === 'all';
+/** Empty state for a filtered tab (e.g. no trial athletes right now). */
+function FilteredEmptyState({ tab, onShowAll }: { tab: TabFilter; onShowAll: () => void }) {
   return (
-    <View style={styles.emptyWrap}>
-      <View style={styles.emptyIcon}>
-        <Ionicons name="people-outline" size={28} color="rgba(255,255,255,0.2)" />
-      </View>
-      <Text style={styles.emptyTitle}>
-        {isAll ? 'No clients yet' : `No ${tab} clients`}
-      </Text>
-      <Text style={styles.emptyDesc}>
-        {isAll
-          ? 'Add your first client to start coaching and building your business.'
-          : 'Switch to "All" to see your full roster.'}
-      </Text>
-      {isAll && (
-        <TouchableOpacity
-          style={styles.emptyAddBtn}
-          onPress={onAdd}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Add your first client"
-        >
-          <Ionicons name="person-add" size={16} color="#0D0D12" />
-          <Text style={styles.emptyAddBtnText}>Add Client</Text>
-        </TouchableOpacity>
-      )}
+    <View style={styles.emptyFilterWrap}>
+      <Text style={styles.emptyFilterTitle}>No {tab === 'all' ? '' : toTitleCase(tab) + ' '}athletes</Text>
+      <TouchableOpacity onPress={onShowAll} accessibilityRole="button" accessibilityLabel="Show all athletes">
+        <Text style={styles.emptyFilterCta}>Switch to All</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const CARD_BG     = 'rgba(255,255,255,0.04)';
-const CARD_BORDER = 'rgba(255,255,255,0.07)';
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0D0D12' },
+  root: { flex: 1, backgroundColor: CoachColors.bg },
 
   // Header
   header: {
@@ -520,148 +626,157 @@ const styles = StyleSheet.create({
     paddingHorizontal: W * 0.05, paddingTop: 10, paddingBottom: 16,
   },
   headerTitle: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.065),
-    color: '#FFFFFF', letterSpacing: -0.4,
+    fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.062),
+    color: CoachColors.textPrimary, letterSpacing: -0.4,
   },
   headerSub: {
-    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03),
-    color: 'rgba(255,255,255,0.35)', marginTop: 2,
+    fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.032),
+    color: CoachColors.textMuted, marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  libraryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    height: 44, borderRadius: 22,
+    borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: 14,
+  },
+  libraryBtnText: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary,
   },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#C8F135',
-    paddingHorizontal: W * 0.035, paddingVertical: 11,
-    borderRadius: 12, minHeight: 44,
+    backgroundColor: CoachColors.accent,
+    paddingHorizontal: W * 0.04, paddingVertical: 11,
+    borderRadius: 999, minHeight: 44,
   },
   addBtnText: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033), color: '#0D0D12',
-  },
-
-  // Stats strip
-  statsStrip: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: W * 0.05, marginBottom: 14,
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: W * 0.05,
-  },
-  stripDivider: {
-    width: 1, height: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: W * 0.04,
-  },
-  statChip: { flex: 1, alignItems: 'center', gap: 3 },
-  statChipValue: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.052) },
-  statChipLabel: {
-    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.026),
-    color: 'rgba(255,255,255,0.35)', letterSpacing: 0.4,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.onAccent,
   },
 
   // Search
-  searchWrap: { paddingHorizontal: W * 0.05, marginBottom: 12 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
-    borderRadius: 14, paddingHorizontal: W * 0.037, paddingVertical: 12,
-    gap: 10, minHeight: 44,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 12, paddingHorizontal: W * 0.037, paddingVertical: 12,
+    gap: 10, minHeight: 44, marginHorizontal: W * 0.05, marginBottom: 12,
   },
   searchInput: {
-    flex: 1, fontFamily: FontFamily.body, fontSize: Math.round(W * 0.036), color: '#FFFFFF',
+    flex: 1, fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.035), color: CoachColors.textPrimary,
   },
   searchClear: { padding: 4 },
 
   // Filter pills
   filterRow: {
-    flexDirection: 'row', paddingHorizontal: W * 0.05, gap: 8, marginBottom: 14,
+    flexDirection: 'row', paddingHorizontal: W * 0.05, gap: 7, marginBottom: 20,
   },
   filterPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: W * 0.036, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
-    minHeight: 36,
+    borderRadius: 999, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    minHeight: 32, justifyContent: 'center',
   },
-  filterPillActive: { backgroundColor: '#C8F135', borderColor: '#C8F135' },
+  filterPillActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
   filterPillText: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033),
-    color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.032),
+    color: CoachColors.textSecondary,
   },
-  filterPillTextActive: { color: '#0D0D12' },
-  filterCount: {
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
-  },
-  filterCountActive: { backgroundColor: 'rgba(13,13,18,0.25)' },
-  filterCountText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.5)',
-  },
-  filterCountTextActive: { color: '#0D0D12' },
+  filterPillTextActive: { color: CoachColors.onAccent },
 
-  // Results
-  resultsRow: { paddingHorizontal: W * 0.05, marginBottom: 10 },
-  resultsText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.028),
-    color: 'rgba(255,255,255,0.22)', letterSpacing: 0.4,
+  // Section
+  sectionBlock: { paddingHorizontal: W * 0.05, marginBottom: 14 },
+  sectionLabel: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase',
+    color: CoachColors.textFaint, marginBottom: 10,
   },
 
-  // List
-  listContent: { paddingHorizontal: W * 0.05 },
+  // Attention row ("Needs you first")
+  attnRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, gap: 12, minHeight: 44,
+  },
+  attnAvatar: {
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1.5,
+    backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
+  },
+  attnAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 15 },
+  attnBody: { flex: 1, gap: 2 },
+  attnNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  attnName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037), color: CoachColors.textPrimary, flexShrink: 1 },
+  attnTag: {
+    borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  attnTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.3 },
+  attnMeta: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted },
+  attnCta: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.032), color: CoachColors.accent },
+
+  // Results / list
+  listContent: { paddingBottom: 8 },
   separator: { height: 8 },
 
-  // Client card
+  // Client card ("All athletes")
   card: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
-    borderRadius: 16, paddingHorizontal: W * 0.037, paddingVertical: 14,
-    minHeight: 76,
+    marginHorizontal: W * 0.05,
+    paddingVertical: 13, paddingHorizontal: 2,
+    minHeight: 66, gap: 12,
+    borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
 
   // Avatar
-  avatarRing: {
-    width: Math.round(W * 0.138), height: Math.round(W * 0.138),
-    borderRadius: Math.round(W * 0.069),
-    borderWidth: 2, alignItems: 'center', justifyContent: 'center',
-    marginRight: W * 0.036, position: 'relative',
-  },
+  avatarWrap: { position: 'relative' },
   avatarImg: {
-    width: Math.round(W * 0.118), height: Math.round(W * 0.118),
-    borderRadius: Math.round(W * 0.059),
+    width: Math.round(W * 0.108), height: Math.round(W * 0.108),
+    borderRadius: Math.round(W * 0.054),
   },
   avatarPlaceholder: {
-    width: Math.round(W * 0.118), height: Math.round(W * 0.118),
-    borderRadius: Math.round(W * 0.059),
+    width: Math.round(W * 0.108), height: Math.round(W * 0.108),
+    borderRadius: Math.round(W * 0.054),
+    backgroundColor: '#1E211D',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.044) },
+  avatarInitials: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.036), color: CoachColors.textSecondary },
   unreadDot: {
     position: 'absolute', top: -2, right: -2,
-    minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#EF4444',
+    minWidth: 15, height: 15, borderRadius: 8,
+    backgroundColor: CoachColors.danger,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
-    borderWidth: 1.5, borderColor: '#0D0D12',
+    borderWidth: 1.5, borderColor: CoachColors.bg,
   },
-  unreadDotText: { fontFamily: FontFamily.bodySemiBold, fontSize: 8, color: '#FFFFFF' },
+  unreadDotText: { fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.textPrimary },
 
   // Card body
   cardBody: { flex: 1, justifyContent: 'center', gap: 3 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   clientName: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.038),
-    color: '#FFFFFF', flexShrink: 1,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037),
+    color: CoachColors.textPrimary, flexShrink: 1,
   },
   setupBadge: {
-    borderWidth: 1, borderColor: '#F59E0B', borderRadius: 5,
-    paddingHorizontal: 5, paddingVertical: 2,
+    borderWidth: 1, borderColor: CoachColors.warning, borderRadius: 999,
+    paddingHorizontal: 6, paddingVertical: 2,
   },
   setupBadgeText: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: 8, color: '#F59E0B', letterSpacing: 0.2,
+    fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.warning, letterSpacing: 0.3,
   },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: {
-    fontFamily: FontFamily.bodyMedium, fontSize: Math.round(W * 0.031),
-    color: 'rgba(255,255,255,0.4)',
+  metaText: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03) },
+  freqText: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.028), color: CoachColors.textFaint,
   },
-  metaText: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028) },
-  chevron: { marginLeft: 8 },
+  chevron: { marginLeft: 4 },
+
+  // Demoted aggregate stats footer
+  statsFooter: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: W * 0.05, paddingTop: 20, paddingBottom: 4,
+  },
+  statCard: {
+    flex: 1, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
+  },
+  statCardLabel: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  statCardValue: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.textPrimary, marginTop: 2 },
 
   // Swipe actions panel
   // Width is driven by the ACTIONS_W constant (responsive, no hard-coded px)
@@ -671,36 +786,49 @@ const styles = StyleSheet.create({
   },
   swipeBtn: {
     width: BTN_W,          // responsive: W * 0.19
-    minHeight: 76,         // matches card minHeight — Apple HIG ≥ 44pt
+    minHeight: 66,         // matches card minHeight — Apple HIG ≥ 44pt
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 16, gap: 5, paddingVertical: 10,
+    borderRadius: 14, gap: 5, paddingVertical: 10,
   },
   swipeBtnLabel: {
-    fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.023),
-    color: '#FFFFFF', letterSpacing: 0.3,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.023),
+    color: CoachColors.textPrimary, letterSpacing: 0.3,
   },
 
-  // Empty state
-  emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: W * 0.1 },
-  emptyIcon: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+  // Empty state — whole roster (10b)
+  emptyRootWrap: { flex: 1, paddingHorizontal: W * 0.05, paddingTop: 4 },
+  emptyHeroCard: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 16, padding: 20,
   },
-  emptyTitle: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.041),
-    color: '#FFFFFF', marginBottom: 8, textAlign: 'center',
+  emptyHeroTitle: {
+    fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.046),
+    color: CoachColors.textPrimary, lineHeight: Math.round(W * 0.058),
   },
-  emptyDesc: {
-    fontFamily: FontFamily.body, fontSize: Math.round(W * 0.033),
-    color: 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 20, marginBottom: 28,
+  emptyHeroSub: {
+    fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.033),
+    color: CoachColors.textSecondary, marginTop: 8, lineHeight: 20,
   },
-  emptyAddBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#C8F135', paddingHorizontal: W * 0.062,
-    paddingVertical: 13, borderRadius: 12, minHeight: 44,
+  emptyHeroBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingVertical: 14, alignItems: 'center', marginTop: 16, minHeight: 44, justifyContent: 'center',
   },
-  emptyAddBtnText: {
-    fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.033), color: '#0D0D12',
+  emptyHeroBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.035), color: CoachColors.onAccent },
+
+  emptyPreviewSection: { marginTop: 24 },
+  emptyPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+  emptyPreviewAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1E211D' },
+  emptyPreviewLine: { height: 11, borderRadius: 3, backgroundColor: CoachColors.borderMuted },
+  emptyPreviewLineSub: { height: 9, borderRadius: 3, backgroundColor: '#1E211D' },
+  emptyPreviewCaption: {
+    fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted,
+    marginTop: 14, lineHeight: 19,
   },
+
+  // Empty state — filtered tab with no results
+  emptyFilterWrap: { alignItems: 'center', paddingTop: 48, paddingHorizontal: W * 0.1, gap: 8 },
+  emptyFilterTitle: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: Math.round(W * 0.04), color: CoachColors.textPrimary,
+  },
+  emptyFilterCta: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.033), color: CoachColors.accent },
 });

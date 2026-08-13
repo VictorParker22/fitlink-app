@@ -18,7 +18,7 @@ function formatRelativeTime(date: Date) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type ReactElement } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity,
   Linking, Modal, Dimensions, Image as RNImage, Platform,
@@ -43,9 +43,9 @@ import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
 import ClientHabitGrid from '../../components/dashboard/ClientHabitGrid';
+import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { LineChart } from 'react-native-gifted-charts';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-import { getWorkoutEmblem } from '../../utils/workoutEmblems';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 type AssignMode = 'enroll' | 'workout' | 'diet' | null;
 type TabType = 'overview' | 'health' | 'programs' | 'progress';
@@ -103,9 +103,9 @@ export default function ClientDetailScreen() {
     const sr          = recent.length ? recent.filter(s => s.status === 'completed').length / recent.length : 0;
     const pr          = progressLogs.some(l => new Date(l.date) > fourteenAgo) ? 1 : 0;
     const score       = Math.round((sr * 0.5 + pr * 0.5) * 100);
-    if (score >= 80) return { score, label: 'On Track', color: '#22C55E' };
-    if (score >= 50) return { score, label: 'Needs Check-in', color: '#F59E0B' };
-    return              { score, label: 'At Risk', color: '#EF4444' };
+    if (score >= 80) return { score, label: 'On Track', color: CoachColors.accent };
+    if (score >= 50) return { score, label: 'Needs Check-in', color: CoachColors.warning };
+    return              { score, label: 'At Risk', color: CoachColors.danger };
   }, [sessions, progressLogs]);
 
   const streak = useMemo(() => {
@@ -222,7 +222,7 @@ export default function ClientDetailScreen() {
     return (
       <SafeAreaView style={s.root}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <Ionicons name="person-outline" size={52} color="rgba(255,255,255,0.15)" />
+          <Ionicons name="person-outline" size={52} color={CoachColors.border} />
           <Text style={s.emptyStateTitle}>Client not found</Text>
           <TouchableOpacity style={s.outlineBtn} onPress={() => router.back()}>
             <Text style={s.outlineBtnText}>Go Back</Text>
@@ -233,12 +233,52 @@ export default function ClientDetailScreen() {
   }
 
   const STATUS = {
-    active:   { dot: '#22C55E', label: 'Active'    },
-    trial:    { dot: '#F59E0B', label: 'Trial'     },
-    inactive: { dot: '#6B7280', label: 'Inactive'  },
+    active:   { dot: CoachColors.accent, label: 'Active'    },
+    trial:    { dot: CoachColors.warning, label: 'Trial'     },
+    inactive: { dot: CoachColors.textFaint, label: 'Inactive'  },
   } as const;
   const statusKey = (client.status as keyof typeof STATUS) in STATUS ? client.status as keyof typeof STATUS : 'inactive';
   const status = STATUS[statusKey];
+
+  // ── Attention banner — "attention leads": trial ending / expired takes
+  // priority; otherwise an active client who has gone quiet (At Risk
+  // engagement) surfaces the same way. Rendered above the stat row so it's
+  // the first thing a coach sees, not buried under aggregate numbers.
+  let attentionBanner: ReactElement | null = null;
+  if (client.status === 'trial') {
+    const trialEnd  = client.trial_end_date ? new Date(client.trial_end_date) : new Date(new Date(client.created_at).getTime() + 20 * 86400000);
+    const daysLeft  = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000));
+    const totalDays = Math.ceil((trialEnd.getTime() - new Date(client.created_at).getTime()) / 86400000);
+    const pct       = Math.min(1, (totalDays - daysLeft) / Math.max(totalDays, 1));
+    const isExp     = daysLeft === 0;
+    attentionBanner = (
+      <View style={s.trialBanner}>
+        <View style={s.trialLeft}>
+          <Text style={[s.trialTitle, isExp && { color: CoachColors.danger }]}>
+            {isExp ? 'Trial expired' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left in trial`}
+          </Text>
+          <View style={s.trialTrack}>
+            <View style={[s.trialFill, { width: `${pct * 100}%` as any, backgroundColor: isExp ? CoachColors.danger : daysLeft <= 5 ? CoachColors.warning : CoachColors.accent }]} />
+          </View>
+        </View>
+        <TouchableOpacity style={s.trialUpgradeBtn} onPress={() => setShowUpgradeModal(true)} accessibilityRole="button" accessibilityLabel="Upgrade from trial">
+          <Text style={s.trialUpgradeText}>Upgrade</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  } else if (client.status === 'active' && engagementScore.label === 'At Risk') {
+    attentionBanner = (
+      <View style={s.trialBanner}>
+        <View style={s.trialLeft}>
+          <Text style={[s.trialTitle, { color: CoachColors.danger }]}>Gone quiet</Text>
+          <Text style={s.quietSub}>Low session activity in the last 30 days</Text>
+        </View>
+        <TouchableOpacity style={s.quietNudgeBtn} onPress={startConversation} accessibilityRole="button" accessibilityLabel="Send a nudge message">
+          <Text style={s.quietNudgeText}>Nudge</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -247,11 +287,11 @@ export default function ClientDetailScreen() {
       <SafeAreaView edges={['top']}>
         <View style={s.nav}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="chevron-back" size={24} color="#FFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.navTitle} numberOfLines={1}>{toTitleCase(client.name)}</Text>
           <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="ellipsis-horizontal" size={22} color="#FFF" />
+            <Ionicons name="ellipsis-horizontal" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -281,7 +321,10 @@ export default function ClientDetailScreen() {
             )}
           </View>
 
-          {/* Strava-style stat row */}
+          {/* Attention leads — trial ending / gone quiet shown before aggregate stats */}
+          {attentionBanner}
+
+          {/* Aggregate stats — demoted: smaller, quieter than the attention banner above */}
           <View style={s.statRow}>
             <View style={s.statBlock}>
               <Text style={s.statNum}>{completedSessions.length}</Text>
@@ -289,12 +332,12 @@ export default function ClientDetailScreen() {
             </View>
             <View style={s.statDivider} />
             <View style={s.statBlock}>
-              <Text style={[s.statNum, streak === 0 && { color: 'rgba(255,255,255,0.3)' }]}>
+              <Text style={[s.statNum, streak === 0 && { color: CoachColors.textFaint }]}>
                 {streak > 0 ? streak : '0'}
               </Text>
-              <Text style={s.statLabel}>{streak > 0 ? 'Day streak 🔥' : 'No streak'}</Text>
+              <Text style={s.statLabel}>{streak > 0 ? 'Day streak' : 'No streak'}</Text>
             </View>
-            {/* Engagement score — plain stat, no heavy ring */}
+            {/* Engagement score — plain stat, no heavy ring; keeps status color since it's a signal, not decoration */}
             <View style={s.statDivider} />
             <View style={s.statBlock}>
               <Text style={[s.statNum, { color: engagementScore.color }]}>
@@ -310,11 +353,11 @@ export default function ClientDetailScreen() {
               {clientUnread > 0 && (
                 <View style={s.unreadDot}><Text style={s.unreadDotText}>{clientUnread > 9 ? '9+' : clientUnread}</Text></View>
               )}
-              <Ionicons name="chatbubble-ellipses" size={17} color="#FFF" />
+              <Ionicons name="chatbubble-ellipses" size={17} color={CoachColors.onAccent} />
               <Text style={s.actionPrimaryText}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.actionSecondary} onPress={() => router.push(`/book-session?clientId=${client.id}` as any)} activeOpacity={0.85}>
-              <Ionicons name="calendar-outline" size={17} color="#FFF" />
+              <Ionicons name="calendar-outline" size={17} color={CoachColors.textPrimary} />
               <Text style={s.actionSecondaryText}>Book Session</Text>
             </TouchableOpacity>
           </View>
@@ -330,36 +373,12 @@ export default function ClientDetailScreen() {
                 : { icon: 'ribbon-outline', label: 'Enroll', action: () => setAssignMode('enroll') },
             ].map(item => (
               <TouchableOpacity key={item.label} style={s.iconTrayItem} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); item.action(); }} activeOpacity={0.65}>
-                <Ionicons name={item.icon as any} size={20} color="rgba(255,255,255,0.7)" />
+                <Ionicons name={item.icon as any} size={20} color={CoachColors.textSecondary} />
                 <Text style={s.iconTrayLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </Animated.View>
-
-        {/* TRIAL BANNER */}
-        {client.status === 'trial' && (() => {
-          const trialEnd  = client.trial_end_date ? new Date(client.trial_end_date) : new Date(new Date(client.created_at).getTime() + 20*86400000);
-          const daysLeft  = Math.max(0, Math.ceil((trialEnd.getTime()-Date.now())/86400000));
-          const totalDays = Math.ceil((trialEnd.getTime()-new Date(client.created_at).getTime())/86400000);
-          const pct       = Math.min(1,(totalDays-daysLeft)/Math.max(totalDays,1));
-          const isExp     = daysLeft === 0;
-          return (
-            <View style={s.trialBanner}>
-              <View style={s.trialLeft}>
-                <Text style={[s.trialTitle, isExp && { color: '#EF4444' }]}>
-                  {isExp ? 'Trial expired' : `${daysLeft} day${daysLeft!==1?'s':''} left in trial`}
-                </Text>
-                <View style={s.trialTrack}>
-                  <View style={[s.trialFill, { width: `${pct*100}%` as any, backgroundColor: isExp ? '#EF4444' : daysLeft <= 5 ? '#F59E0B' : '#22C55E' }]} />
-                </View>
-              </View>
-              <TouchableOpacity style={s.trialUpgradeBtn} onPress={() => setShowUpgradeModal(true)}>
-                <Text style={s.trialUpgradeText}>Upgrade</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
 
         {/* ══════════════ TAB BAR ══════════════ */}
         <View style={s.tabRow}>
@@ -391,7 +410,7 @@ export default function ClientDetailScreen() {
                     multiline
                     style={s.notesInput}
                     placeholder="Private note — only visible to you…"
-                    placeholderTextColor="rgba(255,255,255,0.18)"
+                    placeholderTextColor={CoachColors.textFaint}
                     autoFocus
                   />
                   <View style={s.notesActionsRow}>
@@ -409,7 +428,7 @@ export default function ClientDetailScreen() {
                     {notesText || 'Tap to add a private coaching note…'}
                   </Text>
                   <View style={s.notesEditRow}>
-                    <Ionicons name="pencil-outline" size={12} color="rgba(255,255,255,0.25)" />
+                    <Ionicons name="pencil-outline" size={12} color={CoachColors.textFaint} />
                     <Text style={s.notesEditLabel}>Private · Only you can see this</Text>
                   </View>
                 </TouchableOpacity>
@@ -432,11 +451,11 @@ export default function ClientDetailScreen() {
                   <View style={s.sessionInfo}>
                     <Text style={s.sessionType}>{sess.type}</Text>
                     <Text style={s.sessionTime}>{dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · {sess.duration} min</Text>
-                    <Text style={[s.sessionCountdown, daysUntil===0 && {color:'#22C55E'}]}>
+                    <Text style={[s.sessionCountdown, daysUntil===0 && {color:CoachColors.accent}]}>
                       {daysUntil===0 ? 'Today' : daysUntil===1 ? 'Tomorrow' : `In ${daysUntil} days`}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
+                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               );
             })() : (
@@ -459,7 +478,7 @@ export default function ClientDetailScreen() {
                   : <Text style={s.messageEmpty}>Start conversation →</Text>
                 }
               </View>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
+              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             {/* Contact */}
@@ -469,17 +488,17 @@ export default function ClientDetailScreen() {
                 <View style={s.block}>
                   {client.phone && (
                     <TouchableOpacity style={s.blockRow} onPress={() => Linking.openURL(`tel:${client.phone}`)} activeOpacity={0.7}>
-                      <Ionicons name="call-outline" size={18} color="rgba(255,255,255,0.45)" />
+                      <Ionicons name="call-outline" size={18} color={CoachColors.textSecondary} />
                       <Text style={s.blockRowText}>{formatPhone(client.phone)}</Text>
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.18)" />
+                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                   )}
                   {client.email && client.phone && <View style={s.blockDivider} />}
                   {client.email && (
                     <TouchableOpacity style={s.blockRow} onPress={() => Linking.openURL(`mailto:${client.email}`)} activeOpacity={0.7}>
-                      <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.45)" />
+                      <Ionicons name="mail-outline" size={18} color={CoachColors.textSecondary} />
                       <Text style={s.blockRowText} numberOfLines={1}>{client.email}</Text>
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.18)" />
+                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -508,7 +527,7 @@ export default function ClientDetailScreen() {
                         ].filter(Boolean).map((row: any, i, arr) => (
                           <View key={row.label}>
                             <View style={s.blockRow}>
-                              <Ionicons name={row.icon} size={18} color="rgba(255,255,255,0.45)" />
+                              <Ionicons name={row.icon} size={18} color={CoachColors.textSecondary} />
                               <Text style={s.blockRowLabel}>{row.label}</Text>
                               <Text style={s.blockRowValue}>{row.val}</Text>
                             </View>
@@ -601,7 +620,7 @@ export default function ClientDetailScreen() {
                   ].map((row, i, arr) => (
                     <View key={row.label}>
                       <View style={s.blockRow}>
-                        <Ionicons name={row.icon as any} size={18} color="rgba(255,255,255,0.45)" />
+                        <Ionicons name={row.icon as any} size={18} color={CoachColors.textSecondary} />
                         <Text style={s.blockRowLabel}>{row.label}</Text>
                         <Text style={s.blockRowValue}>{row.value}</Text>
                       </View>
@@ -612,20 +631,16 @@ export default function ClientDetailScreen() {
                 <Text style={s.syncNote}>Synced {healthSnapshot.synced_at ? new Date(healthSnapshot.synced_at).toLocaleDateString() : 'N/A'}</Text>
               </>
             ) : (
-              <View style={s.emptyBlock}>
-                <Text style={s.emptyBlockTitle}>Health data not shared</Text>
-                <Text style={s.emptyBlockSub}>Ask the client to connect Apple Health or Google Fit.</Text>
-                {!(client as any).health_sharing_requested ? (
-                  <TouchableOpacity style={s.emptyBlockBtn} onPress={async () => {
-                    try { await requestHealthAccess(client.id); showAlert({ type: 'success', title: 'Request Sent', message: `Sent to ${client.name}.` }); }
-                    catch { showAlert({ type: 'error', title: 'Error', message: 'Failed to send request.' }); }
-                  }}>
-                    <Text style={s.emptyBlockBtnText}>Request Health Access</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={{ color: '#F59E0B', fontFamily: FontFamily.bodyMedium, fontSize: 13, marginTop: 8 }}>Request pending…</Text>
-                )}
-              </View>
+              <BoltEmptyState
+                pose="help"
+                title="Health data not shared"
+                subtitle="Ask the client to connect Apple Health or Google Fit."
+                actionLabel={!(client as any).health_sharing_requested ? "Request Health Access" : "Request pending…"}
+                onAction={!(client as any).health_sharing_requested ? async () => {
+                  try { await requestHealthAccess(client.id); showAlert({ type: 'success', title: 'Request Sent', message: `Sent to ${client.name}.` }); }
+                  catch { showAlert({ type: 'error', title: 'Error', message: 'Failed to send request.' }); }
+                } : undefined}
+              />
             )}
           </Animated.View>
         )}
@@ -641,10 +656,13 @@ export default function ClientDetailScreen() {
             {(() => {
               const activePlan = plans.find(p => p.id === client.plan_id);
               if (!activePlan) return (
-                <TouchableOpacity style={s.emptyBlock} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-                  <Text style={s.emptyBlockTitle}>Not enrolled in a program</Text>
-                  <Text style={s.emptyBlockCta}>Enroll now →</Text>
-                </TouchableOpacity>
+                <BoltEmptyState
+                  pose="welcome"
+                  title="Not enrolled in a program"
+                  subtitle="Assign a program to structure their training."
+                  actionLabel="Enroll now →"
+                  onAction={() => setAssignMode('enroll')}
+                />
               );
               const nodes  = activePlan.track || [];
               const wCount = nodes.filter(n => n.type === 'workout').length;
@@ -654,7 +672,7 @@ export default function ClientDetailScreen() {
               return (
                 <View style={s.block}>
                   <View style={s.blockRow}>
-                    <Ionicons name="ribbon-outline" size={18} color="#FF6B35" />
+                    <Ionicons name="ribbon-outline" size={18} color={CoachColors.accent} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.blockRowText}>{activePlan.name}</Text>
                       <Text style={s.blockRowSub}>{wCount} workouts · {dCount} diets · ${activePlan.price}/{activePlan.period==='monthly'?'mo':activePlan.period}</Text>
@@ -665,7 +683,7 @@ export default function ClientDetailScreen() {
                   </View>
                   <View style={s.blockDivider} />
                   <View style={s.blockRow}>
-                    <Ionicons name="card-outline" size={18} color="rgba(255,255,255,0.45)" />
+                    <Ionicons name="card-outline" size={18} color={CoachColors.textSecondary} />
                     <Text style={s.blockRowLabel}>Next billing</Text>
                     <Text style={s.blockRowValue}>{billing.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</Text>
                   </View>
@@ -684,7 +702,7 @@ export default function ClientDetailScreen() {
                     {activePlan.track.sort((a,b) => a.order-b.order).slice(0,6).map((node, i, arr) => {
                       const w = workouts.find(w => w.id === node.id);
                       const d = diets.find(d => d.id === node.id);
-                      const color = node.type==='workout' ? '#FF6B35' : node.type==='diet' ? '#A78BFA' : '#22C55E';
+                      const color = node.type==='workout' ? CoachColors.accent : node.type==='diet' ? CoachColors.textSecondary : CoachColors.accent;
                       const icon  = node.type==='workout' ? 'barbell-outline' : node.type==='diet' ? 'nutrition-outline' : 'flag-outline';
                       const name  = w?.name || d?.name || node.label || 'Milestone';
                       return (
@@ -703,7 +721,7 @@ export default function ClientDetailScreen() {
                     {activePlan.track.length > 6 && (
                       <TouchableOpacity style={s.viewAllRow} onPress={() => router.push(`/plan/${activePlan.id}` as any)}>
                         <Text style={s.viewAllText}>View all {activePlan.track.length} items</Text>
-                        <Ionicons name="chevron-forward" size={13} color="#FF6B35" />
+                        <Ionicons name="chevron-forward" size={13} color={CoachColors.accent} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -719,7 +737,9 @@ export default function ClientDetailScreen() {
                   {assignedWorkouts.map((item, i) => (
                     <View key={item.assignment.id}>
                       <TouchableOpacity style={s.blockRow} onPress={() => router.push(`/workout/${item.workout.id}` as any)} activeOpacity={0.7}>
-                        <RNImage source={getWorkoutEmblem(item.workout.id, item.workout.name, item.workout.workout_exercises?.map((we: any) => we.exercises?.muscle_group).filter(Boolean))} style={{ width: 36, height: 36, borderRadius: 8 }} />
+                        <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="barbell-outline" size={16} color={CoachColors.textSecondary} />
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.blockRowText}>{item.workout.name}</Text>
                           <Text style={s.blockRowSub}>{item.workout.workout_exercises?.length || 0} exercises</Text>
@@ -741,7 +761,7 @@ export default function ClientDetailScreen() {
                   {assignedDiets.map((item, i) => (
                     <View key={item.assignment.id}>
                       <TouchableOpacity style={s.blockRow} onPress={() => router.push(`/diet/${item.diet.id}` as any)} activeOpacity={0.7}>
-                        <Ionicons name="nutrition-outline" size={18} color="#A78BFA" />
+                        <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
                         <View style={{ flex: 1 }}>
                           <Text style={s.blockRowText}>{item.diet.name}</Text>
                           <Text style={s.blockRowSub}>{item.diet.diet_plan_meals?.length || 0} meals</Text>
@@ -756,7 +776,7 @@ export default function ClientDetailScreen() {
             )}
 
             <TouchableOpacity style={s.addBtn} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-              <Ionicons name="add" size={17} color="#FF6B35" />
+              <Ionicons name="add" size={17} color={CoachColors.accent} />
               <Text style={s.addBtnText}>Assign workout or diet plan</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -781,8 +801,8 @@ export default function ClientDetailScreen() {
                   <View style={s.chartTopRow}>
                     <Text style={s.chartBigNum}>{weightChartData[weightChartData.length-1].value} lbs</Text>
                     {weightDelta !== null && (
-                      <View style={[s.deltaBadge, { backgroundColor: Number(weightDelta)<=0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)' }]}>
-                        <Text style={[s.deltaBadgeText, { color: Number(weightDelta)<=0 ? '#22C55E' : '#EF4444' }]}>
+                      <View style={[s.deltaBadge, { backgroundColor: Number(weightDelta)<=0 ? CoachColors.accentSoft : CoachColors.dangerSoft }]}>
+                        <Text style={[s.deltaBadgeText, { color: Number(weightDelta)<=0 ? CoachColors.accent : CoachColors.danger }]}>
                           {Number(weightDelta)>=0 ? '+' : ''}{weightDelta} lbs
                         </Text>
                       </View>
@@ -794,29 +814,29 @@ export default function ClientDetailScreen() {
                     height={96}
                     spacing={Math.max(28, Math.floor((W-80)/weightChartData.length))}
                     initialSpacing={12}
-                    color="#FF6B35"
+                    color={CoachColors.accent}
                     thickness={2}
-                    dataPointsColor="#FF6B35"
+                    dataPointsColor={CoachColors.accent}
                     dataPointsRadius={3}
                     hideRules
                     hideYAxisText
-                    xAxisColor="rgba(255,255,255,0.06)"
+                    xAxisColor={CoachColors.borderMuted}
                     yAxisColor="transparent"
-                    xAxisLabelTextStyle={{ color: 'rgba(255,255,255,0.22)', fontSize: 9, fontFamily: FontFamily.body }}
-                    startFillColor="rgba(255,107,53,0.15)"
+                    xAxisLabelTextStyle={{ color: CoachColors.textFaint, fontSize: 9, fontFamily: CoachFonts.body }}
+                    startFillColor={CoachColors.accentSoft}
                     endFillColor="transparent"
                     areaChart
                     pointerConfig={{
                       pointerStripHeight: 80,
-                      pointerStripColor: 'rgba(255,255,255,0.07)',
+                      pointerStripColor: CoachColors.borderMuted,
                       pointerStripWidth: 1,
-                      pointerColor: '#FF6B35',
+                      pointerColor: CoachColors.accent,
                       radius: 5,
                       pointerLabelWidth: 72,
                       pointerLabelHeight: 28,
                       pointerLabelComponent: (items: any[]) => (
-                        <View style={{ backgroundColor: '#222', padding: 5, borderRadius: 6 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontFamily: FontFamily.bodySemiBold }}>{items[0]?.value} lbs</Text>
+                        <View style={{ backgroundColor: CoachColors.surface, padding: 5, borderRadius: 6 }}>
+                          <Text style={{ color: CoachColors.textPrimary, fontSize: 11, fontFamily: CoachFonts.bodySemiBold }}>{items[0]?.value} lbs</Text>
                         </View>
                       ),
                     }}
@@ -876,8 +896,8 @@ export default function ClientDetailScreen() {
                         <Text style={s.blockRowText}>{log.weight ? `${log.weight} lbs` : 'Check-in'}</Text>
                         <Text style={s.blockRowSub}>{new Date(log.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</Text>
                       </View>
-                      {(log as any).photos?.length > 0 && <Ionicons name="camera-outline" size={15} color="rgba(255,255,255,0.3)" />}
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.18)" />
+                      {(log as any).photos?.length > 0 && <Ionicons name="camera-outline" size={15} color={CoachColors.textMuted} />}
+                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                     {i < Math.min(progressLogs.length,6)-1 && <View style={s.blockDivider} />}
                   </View>
@@ -885,7 +905,7 @@ export default function ClientDetailScreen() {
                 {progressLogs.length > 6 && (
                   <TouchableOpacity style={s.viewAllRow} onPress={() => router.push(`/client/${client.id}/progress` as any)}>
                     <Text style={s.viewAllText}>View all {progressLogs.length} check-ins</Text>
-                    <Ionicons name="chevron-forward" size={13} color="#FF6B35" />
+                    <Ionicons name="chevron-forward" size={13} color={CoachColors.accent} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -897,7 +917,7 @@ export default function ClientDetailScreen() {
               <View style={s.block}>
                 {sessions.slice(0,5).map((session, i) => {
                   const dt = new Date(session.date);
-                  const sc = session.status==='completed' ? '#22C55E' : session.status==='cancelled' ? '#EF4444' : '#6C9BF2';
+                  const sc = session.status==='completed' ? CoachColors.accent : session.status==='cancelled' ? CoachColors.danger : CoachColors.textSecondary;
                   return (
                     <View key={session.id}>
                       <View style={s.blockRow}>
@@ -931,17 +951,17 @@ export default function ClientDetailScreen() {
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setViewerPhoto(null)} activeOpacity={1} />
           {viewerPhoto && <EImage source={{ uri: viewerPhoto }} style={s.photoViewerImg} contentFit="contain" />}
           <TouchableOpacity style={s.photoViewerClose} onPress={() => setViewerPhoto(null)}>
-            <Ionicons name="close" size={20} color="#FFF" />
+            <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
       </Modal>
 
       {/* ── Assign Modal ── */}
       <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={[s.root, { backgroundColor: '#0A0A0A' }]}>
+        <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
             <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }}>
-              <Ionicons name="close" size={22} color="#FFF" />
+              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.modalNavTitle}>
               {assignMode==='enroll' ? 'Enroll in Program' : `Assign ${assignMode==='workout'?'Workout':'Diet Plan'}`}
@@ -983,16 +1003,16 @@ export default function ClientDetailScreen() {
                 })}
                 <TouchableOpacity style={s.quickAddToggle} onPress={() => setShowQuickAdd(!showQuickAdd)} activeOpacity={0.7}>
                   <Text style={s.quickAddToggleText}>Quick-assign individual item</Text>
-                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={14} color="rgba(255,255,255,0.35)" />
+                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={14} color={CoachColors.textMuted} />
                 </TouchableOpacity>
                 {showQuickAdd && (
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('workout')} activeOpacity={0.8}>
-                      <Ionicons name="barbell-outline" size={17} color="#FF6B35" />
+                      <Ionicons name="barbell-outline" size={17} color={CoachColors.accent} />
                       <Text style={s.quickAddBtnText}>Workout</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('diet')} activeOpacity={0.8}>
-                      <Ionicons name="nutrition-outline" size={17} color="#A78BFA" />
+                      <Ionicons name="nutrition-outline" size={17} color={CoachColors.textSecondary} />
                       <Text style={s.quickAddBtnText}>Diet Plan</Text>
                     </TouchableOpacity>
                   </View>
@@ -1002,7 +1022,7 @@ export default function ClientDetailScreen() {
             {(assignMode === 'workout' || assignMode === 'diet') && (
               <>
                 <TouchableOpacity style={s.quickAddBtn} onPress={() => { const m=assignMode; setAssignMode(null); router.push(m==='workout'?'/create-workout':'/create-diet' as any); }} activeOpacity={0.8}>
-                  <Ionicons name="add" size={18} color="#FF6B35" />
+                  <Ionicons name="add" size={18} color={CoachColors.accent} />
                   <Text style={s.quickAddBtnText}>Create new {assignMode==='workout'?'workout':'diet plan'}</Text>
                 </TouchableOpacity>
                 {(assignMode==='workout'?workouts:diets).map((item: any) => {
@@ -1013,7 +1033,7 @@ export default function ClientDetailScreen() {
                   return (
                     <TouchableOpacity key={item.id} style={[s.modalPlanRow, { opacity: taken ? 0.45 : 1 }]}
                       onPress={() => !taken && handleAssign(item.id)} disabled={taken} activeOpacity={0.7}>
-                      <Ionicons name={isW ? 'barbell-outline' : 'nutrition-outline'} size={18} color={isW ? '#FF6B35' : '#A78BFA'} />
+                      <Ionicons name={isW ? 'barbell-outline' : 'nutrition-outline'} size={18} color={isW ? CoachColors.accent : CoachColors.textSecondary} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.modalPlanName}>{item.name}</Text>
                         <Text style={s.modalPlanMeta}>{isW ? `${item.workout_exercises?.length||0} exercises` : `${item.diet_plan_meals?.length||0} meals`}</Text>
@@ -1023,8 +1043,8 @@ export default function ClientDetailScreen() {
                   );
                 })}
                 <TouchableOpacity style={{ flexDirection:'row', alignItems:'center', gap:6, paddingVertical:14, justifyContent:'center' }} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-                  <Ionicons name="arrow-back" size={14} color="rgba(255,255,255,0.3)" />
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Back to programs</Text>
+                  <Ionicons name="arrow-back" size={14} color={CoachColors.textMuted} />
+                  <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted }}>Back to programs</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1034,9 +1054,9 @@ export default function ClientDetailScreen() {
 
       {/* ── Upgrade Modal ── */}
       <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={[s.root, { backgroundColor: '#0A0A0A' }]}>
+        <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => setShowUpgradeModal(false)}><Ionicons name="close" size={22} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)}><Ionicons name="close" size={22} color={CoachColors.textPrimary} /></TouchableOpacity>
             <Text style={s.modalNavTitle}>Choose a Plan</Text>
             <View style={{ width: 24 }} />
           </View>
@@ -1072,188 +1092,192 @@ export default function ClientDetailScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root:          { flex: 1, backgroundColor: '#000' },
+  root:          { flex: 1, backgroundColor: CoachColors.bg },
   scrollContent: { paddingBottom: 100 },
 
   // NAV
   nav:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
-  navTitle:      { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFF', flex: 1, textAlign: 'center' },
+  navTitle:      { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, flex: 1, textAlign: 'center' },
 
   // HERO
   hero:          { alignItems: 'center', paddingTop: 28, paddingBottom: 24, paddingHorizontal: 20, gap: 10 },
-  heroName:      { fontFamily: FontFamily.headingExtraBold, fontSize: 30, color: '#FFF', letterSpacing: -0.5, marginTop: 8 },
+  heroName:      { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary, letterSpacing: -0.5, marginTop: 8 },
   heroStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   statusDot:     { width: 7, height: 7, borderRadius: 3.5 },
-  heroStatusText: { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: 'rgba(255,255,255,0.45)' },
-  heroDivider:   { fontSize: 13, color: 'rgba(255,255,255,0.22)', fontFamily: FontFamily.body },
+  heroStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  heroDivider:   { fontSize: 13, color: CoachColors.textFaint, fontFamily: CoachFonts.body },
 
   // STAT ROW (Strava-style)
-  statRow:       { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 16, marginBottom: 4 },
-  statBlock:     { flex: 1, alignItems: 'center', gap: 4 },
-  statNum:       { fontFamily: FontFamily.headingExtraBold, fontSize: 26, color: '#FFF', letterSpacing: -1 },
-  statLabel:     { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.38)', textAlign: 'center' },
-  statDivider:   { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.08)' },
+  // Demoted: smaller and quieter than the attention banner above it.
+  statRow:       { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 2, marginBottom: 2 },
+  statBlock:     { flex: 1, alignItems: 'center', gap: 3 },
+  statNum:       { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textSecondary, letterSpacing: -0.5 },
+  statLabel:     { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint, textAlign: 'center' },
+  statDivider:   { width: 1, height: 36, backgroundColor: CoachColors.borderMuted },
 
   // Engagement ring (compact, inside stat block)
   engageWrap:    { width: 80, height: 80 },
-  engageNum:     { fontFamily: FontFamily.headingExtraBold, fontSize: 20, letterSpacing: -0.5 },
+  engageNum:     { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.5 },
 
   // PRIMARY ACTIONS
   heroActions:   { flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 },
-  actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FF6B35', borderRadius: 14, paddingVertical: 14 },
-  actionPrimaryText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFF' },
-  actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14 },
-  actionSecondaryText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFF' },
-  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#000' },
-  unreadDotText: { fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: '#FFF' },
+  actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 14, paddingVertical: 14 },
+  actionPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.borderMuted, borderRadius: 14, paddingVertical: 14 },
+  actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
+  unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textPrimary },
 
   // ICON TRAY
   iconTray:      { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 6 },
   iconTrayItem:  { alignItems: 'center', gap: 5, padding: 10 },
-  iconTrayLabel: { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.38)' },
+  iconTrayLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
 
   // TRIAL BANNER
-  trialBanner:      { flexDirection: 'row', alignItems: 'center', gap: 16, marginHorizontal: 16, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16 },
+  trialBanner:      { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 14, padding: 16 },
   trialLeft:         { flex: 1, gap: 8 },
-  trialTitle:        { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
-  trialTrack:        { height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' },
+  trialTitle:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  quietSub:          { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  quietNudgeBtn:     { backgroundColor: CoachColors.danger, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
+  quietNudgeText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  trialTrack:        { height: 3, backgroundColor: CoachColors.borderMuted, borderRadius: 2, overflow: 'hidden' },
   trialFill:         { height: '100%', borderRadius: 2 },
-  trialUpgradeBtn:   { backgroundColor: '#FF6B35', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
-  trialUpgradeText:  { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FFF' },
+  trialUpgradeBtn:   { backgroundColor: CoachColors.accent, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
+  trialUpgradeText:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
 
   // TAB BAR
-  tabRow:        { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)', position: 'relative' },
+  tabRow:        { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted, position: 'relative' },
   tabItem:       { alignItems: 'center', paddingVertical: 12 },
-  tabLabel:      { fontFamily: FontFamily.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.32)' },
-  tabLabelActive: { fontFamily: FontFamily.bodySemiBold, color: '#FFF' },
-  tabUnderline:  { position: 'absolute', bottom: -1, height: 2, backgroundColor: '#FF6B35', borderRadius: 1 },
+  tabLabel:      { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  tabLabelActive: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
+  tabUnderline:  { position: 'absolute', bottom: -1, height: 2, backgroundColor: CoachColors.accent, borderRadius: 1 },
 
   // TAB CONTENT
   tabBody:       { paddingHorizontal: 16, paddingTop: 20, gap: 6 },
 
   // SECTION LABELS — title case, subtle secondary colour
-  sectionLabel:  { fontFamily: FontFamily.bodySemiBold, fontSize: 12, letterSpacing: 0.3, color: 'rgba(255,255,255,0.32)', marginTop: 14, marginBottom: 6 },
+  sectionLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, letterSpacing: 0.3, color: CoachColors.textMuted, marginTop: 14, marginBottom: 6 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  seeAll:        { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FF6B35' },
+  seeAll:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
 
   // BLOCK (main list container, like iOS Settings)
-  block:         { backgroundColor: '#111', borderRadius: 16, overflow: 'hidden' },
+  block:         { backgroundColor: CoachColors.surface, borderRadius: 16, overflow: 'hidden' },
   blockRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
-  blockDivider:  { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginLeft: 46 },
-  blockRowText:  { fontFamily: FontFamily.bodyMedium, fontSize: 15, color: '#FFF', flex: 1 },
-  blockRowLabel: { fontFamily: FontFamily.bodyMedium, fontSize: 15, color: 'rgba(255,255,255,0.55)', flex: 1 },
-  blockRowValue: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFF' },
-  blockRowSub:   { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 },
-  changeLink:    { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FF6B35' },
-  viewAllRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
-  viewAllText:   { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FF6B35' },
+  blockDivider:  { height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 46 },
+  blockRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textPrimary, flex: 1 },
+  blockRowLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary, flex: 1 },
+  blockRowValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  blockRowSub:   { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  changeLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  viewAllRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
+  viewAllText:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
   addBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16 },
-  addBtnText:    { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FF6B35' },
+  addBtnText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
 
   // STATUS TAGS
-  statusTag:     { fontFamily: FontFamily.bodySemiBold, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', textTransform: 'capitalize' },
-  tagDone:       { backgroundColor: 'rgba(34,197,94,0.12)', color: '#22C55E' },
-  tagPending:    { backgroundColor: 'rgba(108,155,242,0.12)', color: '#6C9BF2' },
-  tagCancelled:  { backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' },
+  statusTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', textTransform: 'capitalize' },
+  tagDone:       { backgroundColor: CoachColors.accentSoft, color: CoachColors.accent },
+  tagPending:    { backgroundColor: 'rgba(155,160,149,0.14)', color: CoachColors.textSecondary },
+  tagCancelled:  { backgroundColor: CoachColors.dangerSoft, color: CoachColors.danger },
 
   // NOTES
-  notesWrap:        { backgroundColor: '#111', borderRadius: 16, padding: 16, gap: 10 },
-  notesInput:       { fontFamily: FontFamily.body, fontSize: 15, color: '#FFF', minHeight: 72, textAlignVertical: 'top', lineHeight: 22 },
-  notesText:        { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.72)', lineHeight: 22 },
-  notesPlaceholder: { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.22)', lineHeight: 22, fontStyle: 'italic' },
+  notesWrap:        { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, gap: 10 },
+  notesInput:       { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, minHeight: 72, textAlignVertical: 'top', lineHeight: 22 },
+  notesText:        { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22 },
+  notesPlaceholder: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textFaint, lineHeight: 22, fontStyle: 'italic' },
   notesEditRow:     { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  notesEditLabel:   { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.25)' },
+  notesEditLabel:   { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
   notesActionsRow:  { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, paddingTop: 8 },
-  notesCancelText:  { fontFamily: FontFamily.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.35)' },
-  notesSaveBtn:     { backgroundColor: '#FF6B35', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10 },
-  notesSaveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
+  notesCancelText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  notesSaveBtn:     { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10 },
+  notesSaveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
 
   // SESSION CARD (next session)
-  sessionCard:    { backgroundColor: '#111', borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 18 },
+  sessionCard:    { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 18 },
   sessionDateCol: { alignItems: 'center', minWidth: 44 },
-  sessionDay:     { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.38)', letterSpacing: 0.5 },
-  sessionDayNum:  { fontFamily: FontFamily.headingExtraBold, fontSize: 32, color: '#FFF', lineHeight: 36 },
-  sessionMonth:   { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.38)', letterSpacing: 0.5 },
+  sessionDay:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5 },
+  sessionDayNum:  { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.textPrimary, lineHeight: 36 },
+  sessionMonth:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5 },
   sessionInfo:    { flex: 1, gap: 3 },
-  sessionType:    { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#FFF' },
-  sessionTime:    { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.45)' },
-  sessionCountdown: { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: '#F59E0B', marginTop: 4 },
+  sessionType:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  sessionTime:    { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  sessionCountdown: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.warning, marginTop: 4 },
 
   // MESSAGE ROW
-  messageRow:      { backgroundColor: '#111', borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
+  messageRow:      { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   messageAvatarWrap: { position: 'relative' },
-  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: '#000' },
-  msgBadgeText:    { fontFamily: FontFamily.headingExtraBold, fontSize: 9, color: '#FFF' },
-  messageText:     { fontFamily: FontFamily.bodyMedium, fontSize: 15, color: '#FFF' },
-  messageTime:     { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
-  messageEmpty:    { fontFamily: FontFamily.body, fontSize: 15, color: 'rgba(255,255,255,0.28)', fontStyle: 'italic' },
+  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
+  msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textPrimary },
+  messageText:     { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textPrimary },
+  messageTime:     { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  messageEmpty:    { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textFaint, fontStyle: 'italic' },
 
   // CHIPS
   chipWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:        { backgroundColor: '#111', borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8 },
-  chipText:    { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: 'rgba(255,255,255,0.65)' },
+  chip:        { backgroundColor: CoachColors.surface, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8 },
+  chipText:    { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
 
   // COMMITMENT BARS
   commitRow:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  commitBar:       { width: 26, height: 32, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.08)' },
-  commitBarActive: { backgroundColor: '#FF6B35' },
-  commitText:      { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginLeft: 8 },
+  commitBar:       { width: 26, height: 32, borderRadius: 6, backgroundColor: CoachColors.borderMuted },
+  commitBarActive: { backgroundColor: CoachColors.accent },
+  commitText:      { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary, marginLeft: 8 },
 
   // EMPTY STATES
-  emptyRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18 },
-  emptyRowText:  { fontFamily: FontFamily.bodyMedium, fontSize: 15, color: 'rgba(255,255,255,0.28)' },
-  emptyRowCta:   { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FF6B35' },
-  emptyBlock:    { backgroundColor: '#111', borderRadius: 16, padding: 24, alignItems: 'center', gap: 8 },
-  emptyBlockTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
-  emptyBlockSub:   { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.25)', textAlign: 'center', lineHeight: 18 },
-  emptyBlockCta:   { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FF6B35', marginTop: 4 },
-  emptyBlockBtn:   { backgroundColor: '#FF6B35', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 },
-  emptyBlockBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
-  emptyStateTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 18, color: 'rgba(255,255,255,0.45)' },
-  outlineBtn:    { borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  outlineBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
+  emptyRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: CoachColors.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18 },
+  emptyRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textFaint },
+  emptyRowCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  emptyBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 24, alignItems: 'center', gap: 8 },
+  emptyBlockTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center' },
+  emptyBlockSub:   { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 18 },
+  emptyBlockCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent, marginTop: 4 },
+  emptyBlockBtn:   { backgroundColor: CoachColors.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 },
+  emptyBlockBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  emptyStateTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textSecondary },
+  outlineBtn:    { borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
 
   // SYNC NOTE
-  syncNote:      { fontFamily: FontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'right', marginTop: 4 },
+  syncNote:      { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, textAlign: 'right', marginTop: 4 },
 
   // CHART
-  chartBlock:    { backgroundColor: '#111', borderRadius: 16, paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden' },
+  chartBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden' },
   chartTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  chartBigNum:   { fontFamily: FontFamily.headingExtraBold, fontSize: 28, color: '#FFF', letterSpacing: -1 },
+  chartBigNum:   { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary, letterSpacing: -1 },
   deltaBadge:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  deltaBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13 },
+  deltaBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13 },
 
   // PROGRESS PHOTOS
-  photoThumb:    { width: 120, height: 170, borderRadius: 14, overflow: 'hidden', backgroundColor: '#111' },
+  photoThumb:    { width: 120, height: 170, borderRadius: 14, overflow: 'hidden', backgroundColor: CoachColors.surface },
   photoThumbImg: { width: '100%', height: '100%' },
   photoGrad:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 70 },
   photoFooter:   { position: 'absolute', bottom: 10, left: 10, right: 10 },
-  photoDate:     { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: '#FFF' },
-  photoWeight:   { fontFamily: FontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  photoLatest:   { position: 'absolute', top: 8, right: 8, backgroundColor: '#FFD700', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
-  photoLatestText: { fontFamily: FontFamily.headingExtraBold, fontSize: 7, color: '#000', letterSpacing: 0.5 },
+  photoDate:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textPrimary },
+  photoWeight:   { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textSecondary, marginTop: 2 },
+  photoLatest:   { position: 'absolute', top: 8, right: 8, backgroundColor: CoachColors.accent, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
+  photoLatestText: { fontFamily: CoachFonts.headingBold, fontSize: 7, color: CoachColors.onAccent, letterSpacing: 0.5 },
 
   // LOG DOT
-  logDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF6B35' },
+  logDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: CoachColors.accent },
   sessionDot:    { width: 8, height: 8, borderRadius: 4 },
 
   // PHOTO VIEWER
   photoViewerBg:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
   photoViewerImg:   { width: W, height: W * 1.3 },
-  photoViewerClose: { position: 'absolute', top: 56, right: 20, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  photoViewerClose: { position: 'absolute', top: 56, right: 20, width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
 
   // MODAL NAV
   modalNav:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  modalNavTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 17, color: '#FFF' },
-  modalHint:     { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 20, marginBottom: 4 },
-  modalPlanRow:  { backgroundColor: '#111', borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  modalPlanRowActive: { borderWidth: 1.5, borderColor: '#FF6B35' },
-  modalPlanName: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#FFF' },
-  modalPlanMeta: { fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.38)', marginTop: 2 },
-  activePlanTag: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#22C55E' },
-  enrollTag:     { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#FF6B35' },
+  modalNavTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  modalHint:     { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, lineHeight: 20, marginBottom: 4 },
+  modalPlanRow:  { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  modalPlanRowActive: { borderWidth: 1.5, borderColor: CoachColors.accent },
+  modalPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  modalPlanMeta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
+  activePlanTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  enrollTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
   quickAddToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4 },
-  quickAddToggleText: { fontFamily: FontFamily.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.38)' },
-  quickAddBtn:   { backgroundColor: '#111', borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  quickAddBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#FFF' },
+  quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
 });

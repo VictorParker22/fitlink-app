@@ -1,25 +1,35 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Dimensions,
+  KeyboardAvoidingView, Platform, ScrollView,
   StatusBar, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Spacing, FontFamily } from '../../constants/theme';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 type AuthMode = 'phone' | 'email';
 type PhoneStep = 'phone' | 'otp';
 
+const OTP_LENGTH = 6;
+
+/**
+ * FitLink coach sign in — design #14d ("Getting in").
+ *
+ * Solid lime pill for the primary action, a red-bordered field (not just a
+ * banner) when a password is wrong, and "Text me a code instead" as a
+ * secondary outline pill under an "or" divider — the same shell also carries
+ * the phone-OTP and inline sign-up paths the old screen supported.
+ */
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signIn, signUp, signInWithPhone, verifyOtp } = useAuth();
 
-  const [authMode, setAuthMode] = useState<AuthMode>('phone');
+  const [authMode, setAuthMode] = useState<AuthMode>('email');
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone');
   const [isNewUser, setIsNewUser] = useState(true);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -34,6 +44,7 @@ export default function LoginScreen() {
   // Phone
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const otpInputRef = useRef<TextInput>(null);
   const hasAutoSubmitted = useRef(false);
   const [phoneName, setPhoneName] = useState('');
 
@@ -85,7 +96,7 @@ export default function LoginScreen() {
   const handleVerifyOtp = async () => {
     setError('');
     setSuccess('');
-    if (otpCode.length < 6) return setError('Enter the 6-digit code');
+    if (otpCode.length < OTP_LENGTH) return setError('Enter the 6-digit code');
 
     setLoading(true);
     try {
@@ -175,11 +186,11 @@ export default function LoginScreen() {
   };
 
   useEffect(() => {
-    if (otpCode.length === 6 && !hasAutoSubmitted.current && !loading) {
+    if (otpCode.length === OTP_LENGTH && !hasAutoSubmitted.current && !loading) {
       hasAutoSubmitted.current = true;
       handleVerifyOtp();
     }
-    if (otpCode.length < 6) {
+    if (otpCode.length < OTP_LENGTH) {
       hasAutoSubmitted.current = false;
     }
   }, [otpCode]);
@@ -193,18 +204,22 @@ export default function LoginScreen() {
 
   // Dynamic title & subtitle
   const getTitle = () => {
-    if (authMode === 'phone') {
-      return phoneStep === 'otp' ? 'Welcome back.' : 'Welcome back.';
-    }
-    return isSignUp ? 'Create account' : 'Welcome back.';
+    if (authMode === 'phone') return phoneStep === 'otp' ? 'Check your\nmessages' : 'Welcome back';
+    return isSignUp ? 'Create your\naccount' : 'Welcome back';
   };
 
   const getSubtitle = () => {
     if (authMode === 'phone') {
-      return phoneStep === 'otp' ? 'Enter the code we sent to your phone.' : 'Sign in with your phone number.';
+      return phoneStep === 'otp'
+        ? `We sent a six-digit code to ${phone}.`
+        : "We'll send you a verification code by text.";
     }
-    return isSignUp ? 'Create your FitLink account.' : 'Sign in to your account.';
+    return isSignUp ? 'Start building your coaching business.' : 'Sign in to keep your day running.';
   };
+
+  // In the email sign-in flow, a generic error is shown as a red field
+  // instead of a top banner — matches the design's wrong-password state.
+  const isPasswordFieldError = authMode === 'email' && !isSignUp && !!error;
 
   return (
     <View style={styles.container}>
@@ -224,7 +239,7 @@ export default function LoginScreen() {
           <Animated.View style={[styles.inner, { opacity: fadeAnim }]}>
 
             {/* Header — back + logo */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.back()}
@@ -232,25 +247,20 @@ export default function LoginScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Go back"
               >
-                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.headerLogo}>FITLINK</Text>
+              <View style={styles.backButton} />
             </View>
 
             {/* Title + Subtitle */}
-            <Text style={styles.title}>{getTitle()}</Text>
-            <Text style={styles.subtitle}>{getSubtitle()}</Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.title}>{getTitle()}</Text>
+              <Text style={styles.subtitle}>{getSubtitle()}</Text>
+            </View>
 
             {/* Auth Mode Tabs */}
             <View style={styles.authTabs}>
-              <TouchableOpacity
-                style={[styles.authTab, authMode === 'phone' && styles.authTabActive]}
-                onPress={() => switchMode('phone')}
-                accessibilityRole="tab"
-                accessibilityLabel="Sign in with phone"
-              >
-                <Text style={[styles.authTabText, authMode === 'phone' && styles.authTabTextActive]}>Phone</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.authTab, authMode === 'email' && styles.authTabActive]}
                 onPress={() => switchMode('email')}
@@ -259,53 +269,37 @@ export default function LoginScreen() {
               >
                 <Text style={[styles.authTabText, authMode === 'email' && styles.authTabTextActive]}>Email</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.authTab, authMode === 'phone' && styles.authTabActive]}
+                onPress={() => switchMode('phone')}
+                accessibilityRole="tab"
+                accessibilityLabel="Sign in with phone"
+              >
+                <Text style={[styles.authTabText, authMode === 'phone' && styles.authTabTextActive]}>Phone</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Messages */}
-            {error ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="alert-circle" size={18} color="#FF4444" />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-            {success ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                <Text style={styles.successText}>{success}</Text>
-              </View>
-            ) : null}
+            {/* Messages — suppressed for the email sign-in password error,
+                which renders inline against the field instead. */}
+            {!isPasswordFieldError && <Messages error={error} success={success} />}
 
             {/* ===== PHONE FLOW ===== */}
             {authMode === 'phone' && phoneStep === 'phone' && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Phone number</Text>
+              <View style={styles.form}>
+                <Field label="Phone number" hint="We'll send you a verification code by text.">
                   <TextInput
                     style={styles.input}
                     placeholder="(555) 123-4567"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={CoachColors.textFaint}
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
                     autoComplete="tel"
                     accessibilityLabel="Phone number"
-                    selectionColor="rgba(255,255,255,0.5)"
+                    selectionColor={CoachColors.accent}
                   />
-                  <View style={styles.inputLine} />
-                  <Text style={styles.inputHint}>We'll send you a verification code via SMS</Text>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  activeOpacity={0.85}
-                  onPress={handleSendOtp}
-                  disabled={loading}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Sending verification code' : 'Send verification code'}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Sending...' : 'Send Code'}</Text>
-                </TouchableOpacity>
-              </>
+                </Field>
+              </View>
             )}
 
             {authMode === 'phone' && phoneStep === 'otp' && (
@@ -316,512 +310,432 @@ export default function LoginScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Change phone number"
                 >
-                  <Ionicons name="arrow-back" size={14} color="rgba(255,255,255,0.6)" />
+                  <Ionicons name="arrow-back" size={13} color={CoachColors.textMuted} />
                   <Text style={styles.changeText}>Change number</Text>
                 </TouchableOpacity>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Verification code</Text>
-                  <TextInput
-                    style={[styles.input, styles.otpInput]}
-                    placeholder="000000"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={otpCode}
-                    onChangeText={(t) => setOtpCode(t.replace(/\D/g, ''))}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                    accessibilityLabel="Verification code"
-                    selectionColor="rgba(255,255,255,0.5)"
-                  />
-                  <View style={styles.inputLine} />
-                </View>
+                <OtpBoxes
+                  inputRef={otpInputRef}
+                  value={otpCode}
+                  onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                />
 
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  activeOpacity={0.85}
-                  onPress={handleVerifyOtp}
-                  disabled={loading}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Verifying code' : 'Verify and sign in'}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Verifying...' : 'Verify & Sign In'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleSendOtp} style={styles.linkRow} accessibilityRole="button" accessibilityLabel="Resend verification code">
-                  <Text style={styles.linkText}>Didn't receive it? <Text style={styles.linkUnderline}>Resend Code</Text></Text>
+                <TouchableOpacity onPress={handleSendOtp} style={styles.resendRow} accessibilityRole="button" accessibilityLabel="Resend verification code">
+                  <Text style={styles.resendText}>Didn't arrive? <Text style={styles.resendLink}>Resend code</Text></Text>
                 </TouchableOpacity>
               </>
             )}
 
             {/* ===== EMAIL FLOW ===== */}
             {authMode === 'email' && (
-              <>
+              <View style={styles.form}>
                 {/* Name (Sign Up only) */}
                 {isSignUp && (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Full name</Text>
+                  <Field label="Your name">
                     <TextInput
                       style={styles.input}
                       placeholder="Coach Mike Johnson"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor={CoachColors.textFaint}
                       value={emailName}
                       onChangeText={setEmailName}
                       autoComplete="name"
                       accessibilityLabel="Full name"
-                      selectionColor="rgba(255,255,255,0.5)"
+                      selectionColor={CoachColors.accent}
                     />
-                    <View style={styles.inputLine} />
-                  </View>
+                  </Field>
                 )}
 
                 {/* Email */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Email</Text>
+                <Field label="Email">
                   <TextInput
                     style={styles.input}
                     placeholder="coach@example.com"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={CoachColors.textFaint}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
                     accessibilityLabel="Email address"
-                    selectionColor="rgba(255,255,255,0.5)"
+                    selectionColor={CoachColors.accent}
                   />
-                  <View style={styles.inputLine} />
-                </View>
+                </Field>
 
                 {/* Password */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  <View style={styles.passwordRow}>
-                    <TextInput
-                      style={[styles.input, styles.passwordInput]}
-                      placeholder="••••••••"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      autoComplete="password"
-                      accessibilityLabel="Password"
-                      selectionColor="rgba(255,255,255,0.5)"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
-                    </TouchableOpacity>
+                <View style={styles.field}>
+                  <View style={styles.passwordLabelRow}>
+                    <Text style={styles.fieldLabel}>Password</Text>
+                    {!isSignUp && (
+                      <TouchableOpacity onPress={handleForgotPassword} hitSlop={8} accessibilityRole="button" accessibilityLabel="Forgot password">
+                        <Text style={styles.forgotText}>Forgot it?</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <View style={styles.inputLine} />
+                  <View style={[styles.fieldBox, isPasswordFieldError && styles.fieldBoxError]}>
+                    <View style={styles.rowBetween}>
+                      <TextInput
+                        style={[styles.input, styles.flex1]}
+                        placeholder="••••••••"
+                        placeholderTextColor={CoachColors.textFaint}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        autoComplete="password"
+                        accessibilityLabel="Password"
+                        selectionColor={CoachColors.accent}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={CoachColors.textFaint} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {isPasswordFieldError && (
+                    <View style={styles.messageRow}>
+                      <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
+                      <Text style={styles.fieldError}>{error}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Confirm Password (Sign Up only) */}
                 {isSignUp && (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Confirm password</Text>
-                    <View style={styles.passwordRow}>
+                  <Field label="Confirm password">
+                    <View style={styles.rowBetween}>
                       <TextInput
-                        style={[styles.input, styles.passwordInput]}
+                        style={[styles.input, styles.flex1]}
                         placeholder="••••••••"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        placeholderTextColor={CoachColors.textFaint}
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
                         secureTextEntry={!showConfirmPassword}
                         accessibilityLabel="Confirm password"
-                        selectionColor="rgba(255,255,255,0.5)"
+                        selectionColor={CoachColors.accent}
                       />
                       <TouchableOpacity
                         onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                        style={styles.eyeBtn}
+                        hitSlop={8}
                         accessibilityRole="button"
                         accessibilityLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                       >
-                        <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.5)" />
+                        <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={CoachColors.textFaint} />
                       </TouchableOpacity>
                     </View>
-                    <View style={[styles.inputLine, confirmPassword && password !== confirmPassword && styles.inputLineError]} />
-                    {confirmPassword && password !== confirmPassword && (
-                      <Text style={styles.fieldError}>Passwords don't match</Text>
-                    )}
-                  </View>
+                  </Field>
                 )}
-
-                {/* Forgot Password */}
-                {!isSignUp && (
-                  <TouchableOpacity onPress={handleForgotPassword} style={styles.linkRow} accessibilityRole="button" accessibilityLabel="Forgot password">
-                    <Text style={styles.forgotText}>Forgot password</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Terms */}
-                <Text style={styles.termsText}>
-                  By clicking "{isSignUp ? 'Sign up' : 'Sign in'}", you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms and Conditions</Text> and consent to our{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>.
-                </Text>
-
-                {/* Submit Button */}
-                <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-                  activeOpacity={0.85}
-                  onPress={handleEmailSubmit}
-                  disabled={loading}
-                  accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Please wait' : (isSignUp ? 'Sign up' : 'Sign in')}
-                >
-                  <Text style={styles.submitText}>{loading ? 'Please wait...' : (isSignUp ? 'Sign up' : 'Sign in')}</Text>
-                </TouchableOpacity>
-
-                {/* Toggle Sign In / Sign Up */}
-                <TouchableOpacity onPress={toggleSignUp} style={styles.toggleRow} accessibilityRole="button" accessibilityLabel={isSignUp ? 'Switch to sign in' : 'Switch to sign up'}>
-                  <Text style={styles.toggleText}>
-                    {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-                    <Text style={styles.toggleLink}>{isSignUp ? 'Sign in' : 'Sign up'}</Text>
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* Phone — "or continue with" divider */}
-            {authMode === 'phone' && phoneStep === 'phone' && (
-              <View style={styles.dividerSection}>
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or continue with</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-                <TouchableOpacity
-                  style={styles.altMethodBtn}
-                  onPress={() => switchMode('email')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue with email"
-                >
-                  <Ionicons name="mail-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.altMethodText}>Continue with Email</Text>
-                </TouchableOpacity>
               </View>
             )}
-
-            {/* Client Login Link */}
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/client-login' as any)}
-              style={styles.clientRow}
-              accessibilityRole="button"
-              accessibilityLabel="Go to client login"
-            >
-              <Text style={styles.clientText}>
-                Are you a client? <Text style={styles.clientLink}>Sign in here →</Text>
-              </Text>
-            </TouchableOpacity>
-
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sticky footer */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+        {authMode === 'phone' && phoneStep === 'phone' && (
+          <PrimaryButton
+            title={loading ? 'Sending…' : 'Send code'}
+            disabled={loading}
+            onPress={handleSendOtp}
+          />
+        )}
+
+        {authMode === 'phone' && phoneStep === 'otp' && (
+          <PrimaryButton
+            title={loading ? 'Verifying…' : 'Verify'}
+            disabled={loading || otpCode.length < OTP_LENGTH}
+            onPress={handleVerifyOtp}
+          />
+        )}
+
+        {authMode === 'email' && (
+          <>
+            <PrimaryButton
+              title={loading ? 'Please wait…' : (isSignUp ? 'Sign up' : 'Sign in')}
+              disabled={loading}
+              onPress={handleEmailSubmit}
+            />
+            <Text style={styles.termsText}>
+              By continuing you agree to the <Text style={styles.termsLink}>Terms</Text> and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>.
+            </Text>
+          </>
+        )}
+
+        {authMode === 'phone' && phoneStep === 'phone' && (
+          <>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <TouchableOpacity
+              style={styles.altMethodBtn}
+              onPress={() => switchMode('email')}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with email"
+            >
+              <Ionicons name="mail-outline" size={15} color={CoachColors.textSecondary} />
+              <Text style={styles.altMethodText}>Continue with email</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {authMode === 'email' && !isSignUp && (
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
+        {authMode === 'email' && !isSignUp && (
+          <TouchableOpacity
+            style={styles.altMethodBtn}
+            onPress={() => switchMode('phone')}
+            accessibilityRole="button"
+            accessibilityLabel="Text me a code instead"
+          >
+            <Ionicons name="phone-portrait-outline" size={15} color={CoachColors.textSecondary} />
+            <Text style={styles.altMethodText}>Text me a code instead</Text>
+          </TouchableOpacity>
+        )}
+
+        {authMode === 'email' && (
+          <TouchableOpacity onPress={toggleSignUp} accessibilityRole="button" accessibilityLabel={isSignUp ? 'Switch to sign in' : 'Switch to sign up'}>
+            <Text style={styles.footerLinkRow}>
+              {isSignUp ? 'Already have an account? ' : 'New here? '}
+              <Text style={styles.footerLinkStrong}>{isSignUp ? 'Sign in' : 'Create an account'}</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          onPress={() => router.push('/(auth)/client-login' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Go to client login"
+        >
+          <Text style={styles.clientLinkRow}>
+            Training with a coach? <Text style={styles.clientLinkStrong}>Athlete sign-in</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldBox}>{children}</View>
+      {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function Messages({ error, success }: { error: string; success: string }) {
+  if (!error && !success) return null;
+  return (
+    <View style={styles.messages}>
+      {error ? (
+        <View style={styles.messageRow}>
+          <Ionicons name="alert-circle" size={16} color={CoachColors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+      {success ? (
+        <View style={styles.messageRow}>
+          <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+          <Text style={styles.successText}>{success}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PrimaryButton({ title, onPress, disabled }: { title: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <TouchableOpacity
+      style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
+      activeOpacity={0.85}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Text style={[styles.primaryBtnText, disabled && styles.primaryBtnTextDisabled]}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function OtpBoxes({
+  inputRef, value, onChangeText,
+}: {
+  inputRef: React.RefObject<TextInput | null>;
+  value: string;
+  onChangeText: (t: string) => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      style={styles.otpRow}
+      onPress={() => inputRef.current?.focus()}
+    >
+      {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+        const digit = value[i];
+        const isCursor = i === value.length;
+        return (
+          <View
+            key={i}
+            style={[
+              styles.otpBox,
+              digit !== undefined && styles.otpBoxFilled,
+              isCursor && styles.otpBoxActive,
+            ]}
+          >
+            {digit !== undefined ? (
+              <Text style={styles.otpDigit}>{digit}</Text>
+            ) : isCursor ? (
+              <View style={styles.otpCursor} />
+            ) : null}
+          </View>
+        );
+      })}
+      <TextInput
+        ref={inputRef}
+        style={styles.otpHiddenInput}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="number-pad"
+        maxLength={OTP_LENGTH}
+        autoComplete="one-time-code"
+        autoFocus
+        accessibilityLabel="Verification code"
+      />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  inner: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: 40,
-  },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  inner: { flex: 1, paddingHorizontal: 24 },
 
   // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SCREEN_HEIGHT * 0.06,
-    paddingBottom: Spacing.lg,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingBottom: 8,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  backButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   headerLogo: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 4,
+    fontFamily: CoachFonts.headingBold, fontSize: 13, letterSpacing: 2.8,
+    color: CoachColors.textFaint,
   },
 
   // Title
+  titleBlock: { paddingTop: 24 },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 34,
-    color: '#FFFFFF',
-    marginBottom: 6,
-    marginTop: Spacing.lg,
+    fontFamily: CoachFonts.headingBold, fontSize: 30, lineHeight: 35,
+    letterSpacing: -0.6, color: CoachColors.textPrimary,
   },
   subtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: Spacing['2xl'],
-    letterSpacing: 0.2,
+    fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 20,
+    color: CoachColors.textSecondary, marginTop: 10,
   },
 
-  // Auth Tabs
-  authTabs: {
-    flexDirection: 'row',
-    marginBottom: Spacing['2xl'],
-    gap: 24,
-  },
-  authTab: {
-    paddingBottom: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  authTabActive: {
-    borderBottomColor: '#FFFFFF',
-  },
-  authTabText: {
-    fontFamily: FontFamily.body,
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  authTabTextActive: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.bodySemiBold,
-  },
+  // Tabs
+  authTabs: { flexDirection: 'row', marginTop: 24, gap: 22, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
+  authTab: { paddingBottom: 11, borderBottomWidth: 2, borderBottomColor: 'transparent', marginBottom: -1 },
+  authTabActive: { borderBottomColor: CoachColors.accent },
+  authTabText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+  authTabTextActive: { color: CoachColors.textPrimary, fontFamily: CoachFonts.bodyBold },
 
   // Messages
-  messageBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: Spacing.lg,
-  },
-  errorText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: '#FF6B6B',
-    flex: 1,
-  },
-  successText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: '#4CAF50',
-    flex: 1,
-  },
+  messages: { marginTop: 18, gap: 8 },
+  messageRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8 },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.danger, flex: 1 },
+  successText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.accent, flex: 1 },
+  fieldError: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.danger, flex: 1 },
 
-  // Input
-  inputGroup: {
-    marginBottom: 28,
+  // Form
+  form: { marginTop: 22, gap: 16 },
+  field: {},
+  passwordLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 7 },
+  fieldLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 7 },
+  forgotText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent },
+  fieldBox: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 12, paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 13 : 4,
   },
-  inputLabel: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 8,
-  },
-  input: {
-    fontSize: 16,
-    fontFamily: FontFamily.body,
-    color: '#FFFFFF',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-  },
-  inputLine: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    marginTop: 2,
-  },
-  inputLineError: {
-    backgroundColor: '#FF4444',
-  },
-  inputHint: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-    marginTop: 8,
-  },
-  fieldError: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: '#FF6B6B',
-    marginTop: 6,
-  },
-
-  // Password
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-  },
-  eyeBtn: {
-    padding: 8,
-  },
+  fieldBoxError: { borderWidth: 1.5, borderColor: CoachColors.danger },
+  fieldHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginTop: 7 },
+  input: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, padding: 0 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  flex1: { flex: 1 },
 
   // OTP
-  otpInput: {
-    letterSpacing: 8,
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: 22,
+  otpRow: { flexDirection: 'row', gap: 9, marginTop: 24, position: 'relative' },
+  otpBox: {
+    flex: 1, aspectRatio: 1 / 1.25, backgroundColor: CoachColors.surface,
+    borderWidth: 1.5, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
   },
+  otpBoxFilled: { borderColor: CoachColors.border },
+  otpBoxActive: { borderColor: CoachColors.accent },
+  otpDigit: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  otpCursor: { width: 2, height: 24, backgroundColor: CoachColors.accent },
+  otpHiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%' },
+
+  resendRow: { alignItems: 'center', marginTop: 20 },
+  resendText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  resendLink: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textFaint },
 
   // Change phone
-  changeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: Spacing.lg,
-  },
-  changeText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-  },
+  changeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 22 },
+  changeText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
-  // Links
-  linkRow: {
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  linkText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  linkUnderline: {
-    fontFamily: FontFamily.bodySemiBold,
-    color: '#FFFFFF',
-    textDecorationLine: 'underline',
-  },
+  // Sticky footer
+  footer: { paddingHorizontal: 24, paddingTop: 18 },
 
-  // Forgot password
-  forgotText: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    color: '#FFFFFF',
-    textDecorationLine: 'underline',
+  primaryBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
   },
+  primaryBtnDisabled: { backgroundColor: CoachColors.borderMuted },
+  primaryBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.onAccent },
+  primaryBtnTextDisabled: { color: CoachColors.textFaint },
 
-  // Terms
   termsText: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    lineHeight: 18,
-    marginBottom: Spacing.xl,
-    marginTop: Spacing.sm,
+    fontFamily: CoachFonts.body, fontSize: 11.5, lineHeight: 17, color: CoachColors.textFaint,
+    marginTop: 14, textAlign: 'center',
   },
-  termsLink: {
-    textDecorationLine: 'underline',
-    color: 'rgba(255,255,255,0.6)',
-  },
-
-  // Submit
-  submitBtn: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.6)',
-    borderRadius: 4,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  submitBtnDisabled: {
-    opacity: 0.4,
-  },
-  submitText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 16,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-
-  // Toggle
-  toggleRow: {
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  toggleText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  toggleLink: {
-    fontFamily: FontFamily.bodySemiBold,
-    color: '#FFFFFF',
-    textDecorationLine: 'underline',
-  },
+  termsLink: { color: CoachColors.textSecondary, textDecorationLine: 'underline' },
 
   // Divider
-  dividerSection: {
-    marginTop: Spacing['2xl'],
-    gap: Spacing.lg,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  dividerText: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-  },
-  altMethodBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 4,
-    paddingVertical: 14,
-  },
-  altMethodText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: CoachColors.borderMuted },
+  dividerText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
 
-  // Client
-  clientRow: {
-    marginTop: Spacing['2xl'],
-    alignItems: 'center',
-    paddingBottom: Spacing.xl,
+  altMethodBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    paddingVertical: 13, marginTop: 16,
   },
-  clientText: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+  altMethodText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
+
+  footerLinkRow: {
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted,
+    marginTop: 18, textAlign: 'center',
   },
-  clientLink: {
-    fontFamily: FontFamily.bodySemiBold,
-    color: '#FFFFFF',
-    textDecorationLine: 'underline',
+  footerLinkStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
+
+  clientLinkRow: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint,
+    marginTop: 12, textAlign: 'center',
   },
+  clientLinkStrong: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textSecondary },
 });
