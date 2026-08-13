@@ -197,7 +197,7 @@ export default function ProgramDetailScreen() {
         <View style={s.hero}>
           <Image source={{ uri: program.heroImage }} style={s.heroImage} contentFit="cover" cachePolicy="memory-disk" transition={200} accessibilityLabel={`${program.title} hero image`} />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.85)', '#000']}
+            colors={['transparent', 'rgba(0,0,0,0.85)', CoachColors.bg]}
             locations={[0.3, 0.75, 1]}
             style={StyleSheet.absoluteFill}
           />
