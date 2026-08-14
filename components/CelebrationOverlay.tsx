@@ -14,7 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { CelebrationData } from '../hooks/useCelebrations';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { FontFamily } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { ClientRoute } from '../types/routes';
 
 interface CelebrationOverlayProps {
@@ -22,11 +22,20 @@ interface CelebrationOverlayProps {
   onDismiss: () => void;
 }
 
+// Single-accent confetti: accent at full/partial strength plus neutral text tones
+const PARTICLE_COLORS = [
+  CoachColors.accent,
+  CoachColors.accentSoft,
+  CoachColors.textPrimary,
+  CoachColors.accent,
+  CoachColors.textSecondary,
+];
+
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
   x: Math.sin(i * 0.7) * 150,
   y: -Math.cos(i * 0.5) * 170 - (i % 3) * 20,
-  color: ['#FFD700', '#4D94FF', '#FF6B6B', '#22C55E', '#FFFFFF'][i % 5],
+  color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
   size: 5 + (i % 3) * 3,
 }));
 
@@ -71,7 +80,7 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
     onDismiss();
     router.push({
       pathname: ClientRoute.myMessages as any,
-      params: { prefill: `Hey coach! I just unlocked a milestone: ${celebration.title} ⚡` },
+      params: { prefill: `Hey coach! I just unlocked a milestone: ${celebration.title}` },
     });
   };
 
@@ -91,32 +100,32 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
 
         <Animated.View style={[st.card, cardAnimStyle]}>
           <View style={st.cardInner}>
-            <Text style={st.headerTag}>ACHIEVEMENT UNLOCKED // MILESTONE</Text>
+            <Text style={st.headerTag}>Achievement unlocked</Text>
 
             {/* Badge Pill */}
             {celebration.badgeText && (
               <View style={st.badge}>
-                <Text style={st.badgeText}>{celebration.badgeText.toUpperCase()}</Text>
+                <Text style={st.badgeText}>{celebration.badgeText}</Text>
               </View>
             )}
 
             {/* Icon Box */}
             <View style={st.iconBox}>
-              <Ionicons name={celebration.icon as any || 'trophy-outline'} size={36} color="#FFD700" />
+              <Ionicons name={celebration.icon as any || 'trophy-outline'} size={36} color={CoachColors.accent} />
             </View>
 
             {/* Title & Subtitle */}
-            <Text style={st.title}>{celebration.title.toUpperCase()}</Text>
+            <Text style={st.title}>{celebration.title}</Text>
             <Text style={st.subtitle}>{celebration.subtitle}</Text>
 
             {/* CTA Buttons */}
             <View style={st.btnCol}>
               <TouchableOpacity style={st.shareBtn} activeOpacity={0.85} onPress={handleShareWithCoach}>
-                <Text style={st.shareBtnText}>SHARE WITH COACH →</Text>
+                <Text style={st.shareBtnText}>Share with coach</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={st.dismissBtn} activeOpacity={0.8} onPress={onDismiss}>
-                <Text style={st.dismissBtnText}>ACKNOWLEDGE</Text>
+                <Text style={st.dismissBtnText}>Dismiss</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -180,9 +189,9 @@ const st = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     borderRadius: 20,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     overflow: 'hidden',
   },
   cardInner: {
@@ -190,50 +199,52 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   headerTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 16,
+    textTransform: 'uppercase',
   },
   badge: {
-    backgroundColor: '#1A1500',
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#EAB308',
+    borderColor: CoachColors.accent,
     marginBottom: 16,
   },
   badgeText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#EAB308',
+    color: CoachColors.accent,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   iconBox: {
     width: 72,
     height: 72,
     borderRadius: 16,
-    backgroundColor: '#16140A',
+    backgroundColor: CoachColors.accentSofter,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 24,
@@ -243,17 +254,17 @@ const st = StyleSheet.create({
     gap: 10,
   },
   shareBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   shareBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#000000',
-    letterSpacing: 1.5,
+    color: CoachColors.onAccent,
+    letterSpacing: 0.5,
   },
   dismissBtn: {
     paddingVertical: 10,
@@ -261,9 +272,9 @@ const st = StyleSheet.create({
     justifyContent: 'center',
   },
   dismissBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },
 });

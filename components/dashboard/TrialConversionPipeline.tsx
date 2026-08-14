@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCountUp } from '../../hooks/useCountUp';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { PrecisionIcons } from '../icons/PrecisionIcons';
 
 interface Props {
@@ -18,23 +19,23 @@ export const TrialConversionPipeline: React.FC<Props> = ({ activeTrials, convers
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <PrecisionIcons.Activity size={16} color="#FF9F0A" />
-        <Text style={styles.title}>Trial Conversion Pipeline</Text>
+        <PrecisionIcons.Activity size={16} color={CoachColors.accent} />
+        <Text style={styles.title}>Trial conversion pipeline</Text>
       </View>
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
            <Text style={styles.statVal}>{displayTrials}</Text>
-           <Text style={styles.statLabel}>ACTIVE TRIALS</Text>
+           <Text style={styles.statLabel}>Active trials</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statBox}>
            <Text style={styles.statVal}>{displayConversions}</Text>
-           <Text style={styles.statLabel}>CONVERSIONS</Text>
+           <Text style={styles.statLabel}>Conversions</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statBox}>
            <Text style={styles.statVal}>{displayRate}%</Text>
-           <Text style={styles.statLabel}>WIN RATE</Text>
+           <Text style={styles.statLabel}>Win rate</Text>
         </View>
       </View>
     </View>
@@ -43,10 +44,10 @@ export const TrialConversionPipeline: React.FC<Props> = ({ activeTrials, convers
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
     padding: Spacing.lg,
     marginBottom: Spacing.xl,
   },
@@ -57,9 +58,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   statsRow: {
@@ -73,19 +74,20 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 30,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: Spacing.md,
   },
   statVal: {
-    fontFamily: FontFamily.mono,
+    fontFamily: CoachFonts.mono,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

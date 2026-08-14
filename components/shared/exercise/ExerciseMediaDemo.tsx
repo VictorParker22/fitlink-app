@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image as RNImage } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { proxyGifUrl } from '../../../lib/exercisedb';
-import { FontFamily, Radius, Spacing } from '../../../constants/theme';
+import { Radius, Spacing } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface ExerciseMediaDemoProps {
   imageUrl?: string;
@@ -45,8 +46,8 @@ export default function ExerciseMediaDemo({
             style={styles.watchVideoBtn} 
             onPress={() => onPlayVideo(videoUrl, exerciseName)}
           >
-            <Ionicons name="play-circle" size={18} color="#FFFFFF" />
-            <Text style={styles.watchVideoText}>Watch Demo Video</Text>
+            <Ionicons name="play-circle" size={18} color={CoachColors.textPrimary} />
+            <Text style={styles.watchVideoText}>Watch demo video</Text>
           </TouchableOpacity>
         </View>
       );
@@ -65,7 +66,7 @@ export default function ExerciseMediaDemo({
           onError={() => setFailedUrl(imageUrl)}
         />
         <View style={styles.gifOverlay}>
-          <Text style={styles.gifOverlayText}>ExerciseDB Demo</Text>
+          <Text style={styles.gifOverlayText}>ExerciseDB demo</Text>
         </View>
       </View>
     );
@@ -79,9 +80,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: Radius.md,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.borderMuted,
     marginBottom: Spacing.xl,
   },
   watchVideoBtn: {
@@ -90,14 +91,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
     alignSelf: 'flex-start',
   },
   watchVideoText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   gifWrapper: {
     width: '100%',
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   gifImage: {
     width: '100%',
@@ -124,8 +125,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gifOverlayText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
+    color: CoachColors.textPrimary,
   },
 });

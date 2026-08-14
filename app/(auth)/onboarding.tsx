@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily, Spacing, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -92,8 +92,8 @@ export default function OnboardingScreen() {
             resizeMode="contain"
           />
           <View style={styles.logoTextBlock}>
-            <Text style={styles.logoName}>FITLINK</Text>
-            <Text style={styles.logoTagline}>THE COACHING PLATFORM</Text>
+            <Text style={styles.logoName}>FitLink</Text>
+            <Text style={styles.logoTagline}>The coaching platform</Text>
           </View>
         </Animated.View>
 
@@ -130,7 +130,7 @@ export default function OnboardingScreen() {
 
         {/* Bottom fade into sheet */}
         <LinearGradient
-          colors={['transparent', '#000000']}
+          colors={['transparent', CoachColors.bg]}
           style={styles.bottomFade}
           pointerEvents="none"
         />
@@ -150,7 +150,7 @@ export default function OnboardingScreen() {
         ]}
       >
         {/* Section tag header */}
-        <Text style={styles.tagHeader}>// WHO ARE YOU?</Text>
+        <Text style={styles.tagHeader}>Who are you?</Text>
         <Text style={styles.sheetTitle}>Choose your path</Text>
 
         {/* Divider */}
@@ -165,14 +165,14 @@ export default function OnboardingScreen() {
           accessibilityLabel="I'm a trainer — set up your business"
         >
           {/* Icon block */}
-          <View style={[styles.roleIcon, { borderColor: '#C9A96E' }]}>
-            <Ionicons name="barbell-outline" size={20} color="#C9A96E" />
+          <View style={[styles.roleIcon, { borderColor: CoachColors.accent }]}>
+            <Ionicons name="barbell-outline" size={20} color={CoachColors.accent} />
           </View>
           <View style={styles.roleText}>
-            <Text style={styles.roleTitle}>I'M A TRAINER</Text>
+            <Text style={styles.roleTitle}>I'm a trainer</Text>
             <Text style={styles.roleSub}>Set up your business in 4 minutes</Text>
           </View>
-          <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.25)" />
+          <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
         </TouchableOpacity>
 
         <View style={styles.rowDivider} />
@@ -185,14 +185,14 @@ export default function OnboardingScreen() {
           accessibilityRole="button"
           accessibilityLabel="I'm a client — join or find a trainer"
         >
-          <View style={[styles.roleIcon, { borderColor: '#FFFFFF' }]}>
-            <Ionicons name="person-outline" size={20} color="#FFFFFF" />
+          <View style={[styles.roleIcon, { borderColor: CoachColors.textPrimary }]}>
+            <Ionicons name="person-outline" size={20} color={CoachColors.textPrimary} />
           </View>
           <View style={styles.roleText}>
-            <Text style={styles.roleTitle}>I'M A CLIENT</Text>
+            <Text style={styles.roleTitle}>I'm a client</Text>
             <Text style={styles.roleSub}>Join or find your trainer</Text>
           </View>
-          <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.25)" />
+          <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
         </TouchableOpacity>
 
         <View style={styles.rowDivider} />
@@ -205,8 +205,8 @@ export default function OnboardingScreen() {
           accessibilityRole="button"
           accessibilityLabel="Sign in to existing account"
         >
-          <Text style={styles.signInText}>I ALREADY HAVE AN ACCOUNT</Text>
-          <Ionicons name="log-in-outline" size={15} color="#C9A96E" style={{ marginLeft: 6 }} />
+          <Text style={styles.signInText}>I already have an account</Text>
+          <Ionicons name="log-in-outline" size={15} color={CoachColors.accent} style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -216,12 +216,12 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
 
   // ── TOP SECTION ──────────────────────────────
   topSection: {
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     overflow: 'hidden',
   },
 
@@ -235,22 +235,24 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 44,
     height: 44,
-    borderRadius: Radius.md,
+    borderRadius: 12,
   },
   logoTextBlock: {
     gap: 2,
   },
   logoName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 5,
+    textTransform: 'uppercase',
   },
   logoTagline: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 9,
-    color: '#C9A96E',
+    color: CoachColors.accent,
     letterSpacing: 2.5,
+    textTransform: 'uppercase',
   },
 
   // ── PHOTO CARDS ──────────────────────────────
@@ -265,10 +267,10 @@ const styles = StyleSheet.create({
   },
   photoCard: {
     width: CARD_W,
-    borderRadius: Radius.xs,
+    borderRadius: 4,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   cardLow: {
     height: SCREEN_HEIGHT * 0.23,
@@ -288,7 +290,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: '#C9A96E',
+    backgroundColor: CoachColors.accent,
   },
 
   // Fades into the dark bottom
@@ -303,31 +305,32 @@ const styles = StyleSheet.create({
   // ── BOTTOM SHEET ─────────────────────────────
   sheet: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
     paddingHorizontal: 24,
     paddingTop: 32,
   },
 
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#C9A96E',
+    color: CoachColors.accent,
     letterSpacing: 2.5,
     marginBottom: 10,
+    textTransform: 'uppercase',
   },
   sheetTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 30,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 28,
   },
 
   divider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginBottom: 0,
   },
 
@@ -341,9 +344,9 @@ const styles = StyleSheet.create({
   roleIcon: {
     width: 50,
     height: 50,
-    borderRadius: Radius.xs,
+    borderRadius: 4,
     borderWidth: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -352,21 +355,22 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   roleTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   roleSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.2,
   },
 
   rowDivider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
 
   // ── SIGN IN ──────────────────────────────────
@@ -377,14 +381,15 @@ const styles = StyleSheet.create({
     marginTop: 30,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
-    borderRadius: Radius.xs,
-    backgroundColor: '#0C0C0E',
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 4,
+    backgroundColor: CoachColors.surface,
   },
   signInText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
 });

@@ -1,25 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
-import { useTheme } from '../../context/ThemeContext';
-import Button from '../../components/Button';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-import type { ThemeColors } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getClientById, updateClient, plans } = useApp();
   const { showAlert } = useAlert();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const client = getClientById(id || '');
 
@@ -37,7 +32,14 @@ export default function EditClientScreen() {
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={styles.notFound}>Client not found</Text>
-          <Button title="Go Back" onPress={() => router.back()} variant="secondary" />
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.secondaryBtnText}>Go back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -65,9 +67,9 @@ export default function EditClientScreen() {
   };
 
   const statuses = [
-    { value: 'active', label: 'Active', color: colors.green },
-    { value: 'trial', label: 'Trial', color: colors.yellow },
-    { value: 'inactive', label: 'Inactive', color: colors.textTertiary },
+    { value: 'active', label: 'Active', color: CoachColors.accent },
+    { value: 'trial', label: 'Trial', color: CoachColors.warning },
+    { value: 'inactive', label: 'Inactive', color: CoachColors.textMuted },
   ] as const;
 
   return (
@@ -75,38 +77,46 @@ export default function EditClientScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Client</Text>
+          <Text style={styles.headerTitle}>Edit client</Text>
           <View style={{ width: 36 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>NAME *</Text>
-            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Client name" placeholderTextColor={colors.textTertiary} />
+            <Text style={styles.label}>Name *</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Client name" placeholderTextColor={CoachColors.textFaint} />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>EMAIL</Text>
-            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="email@example.com" placeholderTextColor={colors.textTertiary} keyboardType="email-address" autoCapitalize="none" />
+            <Text style={styles.label}>Email</Text>
+            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="email@example.com" placeholderTextColor={CoachColors.textFaint} keyboardType="email-address" autoCapitalize="none" />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>PHONE</Text>
-            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={colors.textTertiary} keyboardType="phone-pad" />
+            <Text style={styles.label}>Phone</Text>
+            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="(555) 123-4567" placeholderTextColor={CoachColors.textFaint} keyboardType="phone-pad" />
           </View>
 
           {/* Status */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>STATUS</Text>
+            <Text style={styles.label}>Status</Text>
             <View style={styles.statusRow}>
               {statuses.map((s) => (
                 <TouchableOpacity
                   key={s.value}
                   style={[styles.statusChip, status === s.value && { backgroundColor: `${s.color}18`, borderColor: `${s.color}40` }]}
                   onPress={() => setStatus(s.value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: status === s.value }}
+                  accessibilityLabel={`Set status ${s.label}`}
                 >
                   <View style={[styles.statusDot, { backgroundColor: s.color }]} />
                   <Text style={[styles.statusText, status === s.value && { color: s.color }]}>{s.label}</Text>
@@ -118,7 +128,7 @@ export default function EditClientScreen() {
           {/* Plan */}
           {plans.length > 0 && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>PLAN</Text>
+              <Text style={styles.label}>Plan</Text>
               <View style={styles.planGrid}>
                 <TouchableOpacity style={[styles.planChip, !selectedPlan && styles.planChipActive]} onPress={() => setSelectedPlan(null)}>
                   <Text style={[styles.planChipText, !selectedPlan && styles.planChipTextActive]}>None</Text>
@@ -133,51 +143,75 @@ export default function EditClientScreen() {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>GOALS</Text>
-            <TextInput style={[styles.input, styles.textArea]} value={goals} onChangeText={setGoals} placeholder="Client goals..." placeholderTextColor={colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
+            <Text style={styles.label}>Goals</Text>
+            <TextInput style={[styles.input, styles.textArea]} value={goals} onChangeText={setGoals} placeholder="Client goals..." placeholderTextColor={CoachColors.textFaint} multiline numberOfLines={3} textAlignVertical="top" />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>NOTES</Text>
-            <TextInput style={[styles.input, styles.textArea]} value={notes} onChangeText={setNotes} placeholder="Notes about this client..." placeholderTextColor={colors.textTertiary} multiline numberOfLines={3} textAlignVertical="top" />
+            <Text style={styles.label}>Notes</Text>
+            <TextInput style={[styles.input, styles.textArea]} value={notes} onChangeText={setNotes} placeholder="Notes about this client..." placeholderTextColor={CoachColors.textFaint} multiline numberOfLines={3} textAlignVertical="top" />
           </View>
 
-          <Button title="Save Changes" onPress={handleSave} loading={saving} full size="lg" />
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Save changes"
+          >
+            {saving
+              ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+              : <Text style={styles.saveBtnText}>Save changes</Text>
+            }
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'] },
-  notFound: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.md, color: colors.textSecondary, marginBottom: Spacing.lg },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  notFound: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textSecondary, marginBottom: 16 },
 
-  inputGroup: { marginBottom: Spacing.lg },
-  label: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary, letterSpacing: 0.8, marginBottom: 6 },
+  inputGroup: { marginBottom: 16 },
+  label: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' },
   input: {
-    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.borderStrong,
-    borderRadius: Radius.md, paddingVertical: 12, paddingHorizontal: 14,
-    fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textPrimary,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
+    fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
   },
   textArea: { minHeight: 80, paddingTop: 12 },
 
-  statusRow: { flexDirection: 'row', gap: Spacing.sm },
+  statusRow: { flexDirection: 'row', gap: 6 },
   statusChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: Radius.md,
-    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
+    paddingVertical: 10, borderRadius: 12,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary },
+  statusText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
 
-  planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  planChipActive: { backgroundColor: colors.accentSoft, borderColor: `${colors.accent}4D` },
-  planChipText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textSecondary },
-  planChipTextActive: { color: colors.accent },
+  planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  planChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  planChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary },
+  planChipTextActive: { color: CoachColors.accent },
+
+  saveBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 8,
+  },
+  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.onAccent },
+
+  secondaryBtn: {
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+  },
+  secondaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
 });

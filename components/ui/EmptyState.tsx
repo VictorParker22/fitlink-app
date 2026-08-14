@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 interface EmptyStateProps {
   /** Ionicons icon name */
@@ -28,7 +28,7 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <View style={s.container} accessible accessibilityRole="text">
-      <Ionicons name={icon} size={iconSize} color="rgba(255,255,255,0.15)" />
+      <Ionicons name={icon} size={iconSize} color={CoachColors.textFaint} />
       <Text style={s.title}>{title}</Text>
       {subtitle && <Text style={s.subtitle}>{subtitle}</Text>}
       {action && <View style={s.action}>{action}</View>}
@@ -45,16 +45,16 @@ const s = StyleSheet.create({
     paddingBottom: 100,
   },
   title: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginTop: 16,
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,

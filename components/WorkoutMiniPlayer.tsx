@@ -38,7 +38,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useWorkout, RUN_PHASES, TOTAL_RUN_DURATION } from '../context/WorkoutContext';
-import { FontFamily } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 // ─── Layout constants — must match _layout.tsx exactly ───────────────────────
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -67,14 +67,9 @@ function categoryLabel(category: string): string {
   return 'TRAINING';
 }
 
-/** Category → accent colour — matches the design system */
-function categoryColor(category: string): string {
-  const c = category?.toUpperCase() ?? '';
-  if (c.includes('RUN'))  return '#22C55E';  // green — cardio
-  if (c.includes('HIIT')) return '#F97316';  // orange — intensity
-  if (c.includes('YOGA') || c.includes('STRETCH')) return '#A855F7'; // purple — recovery
-  if (c.includes('CYCLE') || c.includes('SPIN'))   return '#3B82F6'; // blue — cycle
-  return '#5B7FFF';  // client blue — strength/general
+/** Category → accent colour — single lime accent across the design system */
+function categoryColor(_category: string): string {
+  return CoachColors.accent;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -156,7 +151,7 @@ function WorkoutMiniPlayer() {
           <Ionicons
             name={isPlaying ? 'pause' : 'play'}
             size={20}
-            color="#FFFFFF"
+            color={CoachColors.onAccent}
           />
         </TouchableOpacity>
 
@@ -195,7 +190,7 @@ function WorkoutMiniPlayer() {
             accessibilityLabel="End workout session"
             hitSlop={0}
           >
-            <Ionicons name="close" size={18} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="close" size={18} color={CoachColors.textMuted} />
           </TouchableOpacity>
         </View>
       </View>
@@ -224,10 +219,10 @@ const s = StyleSheet.create({
   // Outer shell — matches pill bar: same width, same surface, same border, same shadow
   shell: {
     width: BAR_WIDTH,
-    backgroundColor: 'rgba(12, 12, 14, 0.85)',   // matches bar's #0C0C0E, semi-transparent for blur
+    backgroundColor: CoachColors.surfaceRaised,   // semi-transparent surface for blur
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     marginBottom: 10,
     overflow: 'hidden',
     ...Platform.select({
@@ -246,7 +241,7 @@ const s = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 22,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: CoachColors.borderMuted,
     pointerEvents: 'none',
   },
 
@@ -301,7 +296,7 @@ const s = StyleSheet.create({
 
   // 9px — decorative; the 13pt title is the primary info carrier. HIG §17 intentional.
   phaseBadge: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
     letterSpacing: 1.5,
     flexShrink: 1,
@@ -309,17 +304,17 @@ const s = StyleSheet.create({
 
   // 13pt — HIG minimum for interactive text (primary info carrier)
   title: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
 
   // 11pt — HIG minimum; secondary info (instructor / phase metrics)
   subLine: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginTop: 1,
   },
 
@@ -333,15 +328,15 @@ const s = StyleSheet.create({
 
   // Elapsed — 13pt, tabular numbers would be ideal but FontFamily doesn't expose that
   timeDisplay: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.5,
   },
   timeSeparator: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },
 
@@ -357,7 +352,7 @@ const s = StyleSheet.create({
   // ── Progress bar — 3pt, full-bleed ──
   progressTrack: {
     height: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
   },
   progressFill: {
     height: '100%',

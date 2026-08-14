@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { FontFamily, FontSize, Radius, Spacing } from '../constants/theme';
+import { Radius, Spacing } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 interface CountdownTimerProps {
   targetDate: Date;
@@ -23,10 +24,10 @@ function getTimeRemaining(target: Date) {
   return { days, hours, minutes, seconds, totalHours, isExpired: diff === 0 };
 }
 
-function getUrgencyColor(totalHours: number, accentColor: string) {
-  if (totalHours <= 1) return '#EF4444';   // Red — imminent
-  if (totalHours <= 24) return '#F59E0B';  // Yellow — today
-  return '#22C55E';                         // Green — plenty of time
+function getUrgencyColor(totalHours: number) {
+  if (totalHours <= 1) return CoachColors.danger;   // imminent
+  if (totalHours <= 24) return CoachColors.warning; // today
+  return CoachColors.accent;                        // plenty of time
 }
 
 export default function CountdownTimer({
@@ -50,7 +51,7 @@ export default function CountdownTimer({
     };
   }, [targetDate.getTime()]);
 
-  const urgencyColor = getUrgencyColor(time.totalHours, accentColor);
+  const urgencyColor = getUrgencyColor(time.totalHours);
 
   const segments = [
     { value: time.days, label: 'DAYS' },
@@ -65,7 +66,7 @@ export default function CountdownTimer({
   if (time.isExpired) {
     return (
       <View style={[styles.expiredContainer, { backgroundColor: bgColor }]}>
-        <Text style={[styles.expiredText, { color: urgencyColor }]}>Session Starting!</Text>
+        <Text style={[styles.expiredText, { color: urgencyColor }]}>Session starting</Text>
       </View>
     );
   }
@@ -113,12 +114,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
     letterSpacing: -0.5,
   },
   segmentLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 8,
     letterSpacing: 0.5,
     marginTop: 4,
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   segmentSeparator: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
     marginTop: -4,
   },
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expiredText: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: FontSize.lg,
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 22,
   },
 });

@@ -26,7 +26,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
-import { FontFamily, Spacing, Radius } from '../../constants/theme';
+import { Spacing, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useHaptic } from '../../hooks/useHaptic';
 
 type HeroState = 'live_soon' | 'session_today' | 'trial_ending' | 'all_clear';
@@ -68,7 +69,7 @@ export default function CoachContextHeroCard() {
     let total = 0;
     plans.forEach(plan => {
       const subs = activeClients.filter(c => c.plan_id === plan.id).length;
-      total += Number(plan.price || 0) * subs * 0.9;
+      total += Number(plan.price || 0) * subs;
     });
     return Math.floor(total);
   }, [clients, plans]);
@@ -88,12 +89,12 @@ export default function CoachContextHeroCard() {
     if (soonLive) {
       return {
         state: 'live_soon',
-        eyebrow: '● Going live soon',
+        eyebrow: 'Going live soon',
         headline: soonLive.title,
         sub: `Starting ${getRelativeTime(soonLive.scheduled_for)} · Tap to enter the studio`,
         ctaLabel: 'Enter studio',
         ctaRoute: `/broadcast/${soonLive.id}`,
-        ctaColor: '#EF4444',
+        ctaColor: CoachColors.danger,
         ctaIcon: 'radio',
       };
     }
@@ -121,7 +122,7 @@ export default function CoachContextHeroCard() {
         sub: `Today · ${timeStr}${todaySessions.length > 1 ? ` · +${todaySessions.length - 1} more` : ''}`,
         ctaLabel: 'View schedule',
         ctaRoute: '/(tabs)/schedule',
-        ctaColor: '#6C9BF2',
+        ctaColor: CoachColors.accent,
         ctaIcon: 'calendar',
       };
     }
@@ -138,14 +139,14 @@ export default function CoachContextHeroCard() {
         : 0;
       return {
         state: 'trial_ending',
-        eyebrow: '⚡ Action required',
+        eyebrow: 'Action required',
         headline: trialClient.name,
         sub: daysLeft === 0
           ? 'Trial expires today · Follow up now'
           : `Trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} · Tap to review`,
         ctaLabel: 'Review client',
         ctaRoute: '/(tabs)/clients',
-        ctaColor: '#F59E0B',
+        ctaColor: CoachColors.warning,
         ctaIcon: 'time',
       };
     }
@@ -160,10 +161,15 @@ export default function CoachContextHeroCard() {
         : 'Start building your coaching business',
       ctaLabel: activeClients.length > 0 ? 'New workout' : 'Add client',
       ctaRoute: activeClients.length > 0 ? '/create-workout' : '/(tabs)/clients',
-      ctaColor: '#22C55E',
+      ctaColor: CoachColors.accent,
       ctaIcon: activeClients.length > 0 ? 'barbell' : 'person-add',
     };
   }, [liveClasses, sessions, clients, firstName, activeClients.length]);
+
+  // Dark ink reads best on accent/warning fills; light text on danger.
+  const ctaContentColor = hero.ctaColor === CoachColors.danger
+    ? CoachColors.textPrimary
+    : CoachColors.onAccent;
 
   return (
     <View style={s.root}>
@@ -174,7 +180,7 @@ export default function CoachContextHeroCard() {
         resizeMode="cover"
       />
       <LinearGradient
-        colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.75)', '#000000']}
+        colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.75)', CoachColors.bg]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -214,8 +220,8 @@ export default function CoachContextHeroCard() {
             {hero.state === 'live_soon' && <View style={s.liveDot} />}
             <Text style={[
               s.eyebrow,
-              hero.state === 'live_soon'  && { color: '#EF4444' },
-              hero.state === 'trial_ending' && { color: '#F59E0B' },
+              hero.state === 'live_soon'  && { color: CoachColors.danger },
+              hero.state === 'trial_ending' && { color: CoachColors.warning },
             ]}>
               {hero.eyebrow}
             </Text>
@@ -237,8 +243,8 @@ export default function CoachContextHeroCard() {
             }}
             activeOpacity={0.85}
           >
-            <Ionicons name={hero.ctaIcon as any} size={15} color="#FFFFFF" />
-            <Text style={s.ctaText}>{hero.ctaLabel}</Text>
+            <Ionicons name={hero.ctaIcon as any} size={15} color={ctaContentColor} />
+            <Text style={[s.ctaText, { color: ctaContentColor }]}>{hero.ctaLabel}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -258,7 +264,7 @@ const s = StyleSheet.create({
     width: '100%',
     minHeight: 320,
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   bgImage: {
     position: 'absolute',
@@ -288,29 +294,29 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: CoachColors.border,
   },
   avatarImg: { width: '100%', height: '100%' },
   avatarText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   topName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   topTagline: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },
 
@@ -319,15 +325,15 @@ const s = StyleSheet.create({
     alignItems: 'flex-end',
   },
   revenueAmount: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   revenueSub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.2,
     marginTop: 1,
   },
@@ -348,26 +354,27 @@ const s = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.danger,
   },
   eyebrow: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   headline: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     lineHeight: 34,
     marginBottom: 6,
   },
   sub: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -381,9 +388,8 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
   },
   ctaText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#FFFFFF',
     letterSpacing: 0.2,
   },
 });

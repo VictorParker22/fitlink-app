@@ -9,8 +9,8 @@ import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-import { getCategoryColor } from '../../data/categoryColors';
+import { Spacing, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const ClassVideoPlayer = ({ url }: { url: string }) => {
   const player = useVideoPlayer(url, (p) => {
@@ -50,21 +50,20 @@ export default function TrainerClassDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyState}>
-          <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.2)" />
-          <Text style={styles.emptyTitle}>CLASS NOT FOUND</Text>
+          <Ionicons name="videocam-outline" size={48} color={CoachColors.textFaint} />
+          <Text style={styles.emptyTitle}>Class not found</Text>
           <Text style={styles.emptySubtitle}>This class may have been deleted or doesn't exist.</Text>
         </View>
       </View>
     );
   }
 
-  const categoryColor = getCategoryColor(classItem.category);
-  const isExternalVideo = classItem.video_url?.includes('youtube.com') || 
-                          classItem.video_url?.includes('youtu.be') || 
+  const isExternalVideo = classItem.video_url?.includes('youtube.com') ||
+                          classItem.video_url?.includes('youtu.be') ||
                           classItem.video_url?.includes('vimeo.com') ||
                           classItem.video_url?.includes('instagram.com');
 
@@ -124,28 +123,28 @@ export default function TrainerClassDetailScreen() {
         {/* Custom Header Row */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{classItem.title.toUpperCase()}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{classItem.title}</Text>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => router.push(`/create-class?editId=${classItem.id}` as any)} 
-              style={styles.navBtn} 
+            <TouchableOpacity
+              onPress={() => router.push(`/create-class?editId=${classItem.id}` as any)}
+              style={styles.navBtn}
               accessibilityLabel="Edit"
             >
-              <Ionicons name="pencil" size={20} color="#FFFFFF" />
+              <Ionicons name="pencil" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
-              <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDelete} style={styles.navBtn} accessibilityLabel="Delete" disabled={deleting}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Ionicons name="trash-outline" size={20} color={CoachColors.danger} />
             </TouchableOpacity>
           </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
+
           {/* Media Header (Video or Thumbnail) */}
           <View style={styles.mediaContainer}>
             {classItem.video_url && !isExternalVideo ? (
@@ -154,28 +153,28 @@ export default function TrainerClassDetailScreen() {
               <View style={styles.thumbWrapper}>
                 <Image source={{ uri: classItem.thumbnail_url }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                 {isExternalVideo && (
-                  <TouchableOpacity 
-                    style={styles.playExternalOverlay} 
+                  <TouchableOpacity
+                    style={styles.playExternalOverlay}
                     onPress={() => Linking.openURL(classItem.video_url!)}
                     activeOpacity={0.8}
                   >
                     <View style={styles.playExternalIcon}>
                       <Ionicons name="play" size={32} color="#000000" />
                     </View>
-                    <Text style={styles.playExternalText}>Watch External Video</Text>
+                    <Text style={styles.playExternalText}>Watch external video</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ) : (
               <View style={styles.placeholderMedia}>
-                <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.3)" />
+                <Ionicons name="videocam-outline" size={48} color={CoachColors.textFaint} />
                 {isExternalVideo && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.externalLinkBtn}
                     onPress={() => Linking.openURL(classItem.video_url!)}
                   >
-                    <Ionicons name="open-outline" size={16} color="#FFFFFF" />
-                    <Text style={styles.externalLinkText}>Open Video Link</Text>
+                    <Ionicons name="open-outline" size={16} color={CoachColors.textPrimary} />
+                    <Text style={styles.externalLinkText}>Open video link</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -185,28 +184,28 @@ export default function TrainerClassDetailScreen() {
           {/* Main Info Section */}
           <View style={styles.infoSection}>
             <View style={styles.categoryBadgeRow}>
-              <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
-                <Text style={styles.categoryBadgeText}>{classItem.category.toUpperCase()}</Text>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryBadgeText}>{classItem.category}</Text>
               </View>
-              <View style={[styles.statusBadge, { borderColor: classItem.status === 'published' ? '#10B981' : '#9CA3AF' }]}>
-                <Text style={[styles.statusBadgeText, { color: classItem.status === 'published' ? '#10B981' : '#9CA3AF' }]}>
-                  {classItem.status.toUpperCase()}
+              <View style={[styles.statusBadge, { borderColor: classItem.status === 'published' ? CoachColors.accent : CoachColors.textMuted }]}>
+                <Text style={[styles.statusBadgeText, { color: classItem.status === 'published' ? CoachColors.accent : CoachColors.textMuted }]}>
+                  {classItem.status}
                 </Text>
               </View>
               {classItem.is_free ? (
                 <View style={styles.freeBadge}>
-                  <Text style={styles.freeBadgeText}>FREE PREVIEW</Text>
+                  <Text style={styles.freeBadgeText}>Free preview</Text>
                 </View>
               ) : (
                 <View style={styles.passBadge}>
-                  <Ionicons name="lock-closed" size={10} color="#FFD700" />
-                  <Text style={styles.passBadgeText}>SUBSCRIBERS ONLY</Text>
+                  <Ionicons name="lock-closed" size={10} color={CoachColors.warning} />
+                  <Text style={styles.passBadgeText}>Subscribers only</Text>
                 </View>
               )}
             </View>
 
             <Text style={styles.classTitle}>{classItem.title}</Text>
-            
+
             {classItem.description ? (
               <Text style={styles.classDesc}>{classItem.description}</Text>
             ) : null}
@@ -215,22 +214,22 @@ export default function TrainerClassDetailScreen() {
             <View style={styles.metricsContainer}>
               <View style={styles.metricItem}>
                 <Text style={styles.metricValue}>{classItem.duration_minutes}</Text>
-                <Text style={styles.metricLabel}>MINUTES</Text>
+                <Text style={styles.metricLabel}>Minutes</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>{classItem.difficulty.toUpperCase()}</Text>
-                <Text style={styles.metricLabel}>LEVEL</Text>
+                <Text style={styles.metricValue}>{classItem.difficulty}</Text>
+                <Text style={styles.metricLabel}>Level</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
                 <Text style={styles.metricValue}>{classItem.take_count || 0}</Text>
-                <Text style={styles.metricLabel}>TOTAL TAKES</Text>
+                <Text style={styles.metricLabel}>Total takes</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
                 <Text style={styles.metricValue}>{(classItem.avg_rating || 0).toFixed(1)} ★</Text>
-                <Text style={styles.metricLabel}>RATING</Text>
+                <Text style={styles.metricLabel}>Rating</Text>
               </View>
             </View>
           </View>
@@ -240,14 +239,14 @@ export default function TrainerClassDetailScreen() {
           {/* Linked Workout Section */}
           {linkedWorkout && (
             <View style={styles.sectionWrap}>
-              <Text style={styles.tagHeader}>LINKED WORKOUT ROUTINE</Text>
-              <TouchableOpacity 
+              <Text style={styles.tagHeader}>Linked workout routine</Text>
+              <TouchableOpacity
                 style={styles.workoutCard}
                 onPress={() => router.push(`/workout/${linkedWorkout.id}` as any)}
                 activeOpacity={0.7}
               >
                 <View style={styles.workoutIconWrap}>
-                  <Ionicons name="barbell" size={20} color="#FFFFFF" />
+                  <Ionicons name="barbell" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.workoutTitle}>{linkedWorkout.name}</Text>
@@ -255,7 +254,7 @@ export default function TrainerClassDetailScreen() {
                     {linkedWorkout.workout_exercises?.length || 0} Exercises • Tap to view structure
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+                <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
               </TouchableOpacity>
             </View>
           )}
@@ -264,7 +263,7 @@ export default function TrainerClassDetailScreen() {
           <View style={styles.sectionWrap}>
             {classItem.equipment && classItem.equipment.length > 0 && (
               <View style={{ marginBottom: Spacing.xl }}>
-                <Text style={styles.tagHeader}>EQUIPMENT REQUIRED</Text>
+                <Text style={styles.tagHeader}>Equipment required</Text>
                 <View style={styles.chipRow}>
                   {classItem.equipment.map((eq, i) => (
                     <View key={i} style={styles.chip}>
@@ -277,11 +276,11 @@ export default function TrainerClassDetailScreen() {
 
             {classItem.tags && classItem.tags.length > 0 && (
               <View>
-                <Text style={styles.tagHeader}>TAGS</Text>
+                <Text style={styles.tagHeader}>Tags</Text>
                 <View style={styles.chipRow}>
                   {classItem.tags.map((tag, i) => (
                     <View key={i} style={styles.tagChip}>
-                      <Text style={styles.tagChipText}>#{tag.toUpperCase()}</Text>
+                      <Text style={styles.tagChipText}>#{tag}</Text>
                     </View>
                   ))}
                 </View>
@@ -291,19 +290,19 @@ export default function TrainerClassDetailScreen() {
 
           {/* Watch Time & Stats Breakdown */}
           <View style={styles.sectionWrap}>
-            <Text style={styles.tagHeader}>ANALYTICS & CONSUMPTION</Text>
+            <Text style={styles.tagHeader}>Analytics and consumption</Text>
             <View style={styles.statsCard}>
               <View style={styles.statRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="time-outline" size={18} color="#FFD700" />
-                  <Text style={styles.statLabel}>Total Watch Time</Text>
+                  <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
+                  <Text style={styles.statLabel}>Total watch time</Text>
                 </View>
                 <Text style={styles.statValue}>{classItem.total_watch_minutes || 0} mins</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="people-outline" size={18} color="#10B981" />
+                  <Ionicons name="people-outline" size={18} color={CoachColors.accent} />
                   <Text style={styles.statLabel}>Completions</Text>
                 </View>
                 <Text style={styles.statValue}>{classItem.take_count || 0}</Text>
@@ -318,15 +317,15 @@ export default function TrainerClassDetailScreen() {
         {classItem.status === 'draft' && (
           <View style={[styles.bottomCTAWrapper, { paddingBottom: insets.bottom || Spacing.xl }]}>
             <TouchableOpacity
-              style={[styles.publishBtn, { backgroundColor: categoryColor }]}
+              style={styles.publishBtn}
               onPress={handleTogglePublish}
               disabled={publishing}
               activeOpacity={0.85}
             >
               {publishing ? (
-                <ActivityIndicator color="#000000" />
+                <ActivityIndicator color={CoachColors.onAccent} />
               ) : (
-                <Text style={styles.publishBtnText}>PUBLISH CLASS NOW</Text>
+                <Text style={styles.publishBtnText}>Publish class now</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -339,7 +338,7 @@ export default function TrainerClassDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   headerRow: {
     flexDirection: 'row',
@@ -348,16 +347,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
   },
   navBtn: {
     padding: 8,
   },
   headerTitle: {
     flex: 1,
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginHorizontal: 12,
     letterSpacing: 1,
@@ -373,16 +372,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginTop: 16,
     letterSpacing: 1,
   },
   emptySubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -395,9 +394,9 @@ const styles = StyleSheet.create({
   mediaContainer: {
     width: '100%',
     height: 220,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: '#000000', // video letterbox area — stays black behind footage
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
   },
   videoPlayer: {
     width: '100%',
@@ -408,6 +407,7 @@ const styles = StyleSheet.create({
     height: '100%',
     position: 'relative',
   },
+  // Overlay on top of thumbnail imagery — keeps black scrim + white text
   playExternalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   playExternalText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
     color: '#FFFFFF',
     letterSpacing: 1,
@@ -443,12 +443,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.xs,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
   },
   externalLinkText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
   // Info
@@ -468,12 +468,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Radius.xs,
+    backgroundColor: CoachColors.accent,
   },
   categoryBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -482,48 +484,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   freeBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
   },
   freeBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#10B981',
+    color: CoachColors.accent,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   passBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: CoachColors.warningSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
   },
   passBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: '#FFD700',
+    color: CoachColors.warning,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   classTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   classDesc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     lineHeight: 20,
     marginBottom: Spacing.lg,
   },
@@ -533,9 +538,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.xs,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
@@ -546,26 +551,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metricValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   metricLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 8,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   metricDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.border,
   },
 
   dividerLine: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: Spacing.lg,
   },
 
@@ -574,20 +580,21 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   tagHeader: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: Spacing.md,
+    textTransform: 'uppercase',
   },
 
   // Workout Card
   workoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.xs,
     padding: Spacing.md,
     gap: 12,
@@ -596,20 +603,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.xs,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   workoutTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   workoutSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
 
   // Chips
@@ -619,35 +626,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: Radius.xs,
   },
   chipText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   tagChip: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.accentSofter,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: Radius.xs,
   },
   tagChipText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
 
   // Stats Card
   statsCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.xs,
     padding: Spacing.md,
   },
@@ -658,18 +665,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
   statValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   statDivider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: 10,
   },
 
@@ -681,20 +688,21 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.border,
   },
   publishBtn: {
     height: 48,
     borderRadius: Radius.xs,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
   },
   publishBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
 });

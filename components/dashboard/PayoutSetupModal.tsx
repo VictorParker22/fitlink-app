@@ -9,7 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { FontFamily, Spacing, Radius } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -70,7 +71,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
       await Linking.openURL(data.url);
       transitionTo(2);
     } catch (err: any) {
-      Alert.alert('Setup Error', err.message || 'Failed to start payment setup');
+      Alert.alert('Setup error', err.message || 'Failed to start payment setup');
     } finally {
       setLoading(false);
     }
@@ -103,7 +104,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
+            <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -119,11 +120,11 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Bottom content */}
         <View style={styles.bottomContent}>
           <View style={styles.iconBadge}>
-            <Ionicons name="wallet-outline" size={28} color="#C9A96E" />
+            <Ionicons name="wallet-outline" size={28} color={CoachColors.accent} />
           </View>
 
-          <Text style={styles.screenTag}>// PAYOUTS</Text>
-          <Text style={styles.screenTitle}>Get Paid for{'\n'}Your Work</Text>
+          <Text style={styles.screenTag}>Payouts</Text>
+          <Text style={styles.screenTitle}>Get paid for{'\n'}your work</Text>
 
           <Text style={styles.screenBody}>
             FitLink partners with Stripe — the world's most trusted payment platform — to handle all your payouts securely.
@@ -134,13 +135,13 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           </Text>
 
           <View style={styles.trustRow}>
-            <Ionicons name="lock-closed" size={14} color="#C9A96E" />
+            <Ionicons name="lock-closed" size={14} color={CoachColors.accent} />
             <Text style={styles.trustText}>Your financial data stays with Stripe, not us</Text>
           </View>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={18} color="#000000" style={{ marginLeft: 8 }} />
+            <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       </View>
@@ -168,7 +169,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -193,7 +194,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             />
           </View>
 
-          <Text style={styles.screenTitle}>Secure Payment{'\n'}Connection</Text>
+          <Text style={styles.screenTitle}>Secure payment{'\n'}connection</Text>
 
           <Text style={styles.screenBody}>
             You'll be redirected to Stripe's secure portal to verify your identity and connect your bank account. This is a one-time setup.
@@ -203,25 +204,25 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           <View style={styles.bulletGroup}>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="shield-checkmark" size={16} color="#22C55E" />
+                <Ionicons name="shield-checkmark" size={16} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Bank-level 256-bit encryption</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="business-outline" size={16} color="#6C9BF2" />
+                <Ionicons name="business-outline" size={16} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Trusted by millions of businesses worldwide</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="flash" size={16} color="#C9A96E" />
+                <Ionicons name="flash" size={16} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Fast payouts directly to your bank account</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="eye-off-outline" size={16} color="#A855F7" />
+                <Ionicons name="eye-off-outline" size={16} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>FitLink never sees your banking details</Text>
             </View>
@@ -235,10 +236,10 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={CoachColors.textPrimary} />
             ) : (
               <>
-                <Ionicons name="card-outline" size={18} color="#FFFFFF" style={{ marginRight: 10 }} />
+                <Ionicons name="card-outline" size={18} color={CoachColors.textPrimary} style={{ marginRight: 10 }} />
                 <Text style={styles.stripeConnectText}>Connect with Stripe</Text>
               </>
             )}
@@ -256,12 +257,12 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
   //  STEP 2 — Pricing Breakdown
   // ════════════════════════════════════════════
   const renderStep2 = () => (
-    <View style={[styles.fullScreen, { backgroundColor: '#000000' }]}>
+    <View style={[styles.fullScreen, { backgroundColor: CoachColors.bg }]}>
       <View style={[styles.screenContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -282,12 +283,12 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* No Subscription */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Subscription Fee?</Text>
+            <Text style={styles.dividerText}>Subscription fee?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingCardTitle}>No Flat Subscription</Text>
+            <Text style={styles.pricingCardTitle}>No flat subscription</Text>
             <Text style={styles.pricingCardBody}>
               We offer complete flexibility with no subscription fee. You only pay when you earn from your training sessions. Perfect for businesses with seasonal schedules or those just starting out.
             </Text>
@@ -296,18 +297,18 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* Payment Service Fee */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Payment Service Fee?</Text>
+            <Text style={styles.dividerText}>Payment service fee?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingCardTitle}>No Payment Service Fee</Text>
+            <Text style={styles.pricingCardTitle}>No payment service fee</Text>
             <Text style={styles.pricingCardBody}>
               Rest easy knowing your payments are protected by Stripe, a globally trusted platform. Simple, transparent rates with no hidden fees.
             </Text>
 
             <View style={styles.feeDetailRow}>
-              <Text style={styles.feeLabel}>Service Fee: Free for you</Text>
+              <Text style={styles.feeLabel}>Service fee: free for you</Text>
             </View>
             <View style={styles.feeDivider} />
             <View style={styles.feeDetailRow}>
@@ -332,16 +333,16 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* Cost When Not Earning */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Cost When Not Earning?</Text>
+            <Text style={styles.dividerText}>Cost when not earning?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
             <View style={styles.freeHeader}>
               <View style={styles.freePill}>
-                <Text style={styles.freePillText}>FREE</Text>
+                <Text style={styles.freePillText}>Free</Text>
               </View>
-              <Text style={styles.freeTitle}>Always Free. $0.00 / mo</Text>
+              <Text style={styles.freeTitle}>Always free. $0.00 / mo</Text>
             </View>
             <Text style={styles.pricingCardBody}>
               We support all forms of success — whether you're earning or giving back to your community. FitLink is completely free when offering community classes, running charity events, providing pro-bono training, or during seasonal breaks.
@@ -350,8 +351,8 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
 
           {/* Done button */}
           <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Got it — Let's Go!</Text>
-            <Ionicons name="rocket-outline" size={18} color="#000000" style={{ marginLeft: 8 }} />
+            <Text style={styles.primaryBtnText}>Got it</Text>
+            <Ionicons name="rocket-outline" size={18} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
 
           <View style={{ height: 32 }} />
@@ -377,7 +378,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
 const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
 
   // ── Background ──
@@ -425,10 +426,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
   },
   stepDotActive: {
-    backgroundColor: '#C9A96E',
+    backgroundColor: CoachColors.accent,
     width: 28,
   },
 
@@ -442,9 +443,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(201,169,110,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(201,169,110,0.25)',
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,       // 8pt: icon → tag
@@ -452,24 +453,25 @@ const styles = StyleSheet.create({
 
   // ── Typography ──
   screenTag: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#C9A96E',
+    color: CoachColors.accent,
     letterSpacing: 2.5,
     marginBottom: 8,        // 8pt: tag → title
+    textTransform: 'uppercase',
   },
   screenTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     lineHeight: 38,
     marginBottom: 24,       // 8pt: title → body
   },
   screenBody: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     lineHeight: 23,         // 1.53× for readability
     marginBottom: 16,       // 8pt: paragraph gap
   },
@@ -479,24 +481,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(201,169,110,0.08)',
+    backgroundColor: CoachColors.accentSofter,
     borderWidth: 1,
-    borderColor: 'rgba(201,169,110,0.15)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 32,       // 8pt: trust → button
   },
   trustText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     flex: 1,
   },
 
-  // ── Primary button (gold) ──
+  // ── Primary button (accent) ──
   primaryBtn: {
-    backgroundColor: '#C9A96E',
+    backgroundColor: CoachColors.accent,
     borderRadius: Radius.xs,
     paddingVertical: 16,
     alignItems: 'center',
@@ -505,9 +507,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },
 
@@ -515,9 +517,9 @@ const styles = StyleSheet.create({
   stripeBadgeLarge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -525,9 +527,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,       // 8pt: badge → title
   },
   stripeBadgeLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   stripeLogoImg: {
     width: 48,
@@ -548,14 +550,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bulletText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
     flex: 1,
   },
 
@@ -570,9 +572,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   stripeConnectText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
 
@@ -583,9 +585,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   skipText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     textDecorationLine: 'underline',
   },
 
@@ -595,9 +597,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   pricingTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 34,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 32,       // 8pt: title → first section
   },
   dividerLabel: {
@@ -609,31 +611,31 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
   dividerText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
   pricingCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
     padding: 20,            // 8pt: comfortable card padding
     marginBottom: 32,       // 8pt: card-to-section gap
   },
   pricingCardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 16,       // 8pt: title → body
   },
   pricingCardBody: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -641,25 +643,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   feeLabel: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   feeSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   feeDivider: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
 
   // ── Stripe mini badge ──
   stripeMini: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.bg,
     borderRadius: Radius.xs,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -667,9 +669,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   stripeMiniPrefix: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   stripeMiniLogo: {
     width: 40,
@@ -684,21 +686,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   freePill: {
-    backgroundColor: '#22C55E',
+    backgroundColor: CoachColors.accent,
     borderRadius: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   freePillText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   freeTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     flex: 1,
   },
 });

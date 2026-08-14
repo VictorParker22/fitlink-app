@@ -6,7 +6,7 @@
  *     path cancels the old session and creates the new one in a single tap.
  *   • Six reason pills drive UX branching. Each reason has its own color/icon.
  *   • Reanimated 3 slide-up + backdrop fade (no external bottom-sheet lib needed).
- *   • Follows #0D0D12 / #C8F135 design system exactly.
+ *   • Follows the fixed-dark CoachColors token system.
  */
 
 import React, { useCallback, useState, useEffect } from 'react';
@@ -30,7 +30,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useApp } from '../../context/AppContext';
 
 const { height: H } = Dimensions.get('window');
@@ -58,12 +58,12 @@ export interface CancelSessionSheetProps {
 // ─── Reason config ───────────────────────────────────────────────────────────
 
 const REASONS = [
-  { id: 'reschedule',  label: 'Reschedule it',          icon: 'calendar-outline',        color: '#C8F135' },
-  { id: 'client',      label: 'Client cancelled',        icon: 'person-remove-outline',   color: '#60A5FA' },
-  { id: 'coach',       label: 'Coach unavailable',       icon: 'ban-outline',             color: '#F59E0B' },
-  { id: 'emergency',   label: 'Emergency',               icon: 'warning-outline',         color: '#EF4444' },
-  { id: 'happened',    label: 'Already happened',        icon: 'checkmark-circle-outline',color: '#22C55E' },
-  { id: 'other',       label: 'Other reason',            icon: 'ellipsis-horizontal',     color: '#A78BFA' },
+  { id: 'reschedule',  label: 'Reschedule it',          icon: 'calendar-outline',        color: CoachColors.accent },
+  { id: 'client',      label: 'Client cancelled',        icon: 'person-remove-outline',   color: CoachColors.textSecondary },
+  { id: 'coach',       label: 'Coach unavailable',       icon: 'ban-outline',             color: CoachColors.warning },
+  { id: 'emergency',   label: 'Emergency',               icon: 'warning-outline',         color: CoachColors.danger },
+  { id: 'happened',    label: 'Already happened',        icon: 'checkmark-circle-outline',color: CoachColors.accent },
+  { id: 'other',       label: 'Other reason',            icon: 'ellipsis-horizontal',     color: CoachColors.textSecondary },
 ] as const;
 
 type ReasonId = typeof REASONS[number]['id'];
@@ -270,10 +270,10 @@ export default function CancelSessionSheet({
                     <Ionicons
                       name={r.icon as any}
                       size={17}
-                      color={active ? r.color : 'rgba(255,255,255,0.35)'}
+                      color={active ? r.color : CoachColors.textMuted}
                     />
                   </View>
-                  <Text style={[s.reasonLabel, active && { color: '#FFFFFF' }]}>
+                  <Text style={[s.reasonLabel, active && { color: CoachColors.textPrimary }]}>
                     {r.label}
                   </Text>
                   {active && (
@@ -289,7 +289,7 @@ export default function CancelSessionSheet({
             <View style={s.rescheduleBlock}>
               {/* Callout */}
               <View style={s.callout}>
-                <Ionicons name="flash" size={13} color="#C8F135" />
+                <Ionicons name="flash" size={13} color={CoachColors.accent} />
                 <Text style={s.calloutText}>
                   No cancel & rebook — we'll move it in one tap.
                 </Text>
@@ -364,10 +364,10 @@ export default function CancelSessionSheet({
                 accessibilityLabel={rescheduleCTALabel}
               >
                 {loading ? (
-                  <ActivityIndicator size="small" color="#0D0D12" />
+                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
                 ) : (
                   <>
-                    <Ionicons name="calendar" size={17} color="#0D0D12" />
+                    <Ionicons name="calendar" size={17} color={CoachColors.onAccent} />
                     <Text style={s.rescheduleCTAText} numberOfLines={1}>
                       {rescheduleCTALabel}
                     </Text>
@@ -388,11 +388,11 @@ export default function CancelSessionSheet({
               accessibilityLabel="Cancel this session"
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#EF4444" />
+                <ActivityIndicator size="small" color={CoachColors.danger} />
               ) : (
                 <>
-                  <Ionicons name="close-circle" size={17} color="#EF4444" />
-                  <Text style={s.cancelCTAText}>Cancel This Session</Text>
+                  <Ionicons name="close-circle" size={17} color={CoachColors.danger} />
+                  <Text style={s.cancelCTAText}>Cancel this session</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -426,11 +426,11 @@ const s = StyleSheet.create({
     bottom:               0,
     left:                 0,
     right:                0,
-    backgroundColor:      '#111118',
+    backgroundColor:      CoachColors.surface,
     borderTopLeftRadius:  28,
     borderTopRightRadius: 28,
     borderWidth:          1,
-    borderColor:          'rgba(255,255,255,0.08)',
+    borderColor:          CoachColors.border,
     paddingBottom:        Platform.OS === 'ios' ? 44 : 28,
     maxHeight:            H * 0.92,
     // Shadow
@@ -444,7 +444,7 @@ const s = StyleSheet.create({
     width:           38,
     height:          4,
     borderRadius:    2,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: CoachColors.border,
     alignSelf:       'center',
     marginTop:       12,
     marginBottom:    6,
@@ -454,19 +454,19 @@ const s = StyleSheet.create({
     paddingTop:        16,
     paddingBottom:     20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   headerTitle: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.056,
-    color:         '#FFFFFF',
+    color:         CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom:  5,
   },
   headerSub: {
-    fontFamily:  FontFamily.body,
+    fontFamily:  CoachFonts.body,
     fontSize:    W * 0.033,
-    color:       'rgba(255,255,255,0.42)',
+    color:       CoachColors.textMuted,
     lineHeight:  W * 0.048,
   },
   scrollContent: {
@@ -484,8 +484,8 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     borderRadius:    14,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor:     CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
     minHeight:       52,
   },
   reasonIconBg: {
@@ -497,18 +497,18 @@ const s = StyleSheet.create({
     flexShrink:    0,
   },
   reasonLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize:   W * 0.038,
-    color:      'rgba(255,255,255,0.55)',
+    color:      CoachColors.textSecondary,
     flex:       1,
   },
   // ── Reschedule block ─────────────────────────────────────────────────────
   rescheduleBlock: {
     marginTop:       20,
-    backgroundColor: 'rgba(200,241,53,0.04)',
+    backgroundColor: CoachColors.accentSofter,
     borderRadius:    18,
     borderWidth:     1,
-    borderColor:     'rgba(200,241,53,0.18)',
+    borderColor:     CoachColors.accentSoft,
     padding:         16,
   },
   callout: {
@@ -518,16 +518,16 @@ const s = StyleSheet.create({
     marginBottom:   18,
   },
   calloutText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize:   W * 0.032,
-    color:      '#C8F135',
+    color:      CoachColors.accent,
     flex:       1,
     lineHeight: W * 0.045,
   },
   sectionLabel: {
-    fontFamily:     FontFamily.bodyBold,
+    fontFamily:     CoachFonts.bodyBold,
     fontSize:       W * 0.027,
-    color:          'rgba(255,255,255,0.38)',
+    color:          CoachColors.textMuted,
     letterSpacing:  1.2,
     textTransform:  'uppercase',
     marginBottom:   10,
@@ -538,37 +538,37 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor:     CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg,
     alignItems:      'center',
     gap:             2,
     minHeight:       68,
     justifyContent:  'center',
   },
   dayChipActive: {
-    backgroundColor: '#C8F135',
-    borderColor:     '#C8F135',
+    backgroundColor: CoachColors.accent,
+    borderColor:     CoachColors.accent,
   },
   dayChipTextActive: {
-    color: '#0D0D12',
+    color: CoachColors.onAccent,
   },
   dayChipWeekday: {
-    fontFamily:    FontFamily.bodyBold,
+    fontFamily:    CoachFonts.bodyBold,
     fontSize:      9,
-    color:         'rgba(255,255,255,0.42)',
+    color:         CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   dayChipNum: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize:   W * 0.046,
-    color:      '#FFFFFF',
+    color:      CoachColors.textPrimary,
     lineHeight: W * 0.056,
   },
   dayChipMonth: {
-    fontFamily:    FontFamily.body,
+    fontFamily:    CoachFonts.body,
     fontSize:      9,
-    color:         'rgba(255,255,255,0.36)',
+    color:         CoachColors.textMuted,
     textTransform: 'uppercase',
   },
   timeChip: {
@@ -576,20 +576,20 @@ const s = StyleSheet.create({
     paddingVertical:   10,
     borderRadius:      10,
     borderWidth:       1,
-    borderColor:       'rgba(255,255,255,0.1)',
-    backgroundColor:   'rgba(255,255,255,0.04)',
+    borderColor:       CoachColors.borderMuted,
+    backgroundColor:   CoachColors.bg,
     alignItems:        'center',
     minHeight:         44,
     justifyContent:    'center',
   },
   timeChipActive: {
-    backgroundColor: '#C8F135',
-    borderColor:     '#C8F135',
+    backgroundColor: CoachColors.accent,
+    borderColor:     CoachColors.accent,
   },
   timeChipText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize:   W * 0.034,
-    color:      'rgba(255,255,255,0.65)',
+    color:      CoachColors.textSecondary,
   },
   // ── CTAs ─────────────────────────────────────────────────────────────────
   rescheduleCTA: {
@@ -600,16 +600,16 @@ const s = StyleSheet.create({
     marginTop:      18,
     paddingVertical:15,
     borderRadius:   14,
-    backgroundColor:'#C8F135',
+    backgroundColor:CoachColors.accent,
     minHeight:      52,
   },
   ctaDisabled: {
     opacity: 0.35,
   },
   rescheduleCTAText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize:   W * 0.036,
-    color:      '#0D0D12',
+    color:      CoachColors.onAccent,
     flexShrink: 1,
   },
   cancelCTA: {
@@ -620,15 +620,15 @@ const s = StyleSheet.create({
     marginTop:      20,
     paddingVertical:14,
     borderRadius:   14,
-    backgroundColor:'rgba(239,68,68,0.1)',
+    backgroundColor:CoachColors.dangerSoft,
     borderWidth:    1,
-    borderColor:    'rgba(239,68,68,0.28)',
+    borderColor:    CoachColors.danger,
     minHeight:      52,
   },
   cancelCTAText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize:   W * 0.038,
-    color:      '#EF4444',
+    color:      CoachColors.danger,
   },
   keepBtn: {
     alignItems:      'center',
@@ -636,8 +636,8 @@ const s = StyleSheet.create({
     minHeight:       56,
   },
   keepText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize:   W * 0.036,
-    color:      'rgba(255,255,255,0.3)',
+    color:      CoachColors.textMuted,
   },
 });

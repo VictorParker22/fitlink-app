@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import RenderHtml from 'react-native-render-html';
 import { supabase } from '../../../lib/supabase';
-import { FontFamily, Radius, Spacing } from '../../../constants/theme';
+import { Radius, Spacing } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useAlert } from '../../../context/AlertContext';
 
 const { width } = Dimensions.get('window');
@@ -56,7 +57,7 @@ export default function ExerciseInstructions({
     
     const plainText = stripHtml(instructionText);
     if (!plainText) {
-      showAlert({ type: 'info', title: 'No Instructions', message: 'This exercise has no instructions to read aloud yet.' });
+      showAlert({ type: 'info', title: 'No instructions', message: 'This exercise has no instructions to read aloud yet.' });
       return;
     }
     
@@ -89,7 +90,7 @@ export default function ExerciseInstructions({
       });
     } catch (err: any) {
       console.error('TTS error:', err);
-      showAlert({ type: 'error', title: 'Voice Error', message: String(err?.message || 'Could not generate voice audio') });
+      showAlert({ type: 'error', title: 'Voice error', message: String(err?.message || 'Could not generate voice audio') });
     } finally {
       setIsLoadingAudio(false);
     }
@@ -106,12 +107,12 @@ export default function ExerciseInstructions({
           disabled={isLoadingAudio}
         >
           {isLoadingAudio ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={CoachColors.onAccent} />
           ) : (
-            <Ionicons 
-              name={isSpeaking ? 'stop-circle' : 'volume-high'} 
-              size={18} 
-              color={(isSpeaking || isLoadingAudio) ? '#FFFFFF' : '#FF6B35'} 
+            <Ionicons
+              name={isSpeaking ? 'stop-circle' : 'volume-high'}
+              size={18}
+              color={(isSpeaking || isLoadingAudio) ? CoachColors.onAccent : CoachColors.accent}
             />
           )}
           <Text style={[styles.voiceBtnText, (isSpeaking || isLoadingAudio) && styles.voiceBtnTextActive]}>
@@ -124,9 +125,9 @@ export default function ExerciseInstructions({
           onPress={() => setShowText(!showText)}
           activeOpacity={0.7}
         >
-          <Ionicons name={showText ? 'eye-off-outline' : 'document-text-outline'} size={16} color="rgba(255,255,255,0.5)" />
+          <Ionicons name={showText ? 'eye-off-outline' : 'document-text-outline'} size={16} color={CoachColors.textSecondary} />
           <Text style={styles.showTextBtnText}>
-            {showText ? 'Hide Text' : 'Read Instructions'}
+            {showText ? 'Hide text' : 'Read instructions'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -179,21 +180,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,107,53,0.1)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.2)',
+    borderColor: CoachColors.border,
   },
   voiceBtnActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
   voiceBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#FF6B35',
+    color: CoachColors.accent,
   },
   voiceBtnTextActive: {
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
   },
   showTextBtn: {
     flexDirection: 'row',
@@ -202,29 +203,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
   },
   showTextBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
   instructionTextWrap: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CoachColors.surface,
     padding: 14,
     borderRadius: Radius.md,
     marginTop: Spacing.xs,
     marginBottom: Spacing.md,
   },
   exerciseDescription: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     lineHeight: 20,
   },
   rowDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.borderMuted,
     marginVertical: Spacing.md,
   },
 });

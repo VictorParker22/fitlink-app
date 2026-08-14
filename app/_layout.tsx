@@ -18,7 +18,7 @@ import { ClientProvider } from '../context/ClientContext';
 import { HealthProvider } from '../context/HealthContext';
 import { WorkoutProvider } from '../context/WorkoutContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
-import { Colors, Spacing, Radius, FontFamily, FontSize } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
@@ -185,7 +185,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bgPrimary } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: CoachColors.bg } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(client-tabs)" />
@@ -344,7 +344,7 @@ function JSBootSplash({ progress, onAnimationEnd }: SplashPathProps) {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.bgPrimary,
+    backgroundColor: CoachColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -352,19 +352,19 @@ const styles = StyleSheet.create({
 
 export function ErrorBoundary(props: ErrorBoundaryProps) {
   return (
-    <View style={[styles.loadingContainer, { padding: Spacing.xl }]}>
-      <Ionicons name="warning" size={48} color={Colors.yellow} style={{ marginBottom: Spacing.md }} />
-      <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.xl, color: Colors.textPrimary, marginBottom: Spacing.xs }}>Something went wrong</Text>
-      <Text style={{ fontFamily: FontFamily.body, fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl }}>
+    <View style={[styles.loadingContainer, { padding: 20 }]}>
+      <Ionicons name="warning" size={48} color={CoachColors.warning} style={{ marginBottom: 10 }} />
+      <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 4 }}>Something went wrong</Text>
+      <Text style={{ fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 20 }}>
         {__DEV__ ? props.error.message : "We're sorry, an unexpected error occurred. Please try again."}
       </Text>
       <TouchableOpacity
         onPress={props.retry}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24 }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24 }}
         activeOpacity={0.85}
       >
-        <Ionicons name="refresh" size={18} color={Colors.white} />
-        <Text style={{ fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: Colors.white }}>Try Again</Text>
+        <Ionicons name="refresh" size={18} color={CoachColors.onAccent} />
+        <Text style={{ fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.onAccent }}>Try again</Text>
       </TouchableOpacity>
     </View>
   );

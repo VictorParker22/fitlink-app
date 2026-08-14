@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Client } from '../../context/AppContext';
 
 interface ClientPulseModalProps {
@@ -40,7 +41,7 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           {/* Drag handle */}
           <View style={styles.dragHandle} />
-          
+
           <View style={styles.header}>
             <View style={styles.clientInfo}>
               <View style={styles.avatarWrapper}>
@@ -49,46 +50,46 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
                 ) : (
                   <Text style={styles.avatarText}>{initials}</Text>
                 )}
-                <View style={[styles.statusDot, { backgroundColor: client.status === 'active' ? '#22C55E' : '#F59E0B' }]} />
+                <View style={[styles.statusDot, { backgroundColor: client.status === 'active' ? CoachColors.accent : CoachColors.warning }]} />
               </View>
-              
+
               <View>
                 <Text style={styles.clientName}>{client.name}</Text>
-                <Text style={styles.clientMeta}>{client.email || 'Active Plan Client'}</Text>
+                <Text style={styles.clientMeta}>{client.email || 'Active plan client'}</Text>
               </View>
             </View>
 
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={18} color="#FFFFFF" />
+              <Ionicons name="close" size={18} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
 
           {/* Quick Metrics */}
           <View style={styles.metricsRow}>
             <View style={styles.metricBox}>
-              <Text style={styles.metricLabel}>STATUS</Text>
-              <Text style={styles.metricValue}>{client.status.toUpperCase()}</Text>
+              <Text style={styles.metricLabel}>Status</Text>
+              <Text style={styles.metricValue}>{client.status}</Text>
             </View>
             <View style={styles.metricBox}>
-              <Text style={styles.metricLabel}>COMPLETED</Text>
-              <Text style={styles.metricValue}>{client.completed_workouts || 0} Workouts</Text>
+              <Text style={styles.metricLabel}>Completed</Text>
+              <Text style={styles.metricValue}>{client.completed_workouts || 0} workouts</Text>
             </View>
             <View style={styles.metricBox}>
-              <Text style={styles.metricLabel}>STREAK</Text>
-              <Text style={styles.metricValue}>{client.progress?.streak || 0} Days 🔥</Text>
+              <Text style={styles.metricLabel}>Streak</Text>
+              <Text style={styles.metricValue}>{client.progress?.streak || 0} days</Text>
             </View>
           </View>
 
-          {/* Action CTAs - Sharp High Contrast */}
+          {/* Action CTAs */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.primaryBtn} onPress={handleMessage}>
-              <Ionicons name="chatbubble" size={16} color="#000000" />
-              <Text style={styles.primaryBtnText}>MESSAGE {firstName.toUpperCase()}</Text>
+              <Ionicons name="chatbubble" size={16} color={CoachColors.onAccent} />
+              <Text style={styles.primaryBtnText}>Message {firstName}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryBtn} onPress={handleViewProfile}>
-              <Text style={styles.secondaryBtnText}>FULL PROFILE</Text>
-              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              <Text style={styles.secondaryBtnText}>Full profile</Text>
+              <Ionicons name="arrow-forward" size={14} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -104,19 +105,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     padding: 20,
     paddingBottom: 40,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: CoachColors.border,
   },
   dragHandle: {
     width: 32,
     height: 3,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginBottom: 18,
   },
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: Radius.sm,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -146,9 +147,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
   },
   avatarText: {
-    fontFamily: FontFamily.heading,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   statusDot: {
     position: 'absolute',
@@ -158,25 +159,25 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#0A0A0A',
+    borderColor: CoachColors.surface,
   },
   clientName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   clientMeta: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.xs,
-    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: Radius.sm,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -187,23 +188,25 @@ const styles = StyleSheet.create({
   },
   metricBox: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: CoachColors.bg,
     borderRadius: Radius.sm,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: CoachColors.borderMuted,
   },
   metricLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 8,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1.5,
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   metricValue: {
-    fontFamily: FontFamily.heading,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
+    textTransform: 'capitalize',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -215,15 +218,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 14,
     borderRadius: Radius.sm,
   },
   primaryBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#000000',
-    letterSpacing: 0.8,
+    color: CoachColors.onAccent,
+    letterSpacing: 0.3,
   },
   secondaryBtn: {
     flex: 1,
@@ -231,16 +234,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.bg,
     paddingVertical: 14,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: CoachColors.border,
   },
   secondaryBtnText: {
-    fontFamily: FontFamily.heading,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 11,
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
+    color: CoachColors.textPrimary,
+    letterSpacing: 0.3,
   },
 });

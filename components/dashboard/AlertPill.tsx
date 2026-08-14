@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 export interface AlertPillProps {
   id: string;
@@ -24,26 +25,26 @@ export default function AlertPill({
   const getBadgeColors = () => {
     switch (type) {
       case 'urgent':
-        return { bg: '#1A0808', border: '#EF4444', iconColor: '#EF4444' };
+        return { bg: CoachColors.dangerSoft, border: CoachColors.danger, iconColor: CoachColors.danger };
       case 'warning':
-        return { bg: '#1A1408', border: '#F59E0B', iconColor: '#F59E0B' };
+        return { bg: CoachColors.warningSoft, border: CoachColors.warning, iconColor: CoachColors.warning };
       case 'info':
       default:
-        return { bg: '#0A1220', border: '#3B82F6', iconColor: '#3B82F6' };
+        return { bg: CoachColors.surface, border: CoachColors.border, iconColor: CoachColors.accent };
     }
   };
 
   const colors = getBadgeColors();
 
   return (
-    <TouchableOpacity 
-      activeOpacity={0.85} 
-      style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }]} 
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }]}
       onPress={onPress}
     >
       <View style={styles.left}>
-        <View style={[styles.iconWrapper, { backgroundColor: colors.border }]}>
-          <Ionicons name={icon} size={16} color="#000000" />
+        <View style={[styles.iconWrapper, { backgroundColor: colors.iconColor }]}>
+          <Ionicons name={icon} size={16} color={CoachColors.onAccent} />
         </View>
         <View style={styles.textGroup}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -53,8 +54,8 @@ export default function AlertPill({
 
       <View style={styles.right}>
         <View style={[styles.actionBtn, { backgroundColor: colors.iconColor }]}>
-          <Text style={styles.actionText}>{actionText.toUpperCase()}</Text>
-          <Ionicons name="arrow-forward" size={10} color="#000000" />
+          <Text style={styles.actionText}>{actionText}</Text>
+          <Ionicons name="arrow-forward" size={10} color={CoachColors.onAccent} />
         </View>
       </View>
     </TouchableOpacity>
@@ -89,15 +90,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: FontFamily.headingSemiBold,
-    fontSize: FontSize.xs,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.headingSemiBold,
+    fontSize: 13,
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   subtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
   right: {
@@ -112,9 +113,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
   },
   actionText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 });

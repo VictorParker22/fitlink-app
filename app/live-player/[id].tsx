@@ -8,7 +8,8 @@ import * as Haptics from 'expo-haptics';
 
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { LiveClassItem } from '../../context/AppContext';
 
 interface ChatMessage {
@@ -23,12 +24,12 @@ export default function LivePlayerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { clientData } = useClient();
-  
+
   const [liveClass, setLiveClass] = useState<LiveClassItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: 'sys-welcome', sender: 'system', content: 'Welcome to the live session! 🎉', isSystem: true },
+    { id: 'sys-welcome', sender: 'system', content: 'Welcome to the live session!', isSystem: true },
   ]);
   const [channelStatus, setChannelStatus] = useState<'connected' | 'reconnecting'>('connected');
   // Auth readiness gate — prevents insert before auth.uid() is resolved (race condition fix)
@@ -199,13 +200,13 @@ export default function LivePlayerScreen() {
     if (liveClass.status === 'live') {
       setChatMessages((prev) => [
         ...prev,
-        { id: 'sys-live', sender: 'system', content: '🔴 Stream is now live — let’s go!', isSystem: true },
+        { id: 'sys-live', sender: 'system', content: 'Stream is now live — let’s go!', isSystem: true },
       ]);
     }
     if (liveClass.status === 'ended') {
       setChatMessages((prev) => [
         ...prev,
-        { id: 'sys-ended', sender: 'system', content: 'Broadcast ended by your coach. Great session! 🏆', isSystem: true },
+        { id: 'sys-ended', sender: 'system', content: 'Broadcast ended by your coach. Great session!', isSystem: true },
       ]);
     }
   }, [liveClass?.status]);
@@ -284,7 +285,7 @@ export default function LivePlayerScreen() {
   }, [chatMessage, liveClass?.status, liveClass?.went_live_at, clientData, id]);
 
 
-  const playbackUrl = liveClass?.mux_playback_id 
+  const playbackUrl = liveClass?.mux_playback_id
     ? `https://stream.mux.com/${liveClass.mux_playback_id}.m3u8`
     : null;
 
@@ -296,7 +297,7 @@ export default function LivePlayerScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color="#EF4444" size="large" />
+        <ActivityIndicator color={CoachColors.accent} size="large" />
       </View>
     );
   }
@@ -306,7 +307,7 @@ export default function LivePlayerScreen() {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={styles.errorText}>Class not found.</Text>
         <TouchableOpacity style={styles.backBtnAlt} onPress={() => router.back()}>
-          <Text style={styles.backBtnAltText}>GO BACK</Text>
+          <Text style={styles.backBtnAltText}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -318,24 +319,26 @@ export default function LivePlayerScreen() {
 
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header Bar */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-          <Ionicons name="chevron-down" size={28} color="#FFFFFF" />
+          <Ionicons name="chevron-down" size={28} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        
+
         <View style={styles.headerInfo}>
           <Text style={styles.title}>{liveClass.title}</Text>
           <View style={styles.badgeRow}>
-            <View style={[styles.liveBadge, isStreamEnded && { backgroundColor: '#1C1C1E' }, isStreamStarting && { backgroundColor: '#F59E0B' }]}>
-              <Text style={styles.liveBadgeText}>{isStreamEnded ? 'ENDED' : isStreamStarting ? 'STARTING' : 'LIVE'}</Text>
+            <View style={[styles.liveBadge, isStreamEnded && { backgroundColor: CoachColors.surface }, isStreamStarting && { backgroundColor: CoachColors.warningSoft }]}>
+              <Text style={[styles.liveBadgeText, isStreamEnded && { color: CoachColors.textMuted }, isStreamStarting && { color: CoachColors.warning }]}>
+                {isStreamEnded ? 'ENDED' : isStreamStarting ? 'STARTING' : 'LIVE'}
+              </Text>
             </View>
             <View style={styles.viewersBadge}>
-              <Ionicons name="eye" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Ionicons name="eye" size={12} color={CoachColors.textSecondary} style={{ marginRight: 4 }} />
               <Text style={styles.viewersText}>{liveClass.viewer_count ?? '—'}</Text>
             </View>
           </View>
@@ -346,17 +349,17 @@ export default function LivePlayerScreen() {
       <View style={styles.videoContainer}>
         {isStreamEnded ? (
           <View style={styles.endedBanner}>
-            <Ionicons name="sparkles" size={32} color="#FFD700" style={{ marginBottom: 8 }} />
-            <Text style={styles.endedTitle}>BROADCAST HAS CONCLUDED</Text>
+            <Ionicons name="sparkles" size={32} color={CoachColors.accent} style={{ marginBottom: 8 }} />
+            <Text style={styles.endedTitle}>Broadcast has concluded</Text>
             <Text style={styles.endedSub}>Your coach has wrapped up this live class. Thanks for training live!</Text>
             <TouchableOpacity style={styles.backToExploreBtn} onPress={() => router.back()}>
-              <Text style={styles.backToExploreText}>EXPLORE MORE CLASSES</Text>
+              <Text style={styles.backToExploreText}>Explore more classes</Text>
             </TouchableOpacity>
           </View>
         ) : isStreamStarting ? (
           <View style={styles.endedBanner}>
-            <ActivityIndicator color="#FFD700" size="large" style={{ marginBottom: 16 }} />
-            <Text style={styles.endedTitle}>WAITING FOR COACH</Text>
+            <ActivityIndicator color={CoachColors.accent} size="large" style={{ marginBottom: 16 }} />
+            <Text style={styles.endedTitle}>Waiting for coach</Text>
             <Text style={styles.endedSub}>Your coach is connecting to the stream. Hang tight, the broadcast will begin automatically in just a moment!</Text>
           </View>
         ) : playbackUrl ? (
@@ -368,8 +371,8 @@ export default function LivePlayerScreen() {
           />
         ) : hasFakeMuxId ? (
           <View style={styles.endedBanner}>
-            <Ionicons name="warning-outline" size={32} color="#F59E0B" style={{ marginBottom: 8 }} />
-            <Text style={styles.endedTitle}>STREAM NOT CONFIGURED</Text>
+            <Ionicons name="warning-outline" size={32} color={CoachColors.warning} style={{ marginBottom: 8 }} />
+            <Text style={styles.endedTitle}>Stream not configured</Text>
             <Text style={styles.endedSub}>Coach may still be setting up. Try again in a moment.</Text>
             <TouchableOpacity
               style={styles.backToExploreBtn}
@@ -383,12 +386,12 @@ export default function LivePlayerScreen() {
                 }
               }}
             >
-              <Text style={styles.backToExploreText}>RETRY</Text>
+              <Text style={styles.backToExploreText}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.placeholderVideo}>
-            <ActivityIndicator color="#EF4444" size="small" style={{ marginBottom: 8 }} />
+            <ActivityIndicator color={CoachColors.accent} size="small" style={{ marginBottom: 8 }} />
             <Text style={styles.placeholderText}>Coach will be right back...</Text>
           </View>
         )}
@@ -399,7 +402,7 @@ export default function LivePlayerScreen() {
         {/* Reconnect banner — shown when broadcast channel is degraded */}
         {channelStatus === 'reconnecting' && (
           <View style={styles.reconnectBanner}>
-            <ActivityIndicator size="small" color="#F59E0B" style={{ marginRight: 8 }} />
+            <ActivityIndicator size="small" color={CoachColors.warning} style={{ marginRight: 8 }} />
             <Text style={styles.reconnectText}>Reconnecting…</Text>
           </View>
         )}
@@ -437,23 +440,23 @@ export default function LivePlayerScreen() {
             );
           }}
         />
-        
+
         <View style={[styles.chatInputRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           <TextInput
             style={styles.chatInput}
-            placeholder={isStreamEnded ? "Chat disabled (Stream ended)" : "Say something..."}
-            placeholderTextColor="rgba(255,255,255,0.4)"
+            placeholder={isStreamEnded ? "Chat disabled (stream ended)" : "Say something..."}
+            placeholderTextColor={CoachColors.textMuted}
             value={chatMessage}
             onChangeText={setChatMessage}
             editable={!isStreamEnded}
-            selectionColor="#EF4444"
+            selectionColor={CoachColors.accent}
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, (!authReady || !chatMessage.trim() || isStreamEnded) && { opacity: 0.5 }]} 
+          <TouchableOpacity
+            style={[styles.sendBtn, (!authReady || !chatMessage.trim() || isStreamEnded) && { opacity: 0.5 }]}
             onPress={handleSendChat}
             disabled={!authReady || !chatMessage.trim() || isStreamEnded}
           >
-            <Ionicons name="send" size={18} color="#FFFFFF" />
+            <Ionicons name="send" size={18} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -464,14 +467,14 @@ export default function LivePlayerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: CoachColors.bg,
     zIndex: 10,
   },
   closeBtn: {
@@ -481,9 +484,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   badgeRow: {
@@ -492,13 +495,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   liveBadge: {
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.danger,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.xs,
   },
   liveBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
     color: '#FFFFFF',
     letterSpacing: 1,
@@ -506,20 +509,20 @@ const styles = StyleSheet.create({
   viewersBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.surface,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.xs,
   },
   viewersText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textSecondary,
   },
   videoContainer: {
     aspectRatio: 16 / 9,
     width: '100%',
-    backgroundColor: '#0C0C0E',
+    backgroundColor: '#000000', // letterbox area behind live footage stays black
   },
   videoView: {
     flex: 1,
@@ -531,8 +534,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   placeholderText: {
-    fontFamily: FontFamily.body,
-    color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.body,
+    color: CoachColors.textSecondary,
     fontSize: 14,
   },
   endedBanner: {
@@ -540,49 +543,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.md,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
   },
   endedTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1.5,
+    color: CoachColors.textPrimary,
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   endedSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   backToExploreBtn: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: CoachColors.border,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: Radius.xs,
   },
   backToExploreText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FFD700',
+    color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
   chatContainer: {
     flex: 1,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.bg,
   },
   chatList: {
     flex: 1,
   },
 
   systemMessage: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontStyle: 'italic',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -592,43 +595,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
   },
   errorText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 20,
   },
   backBtnAlt: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: Radius.xs,
   },
   backBtnAltText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   chatBubbleRow: {
     marginBottom: 6,
@@ -638,45 +641,45 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   chatSender: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
     marginBottom: 2,
     marginLeft: 4,
   },
   chatBubble: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 14,
     borderBottomLeftRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   chatBubbleMe: {
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.accent,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 4,
   },
   chatBubbleText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
+    color: CoachColors.textPrimary,
     lineHeight: 18,
   },
   chatBubbleTextMe: {
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
   },
   reconnectBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    backgroundColor: 'rgba(245,158,11,0.15)',
+    backgroundColor: CoachColors.warningSoft,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(245,158,11,0.3)',
+    borderBottomColor: CoachColors.warning,
   },
   reconnectText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#F59E0B',
+    color: CoachColors.warning,
   },
 });

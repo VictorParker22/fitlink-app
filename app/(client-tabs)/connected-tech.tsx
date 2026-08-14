@@ -3,9 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, 
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { useHealth } from '../../context/HealthContext';
 import { loginWithSpotify, getStoredToken, disconnectSpotify } from '../../lib/spotify';
@@ -20,6 +19,8 @@ interface Device {
   description: string;
 }
 
+// Icon tiles keep third-party brand colors (Spotify green, Fitbit teal, …) —
+// they identify the external service, not FitLink UI.
 const DEVICES: Device[] = [
   {
     id: 'spotify',
@@ -177,7 +178,7 @@ export default function ConnectedTechScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Back button */}
       <TouchableOpacity style={s.backBtn} onPress={() => router.push(ClientRoute.myProfile)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to profile">
-        <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -187,11 +188,11 @@ export default function ConnectedTechScreen() {
           <Text style={s.bannerText}>
             It all begins with a complimentary fitness assessment. Book your session.
           </Text>
-          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+          <Ionicons name="chevron-forward" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         {/* ── TITLE ── */}
-        <Text style={s.title} accessibilityRole="header">Connected Tech</Text>
+        <Text style={s.title} accessibilityRole="header">Connected tech</Text>
 
         {/* ── AVAILABLE SECTION ── */}
         <Text style={s.sectionLabel}>Available</Text>
@@ -214,15 +215,15 @@ export default function ConnectedTechScreen() {
               <View style={s.deviceCard}>
                 {/* Device header row */}
                 <View style={s.deviceHeader}>
-                  <View style={[s.deviceIcon, { backgroundColor: device.iconBg }]}>  
+                  <View style={[s.deviceIcon, { backgroundColor: device.iconBg }]}>
                     <Ionicons name={device.icon as any} size={22} color={device.iconColor} />
                   </View>
                   <Text style={s.deviceName}>{device.name}</Text>
                   <View style={{ flex: 1 }} />
                   {isThisLoading ? (
                     <View style={s.connectBtn}>
-                      <ActivityIndicator size="small" color="#FFD700" />
-                      <Text style={[s.connectText, { color: '#FFD700' }]}>Connecting…</Text>
+                      <ActivityIndicator size="small" color={CoachColors.accent} />
+                      <Text style={[s.connectText, { color: CoachColors.accent }]}>Connecting…</Text>
                     </View>
                   ) : isConnected ? (
                     <TouchableOpacity
@@ -232,7 +233,7 @@ export default function ConnectedTechScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Disconnect ${device.name}`}
                     >
-                      <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                      <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
                       <Text style={s.connectedText}>Connected</Text>
                     </TouchableOpacity>
                   ) : (
@@ -243,7 +244,7 @@ export default function ConnectedTechScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Connect ${device.name}`}
                     >
-                      <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+                      <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
                       <Text style={s.connectText}>Connect</Text>
                     </TouchableOpacity>
                   )}
@@ -282,7 +283,7 @@ export default function ConnectedTechScreen() {
               <View style={s.modalAppIcon}>
                 <Text style={s.modalAppText}>FL+</Text>
               </View>
-              <Ionicons name="swap-horizontal" size={24} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="swap-horizontal" size={24} color={CoachColors.textMuted} />
               {connectingDevice && (
                 <View style={[s.modalDeviceIcon, { backgroundColor: connectingDevice.iconBg }]}>
                   <Ionicons name={connectingDevice.icon as any} size={26} color={connectingDevice.iconColor} />
@@ -341,7 +342,7 @@ export default function ConnectedTechScreen() {
 function BulletPoint({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={s.bulletRow}>
-      <Ionicons name={icon as any} size={18} color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
+      <Ionicons name={icon as any} size={18} color={CoachColors.textMuted} style={{ marginTop: 2 }} />
       <Text style={s.bulletText}>{text}</Text>
     </View>
   );
@@ -351,7 +352,7 @@ function BulletPoint({ icon, text }: { icon: string; text: string }) {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: CoachColors.bg,
   },
   backBtn: {
     paddingHorizontal: 16,
@@ -372,32 +373,32 @@ const s = StyleSheet.create({
   },
   bannerText: {
     flex: 1,
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 22,
   },
 
   // Title
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 24,
     marginBottom: 28,
   },
 
   // Section
   sectionLabel: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     paddingHorizontal: 24,
     marginBottom: 12,
   },
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
     marginHorizontal: 24,
     marginBottom: 8,
   },
@@ -420,9 +421,9 @@ const s = StyleSheet.create({
     marginRight: 14,
   },
   deviceName: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   connectBtn: {
     flexDirection: 'row',
@@ -430,9 +431,9 @@ const s = StyleSheet.create({
     gap: 6,
   },
   connectText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   connectedBtn: {
     flexDirection: 'row',
@@ -440,20 +441,20 @@ const s = StyleSheet.create({
     gap: 6,
   },
   connectedText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: '#4CAF50',
+    color: CoachColors.accent,
   },
   deviceDesc: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
     marginTop: 14,
     lineHeight: 20,
   },
   deviceDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: 24,
   },
 
@@ -464,7 +465,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalSheet: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 24,
@@ -475,21 +476,21 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 14,
   },
   modalHeaderText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
   },
   modalDividerTop: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: CoachColors.border,
     marginBottom: 28,
   },
 
@@ -505,16 +506,16 @@ const s = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#222',
+    backgroundColor: CoachColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.border,
   },
   modalAppText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   modalDeviceIcon: {
     width: 52,
@@ -526,29 +527,29 @@ const s = StyleSheet.create({
 
   // Modal content
   modalTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   modalSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   modalDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: CoachColors.border,
     marginBottom: 24,
   },
   modalPartnerText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 22,
     marginBottom: 20,
   },
@@ -565,36 +566,36 @@ const s = StyleSheet.create({
   },
   bulletText: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     lineHeight: 20,
   },
 
   // Privacy
   modalPrivacy: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: CoachColors.textMuted,
     lineHeight: 19,
     marginBottom: 28,
   },
   modalLink: {
     textDecorationLine: 'underline',
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
 
   // Continue button
   continueBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 0,
+    backgroundColor: CoachColors.accent,
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueBtnText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 16,
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
 });

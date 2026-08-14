@@ -5,9 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useApp, ClassItem } from '../../context/AppContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { Spacing, Radius } from '../../constants/theme';
 import { getCategoryColor } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -450,7 +449,6 @@ export default function ProgramsScreen() {
   const router = useRouter();
 
   const { workouts, exercises, diets, plans, classes, refreshData, refreshPlans, deleteWorkout, deleteDietPlan, deleteClass } = useApp();
-  const { colors } = useTheme();
   const { showAlert } = useAlert();
   const { tab: initialTabParam } = useLocalSearchParams<{ tab?: string }>();
 
@@ -759,12 +757,12 @@ export default function ProgramsScreen() {
 
   const renderClassItem = ({ item }: { item: ClassItem }) => {
     const statusColors = {
-      'DRAFT': '#9CA3AF',
-      'PUBLISHED': '#10B981',
-      'ARCHIVED': '#F59E0B'
+      'DRAFT': CoachColors.textMuted,
+      'PUBLISHED': CoachColors.accent,
+      'ARCHIVED': CoachColors.warning
     };
-    const statusColor = statusColors[item.status as keyof typeof statusColors] || '#9CA3AF';
-    const categoryColor = item.category ? getCategoryColor(item.category) : '#FFFFFF';
+    const statusColor = statusColors[item.status as keyof typeof statusColors] || CoachColors.textMuted;
+    const categoryColor = item.category ? getCategoryColor(item.category) : CoachColors.textPrimary;
 
     return (
       <TouchableOpacity
@@ -777,7 +775,7 @@ export default function ProgramsScreen() {
           {item.thumbnail_url ? (
             <RNImage source={{ uri: item.thumbnail_url }} style={{ width: 44, height: 44, borderRadius: Radius.xs }} />
           ) : (
-            <Ionicons name="videocam-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="videocam-outline" size={22} color={CoachColors.textPrimary} />
           )}
         </View>
         <View style={styles.textContainer}>
@@ -787,11 +785,11 @@ export default function ProgramsScreen() {
             <View style={[styles.pillBadge, { borderColor: categoryColor }]}>
               <Text style={[styles.pillBadgeText, { color: categoryColor }]}>{item.category?.toUpperCase() || 'UNCATEGORIZED'}</Text>
             </View>
-            <View style={[styles.pillBadge, { borderColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={[styles.pillBadgeText, { color: '#FFFFFF' }]}>{item.difficulty?.toUpperCase() || 'ALL LEVELS'}</Text>
+            <View style={[styles.pillBadge, { borderColor: CoachColors.border }]}>
+              <Text style={[styles.pillBadgeText, { color: CoachColors.textPrimary }]}>{item.difficulty?.toUpperCase() || 'ALL LEVELS'}</Text>
             </View>
-            <View style={[styles.pillBadge, { borderColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={[styles.pillBadgeText, { color: '#FFFFFF' }]}>{item.duration_minutes || 0} MIN</Text>
+            <View style={[styles.pillBadge, { borderColor: CoachColors.border }]}>
+              <Text style={[styles.pillBadgeText, { color: CoachColors.textPrimary }]}>{item.duration_minutes || 0} MIN</Text>
             </View>
             <View style={[styles.pillBadge, { borderColor: statusColor }]}>
               <Text style={[styles.pillBadgeText, { color: statusColor }]}>{item.status?.toUpperCase() || 'DRAFT'}</Text>
@@ -800,21 +798,21 @@ export default function ProgramsScreen() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="play-outline" size={12} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="play-outline" size={12} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{item.take_count || 0}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="star-outline" size={12} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="star-outline" size={12} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{(item.avg_rating || 0).toFixed(1)}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="time-outline" size={12} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{item.total_watch_minutes || 0}M</Text>
             </View>
           </View>
         </View>
         <TouchableOpacity onPress={() => handleDeleteClass(item.id, item.title)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={16} color="rgba(239, 68, 68, 0.7)" />
+          <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -985,7 +983,7 @@ export default function ProgramsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#FFFFFF"
+              tintColor={CoachColors.textPrimary}
             />
           }
           ItemSeparatorComponent={() => <View style={{ height: Spacing.xl }} />}
@@ -1277,18 +1275,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   popularBadge: {
-    backgroundColor: '#1A1408',
+    backgroundColor: CoachColors.warningSoft,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: CoachColors.warning,
     borderRadius: Radius.xs,
     marginLeft: 8,
   },
   popularBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 8,
-    color: '#F59E0B',
+    color: CoachColors.warning,
     letterSpacing: 0.5,
   },
   pillBadge: {
@@ -1296,10 +1294,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderWidth: 1,
     borderRadius: Radius.xs,
-    backgroundColor: '#111111',
+    backgroundColor: CoachColors.surface,
   },
   pillBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 8,
     letterSpacing: 0.5,
   },

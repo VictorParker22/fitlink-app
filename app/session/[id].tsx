@@ -14,10 +14,10 @@
  *    to /session/complete.
  *    "✕" cancel → CancelSessionSheet (not a bare Alert).
  *
- * Design: #0D0D12 base, #C8F135 lime accent, W*factor responsive sizing.
+ * Design: fixed dark CoachColors palette, lime accent, W*factor responsive sizing.
  */
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, TextInput, StatusBar, Dimensions,
@@ -32,9 +32,7 @@ import Animated, {
   FadeIn, FadeInUp, useSharedValue, useAnimatedStyle, withTiming,
 } from 'react-native-reanimated';
 import { useApp } from '../../context/AppContext';
-import { useTheme } from '../../context/ThemeContext';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
 import { useRestChime } from '../../hooks/useRestChime';
 import CancelSessionSheet from '../../components/sessions/CancelSessionSheet';
@@ -77,9 +75,9 @@ function formatTime(seconds: number): string {
 }
 
 const STATUS_CONFIG = {
-  upcoming:  { label: 'Upcoming',  color: '#C8F135', bg: 'rgba(200,241,53,0.1)'  },
-  completed: { label: 'Completed', color: '#22C55E', bg: 'rgba(34,197,94,0.1)'   },
-  cancelled: { label: 'Cancelled', color: '#EF4444', bg: 'rgba(239,68,68,0.1)'   },
+  upcoming:  { label: 'Upcoming',  color: CoachColors.accent, bg: CoachColors.accentSoft  },
+  completed: { label: 'Completed', color: CoachColors.accent, bg: CoachColors.accentSoft   },
+  cancelled: { label: 'Cancelled', color: CoachColors.danger, bg: CoachColors.dangerSoft   },
 } as const;
 
 // ─── Root component ───────────────────────────────────────────────────────────
@@ -91,8 +89,6 @@ export default function TrainerSessionScreen() {
   const mode = params.mode ?? 'track'; // 'detail' | 'track'
 
   const { sessions, updateSession, getClientById, clientWorkouts, workouts, getClientSessions } = useApp();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const [session, setSession]                   = useState<any>(null);
   const [client,  setClient]                    = useState<any>(null);
@@ -300,7 +296,7 @@ export default function TrainerSessionScreen() {
     return (
       <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color="#C8F135" />
+        <ActivityIndicator size="large" color={CoachColors.accent} />
       </View>
     );
   }
@@ -321,9 +317,6 @@ export default function TrainerSessionScreen() {
       onStartTracking={handleStartTracking}
       onBookFollowUp={handleBookFollowUp}
       onBack={() => router.back()}
-      colors={colors}
-      isDark={isDark}
-      styles={styles}
       getClientSessions={getClientSessions}
     />;
   }
@@ -340,7 +333,7 @@ export default function TrainerSessionScreen() {
 
       {/* ── Tracker Header ─────────────────────────────────────── */}
       <LinearGradient
-        colors={['#141420', '#1A1A28']}
+        colors={[CoachColors.surface, CoachColors.surface]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={styles.awHeader}
       >
@@ -353,7 +346,7 @@ export default function TrainerSessionScreen() {
             accessibilityLabel="Cancel session"
             style={styles.awCancelBtn}
           >
-            <Ionicons name="close" size={20} color="rgba(255,255,255,0.55)" />
+            <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
           </TouchableOpacity>
 
           {/* Client name */}
@@ -368,7 +361,7 @@ export default function TrainerSessionScreen() {
 
           {/* Elapsed timer pill */}
           <View style={styles.awTimerPill}>
-            <Ionicons name="radio-button-on" size={8} color="#C8F135" />
+            <Ionicons name="radio-button-on" size={8} color={CoachColors.accent} />
             <Text style={styles.awTimerText}>{formatDuration(elapsedSeconds)}</Text>
           </View>
         </View>
@@ -391,8 +384,8 @@ export default function TrainerSessionScreen() {
       >
         {noWorkoutAssigned ? (
           <View style={styles.emptyState}>
-            <Ionicons name="barbell-outline" size={44} color="rgba(255,255,255,0.2)" style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyTitle}>No Workout Assigned</Text>
+            <Ionicons name="barbell-outline" size={44} color={CoachColors.textFaint} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyTitle}>No workout assigned</Text>
             <Text style={styles.emptyBody}>
               Assign a workout from the Workouts tab to track exercises here.
             </Text>
@@ -412,9 +405,9 @@ export default function TrainerSessionScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ expanded: exercise.expanded }}
                   >
-                    <View style={[styles.awExIdx, allDone && { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
+                    <View style={[styles.awExIdx, allDone && { backgroundColor: CoachColors.accentSoft }]}>
                       {allDone
-                        ? <Ionicons name="checkmark" size={14} color="#22C55E" />
+                        ? <Ionicons name="checkmark" size={14} color={CoachColors.accent} />
                         : <Text style={styles.awExIdxText}>{exIdx + 1}</Text>
                       }
                     </View>
@@ -423,14 +416,14 @@ export default function TrainerSessionScreen() {
                       <Text style={styles.awExTarget}>{exercise.targetSets} × {exercise.targetReps} reps</Text>
                     </View>
                     <View style={[styles.awExProgressPill, allDone && styles.awExProgressPillDone]}>
-                      <Text style={[styles.awExProgressText, allDone && { color: '#22C55E' }]}>
+                      <Text style={[styles.awExProgressText, allDone && { color: CoachColors.accent }]}>
                         {completedInEx}/{exercise.sets.length}
                       </Text>
                     </View>
                     <Ionicons
                       name={exercise.expanded ? 'chevron-up' : 'chevron-down'}
                       size={16}
-                      color="rgba(255,255,255,0.3)"
+                      color={CoachColors.textFaint}
                     />
                   </TouchableOpacity>
 
@@ -438,16 +431,16 @@ export default function TrainerSessionScreen() {
                     <View style={styles.awSetsContainer}>
                       {/* Column headers */}
                       <View style={styles.awSetHeaderRow}>
-                        <Text style={[styles.awSetHeaderText, { width: 40 }]}>SET</Text>
-                        <Text style={[styles.awSetHeaderText, { flex: 1 }]}>WEIGHT</Text>
-                        <Text style={[styles.awSetHeaderText, { flex: 1 }]}>REPS</Text>
-                        <Text style={[styles.awSetHeaderText, { width: 50, textAlign: 'center' }]}>✓</Text>
+                        <Text style={[styles.awSetHeaderText, { width: 40 }]}>Set</Text>
+                        <Text style={[styles.awSetHeaderText, { flex: 1 }]}>Weight</Text>
+                        <Text style={[styles.awSetHeaderText, { flex: 1 }]}>Reps</Text>
+                        <Text style={[styles.awSetHeaderText, { width: 50, textAlign: 'center' }]}>Done</Text>
                       </View>
 
                       {exercise.sets.map((set, setIdx) => (
                         <View key={setIdx} style={[styles.awSetRow, set.completed && styles.awSetRowDone]}>
                           <View style={styles.awSetNumContainer}>
-                            <Text style={[styles.awSetNum, set.completed && { color: '#22C55E' }]}>
+                            <Text style={[styles.awSetNum, set.completed && { color: CoachColors.accent }]}>
                               {setIdx + 1}
                             </Text>
                           </View>
@@ -457,7 +450,7 @@ export default function TrainerSessionScreen() {
                               value={set.weight}
                               onChangeText={v => updateSetValue(exIdx, setIdx, 'weight', v)}
                               placeholder="0"
-                              placeholderTextColor="rgba(255,255,255,0.2)"
+                              placeholderTextColor={CoachColors.textFaint}
                               keyboardType="numeric"
                               editable={!set.completed}
                               selectTextOnFocus
@@ -471,7 +464,7 @@ export default function TrainerSessionScreen() {
                               value={set.reps}
                               onChangeText={v => updateSetValue(exIdx, setIdx, 'reps', v)}
                               placeholder="0"
-                              placeholderTextColor="rgba(255,255,255,0.2)"
+                              placeholderTextColor={CoachColors.textFaint}
                               keyboardType="numeric"
                               editable={!set.completed}
                               selectTextOnFocus
@@ -489,7 +482,7 @@ export default function TrainerSessionScreen() {
                             <Ionicons
                               name={set.completed ? 'checkmark-circle' : 'ellipse-outline'}
                               size={26}
-                              color={set.completed ? '#22C55E' : 'rgba(255,255,255,0.25)'}
+                              color={set.completed ? CoachColors.accent : CoachColors.textFaint}
                             />
                           </TouchableOpacity>
                         </View>
@@ -509,13 +502,13 @@ export default function TrainerSessionScreen() {
               accessibilityLabel={progress >= 1 ? 'Finish session' : 'Finish session early'}
             >
               <LinearGradient
-                colors={progress >= 1 ? ['#C8F135', '#A8D420'] : ['#C8F135', '#E0A820']}
+                colors={progress >= 1 ? [CoachColors.accent, CoachColors.accent] : [CoachColors.accent, CoachColors.accent]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={styles.awFinishBtnGradient}
               >
-                <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={19} color="#0D0D12" />
+                <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={19} color={CoachColors.onAccent} />
                 <Text style={styles.awFinishBtnText}>
-                  {progress >= 1 ? 'Finish Session 🎉' : 'Finish Session'}
+                  {progress >= 1 ? 'Finish session' : 'Finish session'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -528,8 +521,8 @@ export default function TrainerSessionScreen() {
       {restRemaining !== null && (
         <View style={styles.restBar}>
           <View style={styles.restBarInfo}>
-            <Ionicons name="timer-outline" size={18} color="#FFD700" />
-            <Text style={styles.restBarLabel}>REST TIMER</Text>
+            <Ionicons name="timer-outline" size={18} color={CoachColors.accent} />
+            <Text style={styles.restBarLabel}>Rest timer</Text>
             <Text style={styles.restBarTime}>{formatTime(restRemaining)}</Text>
           </View>
           <TouchableOpacity
@@ -541,7 +534,7 @@ export default function TrainerSessionScreen() {
             accessibilityRole="button"
             accessibilityLabel="Skip rest timer"
           >
-            <Text style={styles.restBarSkipText}>SKIP</Text>
+            <Text style={styles.restBarSkipText}>Skip</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -576,9 +569,6 @@ interface DetailViewProps {
   onStartTracking:   () => void;
   onBookFollowUp:    () => void;
   onBack:            () => void;
-  colors:            ThemeColors;
-  isDark:            boolean;
-  styles:            ReturnType<typeof getStyles>;
   getClientSessions: (id: string) => any[];
 }
 
@@ -586,7 +576,7 @@ function DetailView({
   session, client, exerciseStates, noWorkoutAssigned,
   detailNotes, setDetailNotes, notesSaving, notesSaved,
   onNotesSave, onStartTracking, onBookFollowUp, onBack,
-  colors, isDark, styles, getClientSessions,
+  getClientSessions,
 }: DetailViewProps) {
   const statusCfg = STATUS_CONFIG[session.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.upcoming;
   const dateLabel = new Date(session.date).toLocaleDateString('en-US', {
@@ -611,7 +601,7 @@ function DetailView({
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0D0D12', '#111118', '#0A0A0F']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[CoachColors.bg, CoachColors.surface, CoachColors.bg]} style={StyleSheet.absoluteFill} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
@@ -626,9 +616,9 @@ function DetailView({
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Ionicons name="arrow-back" size={20} color="rgba(255,255,255,0.7)" />
+              <Ionicons name="arrow-back" size={20} color={CoachColors.textSecondary} />
             </TouchableOpacity>
-            <Text style={dt.headerTitle}>Session Details</Text>
+            <Text style={dt.headerTitle}>Session details</Text>
             <View style={[dt.statusPill, { backgroundColor: statusCfg.bg, borderColor: `${statusCfg.color}35` }]}>
               <Text style={[dt.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
             </View>
@@ -637,7 +627,7 @@ function DetailView({
           {/* ── Client Hero Card ── */}
           <Animated.View entering={FadeInUp.delay(60).duration(350)}>
             <LinearGradient
-              colors={['#1A2200', '#0D0D12']}
+              colors={[CoachColors.surface, CoachColors.bg]}
               style={dt.heroCard}
             >
               <View style={dt.heroClientRow}>
@@ -645,7 +635,7 @@ function DetailView({
                   ? <Avatar name={client.name} size="lg" imageUrl={client.avatar_url} />
                   : (
                     <View style={dt.groupIcon}>
-                      <Ionicons name="people" size={26} color="#C8F135" />
+                      <Ionicons name="people" size={26} color={CoachColors.accent} />
                     </View>
                   )
                 }
@@ -665,15 +655,15 @@ function DetailView({
               {/* Date / time / duration row */}
               <View style={dt.infoRow}>
                 <View style={dt.infoItem}>
-                  <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="calendar-outline" size={14} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{dateLabel}</Text>
                 </View>
                 <View style={dt.infoItem}>
-                  <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="time-outline" size={14} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{timeLabel}</Text>
                 </View>
                 <View style={dt.infoItem}>
-                  <Ionicons name="hourglass-outline" size={14} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="hourglass-outline" size={14} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{session.duration} min</Text>
                 </View>
               </View>
@@ -682,12 +672,12 @@ function DetailView({
 
           {/* ── Workout Plan ── */}
           <Animated.View entering={FadeInUp.delay(160).duration(350)} style={dt.card}>
-            <Text style={dt.cardTag}>PLANNED WORKOUT</Text>
-            <Text style={dt.cardTitle}>Exercise Lineup</Text>
+            <Text style={dt.cardTag}>Planned workout</Text>
+            <Text style={dt.cardTitle}>Exercise lineup</Text>
 
             {noWorkoutAssigned ? (
               <View style={dt.emptyWorkout}>
-                <Ionicons name="barbell-outline" size={28} color="rgba(255,255,255,0.2)" />
+                <Ionicons name="barbell-outline" size={28} color={CoachColors.textFaint} />
                 <Text style={dt.emptyWorkoutText}>No workout assigned to this client yet.</Text>
               </View>
             ) : (
@@ -704,7 +694,7 @@ function DetailView({
                       </View>
                       {ex.restSeconds > 0 && (
                         <View style={dt.restChip}>
-                          <Ionicons name="timer-outline" size={10} color="rgba(255,255,255,0.35)" />
+                          <Ionicons name="timer-outline" size={10} color={CoachColors.textMuted} />
                           <Text style={dt.restChipText}>{ex.restSeconds}s</Text>
                         </View>
                       )}
@@ -729,10 +719,10 @@ function DetailView({
           {/* ── Coach Notes ── */}
           <Animated.View entering={FadeInUp.delay(240).duration(350)} style={dt.card}>
             <View style={dt.cardTitleRow}>
-              <Text style={dt.cardTag}>COACH NOTES</Text>
+              <Text style={dt.cardTag}>Coach notes</Text>
               {notesSaved && (
                 <View style={dt.savedPill}>
-                  <Ionicons name="checkmark" size={10} color="#22C55E" />
+                  <Ionicons name="checkmark" size={10} color={CoachColors.accent} />
                   <Text style={dt.savedText}>Saved</Text>
                 </View>
               )}
@@ -744,7 +734,7 @@ function DetailView({
               onChangeText={setDetailNotes}
               onBlur={onNotesSave}
               placeholder="Record struggles, wins, and what to focus on next session…"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor={CoachColors.textFaint}
               multiline
               textAlignVertical="top"
               accessibilityLabel="Coach session notes"
@@ -762,12 +752,12 @@ function DetailView({
                 accessibilityLabel="Start tracking this session"
               >
                 <LinearGradient
-                  colors={['#C8F135', '#A8D420']}
+                  colors={[CoachColors.accent, CoachColors.accent]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={dt.primaryCTAGradient}
                 >
-                  <Ionicons name="play-circle" size={20} color="#0D0D12" />
-                  <Text style={dt.primaryCTAText}>Start Tracking</Text>
+                  <Ionicons name="play-circle" size={20} color={CoachColors.onAccent} />
+                  <Text style={dt.primaryCTAText}>Start tracking</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -779,9 +769,9 @@ function DetailView({
               accessibilityRole="button"
               accessibilityLabel="Book a follow-up session"
             >
-              <Ionicons name="calendar-outline" size={17} color="#60A5FA" />
+              <Ionicons name="calendar-outline" size={17} color={CoachColors.accent} />
               <Text style={dt.secondaryCTAText}>
-                {session.status === 'upcoming' ? 'Book Another Session' : 'Book Follow-up Session'}
+                {session.status === 'upcoming' ? 'Book another session' : 'Book follow-up session'}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -793,8 +783,8 @@ function DetailView({
 }
 
 // ── Tracker styles ─────────────────────────────────────────────────────────
-const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0D0D12' },
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: CoachColors.bg },
 
   // Header
   awHeader: {
@@ -816,27 +806,27 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
     borderRadius:   12,
-    backgroundColor:'rgba(255,255,255,0.06)',
+    backgroundColor:CoachColors.surface,
   },
   awHeaderCenter: { flex: 1, alignItems: 'center' },
   awHeaderName:   {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.042,
-    color:      '#FFFFFF',
+    color:      CoachColors.textPrimary,
   },
   awTimerPill: {
     flexDirection:  'row',
     alignItems:     'center',
     gap:            5,
-    backgroundColor:'rgba(255,255,255,0.08)',
+    backgroundColor:CoachColors.surface,
     paddingHorizontal: 12,
     paddingVertical:    6,
     borderRadius:   20,
   },
   awTimerText: {
-    fontFamily:  FontFamily.bodyBold,
+    fontFamily:  CoachFonts.bodyBold,
     fontSize:    W * 0.034,
-    color:       '#C8F135',
+    color:       CoachColors.accent,
     fontVariant: ['tabular-nums'],
   },
 
@@ -844,114 +834,115 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   awProgressContainer: { marginTop: W * 0.01 },
   awProgressTrack: {
     height:          5,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface,
     borderRadius:    3,
     overflow:        'hidden',
     marginBottom:    6,
   },
   awProgressFill: {
     height:          '100%',
-    backgroundColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
     borderRadius:    3,
   },
   awProgressLabel: {
-    fontFamily:  FontFamily.bodyMedium,
+    fontFamily:  CoachFonts.bodyMedium,
     fontSize:    W * 0.028,
-    color:       'rgba(255,255,255,0.45)',
+    color:       CoachColors.textMuted,
     alignSelf:   'flex-end',
   },
 
   // Exercise cards
   awExCard: {
-    backgroundColor: '#111118',
-    borderRadius:    Radius.xl,
+    backgroundColor: CoachColors.surface,
+    borderRadius:    20,
     marginBottom:    10,
     overflow:        'hidden',
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.08)',
+    borderColor:     CoachColors.borderMuted,
   },
   awExCardDone: {
-    borderColor:     'rgba(34,197,94,0.35)',
-    backgroundColor: 'rgba(34,197,94,0.04)',
+    borderColor:     CoachColors.accent,
+    backgroundColor: CoachColors.accentSofter,
   },
   awExHeader: {
     flexDirection: 'row',
     alignItems:    'center',
-    padding:       Spacing.md,
-    gap:           Spacing.md,
+    padding:       10,
+    gap:           10,
     minHeight:     56,
   },
   awExIdx: {
     width:          28,
     height:         28,
     borderRadius:   14,
-    backgroundColor:'rgba(255,255,255,0.06)',
+    backgroundColor:CoachColors.surface,
     alignItems:     'center',
     justifyContent: 'center',
   },
-  awExIdxText:      { fontFamily: FontFamily.bodyBold, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
-  awExName:         { fontFamily: FontFamily.headingSemiBold, fontSize: W * 0.038, color: '#FFFFFF', marginBottom: 2 },
-  awExTarget:       { fontFamily: FontFamily.bodyMedium, fontSize: W * 0.03, color: 'rgba(255,255,255,0.4)' },
+  awExIdxText:      { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textMuted },
+  awExName:         { fontFamily: CoachFonts.headingSemiBold, fontSize: W * 0.038, color: CoachColors.textPrimary, marginBottom: 2 },
+  awExTarget:       { fontFamily: CoachFonts.bodyMedium, fontSize: W * 0.03, color: CoachColors.textMuted },
   awExProgressPill: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     paddingHorizontal: 10,
     paddingVertical:    4,
     borderRadius:    12,
   },
-  awExProgressPillDone: { backgroundColor: 'rgba(34,197,94,0.12)' },
-  awExProgressText: { fontFamily: FontFamily.bodyBold, fontSize: W * 0.03, color: 'rgba(255,255,255,0.45)' },
+  awExProgressPillDone: { backgroundColor: CoachColors.accentSoft },
+  awExProgressText: { fontFamily: CoachFonts.bodyBold, fontSize: W * 0.03, color: CoachColors.textMuted },
 
   // Sets
-  awSetsContainer: { padding: Spacing.md, paddingTop: 0 },
+  awSetsContainer: { padding: 10, paddingTop: 0 },
   awSetHeaderRow:  {
     flexDirection: 'row',
     alignItems:    'center',
-    marginBottom:  Spacing.sm,
+    marginBottom:  6,
     paddingHorizontal: 8,
   },
   awSetHeaderText: {
-    fontFamily:    FontFamily.bodyBold,
+    fontFamily:    CoachFonts.bodyBold,
     fontSize:      10,
-    color:         'rgba(255,255,255,0.28)',
+    color:         CoachColors.textFaint,
     letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   awSetRow: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius:    Radius.lg,
+    backgroundColor: CoachColors.surface,
+    borderRadius:    16,
     padding:         8,
     marginBottom:    8,
   },
-  awSetRowDone:      { backgroundColor: 'rgba(34,197,94,0.08)' },
+  awSetRowDone:      { backgroundColor: CoachColors.accentSofter },
   awSetNumContainer: { width: 40, alignItems: 'center' },
   awSetNum: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize:   W * 0.035,
-    color:      'rgba(255,255,255,0.45)',
+    color:      CoachColors.textMuted,
   },
   awSetInputContainer: {
     flex:            1,
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius:    Radius.md,
+    backgroundColor: CoachColors.surface,
+    borderRadius:    12,
     marginHorizontal:4,
     paddingHorizontal:8,
   },
   awSetInput: {
     flex:       1,
     height:     40,
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.04,
-    color:      '#FFFFFF',
+    color:      CoachColors.textPrimary,
     textAlign:  'center',
   },
-  awSetInputDone: { color: 'rgba(255,255,255,0.3)' },
+  awSetInputDone: { color: CoachColors.textFaint },
   awSetUnit: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize:   W * 0.028,
-    color:      'rgba(255,255,255,0.3)',
+    color:      CoachColors.textFaint,
     marginLeft: 4,
   },
   awCheckBtn: {
@@ -965,7 +956,7 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   awFinishBtn: {
     marginTop:    W * 0.04,
     marginBottom: W * 0.02,
-    borderRadius: Radius.full,
+    borderRadius: 999,
     overflow:     'hidden',
   },
   awFinishBtnGradient: {
@@ -977,9 +968,9 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     minHeight:      54,
   },
   awFinishBtnText: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.044,
-    color:         '#0D0D12',
+    color:         CoachColors.onAccent,
     letterSpacing: -0.2,
   },
 
@@ -990,16 +981,16 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: W * 0.1,
   },
   emptyTitle: {
-    fontFamily:  FontFamily.headingSemiBold,
+    fontFamily:  CoachFonts.headingSemiBold,
     fontSize:    W * 0.042,
-    color:       '#FFFFFF',
+    color:       CoachColors.textPrimary,
     marginBottom: 8,
     textAlign:   'center',
   },
   emptyBody: {
-    fontFamily:  FontFamily.body,
+    fontFamily:  CoachFonts.body,
     fontSize:    W * 0.034,
-    color:       'rgba(255,255,255,0.4)',
+    color:       CoachColors.textMuted,
     textAlign:   'center',
     lineHeight:  W * 0.05,
   },
@@ -1010,10 +1001,10 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     bottom:    20,
     left:      W * 0.04,
     right:     W * 0.04,
-    backgroundColor: '#0C0C10',
+    backgroundColor: CoachColors.bg,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.35)',
+    borderColor: CoachColors.accent,
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'space-between',
@@ -1027,29 +1018,31 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   },
   restBarInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   restBarLabel: {
-    fontFamily:    FontFamily.bodyBold,
+    fontFamily:    CoachFonts.bodyBold,
     fontSize:      W * 0.026,
-    color:         '#FFD700',
+    color:         CoachColors.accent,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   restBarTime: {
-    fontFamily:  FontFamily.headingExtraBold,
+    fontFamily:  CoachFonts.headingBold,
     fontSize:    W * 0.046,
-    color:       '#FFFFFF',
+    color:       CoachColors.textPrimary,
     fontVariant: ['tabular-nums'],
     marginLeft:  4,
   },
   restBarSkip: {
-    backgroundColor:  'rgba(255,255,255,0.08)',
+    backgroundColor:  CoachColors.surface,
     paddingHorizontal: 16,
     paddingVertical:   7,
     borderRadius:     14,
   },
   restBarSkipText: {
-    fontFamily:    FontFamily.bodyBold,
+    fontFamily:    CoachFonts.bodyBold,
     fontSize:      W * 0.028,
-    color:         'rgba(255,255,255,0.6)',
+    color:         CoachColors.textSecondary,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });
 
@@ -1069,13 +1062,13 @@ const dt = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
     borderRadius:   14,
-    backgroundColor:'rgba(255,255,255,0.06)',
+    backgroundColor:CoachColors.surface,
     flexShrink:     0,
   },
   headerTitle: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.05,
-    color:         '#FFFFFF',
+    color:         CoachColors.textPrimary,
     letterSpacing: -0.5,
     flex:          1,
   },
@@ -1086,7 +1079,7 @@ const dt = StyleSheet.create({
     borderWidth:    1,
   },
   statusText: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize:   W * 0.03,
   },
 
@@ -1096,7 +1089,7 @@ const dt = StyleSheet.create({
     borderRadius:     20,
     padding:          W * 0.05,
     borderWidth:      1,
-    borderColor:      'rgba(200,241,53,0.15)',
+    borderColor:      CoachColors.accentSoft,
     marginBottom:     W * 0.035,
   },
   heroClientRow: {
@@ -1109,27 +1102,27 @@ const dt = StyleSheet.create({
     width:           52,
     height:          52,
     borderRadius:    16,
-    backgroundColor: 'rgba(200,241,53,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     alignItems:      'center',
     justifyContent:  'center',
   },
   heroName: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.052,
-    color:         '#FFFFFF',
+    color:         CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom:  3,
   },
   heroType: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize:   W * 0.034,
-    color:      '#C8F135',
+    color:      CoachColors.accent,
     marginBottom:3,
   },
   heroHistory: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize:   W * 0.03,
-    color:      'rgba(255,255,255,0.4)',
+    color:      CoachColors.textMuted,
   },
   infoRow: {
     flexDirection: 'row',
@@ -1142,25 +1135,25 @@ const dt = StyleSheet.create({
     gap:           5,
   },
   infoText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize:   W * 0.031,
-    color:      'rgba(255,255,255,0.55)',
+    color:      CoachColors.textSecondary,
   },
 
   // Card
   card: {
     marginHorizontal: W * 0.04,
     marginBottom:     W * 0.035,
-    backgroundColor:  '#111118',
+    backgroundColor:  CoachColors.surface,
     borderRadius:     18,
     borderWidth:      1,
-    borderColor:      'rgba(255,255,255,0.08)',
+    borderColor:      CoachColors.borderMuted,
     padding:          W * 0.05,
   },
   cardTag: {
-    fontFamily:    FontFamily.bodyBold,
+    fontFamily:    CoachFonts.bodyBold,
     fontSize:      W * 0.026,
-    color:         'rgba(255,255,255,0.35)',
+    color:         CoachColors.textMuted,
     letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginBottom:  4,
@@ -1171,9 +1164,9 @@ const dt = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardTitle: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.046,
-    color:         '#FFFFFF',
+    color:         CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom:  W * 0.04,
   },
@@ -1185,9 +1178,9 @@ const dt = StyleSheet.create({
     gap:          10,
   },
   emptyWorkoutText: {
-    fontFamily: FontFamily.bodyMedium,
+    fontFamily: CoachFonts.bodyMedium,
     fontSize:   W * 0.034,
-    color:      'rgba(255,255,255,0.35)',
+    color:      CoachColors.textMuted,
     textAlign:  'center',
   },
   exList: { gap: 10 },
@@ -1195,7 +1188,7 @@ const dt = StyleSheet.create({
     flexDirection:   'row',
     alignItems:      'center',
     gap:             12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius:    12,
     padding:         12,
   },
@@ -1203,24 +1196,24 @@ const dt = StyleSheet.create({
     width:          28,
     height:         28,
     borderRadius:   14,
-    backgroundColor:'rgba(200,241,53,0.12)',
+    backgroundColor:CoachColors.accentSoft,
     alignItems:     'center',
     justifyContent: 'center',
     flexShrink:     0,
   },
-  exNumText:   { fontFamily: FontFamily.bodyBold, fontSize: 12, color: '#C8F135' },
-  exName:      { fontFamily: FontFamily.bodySemiBold, fontSize: W * 0.036, color: '#FFFFFF', marginBottom: 2 },
-  exMeta:      { fontFamily: FontFamily.body, fontSize: W * 0.029, color: 'rgba(255,255,255,0.4)' },
+  exNumText:   { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
+  exName:      { fontFamily: CoachFonts.bodySemiBold, fontSize: W * 0.036, color: CoachColors.textPrimary, marginBottom: 2 },
+  exMeta:      { fontFamily: CoachFonts.body, fontSize: W * 0.029, color: CoachColors.textMuted },
   restChip: {
     flexDirection:  'row',
     alignItems:     'center',
     gap:            3,
-    backgroundColor:'rgba(255,255,255,0.06)',
+    backgroundColor:CoachColors.surface,
     paddingHorizontal: 8,
     paddingVertical:   4,
     borderRadius:   8,
   },
-  restChipText: { fontFamily: FontFamily.bodyMedium, fontSize: 10, color: 'rgba(255,255,255,0.35)' },
+  restChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 10, color: CoachColors.textMuted },
 
   // Muscle chips
   muscleChips: {
@@ -1230,17 +1223,17 @@ const dt = StyleSheet.create({
     marginTop:     W * 0.04,
     paddingTop:    W * 0.04,
     borderTopWidth:1,
-    borderTopColor:'rgba(255,255,255,0.06)',
+    borderTopColor:CoachColors.borderMuted,
   },
   muscleChip: {
     paddingHorizontal: 12,
     paddingVertical:    5,
     borderRadius:   20,
-    backgroundColor:'rgba(167,139,250,0.1)',
+    backgroundColor:CoachColors.accentSoft,
     borderWidth:    1,
-    borderColor:    'rgba(167,139,250,0.2)',
+    borderColor:    CoachColors.accentSoft,
   },
-  muscleChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: W * 0.03, color: '#A78BFA' },
+  muscleChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: W * 0.03, color: CoachColors.accent },
 
   // Notes
   savedPill: {
@@ -1250,18 +1243,18 @@ const dt = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical:   3,
     borderRadius:  20,
-    backgroundColor:'rgba(34,197,94,0.1)',
+    backgroundColor:CoachColors.accentSoft,
   },
-  savedText: { fontFamily: FontFamily.bodyBold, fontSize: W * 0.026, color: '#22C55E' },
+  savedText: { fontFamily: CoachFonts.bodyBold, fontSize: W * 0.026, color: CoachColors.accent },
   notesInput: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.08)',
+    borderColor:     CoachColors.borderMuted,
     padding:         14,
-    fontFamily:      FontFamily.body,
+    fontFamily:      CoachFonts.body,
     fontSize:        W * 0.035,
-    color:           '#FFFFFF',
+    color:           CoachColors.textPrimary,
     minHeight:       100,
     lineHeight:      W * 0.052,
   },
@@ -1285,9 +1278,9 @@ const dt = StyleSheet.create({
     minHeight:      54,
   },
   primaryCTAText: {
-    fontFamily:    FontFamily.headingExtraBold,
+    fontFamily:    CoachFonts.headingBold,
     fontSize:      W * 0.044,
-    color:         '#0D0D12',
+    color:         CoachColors.onAccent,
     letterSpacing: -0.2,
   },
   secondaryCTA: {
@@ -1297,14 +1290,14 @@ const dt = StyleSheet.create({
     gap:            8,
     paddingVertical:14,
     borderRadius:   14,
-    backgroundColor:'rgba(96,165,250,0.08)',
+    backgroundColor:CoachColors.accentSofter,
     borderWidth:    1,
-    borderColor:    'rgba(96,165,250,0.2)',
+    borderColor:    CoachColors.accentSoft,
     minHeight:      52,
   },
   secondaryCTAText: {
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.038,
-    color:      '#60A5FA',
+    color:      CoachColors.accent,
   },
 });

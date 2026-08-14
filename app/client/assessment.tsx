@@ -1,14 +1,11 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
-import { useTheme } from '../../context/ThemeContext';
-import type { ThemeColors } from '../../constants/theme';
-import { Spacing, FontFamily, FontSize, Radius } from '../../constants/theme';
-import Button from '../../components/Button';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // Dynamic Question Engine Configuration
 const ASSESSMENT_QUESTIONS = [
@@ -21,7 +18,7 @@ const ASSESSMENT_QUESTIONS = [
       { id: 'ai_coach', label: 'I wanna try AI Coach', icon: 'hardware-chip-outline' as any },
       { id: 'bulk', label: 'I wanna get bulks', icon: 'barbell-outline' as any },
       { id: 'endurance', label: 'I wanna gain endurance', icon: 'pulse-outline' as any },
-      { id: 'try_app', label: 'Just trying out the app! 👍', icon: 'phone-portrait-outline' as any },
+      { id: 'try_app', label: 'Just trying out the app!', icon: 'phone-portrait-outline' as any },
     ]
   },
   {
@@ -67,7 +64,7 @@ const ASSESSMENT_QUESTIONS = [
     labels: {
       1: 'Beginner',
       2: 'Novice',
-      3: 'Somewhat Athletic',
+      3: 'Somewhat athletic',
       4: 'Athletic',
       5: 'Advanced'
     }
@@ -77,7 +74,7 @@ const ASSESSMENT_QUESTIONS = [
     title: 'Do you have any physical limitations?',
     type: 'tags',
     image: require('../../assets/images/walker.jpg'),
-    suggestions: ['Knee Pain', 'Muscle Pain', 'Arthritis', 'Back Pain', 'Asthma', 'Obesity'],
+    suggestions: ['Knee pain', 'Muscle pain', 'Arthritis', 'Back pain', 'Asthma', 'Obesity'],
     maxTags: 10,
   },
   {
@@ -86,15 +83,15 @@ const ASSESSMENT_QUESTIONS = [
     type: 'single',
     layout: 'grid',
     options: [
-      { id: 'plant_based', label: 'Plant Based', description: 'Vegan', icon: 'leaf' as any },
-      { id: 'carbo_diet', label: 'Carbo Diet', description: 'Bread, etc', icon: 'fast-food' as any },
+      { id: 'plant_based', label: 'Plant based', description: 'Vegan', icon: 'leaf' as any },
+      { id: 'carbo_diet', label: 'Carbo diet', description: 'Bread, etc', icon: 'fast-food' as any },
       { id: 'specialized', label: 'Specialized', description: 'Paleo, keto, etc', icon: 'restaurant' as any },
       { id: 'traditional', label: 'Traditional', description: 'Fruit diet', icon: 'nutrition' as any },
     ]
   },
   {
     id: 'exercise_preference',
-    title: 'Do you have a specific Exercise Preference?',
+    title: 'Do you have a specific exercise preference?',
     type: 'single',
     layout: 'grid-3',
     options: [
@@ -125,7 +122,7 @@ const ASSESSMENT_QUESTIONS = [
   },
   {
     id: 'supplements_list',
-    title: 'Specify Supplement',
+    title: 'Specify supplement',
     subtitle: 'Please specify your supplement.',
     type: 'multi',
     layout: 'pill_cloud',
@@ -152,7 +149,7 @@ const ASSESSMENT_QUESTIONS = [
   },
   {
     id: 'calorie_goal',
-    title: "What's Your Calorie Goal per day?",
+    title: "What's your calorie goal per day?",
     type: 'counter',
     config: {
       'Kcal': { min: 500, max: 5000, default: 1550, step: 50, label: 'calories daily' },
@@ -165,11 +162,11 @@ const ASSESSMENT_QUESTIONS = [
     type: 'single',
     layout: 'badge_list',
     options: [
-      { id: 'excellent', label: 'Excellent', emoji: '😊', badge: '>8 hours' },
-      { id: 'great', label: 'Great', emoji: '😃', badge: '7-8 hours' },
-      { id: 'normal', label: 'Normal', emoji: '😐', badge: '6-7 hours' },
-      { id: 'bad', label: 'Bad', emoji: '😞', badge: '3-4 hours' },
-      { id: 'insomniac', label: 'Insomniac', emoji: '😫', badge: '<2 hours' },
+      { id: 'excellent', label: 'Excellent', badge: '>8 hours' },
+      { id: 'great', label: 'Great', badge: '7-8 hours' },
+      { id: 'normal', label: 'Normal', badge: '6-7 hours' },
+      { id: 'bad', label: 'Bad', badge: '3-4 hours' },
+      { id: 'insomniac', label: 'Insomniac', badge: '<2 hours' },
     ]
   },
 ];
@@ -181,8 +178,6 @@ const UNIT_WIDTH = TICK_GAP * TICKS_PER_UNIT; // 50px per integer unit
 
 function RulerPicker({ min, max, value, onChange }: { min: number, max: number, value: number, onChange: (v: number) => void }) {
   const { width } = useWindowDimensions();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
   const halfWidth = width / 2;
   const numUnits = max - min;
@@ -246,8 +241,6 @@ function RulerPicker({ min, max, value, onChange }: { min: number, max: number, 
 const WHEEL_ITEM_HEIGHT = 80;
 
 function WheelPicker({ min, max, value, onChange }: { min: number, max: number, value: number, onChange: (v: number) => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
   
   const numItems = max - min + 1;
@@ -291,7 +284,7 @@ function WheelPicker({ min, max, value, onChange }: { min: number, max: number, 
           const isAdj1 = diff === 1;
           const isAdj2 = diff === 2;
 
-          let fontSize = FontSize.lg;
+          let fontSize = 22;
           let opacity = 0.2;
           if (isActive) { fontSize = 80; opacity = 1; }
           else if (isAdj1) { fontSize = 56; opacity = 0.5; }
@@ -301,7 +294,7 @@ function WheelPicker({ min, max, value, onChange }: { min: number, max: number, 
             <View key={item} style={[styles.wheelItem, isActive && styles.wheelItemActive]}>
               <Text style={[
                 styles.wheelItemText,
-                { fontSize, opacity, color: isActive ? '#FFF' : colors.textTertiary },
+                { fontSize, opacity, color: isActive ? CoachColors.onAccent : CoachColors.textMuted },
                 isActive && { letterSpacing: -2 }
               ]}>
                 {item}
@@ -321,8 +314,6 @@ const P1_X = ARC_WIDTH * 2.2; // pull control point to the right
 const THUMB_SIZE = 56;
 
 function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const range = max - min;
   
   const [t, setT] = useState((value - min) / range);
@@ -390,14 +381,14 @@ function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
       <View style={{ width: ARC_WIDTH, height: ARC_HEIGHT, position: 'relative' }}>
         {/* Background Arc */}
         <Svg width={ARC_WIDTH} height={ARC_HEIGHT} style={{ position: 'absolute' }}>
-          <Path d={arcPath} stroke={colors.border} strokeWidth={6} fill="none" strokeLinecap="round" />
-          <Path d={ticksPath} stroke={colors.textTertiary} strokeWidth={2} />
+          <Path d={arcPath} stroke={CoachColors.border} strokeWidth={6} fill="none" strokeLinecap="round" />
+          <Path d={ticksPath} stroke={CoachColors.textMuted} strokeWidth={2} />
         </Svg>
         
         {/* Filled Arc */}
         <View style={{ position: 'absolute', bottom: 0, width: ARC_WIDTH, height: filledHeight, overflow: 'hidden' }}>
           <Svg width={ARC_WIDTH} height={ARC_HEIGHT} style={{ position: 'absolute', bottom: 0 }}>
-            <Path d={arcPath} stroke={colors.accent} strokeWidth={6} fill="none" strokeLinecap="round" />
+            <Path d={arcPath} stroke={CoachColors.accent} strokeWidth={6} fill="none" strokeLinecap="round" />
           </Svg>
         </View>
 
@@ -418,7 +409,7 @@ function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
 
       {/* Hint */}
       <View style={styles.arcHint}>
-        <Ionicons name="help-circle" size={16} color={colors.textTertiary} />
+        <Ionicons name="help-circle" size={16} color={CoachColors.textMuted} />
         <Text style={styles.arcHintText}>Drag to adjust</Text>
       </View>
     </View>
@@ -427,8 +418,6 @@ function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
 
 // --- Custom Tags Picker Component ---
 function TagsPicker({ question, value, onChange }: any) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const [inputText, setInputText] = useState('');
   const tags = value || [];
 
@@ -459,25 +448,25 @@ function TagsPicker({ question, value, onChange }: any) {
               onChangeText={setInputText}
               onSubmitEditing={() => handleAddTag(inputText)}
               placeholder={tags.length === 0 ? "Type a limitation..." : ""}
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={CoachColors.textMuted}
               returnKeyType="done"
             />
           )}
         </View>
         <View style={styles.tagsFooterBox}>
-           <Ionicons name="document-text" size={14} color={colors.textTertiary} />
+           <Ionicons name="document-text" size={14} color={CoachColors.textMuted} />
            <Text style={styles.tagsCount}>{tags.length}/{question.maxTags || 10}</Text>
         </View>
       </View>
 
       {question.suggestions && question.suggestions.length > 0 && (
         <View style={styles.suggestionsRow}>
-          <Text style={styles.suggestionsLabel}>Most Common:</Text>
+          <Text style={styles.suggestionsLabel}>Most common:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
              {question.suggestions.filter((s: string) => !tags.includes(s)).map((s: string) => (
                <TouchableOpacity key={s} style={styles.suggestionItem} onPress={() => handleAddTag(s)}>
                  <Text style={styles.suggestionText}>{s}</Text>
-                 <Ionicons name="add" size={14} color={colors.blue} />
+                 <Ionicons name="add" size={14} color={CoachColors.accent} />
                </TouchableOpacity>
              ))}
           </ScrollView>
@@ -491,13 +480,11 @@ export default function AssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { updateAssessment } = useClient();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const { width: windowWidth } = useWindowDimensions();
 
   // Calculate precise grid widths to prevent overlapping
-  const containerPadding = Spacing.xl * 2;
-  const gap = Spacing.md;
+  const containerPadding = 20 * 2;
+  const gap = 10;
   const availableWidth = windowWidth - containerPadding;
   const grid2Width = Math.floor((availableWidth - gap) / 2);
   const grid3Width = Math.floor((availableWidth - gap * 2) / 3);
@@ -622,8 +609,8 @@ export default function AssessmentScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Assessment</Text>
         <View style={styles.progressBadge}>
@@ -639,7 +626,7 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'ruler' && currentAnswer && (
-          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+          <View style={{ flex: 1, marginTop: 20 }}>
             {/* Unit Toggle */}
             <View style={styles.unitToggle}>
               {Object.keys((question as any).config).map((u) => {
@@ -678,7 +665,7 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'wheel' && currentAnswer && (
-          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+          <View style={{ flex: 1, marginTop: 20 }}>
             <WheelPicker
               min={(question as any).min}
               max={(question as any).max}
@@ -689,7 +676,7 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'yes_no' && (question as any).image && (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: Spacing.xl }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 20 }}>
             <Image 
               source={(question as any).image} 
               style={{ width: '100%', height: 350 }} 
@@ -699,7 +686,7 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'arc_slider' && currentAnswer && (
-          <View style={{ flex: 1, marginTop: Spacing.xl }}>
+          <View style={{ flex: 1, marginTop: 20 }}>
             <ArcSliderPicker
               min={(question as any).min}
               max={(question as any).max}
@@ -711,9 +698,9 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'tags' && currentAnswer && (
-          <View style={{ flex: 1, marginTop: Spacing.md }}>
+          <View style={{ flex: 1, marginTop: 10 }}>
             {question.image && (
-              <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl }}>
+              <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <Image 
                   source={(question as any).image} 
                   style={{ width: '100%', height: 220 }} 
@@ -730,7 +717,7 @@ export default function AssessmentScreen() {
         )}
 
         {question.type === 'segmented_number' && currentAnswer && (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: Spacing['3xl'] }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 40 }}>
             <Text style={styles.massiveSegmentedNumber}>{currentAnswer}x</Text>
             
             <View style={styles.segmentedContainer}>
@@ -755,7 +742,7 @@ export default function AssessmentScreen() {
             </View>
             
             <Text style={styles.segmentedFooterText}>
-               I'm commited to exercising <Text style={{ fontFamily: FontFamily.bodySemiBold, color: colors.textPrimary }}>{currentAnswer}x</Text> weekly
+               I'm commited to exercising <Text style={{ fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary }}>{currentAnswer}x</Text> weekly
             </Text>
           </View>
         )}
@@ -763,7 +750,7 @@ export default function AssessmentScreen() {
         {question.type === 'counter' && currentAnswer && (() => {
           const cfg = (question as any).config[currentAnswer.unit];
           return (
-            <View style={{ flex: 1, alignItems: 'center', marginTop: Spacing.xl }}>
+            <View style={{ flex: 1, alignItems: 'center', marginTop: 20 }}>
               {/* Unit Toggle */}
               <View style={styles.unitToggle}>
                 {Object.keys((question as any).config).map((u) => {
@@ -801,7 +788,7 @@ export default function AssessmentScreen() {
                   disabled={currentAnswer.value <= cfg.min}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="remove" size={28} color={colors.textSecondary} />
+                  <Ionicons name="remove" size={28} color={CoachColors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.counterBtn, styles.counterBtnPlus]}
@@ -812,7 +799,7 @@ export default function AssessmentScreen() {
                   disabled={currentAnswer.value >= cfg.max}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add" size={28} color="#FFF" />
+                  <Ionicons name="add" size={28} color={CoachColors.onAccent} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -833,7 +820,7 @@ export default function AssessmentScreen() {
                   key={option.id}
                   style={[
                     styles.gridOption,
-                    isGrid3 ? { width: grid3Width, padding: Spacing.md } : { width: grid2Width },
+                    isGrid3 ? { width: grid3Width, padding: 10 } : { width: grid2Width },
                     isSelected && styles.gridOptionActive
                   ]}
                   onPress={() => handleSelect(option.id)}
@@ -842,19 +829,19 @@ export default function AssessmentScreen() {
                   {isGrid3 ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       {option.icon && (
-                        <Ionicons name={option.icon as any} size={32} color={isSelected ? '#FFF' : colors.textTertiary} />
+                        <Ionicons name={option.icon as any} size={32} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
                       )}
-                      <Text style={[styles.gridOptionLabel3, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                      <Text style={[styles.gridOptionLabel3, isSelected && { color: CoachColors.onAccent }]}>{option.label}</Text>
                     </View>
                   ) : (
                     <>
-                      <Text style={[styles.gridOptionLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                      <Text style={[styles.gridOptionLabel, isSelected && { color: CoachColors.onAccent }]}>{option.label}</Text>
                       {option.description && (
-                        <Text style={[styles.gridOptionDesc, isSelected && { color: 'rgba(255,255,255,0.8)' }]}>{option.description}</Text>
+                        <Text style={[styles.gridOptionDesc, isSelected && { color: CoachColors.onAccent }]}>{option.description}</Text>
                       )}
                       {option.icon && (
                         <View style={styles.gridOptionIconWrapper}>
-                          <Ionicons name={option.icon as any} size={24} color={isSelected ? '#FFF' : colors.textTertiary} />
+                          <Ionicons name={option.icon as any} size={24} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
                         </View>
                       )}
                     </>
@@ -879,12 +866,11 @@ export default function AssessmentScreen() {
                   onPress={() => handleSelect(option.id)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.badgeEmoji}>{(option as any).emoji}</Text>
-                  <Text style={[styles.badgeListLabel, isSelected && { color: '#FFF' }]}>{option.label}</Text>
+                  <Text style={[styles.badgeListLabel, isSelected && { color: CoachColors.onAccent }]}>{option.label}</Text>
                   <View style={{ flex: 1 }} />
                   <View style={[styles.badgePill, isSelected && styles.badgePillActive]}>
-                    <Ionicons name="time-outline" size={14} color={isSelected ? '#FFF' : colors.textTertiary} />
-                    <Text style={[styles.badgePillText, isSelected && { color: '#FFF' }]}>{(option as any).badge}</Text>
+                    <Ionicons name="time-outline" size={14} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
+                    <Text style={[styles.badgePillText, isSelected && { color: CoachColors.accent }]}>{(option as any).badge}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -894,11 +880,11 @@ export default function AssessmentScreen() {
 
         {/* --- PILL CLOUD LAYOUT --- */}
         {(question.type === 'single' || question.type === 'multi') && (question as any).layout === 'pill_cloud' && (
-          <View style={[styles.optionsContainer, { marginTop: Spacing.md }]}>
+          <View style={[styles.optionsContainer, { marginTop: 10 }]}>
             <View style={styles.cloudHeaderRow}>
-              <Text style={styles.cloudHeaderTitle}>Most Common</Text>
+              <Text style={styles.cloudHeaderTitle}>Most common</Text>
               <TouchableOpacity>
-                <Text style={styles.cloudHeaderLink}>See All Supplements</Text>
+                <Text style={styles.cloudHeaderLink}>See all supplements</Text>
               </TouchableOpacity>
             </View>
 
@@ -921,13 +907,13 @@ export default function AssessmentScreen() {
             {currentAnswer && currentAnswer.length > 0 && (
               <View style={styles.cloudSelectedContainer}>
                 <Text style={styles.cloudSelectedLabel}>Selected</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: Spacing.xl }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 20 }}>
                   {currentAnswer.map((id: string) => {
                     const opt = (question as any).options.find((o: any) => o.id === id);
                     return (
                       <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
                         <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
-                        <Ionicons name="close" size={14} color={colors.blue} />
+                        <Ionicons name="close" size={14} color={CoachColors.accent} />
                       </TouchableOpacity>
                     );
                   })}
@@ -954,14 +940,14 @@ export default function AssessmentScreen() {
                       <Ionicons
                         name={option.icon as any}
                         size={20}
-                        color={isImageOption ? '#111114' : (isSelected ? '#FFF' : colors.textTertiary)}
+                        color={isImageOption ? CoachColors.onAccent : (isSelected ? CoachColors.onAccent : CoachColors.textMuted)}
                         style={isImageOption ? { marginRight: 8 } : undefined}
                       />
                     )}
                     <Text style={[
                       styles.optionLabel,
                       isSelected && !isImageOption && styles.optionLabelActive,
-                      isImageOption && { fontSize: FontSize.lg, color: '#111114' }
+                      isImageOption && { fontSize: 22, color: CoachColors.onAccent }
                     ]}>
                       {option.label}
                     </Text>
@@ -970,11 +956,11 @@ export default function AssessmentScreen() {
                   <View style={[
                     styles.radioOuter,
                     isSelected && !isImageOption && styles.radioOuterActive,
-                    isImageOption && isSelected && { borderColor: '#111114' },
-                    isImageOption && !isSelected && { borderColor: '#666' },
-                    isImageOption && { position: 'absolute', bottom: Spacing.md, left: Spacing.md }
+                    isImageOption && isSelected && { borderColor: CoachColors.onAccent },
+                    isImageOption && !isSelected && { borderColor: CoachColors.onAccent },
+                    isImageOption && { position: 'absolute', bottom: 10, left: 10 }
                   ]}>
-                    {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: '#111114' }]} />}
+                    {isSelected && <View style={[styles.radioInner, isImageOption && { backgroundColor: CoachColors.onAccent }]} />}
                   </View>
                 </>
               );
@@ -987,7 +973,7 @@ export default function AssessmentScreen() {
                     activeOpacity={0.8}
                     onPress={() => handleSelect(option.id)}
                   >
-                    <ImageBackground source={option.image} style={styles.imageOptionBg} imageStyle={{ borderRadius: Radius.xl, opacity: 0.9 }}>
+                    <ImageBackground source={option.image} style={styles.imageOptionBg} imageStyle={{ borderRadius: 20, opacity: 0.9 }}>
                       {content}
                     </ImageBackground>
                   </TouchableOpacity>
@@ -1006,7 +992,7 @@ export default function AssessmentScreen() {
                       <Ionicons
                         name={option.icon as any}
                         size={20}
-                        color={isSelected ? '#FFF' : colors.textTertiary}
+                        color={isSelected ? CoachColors.onAccent : CoachColors.textMuted}
                       />
                     </View>
                   )}
@@ -1028,21 +1014,21 @@ export default function AssessmentScreen() {
         {question.type === 'yes_no' ? (
           <View style={styles.yesNoFooter}>
             <TouchableOpacity 
-              style={[styles.yesNoBtn, { backgroundColor: colors.bgSecondary }]}
+              style={[styles.yesNoBtn, { backgroundColor: CoachColors.surface }]}
               onPress={() => handleSelectAndNext(false)}
               disabled={saving}
             >
-              <Text style={[styles.yesNoBtnText, { color: colors.textSecondary }]}>No</Text>
-              <Ionicons name="close" size={20} color={colors.textSecondary} />
+              <Text style={[styles.yesNoBtnText, { color: CoachColors.textSecondary }]}>No</Text>
+              <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.yesNoBtn, { backgroundColor: '#111114' }]}
+              style={[styles.yesNoBtn, { backgroundColor: CoachColors.accent }]}
               onPress={() => handleSelectAndNext(true)}
               disabled={saving}
             >
-              <Text style={[styles.yesNoBtnText, { color: '#FFF' }]}>Yes</Text>
-              <Ionicons name="checkmark" size={20} color="#FFF" />
+              <Text style={[styles.yesNoBtnText, { color: CoachColors.onAccent }]}>Yes</Text>
+              <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -1050,19 +1036,23 @@ export default function AssessmentScreen() {
             {(question as any).skippable && (
               <TouchableOpacity style={styles.skipBtn} onPress={() => handleNext()} activeOpacity={0.7}>
                 <Text style={styles.skipBtnText}>Prefer to skip, thanks!</Text>
-                <Ionicons name="close" size={18} color={colors.accent} />
+                <Ionicons name="close" size={18} color={CoachColors.accent} />
               </TouchableOpacity>
             )}
 
-            <Button
-              title={isLastValidStep ? (saving ? "Saving..." : "Finish") : "Continue"}
+            <TouchableOpacity
+              style={[styles.continueBtn, (!canContinue || saving) && { opacity: 0.5 }]}
               onPress={handleNext}
               disabled={!canContinue || saving}
-              full
-              icon={!isLastValidStep ? <Ionicons name="arrow-forward" size={18} color="#FFF" /> : undefined}
-              iconPosition="right"
-              style={styles.continueBtn}
-            />
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={isLastValidStep ? 'Finish assessment' : 'Continue'}
+            >
+              <Text style={styles.continueBtnText}>
+                {isLastValidStep ? (saving ? 'Saving...' : 'Finish') : 'Continue'}
+              </Text>
+              {!isLastValidStep && <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />}
+            </TouchableOpacity>
           </>
         )}
       </View>
@@ -1071,208 +1061,210 @@ export default function AssessmentScreen() {
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    paddingHorizontal: 16, paddingVertical: 10,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: Radius.full,
-    backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 999,
+    backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textPrimary },
-  progressBadge: { backgroundColor: `${colors.blue}15`, paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full },
-  progressText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.blue },
-  content: { padding: Spacing.xl, paddingBottom: 100 },
-  questionTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: 28, color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.xs },
-  questionSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.base, color: colors.textTertiary, textAlign: 'center', marginBottom: Spacing['2xl'] },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  progressBadge: { backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
+  progressText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  content: { padding: 20, paddingBottom: 100 },
+  questionTitle: { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 4 },
+  questionSubtitle: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 28 },
 
-  optionsContainer: { gap: Spacing.md, marginTop: Spacing.xl },
+  optionsContainer: { gap: 10, marginTop: 20 },
   optionBtn: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.bgSecondary,
-    padding: Spacing.md, borderRadius: Radius.xl,
+    backgroundColor: CoachColors.surface,
+    padding: 10, borderRadius: 20,
     borderWidth: 2, borderColor: 'transparent',
   },
   optionBtnActive: {
-    backgroundColor: colors.accent, borderColor: colors.accent,
-    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: CoachColors.accent, borderColor: CoachColors.accent,
+    shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   
   imageOptionWrapper: {
-    height: 140, borderRadius: Radius.xl, overflow: 'hidden',
-    backgroundColor: '#f5f5f5', borderWidth: 2, borderColor: 'transparent',
+    height: 140, borderRadius: 20, overflow: 'hidden',
+    backgroundColor: CoachColors.surface, borderWidth: 2, borderColor: 'transparent',
   },
-  imageOptionActive: { borderColor: colors.accent },
-  imageOptionBg: { flex: 1, padding: Spacing.md, justifyContent: 'space-between' },
+  imageOptionActive: { borderColor: CoachColors.accent },
+  imageOptionBg: { flex: 1, padding: 10, justifyContent: 'space-between' },
   
   optionContentLeft: { flexDirection: 'row', alignItems: 'center' },
-  optionContentLeftImage: { position: 'absolute', top: Spacing.md, left: Spacing.md },
+  optionContentLeftImage: { position: 'absolute', top: 10, left: 10 },
 
   iconContainer: {
-    width: 36, height: 36, borderRadius: Radius.md,
-    backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center',
-    marginRight: Spacing.md,
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center',
+    marginRight: 10,
   },
-  iconContainerActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  optionLabel: { flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.textPrimary },
-  optionLabelActive: { color: '#FFF' },
-  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  radioOuterActive: { borderColor: '#FFF' },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFF' },
+  iconContainerActive: { backgroundColor: CoachColors.onAccent },
+  optionLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  optionLabelActive: { color: CoachColors.onAccent },
+  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  radioOuterActive: { borderColor: CoachColors.onAccent },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: CoachColors.onAccent },
   
   // Grid Layout Styles
-  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridOption: {
     aspectRatio: 1, // square
-    backgroundColor: `${colors.textTertiary}10`,
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
+    backgroundColor: CoachColors.surface,
+    borderRadius: 20,
+    padding: 20,
     position: 'relative'
   },
   gridOptionActive: {
-    backgroundColor: colors.accent,
-    borderColor: 'rgba(255, 95, 59, 0.3)',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
     borderWidth: 4,
   },
-  gridOptionLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.md, color: colors.textPrimary, marginBottom: 4 },
-  gridOptionLabel3: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textSecondary, textAlign: 'center' },
-  gridOptionDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textTertiary },
-  gridOptionIconWrapper: { position: 'absolute', bottom: Spacing.xl, right: Spacing.xl },
+  gridOptionLabel: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, marginBottom: 4 },
+  gridOptionLabel3: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center' },
+  gridOptionDesc: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textMuted },
+  gridOptionIconWrapper: { position: 'absolute', bottom: 20, right: 20 },
 
   // Pill Cloud Styles
-  cloudHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md, paddingHorizontal: Spacing.xs },
-  cloudHeaderTitle: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.sm, color: colors.textPrimary },
-  cloudHeaderLink: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.blue },
-  pillCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: Spacing.xs },
-  cloudPill: { backgroundColor: `${colors.textTertiary}10`, paddingHorizontal: Spacing.lg, paddingVertical: 12, borderRadius: Radius.xl },
-  cloudPillActive: { backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
-  cloudPillText: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.sm, color: colors.textSecondary },
-  cloudPillTextActive: { color: '#FFF' },
-  cloudSelectedContainer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing['3xl'] },
-  cloudSelectedLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textPrimary },
-  cloudSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${colors.blue}15`, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.sm },
-  cloudSelectedChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.blue },
+  cloudHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 },
+  cloudHeaderTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary },
+  cloudHeaderLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  pillCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 4 },
+  cloudPill: { backgroundColor: CoachColors.surface, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
+  cloudPillActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
+  cloudPillText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textSecondary },
+  cloudPillTextActive: { color: CoachColors.onAccent },
+  cloudSelectedContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40 },
+  cloudSelectedLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textPrimary },
+  cloudSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: CoachColors.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  cloudSelectedChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
 
   // Ruler Styles
   unitToggle: {
-    flexDirection: 'row', backgroundColor: colors.bgSecondary,
-    borderRadius: Radius.full, padding: 4, marginBottom: Spacing['3xl'],
+    flexDirection: 'row', backgroundColor: CoachColors.surface,
+    borderRadius: 999, padding: 4, marginBottom: 40,
   },
-  unitBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: Radius.full },
-  unitBtnActive: { backgroundColor: colors.blue, shadowColor: colors.blue, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
-  unitText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base, color: colors.textSecondary },
-  unitTextActive: { color: '#FFF' },
+  unitBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 999 },
+  unitBtnActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
+  unitText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textSecondary },
+  unitTextActive: { color: CoachColors.onAccent },
 
-  valueDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: Spacing['3xl'] },
-  valueNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 80, letterSpacing: -3, color: colors.textPrimary, includeFontPadding: false },
-  valueUnit: { fontFamily: FontFamily.bodySemiBold, fontSize: 32, color: colors.textTertiary, marginLeft: 8 },
+  valueDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: 40 },
+  valueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 80, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false },
+  valueUnit: { fontFamily: CoachFonts.bodySemiBold, fontSize: 32, color: CoachColors.textMuted, marginLeft: 8 },
 
-  rulerContainer: { position: 'relative', height: 120, justifyContent: 'flex-end', marginTop: Spacing.xl },
+  rulerContainer: { position: 'relative', height: 120, justifyContent: 'flex-end', marginTop: 20 },
   rulerPointer: {
-    position: 'absolute', top: 0, bottom: 30, width: 8, backgroundColor: colors.accent,
+    position: 'absolute', top: 0, bottom: 30, width: 8, backgroundColor: CoachColors.accent,
     borderRadius: 4, left: '50%', transform: [{ translateX: -4 }], zIndex: 10,
-    shadowColor: colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4
+    shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4
   },
   tickWrapper: { alignItems: 'flex-start', justifyContent: 'flex-end', height: 100 },
-  tick: { backgroundColor: colors.border, borderRadius: 2, transform: [{ translateX: -1 }] }, // -1 to center the 2px tick over the gap start
-  tickTall: { width: 2, height: 40, backgroundColor: colors.textTertiary },
+  tick: { backgroundColor: CoachColors.border, borderRadius: 2, transform: [{ translateX: -1 }] }, // -1 to center the 2px tick over the gap start
+  tickTall: { width: 2, height: 40, backgroundColor: CoachColors.textMuted },
   tickShort: { width: 2, height: 20 },
-  tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
+  tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 
   // Wheel Styles
   wheelContainer: { height: WHEEL_ITEM_HEIGHT * 5, overflow: 'hidden' },
   wheelItem: { height: WHEEL_ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
-  wheelItemActive: { backgroundColor: colors.accent, borderRadius: 40, marginHorizontal: Spacing.xl, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  wheelItemText: { fontFamily: FontFamily.headingExtraBold, includeFontPadding: false },
+  wheelItemActive: { backgroundColor: CoachColors.accent, borderRadius: 40, marginHorizontal: 20, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  wheelItemText: { fontFamily: CoachFonts.headingBold, includeFontPadding: false },
 
   // Arc Slider Styles
   arcContainer: { flexDirection: 'row', alignItems: 'center', height: ARC_HEIGHT, position: 'relative' },
   arcThumb: {
-    width: THUMB_SIZE, height: THUMB_SIZE, backgroundColor: colors.accent,
+    width: THUMB_SIZE, height: THUMB_SIZE, backgroundColor: CoachColors.accent,
     borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6
+    shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6
   },
-  arcThumbInner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
-  arcValueDisplay: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', paddingRight: Spacing.md },
-  arcValueNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 140, lineHeight: 150, letterSpacing: -8, color: colors.textPrimary, includeFontPadding: false },
-  arcValueLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textSecondary, textAlign: 'right', marginTop: -10 },
+  arcThumbInner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: CoachColors.onAccent },
+  arcValueDisplay: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 10 },
+  arcValueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 140, lineHeight: 150, letterSpacing: -8, color: CoachColors.textPrimary, includeFontPadding: false },
+  arcValueLabel: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textSecondary, textAlign: 'right', marginTop: -10 },
   arcHint: { position: 'absolute', top: -40, left: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  arcHintText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textTertiary },
+  arcHintText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 
   // Tags Styles
   tagsContainer: { flex: 1 },
-  tagsInputBox: { borderWidth: 2, borderColor: colors.accent, borderRadius: Radius.xl, padding: Spacing.lg, minHeight: 140 },
+  tagsInputBox: { borderWidth: 2, borderColor: CoachColors.accent, borderRadius: 20, padding: 16, minHeight: 140 },
   tagsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tagItem: { backgroundColor: `${colors.accent}20`, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.md },
-  tagText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.accent },
-  tagInput: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.textPrimary, minWidth: 100, paddingVertical: 8 },
-  tagsFooterBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 'auto', paddingTop: Spacing.md },
-  tagsCount: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
-  suggestionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.lg, gap: Spacing.md },
-  suggestionsLabel: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textSecondary },
-  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.blue}15`, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.md },
-  suggestionText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.blue },
+  tagItem: { backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
+  tagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  tagInput: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, minWidth: 100, paddingVertical: 8 },
+  tagsFooterBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 'auto', paddingTop: 10 },
+  tagsCount: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
+  suggestionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 10 },
+  suggestionsLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  suggestionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
 
   // Segmented Number Styles
-  massiveSegmentedNumber: { fontFamily: FontFamily.headingExtraBold, fontSize: 160, lineHeight: 160, letterSpacing: -10, color: '#111114', includeFontPadding: false },
-  segmentedContainer: { backgroundColor: `${colors.textTertiary}15`, borderRadius: 100, marginTop: Spacing['3xl'], marginBottom: Spacing['2xl'] },
+  massiveSegmentedNumber: { fontFamily: CoachFonts.headingBold, fontSize: 160, lineHeight: 160, letterSpacing: -10, color: CoachColors.textPrimary, includeFontPadding: false },
+  segmentedContainer: { backgroundColor: CoachColors.surface, borderRadius: 100, marginTop: 40, marginBottom: 28 },
   segmentedScroll: { padding: 4, alignItems: 'center' },
   segmentedItemBox: { padding: 4, borderRadius: 100 },
-  segmentedItemBoxActive: { backgroundColor: `${colors.blue}20` },
+  segmentedItemBoxActive: { backgroundColor: CoachColors.accentSoft },
   segmentedItem: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  segmentedItemActive: { backgroundColor: colors.blue, shadowColor: colors.blue, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 },
-  segmentedItemText: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.lg, color: colors.textTertiary },
-  segmentedItemTextActive: { color: '#FFF' },
-  segmentedFooterText: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary },
+  segmentedItemActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 },
+  segmentedItemText: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textMuted },
+  segmentedItemTextActive: { color: CoachColors.onAccent },
+  segmentedFooterText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textSecondary },
 
   // Counter Styles
-  counterValue: { fontFamily: FontFamily.headingExtraBold, fontSize: 80, letterSpacing: -3, color: colors.textPrimary, includeFontPadding: false, marginTop: Spacing['3xl'] },
-  counterLabel: { fontFamily: FontFamily.body, fontSize: FontSize.md, color: colors.textSecondary, marginTop: Spacing.xs },
-  counterBtnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing['3xl'] },
+  counterValue: { fontFamily: CoachFonts.headingBold, fontSize: 80, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false, marginTop: 40 },
+  counterLabel: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textSecondary, marginTop: 4 },
+  counterBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 40 },
   counterBtn: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  counterBtnMinus: { backgroundColor: `${colors.textTertiary}15` },
-  counterBtnPlus: { backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  counterBtnMinus: { backgroundColor: CoachColors.surface },
+  counterBtnPlus: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
 
   // Badge List Styles
   badgeListItem: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: `${colors.textTertiary}08`, borderRadius: Radius.xl,
-    paddingVertical: 16, paddingHorizontal: Spacing.xl,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: CoachColors.surface, borderRadius: 20,
+    paddingVertical: 16, paddingHorizontal: 20,
   },
   badgeListItemActive: {
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    backgroundColor: CoachColors.accent,
+    shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  badgeEmoji: { fontSize: 24 },
-  badgeListLabel: { fontFamily: FontFamily.headingExtraBold, fontSize: FontSize.base, color: colors.textPrimary },
-  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.textTertiary}15`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
-  badgePillActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  badgePillText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.xs, color: colors.textTertiary },
+  badgeListLabel: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CoachColors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  badgePillActive: { backgroundColor: CoachColors.onAccent },
+  badgePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
 
   footer: {
-    padding: Spacing.xl, paddingBottom: Spacing['2xl'],
-    backgroundColor: colors.bgPrimary,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    padding: 20, paddingBottom: 28,
+    backgroundColor: CoachColors.bg,
+    borderTopWidth: 1, borderTopColor: CoachColors.border,
   },
-  yesNoFooter: { flexDirection: 'row', gap: Spacing.md },
+  yesNoFooter: { flexDirection: 'row', gap: 10 },
   yesNoBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
-    paddingVertical: 18, borderRadius: Radius.xl,
+    paddingVertical: 18, borderRadius: 20,
   },
-  yesNoBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.lg },
+  yesNoBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 22 },
 
   skipBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: `${colors.accent}15`,
-    paddingVertical: 16, borderRadius: Radius.xl,
-    marginBottom: Spacing.md,
+    backgroundColor: CoachColors.accentSoft,
+    paddingVertical: 16, borderRadius: 20,
+    marginBottom: 10,
   },
-  skipBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base, color: colors.accent },
+  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   continueBtn: {
-    borderRadius: Radius.xl,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: CoachColors.accent,
+    borderRadius: 20,
     paddingVertical: 18,
-  }
+  },
+  continueBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.onAccent }
 });

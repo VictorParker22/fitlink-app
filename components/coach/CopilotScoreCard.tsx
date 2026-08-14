@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCopilotAnalytics } from '../../hooks/useCopilotAnalytics';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { PrecisionIcons } from '../icons/PrecisionIcons';
 
 export const CopilotScoreCard: React.FC = () => {
@@ -19,29 +20,29 @@ export const CopilotScoreCard: React.FC = () => {
         top = cat;
       }
     }
-    return top.replace('_', ' ').toUpperCase();
+    return top.replace('_', ' ');
   }, [analytics.tapsByCategory]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-         <PrecisionIcons.Activity size={16} color="#30D158" />
-         <Text style={styles.title}>Copilot Analytics</Text>
+         <PrecisionIcons.Activity size={16} color={CoachColors.accent} />
+         <Text style={styles.title}>Copilot analytics</Text>
       </View>
       <View style={styles.statsRow}>
          <View style={styles.statBox}>
             <Text style={styles.statVal}>{actionRate}%</Text>
-            <Text style={styles.statLabel}>ACTION RATE</Text>
+            <Text style={styles.statLabel}>Action rate</Text>
          </View>
          <View style={styles.divider} />
          <View style={styles.statBox}>
-            <Text style={styles.statVal} numberOfLines={1} adjustsFontSizeToFit>{topCategory}</Text>
-            <Text style={styles.statLabel}>TOP ACTED CATEGORY</Text>
+            <Text style={[styles.statVal, styles.statValCategory]} numberOfLines={1} adjustsFontSizeToFit>{topCategory}</Text>
+            <Text style={styles.statLabel}>Top acted category</Text>
          </View>
          <View style={styles.divider} />
          <View style={styles.statBox}>
             <Text style={styles.statVal}>{analytics.taps}</Text>
-            <Text style={styles.statLabel}>TOTAL ACTIONS</Text>
+            <Text style={styles.statLabel}>Total actions</Text>
          </View>
       </View>
     </View>
@@ -53,10 +54,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     marginBottom: Spacing.xl,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
     padding: Spacing.lg,
   },
   header: {
@@ -66,9 +67,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   statsRow: {
@@ -82,19 +83,23 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 30,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     marginHorizontal: Spacing.md,
   },
   statVal: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
+  statValCategory: {
+    textTransform: 'capitalize',
+  },
   statLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

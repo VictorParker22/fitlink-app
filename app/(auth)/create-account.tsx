@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Spacing, FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_HEIGHT = SCREEN_HEIGHT * 0.34;
@@ -96,9 +96,9 @@ export default function CreateAccountScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerLogo}>FITLINK</Text>
+          <Text style={styles.headerLogo}>FitLink</Text>
         </Animated.View>
 
         {/* Card 1 — Coach */}
@@ -122,7 +122,7 @@ export default function CreateAccountScreen() {
             style={styles.cardOverlay}
           />
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>I'm a Coach</Text>
+            <Text style={styles.cardTitle}>I'm a coach</Text>
             <Text style={styles.cardSubtitle}>
               Build your coaching business
             </Text>
@@ -133,7 +133,7 @@ export default function CreateAccountScreen() {
               accessibilityRole="button"
               accessibilityLabel="Create coach account"
             >
-              <Text style={styles.cardButtonText}>Create Account</Text>
+              <Text style={styles.cardButtonText}>Create account</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -160,7 +160,7 @@ export default function CreateAccountScreen() {
           />
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>
-              I'm training{'\n'}with a Coach
+              I'm training{'\n'}with a coach
             </Text>
             <Text style={styles.cardSubtitle}>
               Join with your coach's invite code
@@ -172,7 +172,7 @@ export default function CreateAccountScreen() {
               accessibilityRole="button"
               accessibilityLabel="Join as a client"
             >
-              <Text style={styles.cardButtonText}>Get Started</Text>
+              <Text style={styles.cardButtonText}>Get started</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -197,7 +197,7 @@ export default function CreateAccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   scrollView: {
     flex: 1,
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: SCREEN_HEIGHT * 0.06,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   backButton: {
     width: 40,
@@ -222,17 +222,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerLogo: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
     letterSpacing: 4,
+    textTransform: 'uppercase',
   },
 
   // Cards
   card: {
     height: CARD_HEIGHT,
-    marginHorizontal: Spacing.base,
-    marginBottom: Spacing.base,
+    marginHorizontal: 14,
+    marginBottom: 14,
     borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
@@ -258,26 +259,26 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: 28,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: 20,
   },
   cardTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 32,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textAlign: 'center',
     lineHeight: 38,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   cardSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
   },
   cardButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     borderRadius: 4,
     paddingVertical: 14,
     paddingHorizontal: 48,
@@ -286,9 +287,9 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   cardButtonText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 15,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
 
@@ -296,18 +297,18 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingTop: SCREEN_HEIGHT * 0.06,
-    paddingBottom: Spacing['2xl'],
+    paddingBottom: 28,
     gap: 6,
   },
   footerText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   footerLink: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     textDecorationLine: 'underline',
   },
 });

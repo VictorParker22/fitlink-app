@@ -10,8 +10,8 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 
 import { useGlobalStudio } from '../../hooks/useGlobalStudio';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
-import { getCategoryColor } from '../../data/categoryColors';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 export default function GlobalStudioScreen() {
   const router = useRouter();
@@ -67,7 +67,7 @@ export default function GlobalStudioScreen() {
   const handleRemindMe = async (classItem: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { status } = await Notifications.requestPermissionsAsync();
-    
+
     if (status !== 'granted') {
       Alert.alert('Permission Denied', 'Please enable notifications in your settings to get reminders.');
       return;
@@ -97,33 +97,33 @@ export default function GlobalStudioScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>DISCOVER</Text>
-          <Text style={styles.headerSubtitle}>Live & On-Demand Classes</Text>
+          <Text style={styles.headerTitle}>Discover</Text>
+          <Text style={styles.headerSubtitle}>Live and on-demand classes</Text>
         </View>
         <TouchableOpacity style={styles.searchBtn}>
-          <Ionicons name="search" size={24} color="#FFFFFF" />
+          <Ionicons name="search" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 90, Spacing['2xl'] * 2) }]}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
-            tintColor="#FFFFFF" 
-            colors={['#5B7FFF']} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={CoachColors.accent}
+            colors={[CoachColors.accent]}
           />
         }
       >
         {loading && !refreshing && liveClasses.length === 0 && vodClasses.length === 0 ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
+            <ActivityIndicator size="large" color={CoachColors.accent} />
             <Text style={styles.loadingText}>Loading studio...</Text>
           </View>
         ) : (
@@ -131,19 +131,21 @@ export default function GlobalStudioScreen() {
             {/* LIVE NOW ACROSS FITLINK */}
         {liveNow.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>LIVE NOW</Text>
+            <Text style={styles.sectionTitle}>Live now</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
               {liveNow.map((item) => (
                 <View key={item.id} style={styles.liveNowCard}>
                   <View style={styles.liveHeader}>
-                    <View style={styles.liveBadgeRow}>
+                    <View style={styles.liveBadge}>
                       <View style={styles.liveDot} />
-                      <Text style={styles.liveBadgeText}>LIVE</Text>
+                      <Text style={styles.liveBadgeText}>Live</Text>
                     </View>
-                    <View style={styles.viewerBadge}>
-                      <Ionicons name="eye" size={12} color="#FFFFFF" />
-                      <Text style={styles.viewerText}>{item.viewer_count || 12} joining</Text>
-                    </View>
+                    {typeof item.viewer_count === 'number' && item.viewer_count > 0 && (
+                      <View style={styles.viewerBadge}>
+                        <Ionicons name="eye" size={12} color={CoachColors.textSecondary} />
+                        <Text style={styles.viewerText}>{item.viewer_count} watching</Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.liveContent}>
@@ -154,13 +156,13 @@ export default function GlobalStudioScreen() {
                     </View>
                   </View>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.joinBtn}
                     onPress={() => handleJoinLive(item.id)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.joinBtnText}>JOIN BROADCAST</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#000000" />
+                    <Text style={styles.joinBtnText}>Join broadcast</Text>
+                    <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -171,11 +173,11 @@ export default function GlobalStudioScreen() {
         {/* UPCOMING DROPS */}
         {upcomingLive.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>UPCOMING STREAMS</Text>
+            <Text style={styles.sectionTitle}>Upcoming streams</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
               {upcomingLive.map((item) => (
-                <TouchableOpacity 
-                  key={item.id} 
+                <TouchableOpacity
+                  key={item.id}
                   style={styles.upcomingCard}
                   onPress={() => handleJoinLive(item.id)}
                   activeOpacity={0.9}
@@ -187,24 +189,24 @@ export default function GlobalStudioScreen() {
                         {new Date(item.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                       <Text style={styles.upcomingDate}>
-                        {new Date(item.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                        {new Date(item.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </Text>
                     </View>
                   </View>
-                  
+
                   <View style={styles.upcomingInfo}>
                     <Text style={styles.upcomingTitle} numberOfLines={2}>{item.title}</Text>
                     <Text style={styles.upcomingTrainer}>with {item.trainer?.name}</Text>
                   </View>
 
                   <View style={styles.upcomingActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.remindBtn}
                       onPress={() => handleJoinLive(item.id)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="enter-outline" size={16} color="#FFFFFF" />
-                      <Text style={styles.remindBtnText}>ENTER WAITING ROOM</Text>
+                      <Ionicons name="enter-outline" size={16} color={CoachColors.textPrimary} />
+                      <Text style={styles.remindBtnText}>Enter waiting room</Text>
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -212,12 +214,12 @@ export default function GlobalStudioScreen() {
             </ScrollView>
           </View>
         )}
-        
+
         {/* Empty state if nothing is live or upcoming */}
         {!loading && liveNow.length === 0 && upcomingLive.length === 0 && (
           <View style={styles.section}>
             <View style={styles.noLiveState}>
-              <Ionicons name="radio-outline" size={32} color="rgba(255,255,255,0.2)" />
+              <Ionicons name="radio-outline" size={32} color={CoachColors.textFaint} />
               <Text style={styles.noLiveText}>No broadcasts right now.</Text>
               <Text style={styles.noLiveSubtext}>Check back later or explore on-demand classes below.</Text>
             </View>
@@ -226,7 +228,7 @@ export default function GlobalStudioScreen() {
 
         {/* TRENDING ON-DEMAND */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TRENDING CLASSES</Text>
+          <Text style={styles.sectionTitle}>Trending classes</Text>
           {vodClasses.length === 0 ? (
             <BoltEmptyState
               pose="analyze"
@@ -236,10 +238,9 @@ export default function GlobalStudioScreen() {
           ) : (
             <View style={styles.grid}>
               {vodClasses.map((item) => {
-                const categoryColor = getCategoryColor(item.category);
                 return (
-                  <TouchableOpacity 
-                    key={item.id} 
+                  <TouchableOpacity
+                    key={item.id}
                     style={styles.vodCard}
                     onPress={() => handleOpenVOD(item)}
                     activeOpacity={0.8}
@@ -249,14 +250,14 @@ export default function GlobalStudioScreen() {
                         <Image source={{ uri: item.thumbnail_url }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                       ) : (
                         <View style={[StyleSheet.absoluteFillObject, styles.placeholderThumb]}>
-                          <Ionicons name="play" size={24} color="rgba(255,255,255,0.2)" />
+                          <Ionicons name="play" size={24} color={CoachColors.textFaint} />
                         </View>
                       )}
-                      <View style={[styles.vodCategoryBadge, { backgroundColor: categoryColor }]}>
-                        <Text style={styles.vodCategoryText}>{item.category?.toUpperCase() || 'CLASS'}</Text>
+                      <View style={styles.vodCategoryBadge}>
+                        <Text style={styles.vodCategoryText}>{item.category || 'Class'}</Text>
                       </View>
                       <View style={styles.vodDurationBadge}>
-                        <Text style={styles.vodDurationText}>{item.duration_minutes} MIN</Text>
+                        <Text style={styles.vodDurationText}>{item.duration_minutes} min</Text>
                       </View>
                     </View>
                     <View style={styles.vodInfo}>
@@ -287,7 +288,7 @@ export default function GlobalStudioScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -296,25 +297,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomColor: CoachColors.borderMuted,
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 24,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
   searchBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -325,29 +326,27 @@ const styles = StyleSheet.create({
     marginBottom: Spacing['2xl'],
   },
   sectionTitle: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 16,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
     paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.md,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   horizontalScroll: {
     paddingHorizontal: Spacing.xl,
     gap: 16,
   },
-  
+
   /* LIVE NOW HERO CAROUSEL */
   liveNowCard: {
     width: 320,
-    backgroundColor: '#EF4444', 
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
     borderRadius: Radius.md,
     padding: Spacing.xl,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
   },
   liveHeader: {
     flexDirection: 'row',
@@ -355,36 +354,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  liveBadgeRow: {
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: CoachColors.dangerSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.danger,
   },
   liveBadgeText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: CoachColors.danger,
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   viewerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: CoachColors.accentSofter,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   viewerText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: '#FFFFFF',
+    color: CoachColors.textSecondary,
   },
   liveContent: {
     flexDirection: 'row',
@@ -397,42 +401,42 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: CoachColors.accent,
   },
   liveTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 22,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 26,
     marginBottom: 4,
   },
   liveCoachName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: CoachColors.textSecondary,
   },
   joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingVertical: 14,
     borderRadius: Radius.xs,
   },
   joinBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14,
-    color: '#000000',
-    letterSpacing: 1,
+    color: CoachColors.onAccent,
+    letterSpacing: 0.5,
   },
 
   /* UPCOMING STREAMS */
   upcomingCard: {
     width: 280,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.sm,
     padding: Spacing.lg,
   },
@@ -451,31 +455,32 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   upcomingTime: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   upcomingDate: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: '#FFD700',
+    color: CoachColors.accent,
     marginTop: 2,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   upcomingInfo: {
     marginBottom: 20,
   },
   upcomingTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 20,
     marginBottom: 4,
   },
   upcomingTrainer: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   upcomingActions: {
     marginTop: 10,
@@ -485,15 +490,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.accentSoft,
     paddingVertical: 12,
     borderRadius: Radius.xs,
   },
   remindBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    color: CoachColors.textPrimary,
+    letterSpacing: 0.5,
   },
 
   /* ON DEMAND GRID */
@@ -502,16 +507,16 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   vodCard: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     borderRadius: Radius.xs,
     overflow: 'hidden',
   },
   vodThumb: {
     width: '100%',
     height: 200,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
   placeholderThumb: {
     alignItems: 'center',
@@ -524,12 +529,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
+    backgroundColor: CoachColors.accent,
   },
   vodCategoryText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   vodDurationBadge: {
     position: 'absolute',
@@ -541,9 +548,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xs,
   },
   vodDurationText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
     color: '#FFFFFF',
+    textTransform: 'uppercase',
   },
   vodInfo: {
     padding: Spacing.md,
@@ -562,16 +570,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   vodTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 20,
     marginBottom: 4,
   },
   vodTrainerName: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: '#9CA3AF',
+    color: CoachColors.textSecondary,
   },
   emptyState: {
     padding: Spacing.xl,
@@ -580,9 +588,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
   loadingContainer: {
     padding: Spacing['2xl'],
@@ -591,30 +599,30 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   noLiveState: {
     marginHorizontal: Spacing.xl,
     padding: Spacing.xl,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   noLiveText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   noLiveSubtext: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     textAlign: 'center',
   }
 });

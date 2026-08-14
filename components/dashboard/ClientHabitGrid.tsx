@@ -4,10 +4,7 @@
  * Shows the last 7 days of a client's habit completions as a grid:
  *   Rows    = habits (Water, Steps, Sleep, Protein, Mindfulness)
  *   Columns = days (Mon → Sun, with today highlighted)
- *   Dots    = filled (habit color) = done · dim = missed
- *
- * Matches HubFit's signature "See how your client performed all week,
- * at a glance" feature — built to FitLink's editorial standard.
+ *   Dots    = filled (accent) = done · dim = missed
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -28,7 +25,7 @@ import Animated, {
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../context/AppContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,9 +33,8 @@ type HabitKey = 'water' | 'steps' | 'sleep' | 'protein' | 'mindfulness';
 
 interface HabitRow {
   key: HabitKey;
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  color: string;
 }
 
 interface HabitGridProps {
@@ -48,11 +44,11 @@ interface HabitGridProps {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const HABITS: HabitRow[] = [
-  { key: 'water',       emoji: '💧', label: 'Hydration',   color: '#5B7FFF' },
-  { key: 'steps',       emoji: '👣', label: 'Steps',       color: '#22C55E' },
-  { key: 'sleep',       emoji: '😴', label: 'Sleep',       color: '#A855F7' },
-  { key: 'protein',     emoji: '🥩', label: 'Protein',     color: '#FF6B35' },
-  { key: 'mindfulness', emoji: '🧘', label: 'Mindfulness', color: '#FFD700' },
+  { key: 'water',       icon: 'water-outline',      label: 'Hydration'   },
+  { key: 'steps',       icon: 'footsteps-outline',  label: 'Steps'       },
+  { key: 'sleep',       icon: 'moon-outline',       label: 'Sleep'       },
+  { key: 'protein',     icon: 'restaurant-outline', label: 'Protein'     },
+  { key: 'mindfulness', icon: 'leaf-outline',       label: 'Mindfulness' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,12 +82,10 @@ function pct(count: number, total: number): number {
 
 function HabitDot({
   done,
-  color,
   isToday,
   label,
 }: {
   done: boolean;
-  color: string;
   isToday: boolean;
   label: string;
 }) {
@@ -130,9 +124,9 @@ function HabitDot({
         style={[
           dot.circle,
           done
-            ? { backgroundColor: color }
-            : { backgroundColor: 'rgba(255,255,255,0.08)' },
-          isToday && !done && { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+            ? { backgroundColor: CoachColors.accent }
+            : { backgroundColor: CoachColors.borderMuted },
+          isToday && !done && { borderWidth: 1, borderColor: CoachColors.border },
           animStyle,
         ]}
       />
@@ -148,7 +142,7 @@ const dot = StyleSheet.create({
     justifyContent: 'center',
   },
   todayWrapper: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.accentSofter,
     borderRadius: 8,
   },
   circle: {
@@ -214,9 +208,9 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
   const overallPct = pct(totalLogged, totalPossible);
 
   const scoreColor =
-    overallPct === 0   ? '#8E8E93' :
-    overallPct >= 80   ? '#22C55E' :
-    overallPct >= 50   ? '#FFD700' : '#FF6B35';
+    overallPct === 0   ? CoachColors.textMuted :
+    overallPct >= 80   ? CoachColors.accent :
+    overallPct >= 50   ? CoachColors.warning : CoachColors.danger;
 
   return (
     <View style={s.container}>
@@ -232,8 +226,8 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
         accessibilityHint={expanded ? 'Double tap to collapse the habit grid' : 'Double tap to expand the habit grid'}
       >
         <View>
-          <Text style={s.tagHeader}>HABITS // THIS WEEK</Text>
-          <Text style={s.title}>Daily Tracking</Text>
+          <Text style={s.tagHeader}>Habits this week</Text>
+          <Text style={s.title}>Daily tracking</Text>
         </View>
         <View style={s.headerRight}>
           <View style={[s.scoreBadge, { borderColor: `${scoreColor}50` }]}>
@@ -244,7 +238,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
           <Ionicons
             name={expanded ? 'chevron-up' : 'chevron-down'}
             size={16}
-            color="rgba(255,255,255,0.3)"
+            color={CoachColors.textMuted}
           />
         </View>
       </TouchableOpacity>
@@ -253,7 +247,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
         <>
           {loading ? (
             <View style={s.loadingRow}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+              <ActivityIndicator size="small" color={CoachColors.textMuted} />
             </View>
           ) : totalLogged === 0 ? (
             <View style={s.noDataRow}>
@@ -274,7 +268,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                     <Text
                       style={[
                         s.dayLabel,
-                        day.isToday && { color: '#5B7FFF', fontFamily: FontFamily.headingExtraBold },
+                        day.isToday && { color: CoachColors.accent, fontFamily: CoachFonts.headingBold },
                       ]}
                     >
                       {day.dayLabel}
@@ -301,7 +295,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                   >
                     {/* Habit label */}
                     <View style={s.habitLabelCol} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden={true}>
-                      <Text style={s.habitEmoji}>{habit.emoji}</Text>
+                      <Ionicons name={habit.icon} size={16} color={CoachColors.textSecondary} />
                     </View>
 
                     {/* Dots */}
@@ -311,7 +305,6 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                         <HabitDot
                           key={day.date}
                           done={done}
-                          color={habit.color}
                           isToday={day.isToday}
                           label={`${habit.label}, ${day.dayFull}, ${done ? 'done' : 'missed'}`}
                         />
@@ -323,7 +316,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
                       <Text
                         style={[
                           s.pctText,
-                          { color: stat.pct >= 80 ? '#22C55E' : stat.pct >= 50 ? '#FFD700' : stat.pct === 0 ? 'rgba(255,255,255,0.2)' : '#FF6B35' },
+                          { color: stat.pct >= 80 ? CoachColors.accent : stat.pct >= 50 ? CoachColors.warning : stat.pct === 0 ? CoachColors.textFaint : CoachColors.danger },
                         ]}
                       >
                         {stat.pct}%
@@ -336,15 +329,15 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
               {/* ── Legend ── */}
               <View style={s.legend}>
                 <View style={s.legendItem}>
-                  <View style={[s.legendDot, { backgroundColor: '#5B7FFF' }]} />
+                  <View style={[s.legendDot, { backgroundColor: CoachColors.accent }]} />
                   <Text style={s.legendText}>Completed</Text>
                 </View>
                 <View style={s.legendItem}>
-                  <View style={[s.legendDot, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
+                  <View style={[s.legendDot, { backgroundColor: CoachColors.borderMuted }]} />
                   <Text style={s.legendText}>Missed</Text>
                 </View>
                 <View style={[s.legendItem, { marginLeft: 'auto' }]}>
-                  <View style={[s.legendDot, { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }]} />
+                  <View style={[s.legendDot, { backgroundColor: CoachColors.accentSofter, borderWidth: 1, borderColor: CoachColors.border }]} />
                   <Text style={s.legendText}>Today</Text>
                 </View>
               </View>
@@ -360,9 +353,9 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
@@ -376,17 +369,17 @@ const s = StyleSheet.create({
     paddingBottom: 14,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 3,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   headerRight: {
@@ -399,10 +392,10 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.bg,
   },
   scoreText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 13,
     letterSpacing: 0.3,
   },
@@ -416,9 +409,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   noDataText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.25)',
+    color: CoachColors.textFaint,
   },
 
   // Day header row
@@ -428,7 +421,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: CoachColors.borderMuted,
   },
   habitLabelCol: {
     width: 36,
@@ -440,23 +433,23 @@ const s = StyleSheet.create({
     gap: 3,
   },
   dayLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
   todayDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#5B7FFF',
+    backgroundColor: CoachColors.accent,
   },
   pctCol: {
     width: 36,
     alignItems: 'flex-end',
   },
   pctText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 11,
     letterSpacing: 0.3,
   },
@@ -470,11 +463,7 @@ const s = StyleSheet.create({
   },
   habitRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
-  },
-  habitEmoji: {
-    fontSize: 16,
-    textAlign: 'center',
+    borderBottomColor: CoachColors.borderMuted,
   },
 
   // Legend
@@ -485,7 +474,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: CoachColors.borderMuted,
   },
   legendItem: {
     flexDirection: 'row',
@@ -498,8 +487,8 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
 });

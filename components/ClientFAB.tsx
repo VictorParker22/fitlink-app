@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../types/routes';
-import { FontFamily } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../context/ClientContext';
 import { useWorkout } from '../context/WorkoutContext';
@@ -59,24 +59,24 @@ export default function ClientFAB() {
     return [
       todayWorkout
         ? {
-            label: `Start: ${todayWorkout.title || 'Today\'s Workout'}`,
+            label: `Start: ${todayWorkout.title || 'Today\'s workout'}`,
             sub: 'Your coach\'s prescription for today',
             icon: 'play-circle-outline',
-            color: '#22C55E',
+            color: CoachColors.accent,
             route: ClientRoute.workouts,
           }
         : {
-            label: 'Workout Catalog',
+            label: 'Workout catalog',
             sub: 'Browse and start a workout',
             icon: 'barbell-outline',
-            color: '#FF6B35',
+            color: CoachColors.accent,
             route: ClientRoute.workouts,
           },
       {
-        label: hour >= 18 ? 'Log Dinner' : 'Nutrition Plan',
+        label: hour >= 18 ? 'Log dinner' : 'Nutrition plan',
         sub: 'Track your meals and macros',
         icon: 'restaurant-outline',
-        color: '#A855F7',
+        color: CoachColors.accent,
         route: ClientRoute.myDiet,
       },
       trainer
@@ -84,14 +84,14 @@ export default function ClientFAB() {
             label: `Message ${trainer.name?.split(' ')[0] || 'Coach'}`,
             sub: 'Send your coach a message',
             icon: 'chatbubble-ellipses-outline',
-            color: '#5B7FFF',
+            color: CoachColors.accent,
             route: ClientRoute.myMessages,
           }
         : {
-            label: 'Performance Log',
+            label: 'Performance log',
             sub: 'Record your progress',
             icon: 'stats-chart-outline',
-            color: '#5B7FFF',
+            color: CoachColors.accent,
             route: ClientRoute.myProgress,
           },
     ];
@@ -126,7 +126,7 @@ export default function ClientFAB() {
           accessibilityLabel="Quick actions"
           accessibilityHint="Opens a menu with quick actions for workouts, nutrition, and messaging"
         >
-          <Ionicons name="add" size={22} color="#FFFFFF" />
+          <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -158,9 +158,9 @@ export default function ClientFAB() {
 
           {/* Header */}
           <View style={s.sheetHeader}>
-            <Text style={s.sheetTitle}>Quick Actions</Text>
+            <Text style={s.sheetTitle}>Quick actions</Text>
             <TouchableOpacity style={s.closeBtn} onPress={closeSheet}>
-              <Ionicons name="close" size={18} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="close" size={18} color={CoachColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -184,7 +184,7 @@ export default function ClientFAB() {
                 <Text style={s.actionLabel}>{action.label}</Text>
                 <Text style={s.actionSub}>{action.sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -206,9 +206,9 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#1A1A1E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -230,18 +230,18 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -253,16 +253,16 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   sheetTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   closeBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -278,7 +278,7 @@ const s = StyleSheet.create({
   },
   actionRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   actionIcon: {
     width: 44,
@@ -289,15 +289,15 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   actionLabel: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
     marginBottom: 2,
   },
   actionSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
   },
 });

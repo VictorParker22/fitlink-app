@@ -3,11 +3,12 @@
 // Uses sessions + progressLogs from useApp() — zero extra queries.
 
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
-import { FontFamily, FontSize, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const toDateStr = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -29,10 +30,10 @@ const last7Days = (): { date: Date; label: string; iso: string }[] => {
 type CellState = 'session' | 'progress' | 'empty' | 'future';
 
 const cellConfig: Record<CellState, { bg: string; opacity: number }> = {
-  session:  { bg: '#22C55E', opacity: 1   },   // session completed → green
-  progress: { bg: '#6C9BF2', opacity: 0.8 },   // progress logged   → blue
-  empty:    { bg: 'rgba(255,255,255,0.06)', opacity: 1 }, // nothing
-  future:   { bg: 'transparent', opacity: 1 }, // future day — not applicable
+  session:  { bg: CoachColors.accent, opacity: 1   },   // session completed — full accent
+  progress: { bg: CoachColors.accent, opacity: 0.4 },   // progress logged   — dim accent
+  empty:    { bg: CoachColors.borderMuted, opacity: 1 },   // nothing
+  future:   { bg: 'transparent', opacity: 1 },             // future day — not applicable
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -78,11 +79,11 @@ export const RosterHeatmap: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="grid-outline" size={14} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.title}>Team Adherence</Text>
+          <Ionicons name="grid-outline" size={14} color={CoachColors.textSecondary} />
+          <Text style={styles.title}>Team adherence</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/(tabs)/clients' as any)}>
-          <Text style={styles.seeAll}>See Roster →</Text>
+          <Text style={styles.seeAll}>See roster</Text>
         </TouchableOpacity>
       </View>
 
@@ -148,10 +149,10 @@ export const RosterHeatmap: React.FC = () => {
             <View style={styles.scoreCol}>
               <Text style={[
                 styles.scoreText,
-                isAlert && { color: '#EF4444' },
-                activeDays >= 5 && { color: '#22C55E' },
+                isAlert && { color: CoachColors.danger },
+                activeDays >= 5 && { color: CoachColors.accent },
               ]}>
-                {activeDays}/7{isAlert ? ' ⚠' : ''}
+                {activeDays}/7
               </Text>
             </View>
           </TouchableOpacity>
@@ -161,12 +162,12 @@ export const RosterHeatmap: React.FC = () => {
       {/* Legend */}
       <View style={styles.legend}>
         {[
-          { color: '#22C55E',                    label: 'Session' },
-          { color: '#6C9BF2',                    label: 'Progress log' },
-          { color: 'rgba(255,255,255,0.06)',     label: 'No activity' },
+          { color: CoachColors.accent,      opacity: 1,   label: 'Session' },
+          { color: CoachColors.accent,      opacity: 0.4, label: 'Progress log' },
+          { color: CoachColors.borderMuted, opacity: 1,   label: 'No activity' },
         ].map((item, i) => (
           <View key={i} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+            <View style={[styles.legendDot, { backgroundColor: item.color, opacity: item.opacity }]} />
             <Text style={styles.legendText}>{item.label}</Text>
           </View>
         ))}
@@ -183,10 +184,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.lg,
     marginBottom: Spacing.xl,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
     padding: Spacing.md,
   },
   header: {
@@ -201,14 +202,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   seeAll: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
-    color: '#6C9BF2',
+    color: CoachColors.accent,
   },
 
   // Grid layout
@@ -236,26 +237,26 @@ const styles = StyleSheet.create({
   },
 
   dayLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textMuted,
   },
   dayLabelToday: {
-    color: '#FFCC00',
+    color: CoachColors.accent,
   },
 
   avatarChip: {
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.7)',
+    color: CoachColors.textSecondary,
   },
 
   cell: {
@@ -265,18 +266,18 @@ const styles = StyleSheet.create({
   },
   cellToday: {
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: CoachColors.border,
   },
   cellFuture: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: CoachColors.borderMuted,
     borderStyle: 'dashed',
   },
 
   scoreText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
 
   legend: {
@@ -296,8 +297,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   legendText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
   },
 });

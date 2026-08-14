@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -244,7 +244,7 @@ function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, reduce
         <Ionicons
           name={isFocused ? config.iconFocused : config.icon}
           size={24}
-          color={isFocused ? '#FFFFFF' : 'rgba(255,255,255,0.4)'}
+          color={isFocused ? CoachColors.textPrimary : CoachColors.textMuted}
         />
         {/* Unread badge */}
         {badge > 0 && (
@@ -301,10 +301,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: BAR_WIDTH,
     height: BAR_H,
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: BAR_H / 2,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.border,
     ...Platform.select({
       ios: {
         shadowColor: '#000000',
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     left: 0,
     ...Platform.select({
       ios: {
-        shadowColor: '#FFFFFF',
+        shadowColor: CoachColors.textPrimary,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 10,
@@ -369,9 +369,9 @@ const styles = StyleSheet.create({
 
   // ── Micro-label (accessibility + glanceability) ──
   tabLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginTop: -4,
@@ -385,17 +385,17 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#FF6B35',
+    backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: '#0C0C0E',
+    borderColor: CoachColors.surface,
   },
   badgeText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: CoachColors.onAccent,
     lineHeight: 14,
   },
 });

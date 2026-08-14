@@ -1,23 +1,20 @@
-import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../../context/AppContext';
-import { useTheme } from '../../../context/ThemeContext';
 import Card from '../../../components/Card';
-import { Colors, Spacing, FontFamily, FontSize, Radius, getAvatarColor } from '../../../constants/theme';
+import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { getAvatarColor } from '../../../constants/theme';
 
-const { width } = Dimensions.get('window');
-const LIME = '#C8F135';
-const ORANGE = '#FF6B35';
+const LIME = CoachColors.accent;
 
 type TimeRange = '7D' | '30D' | '90D';
 
 export default function ProgressDashboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colors } = useTheme();
   const { getClientById, getClientProgress, getClientSessions } = useApp();
 
   const [timeRange, setTimeRange] = useState<TimeRange>('30D');
@@ -78,19 +75,12 @@ export default function ProgressDashboardScreen() {
   // E. Session History
   const last5Completed = [...allSessions].filter(s => s.status === 'completed').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const getSessionColor = (type: string) => {
-    const t = type.toLowerCase();
-    if (t.includes('1-on-1') || t.includes('1on1') || t.includes('personal')) return LIME;
-    if (t.includes('group')) return Colors.purple;
-    if (t.includes('virtual')) return Colors.blue;
-    return LIME; // default
-  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: CoachColors.bg }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>
@@ -101,12 +91,12 @@ export default function ProgressDashboardScreen() {
                 <Text style={styles.avatarText}>{client.name.charAt(0)}</Text>
               </View>
             )}
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{client.name}</Text>
+            <Text style={[styles.headerTitle, { color: CoachColors.textPrimary }]}>{client.name}</Text>
           </View>
-          <Text style={[styles.headerSubtitle, { color: colors.textTertiary }]}>Progress • Last {rangeDays} days</Text>
+          <Text style={[styles.headerSubtitle, { color: CoachColors.textMuted }]}>Progress • Last {rangeDays} days</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.backBtn, { backgroundColor: colors.bgElevated }]}>
-          <Ionicons name="add" size={22} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Log progress">
+          <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -114,10 +104,10 @@ export default function ProgressDashboardScreen() {
         {(['7D', '30D', '90D'] as TimeRange[]).map(r => (
           <TouchableOpacity 
             key={r} 
-            style={[styles.filterPill, timeRange === r ? { backgroundColor: LIME } : { backgroundColor: colors.bgElevated }]}
+            style={[styles.filterPill, timeRange === r ? { backgroundColor: LIME } : { backgroundColor: CoachColors.surface }]}
             onPress={() => setTimeRange(r)}
           >
-            <Text style={[styles.filterText, timeRange === r ? { color: '#000' } : { color: colors.textSecondary }]}>{r}</Text>
+            <Text style={[styles.filterText, timeRange === r ? { color: CoachColors.onAccent } : { color: CoachColors.textSecondary }]}>{r}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -127,41 +117,41 @@ export default function ProgressDashboardScreen() {
         {/* B. Session Consistency */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Session Consistency</Text>
+            <Text style={[styles.cardTitle, { color: CoachColors.textPrimary }]}>Session consistency</Text>
             <Text style={[styles.cardTitleRight, { color: LIME }]}>{completedSessions.length} / {sessions.length} sessions</Text>
           </View>
           
           <View style={styles.gridContainer}>
             <View style={styles.dayLabels}>
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                <Text key={i} style={[styles.dayLabel, { color: colors.textTertiary }]}>{day}</Text>
+                <Text key={i} style={[styles.dayLabel, { color: CoachColors.textMuted }]}>{day}</Text>
               ))}
             </View>
             <View style={styles.grid}>
               {last28Days.map((date, i) => {
                 const isFuture = date > today;
                 const hasSession = getSessionForDate(date);
-                const bg = isFuture ? 'transparent' : hasSession ? LIME : 'rgba(255,255,255,0.06)';
+                const bg = isFuture ? 'transparent' : hasSession ? LIME : CoachColors.borderMuted;
                 return <View key={i} style={[styles.gridCell, { backgroundColor: bg }]} />;
               })}
             </View>
           </View>
-          <Text style={[styles.streakText, { color: colors.textSecondary }]}>{streak} day active streak 🔥</Text>
+          <Text style={[styles.streakText, { color: CoachColors.textSecondary }]}>{streak} day active streak</Text>
         </Card>
 
         {/* C. Weight Trend */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Weight Trend</Text>
+            <Text style={[styles.cardTitle, { color: CoachColors.textPrimary }]}>Weight trend</Text>
             {weightLogs.length > 1 && (
-              <Text style={[styles.trendText, { color: ORANGE }]}>{weightTrend}</Text>
+              <Text style={[styles.trendText, { color: LIME }]}>{weightTrend}</Text>
             )}
           </View>
           
           {weightLogs.length > 0 ? (
             <View style={styles.barChartContainer}>
-              <Text style={[styles.latestReading, { color: colors.textPrimary }]}>
-                {latestWeight} lbs <Text style={[styles.latestDate, { color: colors.textTertiary }]}>on {new Date(latestLog.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+              <Text style={[styles.latestReading, { color: CoachColors.textPrimary }]}>
+                {latestWeight} lbs <Text style={[styles.latestDate, { color: CoachColors.textMuted }]}>on {new Date(latestLog.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
               </Text>
               <View style={styles.barsArea}>
                 {last8Weights.map((log, i) => {
@@ -170,8 +160,8 @@ export default function ProgressDashboardScreen() {
                   const heightPct = Math.max(10, ((weight - minWeight) / range) * 100);
                   return (
                     <View key={i} style={styles.barColumn}>
-                      <View style={[styles.bar, { height: `${heightPct}%`, backgroundColor: ORANGE }]} />
-                      <Text style={[styles.barLabel, { color: colors.textTertiary }]}>
+                      <View style={[styles.bar, { height: `${heightPct}%`, backgroundColor: LIME }]} />
+                      <Text style={[styles.barLabel, { color: CoachColors.textMuted }]}>
                         {new Date(log.date).toLocaleDateString('en-US', { day: 'numeric' })}
                       </Text>
                     </View>
@@ -181,9 +171,9 @@ export default function ProgressDashboardScreen() {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No weight logs yet</Text>
-              <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.logBtn, { backgroundColor: ORANGE }]}>
-                <Text style={styles.logBtnText}>Log Weight</Text>
+              <Text style={[styles.emptyText, { color: CoachColors.textMuted }]}>No weight logs yet</Text>
+              <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.logBtn, { backgroundColor: LIME }]}>
+                <Text style={styles.logBtnText}>Log weight</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -193,18 +183,18 @@ export default function ProgressDashboardScreen() {
         <View style={styles.metricsRow}>
           {latestWeight !== null && (
             <Card style={styles.metricCard}>
-              <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Weight</Text>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{latestWeight} lbs</Text>
-              <Text style={[styles.metricDelta, { color: weightDelta <= 0 ? Colors.green : ORANGE }]}>
+              <Text style={[styles.metricLabel, { color: CoachColors.textMuted }]}>Weight</Text>
+              <Text style={[styles.metricValue, { color: CoachColors.textPrimary }]}>{latestWeight} lbs</Text>
+              <Text style={[styles.metricDelta, { color: weightDelta <= 0 ? LIME : CoachColors.textSecondary }]}>
                 {weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)}
               </Text>
             </Card>
           )}
           {latestLog?.body_fat !== null && latestLog?.body_fat !== undefined && (
             <Card style={styles.metricCard}>
-              <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>Body Fat</Text>
-              <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{latestLog.body_fat}%</Text>
-              <Text style={[styles.metricDelta, { color: bodyFatDelta <= 0 ? Colors.green : ORANGE }]}>
+              <Text style={[styles.metricLabel, { color: CoachColors.textMuted }]}>Body fat</Text>
+              <Text style={[styles.metricValue, { color: CoachColors.textPrimary }]}>{latestLog.body_fat}%</Text>
+              <Text style={[styles.metricDelta, { color: bodyFatDelta <= 0 ? LIME : CoachColors.textSecondary }]}>
                 {bodyFatDelta > 0 ? '+' : ''}{bodyFatDelta.toFixed(1)}%
               </Text>
             </Card>
@@ -212,15 +202,15 @@ export default function ProgressDashboardScreen() {
         </View>
 
         {/* E. Session History List */}
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Session History</Text>
+        <Text style={[styles.sectionTitle, { color: CoachColors.textPrimary }]}>Session history</Text>
         <Card style={styles.historyCard} noPadding>
           {last5Completed.length > 0 ? (
             last5Completed.map((session, i) => (
-              <View key={session.id} style={[styles.historyRow, i < last5Completed.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={[styles.historyIndicator, { backgroundColor: getSessionColor(session.type) }]} />
+              <View key={session.id} style={[styles.historyRow, i < last5Completed.length - 1 && { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted }]}>
+                <View style={[styles.historyIndicator, { backgroundColor: LIME }]} />
                 <View style={styles.historyInfo}>
-                  <Text style={[styles.historyType, { color: colors.textPrimary }]}>{session.type || 'Session'}</Text>
-                  <Text style={[styles.historyDate, { color: colors.textTertiary }]}>
+                  <Text style={[styles.historyType, { color: CoachColors.textPrimary }]}>{session.type || 'Session'}</Text>
+                  <Text style={[styles.historyDate, { color: CoachColors.textMuted }]}>
                     {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {session.duration} min
                   </Text>
                 </View>
@@ -228,15 +218,15 @@ export default function ProgressDashboardScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No completed sessions</Text>
+              <Text style={[styles.emptyText, { color: CoachColors.textMuted }]}>No completed sessions</Text>
             </View>
           )}
-          <TouchableOpacity style={[styles.viewAllBtn, { borderTopColor: colors.border, borderTopWidth: 1 }]}>
+          <TouchableOpacity style={[styles.viewAllBtn, { borderTopColor: CoachColors.borderMuted, borderTopWidth: 1 }]}>
             <Text style={[styles.viewAllText, { color: LIME }]}>View all sessions</Text>
           </TouchableOpacity>
         </Card>
 
-        <View style={{ height: Spacing['3xl'] }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -244,60 +234,60 @@ export default function ProgressDashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
+  backBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { alignItems: 'center' },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  avatarMini: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#333' },
-  avatarText: { fontSize: 10, fontFamily: FontFamily.bodyBold, color: '#FFF' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
-  headerSubtitle: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  avatarMini: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.borderMuted },
+  avatarText: { fontSize: 10, fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18 },
+  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, marginTop: 2 },
   
-  filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, gap: Spacing.sm, paddingBottom: Spacing.md },
-  filterPill: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full },
-  filterText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, paddingBottom: 10 },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  filterText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15 },
   
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 6 },
 
-  card: { padding: Spacing.lg, marginBottom: Spacing.lg },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: Spacing.md },
-  cardTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.base },
-  cardTitleRight: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
+  card: { padding: 16, marginBottom: 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 },
+  cardTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17 },
+  cardTitleRight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
 
-  gridContainer: { alignItems: 'center', marginVertical: Spacing.md },
+  gridContainer: { alignItems: 'center', marginVertical: 10 },
   dayLabels: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginBottom: 5 },
-  dayLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, width: 24, textAlign: 'center' },
+  dayLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, width: 24, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   gridCell: { width: 24, height: 24, borderRadius: 4 },
-  streakText: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm },
+  streakText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, textAlign: 'center', marginTop: 6 },
 
-  trendText: { fontFamily: FontFamily.bodyBold, fontSize: FontSize.sm },
-  barChartContainer: { marginTop: Spacing.sm },
-  latestReading: { fontFamily: FontFamily.headingExtraBold, fontSize: 24, marginBottom: Spacing.lg },
-  latestDate: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm },
+  trendText: { fontFamily: CoachFonts.bodyBold, fontSize: 15 },
+  barChartContainer: { marginTop: 6 },
+  latestReading: { fontFamily: CoachFonts.headingBold, fontSize: 24, marginBottom: 16 },
+  latestDate: { fontFamily: CoachFonts.bodyMedium, fontSize: 15 },
   barsArea: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 120, paddingTop: 20 },
   barColumn: { alignItems: 'center', flex: 1 },
   bar: { width: 12, borderRadius: 6, minHeight: 4 },
-  barLabel: { fontFamily: FontFamily.body, fontSize: 10, marginTop: 8 },
+  barLabel: { fontFamily: CoachFonts.body, fontSize: 10, marginTop: 8 },
 
-  emptyState: { padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
-  emptyText: { fontFamily: FontFamily.body, fontSize: FontSize.sm },
-  logBtn: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.full },
-  logBtnText: { fontFamily: FontFamily.bodySemiBold, color: '#000', fontSize: FontSize.sm },
+  emptyState: { padding: 20, alignItems: 'center', gap: 10 },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 15 },
+  logBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999 },
+  logBtnText: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.onAccent, fontSize: 15 },
 
-  metricsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  metricCard: { flex: 1, padding: Spacing.md },
-  metricLabel: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.xs, marginBottom: 4 },
-  metricValue: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg },
-  metricDelta: { fontFamily: FontFamily.bodyBold, fontSize: FontSize.xs, marginTop: 4 },
+  metricsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  metricCard: { flex: 1, padding: 10 },
+  metricLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, marginBottom: 4 },
+  metricValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22 },
+  metricDelta: { fontFamily: CoachFonts.bodyBold, fontSize: 13, marginTop: 4 },
 
-  sectionTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, marginBottom: Spacing.sm },
-  historyCard: { marginBottom: Spacing.xl },
-  historyRow: { flexDirection: 'row', padding: Spacing.md },
-  historyIndicator: { width: 4, borderRadius: 2, marginRight: Spacing.md },
+  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, marginBottom: 6 },
+  historyCard: { marginBottom: 20 },
+  historyRow: { flexDirection: 'row', padding: 10 },
+  historyIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
   historyInfo: { flex: 1, justifyContent: 'center' },
-  historyType: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
-  historyDate: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginTop: 2 },
-  viewAllBtn: { padding: Spacing.md, alignItems: 'center' },
-  viewAllText: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm },
+  historyType: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
+  historyDate: { fontFamily: CoachFonts.body, fontSize: 15, marginTop: 2 },
+  viewAllBtn: { padding: 10, alignItems: 'center' },
+  viewAllText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
 });

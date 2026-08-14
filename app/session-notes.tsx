@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
-import { Colors, Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import Button from '../components/Button';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 export default function SessionNotesScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const router = useRouter();
-  const { colors } = useTheme();
   const { sessions, updateSession, getClientById } = useApp();
 
   const [notes, setNotes] = useState('');
@@ -40,55 +37,69 @@ export default function SessionNotesScreen() {
     }
   };
 
-  const title = client ? `${client.name}'s Session` : session.group_name || 'Group Session';
+  const title = client ? `${client.name}'s session` : session.group_name || 'Group session';
   const displayDate = new Date(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.bgElevated }]}>
-          <Ionicons name="close" size={22} color={colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Close session notes"
+        >
+          <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Session Notes</Text>
+        <Text style={styles.headerTitle}>Session notes</Text>
         <View style={{ width: 36 }} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
-          <View style={[styles.sessionInfo, { backgroundColor: colors.bgElevated }]}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.purple} />
+          <View style={styles.sessionInfo}>
+            <Ionicons name="calendar-outline" size={20} color={CoachColors.accent} />
             <View style={styles.sessionInfoText}>
-              <Text style={[styles.sessionTitle, { color: colors.textPrimary }]}>{title}</Text>
-              <Text style={[styles.sessionDate, { color: colors.textSecondary }]}>{displayDate} • {session.type}</Text>
+              <Text style={styles.sessionTitle}>{title}</Text>
+              <Text style={styles.sessionDate}>{displayDate} • {session.type}</Text>
             </View>
           </View>
 
-          <Text style={[styles.label, { color: colors.textPrimary }]}>Post-Session Summary</Text>
-          <Text style={[styles.subLabel, { color: colors.textTertiary }]}>
+          <Text style={styles.label}>Post-session summary</Text>
+          <Text style={styles.subLabel}>
             Record performance, struggles, and what to focus on next time.
           </Text>
 
-          <View style={[styles.inputContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+          <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.textArea, { color: colors.textPrimary, backgroundColor: colors.bgInput }]}
+              style={styles.textArea}
               value={notes}
               onChangeText={setNotes}
               placeholder="e.g. John struggled with squats today, lower weight next time."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={CoachColors.textFaint}
               multiline
               autoFocus
               textAlignVertical="top"
+              accessibilityLabel="Session notes"
             />
           </View>
         </View>
 
-        <View style={[styles.footer, { backgroundColor: colors.bgPrimary, borderTopColor: colors.border }]}>
-          <Button 
-            title="Save Notes" 
-            onPress={handleSave} 
-            loading={saving}
-          />
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Save notes"
+          >
+            {saving
+              ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+              : <Text style={styles.saveBtnText}>Save notes</Text>
+            }
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -96,23 +107,29 @@ export default function SessionNotesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md },
-  
-  content: { flex: 1, padding: Spacing.lg },
-  
-  sessionInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.xl },
+  container: { flex: 1, backgroundColor: CoachColors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+
+  content: { flex: 1, padding: 16 },
+
+  sessionInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   sessionInfoText: { flex: 1 },
-  sessionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.base },
-  sessionDate: { fontFamily: FontFamily.body, fontSize: FontSize.xs, marginTop: 2 },
+  sessionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  sessionDate: { fontFamily: CoachFonts.body, fontSize: 13, marginTop: 2, color: CoachColors.textSecondary },
 
-  label: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, marginBottom: 4 },
-  subLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, marginBottom: Spacing.md },
+  label: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, marginBottom: 4, color: CoachColors.textPrimary },
+  subLabel: { fontFamily: CoachFonts.body, fontSize: 15, marginBottom: 10, color: CoachColors.textMuted },
 
-  inputContainer: { borderRadius: Radius.md, borderWidth: 1, flex: 1, marginBottom: Spacing.md },
-  textArea: { flex: 1, borderRadius: Radius.sm, padding: Spacing.md, fontFamily: FontFamily.body, fontSize: FontSize.base },
+  inputContainer: { borderRadius: 12, borderWidth: 1, flex: 1, marginBottom: 10, backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
+  textArea: { flex: 1, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary },
 
-  footer: { padding: Spacing.lg, paddingBottom: Spacing.xl, borderTopWidth: 1 },
+  footer: { padding: 16, paddingBottom: 20, borderTopWidth: 1, backgroundColor: CoachColors.bg, borderTopColor: CoachColors.borderMuted },
+
+  saveBtn: {
+    backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
+  },
+  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.onAccent },
 });

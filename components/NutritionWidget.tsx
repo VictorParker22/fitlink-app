@@ -1,42 +1,35 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { useClient } from '../context/ClientContext';
-import { FontFamily, FontSize, Radius, Spacing } from '../constants/theme';
+import { Radius, Spacing } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useHaptic } from '../hooks/useHaptic';
 import * as Haptics from 'expo-haptics';
 
-const MEAL_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-  breakfast: { icon: 'sunny', color: '#F59E0B' },
-  lunch: { icon: 'restaurant', color: '#22C55E' },
-  dinner: { icon: 'moon', color: '#6C9BF2' },
-  snack: { icon: 'cafe', color: '#A78BFA' },
-  'pre-workout': { icon: 'flash', color: '#FF6B35' },
-  'post-workout': { icon: 'fitness', color: '#14B8A6' },
+// Chart palette: accent + neutral variants (single-accent design system)
+const MACRO_COLORS = {
+  protein: CoachColors.accent,
+  carbs: CoachColors.textSecondary,
+  fat: CoachColors.textFaint,
 };
 
-function getMealIcon(time: string) {
-  const key = (time || '').toLowerCase().trim();
-  return MEAL_ICONS[key] || { icon: 'nutrition', color: '#22C55E' };
-}
-
-function MacroDonut({ size, cals, protein, carbs, fat, color }: { size: number; cals: number; protein: number; carbs: number; fat: number; color: string }) {
+function MacroDonut({ size, cals, protein, carbs, fat }: { size: number; cals: number; protein: number; carbs: number; fat: number }) {
   const r = (size - 6) / 2;
   const c = 2 * Math.PI * r;
   const total = protein + carbs + fat || 1;
   const protPct = protein / total;
   const carbPct = carbs / total;
   const hasCalorieData = cals > 0;
-  
+
   return (
     <Svg width={size} height={size}>
-      <Circle cx={size/2} cy={size/2} r={r} stroke="#2D2D2E" strokeWidth={6} fill="none" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#FF6B35" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * protPct} ${c * (1 - protPct)}`} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#6C9BF2" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * carbPct} ${c * (1 - carbPct)}`} strokeDashoffset={-c * protPct} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? "#22C55E" : "transparent"} strokeWidth={6} fill="none" strokeDasharray={`${c * (1 - protPct - carbPct)} ${c * (protPct + carbPct)}`} strokeDashoffset={-c * (protPct + carbPct)} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={CoachColors.border} strokeWidth={6} fill="none" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? MACRO_COLORS.protein : 'transparent'} strokeWidth={6} fill="none" strokeDasharray={`${c * protPct} ${c * (1 - protPct)}`} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? MACRO_COLORS.carbs : 'transparent'} strokeWidth={6} fill="none" strokeDasharray={`${c * carbPct} ${c * (1 - carbPct)}`} strokeDashoffset={-c * protPct} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+      <Circle cx={size/2} cy={size/2} r={r} stroke={hasCalorieData ? MACRO_COLORS.fat : 'transparent'} strokeWidth={6} fill="none" strokeDasharray={`${c * (1 - protPct - carbPct)} ${c * (protPct + carbPct)}`} strokeDashoffset={-c * (protPct + carbPct)} transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -88,7 +81,7 @@ export default function NutritionWidget() {
     if (!diets.length) return null;
     let nextMeal = null;
     let parentPlanId = '';
-    
+
     // Simple logic: Find the first meal in the active plan that hasn't been logged today.
     for (const d of diets) {
       if (d.status !== 'active') continue;
@@ -103,7 +96,7 @@ export default function NutritionWidget() {
       }
       if (nextMeal) break;
     }
-    
+
     return nextMeal ? { meal: nextMeal, planId: parentPlanId } : null;
   }, [diets, mealLogs]);
 
@@ -130,13 +123,13 @@ export default function NutritionWidget() {
   if (!hasCalorieData) {
     return (
       <View style={st.container}>
-        <Text style={st.sectionTitle}>NUTRITION PROTOCOL // DAILY MACROS</Text>
+        <Text style={st.sectionTitle}>Nutrition · daily macros</Text>
         <View style={[st.card, { alignItems: 'center', paddingVertical: 24, gap: 8 }]}>
-          <Ionicons name="nutrition-outline" size={28} color="rgba(255,255,255,0.2)" />
-          <Text style={{ fontFamily: FontFamily.headingExtraBold, fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>
+          <Ionicons name="nutrition-outline" size={28} color={CoachColors.textFaint} />
+          <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center' }}>
             Add calories to your meals
           </Text>
-          <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 17 }}>
+          <Text style={{ fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 17 }}>
             Set calorie & macro targets in your nutrition plan to start tracking here.
           </Text>
         </View>
@@ -146,22 +139,16 @@ export default function NutritionWidget() {
 
   return (
     <View style={st.container}>
-      <Text style={st.sectionTitle}>NUTRITION PROTOCOL // DAILY MACROS</Text>
-      <LinearGradient 
-        colors={['rgba(28,28,33,0.9)', 'rgba(42,42,50,0.9)']} 
-        start={{ x: 0, y: 0 }} 
-        end={{ x: 1, y: 1 }} 
-        style={st.card}
-      >
+      <Text style={st.sectionTitle}>Nutrition · daily macros</Text>
+      <View style={st.card}>
         <View style={st.topRow}>
           <View style={st.macroDonutContainer}>
-            <MacroDonut 
-              size={64} 
-              cals={consumedMacros.cals} 
-              protein={consumedMacros.protein} 
-              carbs={consumedMacros.carbs} 
-              fat={consumedMacros.fat} 
-              color="#FFFFFF" 
+            <MacroDonut
+              size={64}
+              cals={consumedMacros.cals}
+              protein={consumedMacros.protein}
+              carbs={consumedMacros.carbs}
+              fat={consumedMacros.fat}
             />
             <View style={st.donutCenter}>
               {hasLoggedAnything ? (
@@ -176,21 +163,21 @@ export default function NutritionWidget() {
               )}
             </View>
           </View>
-          
+
           <View style={st.macroBars}>
             <View style={st.macroBarRow}>
               <Text style={st.macroBarLabel}>P</Text>
-              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.protein / (globalMacros.protein || 1)) * 100)}%`, backgroundColor: '#FF6B35' }]} /></View>
+              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.protein / (globalMacros.protein || 1)) * 100)}%`, backgroundColor: MACRO_COLORS.protein }]} /></View>
               <Text style={st.macroBarVal}>{consumedMacros.protein}g</Text>
             </View>
             <View style={st.macroBarRow}>
               <Text style={st.macroBarLabel}>C</Text>
-              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.carbs / (globalMacros.carbs || 1)) * 100)}%`, backgroundColor: '#6C9BF2' }]} /></View>
+              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.carbs / (globalMacros.carbs || 1)) * 100)}%`, backgroundColor: MACRO_COLORS.carbs }]} /></View>
               <Text style={st.macroBarVal}>{consumedMacros.carbs}g</Text>
             </View>
             <View style={st.macroBarRow}>
               <Text style={st.macroBarLabel}>F</Text>
-              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.fat / (globalMacros.fat || 1)) * 100)}%`, backgroundColor: '#22C55E' }]} /></View>
+              <View style={st.track}><View style={[st.fill, { width: `${Math.min(100, (consumedMacros.fat / (globalMacros.fat || 1)) * 100)}%`, backgroundColor: MACRO_COLORS.fat }]} /></View>
               <Text style={st.macroBarVal}>{consumedMacros.fat}g</Text>
             </View>
           </View>
@@ -199,23 +186,23 @@ export default function NutritionWidget() {
         {nextMealInfo ? (
           <Animated.View entering={FadeInUp} exiting={FadeOut} style={st.nextMealBox}>
             <View style={st.nextMealLeft}>
-              <Text style={st.nextMealLabel}>UP NEXT</Text>
+              <Text style={st.nextMealLabel}>Up next</Text>
               <Text style={st.nextMealName}>{nextMealInfo.meal.meals.name}</Text>
               <Text style={st.nextMealMeta}>
-                {nextMealInfo.meal.meals.calories} kcal • {nextMealInfo.meal.meals.protein}g Protein
+                {nextMealInfo.meal.meals.calories} kcal · {nextMealInfo.meal.meals.protein}g protein
               </Text>
             </View>
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              onPress={handleLogMeal} 
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleLogMeal}
               style={st.logBtn}
               disabled={!!loggingId}
             >
               {loggingId === nextMealInfo.meal.id ? (
-                <ActivityIndicator size="small" color="#000" />
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#000" />
+                  <Ionicons name="checkmark-circle-outline" size={18} color={CoachColors.onAccent} />
                   <Text style={st.logBtnText}>Log</Text>
                 </>
               )}
@@ -224,17 +211,17 @@ export default function NutritionWidget() {
         ) : hasLoggedAnything ? (
           // All meals logged AND there were real calories — genuine completion
           <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
-            <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-            <Text style={[st.nextMealName, { marginLeft: 0 }]}>All meals logged today!</Text>
+            <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+            <Text style={[st.nextMealName, { marginLeft: 0 }]}>All meals logged today</Text>
           </Animated.View>
         ) : (
           // nextMealInfo is null but 0 cals — edge case: plan exists, meals have no data
           <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
-            <Ionicons name="information-circle-outline" size={20} color="rgba(255,255,255,0.3)" />
-            <Text style={[st.nextMealName, { color: 'rgba(255,255,255,0.4)', fontSize: 13 }]}>Add meals to your plan to track progress</Text>
+            <Ionicons name="information-circle-outline" size={20} color={CoachColors.textMuted} />
+            <Text style={[st.nextMealName, { color: CoachColors.textMuted, fontSize: 13 }]}>Add meals to your plan to track progress</Text>
           </Animated.View>
         )}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -245,18 +232,19 @@ const st = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   topRow: {
     flexDirection: 'row',
@@ -274,14 +262,14 @@ const st = StyleSheet.create({
     alignItems: 'center',
   },
   donutCals: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   donutLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   macroBars: {
     flex: 1,
@@ -294,15 +282,15 @@ const st = StyleSheet.create({
     gap: 8,
   },
   macroBarLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     width: 10,
   },
   track: {
     flex: 1,
     height: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: CoachColors.borderMuted,
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -311,16 +299,16 @@ const st = StyleSheet.create({
     borderRadius: 5,
   },
   macroBarVal: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     width: 32,
     textAlign: 'right',
   },
   nextMealBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.bg,
     borderRadius: Radius.md,
     padding: Spacing.sm,
     justifyContent: 'space-between',
@@ -329,35 +317,36 @@ const st = StyleSheet.create({
     flex: 1,
   },
   nextMealLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   nextMealName: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.md,
-    color: '#FFFFFF',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 18,
+    color: CoachColors.textPrimary,
     marginTop: 2,
   },
   nextMealMeta: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
   logBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CoachColors.accent,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: Radius.sm,
     gap: 4,
   },
   logBtnText: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.sm,
-    color: '#000',
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 15,
+    color: CoachColors.onAccent,
   },
 });

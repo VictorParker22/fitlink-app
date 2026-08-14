@@ -15,15 +15,15 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import Avatar from '../components/Avatar';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const { width: W } = Dimensions.get('window');
 
 // Session type accent colors — match schedule screen exactly
 const SESSION_TYPES = [
-  { key: '1-on-1' as const, label: '1-on-1', icon: 'person' as const,   color: '#C8F135' },
-  { key: 'Group'  as const, label: 'Group',   icon: 'people' as const,   color: '#A78BFA' },
-  { key: 'Virtual'as const, label: 'Virtual', icon: 'videocam' as const,  color: '#60A5FA' },
+  { key: '1-on-1' as const, label: '1-on-1', icon: 'person' as const,   color: CoachColors.accent },
+  { key: 'Group'  as const, label: 'Group',   icon: 'people' as const,   color: CoachColors.accent },
+  { key: 'Virtual'as const, label: 'Virtual', icon: 'videocam' as const,  color: CoachColors.accent },
 ];
 const DURATIONS = [
   { value: 30, label: '30', sub: 'min' },
@@ -198,7 +198,7 @@ export default function BookSessionScreen() {
           date: d.toISOString(),
           duration,
           status: 'upcoming',
-          notes: [notes.trim(), location.trim() ? `\ud83d\udccd ${location.trim()}` : ''].filter(Boolean).join('\n') || undefined,
+          notes: [notes.trim(), location.trim() ? `Location: ${location.trim()}` : ''].filter(Boolean).join('\n') || undefined,
         });
       }
       const { error } = await supabase.from('sessions').insert(rows);
@@ -221,18 +221,18 @@ export default function BookSessionScreen() {
   return (
     <View style={st.root}>
       <LinearGradient
-        colors={['#0D0D12', '#111118', '#0A0A0F']}
+        colors={[CoachColors.bg, CoachColors.surface, CoachColors.bg]}
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={st.container} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* HEADER */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={st.headerCenter}>
-            <Text style={st.headerTitle}>New Session</Text>
+            <Text style={st.headerTitle}>New session</Text>
             <Text style={st.headerSubtitle}>
               {sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {formatTime(selectedHour, selectedMinute)}
             </Text>
@@ -243,24 +243,24 @@ export default function BookSessionScreen() {
         <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* SESSION TYPE */}
-          <Text style={st.sectionLabel}>Session Type</Text>
+          <Text style={st.sectionLabel}>Session type</Text>
           <View style={st.typeRow}>
             {SESSION_TYPES.map((type) => {
               const isActive = sessionType === type.key;
               return (
                 <TouchableOpacity
                   key={type.key}
-                  style={[st.typeCard, isActive && { borderColor: type.color + '50', backgroundColor: type.color + '0D' }]}
+                  style={[st.typeCard, isActive && { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter }]}
                   onPress={() => { setSessionType(type.key); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                   activeOpacity={0.7}
                 >
-                  <View style={[st.typeIconCircle, { backgroundColor: isActive ? type.color + '20' : 'rgba(255,255,255,0.04)' }]}>
-                    <Ionicons name={type.icon} size={20} color={isActive ? type.color : 'rgba(255,255,255,0.3)'} />
+                  <View style={[st.typeIconCircle, { backgroundColor: isActive ? CoachColors.accentSoft : CoachColors.borderMuted }]}>
+                    <Ionicons name={type.icon} size={20} color={isActive ? type.color : CoachColors.textFaint} />
                   </View>
                   <Text style={[st.typeLabel, isActive && { color: type.color }]}>{type.label}</Text>
                   {isActive && (
                     <View style={[st.typeCheck, { backgroundColor: type.color }]}>
-                      <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={10} color={CoachColors.onAccent} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -271,27 +271,27 @@ export default function BookSessionScreen() {
           {/* CLIENT / GROUP */}
           {sessionType === 'Group' ? (
             <View style={st.section}>
-              <Text style={st.sectionLabel}>Group Name</Text>
+              <Text style={st.sectionLabel}>Group name</Text>
               <View style={[st.inputRow, !!errors.groupName && st.inputRowError]}>
-                <Ionicons name="people" size={18} color={errors.groupName ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
+                <Ionicons name="people" size={18} color={errors.groupName ? CoachColors.danger : CoachColors.textFaint} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Evening HIIT"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
+                  placeholderTextColor={CoachColors.textFaint}
                   value={groupName}
                   onChangeText={v => { setGroupName(v); if (errors.groupName) clearError('groupName'); }}
                 />
               </View>
               {!!errors.groupName && (
                 <View style={st.errorRow}>
-                  <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                  <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.groupName}</Text>
                 </View>
               )}
             </View>
           ) : (
             <View style={st.section}>
-              <Text style={[st.sectionLabel, !!errors.client && { color: '#EF4444' }]}>Client</Text>
+              <Text style={[st.sectionLabel, !!errors.client && { color: CoachColors.danger }]}>Client</Text>
               {selectedClientObj ? (
                 <TouchableOpacity
                   style={[st.selectedClient, !!errors.client && st.selectedClientError]}
@@ -304,31 +304,31 @@ export default function BookSessionScreen() {
                     <Text style={st.selectedSub}>Tap to change</Text>
                   </View>
                   <View style={st.removeClient}>
-                    <Ionicons name="close" size={14} color="rgba(255,255,255,0.5)" />
+                    <Ionicons name="close" size={14} color={CoachColors.textSecondary} />
                   </View>
                 </TouchableOpacity>
               ) : (
                 <>
                   <View style={[st.inputRow, !!errors.client && st.inputRowError]}>
-                    <Ionicons name="search" size={16} color={errors.client ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
+                    <Ionicons name="search" size={16} color={errors.client ? CoachColors.danger : CoachColors.textFaint} />
                     <TextInput
                       style={st.input}
                       placeholder="Search clients..."
-                      placeholderTextColor="rgba(255,255,255,0.25)"
+                      placeholderTextColor={CoachColors.textFaint}
                       value={clientSearch}
                       onChangeText={v => { setClientSearch(v); if (errors.client) clearError('client'); }}
                     />
                   </View>
                   {!!errors.client && (
                     <View style={st.errorRow}>
-                      <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                      <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                       <Text style={st.errorText}>{errors.client}</Text>
                     </View>
                   )}
-                  <View style={[st.clientList, !!errors.client && { borderColor: 'rgba(239,68,68,0.3)' }]}>
+                  <View style={[st.clientList, !!errors.client && { borderColor: CoachColors.dangerSoft }]}>
                     {filteredClients.length === 0 ? (
                       <View style={st.noClients}>
-                        <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.15)" />
+                        <Ionicons name="person-outline" size={24} color={CoachColors.textFaint} />
                         <Text style={st.noClientsText}>No matching clients</Text>
                       </View>
                     ) : (
@@ -352,7 +352,7 @@ export default function BookSessionScreen() {
                                 <Text style={st.clientEmail}>{(client as any).email}</Text>
                               )}
                             </View>
-                            <Ionicons name="add-circle-outline" size={20} color="rgba(255,255,255,0.25)" />
+                            <Ionicons name="add-circle-outline" size={20} color={CoachColors.textFaint} />
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -382,7 +382,7 @@ export default function BookSessionScreen() {
                     onPress={() => { setSelectedDay(item); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[st.dayName, isSelected && st.dayNameActive, isToday && !isSelected && { color: '#FF6B35' }]}>
+                    <Text style={[st.dayName, isSelected && st.dayNameActive, isToday && !isSelected && { color: CoachColors.accent }]}>
                       {DAY_NAMES_SHORT[item.getDay()]}
                     </Text>
                     <Text style={[st.dayNum, isSelected && st.dayNumActive]}>
@@ -391,7 +391,7 @@ export default function BookSessionScreen() {
                     <Text style={[st.dayMonth, isSelected && st.dayMonthActive]}>
                       {item.toLocaleDateString('en-US', { month: 'short' })}
                     </Text>
-                    {isToday && <View style={[st.todayDot, isSelected && { backgroundColor: '#000' }]} />}
+                    {isToday && <View style={[st.todayDot, isSelected && { backgroundColor: CoachColors.onAccent }]} />}
                   </TouchableOpacity>
                 );
               }}
@@ -404,10 +404,10 @@ export default function BookSessionScreen() {
             <Text style={st.sectionLabel}>Time</Text>
             <TouchableOpacity style={st.timeBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.7}>
               <View style={st.dateTimeIcon}>
-                <Ionicons name="time" size={18} color="#6C9BF2" />
+                <Ionicons name="time" size={18} color={CoachColors.accent} />
               </View>
               <Text style={st.timeValue}>{formatTime(selectedHour, selectedMinute)}</Text>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
             </TouchableOpacity>
           </View>
 
@@ -436,22 +436,22 @@ export default function BookSessionScreen() {
           {sessionType !== 'Virtual' && (
             <View style={st.section}>
               <View style={st.sectionLabelRow}>
-                <Text style={[st.sectionLabel, { marginBottom: 0 }, !!errors.location && { color: '#EF4444' }]}>Location</Text>
+                <Text style={[st.sectionLabel, { marginBottom: 0 }, !!errors.location && { color: CoachColors.danger }]}>Location</Text>
                 <Text style={st.requiredStar}>*</Text>
               </View>
               <View style={[st.inputRow, !!errors.location && st.inputRowError, { marginTop: 10 }]}>
-                <Ionicons name="location-outline" size={16} color={errors.location ? '#EF4444' : 'rgba(255,255,255,0.3)'} />
+                <Ionicons name="location-outline" size={16} color={errors.location ? CoachColors.danger : CoachColors.textFaint} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Downtown Gym, Studio B"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
+                  placeholderTextColor={CoachColors.textFaint}
                   value={location}
                   onChangeText={v => { setLocation(v); if (errors.location) clearError('location'); }}
                 />
               </View>
               {!!errors.location && (
                 <View style={st.errorRow}>
-                  <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                  <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.location}</Text>
                 </View>
               )}
@@ -489,11 +489,11 @@ export default function BookSessionScreen() {
           <View style={st.section}>
             <Text style={st.sectionLabel}>Notes</Text>
             <View style={[st.inputRow, { alignItems: 'flex-start', minHeight: 80 }]}>
-              <Ionicons name="document-text-outline" size={16} color="rgba(255,255,255,0.25)" style={{ marginTop: 2 }} />
+              <Ionicons name="document-text-outline" size={16} color={CoachColors.textFaint} style={{ marginTop: 2 }} />
               <TextInput
                 style={[st.input, { minHeight: 60, textAlignVertical: 'top' }]}
                 placeholder="Upper body focus, bring bands..."
-                placeholderTextColor="rgba(255,255,255,0.25)"
+                placeholderTextColor={CoachColors.textFaint}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -504,23 +504,25 @@ export default function BookSessionScreen() {
           {/* SUBMIT */}
           <Animated.View style={[shakeStyle, { marginBottom: Math.max(insets.bottom, 16) }]}>
             <TouchableOpacity
-              style={[st.submitBtn, (loading || success) && { opacity: success ? 1 : 0.6 }, success && { backgroundColor: '#22C55E' }]}
+              style={[st.submitBtn, (loading || success) && { opacity: success ? 1 : 0.6 }, success && { backgroundColor: CoachColors.accent }]}
               onPress={handleSubmit}
               disabled={loading || success}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={repeatWeeks > 0 ? `Book ${repeatWeeks} sessions` : 'Book session'}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#000" />
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : success ? (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                  <Text style={[st.submitText, { color: '#FFFFFF' }]}>Booked!</Text>
+                  <Ionicons name="checkmark-circle" size={20} color={CoachColors.textPrimary} />
+                  <Text style={[st.submitText, { color: CoachColors.textPrimary }]}>Booked!</Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name="calendar-outline" size={20} color="#000" />
+                  <Ionicons name="calendar-outline" size={20} color={CoachColors.onAccent} />
                   <Text style={st.submitText}>
-                    {repeatWeeks > 0 ? `Book ${repeatWeeks} Sessions` : 'Book Session'}
+                    {repeatWeeks > 0 ? `Book ${repeatWeeks} sessions` : 'Book session'}
                   </Text>
                 </>
               )}
@@ -531,7 +533,7 @@ export default function BookSessionScreen() {
           <View style={st.preview}>
             <View style={[st.previewAccent, { backgroundColor: activeType.color }]} />
             <View style={st.previewBody}>
-              <Text style={st.previewLabel}>Session Preview</Text>
+              <Text style={st.previewLabel}>Session preview</Text>
               <Text style={st.previewTitle}>
                 {sessionType === 'Group'
                   ? (groupName || 'Group Session')
@@ -539,7 +541,7 @@ export default function BookSessionScreen() {
               </Text>
               <Text style={st.previewMeta}>
                 {activeType.label} {'\u00b7'} {duration} min {'\u00b7'} {sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {formatTime(selectedHour, selectedMinute)}
-                {location ? ` \u00b7 \ud83d\udccd ${location}` : ''}
+                {location ? ` \u00b7 ${location}` : ''}
                 {repeatWeeks > 0 ? ` \u00b7 Repeats ${repeatWeeks}\u00d7` : ''}
               </Text>
             </View>
@@ -556,7 +558,7 @@ export default function BookSessionScreen() {
         </TouchableWithoutFeedback>
         <View style={st.sheetContainer}>
           <View style={st.sheetHeader}>
-            <Text style={st.sheetTitle}>Select Time</Text>
+            <Text style={st.sheetTitle}>Select time</Text>
             <TouchableOpacity onPress={() => setShowTimePicker(false)}>
               <Text style={st.sheetDone}>Done</Text>
             </TouchableOpacity>
@@ -601,164 +603,164 @@ export default function BookSessionScreen() {
 
 const st = StyleSheet.create({
   // Root wraps everything so LinearGradient covers the full screen
-  root:      { flex: 1, backgroundColor: '#0D0D12' },
+  root:      { flex: 1, backgroundColor: CoachColors.bg },
   container: { flex: 1 },
   scroll:    { paddingHorizontal: W * 0.05, paddingBottom: 100 },
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: W * 0.05, paddingVertical: Spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: W * 0.05, paddingVertical: 10 },
+  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.047), color: '#FFFFFF' },
-  headerSubtitle: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.047), color: CoachColors.textPrimary },
+  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted, marginTop: 2 },
 
   // Sections
   section: { marginBottom: 24 },
-  sectionLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: 'rgba(255,255,255,0.45)', marginBottom: 10, letterSpacing: 0.3 },
+  sectionLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted, marginBottom: 10, letterSpacing: 0.3 },
 
   // Session type cards
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   typeCard: {
     flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.045),
-    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 8,
+    borderRadius: 16, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 8,
   },
   typeIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  typeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: 'rgba(255,255,255,0.4)' },
+  typeLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted },
   typeCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
   // Section label row (for label + required star)
   sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  requiredStar:    { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.032), color: '#EF4444', lineHeight: 20 },
+  requiredStar:    { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.danger, lineHeight: 20 },
 
   // Inputs
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14,
     paddingHorizontal: 14, paddingVertical: 4,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   inputRowError: {
-    borderColor: 'rgba(239,68,68,0.55)',
-    backgroundColor: 'rgba(239,68,68,0.05)',
+    borderColor: CoachColors.danger,
+    backgroundColor: CoachColors.dangerSoft,
   },
-  input: { flex: 1, fontFamily: FontFamily.body, fontSize: Math.round(W * 0.038), color: '#FFFFFF', paddingVertical: 12 },
+  input: { flex: 1, fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.038), color: CoachColors.textPrimary, paddingVertical: 12 },
 
   // Inline error message
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, paddingLeft: 4 },
-  errorText: { fontFamily: FontFamily.bodyMedium, fontSize: Math.round(W * 0.03), color: '#EF4444', flex: 1 },
+  errorText: { fontFamily: CoachFonts.bodyMedium, fontSize: Math.round(W * 0.03), color: CoachColors.danger, flex: 1 },
 
   // Selected client
   selectedClient: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(200,241,53,0.05)', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: 'rgba(200,241,53,0.15)',
+    backgroundColor: CoachColors.accentSofter, borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: CoachColors.accentSoft,
   },
   selectedClientError: {
-    borderColor: 'rgba(239,68,68,0.45)',
-    backgroundColor: 'rgba(239,68,68,0.04)',
+    borderColor: CoachColors.danger,
+    backgroundColor: CoachColors.dangerSoft,
   },
-  selectedName: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.038), color: '#FFFFFF' },
-  selectedSub:  { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.3)', marginTop: 1 },
-  removeClient: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
-  clientList: { marginTop: 8, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
+  selectedName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.038), color: CoachColors.textPrimary },
+  selectedSub:  { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.028), color: CoachColors.textFaint, marginTop: 1 },
+  removeClient: { width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  clientList: { marginTop: 8, borderRadius: 14, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden' },
   clientOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, minHeight: 52 },
-  clientBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
-  clientName: { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.036), color: '#FFFFFF' },
-  clientEmail: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.3)', marginTop: 1 },
+  clientBorder: { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.036), color: CoachColors.textPrimary },
+  clientEmail: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.028), color: CoachColors.textFaint, marginTop: 1 },
   noClients: { alignItems: 'center', padding: 24, gap: 8 },
-  noClientsText: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.033), color: 'rgba(255,255,255,0.25)' },
+  noClientsText: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.033), color: CoachColors.textFaint },
 
   // Day strip
   dayCell: {
     width: Math.round(W * 0.163), alignItems: 'center', paddingVertical: 12,
-    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 4, minHeight: 88,
+    borderRadius: 16, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 4, minHeight: 88,
   },
-  dayCellActive:   { backgroundColor: '#C8F135', borderColor: '#C8F135' },
-  dayName:         { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  dayNameActive:   { color: 'rgba(13,13,18,0.55)' },
-  dayNum:          { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.052), color: '#FFFFFF' },
-  dayNumActive:    { color: '#0D0D12' },
-  dayMonth:        { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.025), color: 'rgba(255,255,255,0.25)' },
-  dayMonthActive:  { color: 'rgba(13,13,18,0.45)' },
-  todayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#C8F135', marginTop: 2 },
+  dayCellActive:   { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  dayName:         { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.028), color: CoachColors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dayNameActive:   { color: CoachColors.onAccent },
+  dayNum:          { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.052), color: CoachColors.textPrimary },
+  dayNumActive:    { color: CoachColors.bg },
+  dayMonth:        { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.025), color: CoachColors.textFaint },
+  dayMonthActive:  { color: CoachColors.onAccent },
+  todayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: CoachColors.accent, marginTop: 2 },
 
   // Time
   timeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', minHeight: 56,
+    backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, minHeight: 56,
   },
-  dateTimeIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
-  timeValue: { flex: 1, fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
+  dateTimeIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  timeValue: { flex: 1, fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.textPrimary },
 
   // Duration chips
   durationRow: { flexDirection: 'row', gap: 10 },
   durationCard: {
     flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.04),
-    borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 2, minHeight: 70,
+    borderRadius: 14, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 2, minHeight: 70,
   },
-  durationCardActive: { backgroundColor: '#C8F135', borderColor: '#C8F135' },
-  durationValue:      { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.058), color: 'rgba(255,255,255,0.4)' },
-  durationValueActive:{ color: '#0D0D12' },
-  durationSub:        { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.028), color: 'rgba(255,255,255,0.25)' },
-  durationSubActive:  { color: 'rgba(13,13,18,0.5)' },
+  durationCardActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  durationValue:      { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.058), color: CoachColors.textMuted },
+  durationValueActive:{ color: CoachColors.bg },
+  durationSub:        { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.028), color: CoachColors.textFaint },
+  durationSubActive:  { color: CoachColors.onAccent },
 
   // Repeat chips
   repeatChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
     minHeight: 44, justifyContent: 'center',
   },
-  repeatChipActive:     { backgroundColor: 'rgba(200,241,53,0.12)', borderColor: 'rgba(200,241,53,0.35)' },
-  repeatChipText:       { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.033), color: 'rgba(255,255,255,0.5)' },
-  repeatChipTextActive: { color: '#C8F135' },
-  repeatNote: { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.3)', marginTop: 10, paddingLeft: 4 },
+  repeatChipActive:     { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  repeatChipText:       { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.033), color: CoachColors.textSecondary },
+  repeatChipTextActive: { color: CoachColors.accent },
+  repeatNote: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textFaint, marginTop: 10, paddingLeft: 4 },
 
   // Submit button — full-width lime CTA
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: '#C8F135', borderRadius: Radius.full,
+    backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16, marginBottom: 20, minHeight: 54,
   },
-  submitText: { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#0D0D12' },
+  submitText: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.bg },
 
   // Session preview card
   preview: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.03)',
+    flexDirection: 'row', backgroundColor: CoachColors.surface,
     borderRadius: 14, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   previewAccent: { width: 3 },
   previewBody:   { flex: 1, padding: 16, gap: 4 },
-  previewLabel:  { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.025), color: 'rgba(255,255,255,0.25)', letterSpacing: 1, textTransform: 'uppercase' },
-  previewTitle:  { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
-  previewMeta:   { fontFamily: FontFamily.body, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.35)', marginTop: 2 },
+  previewLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.025), color: CoachColors.textFaint, letterSpacing: 1, textTransform: 'uppercase' },
+  previewTitle:  { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.textPrimary },
+  previewMeta:   { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted, marginTop: 2 },
 
   // Time picker bottom sheet
   sheetOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
   sheetContainer: {
-    backgroundColor: '#111118', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: CoachColors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: W * 0.05,
   },
   sheetHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
+    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
-  sheetTitle:       { fontFamily: FontFamily.heading, fontSize: Math.round(W * 0.042), color: '#FFFFFF' },
-  sheetDone:        { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.038), color: '#C8F135' },
-  timeGrid:         { paddingVertical: Spacing.md, gap: 12 },
-  timeGroupLabel:   { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.3)', marginBottom: 6, letterSpacing: 0.5 },
+  sheetTitle:       { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.textPrimary },
+  sheetDone:        { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.038), color: CoachColors.accent },
+  timeGrid:         { paddingVertical: 10, gap: 12 },
+  timeGroupLabel:   { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.03), color: CoachColors.textFaint, marginBottom: 6, letterSpacing: 0.5 },
   timeSlotRow:      { flexDirection: 'row', gap: 8 },
   timeSlot: {
     flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', minHeight: 44,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, minHeight: 44,
   },
-  timeSlotActive:     { backgroundColor: '#C8F135', borderColor: '#C8F135' },
-  timeSlotText:       { fontFamily: FontFamily.bodySemiBold, fontSize: Math.round(W * 0.03), color: 'rgba(255,255,255,0.5)' },
-  timeSlotTextActive: { color: '#0D0D12' },
+  timeSlotActive:     { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  timeSlotText:       { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.03), color: CoachColors.textSecondary },
+  timeSlotTextActive: { color: CoachColors.bg },
 });

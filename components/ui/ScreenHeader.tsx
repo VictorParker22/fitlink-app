@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 interface ScreenHeaderProps {
   /** Title shown in the center of the header */
@@ -24,7 +24,7 @@ interface ScreenHeaderProps {
 
 /**
  * Reusable screen header with back button, optional title, and right actions.
- * Used across 8+ screens. Dark-themed to match FitLink aesthetic.
+ * Used across 8+ screens. Fixed-dark to match the FitLink design system.
  */
 export default function ScreenHeader({
   title,
@@ -45,7 +45,7 @@ export default function ScreenHeader({
         accessibilityRole="button"
         accessibilityLabel="Go back"
       >
-        <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       {title ? <Text style={s.title} numberOfLines={1}>{title}</Text> : <View style={s.spacer} />}
@@ -65,7 +65,7 @@ export default function ScreenHeader({
             <Ionicons
               name={isFavorite ? 'star' : 'star-outline'}
               size={22}
-              color={isFavorite ? '#FFCA28' : '#FFFFFF'}
+              color={isFavorite ? CoachColors.accent : CoachColors.textPrimary}
             />
           </TouchableOpacity>
         )}
@@ -77,7 +77,7 @@ export default function ScreenHeader({
             accessibilityRole="button"
             accessibilityLabel="Share"
           >
-            <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         )}
         {rightElement}
@@ -105,9 +105,9 @@ const s = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: FontFamily.headingSemiBold,
+    fontFamily: CoachFonts.headingSemiBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginHorizontal: 4,
   },
   spacer: { flex: 1 },

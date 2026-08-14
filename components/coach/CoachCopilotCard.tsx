@@ -12,16 +12,17 @@ import { useCoachCopilot } from '../../hooks/useCoachCopilot';
 import { useHaptic } from '../../hooks/useHaptic';
 import { Bolt } from '../mascot/Bolt';
 import { PrecisionIcons } from '../icons/PrecisionIcons';
-import { FontFamily, FontSize, Radius, Spacing, Colors } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import type { CopilotAction, ActionPriority, ActionCategory } from '../../lib/copilot/types';
 
 // ─── Priority config ──────────────────────────────────────────────────────────
 const PRIORITY: Record<ActionPriority, { color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  critical:    { color: '#FF453A', bg: 'rgba(255,69,58,0.10)',  border: 'rgba(255,69,58,0.25)',  icon: 'alert-circle'      },
-  high:        { color: '#FF9500', bg: 'rgba(255,149,0,0.10)',  border: 'rgba(255,149,0,0.25)',  icon: 'warning'           },
-  medium:      { color: '#FFCC00', bg: 'rgba(255,204,0,0.10)', border: 'rgba(255,204,0,0.20)',  icon: 'time-outline'      },
-  low:         { color: '#8E8E93', bg: 'rgba(142,142,147,0.08)', border: 'rgba(142,142,147,0.15)', icon: 'chatbubble-outline' },
-  celebration: { color: '#30D158', bg: 'rgba(48,209,88,0.10)', border: 'rgba(48,209,88,0.25)',  icon: 'flame-outline'     },
+  critical:    { color: CoachColors.danger,        bg: CoachColors.dangerSoft,   border: CoachColors.danger,      icon: 'alert-circle'      },
+  high:        { color: CoachColors.warning,       bg: CoachColors.warningSoft,  border: CoachColors.warning,     icon: 'warning'           },
+  medium:      { color: CoachColors.accent,        bg: CoachColors.accentSofter, border: CoachColors.accentSoft,  icon: 'time-outline'      },
+  low:         { color: CoachColors.textSecondary, bg: CoachColors.surface,      border: CoachColors.borderMuted, icon: 'chatbubble-outline' },
+  celebration: { color: CoachColors.accent,        bg: CoachColors.accentSoft,   border: CoachColors.accentSoft,  icon: 'flame-outline'     },
 };
 
 // ─── Individual Action Card ───────────────────────────────────────────────────
@@ -99,7 +100,7 @@ const ActionCard: React.FC<{
 
         {/* Suggestion box */}
         <View style={styles.suggestionBox}>
-          <Ionicons name="bulb-outline" size={11} color="rgba(255,255,255,0.5)" style={{ marginTop: 1 }} />
+          <Ionicons name="bulb-outline" size={11} color={CoachColors.textSecondary} style={{ marginTop: 1 }} />
           <Text style={styles.suggestionText} numberOfLines={2}>{action.suggestedAction}</Text>
         </View>
 
@@ -109,13 +110,13 @@ const ActionCard: React.FC<{
           onPress={handleCta}
           activeOpacity={0.75}
         >
-          <Text style={[styles.ctaText, { color: p.color }]}>{action.ctaLabel} →</Text>
+          <Text style={[styles.ctaText, { color: p.color }]}>{action.ctaLabel}</Text>
         </TouchableOpacity>
 
         {/* Dismiss button */}
         {action.dismissable && (
           <TouchableOpacity style={styles.dismissBtn} onPress={handleDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close" size={13} color="rgba(255,255,255,0.35)" />
+            <Ionicons name="close" size={13} color={CoachColors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -145,7 +146,7 @@ export const CoachCopilotCard: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <PrecisionIcons.Sparkles size={16} color="#FFCC00" />
+          <PrecisionIcons.Sparkles size={16} color={CoachColors.accent} />
           <Text style={styles.headerTitle}>Copilot</Text>
         </View>
         <View style={styles.actionCountBadge}>
@@ -176,10 +177,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     marginBottom: Spacing.xl,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius['2xl'],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: CoachColors.borderMuted,
     overflow: 'hidden',
     paddingVertical: Spacing.md,
   },
@@ -196,21 +197,21 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   headerTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   actionCountBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.borderMuted,
   },
   actionCountText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
   },
   scrollContent: {
     gap: 10,
@@ -235,21 +236,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headline: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15,
     lineHeight: 20,
     marginBottom: 3,
   },
   clientName: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 6,
   },
   subtext: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 17,
     marginBottom: 10,
   },
@@ -263,9 +264,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   suggestionText: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
+    color: CoachColors.textSecondary,
     lineHeight: 16,
     flex: 1,
   },
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctaText: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
   },
   dismissBtn: {
@@ -302,21 +303,21 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(48,209,88,0.12)',
+    backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   emptyTitle: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   emptySub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     textAlign: 'center',
   },
 });

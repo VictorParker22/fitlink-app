@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { FontFamily, FontSize } from '../constants/theme';
+import { CoachFonts } from '../constants/coachDesign';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -52,12 +52,6 @@ export default function WeeklyRing({
   return (
     <View style={[styles.container, { width: size, height: size }]}>
       <Svg width={size} height={size}>
-        <Defs>
-          <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={accentColor} />
-            <Stop offset="100%" stopColor="#FF9F6B" />
-          </LinearGradient>
-        </Defs>
         {/* Background track */}
         <Circle
           cx={size / 2}
@@ -72,7 +66,7 @@ export default function WeeklyRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="url(#ringGradient)"
+          stroke={accentColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
@@ -101,13 +95,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerValue: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 36,
     lineHeight: 40,
   },
   centerLabel: {
-    fontFamily: FontFamily.body,
-    fontSize: FontSize.xs,
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
     marginTop: 2,
   },
 });

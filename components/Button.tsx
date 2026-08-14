@@ -1,6 +1,6 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, type ViewStyle, type TextStyle } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
-import { Radius, FontFamily, FontSize } from '../constants/theme';
+import { Radius } from '../constants/theme';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 interface ButtonProps {
   title: string;
@@ -17,6 +17,22 @@ interface ButtonProps {
   accessibilityLabel?: string;
 }
 
+const variantStyles: Record<string, ViewStyle> = {
+  primary: { backgroundColor: CoachColors.accent },
+  secondary: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: CoachColors.border },
+  ghost: { backgroundColor: 'transparent' },
+  danger: { backgroundColor: CoachColors.dangerSoft },
+};
+
+const textColors: Record<string, string> = {
+  primary: CoachColors.onAccent,
+  secondary: CoachColors.textPrimary,
+  outline: CoachColors.textPrimary,
+  ghost: CoachColors.textSecondary,
+  danger: CoachColors.danger,
+};
+
 export default function Button({
   title,
   onPress,
@@ -31,24 +47,7 @@ export default function Button({
   textStyle,
   accessibilityLabel,
 }: ButtonProps) {
-  const { colors } = useTheme();
   const isDisabled = disabled || loading;
-
-  const variantStyles: Record<string, ViewStyle> = {
-    primary: { backgroundColor: colors.accent },
-    secondary: { backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-    outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255, 95, 59, 0.3)' },
-    ghost: { backgroundColor: 'transparent' },
-    danger: { backgroundColor: colors.redSoft },
-  };
-
-  const textColors: Record<string, string> = {
-    primary: colors.white,
-    secondary: colors.textPrimary,
-    outline: colors.accentText,
-    ghost: colors.textSecondary,
-    danger: colors.red,
-  };
 
   const sizeStyles: Record<string, ViewStyle> = {
     sm: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: Radius.sm },
@@ -57,9 +56,9 @@ export default function Button({
   };
 
   const textSizes: Record<string, number> = {
-    sm: FontSize.xs,
-    md: FontSize.base,
-    lg: FontSize.md,
+    sm: 13,
+    md: 17,
+    lg: 18,
   };
 
   return (
@@ -81,7 +80,7 @@ export default function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.accent}
+          color={variant === 'primary' ? CoachColors.onAccent : variant === 'danger' ? CoachColors.danger : CoachColors.accent}
         />
       ) : (
         <>
@@ -111,7 +110,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   text: {
-    fontFamily: FontFamily.bodySemiBold,
-    fontSize: FontSize.base,
+    fontFamily: CoachFonts.bodySemiBold,
   },
 });

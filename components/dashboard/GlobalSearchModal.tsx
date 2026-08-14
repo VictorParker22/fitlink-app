@@ -4,7 +4,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
-import { Spacing, FontFamily, Radius } from '../../constants/theme';
+import { Spacing, Radius } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 interface GlobalSearchModalProps {
   visible: boolean;
@@ -54,7 +55,6 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           title: c.name,
           subtitle: c.email || c.phone || c.status,
           icon: 'person',
-          color: '#FF6B35',
           onPress: () => { handleClose(); router.push(`/client/${c.id}` as any); },
         })),
       });
@@ -81,7 +81,6 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
             title: client?.name || s.group_name || 'Session',
             subtitle: `${s.type} · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${s.status}`,
             icon: 'calendar-outline',
-            color: '#6C9BF2',
             onPress: () => { handleClose(); router.push(`/session/${s.id}` as any); },
           };
         }),
@@ -102,7 +101,6 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           title: p.name,
           subtitle: `$${p.price} / ${p.period === 'monthly' ? 'mo' : p.period}`,
           icon: 'document-text-outline',
-          color: '#A78BFA',
           onPress: () => { handleClose(); router.push('/subscriptions' as any); },
         })),
       });
@@ -110,19 +108,19 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
 
     // Search quick actions
     const quickActions = [
-      { id: 'qa-add-client', title: 'Add Client', subtitle: 'Create a new client profile', icon: 'person-add', color: '#FF6B35', route: '/add-client' },
-      { id: 'qa-book-session', title: 'Book Session', subtitle: 'Schedule a training session', icon: 'calendar-outline', color: '#6C9BF2', route: '/book-session' },
-      { id: 'qa-messages', title: 'Messages', subtitle: 'Open conversations', icon: 'chatbubble', color: '#22C55E', route: '/(tabs)/messages' },
-      { id: 'qa-programs', title: 'New Plan', subtitle: 'Create a workout program', icon: 'document-text', color: '#A78BFA', route: '/(tabs)/programs' },
-      { id: 'qa-schedule', title: 'Schedule', subtitle: 'View your calendar', icon: 'calendar', color: '#6C9BF2', route: '/(tabs)/schedule' },
-      { id: 'qa-profile', title: 'Profile', subtitle: 'Edit your profile settings', icon: 'person-circle', color: '#FF6B35', route: '/(tabs)/profile' },
+      { id: 'qa-add-client', title: 'Add client', subtitle: 'Create a new client profile', icon: 'person-add', route: '/add-client' },
+      { id: 'qa-book-session', title: 'Book session', subtitle: 'Schedule a training session', icon: 'calendar-outline', route: '/book-session' },
+      { id: 'qa-messages', title: 'Messages', subtitle: 'Open conversations', icon: 'chatbubble', route: '/(tabs)/messages' },
+      { id: 'qa-programs', title: 'New plan', subtitle: 'Create a workout program', icon: 'document-text', route: '/(tabs)/programs' },
+      { id: 'qa-schedule', title: 'Schedule', subtitle: 'View your calendar', icon: 'calendar', route: '/(tabs)/schedule' },
+      { id: 'qa-profile', title: 'Profile', subtitle: 'Edit your profile settings', icon: 'person-circle', route: '/(tabs)/profile' },
     ];
     const matchedActions = quickActions.filter(a =>
       a.title.toLowerCase().includes(q) || a.subtitle.toLowerCase().includes(q)
     );
     if (matchedActions.length > 0) {
       sections.push({
-        title: 'Quick Actions',
+        title: 'Quick actions',
         icon: 'flash',
         data: matchedActions.map(a => ({
           ...a,
@@ -137,30 +135,30 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <KeyboardAvoidingView 
-        style={st.searchModal} 
+      <KeyboardAvoidingView
+        style={st.searchModal}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <SafeAreaView edges={['bottom']} style={{ flex: 1, paddingTop: insets.top }}>
           {/* Search Header */}
           <View style={st.searchHeader}>
             <View style={st.searchInputRow}>
-              <Ionicons name="search" size={20} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
               <TextInput
                 ref={searchInputRef}
                 style={st.searchInput}
                 placeholder="Search clients, sessions, plans..."
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={CoachColors.textFaint}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                selectionColor="#FF6B35"
+                selectionColor={CoachColors.accent}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="close-circle" size={20} color={CoachColors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -172,7 +170,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           {/* Results */}
           {searchQuery.trim() === '' ? (
             <View style={st.searchEmptyState}>
-              <Ionicons name="search" size={56} color="rgba(255,255,255,0.08)" />
+              <Ionicons name="search" size={56} color={CoachColors.textFaint} />
               <Text style={st.searchEmptyTitle}>Search FitLink</Text>
               <Text style={st.searchEmptySubtitle}>Find clients, sessions, plans, and more</Text>
               {/* Recent / Suggestions */}
@@ -184,7 +182,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
                   { label: 'Messages', icon: 'chatbubble', onPress: () => { handleClose(); router.push('/(tabs)/messages'); } },
                 ].map((s, i) => (
                   <TouchableOpacity key={i} style={st.searchSuggestionChip} onPress={s.onPress} activeOpacity={0.7}>
-                    <Ionicons name={s.icon as any} size={16} color="rgba(255,255,255,0.5)" />
+                    <Ionicons name={s.icon as any} size={16} color={CoachColors.textSecondary} />
                     <Text style={st.searchSuggestionText}>{s.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -192,7 +190,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
             </View>
           ) : searchResults.length === 0 ? (
             <View style={st.searchEmptyState}>
-              <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.1)" />
+              <Ionicons name="search-outline" size={48} color={CoachColors.textFaint} />
               <Text style={st.searchEmptyTitle}>No results</Text>
               <Text style={st.searchEmptySubtitle}>Try a different search term</Text>
             </View>
@@ -205,24 +203,24 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               keyboardShouldPersistTaps="handled"
               renderSectionHeader={({ section }) => (
                 <View style={st.searchSectionHeader}>
-                  <Ionicons name={section.icon as any} size={14} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name={section.icon as any} size={14} color={CoachColors.textMuted} />
                   <Text style={st.searchSectionTitle}>{section.title}</Text>
                   <Text style={st.searchSectionCount}>{section.data.length}</Text>
                 </View>
               )}
               renderItem={({ item }) => (
                 <TouchableOpacity style={st.searchResultItem} onPress={item.onPress} activeOpacity={0.7}>
-                  <View style={[st.searchResultIcon, { backgroundColor: item.color + '15' }]}> 
-                    <Ionicons name={item.icon as any} size={18} color={item.color} />
+                  <View style={st.searchResultIcon}>
+                    <Ionicons name={item.icon as any} size={18} color={CoachColors.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={st.searchResultTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={st.searchResultSubtitle} numberOfLines={1}>{item.subtitle}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" />
+                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               )}
-              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginLeft: 62 }} />}
+              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 62 }} />}
             />
           )}
         </SafeAreaView>
@@ -232,13 +230,13 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
 }
 
 const st = StyleSheet.create({
-  searchModal: { flex: 1, backgroundColor: '#000' },
+  searchModal: { flex: 1, backgroundColor: CoachColors.bg },
   searchHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm, gap: 12 },
   searchInputRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
     paddingHorizontal: 14,
     height: 44,
@@ -246,29 +244,29 @@ const st = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     height: '100%',
   },
   searchCancel: { paddingVertical: 8 },
-  searchCancelText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FF6B35' },
+  searchCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
   searchEmptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 80 },
-  searchEmptyTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: 20, color: 'rgba(255,255,255,0.5)', marginTop: 8 },
-  searchEmptySubtitle: { fontFamily: FontFamily.body, fontSize: 14, color: 'rgba(255,255,255,0.25)' },
+  searchEmptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textSecondary, marginTop: 8 },
+  searchEmptySubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint },
   searchSuggestions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 24, paddingHorizontal: 40 },
   searchSuggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: CoachColors.borderMuted,
   },
-  searchSuggestionText: { fontFamily: FontFamily.bodyMedium, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  searchSuggestionText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
   searchSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -277,8 +275,8 @@ const st = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 8,
   },
-  searchSectionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', flex: 1 },
-  searchSectionCount: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.25)' },
+  searchSectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase', flex: 1 },
+  searchSectionCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,9 +288,10 @@ const st = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
+    backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchResultTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#FFFFFF' },
-  searchResultSubtitle: { fontFamily: FontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  searchResultTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  searchResultSubtitle: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
 });
