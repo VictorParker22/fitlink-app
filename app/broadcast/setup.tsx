@@ -18,7 +18,8 @@ import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
-import { FontFamily, Radius, Spacing } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const CATEGORIES = [
   { label: 'Strength', icon: 'barbell-outline' },
@@ -37,6 +38,7 @@ export default function BroadcastSetupScreen() {
   const { existingClassId } = useLocalSearchParams<{ existingClassId?: string }>();
   const { createLiveClass, liveClasses } = useApp();
   const { showAlert } = useAlert();
+  const reducedMotion = useReducedMotion();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Category>('Strength');
@@ -48,13 +50,19 @@ export default function BroadcastSetupScreen() {
   // Pulsing animation for the LIVE badge preview
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    Animated.loop(
+    if (reducedMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.4, duration: 800, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reducedMotion]);
 
   // If editing an existing class, pre-fill
   useEffect(() => {
@@ -70,7 +78,7 @@ export default function BroadcastSetupScreen() {
 
   const handleStartBroadcast = async () => {
     if (!title.trim()) {
-      showAlert({ type: 'error', title: 'Title Required', message: 'Give your stream a title before going live.' });
+      showAlert({ type: 'error', title: 'Title required', message: 'Give your stream a title before going live.' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -100,7 +108,7 @@ export default function BroadcastSetupScreen() {
         },
       });
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Setup Error', message: err.message || 'Could not create stream.' });
+      showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Could not create stream.' });
       setIsLaunching(false);
     }
   };
@@ -117,13 +125,15 @@ export default function BroadcastSetupScreen() {
             onPress={() => router.back()}
             style={s.closeBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close stream setup"
           >
-            <Ionicons name="close" size={22} color="rgba(255,255,255,0.7)" />
+            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Stream Setup</Text>
+          <Text style={s.headerTitle}>Stream setup</Text>
           <View style={s.liveBadgePreview}>
             <Animated.View style={[s.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={s.liveBadgePreviewText}>LIVE</Text>
+            <Text style={s.liveBadgePreviewText}>Live</Text>
           </View>
         </View>
 
@@ -134,19 +144,20 @@ export default function BroadcastSetupScreen() {
           keyboardShouldPersistTaps="handled"
         >
 
-          {/* Stream Title */}
+          {/* Stream title */}
           <View style={s.section}>
-            <Text style={s.sectionLabel}>STREAM TITLE</Text>
+            <Text style={s.sectionLabel}>Stream title</Text>
             <View style={s.inputCard}>
               <TextInput
                 style={s.titleInput}
                 value={title}
                 onChangeText={t => setTitle(t.slice(0, 140))}
                 placeholder="What are you coaching today?"
-                placeholderTextColor="rgba(255,255,255,0.25)"
+                placeholderTextColor={CoachColors.textFaint}
                 maxLength={140}
                 autoFocus
                 returnKeyType="done"
+                accessibilityLabel="Stream title"
               />
               <Text style={[s.charCounter, title.length > 120 && s.charCounterWarn]}>
                 {140 - title.length} remaining
@@ -154,9 +165,9 @@ export default function BroadcastSetupScreen() {
             </View>
           </View>
 
-          {/* Category Picker */}
+          {/* Category picker */}
           <View style={s.section}>
-            <Text style={s.sectionLabel}>CATEGORY</Text>
+            <Text style={s.sectionLabel}>Category</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -171,11 +182,14 @@ export default function BroadcastSetupScreen() {
                     setCategory(cat.label);
                   }}
                   activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Category ${cat.label}`}
+                  accessibilityState={{ selected: category === cat.label }}
                 >
                   <Ionicons
                     name={cat.icon as any}
                     size={14}
-                    color={category === cat.label ? '#000000' : 'rgba(255,255,255,0.5)'}
+                    color={category === cat.label ? CoachColors.onAccent : CoachColors.textMuted}
                   />
                   <Text style={[s.categoryChipText, category === cat.label && s.categoryChipTextActive]}>
                     {cat.label}
@@ -188,7 +202,7 @@ export default function BroadcastSetupScreen() {
           {/* Description */}
           <View style={s.section}>
             <Text style={s.sectionLabel}>
-              DESCRIPTION <Text style={s.optionalLabel}>(OPTIONAL)</Text>
+              Description <Text style={s.optionalLabel}>(optional)</Text>
             </Text>
             <View style={s.inputCard}>
               <TextInput
@@ -196,17 +210,18 @@ export default function BroadcastSetupScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Tell your audience what to expect…"
-                placeholderTextColor="rgba(255,255,255,0.25)"
+                placeholderTextColor={CoachColors.textFaint}
                 multiline
                 numberOfLines={3}
                 returnKeyType="done"
+                accessibilityLabel="Stream description, optional"
               />
             </View>
           </View>
 
-          {/* Hardware Toggles */}
+          {/* Hardware toggles */}
           <View style={s.section}>
-            <Text style={s.sectionLabel}>SETTINGS</Text>
+            <Text style={s.sectionLabel}>Settings</Text>
             <View style={s.settingsCard}>
 
               <TouchableOpacity
@@ -216,13 +231,16 @@ export default function BroadcastSetupScreen() {
                   setMicEnabled(v => !v);
                 }}
                 activeOpacity={0.75}
+                accessibilityRole="switch"
+                accessibilityLabel="Microphone"
+                accessibilityState={{ checked: micEnabled }}
               >
                 <View style={s.settingsRowLeft}>
-                  <View style={[s.settingsIcon, { backgroundColor: micEnabled ? 'rgba(200,241,53,0.15)' : 'rgba(255,255,255,0.06)' }]}>
+                  <View style={[s.settingsIcon, { backgroundColor: micEnabled ? CoachColors.accentSoft : CoachColors.surface }]}>
                     <Ionicons
                       name={micEnabled ? 'mic' : 'mic-off'}
                       size={18}
-                      color={micEnabled ? '#C8F135' : 'rgba(255,255,255,0.4)'}
+                      color={micEnabled ? CoachColors.accent : CoachColors.textFaint}
                     />
                   </View>
                   <View>
@@ -246,10 +264,12 @@ export default function BroadcastSetupScreen() {
                   setCameraFacing(v => v === 'front' ? 'back' : 'front');
                 }}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Camera, ${cameraFacing === 'front' ? 'front camera' : 'back camera'}. Double tap to switch`}
               >
                 <View style={s.settingsRowLeft}>
-                  <View style={[s.settingsIcon, { backgroundColor: 'rgba(200,241,53,0.15)' }]}>
-                    <Ionicons name="camera-reverse-outline" size={18} color="#C8F135" />
+                  <View style={[s.settingsIcon, { backgroundColor: CoachColors.accentSoft }]}>
+                    <Ionicons name="camera-reverse-outline" size={18} color={CoachColors.accent} />
                   </View>
                   <View>
                     <Text style={s.settingsRowTitle}>Camera</Text>
@@ -268,7 +288,7 @@ export default function BroadcastSetupScreen() {
 
           {/* Tips */}
           <View style={s.tipsCard}>
-            <Ionicons name="bulb-outline" size={14} color="#FF6B35" style={{ marginRight: 8, marginTop: 1 }} />
+            <Ionicons name="bulb-outline" size={14} color={CoachColors.warning} style={{ marginRight: 8, marginTop: 1 }} />
             <Text style={s.tipsText}>
               Turn off Silent Mode and enable Do Not Disturb before going live for the best streaming experience.
             </Text>
@@ -276,20 +296,23 @@ export default function BroadcastSetupScreen() {
 
         </ScrollView>
 
-        {/* Go Live CTA */}
+        {/* Go live CTA */}
         <View style={s.footer}>
           <TouchableOpacity
             style={[s.goLiveBtn, (!title.trim() || isLaunching) && s.goLiveBtnDisabled]}
             onPress={handleStartBroadcast}
             disabled={!title.trim() || isLaunching}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Start broadcast"
+            accessibilityState={{ disabled: !title.trim() || isLaunching, busy: isLaunching }}
           >
             {isLaunching ? (
-              <ActivityIndicator color="#000000" size="small" />
+              <ActivityIndicator color={CoachColors.onAccent} size="small" />
             ) : (
               <>
                 <View style={s.goLiveDot} />
-                <Text style={s.goLiveBtnText}>START BROADCAST</Text>
+                <Text style={s.goLiveBtnText}>Start broadcast</Text>
               </>
             )}
           </TouchableOpacity>
@@ -302,99 +325,106 @@ export default function BroadcastSetupScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D12',
+    backgroundColor: CoachColors.bg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: CoachColors.borderMuted,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
-    marginLeft: Spacing.md,
+    letterSpacing: -0.3,
+    color: CoachColors.textPrimary,
+    marginLeft: 12,
   },
   liveBadgePreview: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: CoachColors.dangerSoft,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.35)',
+    borderColor: 'rgba(224,92,92,0.35)',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: Radius.full,
+    borderRadius: 999,
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: CoachColors.danger,
   },
   liveBadgePreviewText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#EF4444',
+    color: CoachColors.danger,
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 24,
   },
   section: {
-    marginBottom: Spacing.xl,
+    marginBottom: 24,
   },
   sectionLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 10,
+    color: CoachColors.textFaint,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
   optionalLabel: {
-    color: 'rgba(255,255,255,0.2)',
+    color: CoachColors.textFaint,
+    opacity: 0.6,
   },
   inputCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
+    padding: 14,
   },
   titleInput: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    color: CoachColors.textPrimary,
     minHeight: 28,
   },
   charCounter: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
     textAlign: 'right',
     marginTop: 8,
   },
   charCounterWarn: {
-    color: '#FF6B35',
+    color: CoachColors.warning,
   },
   descInput: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     minHeight: 60,
     textAlignVertical: 'top',
   },
@@ -406,37 +436,37 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CoachColors.borderMuted,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: Radius.full,
+    borderRadius: 999,
   },
   categoryChipActive: {
-    backgroundColor: '#C8F135',
-    borderColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
+    borderColor: CoachColors.accent,
   },
   categoryChipText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: CoachColors.textSecondary,
   },
   categoryChipTextActive: {
-    color: '#000000',
+    color: CoachColors.onAccent,
   },
   settingsCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: Radius.md,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.md,
+    padding: 14,
   },
   settingsRowLeft: {
     flexDirection: 'row',
@@ -452,94 +482,87 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsRowTitle: {
-    fontFamily: FontFamily.bodyBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
   },
   settingsRowSub: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: CoachColors.textMuted,
     marginTop: 2,
   },
   settingsDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginHorizontal: Spacing.md,
+    backgroundColor: CoachColors.borderMuted,
+    marginHorizontal: 14,
   },
   toggle: {
     width: 46,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: CoachColors.borderMuted,
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   toggleOn: {
-    backgroundColor: '#C8F135',
+    backgroundColor: CoachColors.accent,
   },
   toggleKnob: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: CoachColors.textFaint,
     alignSelf: 'flex-start',
   },
   toggleKnobOn: {
     alignSelf: 'flex-end',
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.onAccent,
   },
   tipsCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,107,53,0.08)',
+    backgroundColor: 'rgba(224,184,78,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.2)',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    borderColor: 'rgba(224,184,78,0.2)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
   },
   tipsText: {
     flex: 1,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     lineHeight: 18,
   },
   footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.07)',
+    borderTopColor: CoachColors.borderMuted,
   },
   goLiveBtn: {
-    backgroundColor: '#C8F135',
-    borderRadius: Radius.md,
-    paddingVertical: 18,
+    backgroundColor: CoachColors.accent,
+    borderRadius: 27,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: '#C8F135',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
   },
   goLiveBtnDisabled: {
-    backgroundColor: 'rgba(200,241,53,0.25)',
-    shadowOpacity: 0,
+    opacity: 0.4,
   },
   goLiveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#000000',
+    backgroundColor: CoachColors.onAccent,
   },
   goLiveBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 15,
-    color: '#000000',
-    letterSpacing: 1.5,
+    color: CoachColors.onAccent,
   },
 });
