@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,11 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
-import type { ThemeColors } from '../constants/theme';
-import { Spacing, FontFamily, FontSize, Radius } from '../constants/theme';
-import Button from '../components/Button';
-import Card from '../components/Card';
+import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 // Use the subscription endpoint for recurring monthly billing
 const EDGE_FUNCTION_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-subscription';
@@ -21,8 +17,6 @@ export default function CheckoutScreen() {
   const { planId, clientId } = useLocalSearchParams<{ planId: string; clientId: string }>();
   const router = useRouter();
   const { plans, clients, trainer, refreshData } = useApp();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const [loading, setLoading] = useState(false);
@@ -33,7 +27,7 @@ export default function CheckoutScreen() {
 
   const handlePayment = useCallback(async () => {
     if (!trainer?.stripe_onboarding_complete) {
-      Alert.alert('Payment Setup Required', 'The coach needs to complete Stripe setup before accepting payments.');
+      Alert.alert('Payment setup required', 'The coach needs to complete Stripe setup before accepting payments.');
       return;
     }
 
@@ -118,7 +112,7 @@ export default function CheckoutScreen() {
     } catch (err: any) {
       console.error('Payment error:', err);
       setPaymentStatus('error');
-      Alert.alert('Payment Failed', err.message || 'Something went wrong. Please try again.');
+      Alert.alert('Payment failed', err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -128,9 +122,16 @@ export default function CheckoutScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.errorState}>
-          <Ionicons name="alert-circle" size={48} color={colors.red} />
-          <Text style={styles.errorText}>Plan or client not found.</Text>
-          <Button title="Go Back" onPress={() => router.back()} />
+          <Ionicons name="alert-circle-outline" size={44} color={CoachColors.danger} />
+          <Text style={styles.errorText}>Plan or client not found</Text>
+          <TouchableOpacity
+            style={styles.errorBtn}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.errorBtnText}>Go back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -140,22 +141,28 @@ export default function CheckoutScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Button
-          title=""
+        <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => router.back()}
-          variant="secondary"
-          size="sm"
-          icon={<Ionicons name="arrow-back" size={20} color={colors.textPrimary} />}
-        />
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="arrow-back" size={18} color={CoachColors.textPrimary} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 36 }} />
       </View>
 
       <View style={styles.content}>
-        {/* Plan Summary Card */}
-        <Card style={styles.summaryCard}>
+        {/* Plan summary card */}
+        <View
+          style={styles.summaryCard}
+          accessible
+          accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${(plan as any).period || 'month'}. Coach receives $${(Number(plan.price) * 0.9).toFixed(2)} after the 10% platform fee. Billing ${client.name}.`}
+        >
           <View style={styles.planBadge}>
-            <Ionicons name="card" size={20} color={colors.accent} />
+            <Ionicons name="card-outline" size={20} color={CoachColors.accent} />
           </View>
           <Text style={styles.planName}>{plan.name}</Text>
           <Text style={styles.planPrice}>
@@ -174,18 +181,18 @@ export default function CheckoutScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.clientRow}>
-            <Ionicons name="person" size={16} color={colors.textTertiary} />
+            <Ionicons name="person-outline" size={15} color={CoachColors.textFaint} />
             <Text style={styles.clientName}>Billing: {client.name}</Text>
           </View>
-        </Card>
+        </View>
 
-        {/* Status Messages */}
+        {/* Status messages */}
         {paymentStatus === 'success' && (
           <View style={styles.statusCard}>
-            <View style={[styles.statusIcon, { backgroundColor: `${colors.green}20` }]}>
-              <Ionicons name="checkmark-circle" size={32} color={colors.green} />
+            <View style={styles.statusIconSuccess}>
+              <Ionicons name="checkmark" size={30} color={CoachColors.onAccent} />
             </View>
-            <Text style={styles.statusTitle}>Payment Successful!</Text>
+            <Text style={styles.statusTitle}>Payment successful</Text>
             <Text style={styles.statusDesc}>
               {client.name} is now subscribed to {plan.name}. You'll be billed monthly. Redirecting...
             </Text>
@@ -194,78 +201,119 @@ export default function CheckoutScreen() {
 
         {paymentStatus === 'error' && (
           <View style={styles.statusCard}>
-            <View style={[styles.statusIcon, { backgroundColor: `${colors.red}20` }]}>
-              <Ionicons name="close-circle" size={32} color={colors.red} />
+            <View style={styles.statusIconError}>
+              <Ionicons name="close" size={30} color={CoachColors.danger} />
             </View>
-            <Text style={styles.statusTitle}>Payment Failed</Text>
+            <Text style={styles.statusTitle}>Payment failed</Text>
             <Text style={styles.statusDesc}>
               Please check your payment details and try again.
             </Text>
           </View>
         )}
 
-        {/* Security Notice */}
+        {/* Security notice */}
         <View style={styles.securityRow}>
-          <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
+          <Ionicons name="lock-closed-outline" size={14} color={CoachColors.textFaint} />
           <Text style={styles.securityText}>
             Payments are securely processed by Stripe. FitLink never stores your card details.
           </Text>
         </View>
 
-        {/* Pay Button */}
+        {/* Pay button */}
         {paymentStatus !== 'success' && (
-          <Button
-            title={loading ? 'Processing...' : `Subscribe — $${Number(plan.price).toFixed(2)}/mo`}
+          <TouchableOpacity
+            style={[styles.payBtn, loading && styles.payBtnDisabled]}
             onPress={handlePayment}
-            loading={loading}
-            full
-            size="lg"
-            icon={!loading ? <Ionicons name="card" size={18} color="white" /> : undefined}
-          />
+            disabled={loading}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Subscribe for $${Number(plan.price).toFixed(2)} per month`}
+            accessibilityState={{ disabled: loading, busy: loading }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={CoachColors.onAccent} />
+            ) : (
+              <>
+                <Ionicons name="card-outline" size={18} color={CoachColors.onAccent} />
+                <Text style={styles.payBtnText}>
+                  Subscribe — ${Number(plan.price).toFixed(2)}/mo
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         )}
       </View>
     </SafeAreaView>
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgPrimary },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: CoachColors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    paddingHorizontal: 20, paddingVertical: 12,
   },
-  headerTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
-  content: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, letterSpacing: -0.3, color: CoachColors.textPrimary },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
 
-  summaryCard: { alignItems: 'center', paddingVertical: Spacing['2xl'] },
+  summaryCard: {
+    alignItems: 'center', paddingVertical: 28, paddingHorizontal: 18, borderRadius: 16,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
   planBadge: {
-    width: 48, height: 48, borderRadius: Radius.lg,
-    backgroundColor: `${colors.accent}18`,
-    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
+    width: 48, height: 48, borderRadius: 14,
+    backgroundColor: CoachColors.accentSoft,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  planName: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.xl, color: colors.textPrimary },
-  planPrice: { fontFamily: FontFamily.headingExtraBold, fontSize: 36, color: colors.accent, marginTop: Spacing.xs },
-  planPeriod: { fontFamily: FontFamily.body, fontSize: FontSize.lg, color: colors.textTertiary },
-  feeBreakdown: { width: '100%', marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.border, gap: Spacing.xs },
-  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.sm },
-  feeLabel: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary },
-  feeValue: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.sm, color: colors.textPrimary },
-  feeValueHighlight: { fontFamily: FontFamily.bodySemiBold, fontSize: FontSize.sm, color: colors.green },
-  divider: { height: 1, backgroundColor: colors.border, width: '100%', marginVertical: Spacing.lg },
-  clientRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  clientName: { fontFamily: FontFamily.bodyMedium, fontSize: FontSize.base, color: colors.textSecondary },
+  planName: { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.4, color: CoachColors.textPrimary, textAlign: 'center' },
+  planPrice: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -1, color: CoachColors.accent, marginTop: 4 },
+  planPeriod: { fontFamily: CoachFonts.body, fontSize: 16, letterSpacing: 0, color: CoachColors.textMuted },
+  feeBreakdown: {
+    width: '100%', marginTop: 14, paddingTop: 14,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, gap: 6,
+  },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8 },
+  feeLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  feeValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  feeValueHighlight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  divider: { height: 1, backgroundColor: CoachColors.borderMuted, width: '100%', marginVertical: 16 },
+  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  clientName: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
 
-  statusCard: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.md },
-  statusIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  statusTitle: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.lg, color: colors.textPrimary },
-  statusDesc: { fontFamily: FontFamily.body, fontSize: FontSize.sm, color: colors.textSecondary, textAlign: 'center' },
+  statusCard: { alignItems: 'center', paddingVertical: 24, gap: 10 },
+  statusIconSuccess: {
+    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
+  },
+  statusIconError: {
+    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.dangerSoft,
+  },
+  statusTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, letterSpacing: -0.3, color: CoachColors.textPrimary },
+  statusDesc: { fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 19, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 12 },
 
   securityRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    marginVertical: Spacing.xl, paddingHorizontal: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginVertical: 24, paddingHorizontal: 6,
   },
-  securityText: { fontFamily: FontFamily.body, fontSize: FontSize.xs, color: colors.textTertiary, flex: 1 },
+  securityText: { fontFamily: CoachFonts.body, fontSize: 12, lineHeight: 16, color: CoachColors.textFaint, flex: 1 },
 
-  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
-  errorText: { fontFamily: FontFamily.headingSemiBold, fontSize: FontSize.md, color: colors.textPrimary },
+  payBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    minHeight: 54, borderRadius: 27, backgroundColor: CoachColors.accent, paddingHorizontal: 20,
+  },
+  payBtnDisabled: { opacity: 0.7 },
+  payBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
+
+  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
+  errorText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, textAlign: 'center' },
+  errorBtn: {
+    minHeight: 44, borderRadius: 22, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  errorBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
 });
