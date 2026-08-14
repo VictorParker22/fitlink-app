@@ -9,42 +9,36 @@ import { ClientRoute } from '../../types/routes';
 import { useHealth } from '../../context/HealthContext';
 import { loginWithSpotify, getStoredToken, disconnectSpotify } from '../../lib/spotify';
 
-// ─── DEVICE DATA ─────────────────────────────────────────
-interface Device {
+// ─── PLATFORM COPY ───────────────────────────────────────
+// iOS wearable data flows through Apple Health; Android through Health Connect.
+const HEALTH_PLATFORM = Platform.select({ ios: 'Apple Health', default: 'Health Connect' });
+
+// ─── BRAND SYNC GUIDES ───────────────────────────────────
+// These are NOT connections FitLink can make or detect. Each wearable's own
+// companion app writes into Apple Health / Health Connect, and FitLink reads
+// from there. The tiles open an honest how-to sheet — nothing more.
+// Icon tiles keep third-party brand colors (Fitbit teal, Garmin blue, …) —
+// they identify the external service, not FitLink UI.
+interface BrandGuide {
   id: string;
   name: string;
   icon: string;
   iconBg: string;
   iconColor: string;
-  description: string;
+  /** Extra caveat shown under the steps, when honesty needs it. */
+  note?: string;
 }
 
-// Icon tiles keep third-party brand colors (Spotify green, Fitbit teal, …) —
-// they identify the external service, not FitLink UI.
-const DEVICES: Device[] = [
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    icon: 'play-circle',
-    iconBg: '#1DB954',
-    iconColor: '#FFFFFF',
-    description: 'Connect your Spotify account to control music playback during active gym check-ins.',
-  },
-  {
-    id: 'apple-health',
-    name: 'Apple Health',
-    icon: 'heart',
-    iconBg: '#FFFFFF',
-    iconColor: '#FF2D55',
-    description: 'Connect your Apple Health device to sync your metrics into our Activity section.',
-  },
+const BRAND_GUIDES: BrandGuide[] = [
   {
     id: 'fitbit',
     name: 'Fitbit',
     icon: 'grid',
     iconBg: '#00B0B9',
     iconColor: '#FFFFFF',
-    description: 'Connect your Fitbit device to sync your metrics into our Activity section.',
+    note: Platform.OS === 'ios'
+      ? 'If the Fitbit app does not offer Apple Health sharing on your version, a third-party bridge app from the App Store may be needed.'
+      : undefined,
   },
   {
     id: 'garmin',
@@ -52,7 +46,6 @@ const DEVICES: Device[] = [
     icon: 'navigate-circle',
     iconBg: '#1A73E8',
     iconColor: '#FFFFFF',
-    description: 'Connect your Garmin device to sync your metrics into our Activity section.',
   },
   {
     id: 'oura',
@@ -60,7 +53,6 @@ const DEVICES: Device[] = [
     icon: 'ellipse-outline',
     iconBg: '#1A1A2E',
     iconColor: '#00B4D8',
-    description: 'Connect your Oura device to sync your metrics into our Activity section.',
   },
   {
     id: 'whoop',
@@ -68,110 +60,126 @@ const DEVICES: Device[] = [
     icon: 'pulse',
     iconBg: '#1A1A2E',
     iconColor: '#FFFFFF',
-    description: 'Connect your Whoop device to sync your metrics into our Activity section.',
   },
 ];
+
+function guideSteps(brandName: string): string[] {
+  return [
+    `Open the ${brandName} app on this phone and sign in.`,
+    `In its settings, look for ${HEALTH_PLATFORM} — often under integrations, connected apps or health sharing — and turn on sharing.`,
+    `Connect ${HEALTH_PLATFORM} in FitLink above. Your ${brandName} data will flow in automatically once it syncs.`,
+  ];
+}
+
+// ─── HELPERS ─────────────────────────────────────────────
+function formatSyncTime(date: Date): string {
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return sameDay ? `today at ${time}` : `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${time}`;
+}
 
 // ─── COMPONENT ───────────────────────────────────────────
 export default function ConnectedTechScreen() {
   const router = useRouter();
-  const { isConnected: isAppleHealthConnected, isLoading: isAppleHealthLoading, connectHealth, disconnectHealth } = useHealth();
+  const {
+    isHealthAvailable,
+    isConnected: isHealthConnected,
+    isLoading: isHealthLoading,
+    healthData,
+    connectHealth,
+    disconnectHealth,
+  } = useHealth();
   const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
-  const [connectedDevices, setConnectedDevices] = useState<Set<string>>(new Set());
-  const [connectingDevice, setConnectingDevice] = useState<Device | null>(null);
+  const [activeGuide, setActiveGuide] = useState<BrandGuide | null>(null);
 
   // Check Spotify status on mount
   useEffect(() => {
     getStoredToken().then(t => setIsSpotifyConnected(!!t));
   }, []);
 
-  const handleConnect = async (device: Device) => {
+  // Honest summary of what's actually syncing, from real snapshot data only.
+  const syncingMetrics: string[] = [];
+  if (healthData) {
+    if (healthData.stepsToday > 0 || healthData.stepsWeekly.some(v => v > 0)) syncingMetrics.push('steps');
+    if (healthData.heartRateLatest !== null || healthData.restingHeartRate !== null) syncingMetrics.push('heart rate');
+    if (healthData.activeCaloriesToday > 0) syncingMetrics.push('calories');
+    if (healthData.bloodOxygen !== null) syncingMetrics.push('blood oxygen');
+    if (healthData.latestWeight !== null) syncingMetrics.push('weight');
+  }
+
+  const healthStatusLine = !isHealthAvailable
+    ? `Requires the full app build. ${HEALTH_PLATFORM} is not available in this preview version of FitLink.`
+    : isHealthConnected
+      ? healthData?.lastSynced
+        ? syncingMetrics.length > 0
+          ? `Syncing ${syncingMetrics.join(', ')}. Last synced ${formatSyncTime(healthData.lastSynced)}.`
+          : `Connected. No data found yet — last checked ${formatSyncTime(healthData.lastSynced)}.`
+        : 'Connected. Waiting for the first sync.'
+      : `Sync steps, heart rate, calories and more from ${HEALTH_PLATFORM} into your Activity section.`;
+
+  const handleConnectHealth = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    connectHealth();
+  };
 
-    // Spotify OAuth flow
-    if (device.id === 'spotify') {
-      setIsSpotifyLoading(true);
-      try {
-        const success = await loginWithSpotify();
-        if (success) {
-          setIsSpotifyConnected(true);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      } catch (e) {
-        console.log('[ConnectedTech] Spotify login error:', e);
-      } finally {
-        setIsSpotifyLoading(false);
+  const handleDisconnectHealth = () => {
+    Alert.alert(
+      `Disconnect ${HEALTH_PLATFORM}`,
+      `This will stop syncing your health data from ${HEALTH_PLATFORM}. You can reconnect at any time.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            disconnectHealth();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSpotifyConnect = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsSpotifyLoading(true);
+    try {
+      const success = await loginWithSpotify();
+      if (success) {
+        setIsSpotifyConnected(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      return;
+    } catch (e) {
+      console.log('[ConnectedTech] Spotify login error:', e);
+    } finally {
+      setIsSpotifyLoading(false);
     }
-
-    // Apple Health uses native HealthKit — bypass the Terra modal
-    if (device.id === 'apple-health') {
-      connectHealth();
-      return;
-    }
-
-    // All other devices use the Terra modal flow
-    setConnectingDevice(device);
   };
 
-  const handleConfirmConnect = () => {
-    if (!connectingDevice) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setConnectedDevices(prev => new Set([...prev, connectingDevice.id]));
-    setConnectingDevice(null);
+  const handleSpotifyDisconnect = () => {
+    Alert.alert(
+      'Disconnect Spotify',
+      'This will disconnect Spotify music playback controls. You can reconnect at any time.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await disconnectSpotify();
+            setIsSpotifyConnected(false);
+          },
+        },
+      ]
+    );
   };
 
-  const handleDisconnect = (deviceId: string) => {
-    // Spotify disconnect
-    if (deviceId === 'spotify') {
-      Alert.alert(
-        'Disconnect Spotify',
-        'This will disconnect Spotify music playback controls. You can reconnect at any time.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disconnect',
-            style: 'destructive',
-            onPress: async () => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              await disconnectSpotify();
-              setIsSpotifyConnected(false);
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    // Apple Health uses native disconnect with confirmation
-    if (deviceId === 'apple-health') {
-      Alert.alert(
-        'Disconnect Apple Health',
-        'This will stop syncing your health data from Apple Health. You can reconnect at any time.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disconnect',
-            style: 'destructive',
-            onPress: () => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              disconnectHealth();
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    // Other devices use local state
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setConnectedDevices(prev => {
-      const next = new Set(prev);
-      next.delete(deviceId);
-      return next;
-    });
+  const handleOpenGuide = (guide: BrandGuide) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveGuide(guide);
   };
 
   return (
@@ -194,80 +202,142 @@ export default function ConnectedTechScreen() {
         {/* ── TITLE ── */}
         <Text style={s.title} accessibilityRole="header">Connected tech</Text>
 
-        {/* ── AVAILABLE SECTION ── */}
-        <Text style={s.sectionLabel}>Available</Text>
+        {/* ── HEALTH DATA SECTION ── */}
+        <Text style={s.sectionLabel}>Health data</Text>
         <View style={s.sectionDivider} />
 
-        {/* ── DEVICE LIST ── */}
-        {DEVICES.map((device, index) => {
-          // Apple Health state is driven by HealthContext; others by local mock state
-          const isConnected = device.id === 'spotify'
-            ? isSpotifyConnected
-            : device.id === 'apple-health'
-            ? isAppleHealthConnected
-            : connectedDevices.has(device.id);
-          const isThisLoading =
-            (device.id === 'spotify' && isSpotifyLoading) ||
-            (device.id === 'apple-health' && isAppleHealthLoading);
-
-          return (
-            <View key={device.id}>
-              <View style={s.deviceCard}>
-                {/* Device header row */}
-                <View style={s.deviceHeader}>
-                  <View style={[s.deviceIcon, { backgroundColor: device.iconBg }]}>
-                    <Ionicons name={device.icon as any} size={22} color={device.iconColor} />
-                  </View>
-                  <Text style={s.deviceName}>{device.name}</Text>
-                  <View style={{ flex: 1 }} />
-                  {isThisLoading ? (
-                    <View style={s.connectBtn}>
-                      <ActivityIndicator size="small" color={CoachColors.accent} />
-                      <Text style={[s.connectText, { color: CoachColors.accent }]}>Connecting…</Text>
-                    </View>
-                  ) : isConnected ? (
-                    <TouchableOpacity
-                      style={s.connectedBtn}
-                      onPress={() => handleDisconnect(device.id)}
-                      activeOpacity={0.6}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Disconnect ${device.name}`}
-                    >
-                      <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
-                      <Text style={s.connectedText}>Connected</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={s.connectBtn}
-                      onPress={() => handleConnect(device)}
-                      activeOpacity={0.6}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Connect ${device.name}`}
-                    >
-                      <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
-                      <Text style={s.connectText}>Connect</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Description */}
-                <Text style={s.deviceDesc}>{device.description}</Text>
-              </View>
-
-              {/* Divider between devices */}
-              {index < DEVICES.length - 1 && <View style={s.deviceDivider} />}
+        {/* Health platform card — the one real connection on this screen */}
+        <View style={s.deviceCard}>
+          <View style={s.deviceHeader}>
+            <View style={[s.deviceIcon, { backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : '#E8F0FE' }]}>
+              <Ionicons name="heart" size={22} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
             </View>
-          );
-        })}
+            <Text style={s.deviceName}>{HEALTH_PLATFORM}</Text>
+            <View style={{ flex: 1 }} />
+            {isHealthLoading ? (
+              <View style={s.connectBtn}>
+                <ActivityIndicator size="small" color={CoachColors.accent} />
+                <Text style={[s.connectText, { color: CoachColors.accent }]}>Connecting…</Text>
+              </View>
+            ) : !isHealthAvailable ? (
+              <View style={s.unavailableBadge} accessibilityLabel={`${HEALTH_PLATFORM} requires the full app build`}>
+                <Ionicons name="construct-outline" size={16} color={CoachColors.textMuted} />
+                <Text style={s.unavailableText}>Full build only</Text>
+              </View>
+            ) : isHealthConnected ? (
+              <TouchableOpacity
+                style={s.connectedBtn}
+                onPress={handleDisconnectHealth}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={`Disconnect ${HEALTH_PLATFORM}`}
+              >
+                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+                <Text style={s.connectedText}>Connected</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={s.connectBtn}
+                onPress={handleConnectHealth}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={`Connect ${HEALTH_PLATFORM}`}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
+                <Text style={s.connectText}>Connect</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={s.deviceDesc}>{healthStatusLine}</Text>
+        </View>
+
+        <View style={s.deviceDivider} />
+
+        {/* Spotify — real PKCE OAuth connection */}
+        <View style={s.deviceCard}>
+          <View style={s.deviceHeader}>
+            <View style={[s.deviceIcon, { backgroundColor: '#1DB954' }]}>
+              <Ionicons name="play-circle" size={22} color="#FFFFFF" />
+            </View>
+            <Text style={s.deviceName}>Spotify</Text>
+            <View style={{ flex: 1 }} />
+            {isSpotifyLoading ? (
+              <View style={s.connectBtn}>
+                <ActivityIndicator size="small" color={CoachColors.accent} />
+                <Text style={[s.connectText, { color: CoachColors.accent }]}>Connecting…</Text>
+              </View>
+            ) : isSpotifyConnected ? (
+              <TouchableOpacity
+                style={s.connectedBtn}
+                onPress={handleSpotifyDisconnect}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel="Disconnect Spotify"
+              >
+                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+                <Text style={s.connectedText}>Connected</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={s.connectBtn}
+                onPress={handleSpotifyConnect}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel="Connect Spotify"
+              >
+                <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
+                <Text style={s.connectText}>Connect</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={s.deviceDesc}>
+            Connect your Spotify account to control music playback during active gym check-ins.
+          </Text>
+        </View>
+
+        {/* ── WEARABLES SECTION ── */}
+        <Text style={[s.sectionLabel, s.sectionLabelSpaced]}>Wearables</Text>
+        <View style={s.sectionDivider} />
+        <Text style={s.sectionHint}>
+          Fitbit, Garmin, Oura and Whoop sync through {HEALTH_PLATFORM}. Enable sharing in each brand's own app, then connect {HEALTH_PLATFORM} above — no separate FitLink connection needed.
+        </Text>
+
+        {BRAND_GUIDES.map((guide, index) => (
+          <View key={guide.id}>
+            <TouchableOpacity
+              style={s.deviceCard}
+              onPress={() => handleOpenGuide(guide)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`How to sync ${guide.name} through ${HEALTH_PLATFORM}`}
+            >
+              <View style={s.deviceHeader}>
+                <View style={[s.deviceIcon, { backgroundColor: guide.iconBg }]}>
+                  <Ionicons name={guide.icon as any} size={22} color={guide.iconColor} />
+                </View>
+                <Text style={s.deviceName}>{guide.name}</Text>
+                <View style={{ flex: 1 }} />
+                <View style={s.guideBtn}>
+                  <Text style={s.connectText}>Sync guide</Text>
+                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+                </View>
+              </View>
+              <Text style={s.deviceDesc}>
+                Your {guide.name} data flows through {HEALTH_PLATFORM}.
+              </Text>
+            </TouchableOpacity>
+            {index < BRAND_GUIDES.length - 1 && <View style={s.deviceDivider} />}
+          </View>
+        ))}
 
       </ScrollView>
 
-      {/* ── CONNECT MODAL (Bottom Sheet) ── */}
+      {/* ── SYNC GUIDE SHEET ── */}
       <Modal
-        visible={!!connectingDevice}
+        visible={!!activeGuide}
         transparent
         animationType="slide"
-        onRequestClose={() => setConnectingDevice(null)}
+        onRequestClose={() => setActiveGuide(null)}
       >
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
@@ -275,76 +345,70 @@ export default function ConnectedTechScreen() {
             <View style={s.dragHandle} />
 
             {/* Header */}
-            <Text style={s.modalHeaderText}>Connect</Text>
+            <Text style={s.modalHeaderText}>Sync guide</Text>
             <View style={s.modalDividerTop} />
 
-            {/* Icons row: FitLink ↔ Device */}
+            {/* Icons row: Device → Health platform → FitLink */}
             <View style={s.modalIconsRow}>
+              {activeGuide && (
+                <View style={[s.modalDeviceIcon, { backgroundColor: activeGuide.iconBg }]}>
+                  <Ionicons name={activeGuide.icon as any} size={26} color={activeGuide.iconColor} />
+                </View>
+              )}
+              <Ionicons name="arrow-forward" size={20} color={CoachColors.textMuted} />
+              <View style={[s.modalDeviceIcon, { backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : '#E8F0FE' }]}>
+                <Ionicons name="heart" size={26} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
+              </View>
+              <Ionicons name="arrow-forward" size={20} color={CoachColors.textMuted} />
               <View style={s.modalAppIcon}>
                 <Text style={s.modalAppText}>FL+</Text>
               </View>
-              <Ionicons name="swap-horizontal" size={24} color={CoachColors.textMuted} />
-              {connectingDevice && (
-                <View style={[s.modalDeviceIcon, { backgroundColor: connectingDevice.iconBg }]}>
-                  <Ionicons name={connectingDevice.icon as any} size={26} color={connectingDevice.iconColor} />
-                </View>
-              )}
             </View>
 
             {/* Title */}
-            <Text style={s.modalTitle}>Connect {connectingDevice?.name}</Text>
-            <Text style={s.modalSubtitle}>{connectingDevice?.description}</Text>
+            <Text style={s.modalTitle}>Sync {activeGuide?.name}</Text>
+            <Text style={s.modalSubtitle}>
+              FitLink doesn't connect to {activeGuide?.name} directly. Your {activeGuide?.name} data flows through {HEALTH_PLATFORM}, so once sharing is on, everything arrives automatically.
+            </Text>
 
             <View style={s.modalDivider} />
 
-            {/* Partnership info */}
-            <Text style={s.modalPartnerText}>
-              We partner with Terra to securely connect your devices to receive your wearable data.
-            </Text>
-
-            {/* Bullet points */}
-            <View style={s.bulletList}>
-              <BulletPoint
-                icon="lock-closed-outline"
-                text="Secure & anonymous handling with end-to-end encryption"
-              />
-              <BulletPoint
-                icon="shield-checkmark-outline"
-                text="Privacy first–review permissions before granting Terra access"
-              />
-              <BulletPoint
-                icon="pulse-outline"
-                text="You're providing access to health metrics including heart rate, steps, activities and others."
-              />
-              <BulletPoint
-                icon="git-compare-outline"
-                text="When syncing multiple devices to FitLink, please be mindful that if you also connect Apple Health, you may receive duplicate metrics."
-              />
+            {/* Steps */}
+            <View style={s.stepList}>
+              {activeGuide && guideSteps(activeGuide.name).map((step, i) => (
+                <View key={i} style={s.stepRow}>
+                  <View style={s.stepBadge}>
+                    <Text style={s.stepBadgeText}>{i + 1}</Text>
+                  </View>
+                  <Text style={s.stepText}>{step}</Text>
+                </View>
+              ))}
             </View>
 
-            {/* Privacy links */}
+            {/* Brand-specific caveat */}
+            {activeGuide?.note && (
+              <Text style={s.modalNote}>{activeGuide.note}</Text>
+            )}
+
+            {/* Honesty note: we can't detect which watch feeds the platform */}
             <Text style={s.modalPrivacy}>
-              By continuing you agree to the <Text style={s.modalLink}>Terra</Text> and <Text style={s.modalLink}>FitLink</Text> Privacy Policies.
+              FitLink can't detect which device feeds {HEALTH_PLATFORM}, so this screen won't show a per-device connected status.
             </Text>
 
-            {/* Continue button */}
-            <TouchableOpacity style={s.continueBtn} onPress={handleConfirmConnect} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Continue connecting ${connectingDevice?.name}`}>
-              <Text style={s.continueBtnText}>Continue</Text>
+            {/* Close button */}
+            <TouchableOpacity
+              style={s.continueBtn}
+              onPress={() => setActiveGuide(null)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Close sync guide"
+            >
+              <Text style={s.continueBtnText}>Got it</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
-  );
-}
-
-// ─── BULLET POINT SUBCOMPONENT ───────────────────────────
-function BulletPoint({ icon, text }: { icon: string; text: string }) {
-  return (
-    <View style={s.bulletRow}>
-      <Ionicons name={icon as any} size={18} color={CoachColors.textMuted} style={{ marginTop: 2 }} />
-      <Text style={s.bulletText}>{text}</Text>
-    </View>
   );
 }
 
@@ -396,11 +460,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 12,
   },
+  sectionLabelSpaced: {
+    marginTop: 32,
+  },
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: CoachColors.border,
     marginHorizontal: 24,
     marginBottom: 8,
+  },
+  sectionHint: {
+    fontFamily: CoachFonts.body,
+    fontSize: 14,
+    color: CoachColors.textSecondary,
+    lineHeight: 20,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
 
   // Device card
@@ -444,6 +520,21 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.body,
     fontSize: 15,
     color: CoachColors.accent,
+  },
+  guideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  unavailableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  unavailableText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 15,
+    color: CoachColors.textMuted,
   },
   deviceDesc: {
     fontFamily: CoachFonts.body,
@@ -499,7 +590,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 12,
     marginBottom: 20,
   },
   modalAppIcon: {
@@ -546,33 +637,47 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.border,
     marginBottom: 24,
   },
-  modalPartnerText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
-    color: CoachColors.textPrimary,
-    lineHeight: 22,
-    marginBottom: 20,
-  },
 
-  // Bullets
-  bulletList: {
+  // Steps
+  stepList: {
     gap: 16,
     marginBottom: 24,
   },
-  bulletRow: {
+  stepRow: {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'flex-start',
   },
-  bulletText: {
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: CoachColors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  stepBadgeText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13,
+    color: CoachColors.accent,
+  },
+  stepText: {
     flex: 1,
     fontFamily: CoachFonts.body,
     fontSize: 14,
     color: CoachColors.textSecondary,
     lineHeight: 20,
   },
+  modalNote: {
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
 
-  // Privacy
+  // Honesty note
   modalPrivacy: {
     fontFamily: CoachFonts.body,
     fontSize: 13,
@@ -580,12 +685,8 @@ const s = StyleSheet.create({
     lineHeight: 19,
     marginBottom: 28,
   },
-  modalLink: {
-    textDecorationLine: 'underline',
-    color: CoachColors.textPrimary,
-  },
 
-  // Continue button
+  // Close button
   continueBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: 12,
