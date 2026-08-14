@@ -77,15 +77,33 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  // ── Store package ──────────────────────────────────────────────────────────
-  const pkg =
+  // ── Store packages ─────────────────────────────────────────────────────────
+  const monthlyPkg =
     offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
     offerings?.availablePackages?.[0];
+  const annualPkg = offerings?.availablePackages.find(
+    (p) => p.packageType === PACKAGE_TYPE.ANNUAL,
+  );
 
-  const elitePrice = pkg?.product.price ?? FALLBACK_PRICE;
-  const priceString = pkg?.product.priceString ?? FALLBACK_PRICE_STRING;
+  const [term, setTerm] = useState<'monthly' | 'annual'>('monthly');
+  const pkg = term === 'annual' && annualPkg ? annualPkg : monthlyPkg;
 
-  // Trial copy only when the store product genuinely has a free intro offer.
+  const monthlyPrice = monthlyPkg?.product.price ?? FALLBACK_PRICE;
+  const monthlyPriceString = monthlyPkg?.product.priceString ?? FALLBACK_PRICE_STRING;
+  const annualPrice = annualPkg?.product.price ?? null;
+  const annualPriceString = annualPkg?.product.priceString ?? null;
+
+  // Savings % derived from the real store prices — never hardcoded.
+  const annualSavingsPct =
+    annualPrice !== null && monthlyPrice > 0
+      ? Math.round((1 - annualPrice / (monthlyPrice * 12)) * 100)
+      : null;
+  // The comparison copy quotes the monthly price, so its math must too —
+  // annual only ever makes that argument stronger.
+  const elitePrice = monthlyPrice;
+  const priceString = monthlyPriceString;
+
+  // Trial copy only when the selected store product genuinely has a free intro offer.
   const intro = pkg?.product.introPrice;
   const hasTrial = !!intro && intro.price === 0;
   const trialLabel = hasTrial
@@ -218,8 +236,47 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
           <View style={s.eliteCard}>
             <View style={s.eliteTitleRow}>
               <Text style={s.eliteTitle}>Elite</Text>
-              <Text style={s.elitePrice}>{priceString} a month</Text>
+              {!annualPkg && <Text style={s.elitePrice}>{priceString} a month</Text>}
             </View>
+
+            {/* Term selector — only when the store actually offers both */}
+            {annualPkg && (
+              <View style={s.termGroup}>
+                <TouchableOpacity
+                  style={[s.termRow, term === 'monthly' && s.termRowActive]}
+                  onPress={() => setTerm('monthly')}
+                  activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Monthly, ${monthlyPriceString} per month`}
+                  accessibilityState={{ selected: term === 'monthly' }}
+                >
+                  <View style={[s.termRadio, term === 'monthly' && s.termRadioActive]}>
+                    {term === 'monthly' && <View style={s.termRadioDot} />}
+                  </View>
+                  <Text style={s.termLabel}>Monthly</Text>
+                  <Text style={s.termPrice}>{monthlyPriceString}/mo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.termRow, term === 'annual' && s.termRowActive]}
+                  onPress={() => setTerm('annual')}
+                  activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Annual, ${annualPriceString} per year${annualSavingsPct && annualSavingsPct > 0 ? `, save ${annualSavingsPct} percent` : ''}`}
+                  accessibilityState={{ selected: term === 'annual' }}
+                >
+                  <View style={[s.termRadio, term === 'annual' && s.termRadioActive]}>
+                    {term === 'annual' && <View style={s.termRadioDot} />}
+                  </View>
+                  <Text style={s.termLabel}>Annual</Text>
+                  {annualSavingsPct !== null && annualSavingsPct > 0 && (
+                    <View style={s.termSaveChip}>
+                      <Text style={s.termSaveText}>Save {annualSavingsPct}%</Text>
+                    </View>
+                  )}
+                  <Text style={s.termPrice}>{annualPriceString}/yr</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={s.perkList}>
               {PERKS.map((perk) => (
                 <View key={perk} style={s.perkRow}>
@@ -262,13 +319,17 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
               <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
               <Text style={s.ctaText}>
-                {hasTrial ? 'Start free trial' : `Go Elite — ${priceString}/month`}
+                {hasTrial
+                  ? 'Start free trial'
+                  : term === 'annual' && annualPriceString
+                    ? `Go Elite — ${annualPriceString}/year`
+                    : `Go Elite — ${priceString}/month`}
               </Text>
             )}
           </TouchableOpacity>
           <Text style={s.footerNote}>
             {hasTrial
-              ? `${trialLabel}, then ${priceString}/month · cancel any time`
+              ? `${trialLabel}, then ${term === 'annual' && annualPriceString ? `${annualPriceString}/year` : `${priceString}/month`} · cancel any time`
               : 'Cancel any time'}
           </Text>
           <TouchableOpacity
@@ -342,6 +403,26 @@ const s = StyleSheet.create({
   eliteTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   eliteTitle: { fontFamily: CoachFonts.headingBold, fontSize: 23, color: CoachColors.textPrimary },
   elitePrice: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  termGroup: { gap: 8, marginBottom: 14 },
+  termRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 12, backgroundColor: CoachColors.bg,
+  },
+  termRowActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSoft },
+  termRadio: {
+    width: 18, height: 18, borderRadius: 9, borderWidth: 1.5,
+    borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
+  },
+  termRadioActive: { borderColor: CoachColors.accent },
+  termRadioDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: CoachColors.accent },
+  termLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  termPrice: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  termSaveChip: {
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  termSaveText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.onAccent },
   perkList: { marginTop: 16, gap: 11 },
   perkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   perkText: {
