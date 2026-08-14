@@ -18,15 +18,11 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
-import { FontFamily } from '../../constants/theme';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 function toTitleCase(str: string): string {
   if (!str) return '';
@@ -65,16 +61,16 @@ interface CheckInInboxProps {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const RATING_META = [
-  { key: 'energy_level',      label: 'Energy',    emoji: '⚡', color: '#FFD700' },
-  { key: 'sleep_quality',     label: 'Sleep',     emoji: '😴', color: '#A855F7' },
-  { key: 'stress_level',      label: 'Stress',    emoji: '🧠', color: '#FF6B35' },
-  { key: 'workout_adherence', label: 'Workout',   emoji: '💪', color: '#22C55E' },
-  { key: 'diet_adherence',    label: 'Diet',      emoji: '🥗', color: '#5B7FFF' },
+  { key: 'energy_level',      label: 'Energy',  icon: 'flash-outline' },
+  { key: 'sleep_quality',     label: 'Sleep',   icon: 'moon-outline' },
+  { key: 'stress_level',      label: 'Stress',  icon: 'pulse-outline' },
+  { key: 'workout_adherence', label: 'Workout', icon: 'barbell-outline' },
+  { key: 'diet_adherence',    label: 'Diet',    icon: 'restaurant-outline' },
 ] as const;
 
 // ─── Rating Dot Row ───────────────────────────────────────────────────────────
 
-function RatingBar({ value, color }: { value: number; color: string }) {
+function RatingBar({ value }: { value: number }) {
   return (
     <View style={rb.track}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -82,7 +78,7 @@ function RatingBar({ value, color }: { value: number; color: string }) {
           key={n}
           style={[
             rb.seg,
-            { backgroundColor: n <= value ? color : 'rgba(255,255,255,0.08)' },
+            { backgroundColor: n <= value ? CoachColors.accent : CoachColors.borderMuted },
           ]}
         />
       ))}
@@ -115,7 +111,7 @@ function CheckInCard({
   );
 
   const scoreColor =
-    avgScore >= 4 ? '#22C55E' : avgScore >= 3 ? '#FFD700' : '#FF6B35';
+    avgScore >= 4 ? CoachColors.accent : avgScore >= 3 ? CoachColors.warning : CoachColors.danger;
 
   const weekLabel = (() => {
     const d = new Date(item.week_start + 'T00:00:00');
@@ -143,6 +139,9 @@ function CheckInCard({
           setExpanded((v) => !v);
         }}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`${toTitleCase(item.clients.name)}, week of ${weekLabel}, overall ${avgScore} out of 5${hasReplied ? ', replied' : ''}`}
+        accessibilityState={{ expanded }}
       >
         {/* Avatar initial */}
         <View style={c.avatar}>
@@ -162,14 +161,14 @@ function CheckInCard({
         {/* Reply indicator */}
         {hasReplied && (
           <View style={c.repliedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+            <Ionicons name="checkmark-circle" size={14} color={CoachColors.accent} />
           </View>
         )}
 
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={16}
-          color="rgba(255,255,255,0.3)"
+          color={CoachColors.textFaint}
         />
       </TouchableOpacity>
 
@@ -179,11 +178,16 @@ function CheckInCard({
           {/* Ratings grid */}
           <View style={c.ratingsGrid}>
             {RATING_META.map((m) => (
-              <View key={m.key} style={c.ratingRow}>
-                <Text style={c.ratingEmoji}>{m.emoji}</Text>
+              <View
+                key={m.key}
+                style={c.ratingRow}
+                accessible
+                accessibilityLabel={`${m.label}, ${(item as any)[m.key] || 'not rated'} out of 5`}
+              >
+                <Ionicons name={m.icon as any} size={13} color={CoachColors.textMuted} style={c.ratingIcon} />
                 <Text style={c.ratingLabel}>{m.label}</Text>
-                <RatingBar value={(item as any)[m.key] || 0} color={m.color} />
-                <Text style={[c.ratingVal, { color: m.color }]}>
+                <RatingBar value={(item as any)[m.key] || 0} />
+                <Text style={c.ratingVal}>
                   {(item as any)[m.key] || '-'}
                 </Text>
               </View>
@@ -193,25 +197,25 @@ function CheckInCard({
           {/* Text fields */}
           {item.highlight && (
             <View style={c.textBlock}>
-              <Text style={c.textBlockLabel}>🏆 Win this week</Text>
+              <Text style={c.textBlockLabel}>Win this week</Text>
               <Text style={c.textBlockBody}>{item.highlight}</Text>
             </View>
           )}
           {item.struggle && (
             <View style={c.textBlock}>
-              <Text style={c.textBlockLabel}>😤 Challenge</Text>
+              <Text style={c.textBlockLabel}>Challenge</Text>
               <Text style={c.textBlockBody}>{item.struggle}</Text>
             </View>
           )}
           {item.goals_next_week && (
             <View style={c.textBlock}>
-              <Text style={c.textBlockLabel}>🎯 Next week focus</Text>
+              <Text style={c.textBlockLabel}>Next week focus</Text>
               <Text style={c.textBlockBody}>{item.goals_next_week}</Text>
             </View>
           )}
           {item.body_weight && (
             <View style={c.textBlock}>
-              <Text style={c.textBlockLabel}>⚖️ Body weight</Text>
+              <Text style={c.textBlockLabel}>Body weight</Text>
               <Text style={c.textBlockBody}>{item.body_weight} lbs</Text>
             </View>
           )}
@@ -221,30 +225,34 @@ function CheckInCard({
 
           {/* Coach reply */}
           <Text style={c.replyLabel}>
-            {hasReplied ? '✅ Your reply' : '💬 Reply to client'}
+            {hasReplied ? 'Your reply' : 'Reply to client'}
           </Text>
           <TextInput
             style={c.replyInput}
             placeholder="Write a note for your client..."
-            placeholderTextColor="rgba(255,255,255,0.2)"
+            placeholderTextColor={CoachColors.textFaint}
             value={note}
             onChangeText={setNote}
             multiline
             maxLength={500}
+            accessibilityLabel="Reply to client"
           />
           <TouchableOpacity
             style={[c.replyBtn, (!note.trim() || saving) && c.replyBtnDisabled]}
             onPress={handleReply}
             disabled={!note.trim() || saving}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={hasReplied ? 'Update reply' : 'Send reply'}
+            accessibilityState={{ disabled: !note.trim() || saving, busy: saving }}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#000" />
+              <ActivityIndicator size="small" color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="send" size={14} color={note.trim() ? '#000' : 'rgba(255,255,255,0.3)'} />
+                <Ionicons name="send" size={14} color={note.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
                 <Text style={[c.replyBtnText, !note.trim() && c.replyBtnTextDisabled]}>
-                  {hasReplied ? 'Update Reply' : 'Send Reply'}
+                  {hasReplied ? 'Update reply' : 'Send reply'}
                 </Text>
               </>
             )}
@@ -301,7 +309,7 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
       supabase.functions.invoke('send-push-notification', {
         body: {
           pushToken: checkin.clients.expo_push_token,
-          title: 'Your Coach Replied ✅',
+          title: 'Your coach replied',
           body: note.length > 80 ? note.slice(0, 77) + '…' : note,
           data: { url: '/my-progress' },
         }
@@ -322,7 +330,7 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
   if (loading) {
     return (
       <View style={s.container}>
-        <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+        <ActivityIndicator size="small" color={CoachColors.textFaint} />
       </View>
     );
   }
@@ -338,10 +346,13 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
         style={s.header}
         onPress={() => setSectionOpen((v) => !v)}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`Client check-ins, ${checkIns.length} this week${unreplied > 0 ? `, ${unreplied} awaiting reply` : ''}`}
+        accessibilityState={{ expanded: sectionOpen }}
       >
         <View>
-          <Text style={s.tagHeader}>CHECK-INS // THIS WEEK</Text>
-          <Text style={s.title}>Client Check-Ins</Text>
+          <Text style={s.tagHeader}>This week</Text>
+          <Text style={s.title}>Client check-ins</Text>
         </View>
         <View style={s.headerRight}>
           {unreplied > 0 && (
@@ -352,7 +363,7 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
           <Ionicons
             name={sectionOpen ? 'chevron-up' : 'chevron-down'}
             size={16}
-            color="rgba(255,255,255,0.3)"
+            color={CoachColors.textFaint}
           />
         </View>
       </TouchableOpacity>
@@ -376,9 +387,9 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: '#0C0C0E',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 24,
@@ -392,17 +403,17 @@ const s = StyleSheet.create({
     paddingVertical: 16,
   },
   tagHeader: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 3,
   },
   title: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   headerRight: {
@@ -414,29 +425,29 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
-    backgroundColor: 'rgba(91,127,255,0.2)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(91,127,255,0.4)',
+    borderColor: 'rgba(198,242,78,0.4)',
   },
   unrepliedText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
     letterSpacing: 0.3,
   },
   list: {
     borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
+    borderTopColor: CoachColors.borderMuted,
   },
   separator: {
     height: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: CoachColors.borderMuted,
   },
 });
 
 // Card styles
 const c = StyleSheet.create({
-  card: { backgroundColor: '#0C0C0E' },
+  card: { backgroundColor: CoachColors.surface },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -448,27 +459,27 @@ const c = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(91,127,255,0.2)',
+    backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(91,127,255,0.4)',
+    borderColor: 'rgba(198,242,78,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#5B7FFF',
+    color: CoachColors.accent,
   },
   clientName: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   weekLabel: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: CoachColors.textMuted,
     marginTop: 1,
   },
   scoreBadge: {
@@ -476,10 +487,10 @@ const c = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: CoachColors.bg,
   },
   scoreText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.3,
   },
@@ -493,7 +504,7 @@ const c = StyleSheet.create({
     paddingBottom: 16,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: CoachColors.borderMuted,
     paddingTop: 12,
   },
   ratingsGrid: { gap: 8 },
@@ -502,63 +513,65 @@ const c = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  ratingEmoji: { fontSize: 13, width: 20, textAlign: 'center' },
+  ratingIcon: { width: 20, textAlign: 'center' },
   ratingLabel: {
-    fontFamily: FontFamily.bodySemiBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     width: 50,
   },
   ratingVal: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12,
     width: 20,
     textAlign: 'right',
     letterSpacing: 0.3,
+    color: CoachColors.textPrimary,
   },
 
   // Text blocks
   textBlock: {
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderRadius: 10,
     padding: 12,
     gap: 4,
   },
   textBlockLabel: {
-    fontFamily: FontFamily.headingExtraBold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.3,
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 10,
+    color: CoachColors.textFaint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   textBlockBody: {
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     lineHeight: 19,
   },
 
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CoachColors.borderMuted,
   },
 
   // Reply
   replyLabel: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: CoachColors.textSecondary,
     letterSpacing: 0.3,
   },
   replyInput: {
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontFamily: FontFamily.body,
+    fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: CoachColors.textPrimary,
     minHeight: 44,
   },
   replyBtn: {
@@ -566,22 +579,22 @@ const c = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 40,
+    minHeight: 40,
     borderRadius: 10,
-    backgroundColor: '#5B7FFF',
+    backgroundColor: CoachColors.accent,
   },
   replyBtnDisabled: {
-    backgroundColor: '#111113',
+    backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: '#1C1C1E',
+    borderColor: CoachColors.borderMuted,
   },
   replyBtnText: {
-    fontFamily: FontFamily.headingExtraBold,
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 13,
-    color: '#000000',
+    color: CoachColors.onAccent,
     letterSpacing: -0.1,
   },
   replyBtnTextDisabled: {
-    color: 'rgba(255,255,255,0.3)',
+    color: CoachColors.textFaint,
   },
 });
