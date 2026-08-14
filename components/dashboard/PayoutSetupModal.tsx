@@ -294,30 +294,26 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             </Text>
           </View>
 
-          {/* Payment Service Fee */}
+          {/* Platform Fee */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Payment service fee?</Text>
+            <Text style={styles.dividerText}>Platform fee?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingCardTitle}>No payment service fee</Text>
+            <Text style={styles.pricingCardTitle}>One simple fee</Text>
             <Text style={styles.pricingCardBody}>
-              Rest easy knowing your payments are protected by Stripe, a globally trusted platform. Simple, transparent rates with no hidden fees.
+              Payments are protected by Stripe, a globally trusted platform. One transparent rate, no hidden fees.
             </Text>
 
             <View style={styles.feeDetailRow}>
-              <Text style={styles.feeLabel}>Service fee: free for you</Text>
+              <Text style={styles.feeLabel}>Platform fee: 10% per payment</Text>
             </View>
             <View style={styles.feeDivider} />
             <View style={styles.feeDetailRow}>
-              <Text style={styles.feeSub}>Your client pays the service fee.</Text>
+              <Text style={styles.feeSub}>You keep 90% of everything you charge. Payment processing is included.</Text>
             </View>
-            <View style={styles.feeDivider} />
-            <Text style={styles.pricingCardBody}>
-              Platform fee: 0% on your first $500/mo.{'\n'}Only 5% on earnings above $500/mo.
-            </Text>
 
             {/* Powered by Stripe */}
             <View style={styles.stripeMini}>
