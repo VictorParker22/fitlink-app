@@ -825,8 +825,19 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const enrollClientInPlan = useCallback(async (clientId: string, planId: string): Promise<PlanEnrollment> => {
     const plan = plans.find(p => p.id === planId);
-    const trackSnapshot = plan?.track || [];
-    
+    // The snapshot must come from the source of truth, not possibly-stale
+    // local state — an empty freeze here silently breaks the athlete's whole
+    // season (no track, no progress, no pulse card).
+    let trackSnapshot: TrackNode[] = plan?.track || [];
+    if (trackSnapshot.length === 0) {
+      const { data: freshPlan } = await supabase
+        .from('plans')
+        .select('track')
+        .eq('id', planId)
+        .maybeSingle();
+      if (Array.isArray(freshPlan?.track)) trackSnapshot = freshPlan.track;
+    }
+
     const { data, error } = await supabase
       .from('client_plan_enrollments')
       .upsert({

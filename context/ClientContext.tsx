@@ -223,9 +223,26 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (plansRes.data) setPlans(plansRes.data);
       if (payRes.data) setPaymentHistory(payRes.data);
       let pickedEnrollment: any = null;
+      if (enrollmentRes?.error && __DEV__) {
+        console.log('[ClientContext] enrollment fetch error:', enrollmentRes.error.message);
+      }
       if (enrollmentRes?.data && enrollmentRes.data.length > 0) {
         const active = enrollmentRes.data.find((e: any) => e.status === 'active');
         pickedEnrollment = active || enrollmentRes.data[0];
+        // Legacy enrollments frozen from an empty source: fall back to the
+        // plan's current track so the season still renders. (New enrollments
+        // snapshot correctly; the fix_enrollment_client_rls migration also
+        // backfills these rows server-side.)
+        const snapEmpty =
+          !Array.isArray(pickedEnrollment.track_snapshot) ||
+          pickedEnrollment.track_snapshot.length === 0;
+        if (snapEmpty && plansRes.data) {
+          const plan = plansRes.data.find((p: any) => p.id === pickedEnrollment.plan_id);
+          if (Array.isArray(plan?.track) && plan.track.length > 0) {
+            pickedEnrollment = { ...pickedEnrollment, track_snapshot: plan.track };
+            if (__DEV__) console.log('[ClientContext] enrollment snapshot empty — using plan track fallback');
+          }
+        }
         setEnrollment(pickedEnrollment);
       } else setEnrollment(null);
       if (trainerWorkoutsRes?.data) setAllTrainerWorkouts(trainerWorkoutsRes.data);
