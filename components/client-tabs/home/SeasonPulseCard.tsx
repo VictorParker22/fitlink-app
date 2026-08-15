@@ -15,6 +15,11 @@
  * instruction); this card's job is season standing, so it stays compact —
  * one bar, one line, two pills, no exercise lists.
  *
+ * COHORTS (lib/cohort.ts): a cohort pass has a real start date, so the card
+ * gains exactly one line — the run, "Sep 8 – Sep 29" — and, before the cohort
+ * begins, the stat line becomes "Starts Tuesday · 3 days to go" instead of
+ * "Week 1 of 8". Evergreen passes are unchanged; the card stays compact.
+ *
  * Fixed dark/lime system (constants/coachDesign.ts). Every number is real or
  * omitted. Bar animation gated behind lib/useReducedMotion.ts.
  */
@@ -35,6 +40,8 @@ import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { weekOfPosition, totalWeeks } from '../../../lib/passWeeks';
+import { isCohort, formatRun } from '../../../lib/cohort';
+import { preStartLine } from '../../../lib/cohortPreStart';
 import type { TrackNode } from '../../../context/AppContext';
 
 const C = CoachColors;
@@ -73,8 +80,13 @@ export default function SeasonPulseCard() {
 
     const currentNode = !completed && position < track.length ? track[position] : null;
 
+    // Cohort reads — null/false for an evergreen, athlete-paced pass.
+    const cohort = isCohort(plan);
+
     return {
       planName: plan?.name || 'Your season',
+      runLine: cohort ? formatRun(plan) : null,
+      preStart: cohort && !completed ? preStartLine(plan) : null,
       track,
       position,
       weeks,
@@ -182,6 +194,7 @@ export default function SeasonPulseCard() {
         <Text style={st.statLine}>
           Season complete{season.sessionsTotal > 0 ? ` — ${season.sessionsTotal} session${season.sessionsTotal === 1 ? '' : 's'}` : ''}
         </Text>
+        {season.runLine ? <Text style={st.runLine}>{season.runLine}</Text> : null}
         <View style={st.barTrack}>
           <View style={[st.barFillStatic, { width: '100%' }]} />
         </View>
@@ -198,25 +211,33 @@ export default function SeasonPulseCard() {
   }
 
   // ── Active season — standing + the fork ──────────────────────────────────
-  const statLine = `Week ${season.currentWeek} of ${season.weeks}${
-    season.sessionsTotal > 0
-      ? ` · ${season.sessionsDone} of ${season.sessionsTotal} sessions done`
-      : ''
-  }`;
+  // Before a cohort's real start date, "week 1 of 8" would be untrue — the
+  // pre-start line says what is actually so.
+  const statLine =
+    season.preStart ||
+    `Week ${season.currentWeek} of ${season.weeks}${
+      season.sessionsTotal > 0
+        ? ` · ${season.sessionsDone} of ${season.sessionsTotal} sessions done`
+        : ''
+    }`;
 
   return (
     <Animated.View entering={entering} style={st.card}>
       <View
         accessible={true}
-        accessibilityLabel={`Your season, ${season.planName}, week ${season.currentWeek} of ${season.weeks}${
-          season.sessionsTotal > 0
-            ? `, ${season.sessionsDone} of ${season.sessionsTotal} sessions done`
-            : ''
-        }`}
+        accessibilityLabel={`Your season, ${season.planName}, ${
+          season.preStart ||
+          `week ${season.currentWeek} of ${season.weeks}${
+            season.sessionsTotal > 0
+              ? `, ${season.sessionsDone} of ${season.sessionsTotal} sessions done`
+              : ''
+          }`
+        }${season.runLine ? `. Runs ${season.runLine}` : ''}`}
       >
         <Text style={st.eyebrow}>Your season</Text>
         <Text style={st.title}>{season.planName}</Text>
         <Text style={st.statLine}>{statLine}</Text>
+        {season.runLine ? <Text style={st.runLine}>{season.runLine}</Text> : null}
         <View style={st.barTrack}>
           <Animated.View style={[st.barFill, barStyle]} />
         </View>
@@ -281,6 +302,13 @@ const st = StyleSheet.create({
     color: C.textMuted,
     marginTop: 4,
     lineHeight: 18,
+  },
+  // Cohort run — the real calendar window. One line, never more.
+  runLine: {
+    fontFamily: F.body,
+    fontSize: 11.5,
+    color: C.textFaint,
+    marginTop: 3,
   },
   barTrack: {
     height: 3,

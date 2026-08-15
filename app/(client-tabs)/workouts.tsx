@@ -47,6 +47,7 @@ import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import { isCohort } from '../../lib/cohort';
 import { isOverdue, parseLocalDay } from '../../lib/streak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import type { TrackNode } from '../../context/AppContext';
@@ -631,6 +632,7 @@ export default function ClientWorkoutsScreen() {
         <SeasonHero
           planName={planName}
           description={programme.plan?.description || null}
+          plan={programme.plan}
           currentWeek={programme.currentWeek}
           totalWeeks={programme.weeks}
           position={Math.min(programme.position, programme.track.length)}
@@ -651,10 +653,20 @@ export default function ClientWorkoutsScreen() {
         />
 
         {/* The track — the season's nodes, grouped and labeled by week */}
-        <SectionHead label="Your season" sub={`${planName} — every session in order, at your pace.`} />
+        {/* A cohort runs on the coach's calendar, so "at your pace" would be
+            untrue there — the sub says which kind of season this is. */}
+        <SectionHead
+          label="Your season"
+          sub={
+            isCohort(programme.plan)
+              ? `${planName} — every session in order, on the cohort's dates.`
+              : `${planName} — every session in order, at your pace.`
+          }
+        />
         <View onLayout={(e) => { seasonTrackTopRef.current = e.nativeEvent.layout.y; }}>
           <SeasonTrack
             track={programme.track}
+            plan={programme.plan}
             durationWeeks={programme.durationWeeks}
             position={programme.position}
             currentWeek={programme.currentWeek}

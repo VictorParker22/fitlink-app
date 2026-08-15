@@ -13,6 +13,17 @@
  *
  * Every tap routes through the parent's callbacks so the preview-first
  * contract in workouts.tsx stays the single entry point.
+ *
+ * COHORTS: a cohort pass has a real start date, so each node carries a real
+ * calendar date (resolved upstream in SeasonTrack). Three things follow, and
+ * ONLY for cohorts:
+ *  · the eyebrow gains the day — "WEEK 3 · SESSION 2 · TUE 16 SEP"
+ *  · today's node is emphasised (accent eyebrow, "Today" reads in it)
+ *  · a node dated before today and not done is tagged "Missed" — a warning
+ *    token, not an alarm. The current node keeps its "Up next" treatment; it
+ *    is never tagged missed, its date just carries the warning tint.
+ * An evergreen pass is athlete-paced with no schedule to miss, so it gets
+ * date = null and renders exactly as before.
  */
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
@@ -20,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { formatNodeDay } from '../../../lib/cohort';
 import type { TrackNode } from '../../../context/AppContext';
 import MuscleMap from '../../anatomy/MuscleMap';
 import { focusLineForWorkout, type WorkoutMuscleInfo } from './workoutMuscles';
@@ -31,7 +43,18 @@ export type SeasonNode = {
   /** Index into the full track (position comparisons happen against this). */
   index: number;
   node: TrackNode;
+  /** Real calendar date — cohorts only, null for athlete-paced passes. */
+  date?: Date | null;
 };
+
+/** Days from today to `date` (negative = past). Null when there is no date. */
+function dayOffset(date?: Date | null): number | null {
+  if (!date) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((day.getTime() - today.getTime()) / 86400000);
+}
 
 type Props = {
   week: number;
@@ -41,6 +64,8 @@ type Props = {
   isRestWeek: boolean;
   /** Week nodes, week-start milestone already stripped. */
   nodes: SeasonNode[];
+  /** True when the enrolled plan is a cohort — the only case with real dates. */
+  cohort?: boolean;
   /** Nodes completed on the enrollment. */
   position: number;
   status: 'past' | 'current' | 'future';
@@ -62,6 +87,7 @@ export default function WeekSection({
   title,
   isRestWeek,
   nodes,
+  cohort = false,
   position,
   status,
   seasonCompleted,
@@ -103,9 +129,16 @@ export default function WeekSection({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const renderNode = ({ index, node }: SeasonNode) => {
+  const renderNode = ({ index, node, date }: SeasonNode) => {
     const done = index < position || seasonCompleted;
     const isCurrent = index === position && !seasonCompleted;
+
+    // Cohort schedule reads — all null/false for an athlete-paced pass.
+    const offset = cohort ? dayOffset(date) : null;
+    const dayLabel = cohort ? formatNodeDay(date) : null;
+    const isToday = offset === 0;
+    // Past and not done. The current node keeps "Up next" and is never tagged.
+    const isMissed = offset !== null && offset < 0 && !done && !isCurrent;
 
     if (node.type === 'milestone') {
       const label = (node.label || '').trim();
@@ -146,7 +179,9 @@ export default function WeekSection({
           <View style={{ flex: 1 }}>
             <Text style={s.nodeName}>Food focus</Text>
             <Text style={s.nodeSub}>
-              {done ? 'Done' : `${coachFirst} wants the plate in focus here`}
+              {[dayLabel, done ? 'Done' : `${coachFirst} wants the plate in focus here`]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
@@ -167,7 +202,11 @@ export default function WeekSection({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.nodeName}>{node.label || 'Class session'}</Text>
-            <Text style={s.nodeSub}>{done ? 'Done' : 'A class your coach put on the plan'}</Text>
+            <Text style={s.nodeSub}>
+              {[dayLabel, done ? 'Done' : 'A class your coach put on the plan']
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
           </View>
         </View>
       );
@@ -185,8 +224,15 @@ export default function WeekSection({
     const name = w?.name || node.label || 'Session';
 
     // WHEN / WHAT IT DOES — position label and muscle focus, real data only.
+    // For a cohort the day is real, so it joins the eyebrow:
+    // "Week 3 · Session 2 · Tue 16 Sep". Evergreen stays sequential.
     const sessionNo = sessionNumberByIndex.get(index) || null;
-    const whenLabel = sessionNo ? `Week ${week} · Session ${sessionNo}` : `Week ${week}`;
+    const whenLabel = [`Week ${week}`, sessionNo ? `Session ${sessionNo}` : null, dayLabel]
+      .filter(Boolean)
+      .join(' · ');
+    const whenSpoken = [`Week ${week}`, sessionNo ? `session ${sessionNo}` : null, dayLabel]
+      .filter(Boolean)
+      .join(', ');
     const info = w ? muscleInfoFor(w) : null;
     const focus = w ? focusLineForWorkout(w, info) : null;
 
@@ -201,7 +247,15 @@ export default function WeekSection({
             <View style={s.upNextChip}>
               <Text style={s.upNextChipText}>Up next</Text>
             </View>
-            <Text style={s.currentWhen}>{whenLabel}</Text>
+            <Text
+              style={[
+                s.currentWhen,
+                isToday && s.whenTextToday,
+                offset !== null && offset < 0 && s.whenTextLate,
+              ]}
+            >
+              {whenLabel}
+            </Text>
           </View>
           <View style={s.currentHeadRow}>
             <View style={{ flex: 1 }}>
@@ -241,7 +295,7 @@ export default function WeekSection({
                 onOpenWorkout(w, { viewOnly: false });
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Week ${week}${sessionNo ? `, session ${sessionNo}` : ''}, ${name}, up next${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}. Double tap to preview`}
+              accessibilityLabel={`${whenSpoken}, ${name}, up next${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}. Double tap to preview`}
               accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
             >
               <Text style={s.previewBtnText}>Preview session</Text>
@@ -268,14 +322,27 @@ export default function WeekSection({
         }}
         disabled={!canOpen}
         accessibilityRole="button"
-        accessibilityLabel={`Week ${week}${sessionNo ? `, session ${sessionNo}` : ''}, ${name}, ${done ? 'done' : 'ahead on your plan'}${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}${canOpen ? '. Double tap to preview' : ''}`}
+        accessibilityLabel={`${whenSpoken}, ${name}, ${done ? 'done' : isMissed ? 'missed' : isToday ? 'today' : 'ahead on your plan'}${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}${canOpen ? '. Double tap to preview' : ''}`}
       >
         <View style={{ flex: 1 }}>
           <View style={s.whenRow}>
-            <Text style={s.whenText}>{whenLabel}</Text>
+            <Text
+              style={[
+                s.whenText,
+                isToday && !done && s.whenTextToday,
+                isMissed && s.whenTextLate,
+              ]}
+            >
+              {whenLabel}
+            </Text>
             {done && (
               <View style={s.doneChip}>
                 <Text style={s.doneChipText}>Done</Text>
+              </View>
+            )}
+            {!done && isMissed && (
+              <View style={s.missedChip}>
+                <Text style={s.missedChipText}>Missed</Text>
               </View>
             )}
           </View>
@@ -449,6 +516,17 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
   },
   doneChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent },
+  // Cohort-only schedule reads. Today is emphasis, not alarm; missed is a
+  // warning token — a real day passed, not a failure state.
+  whenTextToday: { color: C.accent },
+  whenTextLate: { color: C.warning },
+  missedChip: {
+    backgroundColor: C.warningSoft,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  missedChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.warning },
   focusText: { fontFamily: F.body, fontSize: 11.5, color: C.textSecondary, marginTop: 3, lineHeight: 16 },
   nodeRowDone: { opacity: 0.65 },
   nodeRowFuture: { backgroundColor: 'transparent' },

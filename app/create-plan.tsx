@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
+import { formatRun, formatDeadline } from '../lib/cohort';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Turn 19 — "Creating a pass": a 5-step season builder.
@@ -29,7 +31,19 @@ type SeasonWeek = { days: DayNode[][]; label: string; isRest?: boolean };
 
 const WEEK_LENGTHS = [4, 6, 8, 12, 16];
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const STEP_LABELS = ['Basics', 'Weekly rhythm', 'Season map', 'Price', 'Preview'];
+const STEP_LABELS = ['Basics', 'Weekly rhythm', 'Season map', 'Price and start', 'Preview'];
+
+// ── Cohort dates ─────────────────────────────────────────────────────────────
+// A cohort starts on one fixed day for everyone (lib/cohort.ts). The default
+// start sits far enough out that there is real time to sell it; the coach moves
+// it freely from there.
+const DEFAULT_COHORT_LEAD_DAYS = 14;
+
+const atMidnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.getDate() + n); return c; };
+/** `YYYY-MM-DD` in LOCAL time — the shape of a Postgres `date` column. */
+const toISODate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const PROMISE_MAX = 90;
 // Must match earnings.tsx: const PLATFORM_FEE = 0.10;
 const PLATFORM_FEE = 0.10;
@@ -86,9 +100,19 @@ export default function CreatePassScreen() {
   const [milestoneInput, setMilestoneInput] = useState('');
   const [showMilestoneInput, setShowMilestoneInput] = useState(false);
 
-  // ── Step 4 — Price ──
+  // ── Step 4 — Price + product type ──
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [priceText, setPriceText] = useState('');
+
+  // Evergreen (athlete-paced, the default and the old behaviour) vs cohort
+  // (one fixed start day for everyone).
+  const [productType, setProductType] = useState<'evergreen' | 'cohort'>('evergreen');
+  const [startsOn, setStartsOn] = useState<Date>(() => addDays(atMidnight(new Date()), DEFAULT_COHORT_LEAD_DAYS));
+  const [enrollmentCloses, setEnrollmentCloses] = useState<Date>(() => addDays(atMidnight(new Date()), DEFAULT_COHORT_LEAD_DAYS - 1));
+  // Once the coach sets a deadline by hand it stops trailing the start date.
+  const [deadlineEdited, setDeadlineEdited] = useState(false);
+  const [capacityText, setCapacityText] = useState('');
+  const [datePicker, setDatePicker] = useState<'start' | 'deadline' | null>(null);
 
   // ── Step 5 — Preview + publish ──
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
@@ -121,6 +145,51 @@ export default function CreatePassScreen() {
   }, [plans]);
 
   const price = Number(priceText) || 0;
+
+  // ── Cohort dates, validation and preview ────────────────────────────────
+  const isCohort = productType === 'cohort';
+  const capacity = (() => {
+    const n = parseInt(capacityText.trim(), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0; // 0 ⇒ unlimited
+  })();
+
+  const setStartDate = (next: Date) => {
+    const day = atMidnight(next);
+    setStartsOn(day);
+    // The deadline defaults to the day before the start, and keeps tracking it
+    // until the coach moves it themselves.
+    if (!deadlineEdited) setEnrollmentCloses(addDays(day, -1));
+  };
+
+  const cohortErrors = useMemo(() => {
+    if (!isCohort) return { start: null as string | null, deadline: null as string | null, any: false };
+    const today = atMidnight(new Date()).getTime();
+    const start = atMidnight(startsOn).getTime();
+    const deadline = atMidnight(enrollmentCloses).getTime();
+    const startErr = start <= today
+      ? 'A cohort has to start in the future — everyone begins on this day.'
+      : null;
+    let deadlineErr: string | null = null;
+    if (deadline > start) deadlineErr = 'Enrollment has to close on or before the start date.';
+    else if (deadline < today) deadlineErr = 'That deadline has already passed — nobody could join.';
+    return { start: startErr, deadline: deadlineErr, any: !!(startErr || deadlineErr) };
+  }, [isCohort, startsOn, enrollmentCloses]);
+
+  // "Sep 8 – Sep 29 · Closes Aug 31 · 12 spots" — every part from real input.
+  const cohortSummary = useMemo(() => {
+    if (!isCohort || cohortErrors.any) return null;
+    const shape = {
+      starts_on: toISODate(startsOn),
+      enrollment_closes: toISODate(enrollmentCloses),
+      capacity: capacity || null,
+      duration_weeks: weeks,
+    };
+    return [
+      formatRun(shape),
+      formatDeadline(shape),
+      capacity > 0 ? `${capacity} spot${capacity === 1 ? '' : 's'}` : null,
+    ].filter(Boolean).join(' · ');
+  }, [isCohort, cohortErrors.any, startsOn, enrollmentCloses, capacity, weeks]);
 
   // ── Market prices — real, platform-wide. The plans table is readable by
   // every authenticated user by design (the marketplace policy in
@@ -363,6 +432,14 @@ export default function CreatePassScreen() {
   const handleSave = async (publish: boolean) => {
     if (!name.trim()) { showAlert({ type: 'warning', title: 'Missing name', message: 'Give the season a name first.' }); return; }
     if (!price || price <= 0) { showAlert({ type: 'warning', title: 'Missing price', message: 'Set a price before saving.' }); return; }
+    if (isCohort && cohortErrors.any) {
+      showAlert({
+        type: 'warning',
+        title: 'Check the cohort dates',
+        message: cohortErrors.start || cohortErrors.deadline || 'Fix the dates before saving.',
+      });
+      return;
+    }
     setSaving(true);
     try {
       const plan = await createPlan(
@@ -374,6 +451,14 @@ export default function CreatePassScreen() {
           description: promise.trim() || undefined,
           duration_weeks: weeks,
           season_settings: { start_at_week_one: startWeekOne, progressive_note: progressiveNote },
+          // Cohort columns. createPlan sheds these first on a 42703 (the
+          // add_cohort_programs migration hasn't run) and saves the pass
+          // anyway — it just stays evergreen until the columns exist.
+          ...(isCohort ? {
+            starts_on: toISODate(startsOn),
+            enrollment_closes: toISODate(enrollmentCloses),
+            capacity: capacity > 0 ? capacity : null,
+          } : {}),
         }
       );
       const track = buildTrack();
@@ -715,8 +800,101 @@ export default function CreatePassScreen() {
 
     return (
       <>
-        <Text style={s.title}>Price the season</Text>
+        <Text style={s.title}>Price and start</Text>
 
+        {/* ── Product type: evergreen vs cohort ── */}
+        <Text style={s.eyebrow}>How athletes start</Text>
+        {([
+          {
+            key: 'evergreen' as const,
+            title: 'Evergreen — athletes start whenever they buy',
+            sub: 'Week 1 begins the day they join. Everyone runs at their own pace.',
+          },
+          {
+            key: 'cohort' as const,
+            title: 'Cohort — everyone starts on the same day',
+            sub: 'One fixed start date, a deadline to sign up, and an optional seat cap.',
+          },
+        ]).map(opt => {
+          const active = productType === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[s.typeCard, active && s.typeCardActive]}
+              onPress={() => setProductType(opt.key)}
+              activeOpacity={0.75}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={opt.title}
+              accessibilityHint={opt.sub}
+            >
+              <View style={[s.radio, active && s.radioOn]}>
+                {active && <View style={s.radioDot} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.typeTitle}>{opt.title}</Text>
+                <Text style={s.typeSub}>{opt.sub}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        {isCohort && (
+          <View style={s.cohortBox}>
+            <TouchableOpacity
+              style={s.dateRow}
+              onPress={() => setDatePicker('start')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Start date, ${startsOn.toDateString()}. Tap to change.`}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.dateLabel}>Starts on</Text>
+                <Text style={s.dateValue}>{startsOn.toDateString()}</Text>
+              </View>
+              <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+            </TouchableOpacity>
+            {cohortErrors.start && <Text style={s.errorText}>{cohortErrors.start}</Text>}
+
+            <TouchableOpacity
+              style={s.dateRow}
+              onPress={() => setDatePicker('deadline')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Enrollment closes, ${enrollmentCloses.toDateString()}. Tap to change.`}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.dateLabel}>Enrollment closes</Text>
+                <Text style={s.dateValue}>{enrollmentCloses.toDateString()}</Text>
+              </View>
+              <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+            </TouchableOpacity>
+            {cohortErrors.deadline
+              ? <Text style={s.errorText}>{cohortErrors.deadline}</Text>
+              : <Text style={s.helperText}>Defaults to the day before it starts. Move it earlier if you need time to prepare.</Text>}
+
+            <Text style={[s.eyebrow, { marginTop: 16 }]}>Seats</Text>
+            <TextInput
+              style={s.capacityInput}
+              placeholder="Leave empty for unlimited"
+              placeholderTextColor={CoachColors.textFaint}
+              value={capacityText}
+              onChangeText={setCapacityText}
+              keyboardType="number-pad"
+              selectionColor={CoachColors.accent}
+              accessibilityLabel="Seat cap. Leave empty for unlimited."
+            />
+
+            {cohortSummary && (
+              <View style={s.cohortPreview}>
+                <Ionicons name="calendar" size={14} color={CoachColors.accent} />
+                <Text style={s.cohortPreviewText}>{cohortSummary}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <Text style={[s.eyebrow, { marginTop: 22 }]}>Price</Text>
         <View style={s.segmented}>
           {(['month', 'year'] as const).map(p => (
             <TouchableOpacity
@@ -869,6 +1047,7 @@ export default function CreatePassScreen() {
             <Text style={s.previewEyebrow}>{weeks}-week season</Text>
             <Text style={s.previewName}>{name || 'Your pass'}</Text>
             {promise.trim() ? <Text style={s.previewPromise}>{promise.trim()}</Text> : null}
+            {cohortSummary ? <Text style={s.previewCohort}>{cohortSummary}</Text> : null}
           </View>
           <View style={s.previewBody}>
             <View style={s.coachRow}>
@@ -949,7 +1128,7 @@ export default function CreatePassScreen() {
     1: { label: 'Build the week', disabled: !name.trim(), onPress: () => setStep(2) },
     2: { label: `Expand to ${weeks} weeks`, disabled: templateNodes.length === 0, onPress: expandToSeason },
     3: { label: 'Set the price', disabled: false, onPress: () => { setEditingWeek(null); setStep(4); } },
-    4: { label: 'See what athletes see', disabled: !price || price <= 0, onPress: () => setStep(5) },
+    4: { label: 'See what athletes see', disabled: !price || price <= 0 || cohortErrors.any, onPress: () => setStep(5) },
   };
 
   const cta = ctaConfig[step];
@@ -1088,6 +1267,57 @@ export default function CreatePassScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Cohort date pickers ──────────────────────────────────────────────
+          Same shape as create-live-class.tsx: a sheet on iOS, the platform
+          dialog on Android. Nothing navigates while either is up. */}
+      {datePicker !== null && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide" visible onRequestClose={() => setDatePicker(null)}>
+          <TouchableOpacity style={s.sheetBackdrop} activeOpacity={1} onPress={() => setDatePicker(null)}>
+            <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+              <View style={s.sheetHeader}>
+                <Text style={s.sheetTitle}>{datePicker === 'start' ? 'Start date' : 'Enrollment closes'}</Text>
+                <TouchableOpacity
+                  onPress={() => setDatePicker(null)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Done choosing a date"
+                >
+                  <Text style={s.sheetDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={datePicker === 'start' ? startsOn : enrollmentCloses}
+                mode="date"
+                display="spinner"
+                minimumDate={new Date()}
+                textColor={CoachColors.textPrimary}
+                themeVariant="dark"
+                onChange={(_, selected) => {
+                  if (!selected) return;
+                  if (datePicker === 'start') setStartDate(selected);
+                  else { setDeadlineEdited(true); setEnrollmentCloses(atMidnight(selected)); }
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+      {datePicker !== null && Platform.OS !== 'ios' && (
+        <DateTimePicker
+          value={datePicker === 'start' ? startsOn : enrollmentCloses}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(_, selected) => {
+            const which = datePicker;
+            setDatePicker(null);
+            if (!selected) return;
+            if (which === 'start') setStartDate(selected);
+            else { setDeadlineEdited(true); setEnrollmentCloses(atMidnight(selected)); }
+          }}
+        />
+      )}
 
       {/* ── Publish celebration — in-screen overlay, never a native Modal ── */}
       {published && (
@@ -1268,6 +1498,49 @@ const s = StyleSheet.create({
   pricePeriod: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginBottom: 12 },
   priceEditHint: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 2 },
 
+  // Step 4 — product type + cohort dates
+  typeCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  typeCardActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
+  radio: {
+    width: 20, height: 20, borderRadius: 10, marginTop: 1,
+    borderWidth: 1.5, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioOn: { borderColor: CoachColors.accent },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CoachColors.accent },
+  typeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
+  typeSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3, lineHeight: 17 },
+  cohortBox: {
+    backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 6,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  dateRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: CoachColors.border, marginTop: 8,
+  },
+  dateLabel: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textFaint,
+    letterSpacing: 0.8, textTransform: 'uppercase',
+  },
+  dateValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, marginTop: 3 },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.warning, marginTop: 6, lineHeight: 17 },
+  capacityInput: {
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: CoachColors.border,
+  },
+  cohortPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 14,
+  },
+  cohortPreviewText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary, flex: 1 },
+  sheetDone: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.accent },
+
   // Market meter
   meterHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   meterBand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
@@ -1304,6 +1577,7 @@ const s = StyleSheet.create({
   },
   previewName: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.onAccent },
   previewPromise: { fontFamily: CoachFonts.body, fontSize: 13.5, color: 'rgba(16,18,16,0.75)', marginTop: 5, lineHeight: 19 },
+  previewCohort: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: 'rgba(16,18,16,0.85)', marginTop: 8 },
   previewBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coachAvatar: { width: 40, height: 40, borderRadius: 20 },

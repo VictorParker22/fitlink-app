@@ -142,13 +142,24 @@ interface Plan {
   description?: string | null;
   duration_weeks?: number | null;
   season_settings?: Record<string, any> | null;
+  // Cohort programs (added by supabase/migrations/add_cohort_programs.sql).
+  // starts_on set ⇒ this pass is a cohort; null ⇒ evergreen, athlete-paced.
+  starts_on?: string | null;
+  enrollment_closes?: string | null;
+  capacity?: number | null;
 }
 
 export interface PlanSeasonExtras {
   description?: string;
   duration_weeks?: number;
   season_settings?: Record<string, any>;
+  starts_on?: string | null;
+  enrollment_closes?: string | null;
+  capacity?: number | null;
 }
+
+/** Columns from add_cohort_programs.sql — dropped first when the DB predates it. */
+const COHORT_EXTRA_KEYS = ['starts_on', 'enrollment_closes', 'capacity'] as const;
 
 interface Referral {
   id: string;
@@ -1496,15 +1507,29 @@ export function AppProvider({ children }: PropsWithChildren) {
       .select()
       .single();
 
-    // If the season-fields migration hasn't run yet, the insert fails with
-    // 42703 (undefined column). Retry without the new fields so the flow
-    // still works pre-migration.
-    if (error && extras && (error.code === '42703' || /column/i.test(error.message || ''))) {
-      ({ data, error } = await supabase
-        .from('plans')
-        .insert(basePayload)
-        .select()
-        .single());
+    // If a migration hasn't run yet, the insert fails with 42703 (undefined
+    // column). Shed the newest fields first — a DB with the season columns but
+    // not the cohort ones should still keep the promise line and duration —
+    // then fall back to the base payload.
+    const missingColumn = (e: any) => !!e && (e.code === '42703' || /column/i.test(e.message || ''));
+
+    if (error && extras && missingColumn(error)) {
+      const withoutCohort: Record<string, any> = { ...extras };
+      COHORT_EXTRA_KEYS.forEach(k => { delete withoutCohort[k]; });
+      if (Object.keys(withoutCohort).length > 0) {
+        ({ data, error } = await supabase
+          .from('plans')
+          .insert({ ...basePayload, ...withoutCohort })
+          .select()
+          .single());
+      }
+      if (error && missingColumn(error)) {
+        ({ data, error } = await supabase
+          .from('plans')
+          .insert(basePayload)
+          .select()
+          .single());
+      }
     }
 
     if (error) throw error;

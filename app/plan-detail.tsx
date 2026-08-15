@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { isCohort, formatRun, formatDeadline } from '../lib/cohort';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -66,6 +67,12 @@ export default function PlanDetailScreen() {
   }
 
   const tier = getTier(Number(plan.price));
+  // A cohort is a dated pass (lib/cohort.ts) — evergreen passes have no dates
+  // to show, so the tag and the run line are simply absent for them.
+  const cohort = isCohort(plan);
+  const cohortRun = cohort
+    ? [formatRun(plan), formatDeadline(plan)].filter(Boolean).join(' · ')
+    : null;
   const features = ((plan as any).features || []) as string[];
   const isPopular = (plan as any).is_popular;
 
@@ -141,8 +148,17 @@ export default function PlanDetailScreen() {
                 <Ionicons name={tier.icon} size={22} color={CoachColors.textPrimary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={st.tierLabel}>{tier.rank} pass</Text>
+                <View style={st.tierRow}>
+                  <Text style={st.tierLabel}>{tier.rank} pass</Text>
+                  {cohort && (
+                    <View style={st.cohortTag}>
+                      <Text style={st.cohortTagText}>Cohort</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={st.planNameHero}>{plan.name}</Text>
+                {/* Dated pass — everyone runs it on the same calendar. */}
+                {cohortRun ? <Text style={st.cohortRunLine}>{cohortRun}</Text> : null}
               </View>
               {isPopular && (
                 <View style={st.popularTag}>
@@ -430,6 +446,14 @@ const st = StyleSheet.create({
     fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  cohortTag: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
+  },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.4 },
+  cohortRunLine: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 4 },
+
   popularTag: {
     backgroundColor: CoachColors.accent, paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 8,

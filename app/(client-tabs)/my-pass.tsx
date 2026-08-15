@@ -14,17 +14,22 @@
  * (client_plan_enrollments, with frozen track_snapshot) are created by the
  * existing post-payment flow, not here.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../context/ClientContext';
+import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute, SharedRoute } from '../../types/routes';
 import type { TrackNode } from '../../context/AppContext';
 import { weekStartIndices, weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import {
+  isCohort, enrollmentState, spotsLeft, canJoin,
+  formatRun, formatDeadline, formatDay, parseLocalDay,
+} from '../../lib/cohort';
 
 const WEEK_LABEL_RE = /^Week (\d+):\s*/;
 
@@ -103,6 +108,37 @@ export default function MyPassScreen() {
     return plans[0];
   }, [plans, selectedPlanId, clientData]);
 
+  // ── Cohort seats — a real count, never a guess ────────────────────────
+  // Keyed by plan id. `number` = counted, `null` = the query failed (we then
+  // omit the seats line entirely rather than invent one), `undefined` = not
+  // asked yet. Only cohorts with a coach-set capacity are ever counted.
+  const [seatCounts, setSeatCounts] = useState<Record<string, number | null>>({});
+  const cohortPlan = isCohort(plan);
+  const capacity = cohortPlan ? (plan as any)?.capacity ?? null : null;
+
+  useEffect(() => {
+    const planId = plan?.id;
+    if (!planId || !cohortPlan || !capacity || capacity <= 0) return;
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from('client_plan_enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('plan_id', planId)
+        .in('status', ['active', 'completed']);
+      if (cancelled) return;
+      setSeatCounts(prev => ({
+        ...prev,
+        [planId]: error || typeof count !== 'number' ? null : count,
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, [plan?.id, cohortPlan, capacity]);
+
+  const seatCount = plan ? seatCounts[plan.id] : undefined;
+  const seatsKnown = typeof seatCount === 'number';
+  const left = seatsKnown ? spotsLeft(plan as any, seatCount as number) : null;
+
   const track: TrackNode[] = useMemo(() => {
     if (!plan?.track || !Array.isArray(plan.track)) return [];
     return [...plan.track].sort((a: TrackNode, b: TrackNode) => a.order - b.order);
@@ -126,6 +162,8 @@ export default function MyPassScreen() {
 
   const handleStartSeason = () => {
     if (!plan || !clientData) return;
+    // Cohorts that are full or past their deadline never open checkout.
+    if (cohortPlan && !canJoin(plan as any, seatsKnown ? (seatCount as number) : 0)) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: SharedRoute.checkout as any,
@@ -159,6 +197,19 @@ export default function MyPassScreen() {
         )
       : 1;
 
+    // Cohort: the athlete is in it, so state is 'open' (not started yet),
+    // 'running' or 'finished' — never a sold-out banner.
+    const enrolledIsCohort = isCohort(enrolledPlan);
+    const enrolledState = enrolledIsCohort ? enrollmentState(enrolledPlan, 0, true) : null;
+    const enrolledRun = enrolledIsCohort ? formatRun(enrolledPlan) : null;
+    const enrolledStartDay = enrolledIsCohort ? formatDay(parseLocalDay((enrolledPlan as any)?.starts_on)) : null;
+    const enrolledRunLine = enrolledRun
+      ? (enrolledState === 'finished' ? `Ran ${enrolledRun}` : enrolledRun)
+      : null;
+    const enrolledCohortNote = enrolledState === 'open' && enrolledStartDay
+      ? `Everyone starts on ${enrolledStartDay} and moves through the weeks together.`
+      : null;
+
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.header}>
@@ -171,6 +222,21 @@ export default function MyPassScreen() {
             <Text style={s.enrolledWeek}>
               You're in week {currentWeek} of {total}
             </Text>
+            {enrolledRunLine ? (
+              <View
+                style={s.cohortEnrolledFacts}
+                accessible
+                accessibilityLabel={[enrolledRunLine, enrolledCohortNote].filter(Boolean).join('. ')}
+              >
+                <View style={s.cohortLine}>
+                  <Ionicons name="calendar-outline" size={13} color={CoachColors.textMuted} />
+                  <Text style={s.cohortLineText}>{enrolledRunLine}</Text>
+                </View>
+                {enrolledCohortNote ? (
+                  <Text style={s.cohortNote}>{enrolledCohortNote}</Text>
+                ) : null}
+              </View>
+            ) : null}
             <TouchableOpacity
               style={s.enrolledCta}
               activeOpacity={0.85}
@@ -229,6 +295,42 @@ export default function MyPassScreen() {
   const priceLabel = `$${Number(plan.price)}`;
   const periodLabel = plan.period === 'year' ? 'per year' : 'per month';
 
+  // ── Cohort facts (evergreen passes: every value below is null/false and the
+  //    screen renders exactly as it always has) ──────────────────────────────
+  const cohortState = cohortPlan ? enrollmentState(plan as any, seatsKnown ? (seatCount as number) : 0) : null;
+  const runLine = cohortPlan ? formatRun(plan as any) : null;
+  const deadlineLine = cohortPlan ? formatDeadline(plan as any) : null;
+  const startDay = cohortPlan ? formatDay(parseLocalDay((plan as any).starts_on)) : null;
+  // Seats only when the coach capped it AND we counted real enrollments.
+  const seatsLine = cohortPlan && capacity && left !== null
+    ? `${left} of ${capacity} spots left`
+    : null;
+  const whatHappens = startDay
+    ? `Everyone starts on ${startDay} and moves through the weeks together.`
+    : null;
+  const closingSoon = cohortState === 'closing-soon';
+  const joinBlocked = cohortState === 'full' || cohortState === 'closed-date';
+  const startedAlready = cohortPlan && cohortState === 'closed-date'
+    && !!parseLocalDay((plan as any).starts_on)
+    && parseLocalDay((plan as any).starts_on)! <= new Date();
+
+  const blockedReason = cohortState === 'full'
+    ? 'This cohort is full'
+    : cohortState === 'closed-date'
+      ? (startDay
+          ? `Enrollment closed — this cohort ${startedAlready ? 'started' : 'starts'} on ${startDay}`
+          : 'Enrollment closed')
+      : null;
+
+  // Somewhere else to go when this cohort can't be joined.
+  const otherJoinable = joinBlocked && plans
+    ? plans.filter((p: any) => p.id !== plan.id && canJoin(p, seatCounts[p.id] ?? 0))
+    : [];
+
+  const cohortA11yLabel = cohortPlan
+    ? ['Cohort program', runLine, deadlineLine, seatsLine, whatHappens].filter(Boolean).join('. ')
+    : undefined;
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
@@ -259,14 +361,51 @@ export default function MyPassScreen() {
         {/* Hero — same visual language the coach previewed in create-plan step 5 */}
         <View style={s.heroCard}>
           <View style={s.hero}>
-            <View style={s.heroBadge}>
-              <Text style={s.heroBadgeText}>{seasonWeeks}-week season</Text>
+            <View style={s.heroBadgeRow}>
+              <View style={s.heroBadge}>
+                <Text style={s.heroBadgeText}>{seasonWeeks}-week season</Text>
+              </View>
+              {cohortPlan ? (
+                <View style={s.heroBadge}>
+                  <Text style={s.heroBadgeText}>Starts together</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={s.heroName}>{plan.name}</Text>
             {plan.description ? <Text style={s.heroPromise}>{plan.description}</Text> : null}
           </View>
 
           <View style={s.heroBody}>
+            {cohortPlan ? (
+              <View style={s.cohortCard} accessible accessibilityLabel={cohortA11yLabel}>
+                {runLine ? (
+                  <View style={s.cohortLine}>
+                    <Ionicons name="calendar-outline" size={13} color={CoachColors.textMuted} />
+                    <Text style={s.cohortLineText}>{runLine}</Text>
+                  </View>
+                ) : null}
+                {deadlineLine ? (
+                  <View style={s.cohortLine}>
+                    <Ionicons
+                      name="time-outline"
+                      size={13}
+                      color={closingSoon ? CoachColors.warning : CoachColors.textMuted}
+                    />
+                    <Text style={[s.cohortLineText, closingSoon && s.cohortLineWarning]}>
+                      {deadlineLine}
+                    </Text>
+                  </View>
+                ) : null}
+                {seatsLine ? (
+                  <View style={s.cohortLine}>
+                    <Ionicons name="people-outline" size={13} color={CoachColors.textMuted} />
+                    <Text style={s.cohortLineText}>{seatsLine}</Text>
+                  </View>
+                ) : null}
+                {whatHappens ? <Text style={s.cohortNote}>{whatHappens}</Text> : null}
+              </View>
+            ) : null}
+
             {trainer ? (
               <View style={s.coachRow}>
                 {trainer.avatar_url ? (
@@ -331,14 +470,59 @@ export default function MyPassScreen() {
       </ScrollView>
 
       {/* Price + CTA — the unchanged path into app/checkout.tsx */}
-      <View style={s.footer}>
-        <View>
-          <Text style={s.footerPrice}>{priceLabel}</Text>
-          <Text style={s.footerPeriod}>{periodLabel}</Text>
+      <View style={s.footerWrap}>
+        {joinBlocked ? (
+          <View style={s.blockedBar}>
+            <Text style={s.blockedText}>{blockedReason}</Text>
+            {cohortState === 'full' && trainer ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(ClientRoute.myMessages);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${trainer.name} about the next cohort`}
+              >
+                <Text style={s.blockedLink}>Message {trainer.name} about the next one</Text>
+              </TouchableOpacity>
+            ) : null}
+            {cohortState === 'closed-date' && otherJoinable.length > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedPlanId(otherJoinable[0].id);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="See the other passes you can still join"
+              >
+                <Text style={s.blockedLink}>See passes you can still join</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
+        <View style={s.footer}>
+          <View>
+            <Text style={s.footerPrice}>{priceLabel}</Text>
+            <Text style={s.footerPeriod}>{periodLabel}</Text>
+          </View>
+          <TouchableOpacity
+            style={[s.footerCta, joinBlocked && s.footerCtaDisabled]}
+            activeOpacity={0.85}
+            onPress={handleStartSeason}
+            disabled={joinBlocked}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: joinBlocked }}
+            accessibilityLabel={
+              joinBlocked
+                ? `Start the season, unavailable. ${blockedReason}`
+                : 'Start the season'
+            }
+          >
+            <Text style={s.footerCtaText}>Start the season</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={s.footerCta} activeOpacity={0.85} onPress={handleStartSeason}>
-          <Text style={s.footerCtaText}>Start the season</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -364,9 +548,10 @@ const s = StyleSheet.create({
   // Hero (mirrors create-plan step-5 preview card)
   heroCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: CoachColors.borderMuted },
   hero: { backgroundColor: CoachColors.accent, padding: 20 },
+  heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   heroBadge: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(16,18,16,0.14)',
-    borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginBottom: 10,
+    borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
   },
   heroBadgeText: {
     fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.onAccent,
@@ -418,13 +603,36 @@ const s = StyleSheet.create({
     lineHeight: 18, marginTop: 20, paddingHorizontal: 2,
   },
 
+  // Cohort facts
+  cohortCard: {
+    backgroundColor: CoachColors.bg, borderRadius: 12,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    paddingVertical: 12, paddingHorizontal: 13, gap: 7,
+  },
+  cohortEnrolledFacts: { marginTop: 8, gap: 6 },
+  cohortLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  cohortLineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  cohortLineWarning: { color: CoachColors.warning },
+  cohortNote: {
+    fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted,
+    lineHeight: 17, marginTop: 1,
+  },
+
   // Sticky footer — price + CTA
-  footer: {
+  footerWrap: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34,
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg,
   },
+  blockedBar: {
+    paddingHorizontal: 20, paddingTop: 12, gap: 4,
+  },
+  blockedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  blockedLink: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.accent },
+  footer: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34,
+  },
+  footerCtaDisabled: { backgroundColor: CoachColors.borderMuted },
   footerPrice: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },
   footerPeriod: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
   footerCta: {

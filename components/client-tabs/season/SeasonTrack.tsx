@@ -6,10 +6,16 @@
  * milestone labels become the week's own title (or its rest flag) instead of
  * rendering as rows — the same convention my-pass.tsx uses pre-purchase, so
  * the athlete sees one vocabulary before and after buying.
+ *
+ * COHORTS: when the enrolled plan has a real starts_on, each node's true
+ * calendar date is resolved here once (lib/cohort.ts dateForNode) and handed
+ * to WeekSection, which uses it for the dated eyebrow and the Today/Missed
+ * treatments. Evergreen passes get date = null everywhere and are unchanged.
  */
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { weekStartIndices, weekOfPosition, totalWeeks } from '../../../lib/passWeeks';
+import { isCohort, dateForNode, type CohortFields } from '../../../lib/cohort';
 import type { TrackNode } from '../../../context/AppContext';
 import WeekSection, { type SeasonNode } from './WeekSection';
 import type { WorkoutMuscleInfo } from './workoutMuscles';
@@ -25,6 +31,8 @@ type WeekGroup = {
 
 type Props = {
   track: TrackNode[];
+  /** The enrolled plan — read only for its cohort fields (starts_on et al). */
+  plan?: CohortFields | null;
   durationWeeks: number | null;
   /** Nodes completed on the enrollment. */
   position: number;
@@ -43,6 +51,7 @@ type Props = {
 
 export default function SeasonTrack({
   track,
+  plan,
   durationWeeks,
   position,
   currentWeek,
@@ -55,6 +64,8 @@ export default function SeasonTrack({
   reducedMotion,
   onWeekLayout,
 }: Props) {
+  const cohort = isCohort(plan);
+
   const weeks = useMemo<WeekGroup[]>(() => {
     const count = totalWeeks(track, durationWeeks);
     const starts = new Set(weekStartIndices(track, durationWeeks));
@@ -76,11 +87,12 @@ export default function SeasonTrack({
         else if (text) group.title = text;
         return;
       }
-      group.nodes.push({ index: i, node });
+      // Real calendar date for cohorts only — null keeps evergreen sequential.
+      group.nodes.push({ index: i, node, date: cohort ? dateForNode(plan, track, i) : null });
     });
 
     return groups;
-  }, [track, durationWeeks]);
+  }, [track, durationWeeks, cohort, plan]);
 
   return (
     <View style={{ gap: 22 }}>
@@ -91,6 +103,7 @@ export default function SeasonTrack({
             title={g.title}
             isRestWeek={g.isRestWeek}
             nodes={g.nodes}
+            cohort={cohort}
             position={position}
             status={
               seasonCompleted || g.week < currentWeek

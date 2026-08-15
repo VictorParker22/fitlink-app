@@ -9,6 +9,7 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { isCohort, enrollmentState, formatDay, parseLocalDay } from '../lib/cohort';
 
 // Use the subscription endpoint for recurring monthly billing
 const EDGE_FUNCTION_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-subscription';
@@ -34,6 +35,41 @@ export default function CheckoutScreen() {
     if (!plan || !client || !trainer) {
       Alert.alert('Error', 'Missing plan, client, or trainer information.');
       return;
+    }
+
+    // Cohort gate — someone may have taken the last seat, or the deadline may
+    // have passed, while this screen was open. Re-check against a fresh count
+    // before the payment sheet opens. Evergreen passes skip this entirely.
+    if (isCohort(plan as any)) {
+      let enrolledCount = 0;
+      const { count, error: countError } = await supabase
+        .from('client_plan_enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('plan_id', plan.id)
+        .in('status', ['active', 'completed']);
+      // If the count fails we can't verify seats, but the dates still hold.
+      if (!countError && typeof count === 'number') enrolledCount = count;
+
+      const state = enrollmentState(plan as any, enrolledCount);
+      if (state === 'full') {
+        Alert.alert(
+          'This cohort just filled up',
+          'The last seat went while you were looking. Message your coach about the next one.',
+        );
+        return;
+      }
+      if (state === 'closed-date') {
+        const start = parseLocalDay((plan as any).starts_on);
+        const startDay = formatDay(start);
+        const started = !!start && start <= new Date();
+        Alert.alert(
+          'Enrollment closed',
+          startDay
+            ? `This cohort is no longer taking sign-ups. It ${started ? 'started' : 'starts'} on ${startDay}.`
+            : 'This cohort is no longer taking sign-ups.',
+        );
+        return;
+      }
     }
 
     setLoading(true);

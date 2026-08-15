@@ -11,6 +11,7 @@ import { getCategoryColor } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
+import { isCohort, formatRun } from '../../lib/cohort';
 
 
 type TabType = 'workouts' | 'exercises' | 'diets' | 'plans' | 'classes';
@@ -54,6 +55,10 @@ function PassCard({
   const hasTrack = trackLength > 0;
   const subtitle = `$${item.price} / ${item.period || 'monthly'}${hasTrack ? ` · ${trackLength} node${trackLength === 1 ? '' : 's'}` : ' · track not built yet'}`;
 
+  // A cohort is a dated pass (lib/cohort.ts). Evergreen passes show nothing here.
+  const cohort = isCohort(item);
+  const cohortRun = cohort ? formatRun(item) : null;
+
   const workoutCount = (item.track || []).filter((n: any) => n.type === 'workout').length;
   const dietCount = (item.track || []).filter((n: any) => n.type === 'diet').length;
   const milestoneCount = (item.track || []).filter((n: any) => n.type === 'milestone').length;
@@ -85,8 +90,16 @@ function PassCard({
       {/* ── Main row ── */}
       <View style={passStyles.cardTop}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={passStyles.cardTitle} numberOfLines={1}>{item.name}</Text>
+          <View style={passStyles.cardTitleRow}>
+            <Text style={passStyles.cardTitle} numberOfLines={1}>{item.name}</Text>
+            {cohort && (
+              <View style={passStyles.cohortTag}>
+                <Text style={passStyles.cohortTagText}>Cohort</Text>
+              </View>
+            )}
+          </View>
           <Text style={passStyles.cardSubtitle} numberOfLines={1}>{subtitle}</Text>
+          {cohortRun ? <Text style={passStyles.cardSubtitle} numberOfLines={1}>{cohortRun}</Text> : null}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 5 }}>
           {hasTrack ? (
@@ -302,8 +315,14 @@ function PassCard({
 const passStyles = StyleSheet.create({
   card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, padding: 16 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, flexShrink: 1 },
   cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3 },
+  cohortTag: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
+  },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.4 },
   badge: {
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 3,

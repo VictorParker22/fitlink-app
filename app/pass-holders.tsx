@@ -14,8 +14,22 @@ import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import {
   weekOfPosition, totalWeeks, weekHistogram, firstUntouchedWeek, isOnLatestTrack,
 } from '../lib/passWeeks';
+import {
+  isCohort, enrollmentState, formatRun, formatDeadline, spotsLeft,
+} from '../lib/cohort';
+import type { EnrollmentState } from '../lib/cohort';
 
 const STALLED_DAYS = 4;
+
+/** How each cohort state reads to the coach. Tone drives the pill colour only. */
+const COHORT_STATE_META: Record<EnrollmentState, { label: string; tone: 'accent' | 'warning' | 'muted' }> = {
+  'open': { label: 'Enrollment open', tone: 'accent' },
+  'closing-soon': { label: 'Closing soon', tone: 'warning' },
+  'closed-date': { label: 'Enrollment closed', tone: 'muted' },
+  'full': { label: 'Full', tone: 'warning' },
+  'running': { label: 'Running', tone: 'accent' },
+  'finished': { label: 'Finished', tone: 'muted' },
+};
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
@@ -164,6 +178,29 @@ export default function PassHoldersScreen() {
   }
 
   const hasHolders = rows.length > 0;
+
+  // ── Cohort header ───────────────────────────────────────────────────────
+  // Only for a dated pass. Seats are counted from the real enrollment rows
+  // already loaded above — nothing here is estimated.
+  const cohort = isCohort(plan) ? plan : null;
+  const seatsTaken = enrollments.length;
+  // enrollmentState() reports from a would-be joiner's view, so it says
+  // 'closed-date' the moment a cohort starts. Asking it again as an enrolled
+  // athlete separates a cohort that is running from one that has finished —
+  // which is what the coach actually wants to see.
+  const cohortState: EnrollmentState | null = (() => {
+    if (!cohort) return null;
+    const asMember = enrollmentState(cohort, seatsTaken, true);
+    if (asMember === 'running' || asMember === 'finished') return asMember;
+    return enrollmentState(cohort, seatsTaken);
+  })();
+  const cohortMeta = cohortState ? COHORT_STATE_META[cohortState] : null;
+  const seatsLeft = spotsLeft(cohort, seatsTaken);
+  const runLine = formatRun(cohort);
+  // A closed/running/finished cohort has nothing useful to say about a deadline.
+  const deadlineLine = cohortState === 'open' || cohortState === 'closing-soon' || cohortState === 'full'
+    ? formatDeadline(cohort)
+    : null;
   const subtitle = hasHolders
     ? `Live · $${plan.price.toLocaleString()} · ${rows.length} holder${rows.length === 1 ? '' : 's'}`
     : `$${plan.price.toLocaleString()} · no holders yet`;
@@ -185,6 +222,44 @@ export default function PassHoldersScreen() {
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
       >
+        {cohort && (
+          <View style={st.section}>
+            <View style={st.card}>
+              <View style={st.cohortTopRow}>
+                <Text style={st.eyebrow}>Cohort</Text>
+                {cohortMeta && (
+                  <View style={[
+                    st.statePill,
+                    cohortMeta.tone === 'accent' && st.statePillAccent,
+                    cohortMeta.tone === 'warning' && st.statePillWarning,
+                  ]}>
+                    <Text style={[
+                      st.statePillText,
+                      cohortMeta.tone === 'accent' && { color: CoachColors.accent },
+                      cohortMeta.tone === 'warning' && { color: CoachColors.warning },
+                    ]}>{cohortMeta.label}</Text>
+                  </View>
+                )}
+              </View>
+              {runLine ? <Text style={st.cohortRun}>{runLine}</Text> : null}
+              {deadlineLine ? <Text style={st.cohortMeta}>{deadlineLine}</Text> : null}
+              {cohort.capacity ? (
+                <>
+                  <Text style={st.cohortMeta}>
+                    {seatsTaken} of {cohort.capacity} seat{cohort.capacity === 1 ? '' : 's'} taken
+                  </Text>
+                  <View style={st.seatTrack}>
+                    <View style={[st.seatFill, { width: `${Math.min(100, (seatsTaken / cohort.capacity) * 100)}%` }]} />
+                  </View>
+                  {seatsLeft !== null && seatsLeft > 0 && (cohortState === 'open' || cohortState === 'closing-soon') && (
+                    <Text style={st.cohortMeta}>{seatsLeft} left</Text>
+                  )}
+                </>
+              ) : null}
+            </View>
+          </View>
+        )}
+
         {!loading && !hasHolders && (
           <View style={st.emptyState}>
             <Text style={st.emptyTitle}>No one has bought this pass yet</Text>
@@ -369,6 +444,22 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 15,
   },
+  cohortTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  statePill: {
+    borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  statePillAccent: { borderColor: 'rgba(198,242,78,0.35)' },
+  statePillWarning: { borderColor: CoachColors.warning },
+  statePillText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint, letterSpacing: 0.4 },
+  cohortRun: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginTop: 10 },
+  cohortMeta: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 5 },
+  seatTrack: {
+    height: 5, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
+    overflow: 'hidden', marginTop: 8,
+  },
+  seatFill: { height: '100%', borderRadius: 999, backgroundColor: CoachColors.accent },
+
   histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 14, height: 88 },
   histCol: { flex: 1, alignItems: 'center', height: '100%' },
   histBarWell: { flex: 1, width: '100%', justifyContent: 'flex-end' },

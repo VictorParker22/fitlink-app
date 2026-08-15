@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
+import { isCohort } from '../../lib/cohort';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 const C = CoachColors;
@@ -15,6 +16,14 @@ const F = CoachFonts;
  *
  * Real data or nothing: renders null until the table exists (42P01-silent)
  * and there is at least one event on this plan.
+ *
+ * COHORTS (lib/cohort.ts): a cohort is a fixed group starting together, so
+ * the same plan-scoped feed IS the cohort — it is only labeled truthfully:
+ * "Your cohort", with a real "N training together" count when the enrollment
+ * count actually comes back queryable and greater than one. A failed count, a
+ * count the athlete cannot see past their own row, or an evergreen pass all
+ * leave the feed exactly as it was: "The squad", no count. No fabricated
+ * members, no fabricated activity.
  */
 
 type SquadEvent = {
@@ -39,10 +48,17 @@ function timeAgo(iso: string): string {
 }
 
 export default function SquadFeed() {
-  const { clientData, enrollment } = useClient();
+  const { clientData, enrollment, plans } = useClient();
   const [events, setEvents] = useState<SquadEvent[]>([]);
+  // Real cohort size, or null when the count is not queryable — never guessed.
+  const [memberCount, setMemberCount] = useState<number | null>(null);
 
   const planId = enrollment?.plan_id;
+  const plan = useMemo(
+    () => (planId ? (plans || []).find((p: any) => p.id === planId) || null : null),
+    [plans, planId],
+  );
+  const cohort = isCohort(plan as any);
 
   useEffect(() => {
     if (!planId) { setEvents([]); return; }
@@ -61,6 +77,24 @@ export default function SquadFeed() {
     })();
     return () => { alive = false; };
   }, [planId]);
+
+  // Cohort size — the same count my-pass uses for seats. Only asked for a
+  // cohort; anything other than a number leaves the header uncounted.
+  useEffect(() => {
+    setMemberCount(null);
+    if (!planId || !cohort) return;
+    let alive = true;
+    (async () => {
+      const { count, error } = await supabase
+        .from('client_plan_enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('plan_id', planId)
+        .in('status', ['active', 'completed']);
+      if (!alive) return;
+      setMemberCount(error || typeof count !== 'number' ? null : count);
+    })();
+    return () => { alive = false; };
+  }, [planId, cohort]);
 
   if (!planId || events.length === 0) return null;
 
@@ -84,9 +118,19 @@ export default function SquadFeed() {
 
   if (rows.length === 0) return null;
 
+  // A count of 1 is just the athlete's own row — nothing worth saying, and
+  // "1 training together" would read as a claim about the group.
+  const countLabel =
+    cohort && typeof memberCount === 'number' && memberCount > 1
+      ? `${memberCount} training together`
+      : null;
+
   return (
     <View style={s.card}>
-      <Text style={s.label}>The squad</Text>
+      <View style={s.headRow}>
+        <Text style={s.label}>{cohort ? 'Your cohort' : 'The squad'}</Text>
+        {countLabel ? <Text style={s.count}>{countLabel}</Text> : null}
+      </View>
       <View style={{ marginTop: 10, gap: 9 }}>
         {rows.map((r, i) => (
           <View key={r.id}>
@@ -99,7 +143,11 @@ export default function SquadFeed() {
           </View>
         ))}
       </View>
-      <Text style={s.foot}>Athletes on your pass. Only what they chose to share.</Text>
+      <Text style={s.foot}>
+        {cohort
+          ? 'Athletes in your cohort. Only what they chose to share.'
+          : 'Athletes on your pass. Only what they chose to share.'}
+      </Text>
     </View>
   );
 }
@@ -110,10 +158,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 18, padding: 15, marginTop: 12,
   },
+  headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   label: {
     fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase',
   },
+  count: { fontFamily: F.bodyMedium, fontSize: 11.5, color: C.textMuted },
   divider: { height: 1, backgroundColor: '#21241F', marginBottom: 9 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent },

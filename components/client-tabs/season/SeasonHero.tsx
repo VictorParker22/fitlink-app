@@ -8,11 +8,19 @@
  *
  * The bar animates to its value on mount unless Reduce Motion is on, in
  * which case it renders at the final width immediately.
+ *
+ * COHORTS (lib/cohort.ts): when the enrolled plan has a real starts_on, the
+ * pass runs on a calendar, so two honest additions appear — the run line
+ * ("Sep 8 – Sep 29") under the pass name, and, before it begins, a pre-start
+ * eyebrow ("Starts Tuesday · 3 days to go") in place of "week 1 of 8". An
+ * evergreen pass has neither, and renders exactly as before.
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { isCohort, formatRun, type CohortFields } from '../../../lib/cohort';
+import { preStartLine } from '../../../lib/cohortPreStart';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -20,6 +28,8 @@ const F = CoachFonts;
 type Props = {
   planName: string;
   description?: string | null;
+  /** The enrolled plan — only read for its cohort fields (starts_on et al). */
+  plan?: CohortFields | null;
   currentWeek: number;
   totalWeeks: number;
   /** Nodes completed (enrollment.track_position, clamped upstream). */
@@ -32,6 +42,7 @@ type Props = {
 export default function SeasonHero({
   planName,
   description,
+  plan,
   currentWeek,
   totalWeeks,
   position,
@@ -52,9 +63,16 @@ export default function SeasonHero({
 
   const barStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
+  // Cohort extras — real dates only, nothing for evergreen passes.
+  const cohort = isCohort(plan);
+  const runLine = cohort ? formatRun(plan) : null;
+  const preStart = cohort && !completed ? preStartLine(plan) : null;
+
   const eyebrow = completed
     ? 'Your season · finished'
-    : `Your season · week ${currentWeek} of ${totalWeeks}`;
+    : preStart
+      ? preStart
+      : `Your season · week ${currentWeek} of ${totalWeeks}`;
 
   return (
     <View
@@ -62,11 +80,14 @@ export default function SeasonHero({
       accessibilityLabel={
         completed
           ? `${planName}, season finished. All ${trackLength} steps done.`
-          : `${planName}, week ${currentWeek} of ${totalWeeks}. ${position} of ${trackLength} steps done.`
+          : preStart
+            ? `${planName}. ${preStart}.${runLine ? ` Runs ${runLine}.` : ''}`
+            : `${planName}, week ${currentWeek} of ${totalWeeks}. ${position} of ${trackLength} steps done.${runLine ? ` Runs ${runLine}.` : ''}`
       }
     >
       <Text style={s.eyebrow}>{eyebrow}</Text>
       <Text style={s.title}>{planName}</Text>
+      {runLine ? <Text style={s.runLine}>{runLine}</Text> : null}
       {description ? (
         <Text style={s.description} numberOfLines={2}>
           {description}
@@ -96,6 +117,13 @@ const s = StyleSheet.create({
     lineHeight: 33,
     color: C.textPrimary,
     marginTop: 8,
+  },
+  // Cohort run — the real calendar window, under the pass name.
+  runLine: {
+    fontFamily: F.bodyMedium,
+    fontSize: 12.5,
+    color: C.textMuted,
+    marginTop: 5,
   },
   description: {
     fontFamily: F.body,
