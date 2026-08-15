@@ -7,7 +7,24 @@ import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
-import { isCohort, formatRun, formatDeadline } from '../lib/cohort';
+import { isCohort, formatRun, formatDeadline, formatDay, parseLocalDay } from '../lib/cohort';
+import { totalWeeks } from '../lib/passWeeks';
+
+/**
+ * "SEP 8 · 4 WEEKS" — the dated badge that makes a cohort instantly
+ * distinguishable from an evergreen pass. Real start date and real week count
+ * only; the duration half drops out when the track is still empty (totalWeeks
+ * floors at 1, which would read as a lie).
+ */
+const cohortBadgeLabel = (plan: any): string | null => {
+  const start = parseLocalDay(plan?.starts_on);
+  if (!start) return null;
+  const day = formatDay(start)!;
+  const weeks: number | null = plan?.duration_weeks
+    ?? (plan?.track?.length ? totalWeeks(plan.track, null) : null);
+  const text = weeks && weeks > 0 ? `${day} · ${weeks} week${weeks === 1 ? '' : 's'}` : day;
+  return text.toUpperCase();
+};
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -73,6 +90,7 @@ export default function PlanDetailScreen() {
   const cohortRun = cohort
     ? [formatRun(plan), formatDeadline(plan)].filter(Boolean).join(' · ')
     : null;
+  const cohortBadge = cohort ? cohortBadgeLabel(plan) : null;
   const features = ((plan as any).features || []) as string[];
   const isPopular = (plan as any).is_popular;
 
@@ -150,9 +168,13 @@ export default function PlanDetailScreen() {
               <View style={{ flex: 1 }}>
                 <View style={st.tierRow}>
                   <Text style={st.tierLabel}>{tier.rank} pass</Text>
-                  {cohort && (
-                    <View style={st.cohortTag}>
-                      <Text style={st.cohortTagText}>Cohort</Text>
+                  {cohortBadge && (
+                    <View
+                      style={st.cohortTag}
+                      accessible
+                      accessibilityLabel={`Cohort. ${cohortRun ?? cohortBadge}`}
+                    >
+                      <Text style={st.cohortTagText}>{cohortBadge}</Text>
                     </View>
                   )}
                 </View>
@@ -448,10 +470,11 @@ const st = StyleSheet.create({
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   cohortTag: {
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
+    backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
-  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.4 },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.7 },
   cohortRunLine: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 4 },
 
   popularTag: {

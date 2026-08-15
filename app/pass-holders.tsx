@@ -15,15 +15,19 @@ import {
   weekOfPosition, totalWeeks, weekHistogram, firstUntouchedWeek, isOnLatestTrack,
 } from '../lib/passWeeks';
 import {
-  isCohort, enrollmentState, formatRun, formatDeadline, spotsLeft,
+  isCohort, enrollmentState, formatRun, formatDay, enrollmentDeadline, spotsLeft,
 } from '../lib/cohort';
 import type { EnrollmentState } from '../lib/cohort';
+import { daysUntilStart } from '../lib/cohortPreStart';
 
 const STALLED_DAYS = 4;
 
-/** How each cohort state reads to the coach. Tone drives the pill colour only. */
+/** Seat pips stay readable up to this cap; above it a bar reads better. */
+const MAX_SEAT_PIPS = 20;
+
+/** The phase word for each cohort state, in the coach's language. Tone drives colour only. */
 const COHORT_STATE_META: Record<EnrollmentState, { label: string; tone: 'accent' | 'warning' | 'muted' }> = {
-  'open': { label: 'Enrollment open', tone: 'accent' },
+  'open': { label: 'Filling', tone: 'accent' },
   'closing-soon': { label: 'Closing soon', tone: 'warning' },
   'closed-date': { label: 'Enrollment closed', tone: 'muted' },
   'full': { label: 'Full', tone: 'warning' },
@@ -44,6 +48,22 @@ const joinedLabel = (iso: string): string => {
   if (d <= 0) return 'joined today';
   if (d === 1) return 'joined yesterday';
   return `joined ${DAY_NAMES[new Date(iso).getDay()]}`;
+};
+
+/** Roster-row phrasing, real date all the way back: "Joined Sep 3". */
+const joinedOn = (iso: string): string => {
+  const d = daysSince(iso);
+  if (d <= 0) return 'Joined today';
+  if (d === 1) return 'Joined yesterday';
+  if (d < 7) return `Joined ${DAY_NAMES[new Date(iso).getDay()]}`;
+  return `Joined ${formatDay(new Date(iso))}`;
+};
+
+/** Whole days from today to a local day. Negative once past. */
+const daysUntil = (date: Date): number => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((date.getTime() - today.getTime()) / 86400000);
 };
 
 export default function PassHoldersScreen() {
@@ -105,6 +125,13 @@ export default function PassHoldersScreen() {
       if (aDone !== bDone) return bDone - aDone;
       return b.enrollment.track_position - a.enrollment.track_position;
     });
+  }, [rows]);
+
+  // Roster order for a cohort that hasn't started: newest joiner on top, from
+  // the real created_at (falling back to started_at on older rows).
+  const rosterRows = useMemo(() => {
+    const at = (e: PlanEnrollment) => new Date(e.created_at || e.started_at).getTime();
+    return [...rows].sort((a, b) => at(b.enrollment) - at(a.enrollment));
   }, [rows]);
 
   const activePositions = useMemo(
@@ -179,7 +206,7 @@ export default function PassHoldersScreen() {
 
   const hasHolders = rows.length > 0;
 
-  // ── Cohort header ───────────────────────────────────────────────────────
+  // ── Cohort launch state ─────────────────────────────────────────────────
   // Only for a dated pass. Seats are counted from the real enrollment rows
   // already loaded above — nothing here is estimated.
   const cohort = isCohort(plan) ? plan : null;
@@ -197,10 +224,69 @@ export default function PassHoldersScreen() {
   const cohortMeta = cohortState ? COHORT_STATE_META[cohortState] : null;
   const seatsLeft = spotsLeft(cohort, seatsTaken);
   const runLine = formatRun(cohort);
-  // A closed/running/finished cohort has nothing useful to say about a deadline.
-  const deadlineLine = cohortState === 'open' || cohortState === 'closing-soon' || cohortState === 'full'
-    ? formatDeadline(cohort)
+
+  // Before day one nobody has trained, so the week histogram is an empty grid
+  // and the progress list is a column of zeros. That phase gets the roster.
+  const daysToStart = cohort ? daysUntilStart(cohort) : null;
+  const preStart = daysToStart !== null && daysToStart > 0;
+
+  const startsInLine =
+    daysToStart === null ? null
+      : daysToStart === 0 ? 'starts today'
+      : daysToStart === 1 ? 'starts tomorrow'
+      : daysToStart > 0 ? `starts in ${daysToStart} days`
+      : null;
+
+  // "enrollment ends Sunday" inside the week, a real date beyond it.
+  const deadlineSoftLine = (() => {
+    const deadline = enrollmentDeadline(cohort);
+    if (!deadline) return null;
+    const d = daysUntil(deadline);
+    if (d < 0) return null;
+    if (d === 0) return 'enrollment ends today';
+    if (d === 1) return 'enrollment ends tomorrow';
+    if (d < 7) return `enrollment ends ${DAY_NAMES[deadline.getDay()]}`;
+    return `enrollment ends ${formatDay(deadline)}`;
+  })();
+
+  // Which week the cohort is in right now, from the real elapsed days.
+  const weekNow = daysToStart !== null && daysToStart <= 0
+    ? Math.floor(-daysToStart / 7) + 1
     : null;
+
+  // The phase in one plain-language line, always with a real number attached.
+  const launchDetail = (() => {
+    switch (cohortState) {
+      case 'open':
+      case 'full':
+      case 'closed-date':
+        return startsInLine;
+      case 'closing-soon':
+        return deadlineSoftLine ?? startsInLine;
+      case 'running':
+        return weekNow === null ? null
+          : nTotalWeeks > 0 ? `week ${Math.min(weekNow, nTotalWeeks)} of ${nTotalWeeks}`
+          : `week ${weekNow}`;
+      case 'finished':
+        return runLine ? `ran ${runLine}` : null;
+      default:
+        return null;
+    }
+  })();
+  const launchLine = cohortMeta
+    ? [cohortMeta.label, launchDetail].filter(Boolean).join(' · ')
+    : null;
+  // The run dates are already inside the "Finished · ran …" line.
+  const showRunLine = !!runLine && cohortState !== 'finished';
+
+  const capacity = cohort?.capacity ?? null;
+  const seatsLabel = capacity
+    ? `${Math.min(seatsTaken, capacity)} of ${capacity} seat${capacity === 1 ? '' : 's'} taken`
+    : null;
+  const usePips = !!capacity && capacity <= MAX_SEAT_PIPS;
+
+  const bulkLabel = preStart ? 'Message the cohort' : `Message all ${rows.length}`;
+
   const subtitle = hasHolders
     ? `Live · $${plan.price.toLocaleString()} · ${rows.length} holder${rows.length === 1 ? '' : 's'}`
     : `$${plan.price.toLocaleString()} · no holders yet`;
@@ -225,49 +311,102 @@ export default function PassHoldersScreen() {
         {cohort && (
           <View style={st.section}>
             <View style={st.card}>
-              <View style={st.cohortTopRow}>
+              {/* Launch state: one grouped label for screen readers, so it reads
+                  as a sentence rather than three orphan fragments. */}
+              <View
+                accessible
+                accessibilityRole="header"
+                accessibilityLabel={[launchLine, showRunLine ? runLine : null].filter(Boolean).join('. ')}
+              >
                 <Text style={st.eyebrow}>Cohort</Text>
-                {cohortMeta && (
-                  <View style={[
-                    st.statePill,
-                    cohortMeta.tone === 'accent' && st.statePillAccent,
-                    cohortMeta.tone === 'warning' && st.statePillWarning,
-                  ]}>
-                    <Text style={[
-                      st.statePillText,
-                      cohortMeta.tone === 'accent' && { color: CoachColors.accent },
-                      cohortMeta.tone === 'warning' && { color: CoachColors.warning },
-                    ]}>{cohortMeta.label}</Text>
-                  </View>
-                )}
+                {launchLine ? (
+                  <Text style={[
+                    st.launchLine,
+                    cohortMeta?.tone === 'accent' && { color: CoachColors.accent },
+                    cohortMeta?.tone === 'warning' && { color: CoachColors.warning },
+                  ]}>{launchLine}</Text>
+                ) : null}
+                {showRunLine ? <Text style={st.cohortRun}>{runLine}</Text> : null}
               </View>
-              {runLine ? <Text style={st.cohortRun}>{runLine}</Text> : null}
-              {deadlineLine ? <Text style={st.cohortMeta}>{deadlineLine}</Text> : null}
-              {cohort.capacity ? (
-                <>
-                  <Text style={st.cohortMeta}>
-                    {seatsTaken} of {cohort.capacity} seat{cohort.capacity === 1 ? '' : 's'} taken
-                  </Text>
-                  <View style={st.seatTrack}>
-                    <View style={[st.seatFill, { width: `${Math.min(100, (seatsTaken / cohort.capacity) * 100)}%` }]} />
-                  </View>
-                  {seatsLeft !== null && seatsLeft > 0 && (cohortState === 'open' || cohortState === 'closing-soon') && (
-                    <Text style={st.cohortMeta}>{seatsLeft} left</Text>
+
+              {/* Seats — only when the coach actually set a cap. An uncapped
+                  cohort shows nothing here rather than implying a ceiling. */}
+              {capacity ? (
+                <View
+                  style={st.seatsBlock}
+                  accessible
+                  accessibilityLabel={seatsLabel ?? undefined}
+                >
+                  <Text style={st.seatsLabel}>{seatsLabel}</Text>
+                  {usePips ? (
+                    <View style={st.pipRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                      {Array.from({ length: capacity }).map((_, i) => (
+                        <View key={i} style={[st.pip, i < seatsTaken && st.pipTaken]} />
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={st.seatTrack} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                      <View style={[st.seatFill, { width: `${Math.min(100, (seatsTaken / capacity) * 100)}%` }]} />
+                    </View>
                   )}
-                </>
+                  {seatsLeft !== null && seatsLeft > 0 && (cohortState === 'open' || cohortState === 'closing-soon') && (
+                    <Text style={st.cohortMeta}>
+                      {seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left
+                    </Text>
+                  )}
+                </View>
               ) : null}
             </View>
           </View>
         )}
 
-        {!loading && !hasHolders && (
+        {!loading && !hasHolders && !preStart && (
           <View style={st.emptyState}>
             <Text style={st.emptyTitle}>No one has bought this pass yet</Text>
             <Text style={st.emptyText}>Once an athlete buys in, you'll see where everyone is in the season here.</Text>
           </View>
         )}
 
-        {hasHolders && trackLength > 0 && (
+        {/* Roster forming — before day one there is no progress to chart, so
+            the week histogram would be an empty grid. Who has joined, and
+            when, is the only real signal in this phase. */}
+        {preStart && (
+          <View style={st.section}>
+            <View style={st.holdersHeader}>
+              <Text style={st.eyebrow}>Roster forming</Text>
+              {hasHolders && <Text style={st.sortNote}>Newest first</Text>}
+            </View>
+            {!hasHolders ? (
+              <Text style={st.rosterEmpty}>
+                No one has taken a seat yet. Anyone who joins before day one shows up here, newest first.
+              </Text>
+            ) : (
+              <View>
+                {rosterRows.map(({ enrollment, client }, i) => (
+                  <TouchableOpacity
+                    key={enrollment.id}
+                    style={[st.holderRow, i === rosterRows.length - 1 && { borderBottomWidth: 0 }]}
+                    onPress={() => router.push(`/client/${client!.id}` as any)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${client!.name}. ${joinedOn(enrollment.created_at || enrollment.started_at)}`}
+                  >
+                    <View style={st.avatar}><Text style={st.avatarText}>{initials(client!.name)}</Text></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={st.holderName} numberOfLines={1}>{client!.name}</Text>
+                      <Text style={st.holderMeta} numberOfLines={1}>
+                        {joinedOn(enrollment.created_at || enrollment.started_at)}
+                      </Text>
+                    </View>
+                    <Text style={st.rosterSeat}>#{rosterRows.length - i}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {!preStart && hasHolders && trackLength > 0 && (
           <View style={st.section}>
             <View style={st.card}>
               <Text style={st.eyebrow}>Where everyone is</Text>
@@ -307,7 +446,7 @@ export default function PassHoldersScreen() {
           </View>
         )}
 
-        {hasHolders && (
+        {!preStart && hasHolders && (
           <View style={st.section}>
             <View style={st.holdersHeader}>
               <Text style={st.eyebrow}>Holders</Text>
@@ -361,8 +500,14 @@ export default function PassHoldersScreen() {
 
       <View style={[st.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {hasHolders && (
-          <TouchableOpacity style={st.outlineBtn} onPress={() => setComposeOpen(true)} activeOpacity={0.8}>
-            <Text style={st.outlineBtnText}>Message all {rows.length}</Text>
+          <TouchableOpacity
+            style={st.outlineBtn}
+            onPress={() => setComposeOpen(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`${bulkLabel}. Sends to ${rows.length} athlete${rows.length === 1 ? '' : 's'}.`}
+          >
+            <Text style={st.outlineBtnText}>{bulkLabel}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -386,8 +531,10 @@ export default function PassHoldersScreen() {
               <Text style={st.sheetSentText}>Sent to {sentCount} holder{sentCount === 1 ? '' : 's'}</Text>
             ) : (
               <>
-                <Text style={st.eyebrow}>Message all {rows.length}</Text>
-                <Text style={st.sheetHint}>Lands in each holder's conversation as a message from you.</Text>
+                <Text style={st.eyebrow}>{bulkLabel}</Text>
+                <Text style={st.sheetHint}>
+                  Lands in each of the {rows.length} {preStart ? 'joiner' : 'holder'}{rows.length === 1 ? '' : 's'}' conversation as a message from you.
+                </Text>
                 <TextInput
                   style={st.sheetInput}
                   placeholder="Write your message"
@@ -444,21 +591,35 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 15,
   },
-  cohortTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statePill: {
-    borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3,
-    borderWidth: 1, borderColor: CoachColors.borderMuted,
+  launchLine: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 19, lineHeight: 25,
+    color: CoachColors.textPrimary, marginTop: 9,
   },
-  statePillAccent: { borderColor: 'rgba(198,242,78,0.35)' },
-  statePillWarning: { borderColor: CoachColors.warning },
-  statePillText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint, letterSpacing: 0.4 },
-  cohortRun: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginTop: 10 },
+  cohortRun: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 5 },
   cohortMeta: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 5 },
+
+  seatsBlock: {
+    marginTop: 15, paddingTop: 14,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
+  },
+  seatsLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  pipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 },
+  pip: {
+    width: 13, height: 13, borderRadius: 4,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: 'transparent',
+  },
+  pipTaken: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
   seatTrack: {
-    height: 5, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
-    overflow: 'hidden', marginTop: 8,
+    height: 6, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
+    overflow: 'hidden', marginTop: 10,
   },
   seatFill: { height: '100%', borderRadius: 999, backgroundColor: CoachColors.accent },
+
+  rosterEmpty: {
+    fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted,
+    lineHeight: 18, marginTop: 8,
+  },
+  rosterSeat: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.textFaint },
 
   histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 14, height: 88 },
   histCol: { flex: 1, alignItems: 'center', height: '100%' },

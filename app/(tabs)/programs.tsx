@@ -11,7 +11,24 @@ import { getCategoryColor } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
-import { isCohort, formatRun } from '../../lib/cohort';
+import { isCohort, formatRun, formatDay, parseLocalDay } from '../../lib/cohort';
+import { totalWeeks } from '../../lib/passWeeks';
+
+/**
+ * "SEP 8 · 4 WEEKS" — the dated badge that makes a cohort instantly
+ * distinguishable from an evergreen pass in a list. Built only from the real
+ * start date and a real week count; the duration half is dropped when the
+ * track is still empty (totalWeeks floors at 1, which would read as a lie).
+ */
+const cohortBadgeLabel = (plan: any): string | null => {
+  const start = parseLocalDay(plan?.starts_on);
+  if (!start) return null;
+  const day = formatDay(start)!;
+  const weeks: number | null = plan?.duration_weeks
+    ?? (plan?.track?.length ? totalWeeks(plan.track, null) : null);
+  const text = weeks && weeks > 0 ? `${day} · ${weeks} week${weeks === 1 ? '' : 's'}` : day;
+  return text.toUpperCase();
+};
 
 
 type TabType = 'workouts' | 'exercises' | 'diets' | 'plans' | 'classes';
@@ -58,6 +75,7 @@ function PassCard({
   // A cohort is a dated pass (lib/cohort.ts). Evergreen passes show nothing here.
   const cohort = isCohort(item);
   const cohortRun = cohort ? formatRun(item) : null;
+  const cohortBadge = cohort ? cohortBadgeLabel(item) : null;
 
   const workoutCount = (item.track || []).filter((n: any) => n.type === 'workout').length;
   const dietCount = (item.track || []).filter((n: any) => n.type === 'diet').length;
@@ -92,9 +110,13 @@ function PassCard({
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={passStyles.cardTitleRow}>
             <Text style={passStyles.cardTitle} numberOfLines={1}>{item.name}</Text>
-            {cohort && (
-              <View style={passStyles.cohortTag}>
-                <Text style={passStyles.cohortTagText}>Cohort</Text>
+            {cohortBadge && (
+              <View
+                style={passStyles.cohortTag}
+                accessible
+                accessibilityLabel={`Cohort. ${cohortRun ?? cohortBadge}`}
+              >
+                <Text style={passStyles.cohortTagText}>{cohortBadge}</Text>
               </View>
             )}
           </View>
@@ -319,10 +341,11 @@ const passStyles = StyleSheet.create({
   cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, flexShrink: 1 },
   cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3 },
   cohortTag: {
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
+    backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
-  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.4 },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.7 },
   badge: {
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 3,

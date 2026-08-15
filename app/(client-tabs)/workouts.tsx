@@ -42,12 +42,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useClient } from '../../context/ClientContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import { isCohort } from '../../lib/cohort';
+import { isPreStart, hasCohortStarted } from '../../lib/cohortPreStart';
 import { isOverdue, parseLocalDay } from '../../lib/streak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import type { TrackNode } from '../../context/AppContext';
@@ -60,6 +62,8 @@ import SeasonComplete from '../../components/client-tabs/SeasonComplete';
 import SeasonHero from '../../components/client-tabs/season/SeasonHero';
 import SeasonTrack from '../../components/client-tabs/season/SeasonTrack';
 import TrackStrip from '../../components/client-tabs/season/TrackStrip';
+import WaitingRoom from '../../components/client-tabs/cohort/WaitingRoom';
+import DayOneOverlay from '../../components/client-tabs/cohort/DayOneOverlay';
 import MuscleMap from '../../components/anatomy/MuscleMap';
 import {
   aggregateWorkoutMuscles,
@@ -122,6 +126,12 @@ export default function ClientWorkoutsScreen() {
   // View: the programme is home; legacy explore kept reachable behind one row.
   const [showExplore, setShowExplore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Cohort pre-start: the waiting room replaces the track until day one, and
+  // the full track expands under it on demand. Evergreen passes never see it.
+  const [showFullPlan, setShowFullPlan] = useState(false);
+  // Day one: the one-time launch moment, gated by an AsyncStorage flag below.
+  const [showDayOne, setShowDayOne] = useState(false);
 
   // Legacy explore state (unchanged wiring — see component comments there)
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,6 +286,55 @@ export default function ClientWorkoutsScreen() {
     (id?: string) => (id ? trainerWorkouts.find((w: any) => w.id === id) || null : null),
     [trainerWorkouts]
   );
+
+  // ── Cohort timing ─────────────────────────────────────────────────────────
+  // Both are false for an evergreen pass (no starts_on ⇒ no waiting room, no
+  // day one), so the athlete-paced season is untouched by everything below.
+  const preStart = !!programme && !programme.completed && isPreStart(programme.plan);
+  const cohortStarted = !!programme && !programme.completed && hasCohortStarted(programme.plan);
+
+  // The season's first session — the name the day-one moment states. Read
+  // from the real track, so it is omitted rather than guessed while the
+  // trainer's workout library is still loading.
+  const firstSessionWorkout = useMemo(() => {
+    if (!programme) return null;
+    const from = Math.min(Math.max(programme.position, 0), programme.track.length);
+    for (let i = from; i < programme.track.length; i++) {
+      if (programme.track[i].type === 'workout') return workoutById(programme.track[i].id);
+    }
+    return null;
+  }, [programme, workoutById]);
+
+  // Day one shows exactly once per enrollment: the flag is written on
+  // dismissal and keyed by enrollment id, so a second cohort later gets its
+  // own moment and a reinstall is the only way to see this one twice.
+  const dayOneKey = enrollment?.id ? `cohort_day_one_seen:${enrollment.id}` : null;
+
+  useEffect(() => {
+    if (!dayOneKey || !cohortStarted) return;
+    let alive = true;
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem(dayOneKey);
+        if (alive && !seen) setShowDayOne(true);
+      } catch {
+        // Storage failure: skip the moment rather than risk showing it daily.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [dayOneKey, cohortStarted]);
+
+  const dismissDayOne = useCallback(async () => {
+    setShowDayOne(false);
+    if (!dayOneKey) return;
+    try {
+      await AsyncStorage.setItem(dayOneKey, 'true');
+    } catch {
+      // Non-fatal — the flag simply retries next launch.
+    }
+  }, [dayOneKey]);
 
   // Muscle aggregate per workout — computed once per unique workout id and
   // cached, because track nodes repeat the same workouts across weeks and
@@ -626,6 +685,84 @@ export default function ClientWorkoutsScreen() {
   if (programme) {
     const planName = programme.plan?.name || 'Your programme';
 
+    // The season's own track, unchanged — shown outright once the season is
+    // live, and behind "See the full plan" while a cohort is still waiting.
+    const seasonTrackBlock = (
+      <>
+        {/* A cohort runs on the coach's calendar, so "at your pace" would be
+            untrue there — the sub says which kind of season this is. */}
+        <SectionHead
+          label={preStart ? 'The full plan' : 'Your season'}
+          sub={
+            isCohort(programme.plan)
+              ? `${planName} — every session in order, on the cohort's dates.`
+              : `${planName} — every session in order, at your pace.`
+          }
+        />
+        <View onLayout={(e) => { seasonTrackTopRef.current = e.nativeEvent.layout.y; }}>
+          <SeasonTrack
+            track={programme.track}
+            plan={programme.plan}
+            durationWeeks={programme.durationWeeks}
+            position={programme.position}
+            currentWeek={programme.currentWeek}
+            seasonCompleted={programme.completed}
+            workoutById={workoutById}
+            muscleInfoFor={muscleInfoFor}
+            coachFirst={coachFirst}
+            onOpenWorkout={(w, opts) => startTrackWorkout(w, opts)}
+            onOpenDiet={() => router.push(ClientRoute.myDiet)}
+            reducedMotion={reducedMotion}
+            onWeekLayout={(week, y) => { weekYsRef.current[week] = y; }}
+          />
+        </View>
+      </>
+    );
+
+    if (preStart) {
+      // ── The waiting room — a bought cohort that has not begun ────────────
+      // Real intake check: the athlete answered the goal question in
+      // onboarding (clients.goals / assessment_data.intake.goal) or they
+      // genuinely did not. Nothing is nudged on a guess.
+      const intake = (clientData as any)?.assessment_data?.intake || null;
+      const goalMissing =
+        !!trainer &&
+        !String((clientData as any)?.goals || '').trim() &&
+        !String(intake?.goal || '').trim();
+
+      body = (
+        <>
+          <WaitingRoom
+            planName={planName}
+            plan={programme.plan}
+            track={programme.track}
+            durationWeeks={programme.durationWeeks}
+            workoutById={workoutById}
+            trainerName={trainer?.name || null}
+            trainerAvatarUrl={trainer?.avatar_url || null}
+            coachFirst={coachFirst}
+            goalMissing={goalMissing}
+            onMessageCoach={() => router.push(ClientRoute.myMessages)}
+            fullPlanShown={showFullPlan}
+            onToggleFullPlan={() => setShowFullPlan((v) => !v)}
+          />
+
+          {showFullPlan && seasonTrackBlock}
+
+          {/* One-off assignments still stand on their own before day one */}
+          {assignedList.length > 0 && (
+            <>
+              <SectionHead
+                label="Extras from your coach"
+                sub={`One-off sessions from ${coachFirst}, on top of your season.`}
+              />
+              <View style={{ gap: 10 }}>{assignedList.map(renderAssignment)}</View>
+            </>
+          )}
+        </>
+      );
+
+    } else {
     body = (
       <>
         {/* Season hero — pass name, real week-of-weeks, true progress */}
@@ -653,33 +790,7 @@ export default function ClientWorkoutsScreen() {
         />
 
         {/* The track — the season's nodes, grouped and labeled by week */}
-        {/* A cohort runs on the coach's calendar, so "at your pace" would be
-            untrue there — the sub says which kind of season this is. */}
-        <SectionHead
-          label="Your season"
-          sub={
-            isCohort(programme.plan)
-              ? `${planName} — every session in order, on the cohort's dates.`
-              : `${planName} — every session in order, at your pace.`
-          }
-        />
-        <View onLayout={(e) => { seasonTrackTopRef.current = e.nativeEvent.layout.y; }}>
-          <SeasonTrack
-            track={programme.track}
-            plan={programme.plan}
-            durationWeeks={programme.durationWeeks}
-            position={programme.position}
-            currentWeek={programme.currentWeek}
-            seasonCompleted={programme.completed}
-            workoutById={workoutById}
-            muscleInfoFor={muscleInfoFor}
-            coachFirst={coachFirst}
-            onOpenWorkout={(w, opts) => startTrackWorkout(w, opts)}
-            onOpenDiet={() => router.push(ClientRoute.myDiet)}
-            reducedMotion={reducedMotion}
-            onWeekLayout={(week, y) => { weekYsRef.current[week] = y; }}
-          />
-        </View>
+        {seasonTrackBlock}
 
         {programme.completed && (
           <View style={s.noteCard}>
@@ -710,6 +821,7 @@ export default function ClientWorkoutsScreen() {
         )}
       </>
     );
+    }
   } else if (assignedList.length > 0) {
     // Direct assignments, no pass — the main surface, plus the way into one.
     body = (
@@ -773,6 +885,20 @@ export default function ClientWorkoutsScreen() {
           <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
         </Pressable>
       </ScrollView>
+
+      {/* Day one — the cohort's real start date has arrived, and this
+          enrollment has never been told. Shown once, then flagged. An
+          in-screen overlay, never a native Modal. */}
+      {showDayOne && programme && !finishedSeason && (
+        <DayOneOverlay
+          planName={programme.plan?.name || 'Your season'}
+          firstSessionName={firstSessionWorkout?.name || null}
+          onStart={() => {
+            dismissDayOne();
+            if (firstSessionWorkout) startTrackWorkout(firstSessionWorkout, { viewOnly: false });
+          }}
+        />
+      )}
 
       {/* Season finish — the receipt, then the question (24a) */}
       {finishedSeason && (

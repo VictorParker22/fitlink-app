@@ -20,6 +20,11 @@
  * begins, the stat line becomes "Starts Tuesday · 3 days to go" instead of
  * "Week 1 of 8". Evergreen passes are unchanged; the card stays compact.
  *
+ * BEFORE A COHORT STARTS the card becomes the anticipation card: pass name,
+ * the countdown as a stated fact, the run, and ONE way in — "See what's
+ * coming", into the waiting room on Train. No progress bar (a 0% bar before
+ * day one measures nothing) and no Continue (there is nothing to continue).
+ *
  * Fixed dark/lime system (constants/coachDesign.ts). Every number is real or
  * omitted. Bar animation gated behind lib/useReducedMotion.ts.
  */
@@ -205,6 +210,36 @@ export default function SeasonPulseCard() {
           accessibilityLabel="Review your season"
         >
           <Text style={st.reviewBtnText}>Review your season</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  // ── Pre-start cohort — the anticipation card ─────────────────────────────
+  // Bought, dated, not begun. Nothing here is a progress read, because there
+  // is no progress yet; the card states the fact and offers the one way in.
+  if (season.preStart) {
+    return (
+      <Animated.View entering={entering} style={st.card}>
+        <View
+          accessible={true}
+          accessibilityLabel={`Your season, ${season.planName}, ${season.preStart}${
+            season.runLine ? `. Runs ${season.runLine}` : ''
+          }`}
+        >
+          <Text style={st.eyebrow}>Your season</Text>
+          <Text style={st.title}>{season.planName}</Text>
+          <Text style={st.statLine}>{season.preStart}</Text>
+          {season.runLine ? <Text style={st.runLine}>{season.runLine}</Text> : null}
+        </View>
+        <Pressable
+          style={st.reviewBtnWide}
+          onPress={openSeason}
+          accessibilityRole="button"
+          accessibilityLabel="See what's coming"
+          accessibilityHint="Opens your waiting room on Train — week one and what to have ready"
+        >
+          <Text style={st.reviewBtnText}>{"See what's coming"}</Text>
         </Pressable>
       </Animated.View>
     );

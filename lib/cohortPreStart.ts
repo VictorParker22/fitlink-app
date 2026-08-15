@@ -34,3 +34,25 @@ export function preStartLine(plan?: CohortFields | null): string | null {
     days < 7 ? start.toLocaleDateString('en-GB', { weekday: 'long' }) : formatDay(start);
   return `Starts ${when} · ${days} days to go`;
 }
+
+/**
+ * True only for a cohort whose first day is still ahead — the waiting-room
+ * window. Evergreen passes (no start date) and running cohorts are false, so
+ * a single check gates every pre-start surface.
+ */
+export function isPreStart(plan?: CohortFields | null): boolean {
+  if (!isCohort(plan)) return false;
+  const days = daysUntilStart(plan);
+  return days !== null && days > 0;
+}
+
+/**
+ * True on and after a cohort's first day. Evergreen passes are athlete-paced
+ * and have no day one, so they are always false — which is what keeps the
+ * day-one moment off them entirely.
+ */
+export function hasCohortStarted(plan?: CohortFields | null): boolean {
+  if (!isCohort(plan)) return false;
+  const days = daysUntilStart(plan);
+  return days !== null && days <= 0;
+}

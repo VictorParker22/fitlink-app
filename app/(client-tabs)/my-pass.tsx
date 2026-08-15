@@ -28,8 +28,10 @@ import type { TrackNode } from '../../context/AppContext';
 import { weekStartIndices, weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import {
   isCohort, enrollmentState, spotsLeft, canJoin,
-  formatRun, formatDeadline, formatDay, parseLocalDay,
+  formatDay, parseLocalDay,
 } from '../../lib/cohort';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import CohortProgramCard from '../../components/client-tabs/cohort/CohortProgramCard';
 
 const WEEK_LABEL_RE = /^Week (\d+):\s*/;
 
@@ -93,6 +95,7 @@ export default function MyPassScreen() {
   const router = useRouter();
   const { clientData, plans, trainer, enrollment } = useClient();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const reducedMotion = useReducedMotion();
 
   const activeEnrollment = enrollment && enrollment.status === 'active' ? enrollment : null;
 
@@ -121,12 +124,24 @@ export default function MyPassScreen() {
     if (!planId || !cohortPlan || !capacity || capacity <= 0) return;
     let cancelled = false;
     (async () => {
+      // Preferred: the server-side count (it sees every enrollment, not just
+      // the rows this athlete is allowed to read). Falls back to the direct
+      // count while that RPC is still rolling out.
+      const rpc = await supabase.rpc('cohort_member_count', { p_plan_id: planId });
+      if (cancelled) return;
+      if (!rpc.error && typeof rpc.data === 'number') {
+        setSeatCounts(prev => ({ ...prev, [planId]: rpc.data as number }));
+        return;
+      }
+
       const { count, error } = await supabase
         .from('client_plan_enrollments')
         .select('id', { count: 'exact', head: true })
         .eq('plan_id', planId)
         .in('status', ['active', 'completed']);
       if (cancelled) return;
+      // Either query failing leaves the seat count unknown — the seats row is
+      // then omitted entirely rather than guessed at.
       setSeatCounts(prev => ({
         ...prev,
         [planId]: error || typeof count !== 'number' ? null : count,
@@ -201,11 +216,8 @@ export default function MyPassScreen() {
     // 'running' or 'finished' — never a sold-out banner.
     const enrolledIsCohort = isCohort(enrolledPlan);
     const enrolledState = enrolledIsCohort ? enrollmentState(enrolledPlan, 0, true) : null;
-    const enrolledRun = enrolledIsCohort ? formatRun(enrolledPlan) : null;
     const enrolledStartDay = enrolledIsCohort ? formatDay(parseLocalDay((enrolledPlan as any)?.starts_on)) : null;
-    const enrolledRunLine = enrolledRun
-      ? (enrolledState === 'finished' ? `Ran ${enrolledRun}` : enrolledRun)
-      : null;
+    // Before the first day there is no "week N" yet — say what actually happens.
     const enrolledCohortNote = enrolledState === 'open' && enrolledStartDay
       ? `Everyone starts on ${enrolledStartDay} and moves through the weeks together.`
       : null;
@@ -220,18 +232,19 @@ export default function MyPassScreen() {
             <Text style={s.enrolledEyebrow}>Your season</Text>
             <Text style={s.enrolledPlanName}>{enrolledPlan?.name || 'Your pass'}</Text>
             <Text style={s.enrolledWeek}>
-              You're in week {currentWeek} of {total}
+              {enrolledState === 'open'
+                ? "Your spot is booked"
+                : `You're in week ${currentWeek} of ${total}`}
             </Text>
-            {enrolledRunLine ? (
-              <View
-                style={s.cohortEnrolledFacts}
-                accessible
-                accessibilityLabel={[enrolledRunLine, enrolledCohortNote].filter(Boolean).join('. ')}
-              >
-                <View style={s.cohortLine}>
-                  <Ionicons name="calendar-outline" size={13} color={CoachColors.textMuted} />
-                  <Text style={s.cohortLineText}>{enrolledRunLine}</Text>
-                </View>
+            {enrolledIsCohort ? (
+              <View style={s.cohortEnrolledFacts}>
+                <CohortProgramCard
+                  plan={enrolledPlan as any}
+                  weeks={total}
+                  state={enrolledState}
+                  variant="enrolled"
+                  reducedMotion={reducedMotion}
+                />
                 {enrolledCohortNote ? (
                   <Text style={s.cohortNote}>{enrolledCohortNote}</Text>
                 ) : null}
@@ -298,17 +311,7 @@ export default function MyPassScreen() {
   // ── Cohort facts (evergreen passes: every value below is null/false and the
   //    screen renders exactly as it always has) ──────────────────────────────
   const cohortState = cohortPlan ? enrollmentState(plan as any, seatsKnown ? (seatCount as number) : 0) : null;
-  const runLine = cohortPlan ? formatRun(plan as any) : null;
-  const deadlineLine = cohortPlan ? formatDeadline(plan as any) : null;
   const startDay = cohortPlan ? formatDay(parseLocalDay((plan as any).starts_on)) : null;
-  // Seats only when the coach capped it AND we counted real enrollments.
-  const seatsLine = cohortPlan && capacity && left !== null
-    ? `${left} of ${capacity} spots left`
-    : null;
-  const whatHappens = startDay
-    ? `Everyone starts on ${startDay} and moves through the weeks together.`
-    : null;
-  const closingSoon = cohortState === 'closing-soon';
   const joinBlocked = cohortState === 'full' || cohortState === 'closed-date';
   const startedAlready = cohortPlan && cohortState === 'closed-date'
     && !!parseLocalDay((plan as any).starts_on)
@@ -322,14 +325,19 @@ export default function MyPassScreen() {
           : 'Enrollment closed')
       : null;
 
+  // The calm second line: why it's closed, and that this isn't the last one.
+  const blockedNote = cohortState === 'full'
+    ? (capacity
+        ? `Every one of the ${capacity} spots is taken, so the group stays the size your coach planned for.`
+        : 'Every spot is taken, so the group stays the size your coach planned for.')
+    : cohortState === 'closed-date'
+      ? 'Enrollment closed so everyone could start together on the same day.'
+      : null;
+
   // Somewhere else to go when this cohort can't be joined.
   const otherJoinable = joinBlocked && plans
     ? plans.filter((p: any) => p.id !== plan.id && canJoin(p, seatCounts[p.id] ?? 0))
     : [];
-
-  const cohortA11yLabel = cohortPlan
-    ? ['Cohort program', runLine, deadlineLine, seatsLine, whatHappens].filter(Boolean).join('. ')
-    : undefined;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -377,33 +385,14 @@ export default function MyPassScreen() {
 
           <View style={s.heroBody}>
             {cohortPlan ? (
-              <View style={s.cohortCard} accessible accessibilityLabel={cohortA11yLabel}>
-                {runLine ? (
-                  <View style={s.cohortLine}>
-                    <Ionicons name="calendar-outline" size={13} color={CoachColors.textMuted} />
-                    <Text style={s.cohortLineText}>{runLine}</Text>
-                  </View>
-                ) : null}
-                {deadlineLine ? (
-                  <View style={s.cohortLine}>
-                    <Ionicons
-                      name="time-outline"
-                      size={13}
-                      color={closingSoon ? CoachColors.warning : CoachColors.textMuted}
-                    />
-                    <Text style={[s.cohortLineText, closingSoon && s.cohortLineWarning]}>
-                      {deadlineLine}
-                    </Text>
-                  </View>
-                ) : null}
-                {seatsLine ? (
-                  <View style={s.cohortLine}>
-                    <Ionicons name="people-outline" size={13} color={CoachColors.textMuted} />
-                    <Text style={s.cohortLineText}>{seatsLine}</Text>
-                  </View>
-                ) : null}
-                {whatHappens ? <Text style={s.cohortNote}>{whatHappens}</Text> : null}
-              </View>
+              <CohortProgramCard
+                plan={plan as any}
+                weeks={seasonWeeks}
+                state={cohortState}
+                capacity={capacity}
+                spotsLeft={left}
+                reducedMotion={reducedMotion}
+              />
             ) : null}
 
             {trainer ? (
@@ -474,32 +463,35 @@ export default function MyPassScreen() {
         {joinBlocked ? (
           <View style={s.blockedBar}>
             <Text style={s.blockedText}>{blockedReason}</Text>
-            {cohortState === 'full' && trainer ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(ClientRoute.myMessages);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Message ${trainer.name} about the next cohort`}
-              >
-                <Text style={s.blockedLink}>Message {trainer.name} about the next one</Text>
-              </TouchableOpacity>
-            ) : null}
-            {cohortState === 'closed-date' && otherJoinable.length > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedPlanId(otherJoinable[0].id);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="See the other passes you can still join"
-              >
-                <Text style={s.blockedLink}>See passes you can still join</Text>
-              </TouchableOpacity>
-            ) : null}
+            {blockedNote ? <Text style={s.blockedNote}>{blockedNote}</Text> : null}
+            <View style={s.blockedActions}>
+              {otherJoinable.length > 0 ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedPlanId(otherJoinable[0].id);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="See the other passes you can still join"
+                >
+                  <Text style={s.blockedLink}>See passes you can still join</Text>
+                </TouchableOpacity>
+              ) : null}
+              {trainer ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(ClientRoute.myMessages);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Message ${trainer.name} about the next cohort`}
+                >
+                  <Text style={s.blockedLink}>Message {trainer.name} about the next one</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
         ) : null}
         <View style={s.footer}>
@@ -520,7 +512,11 @@ export default function MyPassScreen() {
                 : 'Start the season'
             }
           >
-            <Text style={s.footerCtaText}>Start the season</Text>
+            <Text style={[s.footerCtaText, joinBlocked && s.footerCtaTextDisabled]}>
+              {joinBlocked
+                ? (cohortState === 'full' ? 'Cohort full' : 'Enrollment closed')
+                : 'Start the season'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -603,16 +599,9 @@ const s = StyleSheet.create({
     lineHeight: 18, marginTop: 20, paddingHorizontal: 2,
   },
 
-  // Cohort facts
-  cohortCard: {
-    backgroundColor: CoachColors.bg, borderRadius: 12,
-    borderWidth: 1, borderColor: CoachColors.borderMuted,
-    paddingVertical: 12, paddingHorizontal: 13, gap: 7,
-  },
-  cohortEnrolledFacts: { marginTop: 8, gap: 6 },
-  cohortLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  cohortLineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
-  cohortLineWarning: { color: CoachColors.warning },
+  // Cohort facts (the designed card itself lives in
+  // components/client-tabs/cohort/CohortProgramCard.tsx)
+  cohortEnrolledFacts: { marginTop: 14, gap: 10 },
   cohortNote: {
     fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted,
     lineHeight: 17, marginTop: 1,
@@ -627,6 +616,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 12, gap: 4,
   },
   blockedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  blockedNote: {
+    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 17,
+  },
+  blockedActions: { gap: 4, marginTop: 4 },
   blockedLink: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.accent },
   footer: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -640,6 +633,7 @@ const s = StyleSheet.create({
     paddingVertical: 15, alignItems: 'center',
   },
   footerCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  footerCtaTextDisabled: { color: CoachColors.textMuted },
 
   // Enrolled summary
   enrolledCard: {
