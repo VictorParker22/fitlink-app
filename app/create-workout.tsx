@@ -13,6 +13,8 @@ import { Spacing, FontFamily, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
 import { proxyGifUrl, proxyGifStill } from '../lib/exercisedb';
+import { REGIONS, normalizeMuscle } from '../lib/muscles';
+import MuscleMap from '../components/anatomy/MuscleMap';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Audio } from 'expo-av';
@@ -59,6 +61,14 @@ export default function CreateWorkoutScreen() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
   const [failedGifs, setFailedGifs] = useState<Set<string>>(new Set());
+  const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
+  const [showBodyMap, setShowBodyMap] = useState(false);
+
+  const toggleMuscleFilter = (id: string) => {
+    setSelectedMuscles(prev =>
+      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    );
+  };
 
   // Body part -> category mapping for filtering
   const bodyPartCategoryMap: Record<string, string[]> = {
@@ -258,6 +268,13 @@ export default function CreateWorkoutScreen() {
       filtered = filtered.filter(e => categories.includes(e.category?.toLowerCase()));
     }
 
+    if (selectedMuscles.length > 0) {
+      filtered = filtered.filter(e => {
+        const region = normalizeMuscle(e.muscle_group || '');
+        return region !== null && selectedMuscles.includes(region);
+      });
+    }
+
     if (exerciseSearch.trim()) {
       const q = exerciseSearch.toLowerCase();
       filtered = filtered.filter(e =>
@@ -268,7 +285,7 @@ export default function CreateWorkoutScreen() {
     }
 
     return filtered;
-  }, [exercises, selectedBodyPart, exerciseSearch]);
+  }, [exercises, selectedBodyPart, exerciseSearch, selectedMuscles]);
 
   const [videoModalExercise, setVideoModalExercise] = useState<string | null>(null);
   const [videoUrlInput, setVideoUrlInput] = useState('');
@@ -683,6 +700,53 @@ export default function CreateWorkoutScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0, flexShrink: 0 }}
+            contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 8, alignItems: 'center' }}
+          >
+            <TouchableOpacity
+              onPress={() => setShowBodyMap(prev => !prev)}
+              style={[s.filterChip, s.bodyMapChip, showBodyMap && s.filterChipActive]}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={showBodyMap ? 'Hide body map' : 'Show body map'}
+            >
+              <Ionicons name="body-outline" size={13} color={showBodyMap ? CoachColors.accent : CoachColors.textSecondary} />
+              <Text style={[s.filterChipText, showBodyMap && s.filterChipTextActive]}>Body map</Text>
+            </TouchableOpacity>
+            {REGIONS.map((region) => {
+              const isActive = selectedMuscles.includes(region.id);
+              return (
+                <TouchableOpacity
+                  key={region.id}
+                  onPress={() => toggleMuscleFilter(region.id)}
+                  style={[s.filterChip, isActive && s.filterChipActive, { marginLeft: 8 }]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.filterChipText, isActive && s.filterChipTextActive]}>{region.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {showBodyMap && (
+            <View style={s.bodyMapWrap}>
+              <MuscleMap
+                view="both"
+                height={260}
+                selected={selectedMuscles}
+                onToggle={toggleMuscleFilter}
+              />
+              <Text style={s.bodyMapHint}>
+                {selectedMuscles.length > 0
+                  ? `Filtering by ${selectedMuscles.length} muscle group${selectedMuscles.length === 1 ? '' : 's'}`
+                  : 'Tap a muscle group to filter'}
+              </Text>
+            </View>
+          )}
 
           <Text style={s.resultCount}>{filteredPickerExercises.length} in {activeCategoryLabel}</Text>
 
@@ -1580,6 +1644,13 @@ const s = StyleSheet.create({
   filterChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
   filterChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
   filterChipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
+  bodyMapChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  bodyMapWrap: {
+    alignItems: 'center', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm,
+    paddingVertical: Spacing.md, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md,
+  },
+  bodyMapHint: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 8 },
 
   resultCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, paddingHorizontal: Spacing.lg, paddingBottom: 8 },
 

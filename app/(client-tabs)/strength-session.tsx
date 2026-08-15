@@ -2,27 +2,35 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform,
   LayoutAnimation, UIManager, ActivityIndicator, TextInput, KeyboardAvoidingView,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
+import Animated, { SlideInRight, SlideInLeft } from 'react-native-reanimated';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { supabase } from '../../lib/supabase';
+import { proxyGifUrl } from '../../lib/exercisedb';
 import { useWorkout, StrengthSetLog, SetFeel, WorkoutHistoryEntry } from '../../context/WorkoutContext';
 import { suggestNextLoad } from '../../lib/loadSuggestion';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useClient } from '../../context/ClientContext';
 import PRCelebration, { WeeklyBest } from '../../components/client-tabs/PRCelebration';
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
+import MuscleMap from '../../components/anatomy/MuscleMap';
+import { musclesForExercise } from '../../lib/muscles';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 /**
- * Athlete in-session experience (design turn 22b + 22c).
+ * Athlete in-session experience (design turn 22b + 22c, live mode reshaped as
+ * a card-centric "active workout" player).
  *
  * 22b — logging a set is two beats: the number (prefilled from real history,
  * big touch targets), then how it felt. The feel is stored on the set, not
@@ -32,6 +40,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
  * 22c — a genuine PR (top weight beats this athlete's real prior best for the
  * exercise) triggers the in-screen celebration overlay, and the PR can go
  * somewhere: an editable message into the coach conversation.
+ *
+ * Player layout — one exercise front-and-center per card (name, target,
+ * real tags/instructions/image, set logging inside the card), Prev/Next
+ * progression at the bottom with a jumpable exercise rail. Per-exercise
+ * input drafts are keyed by exercise id so navigation never loses state.
  */
 
 const FEELS: { key: SetFeel; label: string }[] = [
@@ -67,6 +80,12 @@ interface PrHit {
   priorBest: number;
 }
 
+interface InputDraft {
+  w: string;
+  r: string;
+  feel: SetFeel | null;
+}
+
 function fmtClock(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -77,11 +96,31 @@ function fmtKg(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
 }
 
+function cap(t: string): string {
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+// Real instructions → bullet lines. HTML list items / paragraphs become
+// bullets; a single plain-text blob is split on sentence ends. No data → [].
+function toBullets(raw?: string | null): string[] {
+  if (!raw) return [];
+  const withBreaks = String(raw)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(li|p|div|ol|ul)\s*>/gi, '\n');
+  const text = withBreaks.replace(/<[^>]*>?/gm, ' ').replace(/&nbsp;/g, ' ');
+  const lines = text.split(/\r?\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const items = lines.length > 1
+    ? lines
+    : (lines[0] ?? '').split(/\.\s+/).map(s => s.trim()).filter(s => s.length > 1);
+  return items.map(s => (/[.!?]$/.test(s) ? s : `${s}.`));
+}
+
 export default function StrengthSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId: string }>();
   const { workoutHistory, recordStrengthWorkout } = useWorkout();
   const { clientData, trainer, conversation, enrollment, exercisePrs, logExerciseSet, checkAndUpdatePr } = useClient();
+  const reducedMotion = useReducedMotion();
 
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -99,8 +138,14 @@ export default function StrengthSessionScreen() {
   const [prHit, setPrHit] = useState<PrHit | null>(null);
   const [showPr, setShowPr] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [showAllExercises, setShowAllExercises] = useState(false);
+  const [instrOpen, setInstrOpen] = useState<Record<string, boolean>>({});
   const startedAtRef = useRef(0);
   const finishedRef = useRef(false);
+  // In-progress inputs per exercise id — Prev/Next never loses typed state.
+  const draftsRef = useRef<Record<string, InputDraft>>({});
+  // Card slide direction: 1 = forward (slide in from right), -1 = backward.
+  const navDirRef = useRef<1 | -1>(1);
 
   useEffect(() => {
     async function fetchSession() {
@@ -161,8 +206,27 @@ export default function StrengthSessionScreen() {
   }, [exercisePrs, workoutHistory]);
 
   const currentEx = exercises[exIdx] ?? null;
+  // Muscle regions for the focus card's anatomy map — real exercise data only;
+  // exercises without recognizable muscle info simply render no map.
+  const muscleTargets = useMemo(
+    () =>
+      currentEx
+        ? musclesForExercise(currentEx.raw?.exercises ?? {})
+        : { primary: [] as string[], secondary: [] as string[] },
+    [currentEx],
+  );
   const doneSetsForCurrent = currentEx ? logged.filter(s => s.exerciseId === currentEx.exerciseId) : [];
   const curSetIdx = doneSetsForCurrent.length;
+
+  const setsDoneFor = useCallback((exerciseId: string) => (
+    logged.filter(s => s.exerciseId === exerciseId).length
+  ), [logged]);
+
+  // Exercises with every target set logged — drives the header progress bar
+  // and the done state on the rail.
+  const completedCount = useMemo(() => (
+    exercises.filter(e => setsDoneFor(e.exerciseId) >= e.sets).length
+  ), [exercises, setsDoneFor]);
 
   // Prefill the number from real history (last time's top set), else empty.
   const prefillFor = useCallback((ex: Ex) => {
@@ -219,12 +283,15 @@ export default function StrengthSessionScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     startedAtRef.current = Date.now();
     finishedRef.current = false;
+    draftsRef.current = {};
+    navDirRef.current = 1;
     setLogged([]);
     setExIdx(0);
     setElapsed(0);
     setRestLeft(null);
     setPrHit(null);
     setFeel(null);
+    setInstrOpen({});
     setMode('live');
     prefillFor(exercises[0]);
   };
@@ -245,6 +312,31 @@ export default function StrengthSessionScreen() {
     Haptics.selectionAsync();
     setFeel(prev => (prev === f ? null : f));
   };
+
+  // Restore a target exercise's saved draft, or prefill from real history.
+  const restoreInputsFor = useCallback((ex: Ex) => {
+    const draft = draftsRef.current[ex.exerciseId];
+    if (draft) {
+      setWeightStr(draft.w);
+      setRepsStr(draft.r);
+      setFeel(draft.feel);
+    } else {
+      prefillFor(ex);
+      setFeel(null);
+    }
+  }, [prefillFor]);
+
+  // Prev/Next/rail navigation — saves the current draft first, never drops it.
+  const goToExercise = useCallback((nextIdx: number) => {
+    if (nextIdx < 0 || nextIdx >= exercises.length || nextIdx === exIdx) return;
+    Haptics.selectionAsync();
+    if (currentEx) {
+      draftsRef.current[currentEx.exerciseId] = { w: weightStr, r: repsStr, feel };
+    }
+    navDirRef.current = nextIdx > exIdx ? 1 : -1;
+    restoreInputsFor(exercises[nextIdx]);
+    setExIdx(nextIdx);
+  }, [exercises, exIdx, currentEx, weightStr, repsStr, feel, restoreInputsFor]);
 
   const finishSession = useCallback(async (allSets: StrengthSetLog[], bestPr: PrHit | null) => {
     if (finishedRef.current) return;
@@ -376,13 +468,31 @@ export default function StrengthSessionScreen() {
     }
     const isLastExercise = exIdx + 1 >= exercises.length;
     if (!isLastExercise) {
+      // All target sets logged — rest starts and the player advances to the
+      // next card (drafts keep anything typed there earlier).
       setRestLeft(currentEx.restSec);
+      draftsRef.current[currentEx.exerciseId] = { w: weightStr, r: repsStr, feel: null };
+      navDirRef.current = 1;
+      restoreInputsFor(exercises[exIdx + 1]);
       setExIdx(exIdx + 1);
-      prefillFor(exercises[exIdx + 1]);
     } else {
-      finishSession(nextLogged, nextPr);
+      // Last exercise complete — the athlete ends it with "Finish session"
+      // (same finishSession path, PR detection unchanged).
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
+
+  // "Finish session" on the last card — invokes the existing finish flow.
+  const onFinishPress = useCallback(() => {
+    if (finishing) return;
+    if (logged.length === 0) {
+      // Nothing logged: nothing honest to record — back to the overview.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setMode('overview');
+      return;
+    }
+    finishSession(logged, prHit);
+  }, [finishing, logged, prHit, finishSession]);
 
   // ── PR overlay data (all from real history) ──
   const prOverlayData = useMemo(() => {
@@ -459,6 +569,60 @@ export default function StrengthSessionScreen() {
     setExpandedExercises(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const toggleInstructions = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setInstrOpen(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Accordion list of the whole workout — used by the pre-start overview and
+  // reused inside the live-mode "All exercises" modal.
+  const renderExerciseList = () => (
+    <View style={{ gap: 8 }}>
+      {exercises.map((ex) => {
+        const open = expandedExercises[ex.key] || false;
+        const last = lastLoggedFor(ex.exerciseId);
+        const lastTop = last ? last.sets.reduce((a, b) => (b.weight > a.weight ? b : a)) : null;
+        const instructionText = ex.raw.notes || ex.raw.exercises?.instructions;
+        return (
+          <View key={ex.key} style={s.exCard}>
+            <TouchableOpacity
+              style={s.exRow}
+              activeOpacity={0.85}
+              onPress={() => toggleExercise(ex.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
+              accessibilityState={{ expanded: open }}
+              accessibilityHint={open ? 'Double tap to collapse details' : 'Double tap to expand details'}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.exName}>{ex.name}</Text>
+                <Text style={s.exMeta}>
+                  {ex.sets}×{ex.reps} · {ex.restSec}s rest
+                  {lastTop ? ` · last time ${fmtKg(lastTop.weight)} kg` : ''}
+                </Text>
+              </View>
+              <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={CoachColors.textFaint} />
+            </TouchableOpacity>
+            {open && (
+              <View style={s.exExpanded}>
+                <ExerciseMediaDemo
+                  imageUrl={ex.raw.exercises?.image_url}
+                  videoUrl={ex.raw.video_url}
+                  exerciseName={ex.name}
+                />
+                <ExerciseInstructions
+                  exerciseId={ex.key}
+                  instructionText={instructionText}
+                  muscleGroup={ex.raw.exercises?.muscle_group}
+                />
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+
   // ── Loading / not found ──
   if (loading) {
     return (
@@ -486,30 +650,56 @@ export default function StrengthSessionScreen() {
   }
 
   // ─────────────────────────────────────────────────────────
-  // LIVE MODE — 22b
+  // LIVE MODE — active workout player
   // ─────────────────────────────────────────────────────────
   if (mode === 'live' && currentEx) {
     const lastTime = lastLoggedFor(currentEx.exerciseId);
     const lastTop = lastTime ? lastTime.sets.reduce((a, b) => (b.weight > a.weight ? b : a)) : null;
-    const upcoming = Array.from({ length: Math.max(0, currentEx.sets - curSetIdx - 1) });
+    const isLastExercise = exIdx + 1 >= exercises.length;
+    const progressPct = exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0;
+
+    // Focus-card data — real fields only; blocks are omitted when absent.
+    const equipment = currentEx.raw.exercises?.equipment as string | undefined;
+    const difficulty = currentEx.raw.exercises?.difficulty as string | undefined;
+    const imageUrl = currentEx.raw.exercises?.image_url as string | undefined;
+    const bullets = toBullets(currentEx.raw.notes || currentEx.raw.exercises?.instructions);
+    const instrExpanded = instrOpen[currentEx.key] || false;
+    const shownBullets = instrExpanded ? bullets : bullets.slice(0, 3);
 
     return (
       <View style={s.container}>
         <StatusBar barStyle="light-content" />
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          {/* Header */}
+          {/* Header — the workout is the headline */}
           <View style={s.liveHeader}>
-            <View style={s.liveHeaderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.liveEyebrow}>Exercise {exIdx + 1} of {exercises.length}</Text>
-                <Text style={s.liveTitle} numberOfLines={1}>{currentEx.name}</Text>
-              </View>
-              <Text style={s.liveClock}>{fmtClock(elapsed)}</Text>
+            <View style={s.liveHeaderTopRow}>
+              <Text style={s.liveEyebrow}>Active workout</Text>
+              <TouchableOpacity
+                style={s.allExBtn}
+                onPress={() => { Haptics.selectionAsync(); setShowAllExercises(true); }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="All exercises"
+                accessibilityHint="Opens the full workout list"
+              >
+                <Ionicons name="list-outline" size={14} color={CoachColors.textSecondary} />
+                <Text style={s.allExBtnText}>All exercises</Text>
+              </TouchableOpacity>
             </View>
-            <View style={s.progressRow}>
-              {exercises.map((ex, i) => (
-                <View key={ex.key} style={[s.progressSeg, i <= exIdx && s.progressSegDone]} />
-              ))}
+            <Text style={s.liveWorkoutName} numberOfLines={2} accessibilityRole="header">
+              {session.name || 'Workout'}
+            </Text>
+            <View style={s.liveMetaRow}>
+              <Text style={s.liveClock} accessibilityLabel={`Elapsed ${fmtClock(elapsed)}`}>{fmtClock(elapsed)}</Text>
+              <Text style={s.liveMetaDot}>·</Text>
+              <Text style={s.liveExCount}>Exercise {exIdx + 1} of {exercises.length}</Text>
+            </View>
+            <View
+              style={s.progressTrack}
+              accessible={true}
+              accessibilityLabel={`${completedCount} of ${exercises.length} exercises completed`}
+            >
+              <View style={[s.progressFill, { width: `${progressPct}%` }]} />
             </View>
           </View>
 
@@ -519,43 +709,97 @@ export default function StrengthSessionScreen() {
           >
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 18 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Last time — only when real history exists */}
-              {lastTop && (
-                <View style={s.lastTimeCard}>
-                  <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
-                  <Text style={s.lastTimeText}>
-                    Last time:{' '}
-                    <Text style={s.lastTimeStrong}>
-                      {lastTime!.sets.length}×{lastTop.reps} at {fmtKg(lastTop.weight)} kg
-                    </Text>
-                    {lastTop.feel ? `, and ${FEEL_PHRASE[lastTop.feel]}.` : '.'}
-                  </Text>
-                </View>
-              )}
+              {/* Exercise focus card — one exercise front and center */}
+              <Animated.View
+                key={currentEx.key}
+                entering={reducedMotion ? undefined : (navDirRef.current > 0 ? SlideInRight : SlideInLeft).duration(220)}
+                style={s.focusCard}
+              >
+                {/* Card header */}
+                <Text style={s.focusName} accessibilityRole="header">{currentEx.name}</Text>
+                <Text style={s.focusTarget}>
+                  {currentEx.sets} sets · {currentEx.reps} reps · {currentEx.restSec}s rest
+                </Text>
+                {(equipment || difficulty) && (
+                  <View style={s.tagRow}>
+                    {equipment ? (
+                      <View style={s.tag}><Text style={s.tagText}>{cap(equipment)}</Text></View>
+                    ) : null}
+                    {difficulty ? (
+                      <View style={s.tag}><Text style={s.tagText}>{cap(difficulty)}</Text></View>
+                    ) : null}
+                  </View>
+                )}
 
-              {/* Done sets */}
-              <View style={{ gap: 8, marginTop: lastTop ? 14 : 0 }}>
-                {doneSetsForCurrent.map((set) => (
+                {/* Anatomy map — which muscles this exercise hits, from real data */}
+                {(muscleTargets.primary.length > 0 || muscleTargets.secondary.length > 0) && (
                   <View
-                    key={set.setIndex}
-                    style={s.doneSetRow}
-                    accessible={true}
-                    accessibilityLabel={`Set ${set.setIndex + 1} done, ${fmtKg(set.weight)} kilograms for ${set.reps}${set.feel ? `, felt ${FEELS.find(f => f.key === set.feel)?.label.toLowerCase()}` : ''}`}
+                    style={{ alignItems: 'center', marginVertical: 6 }}
+                    accessible
+                    accessibilityLabel={`Targets ${muscleTargets.primary.join(', ') || 'supporting muscles'}${muscleTargets.secondary.length ? `, also ${muscleTargets.secondary.join(', ')}` : ''}`}
                   >
-                    <View style={s.doneSetBadge}><Text style={s.doneSetBadgeText}>{set.setIndex + 1}</Text></View>
-                    <Text style={s.doneSetText}>{fmtKg(set.weight)} kg × {set.reps}</Text>
-                    {set.feel && (
-                      <Text style={s.doneSetFeel}>{FEELS.find(f => f.key === set.feel)?.label}</Text>
+                    <MuscleMap
+                      primary={muscleTargets.primary}
+                      secondary={muscleTargets.secondary}
+                      view="both"
+                      height={170}
+                    />
+                  </View>
+                )}
+
+                {/* Exercise visual — real image only, omitted entirely when absent */}
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: proxyGifUrl(imageUrl) || imageUrl }}
+                    style={s.focusImage}
+                    contentFit="cover"
+                    accessible={false}
+                  />
+                ) : null}
+
+                {/* Real instructions as bullets, capped with More */}
+                {bullets.length > 0 && (
+                  <View style={s.instrBlock}>
+                    {shownBullets.map((line, i) => (
+                      <View key={i} style={s.instrLine}>
+                        <View style={s.instrDot} />
+                        <Text style={s.instrText}>{line}</Text>
+                      </View>
+                    ))}
+                    {bullets.length > 3 && (
+                      <TouchableOpacity
+                        onPress={() => toggleInstructions(currentEx.key)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={instrExpanded ? 'Show fewer instructions' : 'Show more instructions'}
+                        accessibilityState={{ expanded: instrExpanded }}
+                      >
+                        <Text style={s.instrMore}>{instrExpanded ? 'Less' : 'More'}</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                ))}
+                )}
 
-                {/* Active set card */}
-                <View style={s.activeCard}>
+                {/* Last time — only when real history exists */}
+                {lastTop && (
+                  <View style={s.lastTimeCard}>
+                    <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
+                    <Text style={s.lastTimeText}>
+                      Last time:{' '}
+                      <Text style={s.lastTimeStrong}>
+                        {lastTime!.sets.length}×{lastTop.reps} at {fmtKg(lastTop.weight)} kg
+                      </Text>
+                      {lastTop.feel ? `, and ${FEEL_PHRASE[lastTop.feel]}.` : '.'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Set logging — the existing two-beat flow, inside the card */}
+                <View style={s.logBlock}>
                   {/* Suggestion chip — first set only, real history only, and it
                       hides once the input already holds the suggested number
                       (tapped, prefilled to a repeat, or typed by hand). */}
@@ -638,47 +882,153 @@ export default function StrengthSessionScreen() {
                       })}
                     </View>
                   </View>
+
+                  {/* Log CTA + rest timer, part of the input group */}
+                  <View style={s.logCtaRow}>
+                    <View
+                      style={s.restBubble}
+                      accessible={true}
+                      accessibilityLabel={restLeft != null && restLeft > 0 ? `Rest, ${fmtClock(restLeft)} remaining` : `Rest, ${fmtClock(currentEx.restSec)} between sets`}
+                    >
+                      <Text style={s.restTime}>
+                        {restLeft != null && restLeft > 0 ? fmtClock(restLeft) : fmtClock(currentEx.restSec)}
+                      </Text>
+                      <Text style={s.restLabel}>REST</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[s.logBtn, finishing && { opacity: 0.6 }]}
+                      onPress={logSet}
+                      activeOpacity={0.85}
+                      disabled={finishing}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Log set ${curSetIdx + 1}`}
+                    >
+                      <Text style={s.logBtnText}>
+                        {finishing ? 'Saving…' : `Log set ${curSetIdx + 1}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                {/* Upcoming sets */}
-                {upcoming.map((_, i) => (
-                  <View key={`up-${i}`} style={s.upcomingSetRow}>
-                    <View style={s.upcomingBadge}><Text style={s.upcomingBadgeText}>{curSetIdx + 2 + i}</Text></View>
-                    <Text style={s.upcomingText}>
-                      {weightStr ? `${weightStr} kg × ${currentEx.reps}` : `${currentEx.reps} reps`}
-                    </Text>
+                {/* Logged sets for this exercise */}
+                {doneSetsForCurrent.length > 0 && (
+                  <View style={s.doneList}>
+                    {doneSetsForCurrent.map((set) => (
+                      <View
+                        key={set.setIndex}
+                        style={s.doneSetRow}
+                        accessible={true}
+                        accessibilityLabel={`Set ${set.setIndex + 1} done, ${fmtKg(set.weight)} kilograms for ${set.reps}${set.feel ? `, felt ${FEELS.find(f => f.key === set.feel)?.label.toLowerCase()}` : ''}`}
+                      >
+                        <View style={s.doneSetBadge}><Text style={s.doneSetBadgeText}>{set.setIndex + 1}</Text></View>
+                        <Text style={s.doneSetText}>{fmtKg(set.weight)} kg × {set.reps}</Text>
+                        {set.feel && (
+                          <Text style={s.doneSetFeel}>{FEELS.find(f => f.key === set.feel)?.label}</Text>
+                        )}
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
+                )}
+              </Animated.View>
             </ScrollView>
 
-            {/* CTA bar */}
-            <View style={s.ctaBar}>
-              <View
-                style={s.restBubble}
-                accessible={true}
-                accessibilityLabel={restLeft != null && restLeft > 0 ? `Rest, ${fmtClock(restLeft)} remaining` : `Rest, ${fmtClock(currentEx.restSec)} between sets`}
-              >
-                <Text style={s.restTime}>
-                  {restLeft != null && restLeft > 0 ? fmtClock(restLeft) : fmtClock(currentEx.restSec)}
-                </Text>
-                <Text style={s.restLabel}>REST</Text>
-              </View>
+            {/* Exercise rail — jump anywhere, real per-exercise set counts */}
+            <View style={s.railWrap}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.railContent}>
+                {exercises.map((ex, i) => {
+                  const done = setsDoneFor(ex.exerciseId);
+                  const isDone = done >= ex.sets;
+                  const isCurrent = i === exIdx;
+                  return (
+                    <TouchableOpacity
+                      key={ex.key}
+                      style={[s.railPill, isDone && s.railPillDone, isCurrent && s.railPillCurrent]}
+                      onPress={() => goToExercise(i)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Exercise ${i + 1}, ${ex.name}, ${done} of ${ex.sets} sets logged`}
+                      accessibilityState={{ selected: isCurrent }}
+                      accessibilityHint={isCurrent ? undefined : 'Double tap to jump to this exercise'}
+                    >
+                      <Text style={[s.railNum, isDone && s.railNumDone, isCurrent && s.railNumCurrent]}>{i + 1}</Text>
+                      <Text style={[s.railCount, isCurrent && s.railCountCurrent]}>{done}/{ex.sets}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Prev / Next */}
+            <View style={s.navBar}>
               <TouchableOpacity
-                style={[s.logBtn, finishing && { opacity: 0.6 }]}
-                onPress={logSet}
-                activeOpacity={0.85}
-                disabled={finishing}
+                style={[s.prevBtn, exIdx === 0 && s.prevBtnDisabled]}
+                onPress={() => goToExercise(exIdx - 1)}
+                activeOpacity={0.8}
+                disabled={exIdx === 0}
                 accessibilityRole="button"
-                accessibilityLabel={`Log set ${curSetIdx + 1}`}
+                accessibilityLabel="Previous exercise"
+                accessibilityState={{ disabled: exIdx === 0 }}
               >
-                <Text style={s.logBtnText}>
-                  {finishing ? 'Saving…' : `Log set ${curSetIdx + 1}`}
-                </Text>
+                <Ionicons name="chevron-back" size={16} color={exIdx === 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
+                <Text style={[s.prevBtnText, exIdx === 0 && s.prevBtnTextDisabled]}>Prev</Text>
               </TouchableOpacity>
+              {isLastExercise ? (
+                <TouchableOpacity
+                  style={[s.nextBtn, finishing && { opacity: 0.6 }]}
+                  onPress={onFinishPress}
+                  activeOpacity={0.85}
+                  disabled={finishing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Finish session"
+                >
+                  <Text style={s.nextBtnText}>{finishing ? 'Saving…' : 'Finish session'}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={s.nextBtn}
+                  onPress={() => goToExercise(exIdx + 1)}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next exercise"
+                >
+                  <Text style={s.nextBtnText}>Next</Text>
+                  <Ionicons name="chevron-forward" size={16} color={CoachColors.onAccent} />
+                </TouchableOpacity>
+              )}
             </View>
           </KeyboardAvoidingView>
         </SafeAreaView>
+
+        {/* All exercises — whole workout at a glance; closing is the only exit,
+            no navigation happens while this native Modal is visible. */}
+        <Modal
+          visible={showAllExercises}
+          animationType={reducedMotion ? 'none' : 'slide'}
+          onRequestClose={() => setShowAllExercises(false)}
+        >
+          <View style={s.container}>
+            <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle} accessibilityRole="header">All exercises</Text>
+                <TouchableOpacity
+                  onPress={() => setShowAllExercises(false)}
+                  style={s.modalClose}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close all exercises"
+                >
+                  <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {renderExerciseList()}
+              </ScrollView>
+            </SafeAreaView>
+          </View>
+        </Modal>
 
         {/* 22c — PR payoff overlay */}
         {showPr && prHit && prOverlayData && (
@@ -735,49 +1085,8 @@ export default function StrengthSessionScreen() {
           </Text>
           {session.description ? <Text style={s.overviewDesc}>{session.description}</Text> : null}
 
-          <View style={{ gap: 8, marginTop: 22 }}>
-            {exercises.map((ex) => {
-              const open = expandedExercises[ex.key] || false;
-              const last = lastLoggedFor(ex.exerciseId);
-              const lastTop = last ? last.sets.reduce((a, b) => (b.weight > a.weight ? b : a)) : null;
-              const instructionText = ex.raw.notes || ex.raw.exercises?.instructions;
-              return (
-                <View key={ex.key} style={s.exCard}>
-                  <TouchableOpacity
-                    style={s.exRow}
-                    activeOpacity={0.85}
-                    onPress={() => toggleExercise(ex.key)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
-                    accessibilityState={{ expanded: open }}
-                    accessibilityHint={open ? 'Double tap to collapse details' : 'Double tap to expand details'}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.exName}>{ex.name}</Text>
-                      <Text style={s.exMeta}>
-                        {ex.sets}×{ex.reps} · {ex.restSec}s rest
-                        {lastTop ? ` · last time ${fmtKg(lastTop.weight)} kg` : ''}
-                      </Text>
-                    </View>
-                    <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={CoachColors.textFaint} />
-                  </TouchableOpacity>
-                  {open && (
-                    <View style={s.exExpanded}>
-                      <ExerciseMediaDemo
-                        imageUrl={ex.raw.exercises?.image_url}
-                        videoUrl={ex.raw.video_url}
-                        exerciseName={ex.name}
-                      />
-                      <ExerciseInstructions
-                        exerciseId={ex.key}
-                        instructionText={instructionText}
-                        muscleGroup={ex.raw.exercises?.muscle_group}
-                      />
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+          <View style={{ marginTop: 22 }}>
+            {renderExerciseList()}
           </View>
         </ScrollView>
 
@@ -856,22 +1165,77 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: '#1E211D',
   },
-  liveHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  liveEyebrow: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
-  liveTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginTop: 2,
+  liveHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  liveEyebrow: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent,
+    letterSpacing: 1.2, textTransform: 'uppercase',
   },
-  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.accent },
-  progressRow: { flexDirection: 'row', gap: 4, marginTop: 13 },
-  progressSeg: { flex: 1, height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted },
-  progressSegDone: { backgroundColor: CoachColors.accent },
+  allExBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    paddingVertical: 6, paddingHorizontal: 11,
+  },
+  allExBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary },
+  liveWorkoutName: {
+    fontFamily: CoachFonts.headingBold, fontSize: 24, lineHeight: 29,
+    color: CoachColors.textPrimary, marginTop: 7,
+  },
+  liveMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 },
+  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.accent },
+  liveMetaDot: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
+  liveExCount: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  progressTrack: {
+    height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
+    marginTop: 12, overflow: 'hidden',
+  },
+  progressFill: { height: 3, borderRadius: 999, backgroundColor: CoachColors.accent },
+
+  // ── Focus card ──
+  focusCard: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 18, padding: 16,
+  },
+  focusName: {
+    fontFamily: CoachFonts.headingBold, fontSize: 21, lineHeight: 26,
+    color: CoachColors.textPrimary,
+  },
+  focusTarget: {
+    fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary,
+    marginTop: 5,
+  },
+  tagRow: { flexDirection: 'row', gap: 7, marginTop: 10, flexWrap: 'wrap' },
+  tag: {
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
+  tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11.5, color: CoachColors.textSecondary },
+  focusImage: {
+    width: '100%', height: 180, borderRadius: 14, marginTop: 14,
+    backgroundColor: CoachColors.bg,
+  },
+  instrBlock: { marginTop: 14, gap: 7 },
+  instrLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
+  instrDot: {
+    width: 5, height: 5, borderRadius: 3, backgroundColor: CoachColors.accent,
+    marginTop: 7,
+  },
+  instrText: {
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19,
+    color: CoachColors.textSecondary,
+  },
+  instrMore: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent,
+    paddingVertical: 4,
+  },
 
   // ── Last time ──
   lastTimeCard: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: CoachColors.surface,
+    backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
+    marginTop: 14,
   },
   lastTimeText: {
     flex: 1, fontFamily: CoachFonts.body, fontSize: 12.5,
@@ -879,27 +1243,11 @@ const s = StyleSheet.create({
   },
   lastTimeStrong: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
 
-  // ── Done sets ──
-  doneSetRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
-  },
-  doneSetBadge: {
-    width: 26, height: 26, borderRadius: 8,
-    backgroundColor: CoachColors.accentSoft,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  doneSetBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
-  doneSetText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  doneSetFeel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
-
-  // ── Active set ──
-  activeCard: {
+  // ── Set logging (inside the focus card) ──
+  logBlock: {
     backgroundColor: '#1E211D',
     borderWidth: 1.5, borderColor: CoachColors.accent,
-    borderRadius: 16, padding: 15,
+    borderRadius: 16, padding: 15, marginTop: 14,
   },
   activeTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   suggestChip: {
@@ -945,27 +1293,7 @@ const s = StyleSheet.create({
   },
   feelChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textFaint },
   feelChipTextActive: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
-
-  // ── Upcoming sets ──
-  upcomingSetRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: '#141613',
-    borderWidth: 1, borderColor: '#1E211D',
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
-  },
-  upcomingBadge: {
-    width: 26, height: 26, borderRadius: 8, backgroundColor: '#1E211D',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  upcomingBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint },
-  upcomingText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint },
-
-  // ── CTA bar ──
-  ctaBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 9,
-    paddingHorizontal: 20, paddingTop: 13, paddingBottom: 30,
-    borderTopWidth: 1, borderTopColor: '#1E211D',
-  },
+  logCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   restBubble: {
     minWidth: 52, minHeight: 52, borderRadius: 26,
     borderWidth: 1, borderColor: '#2E322B',
@@ -978,4 +1306,75 @@ const s = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center',
   },
   logBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
+
+  // ── Done sets ──
+  doneList: { gap: 8, marginTop: 14 },
+  doneSetRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 11,
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
+  },
+  doneSetBadge: {
+    width: 26, height: 26, borderRadius: 8,
+    backgroundColor: CoachColors.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  doneSetBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
+  doneSetText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  doneSetFeel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
+
+  // ── Exercise rail ──
+  railWrap: {
+    borderTopWidth: 1, borderTopColor: '#1E211D', paddingTop: 10,
+  },
+  railContent: { paddingHorizontal: 20, gap: 7 },
+  railPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    paddingVertical: 7, paddingHorizontal: 12,
+    backgroundColor: CoachColors.surface,
+  },
+  railPillDone: {
+    borderColor: 'rgba(198,242,78,0.35)',
+    backgroundColor: CoachColors.accentSofter,
+  },
+  railPillCurrent: {
+    borderColor: CoachColors.accent,
+    backgroundColor: CoachColors.accent,
+  },
+  railNum: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textSecondary },
+  railNumDone: { color: CoachColors.accent },
+  railNumCurrent: { color: CoachColors.onAccent },
+  railCount: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textFaint },
+  railCountCurrent: { color: CoachColors.onAccent },
+
+  // ── Prev / Next ──
+  navBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 9,
+    paddingHorizontal: 20, paddingTop: 11, paddingBottom: 30,
+  },
+  prevBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    paddingVertical: 15, paddingHorizontal: 22,
+    backgroundColor: CoachColors.surface,
+  },
+  prevBtnDisabled: { opacity: 0.45 },
+  prevBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  prevBtnTextDisabled: { color: CoachColors.textFaint },
+  nextBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
+    backgroundColor: CoachColors.accent, borderRadius: 999,
+    paddingVertical: 16,
+  },
+  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+
+  // ── All exercises modal ──
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 12,
+  },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
+  modalClose: { padding: 6 },
 });

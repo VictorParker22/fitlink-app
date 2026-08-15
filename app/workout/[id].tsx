@@ -17,6 +17,8 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import ExerciseThumbnail from '../../components/shared/exercise/ExerciseThumbnail';
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
+import MuscleMap from '../../components/anatomy/MuscleMap';
+import { musclesForExercise, regionLabel, MuscleRegionId } from '../../lib/muscles';
 
 const { width } = Dimensions.get('window');
 
@@ -117,6 +119,25 @@ export default function WorkoutDetailScreen() {
     if (!workout) return [];
     return [...(workout.workout_exercises || [])].sort((a, b) => a.order_index - b.order_index);
   }, [workout]);
+
+  const muscleTargets = useMemo(() => {
+    const primaryCounts = new Map<MuscleRegionId, number>();
+    const secondaryCounts = new Map<MuscleRegionId, number>();
+    exercises.forEach((we: any) => {
+      const base = we.exercises;
+      if (!base) return;
+      const { primary, secondary } = musclesForExercise(base);
+      primary.forEach(id => primaryCounts.set(id, (primaryCounts.get(id) || 0) + 1));
+      secondary.forEach(id => secondaryCounts.set(id, (secondaryCounts.get(id) || 0) + 1));
+    });
+    const primary = [...primaryCounts.keys()];
+    const secondary = [...secondaryCounts.keys()].filter(id => !primaryCounts.has(id));
+    const rows = [
+      ...[...primaryCounts.entries()].map(([id, count]) => ({ id, count, isPrimary: true })),
+      ...secondary.map(id => ({ id, count: secondaryCounts.get(id) || 0, isPrimary: false })),
+    ].sort((a, b) => (a.isPrimary === b.isPrimary ? b.count - a.count : a.isPrimary ? -1 : 1));
+    return { primary, secondary, rows };
+  }, [exercises]);
 
   const equipmentList = useMemo(() => {
     const list: string[] = [];
@@ -387,6 +408,40 @@ export default function WorkoutDetailScreen() {
           </View>
 
           <View style={styles.dividerLine} />
+
+          {/* Targets */}
+          {muscleTargets.rows.length > 0 && (
+            <>
+              <View style={styles.sectionWrap}>
+                <Text style={styles.sectionTitle}>Targets</Text>
+                <View style={styles.targetsCard}>
+                  <MuscleMap
+                    view="both"
+                    height={150}
+                    primary={muscleTargets.primary}
+                    secondary={muscleTargets.secondary}
+                  />
+                  <View style={styles.targetsList}>
+                    {muscleTargets.rows.slice(0, 7).map(row => (
+                      <View key={row.id} style={styles.targetRow}>
+                        <View
+                          style={[
+                            styles.targetDot,
+                            !row.isPrimary && { backgroundColor: CoachColors.accentSoft },
+                          ]}
+                        />
+                        <Text style={styles.targetRowText} numberOfLines={1}>
+                          {regionLabel(row.id)} · {row.count} exercise{row.count === 1 ? '' : 's'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.dividerLine} />
+            </>
+          )}
 
           {/* Session Breakdown */}
           <View style={styles.sectionWrap}>
@@ -659,6 +714,39 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.bodyMedium,
     fontSize: 13,
     color: CoachColors.textSecondary,
+  },
+
+  // Targets
+  targetsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+    backgroundColor: CoachColors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    padding: Spacing.lg,
+  },
+  targetsList: {
+    flex: 1,
+    gap: 8,
+  },
+  targetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  targetDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: CoachColors.accent,
+  },
+  targetRowText: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
+    flex: 1,
   },
 
   breakdownHeaderRow: {
