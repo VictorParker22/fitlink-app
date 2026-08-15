@@ -58,12 +58,46 @@ import WorkoutSummary from '../../components/client-tabs/explore/WorkoutSummary'
 import SeasonComplete from '../../components/client-tabs/SeasonComplete';
 import SeasonHero from '../../components/client-tabs/season/SeasonHero';
 import SeasonTrack from '../../components/client-tabs/season/SeasonTrack';
+import TrackStrip from '../../components/client-tabs/season/TrackStrip';
+import MuscleMap from '../../components/anatomy/MuscleMap';
+import {
+  aggregateWorkoutMuscles,
+  focusLineForWorkout,
+  type WorkoutMuscleInfo,
+} from '../../components/client-tabs/season/workoutMuscles';
 
 const C = CoachColors;
 const F = CoachFonts;
 
 function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
+}
+
+/**
+ * Calendar label for a one-off assignment — honest here because
+ * client_workouts really carry an assigned_date (unlike track nodes, which
+ * are sequential and athlete-paced, never dated).
+ */
+function assignmentDayLabel(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const d = parseLocalDay(dateStr);
+  if (!d) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Section header — eyebrow + one-line sub over a hairline, so the column reads as chapters. */
+function SectionHead({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <View style={s.sectionHead}>
+      <Text style={s.sectionHeadLabel}>{label}</Text>
+      {sub ? <Text style={s.sectionHeadSub}>{sub}</Text> : null}
+    </View>
+  );
 }
 
 export default function ClientWorkoutsScreen() {
@@ -236,6 +270,36 @@ export default function ClientWorkoutsScreen() {
   const workoutById = useCallback(
     (id?: string) => (id ? trainerWorkouts.find((w: any) => w.id === id) || null : null),
     [trainerWorkouts]
+  );
+
+  // Muscle aggregate per workout — computed once per unique workout id and
+  // cached, because track nodes repeat the same workouts across weeks and
+  // every node card renders a thumbnail from this.
+  const muscleInfoFor = useMemo(() => {
+    const cache = new Map<string, WorkoutMuscleInfo | null>();
+    return (w: any): WorkoutMuscleInfo | null => {
+      if (!w?.id) return null;
+      const hit = cache.get(w.id);
+      if (hit !== undefined) return hit;
+      const info = aggregateWorkoutMuscles(w);
+      cache.set(w.id, info);
+      return info;
+    };
+    // Cache resets whenever the workout library refreshes.
+  }, [trainerWorkouts]);
+
+  // Strip-tap → list jump: the track's y in the scroll content plus each
+  // week's measured y inside the track. onLayout keeps both fresh across
+  // collapses/expands, so the jump stays correct as heights change.
+  const scrollRef = useRef<ScrollView>(null);
+  const seasonTrackTopRef = useRef(0);
+  const weekYsRef = useRef<Record<number, number>>({});
+  const scrollToWeek = useCallback(
+    (week: number) => {
+      const y = seasonTrackTopRef.current + (weekYsRef.current[week] ?? 0);
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: !reducedMotion });
+    },
+    [reducedMotion]
   );
 
   const coachFirst = firstName(trainer?.name) || 'your coach';
@@ -450,21 +514,31 @@ export default function ClientWorkoutsScreen() {
 
   // ── Render helpers ────────────────────────────────────────────────────────
 
-  // One-off client_workouts assignment row — used both as the main surface
-  // (no pass) and inside "Extras from your coach" (enrolled). Keeps the
-  // overdue "from <weekday>" tag and the one-tap Move-to-today pill.
+  // One-off client_workouts assignment card — used both as the main surface
+  // (no pass) and inside "Extras from your coach" (enrolled). Calendar labels
+  // are honest here (assigned_date exists): "Today" / "Tomorrow" /
+  // "Mon 18 Aug", or "From Tuesday" with the one-tap Move-to-today pill when
+  // overdue. Same when/what/does anatomy as the season's node cards.
   const renderAssignment = (cw: any) => {
     const wr = cw.workouts || {};
     const exs: any[] = wr.workout_exercises || [];
     const done = cw.status === 'completed';
     const overdue = !done && isOverdue(cw.assigned_date);
-    const fromDay = overdue
-      ? parseLocalDay(cw.assigned_date)?.toLocaleDateString('en-GB', { weekday: 'short' })
-      : null;
+    const whenLabel = overdue
+      ? (() => {
+          const d = parseLocalDay(cw.assigned_date);
+          return d ? `From ${d.toLocaleDateString('en-GB', { weekday: 'long' })}` : null;
+        })()
+      : assignmentDayLabel(cw.assigned_date);
+    const eyebrow = [whenLabel, `One-off from ${coachFirst}`].filter(Boolean).join(' · ');
     const meta: string[] = [];
     if (exs.length > 0) meta.push(`${exs.length} exercise${exs.length === 1 ? '' : 's'}`);
+    const totalSets = exs.reduce((sum: number, ex: any) => sum + (Number(ex.sets) || 0), 0);
+    if (totalSets > 0) meta.push(`${totalSets} sets`);
     const mins = wr.duration || wr.duration_minutes;
     if (mins) meta.push(`${mins} min`);
+    const info = wr?.id ? muscleInfoFor(wr) : null;
+    const focus = wr?.id ? focusLineForWorkout(wr, info) : null;
     return (
       <Pressable
         key={cw.id}
@@ -476,24 +550,32 @@ export default function ClientWorkoutsScreen() {
         }}
         disabled={done}
         accessibilityRole="button"
-        accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to preview'}`}
+        accessibilityLabel={`${eyebrow}, ${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${focus ? `. ${focus}` : ''}${done ? '' : '. Double tap to preview'}`}
       >
-        {done ? (
-          <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
-        ) : (
-          <Ionicons name="barbell-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
-        )}
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-            <Text style={[s.nodeName, { flexShrink: 1 }]} numberOfLines={1}>{wr.name || 'Session'}</Text>
-            {overdue && !!fromDay && (
-              <View style={s.fromTag}>
-                <Text style={s.fromTagText}>from {fromDay}</Text>
+          <View style={s.whenRow}>
+            <Text style={[s.whenText, overdue && s.whenTextOverdue]} numberOfLines={1}>
+              {eyebrow}
+            </Text>
+            {done && (
+              <View style={s.doneChip}>
+                <Text style={s.doneChipText}>Done</Text>
               </View>
             )}
           </View>
-          <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Assigned'}</Text>
+          <Text style={s.nodeName} numberOfLines={1}>
+            {wr.name || 'Session'}
+          </Text>
+          {meta.length > 0 && <Text style={s.nodeSub}>{meta.join(' · ')}</Text>}
+          {focus ? (
+            <Text style={s.focusText} numberOfLines={1}>
+              {focus}
+            </Text>
+          ) : null}
         </View>
+        {!overdue && info && (
+          <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={64} />
+        )}
         {overdue && (
           <Pressable
             style={s.movePill}
@@ -553,20 +635,35 @@ export default function ClientWorkoutsScreen() {
           reducedMotion={reducedMotion}
         />
 
-        {/* The track — the season's nodes, grouped and labeled by week */}
-        <Text style={s.sectionLabel}>Your season</Text>
-        <SeasonTrack
+        {/* Glanceable position — the whole season as a scrubber, no scrolling
+            into the list needed. Taps jump the list to that week. */}
+        <TrackStrip
           track={programme.track}
           durationWeeks={programme.durationWeeks}
           position={programme.position}
           currentWeek={programme.currentWeek}
           seasonCompleted={programme.completed}
-          workoutById={workoutById}
-          coachFirst={coachFirst}
-          onOpenWorkout={(w, opts) => startTrackWorkout(w, opts)}
-          onOpenDiet={() => router.push(ClientRoute.myDiet)}
-          reducedMotion={reducedMotion}
+          onPressWeek={scrollToWeek}
         />
+
+        {/* The track — the season's nodes, grouped and labeled by week */}
+        <SectionHead label="Your season" sub={`${planName} — every session in order, at your pace.`} />
+        <View onLayout={(e) => { seasonTrackTopRef.current = e.nativeEvent.layout.y; }}>
+          <SeasonTrack
+            track={programme.track}
+            durationWeeks={programme.durationWeeks}
+            position={programme.position}
+            currentWeek={programme.currentWeek}
+            seasonCompleted={programme.completed}
+            workoutById={workoutById}
+            muscleInfoFor={muscleInfoFor}
+            coachFirst={coachFirst}
+            onOpenWorkout={(w, opts) => startTrackWorkout(w, opts)}
+            onOpenDiet={() => router.push(ClientRoute.myDiet)}
+            reducedMotion={reducedMotion}
+            onWeekLayout={(week, y) => { weekYsRef.current[week] = y; }}
+          />
+        </View>
 
         {programme.completed && (
           <View style={s.noteCard}>
@@ -588,9 +685,11 @@ export default function ClientWorkoutsScreen() {
         {/* One-off assignments — a different thing than the season, and labeled so */}
         {assignedList.length > 0 && (
           <>
-            <Text style={s.sectionLabel}>Extras from your coach</Text>
-            <Text style={s.sectionExplainer}>Sent by {coachFirst} on top of your season.</Text>
-            <View style={{ gap: 9 }}>{assignedList.map(renderAssignment)}</View>
+            <SectionHead
+              label="Extras from your coach"
+              sub={`One-off sessions from ${coachFirst}, on top of your season.`}
+            />
+            <View style={{ gap: 10 }}>{assignedList.map(renderAssignment)}</View>
           </>
         )}
       </>
@@ -636,6 +735,7 @@ export default function ClientWorkoutsScreen() {
     <View style={s.container}>
       <StatusBar barStyle="light-content" />
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: insets.top + 14,
@@ -647,7 +747,7 @@ export default function ClientWorkoutsScreen() {
         {body}
 
         {/* On-demand browsing kept reachable — one honest entry, no fake counts */}
-        <Text style={s.sectionLabel}>On demand</Text>
+        <SectionHead label="On demand" />
         <Pressable style={s.nodeRow} onPress={() => setShowExplore(true)} accessibilityRole="button">
           <Ionicons name="compass-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
           <View style={{ flex: 1 }}>
@@ -717,15 +817,28 @@ const s = StyleSheet.create({
   nodeName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
   nodeSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
 
-  // Slip recovery — the subtle "from <weekday>" tag and the one-tap move.
-  fromTag: {
-    borderWidth: 1,
-    borderColor: C.borderMuted,
+  // Assignment card anatomy — when-row, done chip, focus line (mirrors the
+  // season node cards in WeekSection so both sections speak one language).
+  whenRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  whenText: {
+    flexShrink: 1,
+    fontFamily: F.bodyBold,
+    fontSize: 10,
+    color: C.textFaint,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  whenTextOverdue: { color: C.warning },
+  doneChip: {
+    backgroundColor: C.accentSoft,
     borderRadius: 999,
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  fromTagText: { fontFamily: F.bodyMedium, fontSize: 10.5, color: C.textMuted },
+  doneChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent },
+  focusText: { fontFamily: F.body, fontSize: 11.5, color: C.textSecondary, marginTop: 3, lineHeight: 16 },
+
+  // Slip recovery — the one-tap move.
   movePill: {
     backgroundColor: C.accentSoft,
     borderRadius: 999,
@@ -763,22 +876,28 @@ const s = StyleSheet.create({
   },
   emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
 
-  sectionLabel: {
+  // Section chapters — hairline, eyebrow, one-line sub. The rhythm change is
+  // what keeps the column from reading as one flat newspaper.
+  sectionHead: {
+    borderTopWidth: 1,
+    borderTopColor: C.borderMuted,
+    marginTop: 30,
+    paddingTop: 18,
+    marginBottom: 12,
+  },
+  sectionHeadLabel: {
     fontFamily: F.bodyBold,
     fontSize: 11,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
-    marginTop: 26,
-    marginBottom: 11,
   },
-  sectionExplainer: {
+  sectionHeadSub: {
     fontFamily: F.body,
     fontSize: 12,
     color: C.textMuted,
     lineHeight: 17,
-    marginTop: -5,
-    marginBottom: 11,
+    marginTop: 4,
   },
 
   exploreBack: {

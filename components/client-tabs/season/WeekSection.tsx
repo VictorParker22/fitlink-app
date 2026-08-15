@@ -14,13 +14,15 @@
  * Every tap routes through the parent's callbacks so the preview-first
  * contract in workouts.tsx stays the single entry point.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import type { TrackNode } from '../../../context/AppContext';
+import MuscleMap from '../../anatomy/MuscleMap';
+import { focusLineForWorkout, type WorkoutMuscleInfo } from './workoutMuscles';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -44,6 +46,8 @@ type Props = {
   status: 'past' | 'current' | 'future';
   seasonCompleted: boolean;
   workoutById: (id?: string) => any;
+  /** Memoized whole-workout muscle aggregate — computed once per workout id upstream. */
+  muscleInfoFor: (workoutRow: any) => WorkoutMuscleInfo | null;
   coachFirst: string;
   /** viewOnly = open the preview to look, never to log or advance. */
   onOpenWorkout: (workoutRow: any, opts: { viewOnly: boolean }) => void;
@@ -62,6 +66,7 @@ export default function WeekSection({
   status,
   seasonCompleted,
   workoutById,
+  muscleInfoFor,
   coachFirst,
   onOpenWorkout,
   onOpenDiet,
@@ -72,6 +77,19 @@ export default function WeekSection({
 
   const actionable = nodes.filter((n) => n.node.type !== 'milestone');
   const doneCount = actionable.filter((n) => n.index < position || seasonCompleted).length;
+
+  // "Session M" position within this week — workout nodes only, in track order.
+  const sessionNumberByIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    let n = 0;
+    nodes.forEach(({ index, node }) => {
+      if (node.type === 'workout') {
+        n += 1;
+        map.set(index, n);
+      }
+    });
+    return map;
+  }, [nodes]);
 
   const headerTitle = title ? `Week ${week} · ${title}` : `Week ${week}`;
   const summary =
@@ -166,6 +184,12 @@ export default function WeekSection({
     if (mins) meta.push(`${mins} min`);
     const name = w?.name || node.label || 'Session';
 
+    // WHEN / WHAT IT DOES — position label and muscle focus, real data only.
+    const sessionNo = sessionNumberByIndex.get(index) || null;
+    const whenLabel = sessionNo ? `Week ${week} · Session ${sessionNo}` : `Week ${week}`;
+    const info = w ? muscleInfoFor(w) : null;
+    const focus = w ? focusLineForWorkout(w, info) : null;
+
     if (isCurrent) {
       const CardWrap = reducedMotion ? View : Animated.View;
       const cardProps = reducedMotion
@@ -174,11 +198,25 @@ export default function WeekSection({
       return (
         <CardWrap key={index} style={s.currentCard} {...cardProps}>
           <View style={s.currentEyebrowRow}>
-            <View style={s.currentDot} />
-            <Text style={s.currentEyebrow}>Up next</Text>
+            <View style={s.upNextChip}>
+              <Text style={s.upNextChipText}>Up next</Text>
+            </View>
+            <Text style={s.currentWhen}>{whenLabel}</Text>
           </View>
-          <Text style={s.currentTitle}>{name}</Text>
-          {meta.length > 0 && <Text style={s.currentMeta}>{meta.join(' · ')}</Text>}
+          <View style={s.currentHeadRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.currentTitle}>{name}</Text>
+              {meta.length > 0 && <Text style={s.currentMeta}>{meta.join(' · ')}</Text>}
+              {focus ? (
+                <Text style={s.currentFocus} numberOfLines={2}>
+                  {focus}
+                </Text>
+              ) : null}
+            </View>
+            {info && (
+              <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={72} />
+            )}
+          </View>
           {exercises.length > 0 && (
             <View style={s.exerciseList}>
               {[...exercises]
@@ -203,7 +241,7 @@ export default function WeekSection({
                 onOpenWorkout(w, { viewOnly: false });
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Week ${week}, ${name}, up next. Double tap to preview`}
+              accessibilityLabel={`Week ${week}${sessionNo ? `, session ${sessionNo}` : ''}, ${name}, up next${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}. Double tap to preview`}
               accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
             >
               <Text style={s.previewBtnText}>Preview session</Text>
@@ -215,12 +253,14 @@ export default function WeekSection({
       );
     }
 
-    // Done or upcoming workout row — both open the same preview, view-only.
+    // Done or upcoming workout card — both open the same preview, view-only.
+    // WHEN (week · session + status chip), WHAT (name + meta), WHAT IT DOES
+    // (muscle thumb + focus line) — every line from real data or omitted.
     const canOpen = !!w;
     return (
       <Pressable
         key={index}
-        style={[s.nodeRow, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
+        style={[s.nodeCard, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
         onPress={() => {
           if (!canOpen) return;
           tap();
@@ -228,19 +268,30 @@ export default function WeekSection({
         }}
         disabled={!canOpen}
         accessibilityRole="button"
-        accessibilityLabel={`Week ${week}, ${name}, ${done ? 'done' : 'ahead on your plan'}${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${canOpen ? '. Double tap to preview' : ''}`}
+        accessibilityLabel={`Week ${week}${sessionNo ? `, session ${sessionNo}` : ''}, ${name}, ${done ? 'done' : 'ahead on your plan'}${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}${canOpen ? '. Double tap to preview' : ''}`}
       >
-        <View style={[s.nodeIconWrap, done && s.nodeIconWrapDone]}>
-          <Ionicons
-            name={done ? 'checkmark' : 'barbell-outline'}
-            size={15}
-            color={done ? C.accent : C.textFaint}
-          />
-        </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.nodeName}>{name}</Text>
-          <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Ahead on your plan'}</Text>
+          <View style={s.whenRow}>
+            <Text style={s.whenText}>{whenLabel}</Text>
+            {done && (
+              <View style={s.doneChip}>
+                <Text style={s.doneChipText}>Done</Text>
+              </View>
+            )}
+          </View>
+          <Text style={s.nodeName} numberOfLines={1}>
+            {name}
+          </Text>
+          {meta.length > 0 && <Text style={s.nodeSub}>{meta.join(' · ')}</Text>}
+          {focus ? (
+            <Text style={s.focusText} numberOfLines={1}>
+              {focus}
+            </Text>
+          ) : null}
         </View>
+        {info && (
+          <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={64} />
+        )}
         {canOpen && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
       </Pressable>
     );
@@ -368,9 +419,37 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.borderMuted,
     borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  // Workout node card — the when/what/does treatment.
+  nodeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    borderRadius: 16,
     paddingVertical: 13,
     paddingHorizontal: 14,
   },
+  whenRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  whenText: {
+    fontFamily: F.bodyBold,
+    fontSize: 10,
+    color: C.textFaint,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  doneChip: {
+    backgroundColor: C.accentSoft,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  doneChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent },
+  focusText: { fontFamily: F.body, fontSize: 11.5, color: C.textSecondary, marginTop: 3, lineHeight: 16 },
   nodeRowDone: { opacity: 0.65 },
   nodeRowFuture: { backgroundColor: 'transparent' },
   nodeIconWrap: {
@@ -389,7 +468,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 6,
   },
   markerText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary },
@@ -402,17 +481,31 @@ const s = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
   },
-  currentEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  currentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
-  currentEyebrow: {
+  currentEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  upNextChip: {
+    backgroundColor: C.accent,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  upNextChipText: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
-    color: C.accent,
-    letterSpacing: 1,
+    fontSize: 10,
+    color: C.onAccent,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  currentTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary, marginTop: 9 },
+  currentWhen: {
+    fontFamily: F.bodyBold,
+    fontSize: 10,
+    color: C.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  currentHeadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 9 },
+  currentTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
   currentMeta: { fontFamily: F.bodyMedium, fontSize: 12, color: C.textMuted, marginTop: 4 },
+  currentFocus: { fontFamily: F.body, fontSize: 12, color: C.textSecondary, marginTop: 5, lineHeight: 17 },
   exerciseList: { gap: 7, marginTop: 13 },
   exerciseRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
   exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },

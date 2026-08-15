@@ -12,6 +12,7 @@ import { View } from 'react-native';
 import { weekStartIndices, weekOfPosition, totalWeeks } from '../../../lib/passWeeks';
 import type { TrackNode } from '../../../context/AppContext';
 import WeekSection, { type SeasonNode } from './WeekSection';
+import type { WorkoutMuscleInfo } from './workoutMuscles';
 
 const WEEK_LABEL_RE = /^Week (\d+):\s*/;
 
@@ -30,10 +31,14 @@ type Props = {
   currentWeek: number;
   seasonCompleted: boolean;
   workoutById: (id?: string) => any;
+  /** Memoized per-workout muscle aggregate (see workouts.tsx). */
+  muscleInfoFor: (workoutRow: any) => WorkoutMuscleInfo | null;
   coachFirst: string;
   onOpenWorkout: (workoutRow: any, opts: { viewOnly: boolean }) => void;
   onOpenDiet: () => void;
   reducedMotion: boolean;
+  /** Reports each week's y offset within this component, for strip-tap jumps. */
+  onWeekLayout?: (week: number, y: number) => void;
 };
 
 export default function SeasonTrack({
@@ -43,10 +48,12 @@ export default function SeasonTrack({
   currentWeek,
   seasonCompleted,
   workoutById,
+  muscleInfoFor,
   coachFirst,
   onOpenWorkout,
   onOpenDiet,
   reducedMotion,
+  onWeekLayout,
 }: Props) {
   const weeks = useMemo<WeekGroup[]>(() => {
     const count = totalWeeks(track, durationWeeks);
@@ -78,28 +85,30 @@ export default function SeasonTrack({
   return (
     <View style={{ gap: 22 }}>
       {weeks.map((g, i) => (
-        <WeekSection
-          key={g.week}
-          week={g.week}
-          title={g.title}
-          isRestWeek={g.isRestWeek}
-          nodes={g.nodes}
-          position={position}
-          status={
-            seasonCompleted || g.week < currentWeek
-              ? 'past'
-              : g.week === currentWeek
-                ? 'current'
-                : 'future'
-          }
-          seasonCompleted={seasonCompleted}
-          workoutById={workoutById}
-          coachFirst={coachFirst}
-          onOpenWorkout={onOpenWorkout}
-          onOpenDiet={onOpenDiet}
-          reducedMotion={reducedMotion}
-          animationIndex={i}
-        />
+        <View key={g.week} onLayout={(e) => onWeekLayout?.(g.week, e.nativeEvent.layout.y)}>
+          <WeekSection
+            week={g.week}
+            title={g.title}
+            isRestWeek={g.isRestWeek}
+            nodes={g.nodes}
+            position={position}
+            status={
+              seasonCompleted || g.week < currentWeek
+                ? 'past'
+                : g.week === currentWeek
+                  ? 'current'
+                  : 'future'
+            }
+            seasonCompleted={seasonCompleted}
+            workoutById={workoutById}
+            muscleInfoFor={muscleInfoFor}
+            coachFirst={coachFirst}
+            onOpenWorkout={onOpenWorkout}
+            onOpenDiet={onOpenDiet}
+            reducedMotion={reducedMotion}
+            animationIndex={i}
+          />
+        </View>
       ))}
     </View>
   );
