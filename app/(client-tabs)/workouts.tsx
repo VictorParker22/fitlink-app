@@ -1,23 +1,30 @@
 /**
- * (client-tabs)/workouts.tsx — Train (design turn 24, option 24c).
+ * (client-tabs)/workouts.tsx — Train (design turn 25, "your season").
  *
- * "The whole pass, without the season map." The athlete's programme as a
- * browsable list: done weeks collapsed into compact receipts, the current
- * node prominent with a Start session button, upcoming weeks visible but
- * never startable early. Week chips come from the same week math as every
- * other surface (lib/passWeeks.ts). Milestones read as markers, not nodes.
+ * The flagship season surface. When the athlete owns a pass: a SeasonHero
+ * (pass name, real week-of-weeks, accent progress bar over the true track
+ * position) above the full track rendered as an organized, labeled, tappable
+ * journey grouped by week (components/client-tabs/season/). Past weeks
+ * collapse to receipts, the current node gets the big "Up next" card, future
+ * weeks are visible but quieter. Week math comes from lib/passWeeks.ts —
+ * never re-derived here.
  *
- * Direct client_workouts assignments (no pass) render as a simple flat list.
- * No coach work at all → honest empty state pointing at the thread, plus the
- * legacy on-demand explore view kept reachable behind one entry row.
+ * The two workout sources are visually separated on purpose: "Your season"
+ * (the enrollment track) vs "Extras from your coach" (one-off client_workouts
+ * assignments), each labeled so the athlete always knows which is which.
+ * Without a pass, the assignments list is the main surface plus a real
+ * "Find your season" CTA into the pass storefront (my-pass).
  *
  * Contract preserved: Today pushes here with { startWorkoutId } and this
  * screen resolves it — into the WorkoutPreview, review-before-commit. The
  * ActiveWorkoutPlayer (and its timer) only exists after the explicit
- * "Start session" tap on the preview.
+ * "Start session" tap on the preview. completeTrackWorkout only ever fires
+ * for the current node — done/ahead nodes open the preview view-only and
+ * never advance the track. SeasonComplete and slip recovery unchanged.
  *
  * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
- * Every number on this screen is real or omitted.
+ * Every number on this screen is real or omitted. All decorative motion is
+ * gated behind lib/useReducedMotion.ts.
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -34,12 +41,14 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useClient } from '../../context/ClientContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import { isOverdue, parseLocalDay } from '../../lib/streak';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import type { TrackNode } from '../../context/AppContext';
 
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
@@ -47,11 +56,11 @@ import ActiveWorkoutPlayer from '../../components/client-tabs/explore/ActiveWork
 import WorkoutPreview from '../../components/client-tabs/explore/WorkoutPreview';
 import WorkoutSummary from '../../components/client-tabs/explore/WorkoutSummary';
 import SeasonComplete from '../../components/client-tabs/SeasonComplete';
+import SeasonHero from '../../components/client-tabs/season/SeasonHero';
+import SeasonTrack from '../../components/client-tabs/season/SeasonTrack';
 
 const C = CoachColors;
 const F = CoachFonts;
-
-const WEEK_LABEL_RE = /^Week (\d+):\s*/;
 
 function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
@@ -60,6 +69,7 @@ function firstName(name?: string): string {
 export default function ClientWorkoutsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const {
     trainer,
     clientData,
@@ -220,18 +230,8 @@ export default function ClientWorkoutsScreen() {
         ? weeks
         : Math.min(weekOfPosition(Math.min(position, track.length - 1), track, durationWeeks), weeks);
 
-    // Group node indices per week (1-based)
-    const byWeek: number[][] = Array.from({ length: weeks }, () => []);
-    track.forEach((_, i) => {
-      const w = Math.min(weekOfPosition(i, track, durationWeeks), weeks);
-      byWeek[w - 1].push(i);
-    });
-
-    return { track, plan, durationWeeks, position, weeks, currentWeek, byWeek, completed: enrollment.status === 'completed' };
+    return { track, plan, durationWeeks, position, weeks, currentWeek, completed: enrollment.status === 'completed' };
   }, [enrollment, plans]);
-
-  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
-  const viewWeek = selectedWeek ?? programme?.currentWeek ?? 1;
 
   const workoutById = useCallback(
     (id?: string) => (id ? trainerWorkouts.find((w: any) => w.id === id) || null : null),
@@ -241,8 +241,10 @@ export default function ClientWorkoutsScreen() {
   const coachFirst = firstName(trainer?.name) || 'your coach';
 
   // ── Starting sessions ─────────────────────────────────────────────────────
+  // viewOnly: done/ahead nodes open the same preview to look — finishing a
+  // session started from one writes nothing and never advances the track.
   const startTrackWorkout = useCallback(
-    (workoutRow: any) => {
+    (workoutRow: any, opts?: { viewOnly?: boolean }) => {
       setActiveWorkout({
         id: `track-${workoutRow.id}`,
         workout_id: workoutRow.id,
@@ -250,6 +252,7 @@ export default function ClientWorkoutsScreen() {
         status: 'assigned',
         source: 'track',
         enrollmentId: enrollment?.id,
+        viewOnly: !!opts?.viewOnly,
       });
     },
     [enrollment?.id]
@@ -311,6 +314,15 @@ export default function ClientWorkoutsScreen() {
 
   const handleConfirmFinish = async () => {
     if (!activeWorkout) return;
+    if (activeWorkout.viewOnly) {
+      // A done/ahead node opened to look — nothing to write, nothing advances.
+      setActiveWorkout(null);
+      setSessionStarted(false);
+      setShowSummary(false);
+      setSummaryExerciseStates([]);
+      setSummaryElapsedSeconds(0);
+      return;
+    }
     if (activeWorkout.source === 'track') {
       // Is this the final node of the enrollment? Snapshot before advancing —
       // the receipt (24a) needs the enrollment as it was, refreshes included.
@@ -328,7 +340,6 @@ export default function ClientWorkoutsScreen() {
     setShowSummary(false);
     setSummaryExerciseStates([]);
     setSummaryElapsedSeconds(0);
-    setSelectedWeek(null);
     refreshData();
   };
 
@@ -439,145 +450,87 @@ export default function ClientWorkoutsScreen() {
 
   // ── Render helpers ────────────────────────────────────────────────────────
 
-  const renderNode = (nodeIndex: number) => {
-    if (!programme) return null;
-    const node = programme.track[nodeIndex];
-    const done = nodeIndex < programme.position;
-    const isCurrent = nodeIndex === programme.position && !programme.completed;
-
-    // Milestones read as markers, in athlete language. Week-start labels are
-    // machinery ("Week 3: Deload") — strip the prefix; if nothing remains, the
-    // week chip already says it, so skip the row.
-    if (node.type === 'milestone') {
-      const label = (node.label || '').replace(WEEK_LABEL_RE, '').trim();
-      if (!label && WEEK_LABEL_RE.test(node.label || '')) return null;
-      return (
-        <View
-          key={nodeIndex}
-          style={s.markerRow}
-          accessible={true}
-          accessibilityLabel={`Marker: ${label || 'A marker your coach set here'}${done ? ', done' : ''}`}
-        >
-          <View style={s.markerDot} />
-          <Text style={s.markerText}>{label || 'A marker your coach set here'}</Text>
-          {done && <Ionicons name="checkmark" size={14} color={C.textFaint} />}
-        </View>
-      );
-    }
-
-    if (node.type === 'diet') {
-      return (
-        <Pressable
-          key={nodeIndex}
-          style={[s.nodeRow, done && s.nodeRowDone]}
-          onPress={() => router.push(ClientRoute.myDiet)}
-          accessibilityRole="button"
-        >
-          {done ? (
-            <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
-          ) : (
-            <Ionicons name="restaurant-outline" size={16} color={isCurrent ? C.accent : C.textFaint} style={s.nodeIcon} />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={s.nodeName}>Food focus</Text>
-            <Text style={s.nodeSub}>
-              {done ? 'Done' : `${coachFirst} wants the plate in focus here — details in your meal plan`}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
-        </Pressable>
-      );
-    }
-
-    if (node.type === 'class') {
-      return (
-        <View
-          key={nodeIndex}
-          style={[s.nodeRow, done && s.nodeRowDone]}
-          accessible={true}
-          accessibilityLabel={`${node.label || 'Class session'}, ${done ? 'done' : 'a class your coach put on the plan'}`}
-        >
-          {done ? (
-            <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
-          ) : (
-            <Ionicons name="people-outline" size={16} color={C.textFaint} style={s.nodeIcon} />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={s.nodeName}>{node.label || 'Class session'}</Text>
-            <Text style={s.nodeSub}>{done ? 'Done' : 'A class your coach put on the plan'}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    // Workout node
-    const w = workoutById(node.id);
-    const exercises: any[] = w?.workout_exercises || [];
-    const mins = w?.duration || w?.duration_minutes || null;
+  // One-off client_workouts assignment row — used both as the main surface
+  // (no pass) and inside "Extras from your coach" (enrolled). Keeps the
+  // overdue "from <weekday>" tag and the one-tap Move-to-today pill.
+  const renderAssignment = (cw: any) => {
+    const wr = cw.workouts || {};
+    const exs: any[] = wr.workout_exercises || [];
+    const done = cw.status === 'completed';
+    const overdue = !done && isOverdue(cw.assigned_date);
+    const fromDay = overdue
+      ? parseLocalDay(cw.assigned_date)?.toLocaleDateString('en-GB', { weekday: 'short' })
+      : null;
     const meta: string[] = [];
-    if (exercises.length > 0) meta.push(`${exercises.length} exercise${exercises.length === 1 ? '' : 's'}`);
+    if (exs.length > 0) meta.push(`${exs.length} exercise${exs.length === 1 ? '' : 's'}`);
+    const mins = wr.duration || wr.duration_minutes;
     if (mins) meta.push(`${mins} min`);
-
-    if (isCurrent) {
-      return (
-        <View key={nodeIndex} style={s.todayCard}>
-          <View style={s.todayEyebrowRow}>
-            <View style={s.todayDot} />
-            <Text style={s.todayEyebrow}>Today</Text>
-          </View>
-          <Text style={s.todayTitle}>{w?.name || node.label || 'Your next session'}</Text>
-          {exercises.length > 0 && (
-            <View style={s.exerciseList}>
-              {[...exercises]
-                .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
-                .slice(0, 6)
-                .map((ex: any, i: number) => (
-                  <View key={ex.id || i} style={s.exerciseRow}>
-                    <Text style={s.exerciseName} numberOfLines={1}>
-                      {ex.exercises?.name || 'Exercise'}
-                    </Text>
-                    {ex.sets && ex.reps ? <Text style={s.exerciseMeta}>{ex.sets}×{ex.reps}</Text> : null}
-                  </View>
-                ))}
-              {exercises.length > 6 && <Text style={s.exerciseMore}>+{exercises.length - 6} more</Text>}
-            </View>
-          )}
-          {w ? (
-            <Pressable
-              style={s.startBtn}
-              onPress={() => startTrackWorkout(w)}
-              accessibilityRole="button"
-              accessibilityLabel="View session"
-              accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
-            >
-              <Text style={s.startBtnText}>View session</Text>
-            </Pressable>
-          ) : (
-            <Text style={s.nodeSub}>Loading the session details…</Text>
-          )}
-        </View>
-      );
-    }
-
     return (
-      <View
-        key={nodeIndex}
+      <Pressable
+        key={cw.id}
         style={[s.nodeRow, done && s.nodeRowDone]}
-        accessible={true}
-        accessibilityLabel={`${w?.name || node.label || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'ahead on your plan'}`}
+        onPress={() => {
+          if (done) return;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          startAssignedWorkout(cw);
+        }}
+        disabled={done}
+        accessibilityRole="button"
+        accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to preview'}`}
       >
         {done ? (
           <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
         ) : (
-          <Ionicons name="barbell-outline" size={16} color={C.textFaint} style={s.nodeIcon} />
+          <Ionicons name="barbell-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
         )}
         <View style={{ flex: 1 }}>
-          <Text style={s.nodeName}>{w?.name || node.label || 'Session'}</Text>
-          <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Ahead on your plan'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Text style={[s.nodeName, { flexShrink: 1 }]} numberOfLines={1}>{wr.name || 'Session'}</Text>
+            {overdue && !!fromDay && (
+              <View style={s.fromTag}>
+                <Text style={s.fromTagText}>from {fromDay}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Assigned'}</Text>
         </View>
-      </View>
+        {overdue && (
+          <Pressable
+            style={s.movePill}
+            onPress={() => moveToToday(cw)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Move ${wr.name || 'session'} to today`}
+          >
+            <Text style={s.movePillText}>Move to today</Text>
+          </Pressable>
+        )}
+        {!done && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
+      </Pressable>
     );
   };
+
+  // Real CTA into the pass storefront — only when the coach actually sells one.
+  const findSeasonCard =
+    (plans || []).length > 0 ? (
+      <View style={s.noteCard}>
+        <Text style={s.noteTitle}>Find your season</Text>
+        <Text style={s.noteBody}>
+          A full multi-week programme from {coachFirst} — every session mapped out, week by week.
+        </Text>
+        <Pressable
+          style={s.emptyBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(ClientRoute.myPass);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Find your season. Double tap to see the pass"
+        >
+          <Text style={s.emptyBtnText}>See the pass</Text>
+        </Pressable>
+      </View>
+    ) : null;
 
   // ── Body ──────────────────────────────────────────────────────────────────
 
@@ -585,77 +538,35 @@ export default function ClientWorkoutsScreen() {
 
   if (programme) {
     const planName = programme.plan?.name || 'Your programme';
-    const weekNodes = programme.byWeek[viewWeek - 1] || [];
-    const isAheadWeek = viewWeek > programme.currentWeek;
-    const isPastWeek = viewWeek < programme.currentWeek;
 
     body = (
       <>
-        <Text style={s.screenTitle}>Train</Text>
-        <Text style={s.screenSub}>
-          {planName}
-          {programme.completed
-            ? ' · finished'
-            : ` · week ${programme.currentWeek} of ${programme.weeks}`}
-        </Text>
+        {/* Season hero — pass name, real week-of-weeks, true progress */}
+        <SeasonHero
+          planName={planName}
+          description={programme.plan?.description || null}
+          currentWeek={programme.currentWeek}
+          totalWeeks={programme.weeks}
+          position={Math.min(programme.position, programme.track.length)}
+          trackLength={programme.track.length}
+          completed={programme.completed}
+          reducedMotion={reducedMotion}
+        />
 
-        {/* Week chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: 15, marginHorizontal: -20 }}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}
-        >
-          {Array.from({ length: programme.weeks }, (_, i) => i + 1).map((wk) => {
-            const isPast = wk < programme.currentWeek || (programme.completed && wk <= programme.weeks);
-            const isCurrent = wk === programme.currentWeek && !programme.completed;
-            const isNear = wk === programme.currentWeek + 1;
-            const isSelected = wk === viewWeek;
-            return (
-              <Pressable
-                key={wk}
-                onPress={() => setSelectedWeek(wk)}
-                accessibilityRole="button"
-                accessibilityLabel={`Week ${wk}${isPast ? ', done' : isCurrent ? ', current week' : ''}`}
-                accessibilityState={{ selected: isSelected }}
-                style={[
-                  s.weekChip,
-                  isCurrent && s.weekChipCurrent,
-                  !isCurrent && !isPast && !isNear && s.weekChipFar,
-                  isSelected && !isCurrent && s.weekChipSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    s.weekChipText,
-                    isCurrent && s.weekChipTextCurrent,
-                    isNear && !isCurrent && s.weekChipTextNear,
-                    !isCurrent && !isPast && !isNear && s.weekChipTextFar,
-                  ]}
-                >
-                  W{wk}
-                  {isPast ? ' ✓' : ''}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Week context line for past/ahead weeks */}
-        {isPastWeek && <Text style={s.weekNote}>Week {viewWeek} — behind you. Every row here is done.</Text>}
-        {isAheadWeek && (
-          <Text style={s.weekNote}>
-            Week {viewWeek} — you can see it, but it opens in order. {coachFirst} built the sequence on purpose.
-          </Text>
-        )}
-
-        <View style={{ gap: 9, marginTop: 14 }}>
-          {weekNodes.length > 0 ? (
-            weekNodes.map((i) => renderNode(i))
-          ) : (
-            <Text style={s.nodeSub}>Nothing scheduled in this week.</Text>
-          )}
-        </View>
+        {/* The track — the season's nodes, grouped and labeled by week */}
+        <Text style={s.sectionLabel}>Your season</Text>
+        <SeasonTrack
+          track={programme.track}
+          durationWeeks={programme.durationWeeks}
+          position={programme.position}
+          currentWeek={programme.currentWeek}
+          seasonCompleted={programme.completed}
+          workoutById={workoutById}
+          coachFirst={coachFirst}
+          onOpenWorkout={(w, opts) => startTrackWorkout(w, opts)}
+          onOpenDiet={() => router.push(ClientRoute.myDiet)}
+          reducedMotion={reducedMotion}
+        />
 
         {programme.completed && (
           <View style={s.noteCard}>
@@ -673,68 +584,25 @@ export default function ClientWorkoutsScreen() {
             </Pressable>
           </View>
         )}
+
+        {/* One-off assignments — a different thing than the season, and labeled so */}
+        {assignedList.length > 0 && (
+          <>
+            <Text style={s.sectionLabel}>Extras from your coach</Text>
+            <Text style={s.sectionExplainer}>Sent by {coachFirst} on top of your season.</Text>
+            <View style={{ gap: 9 }}>{assignedList.map(renderAssignment)}</View>
+          </>
+        )}
       </>
     );
   } else if (assignedList.length > 0) {
-    // Direct assignments, no pass — a simple flat list.
+    // Direct assignments, no pass — the main surface, plus the way into one.
     body = (
       <>
         <Text style={s.screenTitle}>Train</Text>
         <Text style={s.screenSub}>Sessions {coachFirst} put on your plan</Text>
-        <View style={{ gap: 9, marginTop: 18 }}>
-          {assignedList.map((cw: any) => {
-            const wr = cw.workouts || {};
-            const exs: any[] = wr.workout_exercises || [];
-            const done = cw.status === 'completed';
-            const overdue = !done && isOverdue(cw.assigned_date);
-            const fromDay = overdue
-              ? parseLocalDay(cw.assigned_date)?.toLocaleDateString('en-GB', { weekday: 'short' })
-              : null;
-            const meta: string[] = [];
-            if (exs.length > 0) meta.push(`${exs.length} exercise${exs.length === 1 ? '' : 's'}`);
-            const mins = wr.duration || wr.duration_minutes;
-            if (mins) meta.push(`${mins} min`);
-            return (
-              <Pressable
-                key={cw.id}
-                style={[s.nodeRow, done && s.nodeRowDone]}
-                onPress={() => !done && startAssignedWorkout(cw)}
-                disabled={done}
-                accessibilityRole="button"
-                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to preview'}`}
-              >
-                {done ? (
-                  <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
-                ) : (
-                  <Ionicons name="barbell-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                    <Text style={[s.nodeName, { flexShrink: 1 }]} numberOfLines={1}>{wr.name || 'Session'}</Text>
-                    {overdue && !!fromDay && (
-                      <View style={s.fromTag}>
-                        <Text style={s.fromTagText}>from {fromDay}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Assigned'}</Text>
-                </View>
-                {overdue && (
-                  <Pressable
-                    style={s.movePill}
-                    onPress={() => moveToToday(cw)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Move ${wr.name || 'session'} to today`}
-                  >
-                    <Text style={s.movePillText}>Move to today</Text>
-                  </Pressable>
-                )}
-                {!done && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        <View style={{ gap: 9, marginTop: 18 }}>{assignedList.map(renderAssignment)}</View>
+        {findSeasonCard}
       </>
     );
   } else {
@@ -759,6 +627,7 @@ export default function ClientWorkoutsScreen() {
             </Pressable>
           )}
         </View>
+        {trainer ? findSeasonCard : null}
       </>
     );
   }
@@ -832,60 +701,6 @@ const s = StyleSheet.create({
   screenTitle: { fontFamily: F.headingBold, fontSize: 22, color: C.textPrimary },
   screenSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
 
-  weekChip: {
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 13,
-  },
-  weekChipCurrent: { backgroundColor: C.accent, borderColor: C.accent },
-  weekChipFar: { borderColor: '#1E211D' },
-  weekChipSelected: { borderColor: C.textSecondary },
-  weekChipText: { fontFamily: F.bodyMedium, fontSize: 11.5, color: C.textFaint },
-  weekChipTextCurrent: { fontFamily: F.bodyBold, color: C.onAccent },
-  weekChipTextNear: { color: '#C9CEC2' },
-  weekChipTextFar: { color: '#4E5449' },
-
-  weekNote: {
-    fontFamily: F.body,
-    fontSize: 12,
-    color: C.textMuted,
-    marginTop: 14,
-    lineHeight: 17,
-  },
-
-  todayCard: {
-    backgroundColor: '#1E211D',
-    borderWidth: 1.5,
-    borderColor: C.accent,
-    borderRadius: 18,
-    padding: 16,
-  },
-  todayEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  todayDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
-  todayEyebrow: {
-    fontFamily: F.bodyBold,
-    fontSize: 11,
-    color: C.accent,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  todayTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary, marginTop: 9 },
-  exerciseList: { gap: 7, marginTop: 13 },
-  exerciseRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
-  exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  exerciseMeta: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
-  exerciseMore: { fontFamily: F.body, fontSize: 11.5, color: C.textFaint },
-  startBtn: {
-    backgroundColor: C.accent,
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  startBtnText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.onAccent },
-
   nodeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -918,16 +733,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
   },
   movePillText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
-
-  markerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  markerDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.textFaint },
-  markerText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary },
 
   noteCard: {
     backgroundColor: C.surface,
@@ -965,6 +770,14 @@ const s = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginTop: 26,
+    marginBottom: 11,
+  },
+  sectionExplainer: {
+    fontFamily: F.body,
+    fontSize: 12,
+    color: C.textMuted,
+    lineHeight: 17,
+    marginTop: -5,
     marginBottom: 11,
   },
 

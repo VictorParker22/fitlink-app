@@ -1,11 +1,21 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  LayoutAnimation, UIManager, Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import MuscleMap from '../../anatomy/MuscleMap';
 import { musclesForExercise, regionLabel, MuscleRegionId } from '../../../lib/muscles';
+import ExerciseMediaDemo from '../../shared/exercise/ExerciseMediaDemo';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
+
+// Enable LayoutAnimation on Android (same guard as strength-session)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 /**
  * Review-before-commit gate in front of ActiveWorkoutPlayer.
@@ -26,6 +36,29 @@ function cap(t: string): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 
+// Real instructions → bullet lines. HTML list items / paragraphs become
+// bullets; a single plain-text blob is split on sentence ends. No data → [].
+// Same approach as strength-session's toBullets.
+function toBullets(raw?: string | null): string[] {
+  if (!raw) return [];
+  const withBreaks = String(raw)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(li|p|div|ol|ul)\s*>/gi, '\n');
+  const text = withBreaks.replace(/<[^>]*>?/gm, ' ').replace(/&nbsp;/g, ' ');
+  const lines = text.split(/\r?\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const items = lines.length > 1
+    ? lines
+    : (lines[0] ?? '').split(/\.\s+/).map(s => s.trim()).filter(s => s.length > 1);
+  return items.map(s => (/[.!?]$/.test(s) ? s : `${s}.`));
+}
+
+// External hosts need a video modal we don't have in the preview; the inline
+// expo-video player can't play them, so they are treated as no media here.
+function isExternalVideo(url?: string | null): boolean {
+  if (!url) return false;
+  return /youtube\.com|youtu\.be|instagram\.com|tiktok\.com/.test(url);
+}
+
 interface WorkoutPreviewProps {
   activeWorkout: any;
   onStart: () => void;
@@ -34,7 +67,18 @@ interface WorkoutPreviewProps {
 
 export default function WorkoutPreview({ activeWorkout, onStart, onBack }: WorkoutPreviewProps) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const workout = activeWorkout?.workouts || {};
+
+  // Per-row expand state, keyed by workout_exercise id (index fallback).
+  // Expanded content is only mounted while open — no hidden mounts.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggleRow = useCallback((key: string) => {
+    if (!reducedMotion) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  }, [reducedMotion]);
 
   const exercises = useMemo(() => {
     return ([...(workout.workout_exercises || [])] as any[]).sort(
@@ -139,33 +183,134 @@ export default function WorkoutPreview({ activeWorkout, onStart, onBack }: Worko
           </View>
         )}
 
-        {/* Full exercise list — name, sets × reps, equipment when real */}
+        {/* Full exercise list — each row expands in place to show the
+            exercise's real details (media, muscles, instructions, meta).
+            Every block below is rendered only when its data exists. */}
         <View style={{ gap: 8, marginTop: 22 }}>
           {exercises.map((we: any, i: number) => {
-            const name = we.exercises?.name || 'Exercise';
+            const key = String(we.id || i);
+            const base = we.exercises;
+            const name = base?.name || 'Exercise';
             const sets = parseInt(String(we.sets), 10);
             const reps = parseInt(String(we.reps), 10);
-            const equipment = we.exercises?.equipment as string | undefined;
+            const equipment = base?.equipment as string | undefined;
             const parts = [
               ...(Number.isFinite(sets) && Number.isFinite(reps) && sets > 0 && reps > 0
                 ? [`${sets}×${reps}`]
                 : []),
               ...(we.rest_seconds > 0 ? [`${we.rest_seconds}s rest`] : []),
             ];
+            const isOpen = !!expanded[key];
+
+            const setsReadable =
+              Number.isFinite(sets) && Number.isFinite(reps) && sets > 0 && reps > 0
+                ? `, ${sets} sets of ${reps}`
+                : '';
+
+            // Detail availability — computed cheaply for every row so the
+            // a11y hint is honest, but the blocks themselves mount only
+            // while the row is open.
+            const imageUrl = base?.image_url as string | undefined;
+            const videoUrl = isExternalVideo(we.video_url) ? undefined : (we.video_url as string | undefined);
+            const hasMedia = !!(imageUrl || videoUrl);
+            const rowMuscles = base
+              ? musclesForExercise(base)
+              : { primary: [] as MuscleRegionId[], secondary: [] as MuscleRegionId[] };
+            const hasMuscles = rowMuscles.primary.length + rowMuscles.secondary.length > 0;
+            const bullets = toBullets(we.notes || base?.instructions);
+            const difficulty = base?.difficulty as string | undefined;
+            const muscleLabel = rowMuscles.primary.length > 0
+              ? regionLabel(rowMuscles.primary[0])
+              : (base?.muscle_group ? cap(String(base.muscle_group)) : null);
+            const metaTags = [
+              ...(equipment ? [cap(equipment)] : []),
+              ...(difficulty ? [cap(difficulty)] : []),
+              ...(muscleLabel ? [muscleLabel] : []),
+            ];
+            const hasDetails = hasMedia || hasMuscles || bullets.length > 0 || metaTags.length > 0;
+
             return (
-              <View
-                key={we.id || i}
-                style={s.exRow}
-                accessible
-                accessibilityLabel={`${name}${parts.length > 0 ? `, ${parts.join(', ')}` : ''}${equipment ? `, ${equipment}` : ''}`}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.exName}>{name}</Text>
-                  {parts.length > 0 && <Text style={s.exMeta}>{parts.join(' · ')}</Text>}
-                </View>
-                {equipment ? (
-                  <View style={s.tag}><Text style={s.tagText}>{cap(equipment)}</Text></View>
-                ) : null}
+              <View key={key} style={s.exCard}>
+                <TouchableOpacity
+                  style={s.exRow}
+                  onPress={() => toggleRow(key)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  accessibilityLabel={`${name}${setsReadable}${we.rest_seconds > 0 ? `, ${we.rest_seconds} seconds rest` : ''}`}
+                  accessibilityHint={
+                    hasDetails
+                      ? (isOpen ? 'Double tap to hide details' : 'Double tap to show details')
+                      : 'No further details for this exercise'
+                  }
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.exName}>{name}</Text>
+                    {parts.length > 0 && <Text style={s.exMeta}>{parts.join(' · ')}</Text>}
+                  </View>
+                  {equipment && !isOpen ? (
+                    <View style={s.tag}><Text style={s.tagText}>{cap(equipment)}</Text></View>
+                  ) : null}
+                  <Ionicons
+                    name={isOpen ? 'chevron-up' : 'chevron-down'}
+                    size={17}
+                    color={CoachColors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                {isOpen && (
+                  <View style={s.exExpanded}>
+                    {!hasDetails && (
+                      <Text style={s.exNoDetails}>No further details for this exercise.</Text>
+                    )}
+
+                    {/* Demo media — image/gif or inline video, real URL only */}
+                    {hasMedia && (
+                      <ExerciseMediaDemo
+                        imageUrl={imageUrl}
+                        videoUrl={videoUrl}
+                        exerciseName={name}
+                      />
+                    )}
+
+                    {/* This exercise's own muscles — only when recognizable */}
+                    {hasMuscles && (
+                      <View
+                        style={s.exMuscleRow}
+                        accessible
+                        accessibilityLabel={`Targets ${[...rowMuscles.primary, ...rowMuscles.secondary].map(id => regionLabel(id)).join(', ')}`}
+                      >
+                        <MuscleMap
+                          view="both"
+                          height={90}
+                          primary={rowMuscles.primary}
+                          secondary={rowMuscles.secondary}
+                        />
+                      </View>
+                    )}
+
+                    {/* Real instructions as bullets, capped at 4 */}
+                    {bullets.length > 0 && (
+                      <View style={s.exInstrBlock}>
+                        {bullets.slice(0, 4).map((line, j) => (
+                          <View key={j} style={s.exInstrLine}>
+                            <Text style={s.exInstrDot}>{'•'}</Text>
+                            <Text style={s.exInstrText}>{line}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Meta — equipment, difficulty, muscle group; real values only */}
+                    {metaTags.length > 0 && (
+                      <View style={s.exTagRow}>
+                        {metaTags.map(t => (
+                          <View key={t} style={s.tag}><Text style={s.tagText}>{t}</Text></View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -229,14 +374,33 @@ const s = StyleSheet.create({
     color: CoachColors.textSecondary,
   },
 
-  exRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+  exCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 15,
+    borderRadius: 14,
+  },
+  exRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 15,
   },
   exName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   exMeta: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+
+  exExpanded: {
+    paddingHorizontal: 15, paddingBottom: 14, gap: 12,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
+    paddingTop: 12,
+  },
+  exNoDetails: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  exMuscleRow: { alignItems: 'center' },
+  exInstrBlock: { gap: 6 },
+  exInstrLine: { flexDirection: 'row', gap: 8 },
+  exInstrDot: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.accent, lineHeight: 19 },
+  exInstrText: {
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 12.5,
+    color: CoachColors.textSecondary, lineHeight: 19,
+  },
+  exTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 4, paddingHorizontal: 10,
