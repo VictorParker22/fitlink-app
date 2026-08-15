@@ -12,7 +12,7 @@ import Avatar from '../../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import * as Haptics from 'expo-haptics';
-import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 interface CoachPulseProps {
   trainer: any;

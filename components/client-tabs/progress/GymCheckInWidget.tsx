@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { Spacing } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 

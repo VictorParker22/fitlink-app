@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
-import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 interface ConsistencyRingProps {
   completedDays?: number[]; // e.g. [0, 1, 3] for Mon, Tue, Thu

@@ -31,7 +31,7 @@ import { useClient } from '../../../context/ClientContext';
 import { useWorkout } from '../../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
-import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { computeStreak, overdueAssigned } from '../../../lib/streak';
 
 const C = CoachColors;
