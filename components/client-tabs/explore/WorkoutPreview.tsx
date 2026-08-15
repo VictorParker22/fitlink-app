@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
@@ -32,6 +33,7 @@ interface WorkoutPreviewProps {
 }
 
 export default function WorkoutPreview({ activeWorkout, onStart, onBack }: WorkoutPreviewProps) {
+  const insets = useSafeAreaInsets();
   const workout = activeWorkout?.workouts || {};
 
   const exercises = useMemo(() => {
@@ -170,8 +172,10 @@ export default function WorkoutPreview({ activeWorkout, onStart, onBack }: Worko
         </View>
       </ScrollView>
 
-      {/* The one commit — nothing above this starts anything */}
-      <View style={s.footer}>
+      {/* The one commit — nothing above this starts anything.
+          Bottom padding clears the floating tab bar, which is
+          position:absolute and was covering this button entirely. */}
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 92 }]}>
         <TouchableOpacity
           style={[s.startBtn, exercises.length === 0 && { opacity: 0.5 }]}
           onPress={() => {
@@ -240,8 +244,8 @@ const s = StyleSheet.create({
   tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11.5, color: CoachColors.textSecondary },
 
   footer: {
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28,
-    borderTopWidth: 1, borderTopColor: '#1E211D',
+    paddingHorizontal: 20, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
   },
   startBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999,
