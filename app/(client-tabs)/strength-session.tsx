@@ -22,7 +22,7 @@ import PRCelebration, { WeeklyBest } from '../../components/client-tabs/PRCelebr
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
 import MuscleMap from '../../components/anatomy/MuscleMap';
-import { musclesForExercise } from '../../lib/muscles';
+import { musclesForExercise, regionLabel, MuscleRegionId } from '../../lib/muscles';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -204,6 +204,42 @@ export default function StrengthSessionScreen() {
     }
     return best;
   }, [exercisePrs, workoutHistory]);
+
+  // ── Preview data (overview mode) ──
+  // Whole-workout muscle aggregate — same pattern as the Targets card in
+  // app/workout/[id].tsx. Real exercise data only; nothing → no figure.
+  const workoutMuscles = useMemo(() => {
+    const primaryCounts = new Map<MuscleRegionId, number>();
+    const secondaryCounts = new Map<MuscleRegionId, number>();
+    exercises.forEach((ex) => {
+      const base = ex.raw?.exercises;
+      if (!base) return;
+      const { primary, secondary } = musclesForExercise(base);
+      primary.forEach(id => primaryCounts.set(id, (primaryCounts.get(id) || 0) + 1));
+      secondary.forEach(id => secondaryCounts.set(id, (secondaryCounts.get(id) || 0) + 1));
+    });
+    const primary = [...primaryCounts.keys()];
+    const secondary = [...secondaryCounts.keys()].filter(id => !primaryCounts.has(id));
+    const rows = [
+      ...[...primaryCounts.entries()].map(([id, count]) => ({ id, count, isPrimary: true })),
+      ...secondary.map(id => ({ id, count: secondaryCounts.get(id) || 0, isPrimary: false })),
+    ].sort((a, b) => (a.isPrimary === b.isPrimary ? b.count - a.count : a.isPrimary ? -1 : 1));
+    return { primary, secondary, rows };
+  }, [exercises]);
+
+  // Honest estimate: sum of sets × (rest + ~40s work per set). Only shown when
+  // every exercise carries a real sets count — otherwise omitted entirely.
+  const totalSets = useMemo(() => exercises.reduce((sum, ex) => sum + ex.sets, 0), [exercises]);
+  const estMinutes = useMemo(() => {
+    if (exercises.length === 0) return null;
+    const allReal = exercises.every(ex => {
+      const rawSets = parseInt(String(ex.raw?.sets), 10);
+      return Number.isFinite(rawSets) && rawSets > 0;
+    });
+    if (!allReal) return null;
+    const seconds = exercises.reduce((sum, ex) => sum + ex.sets * (ex.restSec + 40), 0);
+    return Math.max(1, Math.round(seconds / 60));
+  }, [exercises]);
 
   const currentEx = exercises[exIdx] ?? null;
   // Muscle regions for the focus card's anatomy map — real exercise data only;
@@ -583,6 +619,7 @@ export default function StrengthSessionScreen() {
         const last = lastLoggedFor(ex.exerciseId);
         const lastTop = last ? last.sets.reduce((a, b) => (b.weight > a.weight ? b : a)) : null;
         const instructionText = ex.raw.notes || ex.raw.exercises?.instructions;
+        const equipment = ex.raw.exercises?.equipment as string | undefined;
         return (
           <View key={ex.key} style={s.exCard}>
             <TouchableOpacity
@@ -590,7 +627,7 @@ export default function StrengthSessionScreen() {
               activeOpacity={0.85}
               onPress={() => toggleExercise(ex.key)}
               accessibilityRole="button"
-              accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
+              accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${equipment ? `, ${equipment}` : ''}${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
               accessibilityState={{ expanded: open }}
               accessibilityHint={open ? 'Double tap to collapse details' : 'Double tap to expand details'}
             >
@@ -598,6 +635,7 @@ export default function StrengthSessionScreen() {
                 <Text style={s.exName}>{ex.name}</Text>
                 <Text style={s.exMeta}>
                   {ex.sets}×{ex.reps} · {ex.restSec}s rest
+                  {equipment ? ` · ${cap(equipment)}` : ''}
                   {lastTop ? ` · last time ${fmtKg(lastTop.weight)} kg` : ''}
                 </Text>
               </View>
@@ -1067,7 +1105,12 @@ export default function StrengthSessionScreen() {
   // OVERVIEW MODE
   // ─────────────────────────────────────────────────────────
   const instructorName = session.trainers?.name || 'Your coach';
-  const estMin = Math.max(15, exercises.length * 10);
+  const overviewMetaParts = [
+    `${exercises.length} ${exercises.length === 1 ? 'exercise' : 'exercises'}`,
+    ...(totalSets > 0 ? [`${totalSets} sets`] : []),
+    ...(estMinutes != null ? [`Est. ${estMinutes} min`] : []),
+    `from ${instructorName}`,
+  ];
 
   return (
     <View style={s.container}>
@@ -1080,10 +1123,34 @@ export default function StrengthSessionScreen() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           <Text style={s.overviewEyebrow}>Strength session</Text>
           <Text style={s.overviewTitle} accessibilityRole="header">{session.name || 'Workout'}</Text>
-          <Text style={s.overviewMeta}>
-            {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} · ~{estMin} min · from {instructorName}
-          </Text>
+          <Text style={s.overviewMeta}>{overviewMetaParts.join(' · ')}</Text>
           {session.description ? <Text style={s.overviewDesc}>{session.description}</Text> : null}
+
+          {/* Targets — whole-workout muscle aggregate, real data only */}
+          {workoutMuscles.rows.length > 0 && (
+            <View
+              style={s.targetsCard}
+              accessible
+              accessibilityLabel={`Targets ${workoutMuscles.rows.slice(0, 7).map(r => regionLabel(r.id)).join(', ')}`}
+            >
+              <MuscleMap
+                view="both"
+                height={150}
+                primary={workoutMuscles.primary}
+                secondary={workoutMuscles.secondary}
+              />
+              <View style={s.targetsList}>
+                {workoutMuscles.rows.slice(0, 7).map(row => (
+                  <View key={row.id} style={s.targetRow}>
+                    <View style={[s.targetDot, !row.isPrimary && s.targetDotSecondary]} />
+                    <Text style={s.targetRowText} numberOfLines={1}>
+                      {regionLabel(row.id)} · {row.count} exercise{row.count === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={{ marginTop: 22 }}>
             {renderExerciseList()}
@@ -1137,6 +1204,20 @@ const s = StyleSheet.create({
   overviewDesc: {
     fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
     lineHeight: 21, marginTop: 14,
+  },
+  targetsCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 14, padding: 15, marginTop: 18,
+  },
+  targetsList: { flex: 1, gap: 8 },
+  targetRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  targetDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: CoachColors.accent },
+  targetDotSecondary: { backgroundColor: CoachColors.accentSoft },
+  targetRowText: {
+    flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 12.5,
+    color: CoachColors.textSecondary,
   },
   exCard: {
     backgroundColor: CoachColors.surface,

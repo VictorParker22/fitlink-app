@@ -231,17 +231,23 @@ export default function ActiveWorkoutPlayer({
   };
 
   const handleConfirmCancel = () => {
+    const leave = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      clearExerciseLogs();
+      onCancelWorkout();
+    };
+    const anyLogged = exerciseStates.some((ex) => ex.sets.some((set) => set.completed));
+    if (!anyLogged) {
+      // Nothing committed yet — no "end workout" interrogation, just leave.
+      Alert.alert('Leave workout?', 'Nothing has been logged yet.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', onPress: leave },
+      ]);
+      return;
+    }
     Alert.alert('End workout?', 'Your progress will be lost.', [
       { text: 'Keep going', style: 'cancel' },
-      {
-        text: 'End',
-        style: 'destructive',
-        onPress: () => {
-          if (timerRef.current) clearInterval(timerRef.current);
-          clearExerciseLogs();
-          onCancelWorkout();
-        },
-      },
+      { text: 'End', style: 'destructive', onPress: leave },
     ]);
   };
 
@@ -293,7 +299,12 @@ export default function ActiveWorkoutPlayer({
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerTop}>
-          <TouchableOpacity onPress={handleConfirmCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={handleConfirmCancel}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close workout"
+          >
             <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <View style={s.headerCenter}>

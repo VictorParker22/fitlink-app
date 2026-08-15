@@ -12,13 +12,15 @@
  * legacy on-demand explore view kept reachable behind one entry row.
  *
  * Contract preserved: Today pushes here with { startWorkoutId } and this
- * screen resolves it into the ActiveWorkoutPlayer — do not change that.
+ * screen resolves it — into the WorkoutPreview, review-before-commit. The
+ * ActiveWorkoutPlayer (and its timer) only exists after the explicit
+ * "Start session" tap on the preview.
  *
  * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
  * Every number on this screen is real or omitted.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,6 +44,7 @@ import type { TrackNode } from '../../context/AppContext';
 
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
 import ActiveWorkoutPlayer from '../../components/client-tabs/explore/ActiveWorkoutPlayer';
+import WorkoutPreview from '../../components/client-tabs/explore/WorkoutPreview';
 import WorkoutSummary from '../../components/client-tabs/explore/WorkoutSummary';
 import SeasonComplete from '../../components/client-tabs/SeasonComplete';
 
@@ -84,9 +87,15 @@ export default function ClientWorkoutsScreen() {
   const [bookingCoach, setBookingCoach] = useState<any | null>(null);
   const [dbTrainers, setDbTrainers] = useState<any[]>([]);
 
-  // Active workout state
+  // Active workout state. Setting activeWorkout only opens the PREVIEW —
+  // the player (and its elapsed timer) exists only after the explicit
+  // "Start session" tap flips sessionStarted.
   const [activeWorkout, setActiveWorkout] = useState<any | null>(null);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  // Deep links open the preview once; backing out must not re-open it when
+  // the workouts list refreshes under the same params.
+  const consumedStartIdRef = useRef<string | null>(null);
   const [summaryElapsedSeconds, setSummaryElapsedSeconds] = useState(0);
   const [summaryExerciseStates, setSummaryExerciseStates] = useState<any[]>([]);
 
@@ -99,11 +108,14 @@ export default function ClientWorkoutsScreen() {
   // Conversation created here when the context has none yet.
   const [localConversation, setLocalConversation] = useState<any>(null);
 
-  // ── startWorkoutId contract (Today depends on this — preserved exactly) ──
+  // ── startWorkoutId contract (Today depends on this — the param still
+  // resolves the workout, but it now lands on the session PREVIEW instead of
+  // auto-starting a timed session) ──
   useEffect(() => {
     if (params?.view === 'explore') setShowExplore(true);
 
-    if (params?.startWorkoutId) {
+    if (params?.startWorkoutId && consumedStartIdRef.current !== params.startWorkoutId) {
+      consumedStartIdRef.current = params.startWorkoutId;
       const found = (workouts || []).find(
         (w: any) =>
           w.id === params.startWorkoutId ||
@@ -312,6 +324,7 @@ export default function ClientWorkoutsScreen() {
       await completeWorkoutWithLog(activeWorkout.id, summaryElapsedSeconds);
     }
     setActiveWorkout(null);
+    setSessionStarted(false);
     setShowSummary(false);
     setSummaryExerciseStates([]);
     setSummaryElapsedSeconds(0);
@@ -363,14 +376,32 @@ export default function ClientWorkoutsScreen() {
     );
   }
 
-  if (activeWorkout) {
+  if (activeWorkout && sessionStarted) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
         <ActiveWorkoutPlayer
           activeWorkout={activeWorkout}
           onFinishWorkout={handleFinishWorkout}
-          onCancelWorkout={() => setActiveWorkout(null)}
+          onCancelWorkout={() => {
+            setActiveWorkout(null);
+            setSessionStarted(false);
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Preview first — every entry path (Today card, Copilot rows, deep link,
+  // assigned rows) lands here. The timer starts only on "Start session".
+  if (activeWorkout) {
+    return (
+      <SafeAreaView style={s.container} edges={['top']}>
+        <StatusBar barStyle="light-content" />
+        <WorkoutPreview
+          activeWorkout={activeWorkout}
+          onStart={() => setSessionStarted(true)}
+          onBack={() => setActiveWorkout(null)}
         />
       </SafeAreaView>
     );
@@ -512,8 +543,14 @@ export default function ClientWorkoutsScreen() {
             </View>
           )}
           {w ? (
-            <Pressable style={s.startBtn} onPress={() => startTrackWorkout(w)} accessibilityRole="button">
-              <Text style={s.startBtnText}>Start session</Text>
+            <Pressable
+              style={s.startBtn}
+              onPress={() => startTrackWorkout(w)}
+              accessibilityRole="button"
+              accessibilityLabel="View session"
+              accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
+            >
+              <Text style={s.startBtnText}>View session</Text>
             </Pressable>
           ) : (
             <Text style={s.nodeSub}>Loading the session details…</Text>
@@ -664,7 +701,7 @@ export default function ClientWorkoutsScreen() {
                 onPress={() => !done && startAssignedWorkout(cw)}
                 disabled={done}
                 accessibilityRole="button"
-                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to start'}`}
+                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to preview'}`}
               >
                 {done ? (
                   <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />

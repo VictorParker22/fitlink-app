@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated as RNAnimated, Easing, Image, Modal, Linking
+  Animated as RNAnimated, Easing, Image, Modal, Linking, Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -111,12 +111,24 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            checkIn();
+            Haptics.selectionAsync();
+            // Review before commit — checking in starts a running timer, so a
+            // bare tap only asks; the session starts on the explicit confirm.
+            Alert.alert('Start a gym session?', 'Checking in starts the session timer.', [
+              { text: 'Not now', style: 'cancel' },
+              {
+                text: 'Check in',
+                onPress: () => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  checkIn();
+                },
+              },
+            ]);
           }}
           style={st.gymCheckInBtn}
           accessibilityRole="button"
           accessibilityLabel="Check in to gym"
+          accessibilityHint="Asks to confirm before the session timer starts"
         >
           <View style={st.gymCheckInIcon}>
             <Ionicons name="flash" size={22} color={CoachColors.onAccent} />
