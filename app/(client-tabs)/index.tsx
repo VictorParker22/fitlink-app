@@ -29,6 +29,7 @@ import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import SquadFeed from '../../components/client-tabs/SquadFeed';
 import ClientCopilot, { CoachMessagePreview } from '../../components/client-tabs/home/ClientCopilot';
+import SessionsCard from '../../components/client-tabs/home/SessionsCard';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -718,6 +719,9 @@ export default function AthleteTodayScreen() {
 
         {/* ── Client copilot — up to 4 real "what's next" rows ── */}
         <ClientCopilot latestCoachMessage={latestCoachMsg} />
+
+        {/* ── Sessions — the dedicated surface (next booked / nudge / find) ── */}
+        <SessionsCard />
 
         <SquadFeed />
 
