@@ -30,6 +30,7 @@ import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import SquadFeed from '../../components/client-tabs/SquadFeed';
 import ClientCopilot, { CoachMessagePreview } from '../../components/client-tabs/home/ClientCopilot';
 import SessionsCard from '../../components/client-tabs/home/SessionsCard';
+import SeasonPulseCard from '../../components/client-tabs/home/SeasonPulseCard';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -722,6 +723,9 @@ export default function AthleteTodayScreen() {
 
         {/* ── Sessions — the dedicated surface (next booked / nudge / find) ── */}
         <SessionsCard />
+
+        {/* ── Season pulse — season standing + continue/review fork ── */}
+        <SeasonPulseCard />
 
         <SquadFeed />
 
