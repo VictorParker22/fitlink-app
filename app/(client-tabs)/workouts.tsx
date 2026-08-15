@@ -27,6 +27,7 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,6 +37,7 @@ import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import { isOverdue, parseLocalDay } from '../../lib/streak';
 import type { TrackNode } from '../../context/AppContext';
 
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
@@ -64,6 +66,7 @@ export default function ClientWorkoutsScreen() {
     conversation,
     completeWorkoutWithLog,
     completeTrackWorkout,
+    rescheduleWorkoutToToday,
     refreshData,
   } = useClient();
   const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string }>();
@@ -323,11 +326,26 @@ export default function ClientWorkoutsScreen() {
   }, [refreshData]);
 
   // ── Direct assignments (used when there's no pass) ────────────────────────
+  // Overdue assigned sessions float to the top ("today"), newest-missed first,
+  // so the way back is the first thing the athlete sees — never buried under
+  // its original date.
   const assignedList = useMemo(() => {
     return (workouts || [])
       .filter((w: any) => w.status === 'assigned' || w.status === 'completed')
-      .sort((a: any, b: any) => new Date(b.assigned_date).getTime() - new Date(a.assigned_date).getTime());
+      .sort((a: any, b: any) => {
+        const aOver = a.status === 'assigned' && isOverdue(a.assigned_date);
+        const bOver = b.status === 'assigned' && isOverdue(b.assigned_date);
+        if (aOver !== bOver) return aOver ? -1 : 1;
+        return new Date(b.assigned_date).getTime() - new Date(a.assigned_date).getTime();
+      });
   }, [workouts]);
+
+  // One-tap slip recovery — same move as the Today card. Optimistic in the
+  // context; on failure it reverts there and we say so plainly here.
+  const moveToToday = useCallback(async (cw: any) => {
+    const ok = await rescheduleWorkoutToToday(cw.id);
+    if (!ok) Alert.alert('Could not move it', 'Something went wrong on our end. Give it another try in a moment.');
+  }, [rescheduleWorkoutToToday]);
 
   // ── Player / summary overlays ─────────────────────────────────────────────
   if (activeWorkout && showSummary) {
@@ -631,6 +649,10 @@ export default function ClientWorkoutsScreen() {
             const wr = cw.workouts || {};
             const exs: any[] = wr.workout_exercises || [];
             const done = cw.status === 'completed';
+            const overdue = !done && isOverdue(cw.assigned_date);
+            const fromDay = overdue
+              ? parseLocalDay(cw.assigned_date)?.toLocaleDateString('en-GB', { weekday: 'short' })
+              : null;
             const meta: string[] = [];
             if (exs.length > 0) meta.push(`${exs.length} exercise${exs.length === 1 ? '' : 's'}`);
             const mins = wr.duration || wr.duration_minutes;
@@ -642,7 +664,7 @@ export default function ClientWorkoutsScreen() {
                 onPress={() => !done && startAssignedWorkout(cw)}
                 disabled={done}
                 accessibilityRole="button"
-                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${done ? '' : '. Double tap to start'}`}
+                accessibilityLabel={`${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${overdue && fromDay ? `, from ${fromDay}` : ''}${done ? '' : '. Double tap to start'}`}
               >
                 {done ? (
                   <Ionicons name="checkmark" size={17} color={C.accent} style={s.nodeIcon} />
@@ -650,9 +672,27 @@ export default function ClientWorkoutsScreen() {
                   <Ionicons name="barbell-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={s.nodeName}>{wr.name || 'Session'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <Text style={[s.nodeName, { flexShrink: 1 }]} numberOfLines={1}>{wr.name || 'Session'}</Text>
+                    {overdue && !!fromDay && (
+                      <View style={s.fromTag}>
+                        <Text style={s.fromTagText}>from {fromDay}</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={s.nodeSub}>{done ? 'Done' : meta.length > 0 ? meta.join(' · ') : 'Assigned'}</Text>
                 </View>
+                {overdue && (
+                  <Pressable
+                    style={s.movePill}
+                    onPress={() => moveToToday(cw)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Move ${wr.name || 'session'} to today`}
+                  >
+                    <Text style={s.movePillText}>Move to today</Text>
+                  </Pressable>
+                )}
                 {!done && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
               </Pressable>
             );
@@ -824,6 +864,23 @@ const s = StyleSheet.create({
   nodeIcon: { width: 20, textAlign: 'center' },
   nodeName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
   nodeSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
+
+  // Slip recovery — the subtle "from <weekday>" tag and the one-tap move.
+  fromTag: {
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    borderRadius: 999,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  fromTagText: { fontFamily: F.bodyMedium, fontSize: 10.5, color: C.textMuted },
+  movePill: {
+    backgroundColor: C.accentSoft,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  movePillText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
 
   markerRow: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import CheckInInbox from '../../components/dashboard/CheckInInbox';
+import AccountabilityQueue from '../../components/dashboard/AccountabilityQueue';
 import NewCoachSetupCards from '../../components/dashboard/NewCoachSetupCards';
 import ExampleAtRiskCard from '../../components/dashboard/ExampleAtRiskCard';
 import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
@@ -411,6 +412,9 @@ export default function CoachHomeScreen() {
         )}
 
         <View style={styles.divider} />
+
+        {/* ── ACCOUNTABILITY QUEUE — today's slips, silences, wins ── */}
+        <AccountabilityQueue />
 
         {/* ── BETWEEN SESSIONS ────────────────────────────────────── */}
         <Text style={styles.betweenLabel}>Between sessions</Text>

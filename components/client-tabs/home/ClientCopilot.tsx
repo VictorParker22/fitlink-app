@@ -7,10 +7,13 @@
  *
  * Priority order:
  *   1. Unread coach message (passed in from the Today screen's existing fetch)
- *   2. New assignment — latest unseen client_workouts row (last 7 days)
- *   3. Next session — soonest upcoming booked session
- *   4. Training streak — consecutive days, computed from real history (≥2 only)
- *   5. Hydration — remaining to goal, only if water was logged today
+ *   2. Slip recovery — a missed assigned workout gets a warm one-tap "move it
+ *      to today" (never shame; after the move it becomes a normal up-next row)
+ *   3. New assignment — latest unseen client_workouts row (last 7 days)
+ *   4. Next session — soonest upcoming booked session
+ *   5. Training streak — consecutive days from real history (≥2 only); when
+ *      it's ≥3 and today is still open, the row flips to "on the line"
+ *   6. Hydration — remaining to goal, only if water was logged today
  *      (reads the same AsyncStorage keys HydrationCell writes)
  *
  * Rows are individually dismissible for the day (ids + date in AsyncStorage).
@@ -18,7 +21,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +32,7 @@ import { useWorkout } from '../../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { computeStreak, overdueAssigned } from '../../../lib/streak';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -86,7 +90,7 @@ function messageSnippet(content: string): string {
 export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps) {
   const router = useRouter();
   const reduced = useReducedMotion();
-  const { trainer, workouts, upcomingSessions } = useClient();
+  const { trainer, workouts, upcomingSessions, rescheduleWorkoutToToday } = useClient();
   const { workoutHistory } = useWorkout();
 
   // null = storage not loaded yet; render nothing until then to avoid a flash
@@ -143,32 +147,31 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
     });
   }, []);
 
-  // ── Streak — consecutive training days from real history, local timezone ──
-  // Sources: WorkoutContext history (class/strength sessions logged on-device)
-  // and completed coach assignments from ClientContext. Day granularity via
-  // toDateString(); a streak may end today or yesterday (an unfinished today
-  // doesn't break it).
-  const streak = useMemo(() => {
-    const days = new Set<string>();
-    (workoutHistory || []).forEach((e) => {
-      if (e?.completedAt) days.add(new Date(e.completedAt).toDateString());
-    });
-    (workouts || []).forEach((w: any) => {
-      if (w.status !== 'completed' || !w.assigned_date) return;
-      const t = new Date(w.assigned_date);
-      if (!Number.isNaN(t.getTime())) days.add(t.toDateString());
-    });
-    if (days.size === 0) return { days: 0, trainedToday: false };
-    const cursor = new Date();
-    const trainedToday = days.has(cursor.toDateString());
-    if (!trainedToday) cursor.setDate(cursor.getDate() - 1);
-    let n = 0;
-    while (days.has(cursor.toDateString())) {
-      n++;
-      cursor.setDate(cursor.getDate() - 1);
+  // ── Streak — shared computation, extracted to lib/streak.ts ──────────────
+  const streak = useMemo(() => computeStreak(workoutHistory, workouts), [workoutHistory, workouts]);
+
+  // ── Slip recovery — the most recently missed assigned workout ────────────
+  // A client_workouts row still 'assigned' with a date before today. One tap
+  // moves it to today (optimistic; the context reverts on failure). Only rows
+  // with a real workout name qualify — the copy needs something to say.
+  const slipped = useMemo(
+    () => overdueAssigned(workouts).find((w: any) => w.workouts?.name) || null,
+    [workouts]
+  );
+
+  // The workout just moved to today this session — its row becomes the normal
+  // "up next" state instead of the recovery ask.
+  const [recovered, setRecovered] = useState<any | null>(null);
+
+  const recoverSlip = useCallback(async (w: any) => {
+    Haptics.selectionAsync();
+    setRecovered(w); // optimistic — flips the row to "up next" immediately
+    const ok = await rescheduleWorkoutToToday(w.id);
+    if (!ok) {
+      setRecovered(null);
+      Alert.alert('Could not move it', 'Something went wrong on our end. Give it another try in a moment.');
     }
-    return { days: n, trainedToday };
-  }, [workoutHistory, workouts]);
+  }, [rescheduleWorkoutToToday]);
 
   // ── Rows — every line built from real data or skipped ────────────────────
   const rows = useMemo<CopilotRow[]>(() => {
@@ -187,10 +190,40 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
       });
     }
 
-    // 2. New assignment — latest unseen client_workouts row from the last week.
+    // 2. Slip recovery — the top non-message row when a workout was missed.
+    //    Warm and forward-looking, never shame; one tap moves it to today.
+    //    Once moved (this session), the same slot is the normal up-next row.
+    if (recovered) {
+      const workoutId = recovered.workout_id || recovered.workouts?.id;
+      out.push({
+        id: `recovered-${recovered.id}`,
+        icon: 'barbell',
+        title: `${recovered.workouts?.name || 'Your workout'} is on for today`,
+        sub: 'Back on the plan — start whenever you’re ready',
+        onPress: () => {
+          if (workoutId) {
+            router.push({ pathname: ClientRoute.workouts, params: { startWorkoutId: String(workoutId) } });
+          } else {
+            router.push(ClientRoute.workouts);
+          }
+        },
+      });
+    } else if (slipped) {
+      out.push({
+        id: `slip-${slipped.id}`,
+        icon: 'refresh',
+        title: `You missed ${slipped.workouts.name} — move it to today?`,
+        sub: 'Life happens. Pick up where you left off.',
+        onPress: () => recoverSlip(slipped),
+      });
+    }
+
+    // 3. New assignment — latest unseen client_workouts row from the last week.
     const assignment = (workouts || [])
       .filter((w: any) => {
         if (w.status !== 'assigned' || !w.workouts?.name) return false;
+        // The slip/recovery slot already owns this workout — don't repeat it.
+        if (w.id === slipped?.id || w.id === recovered?.id) return false;
         if (seenAssignments.includes(`assign-${w.id}`)) return false;
         const created = new Date(w.created_at || w.assigned_date);
         if (Number.isNaN(created.getTime())) return false;
@@ -229,7 +262,7 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
       });
     }
 
-    // 3. Next session — soonest upcoming booked session with a real date/time.
+    // 4. Next session — soonest upcoming booked session with a real date/time.
     const nextSession = [...(upcomingSessions || [])]
       .filter((s: any) => s?.date && !Number.isNaN(new Date(s.date).getTime()))
       .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
@@ -249,8 +282,19 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
       });
     }
 
-    // 4. Streak — only when it's a real streak (2+ consecutive days).
-    if (streak.days >= 2) {
+    // 5. Streak — only when it's a real streak (2+ consecutive days). At ≥3
+    //    with today still open, honest loss-aversion: the streak is on the
+    //    line. A broken streak never gets a row — recovery (above) does the
+    //    talking instead of the loss.
+    if (streak.days >= 3 && !streak.trainedToday) {
+      out.push({
+        id: 'streak',
+        icon: 'flame',
+        title: `${streak.days}-day streak on the line`,
+        sub: 'Train today to keep it going',
+        onPress: () => router.push(ClientRoute.myProgress),
+      });
+    } else if (streak.days >= 2) {
       out.push({
         id: 'streak',
         icon: 'flame',
@@ -262,7 +306,7 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
       });
     }
 
-    // 5. Hydration — only if water was actually logged today and the goal
+    // 6. Hydration — only if water was actually logged today and the goal
     //    isn't hit yet. No route: logging lives in the hydration widget.
     if (hydrationOz > 0 && hydrationOz < HYDRATION_GOAL_OZ) {
       out.push({
@@ -277,6 +321,7 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
   }, [
     trainer, latestCoachMessage, workouts, seenAssignments, upcomingSessions,
     streak, hydrationOz, dismissed, router, markAssignmentSeen,
+    slipped, recovered, recoverSlip,
   ]);
 
   // Storage not loaded yet, or nothing real to say — render nothing.

@@ -135,6 +135,11 @@ export default function ClientDetailScreen() {
   // Nutrition review — real meal logs, last 7 days (null = still loading)
   const [mealLogs, setMealLogs] = useState<any[] | null>(null);
 
+  // How training felt — per-set feel ratings the athlete logged in strength
+  // sessions (client_workout_logs.exercises JSONB), last 7 days. null until
+  // loaded; the card only renders with >= 3 rated sets in the window.
+  const [feelCounts, setFeelCounts] = useState<Record<'easy' | 'right' | 'grind' | 'failed', number> | null>(null);
+
   const client          = getClientById(id || '');
   const sessions        = getClientSessions(id || '');
   const assignedWorkouts = getClientWorkouts(id || '');
@@ -247,6 +252,60 @@ export default function ClientDetailScreen() {
     })();
     return () => { cancelled = true; };
   }, [client?.id]);
+
+  // Set-feel ratings from the athlete's strength logs, last 7 days. Read-only
+  // via the trainer RLS policy on client_workout_logs; any failure just means
+  // the card stays hidden — never a fabricated summary.
+  useEffect(() => {
+    if (!client?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const since = new Date(Date.now() - 7 * 86400000).toISOString();
+        const { data, error } = await supabase
+          .from('client_workout_logs')
+          .select('exercises, created_at')
+          .eq('client_id', client.id)
+          .gte('created_at', since);
+        if (cancelled || error || !data) return;
+        const counts = { easy: 0, right: 0, grind: 0, failed: 0 };
+        for (const row of data) {
+          for (const ex of (Array.isArray(row.exercises) ? row.exercises : [])) {
+            for (const st of (Array.isArray(ex?.sets) ? ex.sets : [])) {
+              const feel = st?.feel as keyof typeof counts | undefined;
+              if (feel && counts[feel] !== undefined) counts[feel] += 1;
+            }
+          }
+        }
+        if (!cancelled) setFeelCounts(counts);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [client?.id]);
+
+  // Compact difficulty summary — only from real ratings, only when there are
+  // enough of them (>= 3 rated sets) to say anything honest.
+  const feelSummary = useMemo(() => {
+    if (!feelCounts) return null;
+    const rated = feelCounts.easy + feelCounts.right + feelCounts.grind + feelCounts.failed;
+    if (rated < 3) return null;
+    const order: ('easy' | 'right' | 'grind' | 'failed')[] = ['easy', 'right', 'grind', 'failed'];
+    // Predominant feel; ties break toward the harder rating.
+    let top: typeof order[number] = 'easy';
+    for (const f of order) if (feelCounts[f] >= feelCounts[top]) top = f;
+    const topPhrase = top === 'easy' ? 'mostly felt easy'
+      : top === 'right' ? 'mostly felt right'
+      : top === 'grind' ? 'mostly grinds'
+      : 'mostly failed reps';
+    const hard = feelCounts.grind + feelCounts.failed;
+    const hardTail = (top === 'easy' || top === 'right') && hard > 0
+      ? `, ${hard} hard`
+      : '';
+    return {
+      line: `Last week: ${rated} rated set${rated === 1 ? '' : 's'} — ${topPhrase}${hardTail}`,
+      heavy: hard > rated / 2,
+    };
+  }, [feelCounts]);
 
   // ── Nutrition summary — planned vs logged kcal from real data ──
   const activeDietPlan = assignedDiets[0]?.diet || null;
@@ -678,6 +737,34 @@ export default function ClientDetailScreen() {
                 </TouchableOpacity>
               );
             })()}
+
+            {/* How training felt — the athlete's own per-set ratings, last 7
+                days. Hidden entirely below 3 rated sets. One accessible
+                element so a screen reader gets the whole story in one pass. */}
+            {feelSummary && (
+              <>
+                <Text style={s.sectionLabel}>How training felt</Text>
+                <View
+                  style={s.block}
+                  accessible={true}
+                  accessibilityLabel={`How training felt. ${feelSummary.line}.${feelSummary.heavy ? ' Heavy week — consider easing volume.' : ''}`}
+                >
+                  <View style={s.blockRow}>
+                    <Ionicons name="pulse-outline" size={18} color={feelSummary.heavy ? CoachColors.warning : CoachColors.accent} />
+                    <Text style={s.blockRowText}>{feelSummary.line}</Text>
+                  </View>
+                  {feelSummary.heavy && (
+                    <>
+                      <View style={s.blockDivider} />
+                      <View style={s.blockRow}>
+                        <Ionicons name="alert-circle-outline" size={18} color={CoachColors.warning} />
+                        <Text style={[s.blockRowText, { color: CoachColors.warning }]}>Heavy week — consider easing volume</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </>
+            )}
 
             {/* Nutrition — real meal logs vs the assigned plan, last 7 days */}
             {nutrition && (

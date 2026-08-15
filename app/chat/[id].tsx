@@ -192,6 +192,17 @@ export default function ChatScreen() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // ?draft= support — pre-fills the input, never auto-sends. The initial
+  // value is seeded via useState above; this effect covers re-navigation to
+  // an already-mounted thread with a new draft. It only overwrites an empty
+  // input, so it can never clobber a message the coach is mid-typing.
+  const lastAppliedDraft = useRef<string | undefined>(typeof draft === 'string' ? draft : undefined);
+  useEffect(() => {
+    if (typeof draft !== 'string' || !draft || draft === lastAppliedDraft.current) return;
+    lastAppliedDraft.current = draft;
+    setNewMessage((current) => (current.trim().length === 0 ? draft : current));
+  }, [draft]);
+
   useEffect(() => {
     const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
     const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));

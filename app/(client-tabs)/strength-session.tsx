@@ -11,6 +11,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { supabase } from '../../lib/supabase';
 import { useWorkout, StrengthSetLog, SetFeel, WorkoutHistoryEntry } from '../../context/WorkoutContext';
+import { suggestNextLoad } from '../../lib/loadSuggestion';
 import { useClient } from '../../context/ClientContext';
 import PRCelebration, { WeeklyBest } from '../../components/client-tabs/PRCelebration';
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
@@ -175,6 +176,22 @@ export default function StrengthSessionScreen() {
       setRepsStr(String(ex.reps));
     }
   }, [lastLoggedFor]);
+
+  // Suggested next load — real history only (lastLoggedFor returns null for a
+  // never-logged exercise, so new exercises get no suggestion, ever).
+  const suggestion = useMemo(() => {
+    if (!currentEx) return null;
+    const last = lastLoggedFor(currentEx.exerciseId);
+    if (!last) return null;
+    return suggestNextLoad(last.sets);
+  }, [currentEx, lastLoggedFor]);
+
+  // Opt-in fill only — tapping the chip is the one way it touches the input.
+  const applySuggestion = useCallback(() => {
+    if (!suggestion) return;
+    Haptics.selectionAsync();
+    setWeightStr(fmtKg(suggestion.suggestedWeight));
+  }, [suggestion]);
 
   // ── Timers ──
   useEffect(() => {
@@ -516,7 +533,6 @@ export default function StrengthSessionScreen() {
                       {lastTime!.sets.length}×{lastTop.reps} at {fmtKg(lastTop.weight)} kg
                     </Text>
                     {lastTop.feel ? `, and ${FEEL_PHRASE[lastTop.feel]}.` : '.'}
-                    {lastTop.feel === 'easy' ? ' Room for +2.5 today?' : ''}
                   </Text>
                 </View>
               )}
@@ -540,6 +556,24 @@ export default function StrengthSessionScreen() {
 
                 {/* Active set card */}
                 <View style={s.activeCard}>
+                  {/* Suggestion chip — first set only, real history only, and it
+                      hides once the input already holds the suggested number
+                      (tapped, prefilled to a repeat, or typed by hand). */}
+                  {curSetIdx === 0 && suggestion
+                    && parseFloat(weightStr) !== suggestion.suggestedWeight && (
+                    <TouchableOpacity
+                      style={s.suggestChip}
+                      onPress={applySuggestion}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Try ${fmtKg(suggestion.suggestedWeight)} kilograms, ${suggestion.basis}`}
+                      accessibilityHint="Double tap to fill the weight"
+                    >
+                      <Text style={s.suggestChipText}>
+                        Try {fmtKg(suggestion.suggestedWeight)} kg — {suggestion.basis}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   <View style={s.activeTopRow}>
                     <View style={s.activeBadge}><Text style={s.activeBadgeText}>{curSetIdx + 1}</Text></View>
                     <View style={s.numbersRow}>
@@ -868,6 +902,14 @@ const s = StyleSheet.create({
     borderRadius: 16, padding: 15,
   },
   activeTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  suggestChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
+    borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  suggestChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.accent },
   activeBadge: {
     width: 26, height: 26, borderRadius: 8,
     backgroundColor: CoachColors.accent,

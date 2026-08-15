@@ -70,6 +70,8 @@ interface ClientContextType {
   completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<void>;
   markWorkoutComplete: (id: string) => Promise<void>;
   markWorkoutSkipped: (id: string) => Promise<void>;
+  /** Slip recovery — move a missed assigned workout to today. Resolves false on failure (already reverted). */
+  rescheduleWorkoutToToday: (clientWorkoutId: string) => Promise<boolean>;
   
   // Diet Tracking
   mealLogs: Record<string, boolean>;
@@ -356,12 +358,15 @@ export function ClientProvider({ children }: PropsWithChildren) {
   // live via the coach's existing notifications realtime channel) plus a push
   // when the trainer has a token. Set count is only mentioned when we truly
   // have one. Fire-and-forget: failures never block the completion flow.
-  const notifyCoachWorkoutDone = useCallback((workoutName?: string | null, completedSets?: number) => {
+  const notifyCoachWorkoutDone = useCallback((workoutName?: string | null, completedSets?: number, backOnTrack?: boolean) => {
     if (!clientData?.trainer_id) return;
     const name = workoutName || 'a workout';
-    const summary = completedSets && completedSets > 0
+    let summary = completedSets && completedSets > 0
       ? `${clientData.name} finished ${name} — ${completedSets} set${completedSets === 1 ? '' : 's'} logged`
       : `${clientData.name} finished ${name}`;
+    // A slipped workout the athlete moved to today and then completed — let
+    // the coach see the save, not just the finish.
+    if (backOnTrack) summary += ' — back on track';
     (async () => {
       const { error } = await supabase.from('notifications').insert({
         trainer_id: clientData.trainer_id,
@@ -384,6 +389,38 @@ export function ClientProvider({ children }: PropsWithChildren) {
       }).catch(() => {});
     }
   }, [clientData, trainer]);
+
+  // ── Slip recovery ──────────────────────────────────────────────────────────
+  // Ids rescheduled this session — when one is later completed, the coach
+  // notification appends "back on track" so the save is visible. In-memory
+  // only on purpose: it's a nicety, not state worth persisting.
+  const rescheduledIdsRef = useRef<Set<string>>(new Set());
+
+  // Move a missed assigned workout to today. Optimistic local update first;
+  // the DB write is resilient — any failure (including missing column/table)
+  // reverts the local row and resolves false so the caller can show a plain
+  // alert. Never throws.
+  const rescheduleWorkoutToToday = useCallback(async (clientWorkoutId: string): Promise<boolean> => {
+    const existing = workouts.find((w: any) => w.id === clientWorkoutId);
+    if (!existing) return false;
+    const prevDate = existing.assigned_date;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    setWorkouts((prev) => prev.map((w: any) => (w.id === clientWorkoutId ? { ...w, assigned_date: todayStr } : w)));
+    try {
+      const { error } = await supabase
+        .from('client_workouts')
+        .update({ assigned_date: todayStr })
+        .eq('id', clientWorkoutId);
+      if (error) throw error;
+      rescheduledIdsRef.current.add(clientWorkoutId);
+      return true;
+    } catch (e: any) {
+      if (__DEV__) console.warn('[ClientContext] Reschedule skipped:', e?.message);
+      setWorkouts((prev) => prev.map((w: any) => (w.id === clientWorkoutId ? { ...w, assigned_date: prevDate } : w)));
+      return false;
+    }
+  }, [workouts]);
 
   // Complete workout with full exercise log data
   const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number) => {
@@ -444,7 +481,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
       const completedSets = exercisesJson.reduce(
         (sum, ex: any) => sum + (ex.sets || []).filter((s: any) => s?.completed).length, 0);
       const assignment = workouts.find((w: any) => w.id === clientWorkoutId);
-      notifyCoachWorkoutDone(assignment?.workouts?.name || todayWorkout?.workouts?.name, completedSets);
+      // Rescheduled slip completed → the coach sees the save, not just the finish.
+      const backOnTrack = rescheduledIdsRef.current.has(clientWorkoutId);
+      if (backOnTrack) rescheduledIdsRef.current.delete(clientWorkoutId);
+      notifyCoachWorkoutDone(assignment?.workouts?.name || todayWorkout?.workouts?.name, completedSets, backOnTrack);
       // Clear logs for this workout
       setExerciseLogs((prev) => {
         const next = { ...prev };
@@ -835,6 +875,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
         completeWorkoutWithLog,
         markWorkoutComplete,
         markWorkoutSkipped,
+        rescheduleWorkoutToToday,
         completeTrackWorkout,
         skipTrackWorkout,
         mealLogs,
