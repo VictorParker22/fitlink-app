@@ -133,7 +133,21 @@ export default function SeasonPulseCard() {
 
   const barStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
-  if (!season) return null;
+  if (!season) {
+    if (__DEV__) {
+      console.log(
+        '[SeasonPulse] hidden —',
+        !enrollment
+          ? 'no enrollment in context'
+          : `status=${enrollment.status}, track_snapshot=${
+              Array.isArray(enrollment.track_snapshot)
+                ? `array(${enrollment.track_snapshot.length})`
+                : typeof enrollment.track_snapshot
+            }`,
+      );
+    }
+    return null;
+  }
 
   const entering = reduced ? undefined : FadeInDown.delay(160).duration(320);
 
