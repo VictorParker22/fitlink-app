@@ -7,7 +7,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
   interpolate,
   Extrapolation,
   type SharedValue,
@@ -84,17 +83,9 @@ const TAB_WIDTH    = BAR_WIDTH / TAB_COUNT;
 const ACTIVE_SIZE  = 58;
 const WELL_SIZE    = 46;
 
-// The Studio tab triggers a "compact mode" — bar shrinks to give the GO LIVE CTA full attention.
-// When the user taps any other tab, the bar springs back to normal.
-const STUDIO_TAB_NAME   = 'studio';
-const BAR_COMPACT_SCALE = 0.42;  // ~147px wide — visible but clearly receded
-const BAR_COMPACT_SLIDE = 8;     // drift slightly downward
-const BAR_COMPACT_ALPHA = 0.48;  // semi-transparent
-
 // Spring config — water-like flow
 const FLOW_SPRING    = { damping: 24, stiffness: 130, mass: 0.8, overshootClamping: false };
 const ICON_SPRING    = { damping: 18, stiffness: 200 };
-const COMPACT_SPRING = { damping: 18, stiffness: 110, mass: 0.85, overshootClamping: false };
 
 // ════════════════════════════════════
 //  Custom Tab Bar
@@ -105,36 +96,6 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
   const activeIndex    = useSharedValue(state.index);
   const unreadMessages = useUnreadMessageCount();
   const reduced        = useReducedMotion();
-
-  // ── Studio compact mode ──────────────────────────────────────────────────────
-  // When on Studio tab: bar shrinks to give the GO LIVE CTA full visual priority.
-  // On any other tab: bar springs back to full size.
-  const barScale   = useSharedValue(1);
-  const barOpacity = useSharedValue(1);
-  const barSlideY  = useSharedValue(0);
-
-  useEffect(() => {
-    const isStudio = state.routes[state.index]?.name === STUDIO_TAB_NAME;
-    if (reduced) {
-      // Reduce Motion: jump straight to the final compact/full state.
-      barScale.value   = isStudio ? BAR_COMPACT_SCALE : 1;
-      barOpacity.value = isStudio ? BAR_COMPACT_ALPHA : 1;
-      barSlideY.value  = isStudio ? BAR_COMPACT_SLIDE : 0;
-      return;
-    }
-    barScale.value   = withSpring(isStudio ? BAR_COMPACT_SCALE : 1, COMPACT_SPRING);
-    barOpacity.value = withTiming(isStudio ? BAR_COMPACT_ALPHA : 1, { duration: 280 });
-    barSlideY.value  = withSpring(isStudio ? BAR_COMPACT_SLIDE : 0, COMPACT_SPRING);
-  }, [state.index, reduced]);
-
-  const barAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale:      barScale.value  },
-      { translateY: barSlideY.value },
-    ],
-    opacity: barOpacity.value,
-  }));
-  // ────────────────────────────────────────────────────────────────────────────
 
   const circleStyle = useAnimatedStyle(() => {
     const targetX = activeIndex.value * TAB_WIDTH + (TAB_WIDTH - ACTIVE_SIZE) / 2;
@@ -156,7 +117,7 @@ function AnimatedTabBar({ state, descriptors, navigation }: any) {
 
   return (
     <View style={[styles.outerContainer, { paddingBottom: bottomPad }]}>
-      <Animated.View style={[styles.bar, barAnimStyle]}>
+      <Animated.View style={styles.bar}>
         {/* Floating active circle */}
         <Animated.View style={[styles.activeCircle, circleStyle]} />
 
