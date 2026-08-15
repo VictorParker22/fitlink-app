@@ -42,6 +42,8 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import WeeklyCheckIn from '../../components/client-tabs/home/WeeklyCheckIn';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import { countSetFeels, analyzeFeelCounts } from '../../lib/setFeel';
+import HabitGrid, { HABITS, getLast7Days } from '../../components/shared/HabitGrid';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -100,6 +102,9 @@ export default function AthleteProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [workoutLogs, setWorkoutLogs] = useState<any[] | null>(null); // null = loading
   const [checkins, setCheckins] = useState<any[] | null>(null);
+  // client_habits rows for the last 7 days, indexed by date. null = loading or
+  // table unreachable (pre-migration) — the section hides in both cases.
+  const [habitRows, setHabitRows] = useState<Record<string, any> | null>(null);
   const [selectedLift, setSelectedLift] = useState<string | null>(null);
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
 
@@ -113,7 +118,8 @@ export default function AthleteProgressScreen() {
   // ── Fetch workout logs + check-ins (screen-scoped; context only keeps PRs) ──
   const fetchExtras = useCallback(async () => {
     if (!clientData?.id) return;
-    const [logsRes, checkinsRes] = await Promise.all([
+    const habitDates = getLast7Days().map((d) => d.date);
+    const [logsRes, checkinsRes, habitsRes] = await Promise.all([
       supabase
         .from('client_workout_logs')
         .select('exercises, created_at')
@@ -126,9 +132,23 @@ export default function AthleteProgressScreen() {
         .not('submitted_at', 'is', null)
         .order('week_start', { ascending: false })
         .limit(8),
+      supabase
+        .from('client_habits')
+        .select('*')
+        .eq('client_id', clientData.id)
+        .in('date', habitDates),
     ]);
     setWorkoutLogs(logsRes.data || []);
     setCheckins(checkinsRes.data || []);
+    // Habits: an error (including 42P01 pre-migration) just keeps the section
+    // hidden — never a crash, never an empty shell.
+    if (habitsRes.error) {
+      setHabitRows(null);
+    } else {
+      const indexed: Record<string, any> = {};
+      (habitsRes.data || []).forEach((row: any) => { indexed[row.date] = row; });
+      setHabitRows(indexed);
+    }
   }, [clientData?.id]);
 
   useEffect(() => {
@@ -270,6 +290,39 @@ export default function AthleteProgressScreen() {
 
   // ── Latest coach note from check-ins ───────────────────────────────────────
   const latestCoachNote = useMemo(() => (checkins || []).find((c: any) => c.coach_note), [checkins]);
+
+  // ── How training felt — your own per-set ratings, last 7 days ─────────────
+  // Same math as the coach's card (lib/setFeel: >= 3 rated sets, ties break
+  // toward the harder rating, heavy = grinds/fails over half) — only the
+  // voice changes, because here the reader is the one who did the sets.
+  const feelSummary = useMemo(() => {
+    if (!workoutLogs) return null;
+    const since = Date.now() - 7 * 86400000;
+    const recent = workoutLogs.filter((r: any) => new Date(r.created_at).getTime() >= since);
+    const a = analyzeFeelCounts(countSetFeels(recent));
+    if (!a) return null;
+    const topPhrase = a.top === 'easy' ? 'most felt easy'
+      : a.top === 'right' ? 'most felt right'
+      : a.top === 'grind' ? 'most were grinds'
+      : 'most were failed reps';
+    const hardTail = (a.top === 'easy' || a.top === 'right') && a.hard > 0
+      ? `, ${a.hard} ${a.hard === 1 ? 'was' : 'were'} hard`
+      : '';
+    return {
+      line: `This week: ${a.rated} rated set${a.rated === 1 ? '' : 's'} — ${topPhrase}${hardTail}.`,
+      heavy: a.heavy,
+    };
+  }, [workoutLogs]);
+
+  // ── Your habits this week — same grid the coach sees, scoped to you ───────
+  const habitDays = useMemo(() => getLast7Days(), []);
+  const habitsLogged = useMemo(() => {
+    if (!habitRows) return 0;
+    return HABITS.reduce(
+      (sum, habit) => sum + habitDays.filter((d) => habitRows[d.date]?.[habit.key] === true).length,
+      0,
+    );
+  }, [habitRows, habitDays]);
 
   // ── Weight composer save ───────────────────────────────────────────────────
   const saveWeight = useCallback(async () => {
@@ -487,6 +540,32 @@ export default function AthleteProgressScreen() {
           </>
         )}
 
+        {/* ── How training felt — your own per-set ratings, last 7 days.
+            Hidden entirely below 3 rated sets — no empty shell. ── */}
+        {feelSummary && (
+          <>
+            <Text style={s.sectionTitle}>How training felt</Text>
+            <View
+              style={s.card}
+              accessible={true}
+              accessibilityLabel={`How training felt. ${feelSummary.line}${feelSummary.heavy ? ` Heavy week — worth mentioning to ${coachFirst} in your next check-in.` : ''}`}
+            >
+              <View style={s.feelRow}>
+                <Ionicons name="pulse-outline" size={18} color={feelSummary.heavy ? C.warning : C.accent} />
+                <Text style={s.feelText}>{feelSummary.line}</Text>
+              </View>
+              {feelSummary.heavy && (
+                <View style={[s.feelRow, s.feelHeavyRow]}>
+                  <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
+                  <Text style={[s.feelText, { color: C.warning }]}>
+                    Heavy week — worth mentioning to {coachFirst} in your next check-in.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
         {/* ── Bodyweight ── */}
         <Text style={s.sectionTitle}>Bodyweight</Text>
         <View style={s.card}>
@@ -665,6 +744,17 @@ export default function AthleteProgressScreen() {
               </View>
             </View>
           </View>
+        )}
+
+        {/* ── Your habits this week — the same grid your coach sees. Hidden
+            when the table is unreachable or nothing is logged yet. ── */}
+        {habitRows !== null && habitsLogged > 0 && (
+          <>
+            <Text style={s.sectionTitle}>Your habits this week</Text>
+            <View style={s.habitCard}>
+              <HabitGrid rows={habitRows} days={habitDays} showTopBorder={false} />
+            </View>
+          </>
         )}
 
         {/* ── Check-in history ── */}
@@ -903,6 +993,36 @@ const s = StyleSheet.create({
     fontSize: 12.5,
     color: C.textSecondary,
     lineHeight: 18,
+  },
+
+  // How training felt
+  feelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  feelText: {
+    flex: 1,
+    fontFamily: F.bodyMedium,
+    fontSize: 13.5,
+    color: C.textPrimary,
+    lineHeight: 19,
+  },
+  feelHeavyRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: C.borderMuted,
+  },
+
+  // Habits grid card (the grid draws its own inner padding and dividers)
+  habitCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    borderRadius: 18,
+    paddingTop: 12,
+    overflow: 'hidden',
   },
 
   // PR rows

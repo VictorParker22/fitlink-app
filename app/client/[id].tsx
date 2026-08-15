@@ -41,6 +41,7 @@ import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { supabase } from '../../lib/supabase';
+import { countSetFeels, analyzeFeelCounts, FeelCounts } from '../../lib/setFeel';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
 import ClientHabitGrid from '../../components/dashboard/ClientHabitGrid';
@@ -138,7 +139,7 @@ export default function ClientDetailScreen() {
   // How training felt — per-set feel ratings the athlete logged in strength
   // sessions (client_workout_logs.exercises JSONB), last 7 days. null until
   // loaded; the card only renders with >= 3 rated sets in the window.
-  const [feelCounts, setFeelCounts] = useState<Record<'easy' | 'right' | 'grind' | 'failed', number> | null>(null);
+  const [feelCounts, setFeelCounts] = useState<FeelCounts | null>(null);
 
   const client          = getClientById(id || '');
   const sessions        = getClientSessions(id || '');
@@ -268,16 +269,7 @@ export default function ClientDetailScreen() {
           .eq('client_id', client.id)
           .gte('created_at', since);
         if (cancelled || error || !data) return;
-        const counts = { easy: 0, right: 0, grind: 0, failed: 0 };
-        for (const row of data) {
-          for (const ex of (Array.isArray(row.exercises) ? row.exercises : [])) {
-            for (const st of (Array.isArray(ex?.sets) ? ex.sets : [])) {
-              const feel = st?.feel as keyof typeof counts | undefined;
-              if (feel && counts[feel] !== undefined) counts[feel] += 1;
-            }
-          }
-        }
-        if (!cancelled) setFeelCounts(counts);
+        if (!cancelled) setFeelCounts(countSetFeels(data));
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -286,24 +278,18 @@ export default function ClientDetailScreen() {
   // Compact difficulty summary — only from real ratings, only when there are
   // enough of them (>= 3 rated sets) to say anything honest.
   const feelSummary = useMemo(() => {
-    if (!feelCounts) return null;
-    const rated = feelCounts.easy + feelCounts.right + feelCounts.grind + feelCounts.failed;
-    if (rated < 3) return null;
-    const order: ('easy' | 'right' | 'grind' | 'failed')[] = ['easy', 'right', 'grind', 'failed'];
-    // Predominant feel; ties break toward the harder rating.
-    let top: typeof order[number] = 'easy';
-    for (const f of order) if (feelCounts[f] >= feelCounts[top]) top = f;
-    const topPhrase = top === 'easy' ? 'mostly felt easy'
-      : top === 'right' ? 'mostly felt right'
-      : top === 'grind' ? 'mostly grinds'
+    const a = analyzeFeelCounts(feelCounts);
+    if (!a) return null;
+    const topPhrase = a.top === 'easy' ? 'mostly felt easy'
+      : a.top === 'right' ? 'mostly felt right'
+      : a.top === 'grind' ? 'mostly grinds'
       : 'mostly failed reps';
-    const hard = feelCounts.grind + feelCounts.failed;
-    const hardTail = (top === 'easy' || top === 'right') && hard > 0
-      ? `, ${hard} hard`
+    const hardTail = (a.top === 'easy' || a.top === 'right') && a.hard > 0
+      ? `, ${a.hard} hard`
       : '';
     return {
-      line: `Last week: ${rated} rated set${rated === 1 ? '' : 's'} — ${topPhrase}${hardTail}`,
-      heavy: hard > rated / 2,
+      line: `Last week: ${a.rated} rated set${a.rated === 1 ? '' : 's'} — ${topPhrase}${hardTail}`,
+      heavy: a.heavy,
     };
   }, [feelCounts]);
 
