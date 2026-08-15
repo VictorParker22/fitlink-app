@@ -151,18 +151,20 @@ export default function SeasonPulseCard() {
 
   const entering = reduced ? undefined : FadeInDown.delay(160).duration(320);
 
-  const openSeason = () => router.push(ClientRoute.workouts);
+  // view: 'season' clears any stale explore mode on the mounted Train screen.
+  const openSeason = () =>
+    router.push({ pathname: ClientRoute.workouts, params: { view: 'season' } });
   const continueSeason = () => {
     if (currentWorkoutId) {
       // Same deep-link contract Today's hero uses — Train resolves the id
       // (workout_id / workouts.id / direct fetch) into the WorkoutPreview.
       router.push({
         pathname: ClientRoute.workouts,
-        params: { startWorkoutId: String(currentWorkoutId) },
+        params: { view: 'season', startWorkoutId: String(currentWorkoutId) },
       });
     } else {
       // Diet / milestone / rest node — no workout to preview, just go there.
-      router.push(ClientRoute.workouts);
+      openSeason();
     }
   };
 

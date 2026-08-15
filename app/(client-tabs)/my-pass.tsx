@@ -176,7 +176,7 @@ export default function MyPassScreen() {
               activeOpacity={0.85}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(ClientRoute.workouts);
+                router.push({ pathname: ClientRoute.workouts, params: { view: 'season' } });
               }}
             >
               <Text style={s.enrolledCtaText}>Go to training</Text>

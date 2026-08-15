@@ -157,6 +157,10 @@ export default function ClientWorkoutsScreen() {
   // auto-starting a timed session) ──
   useEffect(() => {
     if (params?.view === 'explore') setShowExplore(true);
+    // Explicit season intent (Go to training, Season pulse card): the tab
+    // screen stays mounted, so a stale explore mode would otherwise swallow
+    // plain navigations here.
+    else if (params?.view === 'season') setShowExplore(false);
 
     if (params?.startWorkoutId && consumedStartIdRef.current !== params.startWorkoutId) {
       consumedStartIdRef.current = params.startWorkoutId;
