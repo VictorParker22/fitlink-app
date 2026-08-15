@@ -239,7 +239,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     try {
+      // Device flags are per-device fast paths only; each account's auth
+      // metadata restores them on the next sign-in (see app/_layout.tsx).
       await SecureStore.deleteItemAsync('fitlink_wizard_complete');
+      await SecureStore.deleteItemAsync('fitlink_onboarded');
       await SecureStore.deleteItemAsync('fitlink_client_onboarded');
     } catch (e) {
       // Ignore SecureStore cleanup errors

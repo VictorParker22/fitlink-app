@@ -76,7 +76,7 @@ try {
 
 
 function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
-  const { isAuthenticated, loading, userRole } = useAuth();
+  const { isAuthenticated, loading, userRole, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const { updatePushToken } = useApp();
@@ -88,15 +88,33 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
 
-  // Check onboarding flags once on mount
+  // Onboarding flags. The device-local SecureStore flag is only a fast path —
+  // the source of truth is the account's auth metadata, which the wizards set
+  // on completion. Sign-out wipes the local flags (correct on shared devices),
+  // so without the metadata check every re-login re-triggered the wizard.
   useEffect(() => {
+    if (loading) return;
     Promise.all([
       SecureStore.getItemAsync('fitlink_onboarded'),
       SecureStore.getItemAsync('fitlink_client_onboarded'),
     ]).then(([onboarded, clientOnboarded]) => {
-      setHasOnboarded(onboarded === 'true');
-      setHasClientOnboarded(clientOnboarded === 'true');
+      const meta = (user?.user_metadata ?? {}) as Record<string, any>;
+      const trainerDone =
+        onboarded === 'true' || meta.onboarded === true || meta.wizard_complete === true;
+      const clientDone = clientOnboarded === 'true' || meta.client_onboarded === true;
+      setHasOnboarded(trainerDone);
+      setHasClientOnboarded(clientDone);
+      // Re-seed the device flags from account truth so offline cold starts stay correct.
+      if (trainerDone && onboarded !== 'true') {
+        SecureStore.setItemAsync('fitlink_onboarded', 'true').catch(() => {});
+      }
+      if (clientDone && clientOnboarded !== 'true') {
+        SecureStore.setItemAsync('fitlink_client_onboarded', 'true').catch(() => {});
+      }
     });
+  }, [user, loading]);
+
+  useEffect(() => {
 
     if (Notifications) {
       notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
