@@ -23,6 +23,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { liveBroadcastUnsupportedTitle, liveBroadcastUnsupportedMessage } from '../../lib/liveBroadcast';
 
 let ExpoCameraRtmpPublisherView: any = null;
 let requestCameraPermissionsAsync: any = null;
@@ -470,10 +471,12 @@ export default function BroadcastStudioScreen() {
             style={{ marginBottom: 12 }}
           />
           <Text style={s.recapTag}>{isAndroid ? 'Android' : 'Dev build required'}</Text>
-          <Text style={s.recapTitle}>{isAndroid ? 'Coming soon' : 'Native build needed'}</Text>
+          {/* "Coming soon" promised a date nobody had committed to. State the
+              limitation as it actually is — see lib/liveBroadcast.ts. */}
+          <Text style={s.recapTitle}>{isAndroid ? liveBroadcastUnsupportedTitle : 'Native build needed'}</Text>
           <Text style={s.recapSub}>
             {isAndroid
-              ? 'Live broadcasting via RTMP is currently iOS only. Android support is on the roadmap!'
+              ? liveBroadcastUnsupportedMessage
               : 'You are running Expo Go, which does not include the native RTMP camera module.\n\nRun \`npx expo run:ios\` to build a development client and unlock live broadcasting.'}
           </Text>
           <TouchableOpacity style={s.saveVodBtn} onPress={() => router.back()}>

@@ -1364,7 +1364,7 @@ export default function ClientDetailScreen() {
       </Modal>
 
       {/* ── Assign Modal ── */}
-      <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setAssignMode(null); setShowQuickAdd(false); }}>
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
             <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
@@ -1460,7 +1460,7 @@ export default function ClientDetailScreen() {
       </Modal>
 
       {/* ── Upgrade Modal ── */}
-      <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowUpgradeModal(false)}>
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
             <TouchableOpacity onPress={() => setShowUpgradeModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={22} color={CoachColors.textPrimary} /></TouchableOpacity>

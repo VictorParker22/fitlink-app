@@ -12,7 +12,7 @@
  * Extras with no dedicated column go into assessment_data.intake (JSONB).
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar,
   Animated, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -25,6 +25,7 @@ import { clientOnboardedKey } from '../../lib/onboardingFlags';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 // ─── Question model ───────────────────────────────────────────────────────────
 
@@ -184,6 +185,14 @@ export default function ClientOnboardingScreen() {
   const goBack = () => {
     if (step > 0) animateTo(step - 1);
   };
+
+  // Android hardware back walks the intake, and is swallowed on step 0 — this
+  // is required onboarding, so popping the screen would drop the athlete into
+  // the app with no intake and no way back to finish it.
+  useAndroidBack(useCallback(() => {
+    if (step > 0) animateTo(step - 1);
+    return true;
+  }, [step]));
 
   const completeOnboarding = async () => {
     setSaving(true);

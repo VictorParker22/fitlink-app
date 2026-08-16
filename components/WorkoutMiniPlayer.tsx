@@ -270,6 +270,7 @@ const s = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
       },
+      android: { elevation: 4 },
     }),
   },
 

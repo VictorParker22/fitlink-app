@@ -146,7 +146,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
   }, [searchQuery, clients, sessions, plans, getClientById, router]);
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={st.searchModal}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

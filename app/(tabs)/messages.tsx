@@ -379,7 +379,7 @@ export default function MessagesScreen() {
       </ScrollView>
 
       {/* Compose — pick anyone to message, not just unconnected athletes */}
-      <Modal visible={showComposePicker} transparent animationType="slide">
+      <Modal visible={showComposePicker} transparent animationType="slide" onRequestClose={() => setShowComposePicker(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowComposePicker(false)} />
           <View style={styles.composeSheet}>

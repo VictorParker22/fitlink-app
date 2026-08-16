@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, ActivityIndicator, Share, Image,
+  Alert, ActivityIndicator, Share, Image, Modal, TextInput,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,9 @@ export default function ProfileScreen() {
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
   const { isCoachElite } = useRevenueCat();
   const [uploading, setUploading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const name = trainer?.name || user?.user_metadata?.name || 'Trainer';
   const email = user?.email || trainer?.email;
@@ -127,27 +131,31 @@ export default function ProfileScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete forever',
+          text: 'Continue',
           style: 'destructive',
-          onPress: () => Alert.prompt(
-            'Confirm deletion', 'Type DELETE to confirm.',
-            async (text) => {
-              if (text !== 'DELETE') { Alert.alert('Cancelled', 'Account deletion cancelled.'); return; }
-              // .rpc() RESOLVES with { error } — it does not throw, so the old
-              // catch never ran and a FAILED deletion still signed the coach
-              // out, leaving them certain their account and data were gone.
-              const { error } = await supabase.rpc('delete_trainer_account');
-              if (error) {
-                Alert.alert('Account not deleted', `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.`);
-                return;
-              }
-              await signOut();
-            },
-            'plain-text', '', 'default'
-          ),
+          // Alert.prompt is iOS only — it renders nothing on Android, which
+          // dead-ended account deletion there (also a Play policy violation).
+          // A Modal is the cross-platform confirmation, matching my-profile.
+          onPress: () => { setDeleteInput(''); setShowDeleteModal(true); },
         },
       ]
     );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteInput !== 'DELETE' || deleting) return;
+    setDeleting(true);
+    // .rpc() RESOLVES with { error } — it does not throw, so a FAILED deletion
+    // must not sign the coach out and leave them certain their data was gone.
+    const { error } = await supabase.rpc('delete_trainer_account');
+    setDeleting(false);
+    if (error) {
+      setShowDeleteModal(false);
+      Alert.alert('Account not deleted', `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.`);
+      return;
+    }
+    setShowDeleteModal(false);
+    await signOut();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -305,6 +313,68 @@ export default function ProfileScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Delete confirmation — cross-platform replacement for Alert.prompt */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!deleting) setShowDeleteModal(false); }}
+      >
+        <KeyboardAvoidingView
+          style={s.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={s.modalContent} accessibilityViewIsModal accessibilityRole="alert">
+            <Text style={s.modalTitle} accessibilityRole="header">Confirm deletion</Text>
+            <Text style={s.modalMessage}>
+              Type <Text style={s.modalStrong}>DELETE</Text> to permanently erase your account, your clients&apos; links to you and everything you have built.
+            </Text>
+            <TextInput
+              style={s.modalInput}
+              value={deleteInput}
+              onChangeText={setDeleteInput}
+              placeholder="Type DELETE"
+              placeholderTextColor={CoachColors.textFaint}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="done"
+              autoFocus
+              editable={!deleting}
+              accessibilityLabel="Confirmation field"
+              accessibilityHint="Type the word DELETE in capitals to unlock the delete button"
+            />
+            <View style={s.modalButtons}>
+              <TouchableOpacity
+                style={[s.modalBtn, s.modalBtnCancel]}
+                onPress={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.modalBtn, s.modalBtnConfirm, (deleteInput !== 'DELETE' || deleting) && { opacity: 0.35 }]}
+                onPress={handleConfirmDelete}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Delete forever"
+                accessibilityState={{ disabled: deleteInput !== 'DELETE' || deleting, busy: deleting }}
+                accessibilityHint={deleteInput !== 'DELETE'
+                  ? 'Unavailable until you type DELETE in the field above'
+                  : 'Permanently erases your account and all your data'}
+              >
+                {deleting
+                  ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                  : <Text style={s.modalBtnConfirmText}>Delete forever</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -428,4 +498,32 @@ const s = StyleSheet.create({
     gap: 6, paddingVertical: 16, marginTop: 4,
   },
   deleteText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+
+  // Delete confirmation modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(10,11,9,0.8)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  modalContent: {
+    width: '100%', backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 18, padding: 22,
+  },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  modalMessage: {
+    fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19,
+    color: CoachColors.textMuted, marginTop: 8, marginBottom: 18,
+  },
+  modalStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
+  modalInput: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 13,
+    letterSpacing: 2, marginBottom: 18,
+  },
+  modalButtons: { flexDirection: 'row', gap: 10 },
+  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 13 },
+  modalBtnCancel: { borderWidth: 1, borderColor: CoachColors.border },
+  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  modalBtnConfirm: { backgroundColor: CoachColors.danger },
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
 });

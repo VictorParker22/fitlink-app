@@ -328,7 +328,10 @@ export default function WeeklyCheckIn() {
       </TouchableOpacity>
 
       {/* ── Conversation modal ── */}
-      <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
+      {/* onRequestClose is the Android hardware back button. It routes to
+          goBack, not a raw close, so back walks the wizard one step at a time
+          instead of discarding a half-finished check-in. */}
+      <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={goBack}>
         <KeyboardAvoidingView
           style={s.modal}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, ActivityIndicator,
 } from 'react-native';
@@ -65,6 +66,10 @@ export default function SeasonComplete({
   /** Present when the finish belongs to a pass — enables the squad feed share. */
   squad?: SquadShare | null;
 }) {
+  // absoluteFill View, not a native Modal — Android back would otherwise pop
+  // the screen underneath while this was still covering it.
+  useAndroidBack(useCallback(() => { onDone(); return true; }, [onDone]));
+
   const [sessionStats, setSessionStats] = useState<{ done: number; total: number } | null>(null);
   const [lifts, setLifts] = useState<LiftLine[]>([]);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');

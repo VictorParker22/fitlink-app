@@ -20,6 +20,11 @@ import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import {
+  liveBroadcastSupported,
+  liveBroadcastUnsupportedTitle,
+  liveBroadcastUnsupportedMessage,
+} from '../../lib/liveBroadcast';
 
 const CATEGORIES = [
   { label: 'Strength', icon: 'barbell-outline' },
@@ -112,6 +117,30 @@ export default function BroadcastSetupScreen() {
       setIsLaunching(false);
     }
   };
+
+  // Studio blocks this route on Android, but a deep link or a restored
+  // navigation state can still land here. Setting up a stream that can never
+  // go live is worse than saying so — see lib/liveBroadcast.ts.
+  if (!liveBroadcastSupported) {
+    return (
+      <SafeAreaView style={[s.container, { justifyContent: 'center', paddingHorizontal: 28 }]} edges={['top', 'bottom']}>
+        <Ionicons name="phone-portrait-outline" size={44} color={CoachColors.accent} style={{ alignSelf: 'center', marginBottom: 14 }} />
+        <Text style={[s.headerTitle, { textAlign: 'center', marginBottom: 8 }]}>{liveBroadcastUnsupportedTitle}</Text>
+        <Text style={{ fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19, color: CoachColors.textMuted, textAlign: 'center' }}>
+          {liveBroadcastUnsupportedMessage}
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginTop: 26, alignSelf: 'center', paddingHorizontal: 26, paddingVertical: 13, borderRadius: 999, borderWidth: 1, borderColor: CoachColors.border }}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Return to studio"
+        >
+          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary }}>Return to studio</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>

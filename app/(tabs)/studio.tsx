@@ -29,6 +29,11 @@ import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { isBroadcastDndEnabled, setBroadcastDnd } from '../../lib/broadcastFocus';
+import {
+  liveBroadcastSupported,
+  liveBroadcastUnsupportedTitle,
+  liveBroadcastUnsupportedMessage,
+} from '../../lib/liveBroadcast';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 
@@ -586,17 +591,32 @@ export default function StudioScreen() {
   }, [isLive, activeStream]);
 
   // Handlers
+  // The unsupported check runs BEFORE the paywall on every entry point — an
+  // Android coach must never be asked to pay for Elite to unlock broadcasting
+  // that their device cannot run. See lib/liveBroadcast.ts.
+  const warnUnsupported = () => {
+    showAlert({
+      type: 'info',
+      title: liveBroadcastUnsupportedTitle,
+      message: liveBroadcastUnsupportedMessage,
+      buttons: [{ text: 'Got it' }],
+    });
+  };
+
   const handleEnterStudio = (cls: LiveClassItem) => {
+    if (!liveBroadcastSupported) { warnUnsupported(); return; }
     if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/broadcast/${cls.id}` as any);
   };
   const handleGoLive = () => {
+    if (!liveBroadcastSupported) { warnUnsupported(); return; }
     if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.push('/broadcast/setup' as any);
   };
   const handleScheduleNew = () => {
+    if (!liveBroadcastSupported) { warnUnsupported(); return; }
     if (!isCoachElite) { setShowPaywall(true); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/create-live-class' as any);
@@ -692,6 +712,17 @@ export default function StudioScreen() {
             <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
+
+        {/* ── Platform limitation — stated up front, not after a tap ───── */}
+        {!liveBroadcastSupported && (
+          <View style={s.unsupportedCard} accessible accessibilityRole="summary">
+            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.unsupportedTitle}>{liveBroadcastUnsupportedTitle}</Text>
+              <Text style={s.unsupportedSub}>{liveBroadcastUnsupportedMessage}</Text>
+            </View>
+          </View>
+        )}
 
         {/* ── Abrupt disconnect alert ─────────────────────────────────── */}
         {abruptEndedClass && (
@@ -1036,6 +1067,30 @@ const s = StyleSheet.create({
   },
 
   // ── Alert card ──────────────────────────────────────────────────────────────
+  unsupportedCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    borderRadius: Radius.sm,
+    padding: 14,
+    marginBottom: Spacing.lg,
+  },
+  unsupportedTitle: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13,
+    color: CoachColors.textPrimary,
+  },
+  unsupportedSub: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: CoachColors.textMuted,
+    marginTop: 3,
+  },
+
   alertCard: {
     flexDirection: 'row',
     backgroundColor: CoachColors.warningSoft,

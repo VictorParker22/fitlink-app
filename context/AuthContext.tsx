@@ -38,7 +38,9 @@ function primeForPushPermission(): Promise<boolean> {
 
 async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
+    // Awaited: the channel must exist before any notification is delivered,
+    // otherwise Android drops the first ones silently.
+    await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],

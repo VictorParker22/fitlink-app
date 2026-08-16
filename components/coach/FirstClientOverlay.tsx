@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
 } from 'react-native';
@@ -25,6 +26,10 @@ export default function FirstClientOverlay({
   clientName: string;
   onDone: () => void;
 }) {
+  // absoluteFill View, not a native Modal — Android back would otherwise pop
+  // the screen underneath while this was still covering it.
+  useAndroidBack(useCallback(() => { onDone(); return true; }, [onDone]));
+
   const reduced = useReducedMotion();
   const cardScale = useRef(new Animated.Value(0.82)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;

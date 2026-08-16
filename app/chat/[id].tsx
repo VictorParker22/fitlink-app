@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, StatusBar, Modal, Image as RNImage, Alert
+  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, Modal, Image as RNImage, Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -102,7 +102,10 @@ function FormReviewComposer({
   return (
     <View style={styles.reviewOverlay}>
       <TouchableOpacity style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close form review" />
-      <KeyboardAvoidingView behavior="padding">
+      {/* 'padding' is correct on iOS only. The Android activity is already
+          windowSoftInputMode=adjustResize, so padding stacks on top of the
+          OS resize and shoves the card off screen. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.reviewCard}>
           <View style={styles.modalHeaderRow}>
             <Text style={styles.modalSheetTitle}>Review form</Text>
@@ -779,8 +782,7 @@ export default function ChatScreen() {
       {/* Messages */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24)}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList keyboardShouldPersistTaps="handled"
           ref={flatListRef}
@@ -932,7 +934,7 @@ export default function ChatScreen() {
       </KeyboardAvoidingView>
 
       {/* Workout Picker Modal */}
-      <Modal visible={showWorkoutPickerModal} transparent animationType="slide">
+      <Modal visible={showWorkoutPickerModal} transparent animationType="slide" onRequestClose={() => setShowWorkoutPickerModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowWorkoutPickerModal(false)} />
           <View style={styles.workoutPickerContent}>
@@ -979,7 +981,7 @@ export default function ChatScreen() {
       </Modal>
 
       {/* Diet Picker Modal */}
-      <Modal visible={showDietPickerModal} transparent animationType="slide">
+      <Modal visible={showDietPickerModal} transparent animationType="slide" onRequestClose={() => setShowDietPickerModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowDietPickerModal(false)} />
           <View style={styles.workoutPickerContent}>

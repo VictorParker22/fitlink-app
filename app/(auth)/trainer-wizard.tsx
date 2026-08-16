@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, Alert,
@@ -17,6 +17,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -183,6 +184,14 @@ export default function TrainerWizardScreen() {
   const handleBack = () => {
     if (step > 0) animateToStep(step - 1);
   };
+
+  // Android hardware back walks the wizard, and is swallowed on step 0 — this
+  // is post-signup onboarding, so popping the screen would strand a coach with
+  // a half-built account.
+  useAndroidBack(useCallback(() => {
+    if (step > 0) animateToStep(step - 1);
+    return true;
+  }, [step]));
 
   const handleStripeSetup = async () => {
     if (!user) return false;

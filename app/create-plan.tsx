@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
 import { formatRun, formatDeadline } from '../lib/cohort';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Turn 19 — "Creating a pass": a 5-step season builder.
@@ -297,6 +298,15 @@ export default function CreatePassScreen() {
     setEditingWeek(null);
     setStep(step - 1);
   };
+
+  // Android hardware back walks the wizard back a step instead of popping the
+  // whole screen and discarding every step the coach has filled in.
+  useAndroidBack(useCallback(() => {
+    if (step === 1) return false;
+    setEditingWeek(null);
+    setStep((s) => s - 1);
+    return true;
+  }, [step]));
 
   const expandToSeason = () => {
     // week template × N — everything below is the coach's to edit.

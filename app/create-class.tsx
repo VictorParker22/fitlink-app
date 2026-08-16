@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Switch } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -12,6 +12,7 @@ import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
 import { supabase, SUPABASE_URL } from '../lib/supabase';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 const CLASS_CATEGORIES = [
   'Meditation', 'Strength', 'Pilates', 'Running', 'Yoga', 'HIIT',
@@ -114,6 +115,13 @@ export default function CreateClassScreen() {
       router.back();
     }
   };
+
+  // Android hardware back steps the wizard back rather than discarding it.
+  useAndroidBack(useCallback(() => {
+    if (wizardStep <= 1) return false;
+    setWizardStep(wizardStep - 1);
+    return true;
+  }, [wizardStep]));
 
   const MAX_BYTES: Record<'class-thumbnails' | 'class-videos', number> = {
     'class-videos': 500 * 1024 * 1024, // matches the bucket's file_size_limit
@@ -614,7 +622,7 @@ export default function CreateClassScreen() {
       </KeyboardAvoidingView>
 
       {/* Video Source Modal */}
-      <Modal visible={showVideoModal} transparent animationType="slide">
+      <Modal visible={showVideoModal} transparent animationType="slide" onRequestClose={() => setShowVideoModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>

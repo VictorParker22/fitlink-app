@@ -18,7 +18,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, StatusBar, Image as RNImage,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Image as RNImage,
   Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -477,7 +477,9 @@ export default function ClientMessagesScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24)}>
+      {/* 'padding' is correct on iOS only — on Android the activity already
+          resizes (windowSoftInputMode=adjustResize) and padding double-counts. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading ? (
           <View style={styles.emptyState}><ActivityIndicator size="large" color={CoachColors.accent} /></View>
         ) : (

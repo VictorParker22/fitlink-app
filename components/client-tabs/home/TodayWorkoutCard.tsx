@@ -108,10 +108,13 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
             { flex: 1, backgroundColor: CoachColors.accent },
             !isTrack && {
               paddingVertical: 16,
+              // shadow* is iOS only — without elevation the primary CTA sits
+              // completely flat on Android.
               shadowColor: CoachColors.accent,
               shadowOpacity: 0.3,
               shadowOffset: { width: 0, height: 4 },
               shadowRadius: 12,
+              elevation: 6,
             }
           ]}
           activeOpacity={0.85}

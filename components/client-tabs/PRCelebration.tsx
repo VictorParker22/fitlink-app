@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated, Easing,
   useWindowDimensions, ScrollView, TextInput, KeyboardAvoidingView, Platform,
@@ -68,6 +69,10 @@ export default function PRCelebration({
   /** Present when the athlete is on a pass — enables the squad feed share. */
   squad?: SquadShare | null;
 }) {
+  // absoluteFill View, not a native Modal — Android back would otherwise pop
+  // the screen underneath while this was still covering it.
+  useAndroidBack(useCallback(() => { onDone(); return true; }, [onDone]));
+
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
   const [message, setMessage] = useState(defaultMessage);

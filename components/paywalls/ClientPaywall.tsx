@@ -109,7 +109,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onDismiss}>
       <View style={s.container}>
         {/* Header */}
         <View style={s.header}>

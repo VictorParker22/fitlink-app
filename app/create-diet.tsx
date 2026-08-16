@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList, Alert
@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import { searchNutrition, nutritionToMeal } from '../lib/nutritionApi';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 
 type MealTimeKey = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -591,6 +592,15 @@ export default function CreateDietScreen() {
 
   // ── Shared chrome ──
   const stepSubtitles = { 1: 'Targets', 2: 'Training day', 3: 'Week and assignment' };
+  // Android hardware back steps the wizard back rather than discarding the
+  // whole meal plan. The sheets above own their own onRequestClose, so back
+  // closes an open sheet first and only then walks the steps.
+  useAndroidBack(useCallback(() => {
+    if (step === 1) return false;
+    setStep((s) => (s - 1) as 1 | 2);
+    return true;
+  }, [step]));
+
   const renderHeader = () => (
     <>
       <View style={s.header}>
@@ -981,7 +991,7 @@ export default function CreateDietScreen() {
       {step === 3 && renderStep3()}
 
       {/* Slot detail sheet */}
-      <Modal visible={slotSheetIndex !== null} animationType="slide" transparent>
+      <Modal visible={slotSheetIndex !== null} animationType="slide" transparent onRequestClose={() => setSlotSheetIndex(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
@@ -1048,7 +1058,7 @@ export default function CreateDietScreen() {
       </Modal>
 
       {/* Swap sheet (training day only) */}
-      <Modal visible={swapSheetIndex !== null} animationType="slide" transparent>
+      <Modal visible={swapSheetIndex !== null} animationType="slide" transparent onRequestClose={() => setSwapSheetIndex(null)}>
         <View style={s.modalOverlay}>
           <View style={[s.modalContent, { maxHeight: '85%' }]}>
             <View style={s.modalHeader}>
@@ -1112,7 +1122,7 @@ export default function CreateDietScreen() {
       </Modal>
 
       {/* Food search modal (saved + USDA) */}
-      <Modal visible={searchSlotIndex !== null} animationType="slide" transparent>
+      <Modal visible={searchSlotIndex !== null} animationType="slide" transparent onRequestClose={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
           <View style={[s.modalContent, { height: '90%' }]}>
             <View style={s.modalHeader}>

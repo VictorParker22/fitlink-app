@@ -250,7 +250,7 @@ export default function CreateLiveClassScreen() {
 
       {/* ── iOS Date Picker Modal ─────────────────────────────────────────── */}
       {showDatePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="slide" visible>
+        <Modal transparent animationType="slide" visible onRequestClose={() => setShowDatePicker(false)}>
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
             <View style={s.pickerSheet}>
               <PickerHeader title="Select Date" onDone={() => setShowDatePicker(false)} />
@@ -267,7 +267,7 @@ export default function CreateLiveClassScreen() {
 
       {/* ── iOS Time Picker Modal ─────────────────────────────────────────── */}
       {showTimePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="slide" visible>
+        <Modal transparent animationType="slide" visible onRequestClose={() => setShowTimePicker(false)}>
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
             <View style={s.pickerSheet}>
               <PickerHeader title="Select Time" onDone={() => setShowTimePicker(false)} />

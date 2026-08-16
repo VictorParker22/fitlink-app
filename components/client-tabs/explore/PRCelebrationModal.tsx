@@ -172,7 +172,7 @@ export default function PRCelebrationModal({
   const PARTICLE_RADIUS = W * 0.38; // how far particles travel from center
 
   return (
-    <Modal transparent animationType="none" visible={visible} statusBarTranslucent>
+    <Modal transparent animationType="none" visible={visible} statusBarTranslucent onRequestClose={dismiss}>
       {/* The wrapper is NOT itself accessible: making it one element swallowed
           the card and VoiceOver announced only "Dismiss…", never the PR
           itself. The card below carries the announcement. */}

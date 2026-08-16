@@ -23,6 +23,7 @@ import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDem
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
 import MuscleMap from '../../components/anatomy/MuscleMap';
 import { musclesForExercise, regionLabel, MuscleRegionId } from '../../lib/muscles';
+import { useAndroidBack } from '../../hooks/useAndroidBack';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -543,6 +544,30 @@ export default function StrengthSessionScreen() {
     }
     finishSession(logged, prHit);
   }, [finishing, logged, prHit, finishSession]);
+
+  // ── Android hardware back ────────────────────────────────────────────────
+  // Back must not silently destroy a live session. Priority order matches what
+  // is actually on screen: the exercise-list overlay closes first, then a live
+  // session asks before throwing away logged sets, and only the overview lets
+  // back do its normal thing.
+  useAndroidBack(useCallback(() => {
+    if (showPr) { setShowPr(false); return true; }
+    if (showAllExercises) { setShowAllExercises(false); return true; }
+    if (mode === 'live') {
+      if (logged.length === 0) { setMode('overview'); return true; }
+      Alert.alert(
+        'Leave this session?',
+        `You have ${logged.length} set${logged.length === 1 ? '' : 's'} logged. Finish to save them to your coach, or leave and lose them.`,
+        [
+          { text: 'Keep training', style: 'cancel' },
+          { text: 'Finish and save', onPress: () => finishSession(logged, prHit) },
+          { text: 'Leave', style: 'destructive', onPress: () => router.push(ClientRoute.workouts) },
+        ]
+      );
+      return true;
+    }
+    return false;
+  }, [showPr, showAllExercises, mode, logged, prHit, finishSession, router]));
 
   // ── PR overlay data (all from real history) ──
   const prOverlayData = useMemo(() => {

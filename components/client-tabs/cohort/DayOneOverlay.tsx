@@ -16,9 +16,10 @@
  * respects the global sound switch inside lib/sounds.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useAndroidBack } from '../../../hooks/useAndroidBack';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { playChime } from '../../../lib/sounds';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
@@ -37,6 +38,11 @@ export default function DayOneOverlay({
   firstSessionName: string | null;
   onStart: () => void;
 }) {
+  // This overlay is an absoluteFill View, not a native Modal, so Android's
+  // back button would otherwise sail straight past it and pop the screen
+  // underneath while the overlay was still painted on top.
+  useAndroidBack(useCallback(() => { onStart(); return true; }, [onStart]));
+
   const reduced = useReducedMotion();
   const cardScale = useRef(new Animated.Value(0.82)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;

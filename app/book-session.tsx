@@ -557,7 +557,7 @@ export default function BookSessionScreen() {
       </KeyboardAvoidingView>
 
       {/* TIME PICKER BOTTOM SHEET */}
-      <Modal visible={showTimePicker} transparent animationType="slide">
+      <Modal visible={showTimePicker} transparent animationType="slide" onRequestClose={() => setShowTimePicker(false)}>
         <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
           <View style={st.sheetOverlay} />
         </TouchableWithoutFeedback>
