@@ -40,7 +40,7 @@ export default function PassTrackEditorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { planId } = useLocalSearchParams<{ planId: string }>();
-  const { plans, workouts, diets, classes, clients, updatePlanTrack } = useApp();
+  const { plans, workouts, diets, classes, clients, updatePlanTrack, refreshPlans } = useApp();
   const { user } = useAuth();
 
   // Classes are a COACH-SCOPED library — AppContext already loads only this
@@ -275,39 +275,63 @@ export default function PassTrackEditorScreen() {
       } else if (!isMissingSchemaError(vErr)) {
         versionWarning = vErr.message;
       }
-      // 2. The pass itself.
-      await updatePlanTrack(plan.id, cleanTrack);
-      // 3. Per choice.
-      let snapshotFailures = 0;
+      // 2 + 3. The pass and every athlete's snapshot, in ONE transaction.
+      //
+      // These used to be separate writes: the plan first, then a per-athlete
+      // loop. A failure partway left the pass on the new track with some
+      // athletes stranded on the old one. publish_plan_track applies both
+      // atomically — everyone moves or nothing changes. The protected-week
+      // maths stays here, where it is shared with the review the coach just
+      // approved; the RPC only supplies the transaction boundary.
       let messageFailures = 0;
-      if (audience === 'everyone') {
-        const removedKeys = new Set(review.filter(c => c.kind === 'removed').map(c => nodeKey(c.node)));
-        for (const h of liveHolders) {
-          const newSnap = buildProtectedSnapshot(h.snapshot, cleanTrack, h.enrollment.track_position, removedKeys);
-          // This update RESOLVES with { error }. Ignoring it meant an athlete could
-          // be left on the old snapshot while the coach was shown a success haptic.
-          const { error: snapErr } = await supabase
-            .from('client_plan_enrollments')
-            .update({ track_snapshot: newSnap, updated_at: new Date().toISOString() })
-            .eq('id', h.enrollment.id);
-          if (snapErr) {
-            snapshotFailures++;
-            console.error('[TrackEditor] enrollment snapshot update failed:', h.enrollment.id, snapErr);
-          }
-        }
-        if (notify && message.trim()) {
-          messageFailures = await sendUpdateMessages(liveHolders.map(h => h.enrollment.client_id), message.trim());
-        }
-      }
-      // Under "new joiners only" nothing changes for the people inside — no writes, no messages.
+      const snapshots =
+        audience === 'everyone'
+          ? (() => {
+              const removedKeys = new Set(
+                review.filter(c => c.kind === 'removed').map(c => nodeKey(c.node)),
+              );
+              return liveHolders.map(h => ({
+                id: h.enrollment.id,
+                track_snapshot: buildProtectedSnapshot(
+                  h.snapshot,
+                  cleanTrack,
+                  h.enrollment.track_position,
+                  removedKeys,
+                ),
+              }));
+            })()
+          : []; // "new joiners only" — nobody inside is touched.
 
-      if (snapshotFailures > 0) {
-        // Stay on the screen: the pass changed but some athletes did not move over.
+      const { data: movedCount, error: publishErr } = await supabase.rpc('publish_plan_track', {
+        p_plan_id: plan.id,
+        p_track: cleanTrack,
+        p_snapshots: snapshots,
+      });
+
+      if (publishErr) {
         Alert.alert(
-          'Published, but not everyone moved over',
-          `The pass was updated, but ${snapshotFailures} of ${liveHolders.length} athlete${liveHolders.length === 1 ? '' : 's'} could not be moved to the new track and are still on the old one. Try publishing again.`
+          'Not published',
+          `The pass was left exactly as it was — nothing changed for anyone. ${publishErr.message}`,
         );
         return;
+      }
+      // Keep local context in step with what the server now holds.
+      await refreshPlans?.();
+
+      if (typeof movedCount === 'number' && snapshots.length > 0 && movedCount < snapshots.length) {
+        // The transaction succeeded, so this means rows no longer matched
+        // (an athlete left the pass mid-publish) — worth saying, not alarming.
+        Alert.alert(
+          'Published',
+          `${movedCount} of ${snapshots.length} athletes moved to the new track. The others are no longer on this pass.`,
+        );
+      }
+
+      if (audience === 'everyone' && notify && message.trim()) {
+        messageFailures = await sendUpdateMessages(
+          liveHolders.map(h => h.enrollment.client_id),
+          message.trim(),
+        );
       }
       if (messageFailures > 0 || versionWarning) {
         const parts: string[] = [];
