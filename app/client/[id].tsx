@@ -341,13 +341,17 @@ export default function ClientDetailScreen() {
   }, [underlineX, reduced]);
 
   const saveNotes = useCallback(async () => {
+    if (!client?.id) return;
     setNotesSaving(true);
-    try {
-      await supabase.from('clients').update({ notes: notesText }).eq('id', client?.id || '');
-      setEditingNotes(false);
-    } catch {
-      showAlert({ type: 'error', title: 'Error', message: 'Failed to save note.' });
-    } finally { setNotesSaving(false); }
+    // .update() RESOLVES with { error } — it never throws, so the old catch was
+    // dead code and a failed save still closed the editor as if it had worked.
+    const { error } = await supabase.from('clients').update({ notes: notesText }).eq('id', client.id);
+    setNotesSaving(false);
+    if (error) {
+      showAlert({ type: 'error', title: 'Note not saved', message: error.message || 'Failed to save note. Your text is still here — try again.' });
+      return; // stay in the editor so the note isn't lost
+    }
+    setEditingNotes(false);
   }, [notesText, client?.id, showAlert]);
 
   const startConversation = useCallback(async () => {

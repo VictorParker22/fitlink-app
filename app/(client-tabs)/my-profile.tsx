@@ -161,7 +161,11 @@ export default function ClientProfileScreen() {
   const handleConfirmDelete = async () => {
     if (deleteInput !== 'DELETE') { setShowDeleteModal(false); return; }
     try {
-      await supabase.rpc('delete_client_account');
+      // .rpc() resolves with { error } — it does not throw. Without this check
+      // a failed deletion still closed the modal and signed the athlete out,
+      // so the account looked deleted while it was fully intact.
+      const { error } = await supabase.rpc('delete_client_account');
+      if (error) throw error;
       setShowDeleteModal(false);
       await signOut();
     } catch (err: any) {

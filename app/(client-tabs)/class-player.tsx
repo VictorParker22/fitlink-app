@@ -60,41 +60,111 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
   const { user } = useAuth();
   const [showRating, setShowRating] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [ratingFailed, setRatingFailed] = useState(false);
+  const completionIdRef = useRef<string | null>(null);
   const syncedRef = useRef(false);
 
   useEffect(() => {
     if (syncedRef.current) return;
     syncedRef.current = true;
     const syncCloud = async () => {
-      if (user && entry.classId) {
-        try {
-          await supabase.from('class_completions').insert({
-            client_id: user.id,
-            class_id: entry.classId,
-            trainer_id: '',
-            started_at: new Date(Date.now() - entry.durationSec * 1000).toISOString(),
-            completed_at: new Date().toISOString(),
-            duration_sec: entry.durationSec,
-            target_duration_sec: entry.targetDurationSec,
-            watch_minutes: Math.round(entry.durationSec / 60),
-            completed: entry.completed,
-            calories_estimate: entry.caloriesEstimate || null,
-          });
+      if (!user || !entry.classId) return;
 
-          const { data: cls } = await supabase.from('classes').select('take_count, total_watch_minutes').eq('id', entry.classId).single();
-          if (cls) {
-            await supabase.from('classes').update({
-              take_count: (cls.take_count || 0) + 1,
-              total_watch_minutes: (cls.total_watch_minutes || 0) + Math.round(entry.durationSec / 60),
-            }).eq('id', entry.classId);
-          }
-        } catch (e) {
-          console.log('[class-player] Cloud sync error:', e);
-        }
+      // trainer_id must be the class's REAL owner: harden_class_completions.sql
+      // rejects any other value, and the empty string this used to send is not
+      // even a valid uuid (22P02). Every completion written that way was lost,
+      // which is why coach watch-time analytics could only ever read zero.
+      const { data: cls, error: clsError } = await supabase
+        .from('classes')
+        .select('trainer_id, take_count, total_watch_minutes')
+        .eq('id', entry.classId)
+        .maybeSingle();
+
+      if (clsError || !cls?.trainer_id) {
+        if (__DEV__) console.warn('[class-player] class lookup failed:', clsError?.message ?? 'class not readable');
+        setSyncFailed(true);
+        return;
       }
+
+      const watchMinutes = Math.round(entry.durationSec / 60);
+      const { data: inserted, error: insertError } = await supabase
+        .from('class_completions')
+        .insert({
+          client_id: user.id, // class_completions.client_id holds an AUTH id
+          class_id: entry.classId,
+          trainer_id: cls.trainer_id,
+          started_at: new Date(Date.now() - entry.durationSec * 1000).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_sec: entry.durationSec,
+          target_duration_sec: entry.targetDurationSec,
+          watch_minutes: watchMinutes,
+          completed: entry.completed,
+          calories_estimate: entry.caloriesEstimate || null,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        if (__DEV__) console.warn('[class-player] completion insert failed:', insertError.message);
+        setSyncFailed(true);
+        return;
+      }
+      completionIdRef.current = inserted?.id ?? null;
+
+      // Advisory roll-up only. `classes` is UPDATE-able by its owning coach
+      // alone (scope_classes_to_coach.sql), so from an athlete session this
+      // matches zero rows and silently no-ops — the authoritative counts are
+      // derived from class_completions. Kept so the call still succeeds if the
+      // coach is the one taking their own class.
+      const { error: rollupError } = await supabase.from('classes').update({
+        take_count: (cls.take_count || 0) + 1,
+        total_watch_minutes: (cls.total_watch_minutes || 0) + watchMinutes,
+      }).eq('id', entry.classId);
+      if (rollupError && __DEV__) console.warn('[class-player] class roll-up skipped:', rollupError.message);
     };
     syncCloud();
   }, [user, entry]);
+
+  const handleRate = async (star: number) => {
+    const previous = selectedRating;
+    setSelectedRating(star);
+    setRatingFailed(false);
+    if (!user || !entry.classId) return;
+
+    // An UPDATE builder accepts no .order()/.limit() — PostgREST rejects them
+    // on PATCH. Resolve the target row first, then update it by primary key.
+    let completionId = completionIdRef.current;
+    if (!completionId) {
+      const { data: latest, error: findError } = await supabase
+        .from('class_completions')
+        .select('id')
+        .eq('client_id', user.id)
+        .eq('class_id', entry.classId)
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (findError || !latest) {
+        if (__DEV__) console.warn('[class-player] no completion to rate:', findError?.message);
+        setSelectedRating(previous);
+        setRatingFailed(true);
+        return;
+      }
+      completionId = latest.id;
+      completionIdRef.current = completionId;
+    }
+
+    const { error } = await supabase
+      .from('class_completions')
+      .update({ rating: star })
+      .eq('id', completionId);
+
+    if (error) {
+      if (__DEV__) console.warn('[class-player] rating update failed:', error.message);
+      setSelectedRating(previous);
+      setRatingFailed(true);
+    }
+  };
 
   const formatDuration = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -203,18 +273,8 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
                 <TouchableOpacity
                   key={star}
                   onPress={() => {
-                    setSelectedRating(star);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (user && entry.classId) {
-                      supabase.from('class_completions')
-                        .update({ rating: star })
-                        .eq('client_id', user.id)
-                        .eq('class_id', entry.classId)
-                        // Rate the most recent completion of this class only
-                        .order('completed_at', { ascending: false })
-                        .limit(1)
-                        .then(() => {});
-                    }
+                    handleRate(star);
                   }}
                 >
                   <Ionicons
@@ -225,7 +285,16 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
                 </TouchableOpacity>
               ))}
             </View>
+            {ratingFailed && (
+              <Text style={cs.syncWarn}>Couldn't save your rating. Tap a star to try again.</Text>
+            )}
           </View>
+
+          {syncFailed && (
+            <Text style={cs.syncWarn}>
+              Saved on this device, but we couldn't sync it to your coach yet.
+            </Text>
+          )}
         </View>
 
         {/* Actions */}
@@ -1024,6 +1093,14 @@ const cs = StyleSheet.create({
   starsRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  syncWarn: {
+    fontFamily: CoachFonts.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    marginTop: 10,
+    paddingHorizontal: 16,
   },
 
   actions: { paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 90 : 80, gap: 10 },

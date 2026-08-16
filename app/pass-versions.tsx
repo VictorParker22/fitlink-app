@@ -8,6 +8,7 @@ import type { TrackNode, PlanEnrollment } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { weekOfPosition, isOnLatestTrack } from '../lib/passWeeks';
+import { isMissingSchemaError } from '../lib/schemaErrors';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 /**
@@ -89,39 +90,47 @@ export default function PassVersionsScreen() {
     return fmtDate(end.toISOString());
   };
 
-  const sendMessage = async (clientId: string, content: string) => {
-    if (!user) return;
-    try {
-      const { data: convs } = await supabase.from('conversations').select('id, client_id').eq('client_id', clientId);
-      let convId = convs?.[0]?.id;
-      if (!convId) {
-        const { data: created, error } = await supabase
-          .from('conversations')
-          .insert({ trainer_id: user.id, client_id: clientId })
-          .select()
-          .single();
-        if (error || !created) return;
-        convId = created.id;
-      }
-      await supabase.from('messages').insert({ conversation_id: convId, sender_type: 'trainer', content });
-      await supabase.from('conversations').update({
-        last_message: content,
-        last_message_at: new Date().toISOString(),
-      }).eq('id', convId);
-    } catch {
-      // Non-fatal.
+  /** Returns null on success, or a human-readable reason the message did not send. */
+  const sendMessage = async (clientId: string, content: string): Promise<string | null> => {
+    if (!user) return 'You are not signed in.';
+    const { data: convs, error: convSelErr } = await supabase
+      .from('conversations').select('id, client_id').eq('client_id', clientId);
+    if (convSelErr) return convSelErr.message;
+    let convId = convs?.[0]?.id;
+    if (!convId) {
+      const { data: created, error } = await supabase
+        .from('conversations')
+        .insert({ trainer_id: user.id, client_id: clientId })
+        .select()
+        .single();
+      if (error || !created) return error?.message || 'Could not start a conversation.';
+      convId = created.id;
     }
+    const { error: msgErr } = await supabase
+      .from('messages').insert({ conversation_id: convId, sender_type: 'trainer', content });
+    if (msgErr) return msgErr.message;
+    const { error: previewErr } = await supabase.from('conversations').update({
+      last_message: content,
+      last_message_at: new Date().toISOString(),
+    }).eq('id', convId);
+    if (__DEV__ && previewErr) console.warn('[PassVersions] conversation preview update failed:', previewErr);
+    return null;
   };
 
   const askToSwitch = async (clientName: string, clientId: string) => {
     if (!plan) return;
     setBusy(true);
     const summary = latestRow?.summary ? `: ${latestRow.summary}` : '';
-    await sendMessage(
+    const failure = await sendMessage(
       clientId,
       `I've updated ${plan.name}${summary}. Want to switch to the new version? Nothing you've done gets lost.`
     );
     setBusy(false);
+    // Previously this said "Sent" no matter what the insert returned.
+    if (failure) {
+      Alert.alert('Not sent', failure);
+      return;
+    }
     Alert.alert('Sent', `Asked ${clientName.split(' ')[0]} about v${currentVersionNumber}.`);
   };
 
@@ -139,16 +148,21 @@ export default function PassVersionsScreen() {
             setBusy(true);
             try {
               // Record the rollback as a new version (the current track is the one being archived).
-              try {
-                const { error } = await supabase.from('plan_versions').insert({
-                  plan_id: plan.id,
-                  version: currentVersionNumber,
-                  track: plan.track ?? [],
-                  summary: `Rolled back to v${rollbackTarget.version}`,
-                });
-                if (error) console.warn('plan_versions insert failed:', error.message);
-              } catch (e: any) {
-                console.warn('plan_versions unavailable:', e?.message);
+              // The audit row is best-effort ONLY while the plan_versions migration
+              // may not have run yet (42P01 undefined_table / 42703 undefined_column).
+              // Any other error is real and worth telling the coach about.
+              const { error: versionErr } = await supabase.from('plan_versions').insert({
+                plan_id: plan.id,
+                version: currentVersionNumber,
+                track: plan.track ?? [],
+                summary: `Rolled back to v${rollbackTarget.version}`,
+              });
+              if (versionErr && !isMissingSchemaError(versionErr)) {
+                Alert.alert(
+                  'Rollback not recorded',
+                  `${versionErr.message}\n\nThe pass has not been changed. Please try again.`
+                );
+                return;
               }
               await updatePlanTrack(plan.id, rollbackTarget.track);
               await load();

@@ -363,7 +363,7 @@ function ScheduledRow({
 export default function StudioScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass, activeClients } = useApp();
+  const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass, activeClients, trainer } = useApp();
   const { showAlert } = useAlert();
   const { isCoachElite } = useRevenueCat();
   const [showPaywall, setShowPaywall] = useState(false);
@@ -440,9 +440,13 @@ export default function StudioScreen() {
   useEffect(() => {
     async function fetchAnalytics() {
       try {
+        // Scoped to this coach — unfiltered, this chart was built from
+        // platform-wide class rows, showing one coach another's numbers.
+        if (!trainer?.id) return;
         const { data } = await supabase
           .from('classes')
           .select('id, take_count, created_at')
+          .eq('trainer_id', trainer.id)
           .order('created_at', { ascending: true })
           .limit(8);
         if (data && data.length > 0) setRealAnalytics(data);
@@ -451,7 +455,9 @@ export default function StudioScreen() {
       }
     }
     fetchAnalytics();
-  }, []);
+    // Depends on the coach — an empty dep array left the chart blank whenever
+    // the trainer row resolved after this effect first ran.
+  }, [trainer?.id]);
 
   // Abrupt end detection
   useEffect(() => {

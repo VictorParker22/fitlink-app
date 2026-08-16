@@ -408,11 +408,27 @@ export default function ClientWorkoutsScreen() {
       const trackLen = Array.isArray(enrollment?.track_snapshot) ? enrollment.track_snapshot.length : 0;
       const isFinal =
         enrollment?.status === 'active' && trackLen > 0 && (enrollment.track_position || 0) + 1 >= trackLen;
-      // Advances the enrollment position and writes the session log.
-      await completeTrackWorkout();
+      // Advances the enrollment position and writes the session log. These
+      // return { ok } rather than throwing — a rejected write used to close
+      // the summary as if the session had been recorded.
+      const res = await completeTrackWorkout();
+      if (!res?.ok) {
+        Alert.alert(
+          'Session not saved',
+          "Your workout is logged on this device, but we couldn't record it on your plan. Check your connection and finish again.",
+        );
+        return;
+      }
       if (isFinal) setFinishedSeason({ ...enrollment, completed_at: new Date().toISOString() });
     } else {
-      await completeWorkoutWithLog(activeWorkout.id, summaryElapsedSeconds);
+      const res = await completeWorkoutWithLog(activeWorkout.id, summaryElapsedSeconds);
+      if (!res?.ok) {
+        Alert.alert(
+          'Session not saved',
+          "Your workout is logged on this device, but we couldn't send it to your coach. Check your connection and finish again.",
+        );
+        return;
+      }
     }
     setActiveWorkout(null);
     setSessionStarted(false);

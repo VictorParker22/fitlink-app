@@ -258,7 +258,15 @@ export default function BroadcastStudioScreen() {
     const opacity = opacityMap.get(msg.id);
     if (opacity) { opacity.stopAnimation(); opacityMap.delete(msg.id); }
     setPinnedMessage({ ...msg, isPinned: true });
-    supabase.from('live_class_messages').update({ is_pinned: true }).eq('id', msg.id).then(() => {});
+    // Optimistic pin — revert it if the row never actually changed. The update
+    // resolves with { error }; it does not throw.
+    supabase.from('live_class_messages').update({ is_pinned: true }).eq('id', msg.id)
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('[Broadcast] pin failed:', error);
+        setPinnedMessage(prev => (prev?.id === msg.id ? null : prev));
+        setChatMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev.slice(-99), msg]));
+      });
   }, []);
 
   const handleUnpinMessage = useCallback(() => {
@@ -327,10 +335,15 @@ export default function BroadcastStudioScreen() {
         if (!muxError && muxData?.stream_key && !muxData?.error) {
           activeStreamKey = muxData.stream_key;
           await updateLiveClass(liveClass.id, { mux_playback_id: muxData.playback_id });
-          await supabase.from('live_class_secrets').update({
+          const { error: secretsUpdateError } = await supabase.from('live_class_secrets').update({
             mux_stream_id: muxData.stream_id,
             mux_stream_key: muxData.stream_key,
           }).eq('live_class_id', liveClass.id);
+          // Not fatal for THIS broadcast (activeStreamKey is already in memory),
+          // but the key won't persist for the next one, so make it loud.
+          if (secretsUpdateError) {
+            console.error('[Broadcast] failed to persist new Mux stream key:', secretsUpdateError);
+          }
         } else {
           const reason = muxError?.message ?? muxData?.error ?? 'no stream_key in response';
           console.warn('[Broadcast] create-mux-stream inline retry failed:', reason);
@@ -363,7 +376,18 @@ export default function BroadcastStudioScreen() {
       liveTimeoutRef.current = setTimeout(async () => {
         // Guard: don't update if the coach has already navigated away
         if (!isMountedRef.current) return;
-        try { await updateLiveClass(liveClass.id, { status: 'live' }); } catch (e) {}
+        try {
+          await updateLiveClass(liveClass.id, { status: 'live' });
+        } catch (e: any) {
+          // If this never lands the class stays 'scheduled' and no athlete can
+          // find the stream — the coach is broadcasting to nobody.
+          console.error('[Broadcast] could not flip class to live:', e);
+          showAlert({
+            type: 'error',
+            title: 'Stream not listed',
+            message: 'You are broadcasting, but the class could not be marked live so athletes may not see it. End and start again if nobody joins.',
+          });
+        }
       }, 8000);
     } catch (e: any) {
       console.warn('[Broadcast] Streaming start warning:', e);
@@ -406,7 +430,8 @@ export default function BroadcastStudioScreen() {
         .filter(c => c.status === 'draft' && c.video_url?.includes('stream.mux.com'))
         .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
       if (muxDrafts.length >= 3) {
-        try { await deleteClass(muxDrafts[0].id); } catch (e) {}
+        // Housekeeping only — a failure here just leaves an extra draft behind.
+        try { await deleteClass(muxDrafts[0].id); } catch (e) { if (__DEV__) console.warn('[Broadcast] draft prune failed:', e); }
       }
 
       await createClass({
@@ -690,7 +715,11 @@ export default function BroadcastStudioScreen() {
                     try {
                       if (publisherRef.current) await publisherRef.current.stopPublishing();
                       if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
-                    } catch (e) {}
+                    } catch (e) {
+                      // Studio's abrupt-end detector will close the class out,
+                      // so leaving is still safe — just record why.
+                      console.error('[Broadcast] could not mark class ended on exit:', e);
+                    }
                     router.back();
                   }},
                 ]);

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
-  TextInput, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator,
+  TextInput, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -160,36 +160,59 @@ export default function PassHoldersScreen() {
     if (!content || rows.length === 0 || !user) return;
     setSending(true);
     let sent = 0;
+    let failed = 0;
+    let lastError: string | null = null;
     const { data: convs } = await supabase.from('conversations').select('id, client_id');
     for (const { client } of rows) {
-      try {
-        let convId = (convs || []).find((c: any) => c.client_id === client!.id)?.id;
-        if (!convId) {
-          const { data: created, error } = await supabase
-            .from('conversations')
-            .insert({ trainer_id: user.id, client_id: client!.id })
-            .select()
-            .single();
-          if (error || !created) continue;
-          convId = created.id;
+      let convId = (convs || []).find((c: any) => c.client_id === client!.id)?.id;
+      if (!convId) {
+        const { data: created, error } = await supabase
+          .from('conversations')
+          .insert({ trainer_id: user.id, client_id: client!.id })
+          .select()
+          .single();
+        if (error || !created) {
+          failed += 1;
+          lastError = error?.message || 'Could not start a conversation.';
+          continue;
         }
-        await supabase.from('messages').insert({
-          conversation_id: convId,
-          sender_type: 'trainer',
-          content,
-        });
-        await supabase.from('conversations').update({
-          last_message: content,
-          last_message_at: new Date().toISOString(),
-        }).eq('id', convId);
-        sent += 1;
-      } catch {
-        // Non-fatal — one failed send shouldn't sink the blast.
+        convId = created.id;
       }
+      // This insert resolves with { error }; it does not throw. The old code
+      // counted an attempt as a send, so the sheet reported "Sent to N" even
+      // when every single message had failed.
+      const { error: msgErr } = await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_type: 'trainer',
+        content,
+      });
+      if (msgErr) {
+        failed += 1;
+        lastError = msgErr.message;
+        continue;
+      }
+      const { error: previewErr } = await supabase.from('conversations').update({
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      }).eq('id', convId);
+      if (__DEV__ && previewErr) console.warn('[PassHolders] conversation preview update failed:', previewErr);
+      sent += 1;
     }
     setSending(false);
+
+    if (sent === 0) {
+      // Nothing went out — keep the sheet and the typed text.
+      Alert.alert('Not sent', lastError || 'The message could not be sent to anyone. Please try again.');
+      return;
+    }
     setSentCount(sent);
     setComposeText('');
+    if (failed > 0) {
+      Alert.alert(
+        'Sent to some athletes',
+        `${sent} of ${rows.length} got the message. ${failed} did not${lastError ? `: ${lastError}` : '.'}`
+      );
+    }
     setTimeout(() => {
       setComposeOpen(false);
       setSentCount(null);

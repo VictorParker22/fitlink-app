@@ -479,28 +479,33 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       setAutoFlags(newAutoFlags);
 
       if (hasUpdates) {
+        const previousHabits = habits;
         const newHabits = { ...habits, ...updates };
         setHabits(newHabits);
 
-        // Upsert auto-checked values to DB
-        try {
-          const { data } = await supabase
-            .from('client_habits')
-            .upsert(
-              {
-                ...(rowId ? { id: rowId } : {}),
-                client_id: clientId,
-                date: TODAY,
-                ...newHabits,
-              },
-              { onConflict: 'client_id,date' }
-            )
-            .select()
-            .single();
-          if (data && !rowId) setRowId(data.id);
-        } catch (err) {
-          if (__DEV__) console.log('[HabitTracker] auto-upsert error:', err);
+        // Upsert auto-checked values to DB. The upsert resolves with an error
+        // rather than throwing, so it has to be read — otherwise the auto-ticks
+        // stay on screen while nothing was written.
+        const { data, error } = await supabase
+          .from('client_habits')
+          .upsert(
+            {
+              ...(rowId ? { id: rowId } : {}),
+              client_id: clientId,
+              date: TODAY,
+              ...newHabits,
+            },
+            { onConflict: 'client_id,date' }
+          )
+          .select()
+          .single();
+        if (error) {
+          setHabits(previousHabits);
+          setAutoFlags(prev => ({ ...prev, ...Object.fromEntries(Object.keys(updates).map(k => [k, false])) } as Record<HabitKey, boolean>));
+          if (__DEV__) console.warn('[HabitTracker] auto-upsert failed:', error.message);
+          return;
         }
+        if (data && !rowId) setRowId(data.id);
       }
     })();
   }, [loading, clientId, autoValues]);

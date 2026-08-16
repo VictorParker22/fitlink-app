@@ -296,7 +296,11 @@ export default function AthleteFoodScreen() {
     let { error } = await supabase.from('client_meal_logs').insert(payload);
     if (error && wantSwapCol && MISSING_COLUMN(error.code)) {
       if (m.dpmId === null) {
-        // Column not deployed: a rest-day row would be unattributable — keep in-memory only.
+        // Column not deployed: a rest-day row would be unattributable, so
+        // nothing is written. Drop the optimistic tick too — a checkmark with
+        // no row behind it is a lie that survives until the next reload.
+        if (__DEV__) console.warn('[Food] swapped_meal_id missing; rest-day meal not logged');
+        setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
         return;
       }
       // Training-day swap degrades to a plain log of the slot.
@@ -308,7 +312,13 @@ export default function AthleteFoodScreen() {
       setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
       return;
     }
-    await supabase.from('clients').update({ xp: (clientData.xp || 0) + 10 }).eq('id', clientData.id);
+    // XP is a side reward, not the log itself — the meal is already saved, so a
+    // failure here never invalidates the tick. Surfaced in dev only.
+    const { error: xpError } = await supabase
+      .from('clients')
+      .update({ xp: (clientData.xp || 0) + 10 })
+      .eq('id', clientData.id);
+    if (xpError && __DEV__) console.warn('[Food] XP award failed:', xpError.message);
   }, [clientData, plan]);
 
   const unlogMeal = useCallback(async (m: DayMeal) => {

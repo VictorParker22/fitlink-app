@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Switch, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Switch, Modal, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -124,9 +124,13 @@ export default function MessagesScreen() {
       .insert({ trainer_id: user!.id, client_id: clientId })
       .select()
       .single();
-    if (!error && data) {
-      navigate(data.id);
+    if (error || !data) {
+      // Without this the picker just closed and nothing happened — the coach
+      // had no way to know the conversation was never created.
+      Alert.alert('Could not start the chat', error?.message || 'Please try again.');
+      return;
     }
+    navigate(data.id);
   };
 
   const matchesSearch = useCallback((name: string) => name.toLowerCase().includes(search.toLowerCase()), [search]);

@@ -354,12 +354,14 @@ export default function FindCoachScreen() {
 
       // Save the intake against the new client row (assessment_data.intake).
       // Non-critical — the message below carries the same answers.
-      try {
-        await supabase
-          .from('clients')
-          .update({ assessment_data: { intake: { ...answers, source: 'marketplace' } } })
-          .eq('id', clientId);
-      } catch { /* non-critical */ }
+      const { error: intakeErr } = await supabase
+        .from('clients')
+        .update({ assessment_data: { intake: { ...answers, source: 'marketplace' } } })
+        .eq('id', clientId);
+      if (intakeErr && __DEV__) {
+        // Non-blocking: the first message below repeats the same answers.
+        console.warn('[find-coach] intake save failed:', intakeErr.message);
+      }
 
       // First message: the athlete's answers plus their note, in the real
       // conversation the coach will reply in.
@@ -372,24 +374,26 @@ export default function FindCoachScreen() {
       ].filter(Boolean);
       const content = lines.join('\n');
 
-      try {
-        const { data: conv } = await supabase
-          .from('conversations')
-          .insert({ client_id: clientId, trainer_id: selected.trainer.id })
-          .select()
-          .single();
-        if (conv) {
-          await supabase.from('messages').insert({
-            conversation_id: conv.id,
-            sender_type: 'client',
-            content,
-          });
-          await supabase.rpc('increment_conversation_unread', {
-            conv_id: conv.id,
-            new_last_message: content,
-          }).then(undefined, () => { /* older DBs may lack the rpc */ });
-        }
-      } catch { /* the request itself already landed via the RPC */ }
+      // The request itself already landed via the RPC, so a failure here does
+      // not fail the flow — but it must not vanish either.
+      const { data: conv, error: convErr } = await supabase
+        .from('conversations')
+        .insert({ client_id: clientId, trainer_id: selected.trainer.id })
+        .select()
+        .single();
+      if (convErr && __DEV__) console.warn('[find-coach] conversation create failed:', convErr.message);
+      if (conv) {
+        const { error: msgErr } = await supabase.from('messages').insert({
+          conversation_id: conv.id,
+          sender_type: 'client',
+          content,
+        });
+        if (msgErr && __DEV__) console.warn('[find-coach] intro message failed:', msgErr.message);
+        await supabase.rpc('increment_conversation_unread', {
+          conv_id: conv.id,
+          new_last_message: content,
+        }).then(undefined, () => { /* older DBs may lack the rpc */ });
+      }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshData();

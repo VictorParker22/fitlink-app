@@ -398,35 +398,42 @@ export default function CreatePassScreen() {
 
   // Publish sends a real chat message from the coach — not a system
   // notification — into each selected client's conversation.
-  const sendOffers = async (planName: string) => {
+  /** Returns how many offers actually reached a conversation. */
+  const sendOffers = async (planName: string): Promise<number> => {
     const content = `I just opened a new season: ${planName}${promise.trim() ? ` — ${promise.trim()}` : ''}`;
     const { data: convs } = await supabase.from('conversations').select('id, client_id');
+    let sent = 0;
     for (const clientId of selectedClientIds) {
-      try {
-        let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
-        if (!convId) {
-          const { data: created, error } = await supabase
-            .from('conversations')
-            .insert({ trainer_id: user!.id, client_id: clientId })
-            .select()
-            .single();
-          if (error || !created) continue;
-          convId = created.id;
-        }
-        await supabase.from('messages').insert({
-          conversation_id: convId,
-          sender_type: 'trainer',
-          content,
-        });
-        await supabase.from('conversations').update({
-          last_message: content,
-          last_message_at: new Date().toISOString(),
-        }).eq('id', convId);
-      } catch {
+      let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
+      if (!convId) {
+        const { data: created, error } = await supabase
+          .from('conversations')
+          .insert({ trainer_id: user!.id, client_id: clientId })
+          .select()
+          .single();
         // Non-fatal — the pass is still created; a single failed offer
-        // shouldn't sink the publish.
+        // shouldn't sink the publish. But it must not be counted as sent.
+        if (error || !created) continue;
+        convId = created.id;
       }
+      // Resolves with { error }; it does not throw.
+      const { error: msgErr } = await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_type: 'trainer',
+        content,
+      });
+      if (msgErr) {
+        console.error('[CreatePlan] offer message failed:', clientId, msgErr);
+        continue;
+      }
+      const { error: previewErr } = await supabase.from('conversations').update({
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      }).eq('id', convId);
+      if (__DEV__ && previewErr) console.warn('[CreatePlan] conversation preview update failed:', previewErr);
+      sent += 1;
     }
+    return sent;
   };
 
   const handleSave = async (publish: boolean) => {
@@ -463,10 +470,20 @@ export default function CreatePassScreen() {
       );
       const track = buildTrack();
       if (track.length > 0) await updatePlanTrack(plan.id, track);
-      if (publish && selectedClientIds.size > 0) await sendOffers(name.trim());
+      // The celebration must report offers that actually landed, not offers we
+      // attempted — sendOffers now returns the real count.
+      let offersSent = 0;
+      if (publish && selectedClientIds.size > 0) offersSent = await sendOffers(name.trim());
       if (publish) {
+        if (selectedClientIds.size > 0 && offersSent < selectedClientIds.size) {
+          showAlert({
+            type: 'warning',
+            title: 'Pass published, some offers did not send',
+            message: `${offersSent} of ${selectedClientIds.size} athletes got the offer message. You can message the rest from their chat.`,
+          });
+        }
         // The moment deserves more than a silent pop — celebrate, then leave.
-        setPublished({ offersSent: selectedClientIds.size });
+        setPublished({ offersSent });
       } else {
         router.back();
       }

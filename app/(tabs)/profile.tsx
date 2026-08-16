@@ -132,8 +132,15 @@ export default function ProfileScreen() {
             'Confirm deletion', 'Type DELETE to confirm.',
             async (text) => {
               if (text !== 'DELETE') { Alert.alert('Cancelled', 'Account deletion cancelled.'); return; }
-              try { await supabase.rpc('delete_trainer_account'); await signOut(); }
-              catch (err: any) { Alert.alert('Error', err.message || 'Failed to delete account.'); }
+              // .rpc() RESOLVES with { error } — it does not throw, so the old
+              // catch never ran and a FAILED deletion still signed the coach
+              // out, leaving them certain their account and data were gone.
+              const { error } = await supabase.rpc('delete_trainer_account');
+              if (error) {
+                Alert.alert('Account not deleted', `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.`);
+                return;
+              }
+              await signOut();
             },
             'plain-text', '', 'default'
           ),

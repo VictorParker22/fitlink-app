@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { weekOfPosition, weekStartIndices, totalWeeks, diffTracks } from '../lib/passWeeks';
 import type { TrackDiffEntry } from '../lib/passWeeks';
+import { isMissingSchemaError } from '../lib/schemaErrors';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const nodeKey = (n: TrackNode) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}`;
@@ -214,34 +215,36 @@ export default function PassTrackEditorScreen() {
     return spliced.map((n, i) => ({ ...n, order: i }));
   };
 
-  const sendUpdateMessages = async (clientIds: string[], content: string) => {
-    if (!user || clientIds.length === 0) return;
+  /** Sends the update note to each athlete. Returns how many did NOT go out. */
+  const sendUpdateMessages = async (clientIds: string[], content: string): Promise<number> => {
+    if (!user || clientIds.length === 0) return 0;
     const { data: convs } = await supabase.from('conversations').select('id, client_id');
+    let failed = 0;
     for (const clientId of clientIds) {
-      try {
-        let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
-        if (!convId) {
-          const { data: created, error } = await supabase
-            .from('conversations')
-            .insert({ trainer_id: user.id, client_id: clientId })
-            .select()
-            .single();
-          if (error || !created) continue;
-          convId = created.id;
-        }
-        await supabase.from('messages').insert({
-          conversation_id: convId,
-          sender_type: 'trainer',
-          content,
-        });
-        await supabase.from('conversations').update({
-          last_message: content,
-          last_message_at: new Date().toISOString(),
-        }).eq('id', convId);
-      } catch {
-        // Non-fatal — a failed message shouldn't sink the publish.
+      let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
+      if (!convId) {
+        const { data: created, error } = await supabase
+          .from('conversations')
+          .insert({ trainer_id: user.id, client_id: clientId })
+          .select()
+          .single();
+        if (error || !created) { failed++; continue; }
+        convId = created.id;
       }
+      // Resolves with { error } — it does not throw, so the old catch never ran.
+      const { error: msgErr } = await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_type: 'trainer',
+        content,
+      });
+      if (msgErr) { failed++; continue; }
+      const { error: previewErr } = await supabase.from('conversations').update({
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      }).eq('id', convId);
+      if (__DEV__ && previewErr) console.warn('[TrackEditor] conversation preview update failed:', previewErr);
     }
+    return failed;
   };
 
   const handlePublish = async () => {
@@ -250,46 +253,71 @@ export default function PassTrackEditorScreen() {
     try {
       const oldTrack = plan.track ?? [];
       const cleanTrack = toTrackNodes(track);
-      // 1. Snapshot the pre-edit track into version history (never blocks the edit).
-      try {
-        const { data: vRows, error: vErr } = await supabase
-          .from('plan_versions')
-          .select('version')
-          .eq('plan_id', plan.id)
-          .order('version', { ascending: false })
-          .limit(1);
-        if (!vErr) {
-          const nextVersion = ((vRows?.[0] as any)?.version ?? 0) + 1;
-          const { error: insErr } = await supabase.from('plan_versions').insert({
-            plan_id: plan.id,
-            version: nextVersion,
-            track: oldTrack,
-            summary: describeChanges(review),
-          });
-          if (insErr) console.warn('plan_versions insert failed:', insErr.message);
-        } else if (vErr.code !== '42P01') {
-          console.warn('plan_versions read failed:', vErr.message);
-        }
-      } catch (e: any) {
-        console.warn('plan_versions unavailable:', e?.message);
+      // 1. Snapshot the pre-edit track into version history. The audit trail is
+      //    best-effort ONLY while the plan_versions migration may not have run
+      //    (42P01/42703); anything else is a real failure and is reported below.
+      let versionWarning: string | null = null;
+      const { data: vRows, error: vErr } = await supabase
+        .from('plan_versions')
+        .select('version')
+        .eq('plan_id', plan.id)
+        .order('version', { ascending: false })
+        .limit(1);
+      if (!vErr) {
+        const nextVersion = ((vRows?.[0] as any)?.version ?? 0) + 1;
+        const { error: insErr } = await supabase.from('plan_versions').insert({
+          plan_id: plan.id,
+          version: nextVersion,
+          track: oldTrack,
+          summary: describeChanges(review),
+        });
+        if (insErr && !isMissingSchemaError(insErr)) versionWarning = insErr.message;
+      } else if (!isMissingSchemaError(vErr)) {
+        versionWarning = vErr.message;
       }
       // 2. The pass itself.
       await updatePlanTrack(plan.id, cleanTrack);
       // 3. Per choice.
+      let snapshotFailures = 0;
+      let messageFailures = 0;
       if (audience === 'everyone') {
         const removedKeys = new Set(review.filter(c => c.kind === 'removed').map(c => nodeKey(c.node)));
         for (const h of liveHolders) {
           const newSnap = buildProtectedSnapshot(h.snapshot, cleanTrack, h.enrollment.track_position, removedKeys);
-          await supabase
+          // This update RESOLVES with { error }. Ignoring it meant an athlete could
+          // be left on the old snapshot while the coach was shown a success haptic.
+          const { error: snapErr } = await supabase
             .from('client_plan_enrollments')
             .update({ track_snapshot: newSnap, updated_at: new Date().toISOString() })
             .eq('id', h.enrollment.id);
+          if (snapErr) {
+            snapshotFailures++;
+            console.error('[TrackEditor] enrollment snapshot update failed:', h.enrollment.id, snapErr);
+          }
         }
         if (notify && message.trim()) {
-          await sendUpdateMessages(liveHolders.map(h => h.enrollment.client_id), message.trim());
+          messageFailures = await sendUpdateMessages(liveHolders.map(h => h.enrollment.client_id), message.trim());
         }
       }
       // Under "new joiners only" nothing changes for the people inside — no writes, no messages.
+
+      if (snapshotFailures > 0) {
+        // Stay on the screen: the pass changed but some athletes did not move over.
+        Alert.alert(
+          'Published, but not everyone moved over',
+          `The pass was updated, but ${snapshotFailures} of ${liveHolders.length} athlete${liveHolders.length === 1 ? '' : 's'} could not be moved to the new track and are still on the old one. Try publishing again.`
+        );
+        return;
+      }
+      if (messageFailures > 0 || versionWarning) {
+        const parts: string[] = [];
+        if (messageFailures > 0) parts.push(`${messageFailures} athlete${messageFailures === 1 ? '' : 's'} did not get the update message.`);
+        if (versionWarning) parts.push(`Version history was not recorded: ${versionWarning}`);
+        Alert.alert('Published, with problems', parts.join('\n\n'));
+        router.back();
+        return;
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (err: any) {

@@ -80,9 +80,13 @@ export default function LogProgressScreen() {
 
       // Upload photo to Supabase Storage if one was picked
       let photoUrl: string | null = null;
+      let photoDropped = false;
       if (photoBase64 && photoUri) {
         const ext = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
         photoUrl = await uploadProgressPhoto(photoBase64, ext);
+        // The upload failing used to be completely silent: the entry saved
+        // without the photo and the screen closed as if nothing had happened.
+        photoDropped = !photoUrl;
       }
 
       await addProgressLog({
@@ -95,6 +99,14 @@ export default function LogProgressScreen() {
         photos: photoUrl ? [photoUrl] : [],
       });
 
+      if (photoDropped) {
+        Alert.alert(
+          'Saved without the photo',
+          'The measurements were saved, but the photo could not be uploaded. You can add it again from this screen.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+        return;
+      }
       router.back();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save progress.');

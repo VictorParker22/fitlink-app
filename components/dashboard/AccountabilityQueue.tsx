@@ -307,7 +307,10 @@ export default function AccountabilityQueue() {
           .insert({ trainer_id: trainer.id, client_id: item.clientId })
           .select('id')
           .single();
-        if (error || !nc) return;
+        if (error || !nc) {
+          if (__DEV__) console.warn('[AccountabilityQueue] conversation create failed:', error?.message);
+          return;
+        }
         convId = nc.id;
       }
       router.push({ pathname: '/chat/[id]', params: { id: convId, draft: item.draft } } as any);

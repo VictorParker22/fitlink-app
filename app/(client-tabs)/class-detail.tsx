@@ -57,36 +57,43 @@ export default function ClassDetailScreen() {
   React.useEffect(() => {
     async function checkFavorite() {
       if (!user) return;
-      try {
-        const { data, error } = await supabase
-          .from('class_favorites')
-          .select('id')
-          .eq('client_id', user.id)
-          .eq('class_id', params.id)
-          .single();
-        if (data) setIsFavorite(true);
-      } catch (err) {}
+      const { data, error } = await supabase
+        .from('class_favorites')
+        .select('id')
+        .eq('client_id', user.id)
+        .eq('class_id', params.id)
+        .maybeSingle();
+      if (error) {
+        if (__DEV__) console.warn('[class-detail] favorite check failed:', error.message);
+        return;
+      }
+      if (data) setIsFavorite(true);
     }
     checkFavorite();
   }, [user, params.id]);
 
   const toggleFavorite = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsFavorite(!isFavorite);
     if (!user) return;
-    try {
-      if (isFavorite) {
-        await supabase
+    const wasFavorite = isFavorite;
+    setIsFavorite(!wasFavorite);
+
+    const { error } = wasFavorite
+      ? await supabase
           .from('class_favorites')
           .delete()
           .eq('client_id', user.id)
-          .eq('class_id', params.id);
-      } else {
-        await supabase
+          .eq('class_id', params.id)
+      : await supabase
           .from('class_favorites')
           .insert({ client_id: user.id, class_id: params.id });
-      }
-    } catch (err) {}
+
+    if (error) {
+      // The heart is a claim that the save landed — put it back if it didn't.
+      setIsFavorite(wasFavorite);
+      if (__DEV__) console.warn('[class-detail] favorite toggle failed:', error.message);
+      Alert.alert('Not saved', "We couldn't update your saved classes. Please try again.");
+    }
   };
 
   const catColor = CATEGORY_COLORS[params.category || ''] || '#FFFFFF';

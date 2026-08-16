@@ -97,10 +97,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         try {
           const token = await registerForPushNotificationsAsync();
           if (token) {
-            if (role === 'client') {
-              await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id);
-            } else {
-              await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+            // Supabase writes resolve with { error } — the surrounding catch
+            // only ever fires for the token fetch, so check it explicitly.
+            // Failure is non-fatal (no push until the next launch).
+            const { error: tokenError } = role === 'client'
+              ? await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id)
+              : await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+            if (tokenError && __DEV__) {
+              console.warn('[AuthContext] Push token not stored:', tokenError.message);
             }
           }
         } catch (e) {

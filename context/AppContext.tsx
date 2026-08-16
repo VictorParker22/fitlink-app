@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import { Colors } from '../constants/theme';
+import { isMissingSchemaError } from '../lib/schemaErrors';
 
 interface Trainer {
   id: string;
@@ -428,6 +429,20 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+/** Missing table/column, i.e. a migration that has not run — never a real failure. */
+const isMissingSchema = (e: any) =>
+  isMissingSchemaError(e) || /column .* does not exist/i.test(e?.message || '');
+
+/**
+ * Coach activity-feed rows are telemetry: a failure must never break the
+ * operation that produced them, but it should not vanish without a trace
+ * either. Supabase writes resolve with `{ error }` instead of throwing.
+ */
+async function logActivity(row: { trainer_id: string; type: string; message: string }) {
+  const { error } = await supabase.from('activities').insert(row);
+  if (error && __DEV__) console.warn('[AppContext] Activity not recorded:', error.message);
+}
+
 export const sanitizeEquipment = (eq?: string): string | null => {
   if (!eq || eq.toLowerCase() === 'none') return null;
   const e = eq.toLowerCase();
@@ -795,15 +810,36 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user, clientIdsKey]);
 
   // --- Client operations ---
+  /**
+   * public.clients has NO `goals` or `completed_workouts` column — writing
+   * either fails the whole statement with 42703 and takes every other field
+   * down with it (this is why editing a client with goals filled in never
+   * saved). Goals live inside assessment_data.fitness_goals, the same shape
+   * app/add-client.tsx writes; completed_workouts is derived, never stored.
+   */
+  const stripPhantomClientColumns = (updates: Partial<Client>, existingAssessment?: any) => {
+    const { goals, completed_workouts, ...rest } = updates as any;
+    const payload: Record<string, any> = { ...rest };
+    if (goals !== undefined) {
+      const list = String(goals).split(',').map((g) => g.trim()).filter(Boolean);
+      payload.assessment_data = {
+        ...(existingAssessment && typeof existingAssessment === 'object' ? existingAssessment : {}),
+        ...(payload.assessment_data && typeof payload.assessment_data === 'object' ? payload.assessment_data : {}),
+        fitness_goals: list,
+      };
+    }
+    return payload;
+  };
+
   const addClient = useCallback(async (clientData: Partial<Client>) => {
     const { data, error } = await supabase
       .from('clients')
-      .insert({ ...clientData, trainer_id: user!.id })
+      .insert({ ...stripPhantomClientColumns(clientData), trainer_id: user!.id })
       .select()
       .single();
     if (error) throw error;
     setClients((prev) => [data, ...prev]);
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'signup',
       message: `${data.name} was added as a new client`,
@@ -823,9 +859,16 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, []);
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
+    // Merge goals into the existing assessment_data rather than clobbering it.
+    let existingAssessment: any;
+    if ((updates as any).goals !== undefined) {
+      const { data: current } = await supabase
+        .from('clients').select('assessment_data').eq('id', id).maybeSingle();
+      existingAssessment = current?.assessment_data;
+    }
     const { data, error } = await supabase
       .from('clients')
-      .update(updates)
+      .update(stripPhantomClientColumns(updates, existingAssessment))
       .eq('id', id)
       .select()
       .single();
@@ -894,8 +937,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     
     const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
     const newPos = enrollment.track_position + 1;
-    
-    await supabase.from('track_events').insert({
+
+    const { error: eventError } = await supabase.from('track_events').insert({
       enrollment_id: enrollmentId,
       client_id: enrollment.client_id,
       track_position: enrollment.track_position,
@@ -904,18 +947,19 @@ export function AppProvider({ children }: PropsWithChildren) {
       event_type: 'completed',
       duration_sec: durationSec || null,
     });
-    
-    if (newPos >= track.length) {
-      await supabase
-        .from('client_plan_enrollments')
-        .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq('id', enrollmentId);
-    } else {
-      await supabase
-        .from('client_plan_enrollments')
-        .update({ track_position: newPos, updated_at: new Date().toISOString() })
-        .eq('id', enrollmentId);
-    }
+    // History row — never blocks the advance, but must not vanish silently.
+    if (eventError && __DEV__) console.warn('[AppContext] track_event not recorded:', eventError.message);
+
+    const { error } = newPos >= track.length
+      ? await supabase
+          .from('client_plan_enrollments')
+          .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', enrollmentId)
+      : await supabase
+          .from('client_plan_enrollments')
+          .update({ track_position: newPos, updated_at: new Date().toISOString() })
+          .eq('id', enrollmentId);
+    if (error) throw error;
   }, []);
 
   const skipTrackNode = useCallback(async (enrollmentId: string) => {
@@ -930,7 +974,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
     const node = track[enrollment.track_position];
     
-    await supabase.from('track_events').insert({
+    const { error: eventError } = await supabase.from('track_events').insert({
       enrollment_id: enrollmentId,
       client_id: enrollment.client_id,
       track_position: enrollment.track_position,
@@ -938,31 +982,33 @@ export function AppProvider({ children }: PropsWithChildren) {
       node_id: node?.id || null,
       event_type: 'skipped',
     });
-    
+    if (eventError && __DEV__) console.warn('[AppContext] track_event not recorded:', eventError.message);
+
     const newPos = enrollment.track_position + 1;
-    if (newPos >= track.length) {
-      await supabase
-        .from('client_plan_enrollments')
-        .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq('id', enrollmentId);
-    } else {
-      await supabase
-        .from('client_plan_enrollments')
-        .update({ track_position: newPos, updated_at: new Date().toISOString() })
-        .eq('id', enrollmentId);
-    }
+    const { error } = newPos >= track.length
+      ? await supabase
+          .from('client_plan_enrollments')
+          .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', enrollmentId)
+      : await supabase
+          .from('client_plan_enrollments')
+          .update({ track_position: newPos, updated_at: new Date().toISOString() })
+          .eq('id', enrollmentId);
+    if (error) throw error;
   }, []);
 
   const pauseEnrollment = useCallback(async (enrollmentId: string) => {
-    await supabase.from('client_plan_enrollments')
+    const { error } = await supabase.from('client_plan_enrollments')
       .update({ status: 'paused', paused_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', enrollmentId);
+    if (error) throw error;
   }, []);
 
   const resumeEnrollment = useCallback(async (enrollmentId: string) => {
-    await supabase.from('client_plan_enrollments')
+    const { error } = await supabase.from('client_plan_enrollments')
       .update({ status: 'active', paused_at: null, updated_at: new Date().toISOString() })
       .eq('id', enrollmentId);
+    if (error) throw error;
   }, []);
 
   const getClientEnrollment = useCallback(async (clientId: string): Promise<PlanEnrollment | null> => {
@@ -991,7 +1037,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     
     await enrollClientInPlan(clientId, planId);
     
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'signup',
       message: `${client?.name || 'Client'} upgraded to "${plan?.name || 'plan'}"`,
@@ -1036,7 +1082,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (error) throw error;
     setSessions((prev) => [...prev, data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     const client = clients.find((c) => c.id === sessionData.client_id);
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'session',
       message: `Session booked with ${client?.name || sessionData.group_name || 'client'}`,
@@ -1056,7 +1102,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (updates.status === 'completed') {
       const session = sessions.find((s) => s.id === id);
       const client = session ? clients.find((c) => c.id === session.client_id) : null;
-      await supabase.from('activities').insert({
+      await logActivity({
         trainer_id: user!.id,
         type: 'session',
         message: `Session completed with ${client?.name || session?.group_name || 'client'}`,
@@ -1129,7 +1175,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       .single();
     if (full) setWorkouts((prev) => [full, ...prev]);
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Created workout "${name}"`,
@@ -1151,8 +1197,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       .single();
     if (error) throw error;
 
-    // Delete existing workout exercises
-    await supabase.from('workout_exercises').delete().eq('workout_id', id);
+    // Delete existing workout exercises. If this fails, the insert below would
+    // duplicate every exercise in the workout — stop instead.
+    const { error: clearError } = await supabase.from('workout_exercises').delete().eq('workout_id', id);
+    if (clearError) throw clearError;
 
     // Insert new workout exercises
     if (exerciseList.length > 0) {
@@ -1183,7 +1231,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       setWorkouts((prev) => prev.map(w => w.id === id ? full : w));
     }
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Updated workout "${name}"`,
@@ -1193,7 +1241,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user]);
 
   const deleteWorkout = useCallback(async (id: string) => {
-    await supabase.from('workout_exercises').delete().eq('workout_id', id);
+    const { error: childError } = await supabase.from('workout_exercises').delete().eq('workout_id', id);
+    if (childError) throw childError;
     const { error } = await supabase.from('workouts').delete().eq('id', id);
     if (error) throw error;
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
@@ -1249,7 +1298,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (data) setClientWorkoutsList((prev) => [data, ...prev]);
     const client = clients.find((c) => c.id === clientId);
     const workout = workouts.find((w) => w.id === workoutId);
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Assigned "${workout?.name}" to ${client?.name || 'client'}`,
@@ -1335,7 +1384,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         meal_time: m.meal_time || 'snack',
         servings: m.servings || 1,
       }));
-      await supabase.from('diet_plan_meals').insert(rows);
+      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
+      // A plan saved without its meals is an empty plan — do not report success.
+      if (mealsError) throw mealsError;
     }
 
     const { data: full } = await supabase
@@ -1345,7 +1396,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       .single();
     if (full) setDiets((prev) => [full, ...prev]);
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'diet',
       message: `Created diet plan "${name}"`,
@@ -1394,7 +1445,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (error) throw error;
 
     // Replace all meal associations
-    await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    const { error: clearMealsError } = await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    // Without a clean slate the insert below would duplicate every meal.
+    if (clearMealsError) throw clearMealsError;
     if (mealList.length > 0) {
       const rows = mealList.map((m, i) => ({
         diet_plan_id: id,
@@ -1403,7 +1456,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         meal_time: m.meal_time || 'snack',
         servings: m.servings || 1,
       }));
-      await supabase.from('diet_plan_meals').insert(rows);
+      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
+      // A plan saved without its meals is an empty plan — do not report success.
+      if (mealsError) throw mealsError;
     }
 
     const { data: full } = await supabase
@@ -1444,7 +1499,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         meal_time: m.meal_time,
         servings: m.servings || 1,
       }));
-      await supabase.from('diet_plan_meals').insert(rows);
+      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
+      // A plan saved without its meals is an empty plan — do not report success.
+      if (mealsError) throw mealsError;
     }
 
     const { data: full } = await supabase
@@ -1457,7 +1514,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user, diets]);
 
   const deleteDietPlan = useCallback(async (id: string) => {
-    await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    const { error: childError } = await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
+    if (childError) throw childError;
     const { error } = await supabase.from('diet_plans').delete().eq('id', id);
     if (error) throw error;
     setDiets((prev) => prev.filter((d) => d.id !== id));
@@ -1474,7 +1532,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (data) setClientDietsList((prev) => [data, ...prev]);
     const client = clients.find((c) => c.id === clientId);
     const diet = diets.find((d) => d.id === dietPlanId);
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'diet',
       message: `Assigned "${diet?.name}" to ${client?.name || 'client'}`,
@@ -1535,7 +1593,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (error) throw error;
     if (data) setPlans((prev) => [...prev, data].sort((a, b) => a.price - b.price));
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'plan',
       message: `Created new subscription plan "${name}"`,
@@ -1582,7 +1640,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         setAutoAddExerciseId(data.id);
     }
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Created custom exercise "${name}"`,
@@ -1619,7 +1677,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         setExercises((prev) => prev.map(e => e.id === id ? data : e).sort((a, b) => a.name.localeCompare(b.name)));
     }
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Updated custom exercise "${name}"`,
@@ -1726,7 +1784,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (error) throw error;
     if (data) setExercises((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
 
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user!.id,
       type: 'workout',
       message: `Imported exercise "${exData.name}"`,
@@ -1817,13 +1875,15 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const requestHealthAccess = useCallback(async (clientId: string) => {
     if (!user) return;
-    // Set the request flag on client
-    await supabase.from('clients').update({ health_sharing_requested: true }).eq('id', clientId);
+    // Set the request flag on client. The caller shows "Request Sent" on
+    // success, so a rejected write has to reach it.
+    const { error } = await supabase.from('clients').update({ health_sharing_requested: true }).eq('id', clientId);
+    if (error) throw error;
     // Update local state
     setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, health_sharing_requested: true } as any : c));
     // Send a notification to the client's trainer feed
     const client = clients.find((c) => c.id === clientId);
-    await supabase.from('activities').insert({
+    await logActivity({
       trainer_id: user.id,
       type: 'health_request',
       message: `Requested health data access from ${client?.name || 'client'}`,
@@ -1908,15 +1968,33 @@ export function AppProvider({ children }: PropsWithChildren) {
       console.warn('[AppContext] Edge Function not deployed or unreachable, using fallback values:', e);
     }
     
-    // 2. Save in database
-    const payload = {
-      ...data,
+    // 2. Save in database.
+    //    `category` and `duration_minutes` have no column on public.live_classes
+    //    (they only exist on `classes`, for the VOD promotion). Sending them
+    //    fails the whole insert with 42703, which is why scheduling a live class
+    //    could never save. Try with them — so a future migration is picked up
+    //    automatically — then shed them and retry.
+    const { category: _cat, duration_minutes: _dur, ...baseData } = data as any;
+    const vodExtras: Record<string, any> = {
+      ...(_cat !== undefined ? { category: _cat } : {}),
+      ...(_dur !== undefined ? { duration_minutes: _dur } : {}),
+    };
+    const basePayload = {
+      ...baseData,
       trainer_id: user!.id,
       mux_playback_id: playbackId,
       status: 'scheduled',
     };
-    
-    const { data: newClass, error } = await supabase.from('live_classes').insert(payload).select().single();
+
+    let { data: newClass, error } = await supabase
+      .from('live_classes')
+      .insert(Object.keys(vodExtras).length ? { ...basePayload, ...vodExtras } : basePayload)
+      .select()
+      .single();
+    if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
+      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.');
+      ({ data: newClass, error } = await supabase.from('live_classes').insert(basePayload).select().single());
+    }
     if (error) throw error;
 
     // Insert stream credentials into secrets table (trainer-only RLS).
@@ -1935,7 +2013,22 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [user]);
 
   const updateLiveClass = useCallback(async (id: string, updates: Partial<LiveClassItem>): Promise<LiveClassItem> => {
-    const { data, error } = await supabase.from('live_classes').update(updates).eq('id', id).select().single();
+    // Same phantom-column guard as createLiveClass: category/duration_minutes
+    // do not exist on public.live_classes, and would take the whole update
+    // (title, schedule, status…) down with them.
+    const { category: _cat, duration_minutes: _dur, ...baseUpdates } = updates as any;
+    const vodExtras: Record<string, any> = {
+      ...(_cat !== undefined ? { category: _cat } : {}),
+      ...(_dur !== undefined ? { duration_minutes: _dur } : {}),
+    };
+    let { data, error } = await supabase
+      .from('live_classes')
+      .update(Object.keys(vodExtras).length ? { ...baseUpdates, ...vodExtras } : baseUpdates)
+      .eq('id', id).select().single();
+    if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
+      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.');
+      ({ data, error } = await supabase.from('live_classes').update(baseUpdates).eq('id', id).select().single());
+    }
     if (error) throw error;
     setLiveClassesList((prev) => prev.map((c) => (c.id === id ? data : c)));
     return data;

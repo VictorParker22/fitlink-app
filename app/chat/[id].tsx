@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, StatusBar, Modal, Image as RNImage
+  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, StatusBar, Modal, Image as RNImage, Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -241,13 +241,14 @@ export default function ChatScreen() {
     }));
     if (msgs || pendingBubbles.length) setMessages([...(msgs || []), ...pendingBubbles]);
 
-    // Mark as read
-    await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conversationId);
-    await supabase.from('messages')
+    // Mark as read — cosmetic (badge counts), safe to fail, but surface it in dev.
+    const { error: unreadErr } = await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conversationId);
+    const { error: readErr } = await supabase.from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .eq('sender_type', 'client')
       .eq('read', false);
+    if (__DEV__ && (unreadErr || readErr)) console.warn('[Chat] mark-as-read failed:', unreadErr || readErr);
   };
 
   // Load conversation + messages
@@ -296,18 +297,25 @@ export default function ChatScreen() {
     if (!reviewTarget?.attachment_url || sending) return;
     setSending(true);
     try {
-      await supabase.from('messages').insert({
+      const { error: insertError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_type: 'trainer',
         content: `[FORM_REVIEW:${seconds}:${comment}]`,
         attachment_url: reviewTarget.attachment_url,
         attachment_type: reviewTarget.attachment_type,
       });
+      // The insert RESOLVES with { error } — it does not throw. Without this the
+      // composer closed on failure and the coach believed the review was sent.
+      if (insertError) {
+        Alert.alert('Review not sent', insertError.message || 'Your form review could not be sent. Please try again.');
+        return; // keep reviewTarget open so the typed comment is not lost
+      }
       const previewText = `Form review at ${fmtClock(seconds)}: ${comment}`;
-      await supabase.from('conversations').update({
+      const { error: convError } = await supabase.from('conversations').update({
         last_message: previewText,
         last_message_at: new Date().toISOString(),
       }).eq('id', conversationId);
+      if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
 
       if (clientPushToken) {
         supabase.functions.invoke('send-push-notification', {
@@ -331,11 +339,17 @@ export default function ChatScreen() {
     if (sending) return;
     setSending(true);
     try {
-      await supabase.from('messages').insert({
+      const { error: insertError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_type: 'trainer',
         content,
       });
+      // Resolves with { error }; it does not throw. Previously the picker modal
+      // closed either way and the attachment silently never reached the athlete.
+      if (insertError) {
+        Alert.alert('Not sent', insertError.message || 'That could not be sent. Please try again.');
+        return;
+      }
       let previewText = content;
       if (content.startsWith('[WORKOUT_CARD:')) {
         const parts = content.split(':');
@@ -348,10 +362,11 @@ export default function ChatScreen() {
       } else if (content.startsWith('[QUICK_NOTE:')) {
         previewText = `Note: ${content.replace('[QUICK_NOTE:', '').replace(']', '')}`;
       }
-      await supabase.from('conversations').update({
+      const { error: convError } = await supabase.from('conversations').update({
         last_message: previewText,
         last_message_at: new Date().toISOString(),
       }).eq('id', conversationId);
+      if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
 
       if (clientPushToken) {
         supabase.functions.invoke('send-push-notification', {
@@ -455,10 +470,12 @@ export default function ChatScreen() {
         content,
       });
       if (insertError) throw insertError;
-      await supabase.from('conversations').update({
+      // Cosmetic (inbox preview) — the message itself already landed.
+      const { error: convError } = await supabase.from('conversations').update({
         last_message: content,
         last_message_at: new Date().toISOString(),
       }).eq('id', conversationId);
+      if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
 
       if (clientPushToken) {
         console.log('Sending push to client:', clientPushToken);
@@ -486,6 +503,7 @@ export default function ChatScreen() {
       } else {
         console.error('Send failed:', err);
         setNewMessage(content);
+        Alert.alert('Message not sent', (err as any)?.message || 'Your message could not be sent. It has been put back in the box — please try again.');
       }
     } finally {
       setSending(false);
@@ -521,18 +539,25 @@ export default function ChatScreen() {
           .from('chat-attachments')
           .getPublicUrl(fileName);
 
-        await supabase.from('messages').insert({
+        const { error: insertError } = await supabase.from('messages').insert({
           conversation_id: conversationId,
           sender_type: 'trainer',
           content: '[IMAGE]',
           attachment_url: publicUrlData.publicUrl,
           attachment_type: 'image'
         });
+        // The upload succeeding does not mean the message row landed — this
+        // insert resolves with { error } rather than throwing.
+        if (insertError) {
+          Alert.alert('Image not sent', insertError.message || 'The image uploaded but the message could not be sent. Please try again.');
+          return;
+        }
 
-        await supabase.from('conversations').update({
+        const { error: convError } = await supabase.from('conversations').update({
           last_message: 'Sent an image 📸',
           last_message_at: new Date().toISOString(),
         }).eq('id', conversationId);
+        if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
 
         if (clientPushToken) {
           supabase.functions.invoke('send-push-notification', {
@@ -545,8 +570,9 @@ export default function ChatScreen() {
           });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Image upload failed', err);
+      Alert.alert('Image not sent', err?.message || 'The image could not be uploaded. Please try again.');
     } finally {
       setSending(false);
     }

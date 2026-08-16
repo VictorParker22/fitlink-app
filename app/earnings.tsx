@@ -39,19 +39,24 @@ export default function EarningsScreen() {
   useEffect(() => {
     if (!trainer) return;
     async function fetchClassRevenue() {
-      try {
-        const { data } = await supabase
-          .from('class_revenue_shares')
-          .select('*')
-          .eq('trainer_id', trainer!.id)
-          .order('month', { ascending: false })
-          .limit(6);
-        if (data) setClassRevenue(data);
-      } catch (e) {
-        console.log('[Earnings] Class revenue fetch error:', e);
-      } finally {
-        setClassRevenueLoading(false);
+      const { data, error } = await supabase
+        .from('class_revenue_shares')
+        .select('*')
+        .eq('trainer_id', trainer!.id)
+        .order('month', { ascending: false })
+        .limit(6);
+      if (error) {
+        console.error('[Earnings] Class revenue fetch failed:', error);
+      } else if (data) {
+        // SCHEMA: class_revenue_shares stores the payout as `payout_cents`
+        // (integer cents). There is no `amount` column — reading one gave
+        // undefined and every payout below rendered as $0 (or crashed on
+        // toFixed). Derive the dollar amount once, here.
+        setClassRevenue(
+          data.map((r: any) => ({ ...r, amount: (r.payout_cents ?? 0) / 100 })),
+        );
       }
+      setClassRevenueLoading(false);
     }
     fetchClassRevenue();
   }, [trainer]);
@@ -572,7 +577,7 @@ function ClassPoolCard({
             return (
               <View key={r.id} style={[styles.heldRow, i < classRevenue.length - 1 && styles.rowBorder]}>
                 <Text style={styles.heldName}>{monthName}</Text>
-                <Text style={styles.heldAmount}>{formatCurrency(r.amount)}</Text>
+                <Text style={styles.heldAmount}>{formatCurrency(r.amount || 0)}</Text>
               </View>
             );
           })}

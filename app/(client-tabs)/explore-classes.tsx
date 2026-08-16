@@ -14,7 +14,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Modal, ScrollView, TextInput, RefreshControl,
+  Modal, ScrollView, TextInput, RefreshControl, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -214,20 +214,26 @@ export default function ExploreClassesScreen() {
       return next;
     });
     
-    try {
-      if (isFav) {
-        await supabase
+    const { error } = isFav
+      ? await supabase
           .from('class_favorites')
           .delete()
           .eq('client_id', user.id)
-          .eq('class_id', classId);
-      } else {
-        await supabase
+          .eq('class_id', classId)
+      : await supabase
           .from('class_favorites')
           .insert({ client_id: user.id, class_id: classId });
-      }
-    } catch (err) {
-      console.log('Error toggling favorite:', err);
+
+    if (error) {
+      // Revert the optimistic heart — it must reflect what is actually stored.
+      setFavoriteIds(prev => {
+        const next = new Set(prev);
+        if (isFav) next.add(classId);
+        else next.delete(classId);
+        return next;
+      });
+      if (__DEV__) console.warn('[explore-classes] favorite toggle failed:', error.message);
+      Alert.alert('Not saved', "We couldn't update your saved classes. Please try again.");
     }
   };
 

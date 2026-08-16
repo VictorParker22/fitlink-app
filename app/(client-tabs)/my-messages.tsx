@@ -18,7 +18,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, StatusBar, Image as RNImage
+  KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, StatusBar, Image as RNImage,
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -260,18 +261,22 @@ export default function ClientMessagesScreen() {
           .from('chat-attachments')
           .getPublicUrl(fileName);
 
-        await supabase.from('messages').insert({
+        // The upload landing in storage is not the same as the message landing
+        // in the thread — the insert resolves with an error, it never throws.
+        const { error: msgError } = await supabase.from('messages').insert({
           conversation_id: conversation.id,
           sender_type: 'client',
           content: '[IMAGE]',
           attachment_url: publicUrlData.publicUrl,
           attachment_type: 'image'
         });
+        if (msgError) throw msgError;
 
-        await supabase.from('conversations').update({
+        const { error: convError } = await supabase.from('conversations').update({
           last_message: 'Sent an image',
           last_message_at: new Date().toISOString(),
         }).eq('id', conversation.id);
+        if (convError && __DEV__) console.warn('[Messages] conversation preview update failed:', convError.message);
 
         if (trainer?.expo_push_token) {
           supabase.functions.invoke('send-push-notification', {
@@ -286,6 +291,7 @@ export default function ClientMessagesScreen() {
       }
     } catch (err) {
       console.error('Image upload failed', err);
+      Alert.alert('Image not sent', "We couldn't send your image. Please try again.");
     } finally {
       setSending(false);
     }

@@ -533,37 +533,52 @@ export default function ClientsScreen() {
         `Hi ${first}, thanks for reaching out and for sharing your goals. ` +
         `I don't have room to take on a new athlete right now, so I won't be able to coach you at the moment. ` +
         `There are plenty of other coaches on FitLink worth a look — wishing you the best with your training.`;
-      try {
-        const trainerId = trainer?.id;
-        if (trainerId) {
-          let { data: conv } = await supabase
+      // The confirmation dialog promises the athlete gets a message, so a failure
+      // here has to be said out loud — the insert resolves with { error } rather
+      // than throwing, so the old catch could never have caught it.
+      let noticeFailed: string | null = null;
+      const trainerId = trainer?.id;
+      if (!trainerId) {
+        noticeFailed = 'You are not signed in as a coach.';
+      } else {
+        let { data: conv, error: convSelErr } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('client_id', client.id)
+          .eq('trainer_id', trainerId)
+          .maybeSingle();
+        if (convSelErr) noticeFailed = convSelErr.message;
+        if (!conv && !noticeFailed) {
+          const { data: created, error: convInsErr } = await supabase
             .from('conversations')
+            .insert({ client_id: client.id, trainer_id: trainerId })
             .select('id')
-            .eq('client_id', client.id)
-            .eq('trainer_id', trainerId)
-            .maybeSingle();
-          if (!conv) {
-            const { data: created } = await supabase
-              .from('conversations')
-              .insert({ client_id: client.id, trainer_id: trainerId })
-              .select('id')
-              .single();
-            conv = created;
-          }
-          if (conv) {
-            await supabase.from('messages').insert({
-              conversation_id: conv.id,
-              sender_type: 'trainer',
-              content,
-            });
+            .single();
+          if (convInsErr || !created) noticeFailed = convInsErr?.message || 'Could not start a conversation.';
+          conv = created;
+        }
+        if (conv && !noticeFailed) {
+          const { error: msgErr } = await supabase.from('messages').insert({
+            conversation_id: conv.id,
+            sender_type: 'trainer',
+            content,
+          });
+          if (msgErr) noticeFailed = msgErr.message;
+          else {
             await supabase.rpc('increment_conversation_unread', {
               conv_id: conv.id,
               new_last_message: content,
             }).then(undefined, () => { /* older DBs may lack the rpc */ });
           }
         }
-      } catch { /* the decline itself already landed */ }
+      }
       haptic.trigger('light');
+      if (noticeFailed) {
+        Alert.alert(
+          'Declined, but no message sent',
+          `${toTitleCase(client.name)} has been moved out of your roster, but the note explaining why could not be sent: ${noticeFailed}`,
+        );
+      }
     } catch {
       Alert.alert('Could not decline', 'The request could not be declined. Try again.');
     } finally {

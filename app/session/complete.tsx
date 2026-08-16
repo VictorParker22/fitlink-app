@@ -24,7 +24,7 @@ import React, {
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Dimensions,
-  StatusBar,
+  StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -315,7 +315,16 @@ export default function SessionCompleteScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Mark session as completed if not already
     if (session && session.status !== 'completed') {
-      updateSession(session.id, { status: 'completed' }).catch(() => {});
+      // This screen is the recap — if the status write never lands the session
+      // stays "upcoming" on the schedule while the coach is looking at a
+      // completion summary. Say so rather than swallowing it.
+      updateSession(session.id, { status: 'completed' }).catch((e: any) => {
+        console.error('[SessionComplete] could not mark session completed:', e);
+        Alert.alert(
+          'Session not marked complete',
+          'The recap is here, but the session is still showing as upcoming on your schedule. Open it again to retry.',
+        );
+      });
     }
   }, []);
 
@@ -327,7 +336,12 @@ export default function SessionCompleteScreen() {
       await updateSession(session.id, { notes: notes.trim() });
       setNoteSaved(true);
       setTimeout(() => setNoteSaved(false), 2500);
-    } catch {}
+    } catch (e: any) {
+      // Silently dropping this lost the coach's session notes with no tick and
+      // no warning — the text is still on screen, so tell them to retry.
+      console.error('[SessionComplete] notes save failed:', e);
+      Alert.alert('Notes not saved', e?.message || 'Your notes are still on screen. Tap out of the box again to retry.');
+    }
     finally { setSaving(false); }
   }, [session, notes, updateSession]);
 

@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import type { SetFeel } from './WorkoutContext';
 import * as Notifications from 'expo-notifications';
 import { decode } from 'base-64';
+import { isMissingSchemaError } from '../lib/schemaErrors';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -15,6 +16,16 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+/**
+ * Result of a write that must never claim a false success. Supabase writes
+ * resolve with `{ error }` instead of throwing, so callers that need to know
+ * whether the server actually accepted the change get this back.
+ */
+export interface WriteResult {
+  ok: boolean;
+  error?: string;
+}
 
 export interface ExerciseLogEntry {
   weight: number;
@@ -35,6 +46,11 @@ interface ClientData {
   notes?: string;
   auth_user_id?: string;
   avatar_url?: string;
+  /**
+   * NOTE: `goals` and `completed_workouts` above/below have NO column on
+   * public.clients — they only ever arrive as undefined. Goals live inside
+   * `assessment_data`. Do not write either of them back to the table.
+   */
   assessment_data?: any;
   trial_end_date?: string;
   health_sharing_enabled?: boolean;
@@ -58,8 +74,10 @@ interface ClientContextType {
   upcomingSessions: any[];
   todayWorkout: any;
   enrollment: any;
-  completeTrackWorkout: () => Promise<void>;
-  skipTrackWorkout: () => Promise<void>;
+  /** Resolves { ok:false, error } when the server rejected the write — never throws. */
+  completeTrackWorkout: () => Promise<WriteResult>;
+  /** Resolves { ok:false, error } when the server rejected the write — never throws. */
+  skipTrackWorkout: () => Promise<WriteResult>;
   subscription: any;
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
@@ -67,9 +85,12 @@ interface ClientContextType {
   logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => void;
   checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
-  completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<void>;
-  markWorkoutComplete: (id: string) => Promise<void>;
-  markWorkoutSkipped: (id: string) => Promise<void>;
+  /** Resolves { ok:false, error } when the server rejected the write — never throws. */
+  completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<WriteResult>;
+  /** Resolves { ok:false, error } when the server rejected the write — never throws. */
+  markWorkoutComplete: (id: string) => Promise<WriteResult>;
+  /** Resolves { ok:false, error } when the server rejected the write — never throws. */
+  markWorkoutSkipped: (id: string) => Promise<WriteResult>;
   /** Slip recovery — move a missed assigned workout to today. Resolves false on failure (already reverted). */
   rescheduleWorkoutToToday: (clientWorkoutId: string) => Promise<boolean>;
   
@@ -289,12 +310,19 @@ export function ClientProvider({ children }: PropsWithChildren) {
         if (elapsed > MAX_GYM_VISIT_MS) {
           // Auto-checkout stale visit with capped duration
           const cappedMinutes = Math.round(MAX_GYM_VISIT_MS / 60000);
-          await supabase.from('gym_visits').update({
+          const { error: expireErr } = await supabase.from('gym_visits').update({
             check_out_time: new Date(checkInTime + MAX_GYM_VISIT_MS).toISOString(),
             duration_minutes: cappedMinutes,
           }).eq('id', visitRes.data.id);
-          setActiveGymVisit(null);
-          if (__DEV__) console.log('[ClientContext] Auto-expired stale gym visit:', visitRes.data.id);
+          if (expireErr) {
+            // Server still has the visit open — keep showing it rather than
+            // pretending it closed, so the next load retries the expiry.
+            if (__DEV__) console.warn('[ClientContext] Auto-expire of stale gym visit failed:', expireErr.message);
+            setActiveGymVisit(visitRes.data);
+          } else {
+            setActiveGymVisit(null);
+            if (__DEV__) console.log('[ClientContext] Auto-expired stale gym visit:', visitRes.data.id);
+          }
         } else {
           setActiveGymVisit(visitRes.data);
         }
@@ -443,7 +471,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   }, [workouts]);
 
   // Complete workout with full exercise log data
-  const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number) => {
+  const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number): Promise<WriteResult> => {
     // Persist the log data alongside the workout completion
     // Group exerciseLogs by exerciseId
     const exercisesData: Record<string, { id: string, sets: any[] }> = {};
@@ -475,10 +503,16 @@ export function ClientProvider({ children }: PropsWithChildren) {
        duration_minutes: Math.round(durationSeconds / 60)
     };
 
-    // Try to save logs (table may not exist yet — that's OK, we still complete)
+    // Try to save logs. A not-yet-migrated table/column is tolerated (the
+    // completion itself still counts); any other failure is real data loss and
+    // gets logged loudly.
     if (exercisesJson.length > 0) {
       const { error: logError } = await supabase.from('client_workout_logs').insert(logPayload);
-      if (logError && __DEV__) console.warn('[ClientContext] Log save skipped:', logError.message);
+      if (logError && isMissingSchemaError(logError)) {
+        if (__DEV__) console.warn('[ClientContext] Log save skipped (migration pending):', logError.message);
+      } else if (logError) {
+        console.error('[ClientContext] Workout log NOT saved:', logError.message);
+      }
     }
 
     // Mark workout complete
@@ -489,45 +523,64 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
     if (error) {
        console.error('[ClientContext] Failed to mark workout complete:', error);
+       return { ok: false, error: error.message };
     }
 
-    if (!error) {
-      if (clientData) {
-        await supabase.from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
+    if (clientData) {
+      // XP is a real column; only credit it locally when the server took it.
+      const { error: xpError } = await supabase
+        .from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
+      if (xpError) {
+        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
+      } else {
         setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 50 } as any : prev);
       }
-      setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
-      // Tell the coach — real completed-set count only (0 sets → no count claim).
-      const completedSets = exercisesJson.reduce(
-        (sum, ex: any) => sum + (ex.sets || []).filter((s: any) => s?.completed).length, 0);
-      const assignment = workouts.find((w: any) => w.id === clientWorkoutId);
-      // Rescheduled slip completed → the coach sees the save, not just the finish.
-      const backOnTrack = rescheduledIdsRef.current.has(clientWorkoutId);
-      if (backOnTrack) rescheduledIdsRef.current.delete(clientWorkoutId);
-      notifyCoachWorkoutDone(assignment?.workouts?.name || todayWorkout?.workouts?.name, completedSets, backOnTrack);
-      // Clear logs for this workout
-      setExerciseLogs((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach((k) => { if (k.startsWith(clientWorkoutId)) delete next[k]; });
-        return next;
-      });
     }
+    setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
+    // Tell the coach — real completed-set count only (0 sets → no count claim).
+    const completedSets = exercisesJson.reduce(
+      (sum, ex: any) => sum + (ex.sets || []).filter((s: any) => s?.completed).length, 0);
+    const assignment = workouts.find((w: any) => w.id === clientWorkoutId);
+    // Rescheduled slip completed → the coach sees the save, not just the finish.
+    const backOnTrack = rescheduledIdsRef.current.has(clientWorkoutId);
+    if (backOnTrack) rescheduledIdsRef.current.delete(clientWorkoutId);
+    notifyCoachWorkoutDone(assignment?.workouts?.name || todayWorkout?.workouts?.name, completedSets, backOnTrack);
+    // Clear logs for this workout
+    setExerciseLogs((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => { if (k.startsWith(clientWorkoutId)) delete next[k]; });
+      return next;
+    });
+    return { ok: true };
   }, [exerciseLogs, clientData, workouts, notifyCoachWorkoutDone]);
 
-  const markWorkoutComplete = useCallback(async (clientWorkoutId: string) => {
+  const markWorkoutComplete = useCallback(async (clientWorkoutId: string): Promise<WriteResult> => {
     const { error } = await supabase.from('client_workouts').update({ status: 'completed' }).eq('id', clientWorkoutId);
-    if (!error) {
-      if (clientData) {
-        await supabase.from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
+    if (error) {
+      console.error('[ClientContext] Failed to mark workout complete:', error.message);
+      return { ok: false, error: error.message };
+    }
+    if (clientData) {
+      const { error: xpError } = await supabase
+        .from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
+      if (xpError) {
+        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
+      } else {
         setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 50 } as any : prev);
       }
-      setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
     }
+    setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
+    return { ok: true };
   }, [clientData]);
 
-  const markWorkoutSkipped = useCallback(async (clientWorkoutId: string) => {
+  const markWorkoutSkipped = useCallback(async (clientWorkoutId: string): Promise<WriteResult> => {
     const { error } = await supabase.from('client_workouts').update({ status: 'skipped' }).eq('id', clientWorkoutId);
-    if (!error) setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'skipped' } : w));
+    if (error) {
+      console.error('[ClientContext] Failed to mark workout skipped:', error.message);
+      return { ok: false, error: error.message };
+    }
+    setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'skipped' } : w));
+    return { ok: true };
   }, []);
 
   // --- Diet Tracking ---
@@ -544,17 +597,23 @@ export function ClientProvider({ children }: PropsWithChildren) {
       logged_date: new Date().toISOString().split('T')[0]
     });
     
-    if (error && __DEV__) {
-      console.warn('[ClientContext] Failed to log meal:', error);
-      // Revert if error
+    if (error) {
+      // Revert — the server has no such log, so the checkmark must go away
+      // (this used to only revert in __DEV__, leaving release builds lying).
+      if (__DEV__) console.warn('[ClientContext] Failed to log meal:', error.message);
       setMealLogs((prev) => {
         const next = { ...prev };
         delete next[dietPlanMealId];
         return next;
       });
-    } else if (!error) {
-      await supabase.from('clients').update({ xp: (clientData.xp || 0) + 10 }).eq('id', clientData.id);
-      setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 10 } as any : prev);
+    } else {
+      const { error: xpError } = await supabase
+        .from('clients').update({ xp: (clientData.xp || 0) + 10 }).eq('id', clientData.id);
+      if (xpError) {
+        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
+      } else {
+        setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 10 } as any : prev);
+      }
     }
   }, [clientData]);
 
@@ -574,9 +633,9 @@ export function ClientProvider({ children }: PropsWithChildren) {
       .eq('diet_plan_meal_id', dietPlanMealId)
       .eq('logged_date', new Date().toISOString().split('T')[0]);
       
-    if (error && __DEV__) {
-      console.warn('[ClientContext] Failed to unlog meal:', error);
-      // Revert if error
+    if (error) {
+      // Revert — the row is still there server-side.
+      if (__DEV__) console.warn('[ClientContext] Failed to unlog meal:', error.message);
       setMealLogs((prev) => ({ ...prev, [dietPlanMealId]: true }));
     }
   }, [clientData]);
@@ -627,81 +686,74 @@ export function ClientProvider({ children }: PropsWithChildren) {
     return null;
   }, [workouts, enrollment, allTrainerWorkouts]);
 
-  const completeTrackWorkout = useCallback(async () => {
-    if (!enrollment || !todayWorkout?.enrollmentId) return;
-    try {
-      const track = Array.isArray(enrollment.track_snapshot)
-        ? [...enrollment.track_snapshot].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-        : [];
-      const node = track[enrollment.track_position];
-      
-      // Log completion event
-      await supabase.from('track_events').insert({
-        enrollment_id: enrollment.id,
-        client_id: clientData?.id,
-        track_position: enrollment.track_position,
-        node_type: node?.type || 'workout',
-        node_id: node?.id || null,
-        event_type: 'completed',
-      });
-      
-      // Advance position
-      const newPos = enrollment.track_position + 1;
-      const isComplete = newPos >= track.length;
-      
-      await supabase.from('client_plan_enrollments').update({
-        track_position: newPos,
-        status: isComplete ? 'completed' : 'active',
-        completed_at: isComplete ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', enrollment.id);
-      
-      // Refresh enrollment state
-      setEnrollment((prev: any) => prev ? { ...prev, track_position: newPos, status: isComplete ? 'completed' : 'active' } : null);
+  // Advance (or skip) the enrollment by one node. Supabase writes resolve with
+  // `{ error }` rather than throwing — the old try/catch here could never fire,
+  // so a rejected write still advanced the athlete's season locally and the
+  // position silently snapped back on the next refresh.
+  const advanceEnrollment = useCallback(async (
+    eventType: 'completed' | 'skipped',
+  ): Promise<{ result: WriteResult; node?: any }> => {
+    if (!enrollment) return { result: { ok: false, error: 'No active enrollment' } };
+    const track = Array.isArray(enrollment.track_snapshot)
+      ? [...enrollment.track_snapshot].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+      : [];
+    const node = track[enrollment.track_position];
 
-      // Tell the coach. Track completions carry no per-set log here, so the
-      // summary names the workout without inventing a set count.
-      if (node?.type === 'workout' && node?.id) {
-        const trackWorkout = allTrainerWorkouts.find((w: any) => w.id === node.id);
-        notifyCoachWorkoutDone(trackWorkout?.name);
-      }
-    } catch (e) {
-      console.log('[ClientContext] completeTrackWorkout error:', e);
+    // The event row is history, not state — a failure here must not block the
+    // athlete's progress, but it should never vanish silently either.
+    const { error: eventError } = await supabase.from('track_events').insert({
+      enrollment_id: enrollment.id,
+      client_id: clientData?.id,
+      track_position: enrollment.track_position,
+      node_type: node?.type || 'workout',
+      node_id: node?.id || null,
+      event_type: eventType,
+    });
+    if (eventError && __DEV__) {
+      console.warn('[ClientContext] track_event not recorded:', eventError.message);
     }
-  }, [enrollment, todayWorkout, clientData, allTrainerWorkouts, notifyCoachWorkoutDone]);
 
-  const skipTrackWorkout = useCallback(async () => {
-    if (!enrollment) return;
-    try {
-      const track = Array.isArray(enrollment.track_snapshot)
-        ? [...enrollment.track_snapshot].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-        : [];
-      const node = track[enrollment.track_position];
-      
-      await supabase.from('track_events').insert({
-        enrollment_id: enrollment.id,
-        client_id: clientData?.id,
-        track_position: enrollment.track_position,
-        node_type: node?.type || 'workout',
-        node_id: node?.id || null,
-        event_type: 'skipped',
-      });
-      
-      const newPos = enrollment.track_position + 1;
-      const isComplete = newPos >= track.length;
-      
-      await supabase.from('client_plan_enrollments').update({
-        track_position: newPos,
-        status: isComplete ? 'completed' : 'active',
-        completed_at: isComplete ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', enrollment.id);
-      
-      setEnrollment((prev: any) => prev ? { ...prev, track_position: newPos, status: isComplete ? 'completed' : 'active' } : null);
-    } catch (e) {
-      console.log('[ClientContext] skipTrackWorkout error:', e);
+    const newPos = enrollment.track_position + 1;
+    const isComplete = newPos >= track.length;
+
+    const { error } = await supabase.from('client_plan_enrollments').update({
+      track_position: newPos,
+      status: isComplete ? 'completed' : 'active',
+      completed_at: isComplete ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', enrollment.id);
+
+    if (error) {
+      // Local state is deliberately left untouched: the season did not move.
+      console.error(`[ClientContext] Failed to advance enrollment (${eventType}):`, error.message);
+      return { result: { ok: false, error: error.message }, node };
     }
+
+    setEnrollment((prev: any) => prev ? { ...prev, track_position: newPos, status: isComplete ? 'completed' : 'active' } : null);
+    return { result: { ok: true }, node };
   }, [enrollment, clientData]);
+
+  const completeTrackWorkout = useCallback(async (): Promise<WriteResult> => {
+    if (!enrollment || !todayWorkout?.enrollmentId) {
+      return { ok: false, error: 'No active season workout' };
+    }
+    const { result, node } = await advanceEnrollment('completed');
+    if (!result.ok) return result;
+
+    // Tell the coach. Track completions carry no per-set log here, so the
+    // summary names the workout without inventing a set count.
+    if (node?.type === 'workout' && node?.id) {
+      const trackWorkout = allTrainerWorkouts.find((w: any) => w.id === node.id);
+      notifyCoachWorkoutDone(trackWorkout?.name);
+    }
+    return result;
+  }, [enrollment, todayWorkout, advanceEnrollment, allTrainerWorkouts, notifyCoachWorkoutDone]);
+
+  const skipTrackWorkout = useCallback(async (): Promise<WriteResult> => {
+    if (!enrollment) return { ok: false, error: 'No active enrollment' };
+    const { result } = await advanceEnrollment('skipped');
+    return result;
+  }, [enrollment, advanceEnrollment]);
 
   const updateAssessment = useCallback(async (assessmentData: any) => {
     if (!clientData) return;
@@ -840,21 +892,28 @@ export function ClientProvider({ children }: PropsWithChildren) {
     // Cancel all scheduled reminders
     await Notifications.cancelAllScheduledNotificationsAsync();
     
-    // Add XP and drop an activity for the coach
+    // Add XP and drop an activity for the coach.
+    // NOTE: this update used to also set `completed_workouts`, which is NOT a
+    // column on public.clients — the whole statement failed with 42703, so the
+    // XP has never actually been awarded for a gym check-out.
     const xpReward = 50;
-    await supabase.from('clients').update({
-      completed_workouts: (clientData.completed_workouts || 0) + 1, // Treat gym visit as a workout for XP purposes
+    const { error: xpError } = await supabase.from('clients').update({
       xp: (clientData.xp || 0) + xpReward,
     }).eq('id', clientData.id);
-    
-    await supabase.from('activities').insert({
+    if (xpError) {
+      if (__DEV__) console.warn('[ClientContext] XP award failed on check-out:', xpError.message);
+    } else {
+      setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + xpReward } as any : prev);
+    }
+
+    const { error: activityError } = await supabase.from('activities').insert({
       trainer_id: clientData.trainer_id,
       type: 'workout_completed',
       message: `${clientData.name} checked out of the gym. Duration: ${durationMinutes} mins (+${xpReward} XP)`,
     });
-    
-    // Optimistic UI update
-    setClientData(prev => prev ? { ...prev, completed_workouts: (prev.completed_workouts || 0) + 1, xp: (prev.xp || 0) + xpReward } as any : prev);
+    if (activityError && __DEV__) {
+      console.warn('[ClientContext] Coach activity not recorded:', activityError.message);
+    }
     
     // Refresh to get updated XP from backend just in case
     refreshData();

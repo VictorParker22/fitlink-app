@@ -262,6 +262,24 @@ export default function LivePlayerScreen() {
       stream_offset_ms: streamOffset,
     });
 
+    if (error) {
+      // Rollback optimistic on RLS rejection, rate-limit trigger, or network
+      // error, and say so — a bubble that silently disappears reads as a bug.
+      // Nothing is broadcast either: the coach must not see a message that was
+      // never stored.
+      if (__DEV__) console.warn('[live-player] chat insert failed:', error.message);
+      setChatMessages(prev => prev
+        .filter(m => m.id !== optimisticId)
+        .concat({
+          id: `failed-${optimisticId}`,
+          sender: 'System',
+          content: "Your message didn't send. Try again.",
+          isSystem: true,
+        }));
+      optimisticTimestamps.current.delete(optimisticId);
+      return;
+    }
+
     // Also broadcast on the shared channel so the coach sees it instantly
     // (postgres_changes SELECT is blocked by RLS for the trainer)
     if (channelRef.current) {
@@ -274,13 +292,6 @@ export default function LivePlayerScreen() {
           content,
         },
       });
-    }
-
-    if (error) {
-      // Rollback optimistic on RLS rejection, rate-limit trigger, or network error
-      setChatMessages(prev => prev.filter(m => m.id !== optimisticId));
-      optimisticTimestamps.current.delete(optimisticId);
-      // TODO: show toast — "Message failed to send"
     }
   }, [chatMessage, liveClass?.status, liveClass?.went_live_at, clientData, id]);
 

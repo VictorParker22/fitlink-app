@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -124,6 +125,10 @@ function CheckInCard({
     try {
       await onReply(item.id, note.trim());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // onReply only rejects when the reply was not stored.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Reply not saved', "We couldn't save your reply. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -298,10 +303,16 @@ export default function CheckInInbox({ trainerId }: CheckInInboxProps) {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleReply = useCallback(async (id: string, note: string) => {
-    await supabase
+    // The update resolves with an error instead of throwing. Reading it is what
+    // stops us pushing "Your coach replied" for a reply that was never stored.
+    const { error } = await supabase
       .from('client_checkins')
       .update({ coach_note: note, coach_replied_at: new Date().toISOString() })
       .eq('id', id);
+    if (error) {
+      if (__DEV__) console.warn('[CheckInInbox] reply save failed:', error.message);
+      throw error;
+    }
 
     // Notify the client that their coach has replied
     const checkin = checkIns.find((ci) => ci.id === id);

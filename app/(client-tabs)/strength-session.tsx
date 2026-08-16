@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform,
   LayoutAnimation, UIManager, ActivityIndicator, TextInput, KeyboardAvoidingView,
-  Modal,
+  Modal, Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -412,7 +412,20 @@ export default function StrengthSessionScreen() {
         exercises: Object.values(byExercise),
         duration_minutes: Math.round(durationSec / 60),
       });
-      if (error && __DEV__) console.warn('[StrengthSession] Log save skipped:', error.message);
+      if (error) {
+        // The athlete's sets are the whole point of this screen. They are in
+        // local history, but the coach-visible copy did not land — say so
+        // instead of finishing as though everything saved.
+        if (__DEV__) console.warn('[StrengthSession] Log save failed:', error.message);
+        setFinishing(false);
+        Alert.alert(
+          'Sets not synced',
+          "Your sets are saved on this device, but we couldn't send them to your coach. They won't show in your coach's view until this syncs.",
+        );
+        if (bestPr) setShowPr(true);
+        else router.push(ClientRoute.workouts);
+        return;
+      }
 
       // Close the loop: tell the coach, with the real set count only.
       // Fire-and-forget — a notification failure never blocks the finish flow.

@@ -21,7 +21,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, TextInput, StatusBar, Dimensions,
-  ActivityIndicator,
+  ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -252,7 +252,11 @@ export default function TrainerSessionScreen() {
 
     try {
       await updateSession(session.id, { status: 'completed' });
-    } catch { /* complete.tsx will handle gracefully */ }
+    } catch (e) {
+      // Not fatal here: the recap screen retries the same write and now tells
+      // the coach if it still fails, so we only need the breadcrumb.
+      console.error('[Session] could not mark session completed, recap will retry:', e);
+    }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace(`/session/complete?sessionId=${session.id}` as any);
@@ -273,7 +277,10 @@ export default function TrainerSessionScreen() {
       await updateSession(session.id, { notes: detailNotes.trim() });
       setNotesSaved(true);
       setTimeout(() => setNotesSaved(false), 2500);
-    } catch {}
+    } catch (e: any) {
+      console.error('[Session] notes save failed:', e);
+      Alert.alert('Notes not saved', e?.message || 'Your notes are still on screen. Tap out of the box again to retry.');
+    }
     finally { setNotesSaving(false); }
   }, [session, detailNotes, updateSession]);
 

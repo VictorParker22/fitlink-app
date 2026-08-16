@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, ty
 import { Platform, AppState, Alert, NativeModules } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
+import { isMissingSchemaError } from '../lib/schemaErrors';
 
 // ─── Types ──────────────────────────────────────────────────
 export interface HealthSnapshot {
@@ -541,7 +542,16 @@ export function HealthProvider({ children }: PropsWithChildren) {
       synced_at: new Date().toISOString(),
     }, { onConflict: 'client_id,date' });
 
-    if (error && __DEV__) console.warn('[HealthContext] Sync error:', error.message);
+    if (error) {
+      // A missing table/column just means the health migration has not run —
+      // degrade quietly. Anything else means the coach's health card is stale
+      // while the athlete's screen shows fresh local data, so say so loudly.
+      if (isMissingSchemaError(error)) {
+        if (__DEV__) console.warn('[HealthContext] Sync skipped (migration pending):', error.message);
+      } else {
+        console.error('[HealthContext] Health snapshot NOT synced:', error.message);
+      }
+    }
   }, [healthData]);
 
   return (

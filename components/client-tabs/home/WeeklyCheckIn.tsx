@@ -141,6 +141,7 @@ export default function WeeklyCheckIn() {
   const [rowId, setRowId] = useState<string | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
 
   const [step, setStep] = useState(0); // index into questions; questions.length = summary
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
@@ -211,6 +212,7 @@ export default function WeeklyCheckIn() {
   const handleSubmit = async () => {
     if (!clientData?.id || submitting) return;
     setSubmitting(true);
+    setSubmitError(false);
     try {
       const base: Record<string, any> = {
         ...(rowId ? { id: rowId } : {}),
@@ -242,8 +244,11 @@ export default function WeeklyCheckIn() {
       let { error } = await supabase
         .from('client_checkins')
         .upsert(payload, { onConflict: 'client_id,week_start' });
-      // Pre-migration resilience: retry without the new JSONB column if missing.
+      // Pre-migration resilience: retry without the new JSONB column ONLY when
+      // Postgres reports the column itself is missing (42703). Any other error
+      // is a genuine failure and must reach the athlete.
       if (error && error.code === '42703' && customAnswers) {
+        if (__DEV__) console.warn('[WeeklyCheckIn] custom_answers column missing; retrying without it');
         ({ error } = await supabase
           .from('client_checkins')
           .upsert(base, { onConflict: 'client_id,week_start' }));
@@ -271,7 +276,10 @@ export default function WeeklyCheckIn() {
         setAlreadySubmitted(true);
       }, 1800);
     } catch (err) {
-      if (__DEV__) console.log('[WeeklyCheckIn] submit error:', err);
+      // Nothing was stored — never let the sheet fall silent and let the
+      // athlete believe the check-in reached their coach.
+      setSubmitError(true);
+      if (__DEV__) console.warn('[WeeklyCheckIn] submit failed:', err);
     } finally {
       setSubmitting(false);
     }
@@ -551,7 +559,11 @@ export default function WeeklyCheckIn() {
                   </Text>
                 )}
               </TouchableOpacity>
-              <Text style={s.footerHint}>Replies usually come within a day</Text>
+              <Text style={s.footerHint}>
+                {submitError
+                  ? "Couldn't send your check-in. Please try again."
+                  : 'Replies usually come within a day'}
+              </Text>
             </View>
           )}
         </KeyboardAvoidingView>
