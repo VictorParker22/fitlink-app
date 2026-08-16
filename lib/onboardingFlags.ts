@@ -12,12 +12,15 @@
  * as a secondary source (app/_layout.tsx), so a genuinely new device knows too.
  */
 
+// SecureStore rejects any key containing characters outside
+// [A-Za-z0-9._-] — a colon separator throws "Invalid key provided to
+// SecureStore". Underscore is safe, and UUID hyphens are allowed.
 export function onboardedKey(userId: string): string {
-  return `fitlink_onboarded:${userId}`;
+  return `fitlink_onboarded_${userId}`;
 }
 
 export function clientOnboardedKey(userId: string): string {
-  return `fitlink_client_onboarded:${userId}`;
+  return `fitlink_client_onboarded_${userId}`;
 }
 
 /** Pre-per-user keys. Read only to migrate, never written again. */
