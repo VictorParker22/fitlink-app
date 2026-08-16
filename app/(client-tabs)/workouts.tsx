@@ -123,7 +123,9 @@ export default function ClientWorkoutsScreen() {
   } = useClient();
   const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string }>();
 
-  // View: the programme is home; legacy explore kept reachable behind one row.
+  // View: the programme is home; the Library (the coach's on-demand classes
+  // and live schedule) is kept reachable behind one row. The `view` param
+  // contract below is what keeps this mode-as-screen from getting stuck.
   const [showExplore, setShowExplore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -132,15 +134,6 @@ export default function ClientWorkoutsScreen() {
   const [showFullPlan, setShowFullPlan] = useState(false);
   // Day one: the one-time launch moment, gated by an AsyncStorage flag below.
   const [showDayOne, setShowDayOne] = useState(false);
-
-  // Legacy explore state (unchanged wiring — see component comments there)
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchInput, setShowSearchInput] = useState(false);
-  const [selectedCategoryLabel, setSelectedCategoryLabel] = useState<string | null>(null);
-  const [selectedCoach, setSelectedCoach] = useState<any | null>(null);
-  const [showBookModal, setShowBookModal] = useState(false);
-  const [bookingCoach, setBookingCoach] = useState<any | null>(null);
-  const [dbTrainers, setDbTrainers] = useState<any[]>([]);
 
   // Active workout state. Setting activeWorkout only opens the PREVIEW —
   // the player (and its elapsed timer) exists only after the explicit
@@ -220,48 +213,6 @@ export default function ClientWorkoutsScreen() {
       alive = false;
     };
   }, [clientData?.trainer_id]);
-
-  // Coach directory for legacy explore view
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.from('trainers').select('*');
-        if (data && data.length > 0) setDbTrainers(data);
-      } catch {}
-    })();
-  }, []);
-
-  const allCoaches = useMemo(() => {
-    const dbList = [...(dbTrainers || [])].map((t) => ({
-      id: t.id,
-      name: t.name || 'Coach',
-      role: t.role || 'Elite Trainer',
-      avatar: t.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      specialty: t.specializations?.join(', ') || 'Strength & Conditioning',
-      bio: t.bio || 'Professional fitness coach dedicated to your progress.',
-    }));
-    const combined = [...dbList];
-    if (trainer) {
-      const idx = combined.findIndex(
-        (c) => c.id === trainer.id || (c.name || '').toLowerCase() === (trainer.name || '').toLowerCase()
-      );
-      if (idx !== -1) {
-        const [trainerObj] = combined.splice(idx, 1);
-        trainerObj.role = 'Your Personal Coach';
-        combined.unshift(trainerObj);
-      } else {
-        combined.unshift({
-          id: trainer.id,
-          name: trainer.name || 'Your Trainer',
-          role: 'Your Personal Coach',
-          avatar: trainer.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-          specialty: trainer.specializations?.join(', ') || 'Strength & Conditioning',
-          bio: trainer.bio || 'Your dedicated coach for reaching health and fitness goals.',
-        });
-      }
-    }
-    return combined;
-  }, [dbTrainers, trainer]);
 
   // ── The programme, derived from the enrollment snapshot ──────────────────
   const programme = useMemo(() => {
@@ -546,32 +497,21 @@ export default function ClientWorkoutsScreen() {
     );
   }
 
-  // ── Legacy explore (on-demand browsing, coach directory, booking) ─────────
+  // ── The Library — this coach's on-demand classes and live schedule ────────
   if (showExplore) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
-        <Pressable style={s.exploreBack} onPress={() => setShowExplore(false)} accessibilityRole="button">
+        <Pressable
+          style={s.exploreBack}
+          onPress={() => setShowExplore(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Back to your programme"
+        >
           <Ionicons name="chevron-back" size={18} color={C.textSecondary} />
           <Text style={s.exploreBackText}>Back to your programme</Text>
         </Pressable>
-        <ExploreDashboard
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          showSearchInput={showSearchInput}
-          setShowSearchInput={setShowSearchInput}
-          allCoaches={allCoaches}
-          selectedCoach={selectedCoach}
-          setSelectedCoach={setSelectedCoach}
-          showBookModal={showBookModal}
-          setShowBookModal={setShowBookModal}
-          bookingCoach={bookingCoach}
-          setBookingCoach={setBookingCoach}
-          selectedCategoryLabel={selectedCategoryLabel}
-          setSelectedCategoryLabel={setSelectedCategoryLabel}
-          onWorkoutsListPress={() => setShowExplore(false)}
-          hasActivePlan={!!clientData?.plan_id}
-        />
+        <ExploreDashboard />
       </SafeAreaView>
     );
   }
@@ -874,13 +814,20 @@ export default function ClientWorkoutsScreen() {
       >
         {body}
 
-        {/* On-demand browsing kept reachable — one honest entry, no fake counts */}
+        {/* The Library — one honest entry, no counts promised from here.
+            The row says what is actually behind it: this coach's on-demand
+            classes and live sessions, and nothing else. */}
         <SectionHead label="On demand" />
-        <Pressable style={s.nodeRow} onPress={() => setShowExplore(true)} accessibilityRole="button">
-          <Ionicons name="compass-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
+        <Pressable
+          style={s.nodeRow}
+          onPress={() => setShowExplore(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Library, ${coachFirst}'s classes. Double tap to open the on-demand library`}
+        >
+          <Ionicons name="videocam-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
           <View style={{ flex: 1 }}>
-            <Text style={s.nodeName}>Browse workouts and coaches</Text>
-            <Text style={s.nodeSub}>Sessions outside your programme, any time</Text>
+            <Text style={s.nodeName}>Library — {coachFirst}'s classes</Text>
+            <Text style={s.nodeSub}>On-demand classes and live sessions, any time</Text>
           </View>
           <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
         </Pressable>

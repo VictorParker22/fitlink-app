@@ -42,13 +42,23 @@ export default function CheckoutScreen() {
     // before the payment sheet opens. Evergreen passes skip this entirely.
     if (isCohort(plan as any)) {
       let enrolledCount = 0;
-      const { count, error: countError } = await supabase
-        .from('client_plan_enrollments')
-        .select('id', { count: 'exact', head: true })
-        .eq('plan_id', plan.id)
-        .in('status', ['active', 'completed']);
-      // If the count fails we can't verify seats, but the dates still hold.
-      if (!countError && typeof count === 'number') enrolledCount = count;
+      // Must go through the RPC: athlete RLS restricts a direct count on
+      // client_plan_enrollments to their OWN rows, so it always returns 0 and
+      // the 'full' branch below could never fire. cohort_member_count is
+      // SECURITY DEFINER and returns just the integer.
+      const { data: rpcCount, error: rpcError } = await supabase
+        .rpc('cohort_member_count', { p_plan_id: plan.id });
+      if (!rpcError && typeof rpcCount === 'number') {
+        enrolledCount = rpcCount;
+      } else {
+        const { count, error: countError } = await supabase
+          .from('client_plan_enrollments')
+          .select('id', { count: 'exact', head: true })
+          .eq('plan_id', plan.id)
+          .in('status', ['active', 'completed']);
+        // If the count fails we can't verify seats, but the dates still hold.
+        if (!countError && typeof count === 'number') enrolledCount = count;
+      }
 
       const state = enrollmentState(plan as any, enrolledCount);
       if (state === 'full') {
@@ -125,6 +135,15 @@ export default function CheckoutScreen() {
 
       // Payment succeeded!
       setPaymentStatus('success');
+
+      // NOTE on enrollment: the season enrollment (client_plan_enrollments) is
+      // created SERVER-SIDE by the stripe-webhook, which is the source of truth.
+      // Do not add a client-side insert here — athletes have no INSERT policy on
+      // client_plan_enrollments (see fix_enrollment_client_rls.sql: SELECT and
+      // UPDATE only), so it would fail silently for the exact users who need it,
+      // and widening that policy would let anyone self-enroll in a paid plan.
+      // refreshData() below plus the realtime subscription in ClientContext pick
+      // the row up as soon as the webhook writes it.
 
       // Fire autoflow (assign welcome workout + send welcome message + notify coach).
       // The Stripe webhook also triggers this, but we call it directly here so the

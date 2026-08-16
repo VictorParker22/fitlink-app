@@ -19,9 +19,6 @@ export const ClientRoute = {
 
   // Content screens
   exploreClasses: '/(client-tabs)/explore-classes' as const,
-  collections: '/(client-tabs)/collections' as const,
-  articles: '/(client-tabs)/articles' as const,
-  programs: '/(client-tabs)/programs' as const,
 
   // Profile & settings
   myProfile: '/(client-tabs)/my-profile' as const,
@@ -36,9 +33,6 @@ export const ClientRoute = {
   // Param screens
   classDetail: '/(client-tabs)/class-detail' as const,
   classPlayer: '/(client-tabs)/class-player' as const,
-  collectionDetail: '/(client-tabs)/collection-detail' as const,
-  articleDetail: '/(client-tabs)/article-detail' as const,
-  programDetail: '/(client-tabs)/program-detail' as const,
   strengthSession: '/(client-tabs)/strength-session' as const,
 } as const;
 

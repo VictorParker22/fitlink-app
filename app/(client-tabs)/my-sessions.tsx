@@ -2,12 +2,14 @@
  * My Sessions — Client Booking Management
  *
  * The screen the client sees after sending a booking request.
- * Shows: upcoming confirmed sessions, pending requests, past sessions.
+ * Shows: upcoming confirmed sessions and past sessions.
  * Design: Editorial precision — week calendar strip + session cards.
  *
- * Data sources:
+ * Sessions are scheduled by the coach — there is no athlete-initiated
+ * booking path, so this screen only ever reads.
+ *
+ * Data source:
  *   - `sessions` table: trainer-confirmed sessions (client_id match)
- *   - `session_requests` table: client-initiated requests (pending review)
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -19,7 +21,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -32,6 +33,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
+import { ClientRoute } from '../../types/routes';
 
 const { width: SW } = Dimensions.get('window');
 const DAY_W = (SW - 32 - 48) / 7;
@@ -52,20 +54,7 @@ interface Session {
   };
 }
 
-interface SessionRequest {
-  id: string;
-  created_at: string;
-  session_type: string;
-  duration_minutes: number;
-  notes?: string;
-  status: 'pending' | 'accepted' | 'declined';
-  trainer?: {
-    name: string;
-    avatar_url: string;
-  };
-}
-
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -82,13 +71,7 @@ const STATUS_CONFIG = {
   cancelled: { label: 'CANCELLED', color: CoachColors.danger,        bg: CoachColors.dangerSoft  },
 };
 
-const REQ_STATUS_CONFIG = {
-  pending:  { label: 'PENDING',  color: CoachColors.warning,       bg: CoachColors.warningSoft },
-  accepted: { label: 'ACCEPTED', color: CoachColors.accent,        bg: CoachColors.accentSoft  },
-  declined: { label: 'DECLINED', color: CoachColors.danger,        bg: CoachColors.dangerSoft  },
-};
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getWeek(anchor: Date): Date[] {
   const d = new Date(anchor);
@@ -197,99 +180,37 @@ function SessionCard({ session }: { session: Session }) {
   );
 }
 
-// ─── Request Card ────────────────────────────────────────────────────────────
-
-function RequestCard({
-  req,
-  onCancel,
-}: {
-  req: SessionRequest;
-  onCancel: (id: string) => void;
-}) {
-  const statusCfg = REQ_STATUS_CONFIG[req.status] || REQ_STATUS_CONFIG.pending;
-  const typeColor = TYPE_COLORS[req.session_type] || CoachColors.textSecondary;
-
-  return (
-    <View style={s.requestCard}>
-      <View style={s.accentBar} />
-      <View style={s.cardBody}>
-        {/* Header */}
-        <View style={s.cardTopRow}>
-          <View style={[s.typeBadge, { borderColor: typeColor }]}>
-            <Text style={[s.typeBadgeText, { color: typeColor }]}>
-              {(req.session_type || '1-ON-1').toUpperCase()}
-            </Text>
-          </View>
-          <View style={[s.statusBadge, { backgroundColor: statusCfg.bg }]}>
-            <Ionicons
-              name={req.status === 'pending' ? 'time-outline' : req.status === 'accepted' ? 'checkmark-circle' : 'close-circle'}
-              size={9}
-              color={statusCfg.color}
-              style={{ marginRight: 3 }}
-            />
-            <Text style={[s.statusBadgeText, { color: statusCfg.color }]}>
-              {statusCfg.label}
-            </Text>
-          </View>
-        </View>
-
-        {/* Coach row */}
-        <View style={s.coachRow}>
-          {req.trainer?.avatar_url ? (
-            <Image
-              source={{ uri: req.trainer.avatar_url }}
-              style={s.coachAvatar}
-              contentFit="cover"
-            />
-          ) : (
-            <View style={s.coachAvatarPlaceholder}>
-              <Ionicons name="person" size={14} color={CoachColors.textMuted} />
-            </View>
-          )}
-          <View style={s.coachInfo}>
-            <Text style={s.coachName}>
-              {req.trainer?.name || 'Your Coach'}
-            </Text>
-            <Text style={s.sessionMeta}>
-              {req.duration_minutes} min · Requested {formatDate(req.created_at)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Notes */}
-        {!!req.notes && (
-          <Text style={s.notesPreview} numberOfLines={1}>
-            "{req.notes}"
-          </Text>
-        )}
-
-        {/* Cancel button — only for pending */}
-        {req.status === 'pending' && (
-          <TouchableOpacity
-            style={s.cancelBtn}
-            onPress={() => onCancel(req.id)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel booking request"
-          >
-            <Text style={s.cancelBtnText}>Cancel request</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-}
-
 // ─── Empty State ─────────────────────────────────────────────────────────────
 
-function EmptyState({ onExplore }: { onExplore: () => void }) {
+function EmptyState({
+  coachName,
+  onFindCoach,
+  onMessageCoach,
+}: {
+  coachName: string | null;
+  onFindCoach: () => void;
+  onMessageCoach: () => void;
+}) {
+  // With a coach: sessions exist, they are just not on the calendar yet.
+  // Booking happens on the coach's side, so the only real next step is a message.
+  if (coachName) {
+    return (
+      <BoltEmptyState
+        pose="welcome"
+        title="No sessions on the calendar"
+        subtitle={`Sessions are scheduled by ${coachName}. A message is how one gets on the calendar.`}
+        actionLabel={`Message ${coachName}`}
+        onAction={onMessageCoach}
+      />
+    );
+  }
   return (
     <BoltEmptyState
       pose="welcome"
       title="No sessions yet"
-      subtitle="Browse coaches and request a private session to get started."
+      subtitle="Sessions land here once a coach takes you on."
       actionLabel="Find a coach"
-      onAction={onExplore}
+      onAction={onFindCoach}
     />
   );
 }
@@ -301,11 +222,13 @@ export default function MySessionsScreen() {
   const { clientData, trainer } = useClient();
 
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [requests, setRequests] = useState<SessionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'requests' | 'history'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // First name only — matches the copy SessionsCard uses on Today.
+  const coachFirst = (trainer?.name || '').split(' ')[0] || null;
 
   const weekDays = useMemo(() => getWeek(selectedDate), [selectedDate]);
   const today = new Date();
@@ -315,19 +238,11 @@ export default function MySessionsScreen() {
     if (!clientData?.id) return;
 
     try {
-      // 1. Fetch confirmed sessions from `sessions` table
       const { data: sessionData } = await supabase
         .from('sessions')
         .select('*, trainers:trainer_id(name, avatar_url)')
         .eq('client_id', clientData.id)
         .order('date', { ascending: false });
-
-      // 2. Fetch pending/accepted booking requests from `session_requests`
-      const { data: reqData } = await supabase
-        .from('session_requests')
-        .select('*, trainers:trainer_id(name, avatar_url)')
-        .eq('client_id', clientData.id)
-        .order('created_at', { ascending: false });
 
       if (sessionData) {
         setSessions(
@@ -337,18 +252,8 @@ export default function MySessionsScreen() {
           }))
         );
       }
-
-      // Also surface accepted requests that haven't been turned into sessions yet
-      if (reqData) {
-        setRequests(
-          reqData.map((r: any) => ({
-            ...r,
-            trainer: r.trainers || trainer,
-          }))
-        );
-      }
     } catch (err) {
-      // Tables may not exist yet — show empty state gracefully
+      // The table may be unreadable — show the empty state gracefully
       console.log('[MySessionsScreen] fetch error:', err);
     } finally {
       setLoading(false);
@@ -365,28 +270,6 @@ export default function MySessionsScreen() {
     fetchData();
   };
 
-  const handleCancelRequest = (id: string) => {
-    Alert.alert(
-      'Cancel Request',
-      'Are you sure you want to cancel this booking request?',
-      [
-        { text: 'Keep It', style: 'cancel' },
-        {
-          text: 'Cancel Request',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await supabase
-              .from('session_requests')
-              .update({ status: 'cancelled' })
-              .eq('id', id);
-            fetchData();
-          },
-        },
-      ]
-    );
-  };
-
   const shiftWeek = (dir: number) => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + dir * 7);
@@ -396,9 +279,6 @@ export default function MySessionsScreen() {
   // ── Filtered data ──────────────────────────────────────────────────────────
   const upcomingSessions = sessions.filter((s) => s.status === 'upcoming');
   const pastSessions = sessions.filter((s) => s.status !== 'upcoming');
-  const activePendingReqs = requests.filter(
-    (r) => r.status === 'pending' || r.status === 'accepted'
-  );
 
   // Sessions on selected day (for calendar view)
   const daySessions = useMemo(
@@ -421,7 +301,7 @@ export default function MySessionsScreen() {
 
   // Only gate on the spinner when there is truly nothing to show yet — once
   // data (fresh or cached) exists, render it and refresh silently.
-  if (loading && sessions.length === 0 && requests.length === 0) {
+  if (loading && sessions.length === 0) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.loadingWrap}>
@@ -431,8 +311,7 @@ export default function MySessionsScreen() {
     );
   }
 
-  const hasAnyData =
-    sessions.length > 0 || requests.length > 0;
+  const hasAnyData = sessions.length > 0;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -450,11 +329,6 @@ export default function MySessionsScreen() {
           <Text style={s.headerTag}>COACHING</Text>
           <Text style={s.headerTitle}>My Sessions</Text>
         </View>
-        {activePendingReqs.length > 0 && (
-          <View style={s.pendingBadge}>
-            <Text style={s.pendingBadgeText}>{activePendingReqs.length}</Text>
-          </View>
-        )}
       </View>
 
       {/* ── Calendar strip ──────────────────────────────────────────────── */}
@@ -545,7 +419,6 @@ export default function MySessionsScreen() {
         {(
           [
             { key: 'upcoming', label: 'Upcoming', count: upcomingSessions.length },
-            { key: 'requests', label: 'Requests', count: activePendingReqs.length },
             { key: 'history',  label: 'History',  count: pastSessions.length      },
           ] as const
         ).map(({ key, label, count }) => (
@@ -588,7 +461,11 @@ export default function MySessionsScreen() {
         }
       >
         {!hasAnyData ? (
-          <EmptyState onExplore={() => router.back()} />
+          <EmptyState
+              coachName={coachFirst}
+              onFindCoach={() => router.push(ClientRoute.findCoach)}
+              onMessageCoach={() => router.push(ClientRoute.myMessages)}
+            />
         ) : (
           <>
             {/* Upcoming tab */}
@@ -617,29 +494,11 @@ export default function MySessionsScreen() {
                 ))}
 
                 {upcomingSessions.length === 0 && (
-                  <EmptyState onExplore={() => router.back()} />
-                )}
-              </>
-            )}
-
-            {/* Requests tab */}
-            {activeTab === 'requests' && (
-              <>
-                {requests.length === 0 ? (
-                  <EmptyState onExplore={() => router.back()} />
-                ) : (
-                  <>
-                    <View style={s.sectionHeader}>
-                      <Text style={s.sectionTag}>BOOKING REQUESTS</Text>
-                    </View>
-                    {requests.map((req) => (
-                      <RequestCard
-                        key={req.id}
-                        req={req}
-                        onCancel={handleCancelRequest}
-                      />
-                    ))}
-                  </>
+                  <EmptyState
+              coachName={coachFirst}
+              onFindCoach={() => router.push(ClientRoute.findCoach)}
+              onMessageCoach={() => router.push(ClientRoute.myMessages)}
+            />
                 )}
               </>
             )}
@@ -717,19 +576,6 @@ const s = StyleSheet.create({
     fontSize: 26,
     color: CoachColors.textPrimary,
     letterSpacing: -0.6,
-  },
-  pendingBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: CoachColors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pendingBadgeText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
-    color: CoachColors.onAccent,
   },
 
   // Calendar
@@ -883,15 +729,6 @@ const s = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  requestCard: {
-    flexDirection: 'row',
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    borderRadius: 14,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
   accentBar: {
     width: 3,
     alignSelf: 'stretch',
@@ -990,21 +827,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: CoachColors.textMuted,
     fontStyle: 'italic',
-  },
-  cancelBtn: {
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: CoachColors.danger,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  cancelBtnText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
-    color: CoachColors.danger,
-    letterSpacing: 0.5,
   },
 
   // Empty

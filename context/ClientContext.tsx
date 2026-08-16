@@ -78,7 +78,10 @@ interface ClientContextType {
   logMealEaten: (dietPlanId: string, dietPlanMealId: string) => Promise<void>;
   unlogMeal: (dietPlanId: string, dietPlanMealId: string) => Promise<void>;
 
-  requestPlanUpgrade: (planId: string) => Promise<void>;
+  /**
+   * Records interest in a coach's pass and messages the coach. Grants nothing
+   * and charges nothing — purchase lives in the my-pass storefront.
+   */
   updateAssessment: (data: any) => Promise<void>;
   updateClientAvatar: (base64: string, uri: string) => Promise<void>;
   logProgress: (data: { weight?: number; bodyFat?: number; measurements?: any; notes?: string }) => Promise<void>;
@@ -700,18 +703,6 @@ export function ClientProvider({ children }: PropsWithChildren) {
     }
   }, [enrollment, clientData]);
 
-  const requestPlanUpgrade = useCallback(async (planId: string) => {
-    if (!clientData) return;
-    const { data, error } = await supabase
-      .from('clients')
-      .update({ status: 'active', plan_id: planId, trial_end_date: null })
-      .eq('id', clientData.id)
-      .select()
-      .single();
-    if (error) throw error;
-    setClientData(data);
-  }, [clientData]);
-
   const updateAssessment = useCallback(async (assessmentData: any) => {
     if (!clientData) return;
     const { data, error } = await supabase
@@ -898,7 +889,6 @@ export function ClientProvider({ children }: PropsWithChildren) {
         mealLogs,
         logMealEaten,
         unlogMeal,
-        requestPlanUpgrade,
         updateAssessment, updateClientAvatar, logProgress, cancelSubscription, setupPaymentMethod, toggleHealthSharing, refreshData,
       checkInGym, checkOutGym,
     }}>

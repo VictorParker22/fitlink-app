@@ -15,6 +15,15 @@ import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const nodeKey = (n: TrackNode) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}`;
 
+// Source tabs for the node picker. Classes sit alongside workouts and meal
+// plans because a season week can hold any of the three.
+type SourceTab = 'workouts' | 'diets' | 'classes';
+const SOURCE_TABS: { key: SourceTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'workouts', label: 'Workouts', icon: 'barbell-outline' },
+  { key: 'diets', label: 'Meal plans', icon: 'nutrition-outline' },
+  { key: 'classes', label: 'Classes', icon: 'videocam-outline' },
+];
+
 // Editor rows need a key that survives reordering. Index keys break
 // DraggableFlatList (rows mis-reconcile → overlapped cards, stale numbers),
 // and content keys collide because a season repeats the same workout across
@@ -30,15 +39,24 @@ export default function PassTrackEditorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { planId } = useLocalSearchParams<{ planId: string }>();
-  const { plans, workouts, diets, clients, updatePlanTrack } = useApp();
+  const { plans, workouts, diets, classes, clients, updatePlanTrack } = useApp();
   const { user } = useAuth();
+
+  // Classes are a COACH-SCOPED library — AppContext already loads only this
+  // coach's rows (classes … .eq('trainer_id', user.id)). Only published ones
+  // can go on a season: a draft would be unreadable to the athlete under
+  // supabase/migrations/scope_classes_to_coach.sql.
+  const publishedClasses = useMemo(
+    () => classes.filter(c => c.status === 'published'),
+    [classes],
+  );
 
   const plan = plans.find(p => p.id === planId);
 
   const [track, setTrack] = useState<EditorNode[]>(() =>
     withUids([...(plan?.track || [])].sort((a, b) => a.order - b.order))
   );
-  const [activeTab, setActiveTab] = useState<'workouts' | 'diets'>('workouts');
+  const [activeTab, setActiveTab] = useState<SourceTab>('workouts');
   const [saving, setSaving] = useState(false);
   const [milestoneInput, setMilestoneInput] = useState('');
   const [showMilestoneInput, setShowMilestoneInput] = useState(false);
@@ -108,14 +126,14 @@ export default function PassTrackEditorScreen() {
   // week in a single tap. Week boundaries come from the same math every
   // pass surface uses (lib/passWeeks). Inserting back-to-front keeps the
   // original boundary indices valid while we splice.
-  const addNodeEveryWeek = (type: TrackNode['type'], id: string) => {
+  const addNodeEveryWeek = (type: TrackNode['type'], id: string, label?: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setTrack(prev => {
       const starts = weekStartIndices(prev, durationWeeks);
       const updated = [...prev];
       for (let w = starts.length - 1; w >= 0; w--) {
         const insertAt = w + 1 < starts.length ? starts[w + 1] : updated.length;
-        updated.splice(insertAt, 0, { type, id, order: 0, _uid: newUid() });
+        updated.splice(insertAt, 0, { type, id, label, order: 0, _uid: newUid() });
       }
       return updated.map((n, i) => ({ ...n, order: i }));
     });
@@ -310,6 +328,9 @@ export default function PassTrackEditorScreen() {
     if (node.type === 'diet' && node.id) {
       return diets.find(d => d.id === node.id)?.name || 'Meal plan';
     }
+    if (node.type === 'class' && node.id) {
+      return classes.find(c => c.id === node.id)?.title || node.label || 'Class';
+    }
     return node.label || 'Milestone';
   };
 
@@ -323,6 +344,14 @@ export default function PassTrackEditorScreen() {
       const d = diets.find(dt => dt.id === node.id);
       const count = d?.diet_plan_meals?.length || 0;
       return `${getNodeTypeLabel(node)} · ${count} meal${count === 1 ? '' : 's'}`;
+    }
+    if (node.type === 'class' && node.id) {
+      const c = classes.find(cl => cl.id === node.id);
+      // Real meta or nothing — a class the coach unpublished still reads as a class.
+      const bits = [getNodeTypeLabel(node)];
+      if (c?.duration_minutes) bits.push(`${c.duration_minutes} min`);
+      if (c?.category) bits.push(c.category);
+      return bits.join(' · ');
     }
     return getNodeTypeLabel(node);
   };
@@ -479,6 +508,9 @@ export default function PassTrackEditorScreen() {
               <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('diets')}>
                 <Text style={st.quickAddText}>+ Meal plan</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('classes')}>
+                <Text style={st.quickAddText}>+ Class</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={[st.quickAddPill, st.quickAddPillAccent]} onPress={() => setShowMilestoneInput(true)}>
                 <Text style={[st.quickAddText, { color: CoachColors.accent }]}>+ Milestone</Text>
               </TouchableOpacity>
@@ -511,19 +543,19 @@ export default function PassTrackEditorScreen() {
             {/* ── AVAILABLE CONTENT ── */}
             <View style={st.section}>
               <View style={st.tabs}>
-                {(['workouts', 'diets'] as const).map(tab => (
+                {SOURCE_TABS.map(({ key, label, icon }) => (
                   <TouchableOpacity
-                    key={tab}
-                    style={[st.tab, activeTab === tab && st.tabActive]}
-                    onPress={() => setActiveTab(tab)}
+                    key={key}
+                    style={[st.tab, activeTab === key && st.tabActive]}
+                    onPress={() => setActiveTab(key)}
                   >
                     <Ionicons
-                      name={tab === 'workouts' ? 'barbell-outline' : 'nutrition-outline'}
+                      name={icon}
                       size={16}
-                      color={activeTab === tab ? CoachColors.textPrimary : CoachColors.textFaint}
+                      color={activeTab === key ? CoachColors.textPrimary : CoachColors.textFaint}
                     />
-                    <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
-                      {tab === 'workouts' ? 'Workouts' : 'Meal plans'}
+                    <Text style={[st.tabText, activeTab === key && st.tabTextActive]}>
+                      {label}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -562,6 +594,61 @@ export default function PassTrackEditorScreen() {
                               onPress={() => addNodeEveryWeek('workout', w.id)}
                               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                               accessibilityLabel={`Add ${w.name} to every week`}
+                            >
+                              <Text style={st.everyWeekText}>×{seasonWeekCount} wks</Text>
+                            </TouchableOpacity>
+                          )}
+                          <View style={st.addContentBtn}>
+                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )
+              ) : activeTab === 'classes' ? (
+                publishedClasses.length === 0 ? (
+                  <View style={st.emptyContent}>
+                    <Ionicons name="videocam-outline" size={26} color={CoachColors.textFaint} />
+                    <Text style={st.emptyContentText}>
+                      {classes.length === 0
+                        ? 'No classes in your library yet'
+                        : 'Publish a class to put it on a season'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={st.contentList}>
+                    {publishedClasses.map(c => {
+                      const count = countOf('class', c.id);
+                      // Label is carried on the node so the season still reads
+                      // sensibly if the class is later unpublished or renamed.
+                      const meta = [
+                        c.duration_minutes ? `${c.duration_minutes} min` : null,
+                        c.category || null,
+                      ].filter(Boolean).join(' · ');
+                      return (
+                        <TouchableOpacity
+                          key={c.id}
+                          style={st.contentCard}
+                          onPress={() => addNode('class', c.id, c.title)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={st.contentIcon}>
+                            <Ionicons name="videocam-outline" size={18} color={CoachColors.textSecondary} />
+                          </View>
+                          <View style={st.contentInfo}>
+                            <Text style={st.contentName} numberOfLines={1}>{c.title}</Text>
+                            <Text style={st.contentSub}>
+                              {meta}
+                              {count > 0 ? `${meta ? ' · ' : ''}in track ×${count}` : ''}
+                            </Text>
+                          </View>
+                          {seasonWeekCount >= 2 && (
+                            <TouchableOpacity
+                              style={st.everyWeekBtn}
+                              onPress={() => addNodeEveryWeek('class', c.id, c.title)}
+                              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                              accessibilityLabel={`Add ${c.title} to every week`}
                             >
                               <Text style={st.everyWeekText}>×{seasonWeekCount} wks</Text>
                             </TouchableOpacity>

@@ -138,7 +138,6 @@ export default function ClientTabsLayout() {
 
         {/* Hidden screens — deep-linked, not in the bar. Nothing may 404. */}
         <Tabs.Screen name="explore-classes"   options={{ href: null }} />
-        <Tabs.Screen name="studio"            options={{ href: null }} />
         <Tabs.Screen name="health-insights"   options={{ href: null }} />
         <Tabs.Screen name="my-pass"           options={{ href: null }} />
         <Tabs.Screen name="my-subscription"   options={{ href: null }} />
@@ -146,12 +145,6 @@ export default function ClientTabsLayout() {
         <Tabs.Screen name="my-profile"        options={{ href: null }} />
         <Tabs.Screen name="class-detail"      options={{ href: null }} />
         <Tabs.Screen name="class-player"      options={{ href: null }} />
-        <Tabs.Screen name="collections"       options={{ href: null }} />
-        <Tabs.Screen name="collection-detail" options={{ href: null }} />
-        <Tabs.Screen name="articles"          options={{ href: null }} />
-        <Tabs.Screen name="article-detail"    options={{ href: null }} />
-        <Tabs.Screen name="programs"          options={{ href: null }} />
-        <Tabs.Screen name="program-detail"    options={{ href: null }} />
         <Tabs.Screen name="strength-session"  options={{ href: null }} />
         <Tabs.Screen name="my-sessions"       options={{ href: null }} />
         <Tabs.Screen name="find-coach"        options={{ href: null }} />

@@ -1,3 +1,15 @@
+/**
+ * explore-classes — the full list of THIS athlete's coach's published classes.
+ *
+ * Coach-scoped, like every class surface: the `classes` query filters on the
+ * athlete's own trainer_id rather than trusting RLS alone, so the screen shows
+ * one coach's library and never a cross-coach catalogue.
+ *
+ * The live rail states real scheduled times. An upcoming class is not
+ * joinable — pushing into /live-player before the coach is actually streaming
+ * showed an indefinite "starting in just a moment" spinner and counted the
+ * athlete as a viewer.
+ */
 import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -7,21 +19,34 @@ import {
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { FontSize, Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Bolt } from '../../components/mascot/Bolt';
-import { PrecisionIcons } from '../../components/icons/PrecisionIcons';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
-import { FitnessClass, MOCK_CLASSES } from '../../data/classes';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
-import { useRevenueCat } from '../../context/RevenueCatContext';
-import ClientPaywall from '../../components/paywalls/ClientPaywall';
-import FitLinkPassPreview from '../../components/client-tabs/explore/FitLinkPassPreview';
+
+/** A published row from the `classes` table, mapped for this screen. */
+interface FitnessClass {
+  id: string;
+  title: string;
+  category: string;
+  tags: string[];
+  level: string;
+  instructor: string;
+  instructorAvatar: string;
+  brand: string;
+  durationMin: number;
+  thumbnail: string;
+  isFree?: boolean;
+  description?: string;
+  equipment?: string[];
+  videoUrl?: string;
+}
 
 type SortKey = 'newest' | 'duration' | 'level' | 'a-z';
 
@@ -32,13 +57,33 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'level', label: 'Level' },
 ];
 
+/** Real scheduled day + time for a live row, or null when there is no usable date. */
+function scheduleLabel(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((day.getTime() - today.getTime()) / 86400000);
+  const dayLabel =
+    diff === 0
+      ? 'Today'
+      : diff === 1
+        ? 'Tomorrow'
+        : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return `${dayLabel} · ${time}`;
+}
+
 // ─── COMPONENT ───────────────────────────────────────────
 export default function ExploreClassesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { clientData, subscription } = useClient();
-  const { isClientPremium } = useRevenueCat();
-  const [paywallVisible, setPaywallVisible] = useState(false);
+  const { clientData, trainer } = useClient();
+  const trainerId = clientData?.trainer_id || null;
+  const coachFirst = (trainer?.name || '').split(' ')[0] || 'your coach';
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [showSortModal, setShowSortModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -46,84 +91,69 @@ export default function ExploreClassesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
-  const [liveClasses, setLiveClasses] = useState<any[]>([]);
+  const [liveClasses, setLiveClasses] = useState<FitnessClass[]>([]);
   const [activeLiveStreams, setActiveLiveStreams] = useState<any[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Refetch on every tab focus so new classes appear without a full app restart
   const fetchLiveClasses = useCallback(async () => {
+    // No coach means no library — never fall back to "everything readable".
+    if (!trainerId) {
+      setLiveClasses([]);
+      setActiveLiveStreams([]);
+      setLoadingClasses(false);
+      return;
+    }
     try {
-      const { data, error } = await supabase
+      // Coach-scoped in the query, not only by policy.
+      const { data } = await supabase
         .from('classes')
         .select('*, trainers(name, avatar_url)')
+        .eq('trainer_id', trainerId)
         .eq('status', 'published')
         .order('created_at', { ascending: false });
-      if (data && data.length > 0) {
-        setLiveClasses(data.map(c => ({
-          id: c.id,
-          title: c.title,
-          instructor: c.trainers?.name || 'Coach',
-          instructorAvatar: c.trainers?.avatar_url || '',
-          brand: c.brand || 'FitLink',
-          category: c.category,
-          durationMin: c.duration_minutes || 0,
-          level: c.difficulty || 'All Levels',
-          thumbnail: c.thumbnail_url || '',
-          description: c.description || '',
-          equipment: c.equipment || [],
-          tags: c.tags || [],
-          rating: c.avg_rating || 0,
-          takeCount: c.take_count || 0,
-          isFree: c.is_free || false,
-          videoUrl: c.video_url,
-        })));
-      }
+      // Always mirror the table — an empty table must render an empty screen,
+      // never stale or stand-in content.
+      setLiveClasses((data || []).map(c => ({
+        id: c.id,
+        title: c.title,
+        instructor: c.trainers?.name || 'Coach',
+        instructorAvatar: c.trainers?.avatar_url || '',
+        brand: c.brand || '',
+        category: c.category,
+        durationMin: c.duration_minutes || 0,
+        level: c.difficulty || 'All Levels',
+        thumbnail: c.thumbnail_url || '',
+        description: c.description || '',
+        equipment: c.equipment || [],
+        tags: c.tags || [],
+        rating: c.avg_rating || 0,
+        takeCount: c.take_count || 0,
+        isFree: c.is_free || false,
+        videoUrl: c.video_url,
+      })));
 
-      // Use the client's trainer_id as an explicit filter.
-      // This bypasses the RLS EXISTS join and directly fetches the trainer's classes.
-      // Falls back to fetching all accessible classes if trainer_id isn't loaded yet.
-      const trainerId = clientData?.trainer_id;
-      let liveQuery = supabase
+      // Same coach scope for the live schedule. Every scheduled and live row
+      // is kept — this is one coach's calendar, so collapsing it to a single
+      // "latest stream" would hide real sessions the athlete can attend.
+      const { data: liveData, error: liveError } = await supabase
         .from('live_classes')
         .select('*, trainers(name, avatar_url)')
+        .eq('trainer_id', trainerId)
         .in('status', ['live', 'scheduled'])
         .order('scheduled_for', { ascending: true });
-
-      if (trainerId) {
-        liveQuery = liveQuery.eq('trainer_id', trainerId);
-      }
-
-      const { data: liveData, error: liveError } = await liveQuery;
-
-      console.log('[explore-classes] live_classes response:', {
-        trainerId,
-        count: liveData?.length ?? 0,
-        statuses: liveData?.map(s => ({ id: s.id, title: s.title, status: s.status })),
-        error: liveError?.message,
-      });
 
       if (liveError) {
         console.warn('[explore-classes] live_classes fetch failed:', liveError.message, liveError.code);
       }
-
-      if (liveData) {
-        // Keep only the most recent active stream per trainer (prevents ghost old streams)
-        const latestPerTrainer = new Map<string, any>();
-        for (const stream of liveData) {
-          const existing = latestPerTrainer.get(stream.trainer_id);
-          if (!existing || new Date(stream.scheduled_for) > new Date(existing.scheduled_for)) {
-            latestPerTrainer.set(stream.trainer_id, stream);
-          }
-        }
-        setActiveLiveStreams(Array.from(latestPerTrainer.values()));
-      }
+      setActiveLiveStreams(liveData || []);
     } catch (e) {
       console.log('[explore-classes] Supabase fetch error:', e);
     } finally {
       setLoadingClasses(false);
     }
-  }, [clientData?.trainer_id]);
+  }, [trainerId]);
 
 
   // Clear stale data immediately on focus, then refetch fresh
@@ -201,11 +231,17 @@ export default function ExploreClassesScreen() {
     }
   };
 
-  const classSource = liveClasses.length > 0 ? liveClasses : MOCK_CLASSES;
+  const classSource = liveClasses;
 
-  // Derive filter categories strictly from available class data (avoids 14 dead chips)
+  // Derive filter categories strictly from available class data (avoids 14
+  // dead chips). A chip that cannot match a row is never rendered.
   const filterCategories = useMemo(() => {
-    return Array.from(new Set(classSource.map(c => c.category)));
+    const seen = new Set<string>();
+    classSource.forEach(c => {
+      const cat = (c.category || '').trim();
+      if (cat) seen.add(cat);
+    });
+    return Array.from(seen);
   }, [classSource]);
 
   const toggleFilter = (cat: string) => {
@@ -288,6 +324,10 @@ export default function ExploreClassesScreen() {
               brand: item.brand,
               durationMin: String(item.durationMin),
               thumbnail: item.thumbnail,
+              // Real row data — the detail screen omits whatever isn't set.
+              description: item.description || '',
+              equipment: Array.isArray(item.equipment) ? item.equipment.join(', ') : '',
+              video_url: item.videoUrl || '',
               is_free: item.isFree ? 'true' : 'false',   // ← required for class-detail paywall gate
             },
           });
@@ -318,7 +358,7 @@ export default function ExploreClassesScreen() {
             <Text style={s.classTagDot}>  •  {item.level}</Text>
           </Text>
           <Text style={s.classInstructor} numberOfLines={1}>
-            {item.instructor}  •  {item.brand}
+            {item.brand ? `${item.instructor}  •  ${item.brand}` : item.instructor}
           </Text>
           <View style={{ flexDirection: 'row', marginTop: 4 }}>
             {(item as any).isFree ? (
@@ -336,15 +376,26 @@ export default function ExploreClassesScreen() {
           {/* <View style={s.ratingPlaceholder} /> */}
         </View>
 
-        {/* Favorite */}
+        {/* Favourite — its own touchable, so the tap saves the class and does
+            not also open it. (React Native has no DOM event bubbling: the old
+            e.stopPropagation() here did nothing; the nested touchable is what
+            actually claims the tap, and hitSlop keeps the target honest.) */}
         <TouchableOpacity
           style={s.favBtn}
-          onPress={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          onPress={() => toggleFavorite(item.id)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: favoriteIds.has(item.id) }}
+          accessibilityLabel={
+            favoriteIds.has(item.id)
+              ? `Remove ${item.title} from saved`
+              : `Save ${item.title}`
+          }
         >
-          <Ionicons 
-            name={favoriteIds.has(item.id) ? 'heart' : 'heart-outline'} 
-            size={20} 
-            color={favoriteIds.has(item.id) ? CoachColors.accent : CoachColors.textMuted} 
+          <Ionicons
+            name={favoriteIds.has(item.id) ? 'heart' : 'heart-outline'}
+            size={20}
+            color={favoriteIds.has(item.id) ? CoachColors.accent : CoachColors.textMuted}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -388,7 +439,17 @@ export default function ExploreClassesScreen() {
 
       {/* Count + Sort Toolbar */}
       <View style={s.toolbar}>
-        <Text style={s.classCount}>{sortedClasses.length} CLASSES</Text>
+        <View style={{ flex: 1 }}>
+          {/* The real count. When a filter or search is narrowing the list,
+              say so — "3 of 21" is the honest number, not "3". */}
+          {!loadingClasses && classSource.length > 0 && (
+            <Text style={s.classCount}>
+              {sortedClasses.length === classSource.length
+                ? `${classSource.length} ${classSource.length === 1 ? 'CLASS' : 'CLASSES'}`
+                : `${sortedClasses.length} OF ${classSource.length} CLASSES`}
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           style={s.sortBtn}
           onPress={() => {
@@ -407,30 +468,65 @@ export default function ExploreClassesScreen() {
       {/* Structural Hairline Divider */}
       <View style={s.divider} />
 
-      {/* Live Streams Section (if any) */}
+      {/* Live schedule. A class that has not started is NOT tappable — it
+          states its real day and time instead. Only a genuinely live row
+          offers the join. */}
       {activeLiveStreams.length > 0 && (
         <View style={s.liveSection}>
-          <Text style={s.liveSectionTitle}>LIVE & UPCOMING</Text>
+          <Text style={s.liveSectionTitle}>LIVE &amp; UPCOMING</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.liveScroll}>
-            {activeLiveStreams.map((stream) => (
-              <TouchableOpacity
-                key={stream.id}
-                style={s.liveCard}
-                onPress={() => router.push(`/live-player/${stream.id}` as any)}
-                activeOpacity={0.8}
-              >
-                <View style={s.liveThumb}>
-                  <Image source={{ uri: stream.trainers?.avatar_url }} style={s.liveAvatar} />
-                  <View style={[s.liveBadge, stream.status !== 'live' && s.upcomingBadge]}>
-                    <Text style={s.liveBadgeText}>{stream.status === 'live' ? 'LIVE NOW' : 'UPCOMING'}</Text>
+            {activeLiveStreams.map((stream) => {
+              const isLive = stream.status === 'live';
+              const when = scheduleLabel(stream.scheduled_for);
+              const label = isLive
+                ? `Live now: ${stream.title}, with ${stream.trainers?.name || coachFirst}. Double tap to join`
+                : `${stream.title}, with ${stream.trainers?.name || coachFirst}${when ? `, ${when}` : ''}. Not started yet`;
+
+              const body = (
+                <>
+                  <View style={s.liveThumb}>
+                    {stream.trainers?.avatar_url ? (
+                      <Image source={{ uri: stream.trainers.avatar_url }} style={s.liveAvatar} />
+                    ) : null}
+                    <View style={[s.liveBadge, !isLive && s.upcomingBadge]}>
+                      <Text style={[s.liveBadgeText, !isLive && s.upcomingBadgeText]}>
+                        {isLive ? 'LIVE NOW' : 'UPCOMING'}
+                      </Text>
+                    </View>
                   </View>
+                  <View style={s.liveInfo}>
+                    <Text style={s.liveTitle} numberOfLines={1}>{stream.title}</Text>
+                    {/* The real scheduled time, or the coach's name when the
+                        row carries no usable date. Never a fake countdown. */}
+                    <Text style={s.liveInstructor} numberOfLines={1}>
+                      {isLive
+                        ? `${stream.trainers?.name || coachFirst} is streaming now`
+                        : when || (stream.trainers?.name || coachFirst)}
+                    </Text>
+                  </View>
+                </>
+              );
+
+              return isLive ? (
+                <TouchableOpacity
+                  key={stream.id}
+                  style={[s.liveCard, s.liveCardActive]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/live-player/${stream.id}` as any);
+                  }}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                >
+                  {body}
+                </TouchableOpacity>
+              ) : (
+                <View key={stream.id} style={s.liveCard} accessible={true} accessibilityLabel={label}>
+                  {body}
                 </View>
-                <View style={s.liveInfo}>
-                  <Text style={s.liveTitle} numberOfLines={1}>{stream.title}</Text>
-                  <Text style={s.liveInstructor}>{stream.trainers?.name || 'Coach'}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -440,7 +536,9 @@ export default function ExploreClassesScreen() {
         data={sortedClasses}
         keyExtractor={(item) => item.id}
         renderItem={renderClassItem}
-        contentContainerStyle={s.listContent}
+        // Floating tab bar (and the WorkoutMiniPlayer above it) sit over this
+        // list — same clearance the Train column uses — plus room for the FAB.
+        contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 190 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -456,18 +554,24 @@ export default function ExploreClassesScreen() {
           />
         }
         ItemSeparatorComponent={() => <View style={s.separator} />}
-        ListHeaderComponent={
-          <FitLinkPassPreview
-            hasActivePlan={isClientPremium || !!subscription}
-            onExplorePlansPress={() => router.push(ClientRoute.mySubscription as any)}
-            onSubscribePress={() => setPaywallVisible(true)}
-          />
-        }
         ListEmptyComponent={
+          loadingClasses ? null : (
           <View style={s.emptyState}>
             <Bolt pose="Analyze" size={100} />
-            <Text style={s.emptyTitle}>No classes found</Text>
-            <Text style={s.emptySubtitle}>Try adjusting or clearing your active filters</Text>
+            <Text style={s.emptyTitle}>
+              {!trainerId
+                ? 'No coach yet'
+                : classSource.length === 0
+                  ? 'No classes yet'
+                  : 'Nothing matches'}
+            </Text>
+            <Text style={s.emptySubtitle}>
+              {!trainerId
+                ? 'On-demand classes come from the coach you train with.'
+                : classSource.length === 0
+                  ? `When ${coachFirst} publishes a class, it lands here.`
+                  : 'Clear the filters or the search to see the whole library.'}
+            </Text>
             {activeFilters.size > 0 && (
               <TouchableOpacity
                 onPress={() => {
@@ -483,18 +587,15 @@ export default function ExploreClassesScreen() {
               </TouchableOpacity>
             )}
           </View>
+          )
         }
       />
 
-      {/* FitLink Pass Paywall modal */}
-      <ClientPaywall
-        visible={paywallVisible}
-        onDismiss={() => setPaywallVisible(false)}
-      />
-
-      {/* Brutalist Floating Filter Button (FAB) */}
+      {/* Filter FAB — lifted clear of the floating tab bar, and present only
+          when the library actually has more than one category to sort into. */}
+      {filterCategories.length > 1 && (
       <TouchableOpacity
-        style={s.filterFab}
+        style={[s.filterFab, { bottom: insets.bottom + 130 }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           setShowFilterModal(true);
@@ -511,6 +612,7 @@ export default function ExploreClassesScreen() {
           </View>
         )}
       </TouchableOpacity>
+      )}
 
       {/* ── SORT MODAL ── */}
       <Modal visible={showSortModal} transparent animationType="fade" onRequestClose={() => setShowSortModal(false)}>
@@ -701,10 +803,8 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.borderMuted,
   },
 
-  // List
-  listContent: {
-    paddingBottom: 120,
-  },
+  // List — paddingBottom is applied inline from the safe-area inset.
+  listContent: {},
   separator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: CoachColors.borderMuted,
@@ -737,6 +837,10 @@ const s = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
   },
+  liveCardActive: {
+    borderColor: CoachColors.accent,
+    borderWidth: 1.5,
+  },
   liveThumb: {
     height: 100,
     backgroundColor: CoachColors.borderMuted,
@@ -768,6 +872,9 @@ const s = StyleSheet.create({
     fontSize: 9,
     color: CoachColors.textPrimary,
     letterSpacing: 1,
+  },
+  upcomingBadgeText: {
+    color: CoachColors.textSecondary,
   },
   liveInfo: {
     padding: 12,
@@ -913,10 +1020,10 @@ const s = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // Brutalist Floating Filter FAB
+  // Floating filter FAB — `bottom` comes from the safe-area inset inline, so
+  // it always clears the floating tab bar and the mini player above it.
   filterFab: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 80,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',

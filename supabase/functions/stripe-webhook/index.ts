@@ -10,6 +10,121 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
 })
 
+/**
+ * Create the athlete's season enrollment for a paid plan.
+ *
+ * Without this, a paying athlete gets clients.plan_id + a subscription row but
+ * NO row in client_plan_enrollments — so track_snapshot never exists and the
+ * entire season experience (SeasonHero, SeasonTrack, TrackStrip,
+ * SeasonPulseCard, cohort WaitingRoom, DayOneOverlay) stays dark until a coach
+ * manually enrolls them from the coach screen. This mirrors exactly what
+ * `enrollClientInPlan` in context/AppContext.tsx produces.
+ *
+ * IDEMPOTENCY: Stripe retries webhooks, and checkout.tsx may also reach here
+ * indirectly. A second run must never reset an athlete's progress, so we
+ * (a) bail out when a row already exists and (b) insert with
+ * `ignoreDuplicates` (ON CONFLICT DO NOTHING) to close the race between two
+ * concurrent deliveries. track_position and track_snapshot of an existing row
+ * are never touched.
+ */
+async function ensurePlanEnrollment(
+  supabaseAdmin: any,
+  clientId: string,
+  planId: string,
+): Promise<void> {
+  // The snapshot must be frozen from the source of truth. Never trust
+  // client-supplied or Stripe-metadata-supplied track data.
+  const { data: plan, error: planErr } = await supabaseAdmin
+    .from('plans')
+    .select('id, name, track, starts_on, capacity')
+    .eq('id', planId)
+    .maybeSingle()
+
+  if (planErr || !plan) {
+    console.error(`[webhook][enroll] plan ${planId} not found; enrollment skipped`, planErr?.message)
+    return
+  }
+
+  const track = Array.isArray(plan.track) ? plan.track : []
+  if (track.length === 0) {
+    // An empty snapshot renders an empty season — worse than no enrollment,
+    // because it looks broken instead of pending. clients.plan_id stays set so
+    // the athlete still reads as subscribed and the coach can fix the track.
+    console.warn(
+      `[webhook][enroll] plan ${planId} ("${plan.name}") has an EMPTY track — ` +
+      `no enrollment written for client ${clientId}. The athlete is subscribed ` +
+      `but has no season until the coach adds track nodes and enrolls them.`
+    )
+    return
+  }
+
+  // Already enrolled? Leave the row completely alone — a Stripe retry must not
+  // rewind track_position or re-freeze the snapshot.
+  const { data: existing } = await supabaseAdmin
+    .from('client_plan_enrollments')
+    .select('id, track_position')
+    .eq('client_id', clientId)
+    .eq('plan_id', planId)
+    .maybeSingle()
+
+  if (existing) {
+    console.log(
+      `[webhook][enroll] client ${clientId} already enrolled in plan ${planId} ` +
+      `(enrollment ${existing.id}, position ${existing.track_position}) — left untouched`
+    )
+    return
+  }
+
+  // COHORTS: the enrollment is still created at purchase time. The waiting room
+  // and every pre-start surface depend on the row existing BEFORE starts_on, so
+  // we never gate on the start date. We do re-check capacity server-side,
+  // because the client-side gate in app/checkout.tsx can be raced or bypassed.
+  if (plan.starts_on && plan.capacity && plan.capacity > 0) {
+    const { count, error: countErr } = await supabaseAdmin
+      .from('client_plan_enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('plan_id', planId)
+      .in('status', ['active', 'completed'])
+
+    if (countErr) {
+      console.warn(`[webhook][enroll] cohort capacity check failed for plan ${planId}:`, countErr.message)
+    } else if (typeof count === 'number' && count >= plan.capacity) {
+      // The money was already taken — refusing the seat now would leave a paid
+      // athlete with nothing. Enroll them and leave a loud trace so the coach
+      // can decide on a refund or an extra seat.
+      console.warn(
+        `[webhook][enroll] COHORT OVER CAPACITY: plan ${planId} ("${plan.name}") ` +
+        `capacity ${plan.capacity}, already ${count} enrolled. Client ${clientId} ` +
+        `paid and IS being enrolled anyway — coach must decide on refund/extra seat.`
+      )
+    }
+  }
+
+  const { error: insertErr } = await supabaseAdmin
+    .from('client_plan_enrollments')
+    .upsert({
+      client_id: clientId,
+      plan_id: planId,
+      track_snapshot: track,
+      track_position: 0,
+      status: 'active',
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      paused_at: null,
+      sync_with_plan: false,
+    }, { onConflict: 'client_id,plan_id', ignoreDuplicates: true })
+
+  if (insertErr) {
+    console.error(`[webhook][enroll] failed to enroll client ${clientId} in plan ${planId}:`, insertErr.message)
+    return
+  }
+
+  console.log(
+    `[webhook][enroll] enrolled client ${clientId} in plan ${planId} ` +
+    `("${plan.name}", ${track.length} track nodes${plan.starts_on ? `, cohort starting ${plan.starts_on}` : ''})`
+  )
+}
+
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature')!
   const body = await req.text()
@@ -74,6 +189,11 @@ serve(async (req) => {
               updated_at: new Date().toISOString(),
             }, { onConflict: 'client_id,plan_id' })
 
+          // Create the season enrollment. Awaited (not backgrounded) so a
+          // failure surfaces in this delivery's logs and Stripe's retry can
+          // repair it — the retry is safe, see ensurePlanEnrollment.
+          await ensurePlanEnrollment(supabaseAdmin, clientId, planId)
+
           // ── AUTOFLOW: background task — assign workout + welcome msg + notify coach ──
           // EdgeRuntime.waitUntil() keeps the worker alive after the Response returns.
           // Plain fetch().catch() would be silently killed by the Deno runtime.
@@ -134,7 +254,7 @@ serve(async (req) => {
           // Ensure client stays active
           const { data: subRecord } = await supabaseAdmin
             .from('client_subscriptions')
-            .select('client_id')
+            .select('client_id, plan_id')
             .eq('stripe_subscription_id', subId)
             .single()
 
@@ -143,6 +263,21 @@ serve(async (req) => {
               .from('clients')
               .update({ status: 'active' })
               .eq('id', subRecord.client_id)
+          }
+
+          // Recurring-subscription purchases (app/checkout.tsx → create-subscription)
+          // never pass through the payment_intent.succeeded branch above: the
+          // PaymentIntent Stripe creates for an invoice does NOT inherit the
+          // subscription's metadata, so fitlink_client_id is absent there. This
+          // is the ONLY place a subscribing athlete's enrollment can be created.
+          // Idempotent per ensurePlanEnrollment, so renewal invoices are no-ops.
+          if (subRecord?.client_id && subRecord?.plan_id) {
+            await supabaseAdmin
+              .from('clients')
+              .update({ plan_id: subRecord.plan_id })
+              .eq('id', subRecord.client_id)
+
+            await ensurePlanEnrollment(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
           }
 
           // Also check if this is an On-Demand Pass subscription

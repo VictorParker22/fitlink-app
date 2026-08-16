@@ -13,7 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
-import { CLASS_DESCRIPTIONS, CLASS_EQUIPMENT, RELATED_CLASSES } from '../../data/classDetails';
 import React from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +38,8 @@ export default function ClassDetailScreen() {
     durationMin: string;
     thumbnail: string;
     instructorAvatar: string;
+    description?: string;
+    equipment?: string;
     is_free?: string;
     video_url?: string;
     videoUrl?: string;
@@ -90,8 +91,9 @@ export default function ClassDetailScreen() {
 
   const catColor = CATEGORY_COLORS[params.category || ''] || '#FFFFFF';
   const tags = params.tags ? params.tags.split(',').filter(Boolean) : [];
-  const description = CLASS_DESCRIPTIONS[params.id || ''] || 'Discover a premium workout experience designed to challenge your body and elevate your mind.';
-  const equipment = CLASS_EQUIPMENT[params.id || ''] || 'None (bodyweight)';
+  // Real row data only — sections with nothing behind them are omitted.
+  const description = (params.description || '').trim();
+  const equipment = (params.equipment || '').trim();
 
   // Check workout state for this class
   const isThisClassActive = activeSession?.isActive && activeSession.classInfo.id === params.id;
@@ -309,8 +311,8 @@ export default function ClassDetailScreen() {
             </View>
           )}
 
-          {/* Description */}
-          <Text style={s.description}>{description}</Text>
+          {/* Description — only when the class actually has one */}
+          {description ? <Text style={s.description}>{description}</Text> : null}
 
           {/* Class history card */}
           {takeCount > 0 && !isThisClassActive && (
@@ -330,12 +332,14 @@ export default function ClassDetailScreen() {
             </View>
           )}
 
-          {/* Divider */}
-          <View style={s.sectionDivider} />
-
-          {/* Equipment */}
-          <Text style={s.sectionTitle}>Equipment</Text>
-          <Text style={s.sectionBody}>{equipment}</Text>
+          {/* Equipment — only when the class actually lists any */}
+          {equipment ? (
+            <>
+              <View style={s.sectionDivider} />
+              <Text style={s.sectionTitle}>Equipment</Text>
+              <Text style={s.sectionBody}>{equipment}</Text>
+            </>
+          ) : null}
 
           {/* Divider */}
           <View style={s.sectionDivider} />
@@ -362,45 +366,6 @@ export default function ClassDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Divider */}
-          <View style={s.sectionDivider} />
-
-          {/* Related classes */}
-          <Text style={s.sectionTitle}>Related on-demand classes</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.relatedScroll} contentContainerStyle={s.relatedContent}>
-            {RELATED_CLASSES.map(rc => (
-              <TouchableOpacity
-                key={rc.id}
-                style={s.relatedCard}
-                activeOpacity={0.8}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({
-                    pathname: ClientRoute.classDetail as any,
-                    params: {
-                      id: rc.id,
-                      title: rc.title,
-                      category: params.category,
-                      durationMin: rc.duration,
-                      thumbnail: rc.image,
-                      instructor: params.instructor,
-                      level: params.level,
-                      tags: params.tags,
-                    },
-                  });
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`View related class: ${rc.title}, ${rc.duration}`}
-              >
-                <Image source={{ uri: rc.image }} style={s.relatedImage} cachePolicy="memory-disk" transition={200} accessibilityLabel={`${rc.title} class thumbnail`} />
-                <View style={s.relatedDuration}>
-                  <Text style={s.relatedDurationText}>{rc.duration}</Text>
-                </View>
-                <Text style={s.relatedTitle} numberOfLines={1}>{rc.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
 
           <View style={{ height: 60 }} />
         </View>
@@ -672,44 +637,6 @@ const s = StyleSheet.create({
     color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
     marginTop: 2,
-  },
-
-  // Related classes
-  relatedScroll: {
-    marginHorizontal: -20,
-  },
-  relatedContent: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  relatedCard: {
-    width: 170,
-  },
-  relatedImage: {
-    width: 170,
-    height: 120,
-    borderRadius: 12,
-    backgroundColor: CoachColors.surface,
-  },
-  relatedDuration: {
-    position: 'absolute',
-    bottom: 30,
-    left: 6,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  relatedDurationText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
-    color: CoachColors.textPrimary,
-  },
-  relatedTitle: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
-    color: CoachColors.textPrimary,
-    marginTop: 6,
   },
 
   // In-progress badge

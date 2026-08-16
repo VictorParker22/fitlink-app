@@ -24,13 +24,20 @@
  *    is never tagged missed, its date just carries the warning tint.
  * An evergreen pass is athlete-paced with no schedule to miss, so it gets
  * date = null and renders exactly as before.
+ *
+ * CLASS NODES: a class the coach placed in the week opens the athlete class
+ * detail — ClientRoute.classDetail, never the coach screen at /class/[id].
+ * Same preview-before-commit contract as a workout node: opening it shows the
+ * class, it never auto-plays and never advances track_position.
  */
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { ClientRoute } from '../../../types/routes';
 import { formatNodeDay } from '../../../lib/cohort';
 import type { TrackNode } from '../../../context/AppContext';
 import MuscleMap from '../../anatomy/MuscleMap';
@@ -71,6 +78,8 @@ type Props = {
   status: 'past' | 'current' | 'future';
   seasonCompleted: boolean;
   workoutById: (id?: string) => any;
+  /** Class row for a class node's id — resolved upstream in SeasonTrack. */
+  classById?: (id?: string) => any;
   /** Memoized whole-workout muscle aggregate — computed once per workout id upstream. */
   muscleInfoFor: (workoutRow: any) => WorkoutMuscleInfo | null;
   coachFirst: string;
@@ -92,6 +101,7 @@ export default function WeekSection({
   status,
   seasonCompleted,
   workoutById,
+  classById,
   muscleInfoFor,
   coachFirst,
   onOpenWorkout,
@@ -99,6 +109,7 @@ export default function WeekSection({
   reducedMotion,
   animationIndex,
 }: Props) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(status === 'current');
 
   const actionable = nodes.filter((n) => n.node.type !== 'milestone');
@@ -190,25 +201,91 @@ export default function WeekSection({
     }
 
     if (node.type === 'class') {
+      // Real row when the class resolved; the node's own label otherwise.
+      const cls = classById?.(node.id);
+      const className = cls?.title || node.label || 'Class session';
+      const classMeta: string[] = [];
+      if (cls?.duration_minutes) classMeta.push(`${cls.duration_minutes} min`);
+      if (cls?.category) classMeta.push(String(cls.category));
+      if (cls?.difficulty) classMeta.push(String(cls.difficulty));
+
+      // Same eyebrow grammar as the sibling workout cards.
+      const classWhen = [`Week ${week}`, 'Class', dayLabel].filter(Boolean).join(' · ');
+      const classSpoken = [`Week ${week}`, 'class', dayLabel].filter(Boolean).join(', ');
+
+      // View-only, always: opening the detail never starts playback and never
+      // advances track_position. Class completion is not wired to the track.
+      const canOpenClass = !!cls;
       return (
-        <View
+        <Pressable
           key={index}
-          style={[s.nodeRow, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
-          accessible={true}
-          accessibilityLabel={`Week ${week}, ${node.label || 'class session'}${done ? ', done' : ''}`}
+          style={[s.nodeCard, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
+          onPress={() => {
+            if (!canOpenClass) return;
+            tap();
+            router.push({
+              pathname: ClientRoute.classDetail,
+              params: {
+                id: cls.id,
+                title: cls.title || '',
+                category: cls.category || '',
+                level: cls.difficulty || '',
+                durationMin: cls.duration_minutes != null ? String(cls.duration_minutes) : '',
+                thumbnail: cls.thumbnail_url || '',
+                description: cls.description || '',
+                equipment: Array.isArray(cls.equipment) ? cls.equipment.join(', ') : '',
+                video_url: cls.video_url || '',
+                // class-detail gates its paywall on this exact string.
+                is_free: cls.is_free ? 'true' : 'false',
+                instructor: coachFirst,
+              },
+            });
+          }}
+          disabled={!canOpenClass}
+          accessibilityRole="button"
+          accessibilityLabel={`${classSpoken}, ${className}, ${done ? 'done' : isMissed ? 'missed' : isToday ? 'today' : 'ahead on your plan'}${classMeta.length > 0 ? `, ${classMeta.join(', ')}` : ''}${canOpenClass ? '. Double tap to open the class' : ''}`}
+          accessibilityHint={canOpenClass ? 'Opens the class. Nothing plays until you start it there' : undefined}
         >
           <View style={[s.nodeIconWrap, done && s.nodeIconWrapDone]}>
-            <Ionicons name={done ? 'checkmark' : 'people-outline'} size={15} color={done ? C.accent : C.textFaint} />
+            <Ionicons
+              name={done ? 'checkmark' : 'videocam-outline'}
+              size={15}
+              color={done ? C.accent : isCurrent ? C.accent : C.textFaint}
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.nodeName}>{node.label || 'Class session'}</Text>
-            <Text style={s.nodeSub}>
-              {[dayLabel, done ? 'Done' : 'A class your coach put on the plan']
-                .filter(Boolean)
-                .join(' · ')}
+            <View style={s.whenRow}>
+              <Text
+                style={[
+                  s.whenText,
+                  isToday && !done && s.whenTextToday,
+                  isMissed && s.whenTextLate,
+                ]}
+              >
+                {classWhen}
+              </Text>
+              {done && (
+                <View style={s.doneChip}>
+                  <Text style={s.doneChipText}>Done</Text>
+                </View>
+              )}
+              {!done && isMissed && (
+                <View style={s.missedChip}>
+                  <Text style={s.missedChipText}>Missed</Text>
+                </View>
+              )}
+            </View>
+            <Text style={s.nodeName} numberOfLines={1}>
+              {className}
             </Text>
+            {classMeta.length > 0 ? (
+              <Text style={s.nodeSub}>{classMeta.join(' · ')}</Text>
+            ) : (
+              <Text style={s.nodeSub}>A class your coach put on the plan</Text>
+            )}
           </View>
-        </View>
+          {canOpenClass && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
+        </Pressable>
       );
     }
 

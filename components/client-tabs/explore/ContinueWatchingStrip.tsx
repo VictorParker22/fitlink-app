@@ -1,168 +1,177 @@
+/**
+ * ContinueWatchingStrip — the Library's "Continue" section.
+ *
+ * Source is unchanged: the real local session history in WorkoutContext. Only
+ * classes the athlete actually started and did not finish appear — a finished
+ * class is a receipt, not something to resume. Renders nothing at all when
+ * there is nothing to continue, so the Library never shows an empty chapter.
+ *
+ * Card anatomy matches the rest of the Train column (eyebrow → name → meta →
+ * thumbnail), with the real percentage watched on the eyebrow line.
+ */
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useWorkout } from '../../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 
+const C = CoachColors;
+const F = CoachFonts;
+
+/** Local twin of workouts.tsx SectionHead — see ExploreDashboard for why. */
+function SectionHead({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <View style={s.sectionHead}>
+      <Text style={s.sectionHeadLabel}>{label}</Text>
+      {sub ? <Text style={s.sectionHeadSub}>{sub}</Text> : null}
+    </View>
+  );
+}
+
 export function ContinueWatchingStrip() {
   const router = useRouter();
   const { workoutHistory } = useWorkout();
 
-  // Deduplicate and separate into in-progress and completed
-  const inProgressMap = new Map();
-  const completedMap = new Map();
+  // Most recent unfinished attempt per class, newest first.
+  const inProgress = React.useMemo(() => {
+    const byClass = new Map<string, any>();
+    [...workoutHistory]
+      .filter((e) => !e.completed && e.classId)
+      .sort((a, b) => b.completedAt - a.completedAt)
+      .forEach((e) => {
+        if (!byClass.has(e.classId)) byClass.set(e.classId, e);
+      });
+    return Array.from(byClass.values()).slice(0, 6);
+  }, [workoutHistory]);
 
-  workoutHistory.forEach(entry => {
-    if (entry.completed) {
-      if (!completedMap.has(entry.classId)) completedMap.set(entry.classId, entry);
-    } else {
-      if (!inProgressMap.has(entry.classId)) inProgressMap.set(entry.classId, entry);
-    }
-  });
-
-  const inProgress = Array.from(inProgressMap.values()).slice(0, 5);
-  const completed = Array.from(completedMap.values()).slice(0, 5);
-
-  const combined = [...inProgress, ...completed].slice(0, 5);
-
-  if (combined.length === 0) return null;
+  if (inProgress.length === 0) return null;
 
   const renderItem = ({ item }: { item: any }) => {
-    const isCompleted = item.completed;
-    const progressPercent = item.targetDurationSec > 0
-      ? Math.min(100, (item.durationSec / item.targetDurationSec) * 100)
-      : 0;
+    const pct =
+      item.targetDurationSec > 0
+        ? Math.max(1, Math.min(99, Math.round((item.durationSec / item.targetDurationSec) * 100)))
+        : null;
+    const minutes = Math.max(1, Math.round((item.durationSec || 0) / 60));
+    const meta = [`${minutes} min in`, item.category].filter(Boolean).join(' · ');
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.8}
+      <Pressable
+        style={s.card}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push({ pathname: ClientRoute.classDetail, params: { id: item.classId, title: item.classTitle, category: item.category, thumbnail: item.thumbnail } } as any);
+          router.push({
+            pathname: ClientRoute.classDetail,
+            params: {
+              id: item.classId,
+              title: item.classTitle,
+              category: item.category,
+              thumbnail: item.thumbnail,
+            },
+          } as any);
         }}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.classTitle}${pct != null ? `, ${pct} percent watched` : ''}, ${minutes} minutes in. Double tap to open the class`}
       >
-        <View style={styles.topLine} />
-        <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-        <View style={styles.overlay}>
-          <Text style={styles.title} numberOfLines={2}>{item.classTitle}</Text>
-
-          {isCompleted ? (
-            <View style={styles.completedBadge}>
-              <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
-            </View>
-          ) : (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBg}>
-                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-              </View>
-              <Ionicons name="play-circle" size={24} color={CoachColors.textPrimary} style={styles.playIcon} />
+        {item.thumbnail ? (
+          <Image
+            source={{ uri: item.thumbnail }}
+            style={s.thumb}
+            cachePolicy="memory-disk"
+            transition={160}
+          />
+        ) : null}
+        <View style={s.cardBody}>
+          {pct != null && <Text style={s.eyebrow}>{pct}% watched</Text>}
+          <Text style={s.name} numberOfLines={2}>
+            {item.classTitle}
+          </Text>
+          <Text style={s.meta} numberOfLines={1}>
+            {meta}
+          </Text>
+          {pct != null && (
+            <View style={s.progressBg}>
+              <View style={[s.progressFill, { width: `${pct}%` }]} />
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.tag}>Resume // your classes</Text>
-        <Text style={styles.sectionTitle}>Continue watching</Text>
-      </View>
+    <View>
+      <SectionHead label="Continue" sub="Classes you started and have not finished." />
       <FlatList
-        data={combined}
-        keyExtractor={item => item.id}
+        data={inProgress}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        style={s.list}
+        contentContainerStyle={s.listContent}
+        accessibilityLabel="Classes you have not finished"
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 20,
-  },
-  header: {
-    paddingHorizontal: 16,
+const s = StyleSheet.create({
+  sectionHead: {
+    borderTopWidth: 1,
+    borderTopColor: C.borderMuted,
+    marginTop: 30,
+    paddingTop: 18,
     marginBottom: 12,
   },
-  tag: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 2,
-    color: CoachColors.textMuted,
+  sectionHeadLabel: {
+    fontFamily: F.bodyBold,
+    fontSize: 11,
+    color: C.textFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  sectionHeadSub: {
+    fontFamily: F.body,
+    fontSize: 12,
+    color: C.textMuted,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+
+  // Negative margin lets the row bleed to the screen edge inside the
+  // Library's 20pt gutter without the cards losing their alignment.
+  list: { marginHorizontal: -20 },
+  listContent: { paddingHorizontal: 20, gap: 10 },
+
+  card: {
+    width: 220,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  thumb: { width: '100%', height: 96, backgroundColor: C.borderMuted },
+  cardBody: { paddingVertical: 12, paddingHorizontal: 13 },
+  eyebrow: {
+    fontFamily: F.bodyBold,
+    fontSize: 10,
+    color: C.accent,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  sectionTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
-    color: CoachColors.textPrimary,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  card: {
-    width: 200,
-    height: 130,
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  topLine: {
-    height: 4,
-    width: '100%',
-    zIndex: 2,
-    backgroundColor: CoachColors.accent,
-  },
-  thumbnail: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.5,
-  },
-  overlay: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
-    color: CoachColors.textPrimary,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  name: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
+  meta: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
   progressBg: {
-    flex: 1,
     height: 3,
-    backgroundColor: CoachColors.borderMuted,
     borderRadius: 1.5,
+    backgroundColor: C.borderMuted,
+    marginTop: 10,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: CoachColors.accent,
-  },
-  playIcon: {
-    opacity: 0.8,
-  },
-  completedBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-    padding: 2,
-  },
+  progressFill: { height: '100%', backgroundColor: C.accent },
 });
