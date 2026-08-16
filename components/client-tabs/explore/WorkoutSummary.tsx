@@ -58,33 +58,40 @@ export default function WorkoutSummary({
   return (
     <View style={s.container}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Trophy icon */}
-        <View style={s.trophyCard}>
+        {/* Trophy icon — purely decorative, the heading below says the same */}
+        <View style={s.trophyCard} importantForAccessibility="no" accessibilityElementsHidden>
           <Ionicons name="trophy" size={40} color={CoachColors.accent} />
         </View>
 
-        <Text style={s.tagHeader}>Session complete // performance review</Text>
-        <Text style={s.title}>Workout complete!</Text>
-        <Text style={s.workoutName}>{activeWorkout?.workouts?.name || 'Workout'}</Text>
+        <Text style={s.tagHeader} importantForAccessibility="no">Session complete // performance review</Text>
+        <View
+          accessible
+          accessibilityRole="header"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={`Workout complete. ${activeWorkout?.workouts?.name || 'Workout'}.`}
+        >
+          <Text style={s.title}>Workout complete!</Text>
+          <Text style={s.workoutName}>{activeWorkout?.workouts?.name || 'Workout'}</Text>
+        </View>
 
         {/* Stats Grid */}
         <View style={s.grid}>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`Duration, ${formatDuration(elapsedSeconds)}`}>
             <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{formatDuration(elapsedSeconds)}</Text>
             <Text style={s.statLabel}>Duration</Text>
           </View>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`${exercisesCompleted} exercises`}>
             <Ionicons name="barbell-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{exercisesCompleted}</Text>
             <Text style={s.statLabel}>Exercises</Text>
           </View>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`${totalSetsCompleted} sets done`}>
             <Ionicons name="layers-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>{totalSetsCompleted}</Text>
             <Text style={s.statLabel}>Sets done</Text>
           </View>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`Volume, ${totalVolume.toLocaleString()} pounds`}>
             <Ionicons name="trending-up-outline" size={18} color={CoachColors.accent} />
             <Text style={s.statValue}>
               {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume.toLocaleString()}
@@ -99,7 +106,7 @@ export default function WorkoutSummary({
           {exerciseStates.map((ex, i) => {
             const completedSets = ex.sets.filter((s) => s.completed).length;
             return (
-              <View key={i} style={s.exRow}>
+              <View key={i} style={s.exRow} accessible accessibilityLabel={`${ex.exerciseName}, ${completedSets} of ${ex.targetSets} sets`}>
                 <View style={[s.dot, { backgroundColor: completedSets > 0 ? CoachColors.accent : CoachColors.textFaint }]} />
                 <Text style={s.exName} numberOfLines={1}>{ex.exerciseName}</Text>
                 <Text style={s.exSets}>{completedSets}/{ex.targetSets} sets</Text>
@@ -109,12 +116,26 @@ export default function WorkoutSummary({
         </View>
 
         {/* Action Buttons */}
-        <TouchableOpacity style={s.finishBtn} onPress={onConfirmFinish} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.finishBtn}
+          onPress={onConfirmFinish}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Save and finish"
+          accessibilityHint="Saves this session to your history and closes the workout"
+        >
           <Ionicons name="checkmark-circle" size={18} color={CoachColors.onAccent} />
           <Text style={s.finishBtnText}>Save & finish →</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.continueBtn} onPress={onContinueWorkout} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.continueBtn}
+          onPress={onContinueWorkout}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Continue workout"
+          accessibilityHint="Goes back to the session without saving it yet"
+        >
           <Text style={s.continueBtnText}>Continue workout</Text>
         </TouchableOpacity>
 

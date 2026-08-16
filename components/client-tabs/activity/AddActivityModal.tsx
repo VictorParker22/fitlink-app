@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, SectionList } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, SectionList, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { FontSize, Spacing, Radius } from '../../../constants/theme';
@@ -136,10 +136,15 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   }, [searchQuery]);
 
   const renderForm = () => (
-    <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
+    <ScrollView
+      style={styles.formContainer}
+      contentContainerStyle={styles.formContent}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+    >
       <View style={styles.header}>
         <Text style={styles.tagHeader}>Log activity</Text>
-        <TouchableOpacity onPress={onClose}>
+        <TouchableOpacity hitSlop={12} onPress={onClose}>
           <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -161,6 +166,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         placeholderTextColor={CoachColors.textMuted}
         value={activityName}
         onChangeText={setActivityName}
+        returnKeyType="next"
         textAlign="center"
         onFocus={() => setIsNameFocused(true)}
         onBlur={() => setIsNameFocused(false)}
@@ -232,6 +238,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
           ]}
           placeholder="How was the workout?"
           placeholderTextColor={CoachColors.textMuted}
+          returnKeyType="default"
           multiline
           value={notes}
           onChangeText={setNotes}
@@ -283,7 +290,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         />
       </View>
 
-      <SectionList
+      <SectionList keyboardShouldPersistTaps="handled"
         sections={filteredTypes}
         keyExtractor={(item) => item.name}
         renderSectionHeader={({ section: { title } }) => (
@@ -313,13 +320,16 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.modalContent}>
           <View style={styles.grabBar} />
           {screen === 'form' ? renderForm() : renderPicker()}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

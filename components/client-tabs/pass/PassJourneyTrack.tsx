@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { TrackNode } from '../../../context/AppContext';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 interface PassJourneyTrackProps {
   trackNodes: TrackNode[];
@@ -26,9 +27,15 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(0.3)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: next-node highlight sits at full strength, no loop.
+    if (reduceMotion) {
+      pulseAnim.setValue(0.8);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 0.8,
@@ -41,8 +48,10 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [pulseAnim]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim, reduceMotion]);
 
   useEffect(() => {
     if (trackNodes.length > 0) {
@@ -50,11 +59,11 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
       if (nextUnlockIndex !== -1 && scrollViewRef.current) {
         // Approximate width of a node + spacing is 80px
         setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ x: Math.max(0, nextUnlockIndex * 80 - 100), animated: true });
+          scrollViewRef.current?.scrollTo({ x: Math.max(0, nextUnlockIndex * 80 - 100), animated: !reduceMotion });
         }, 500);
       }
     }
-  }, [trackNodes, currentLevel]);
+  }, [trackNodes, currentLevel, reduceMotion]);
 
   if (!trackNodes || trackNodes.length === 0) {
     return (

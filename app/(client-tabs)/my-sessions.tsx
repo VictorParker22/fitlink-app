@@ -24,7 +24,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -218,6 +218,7 @@ function EmptyState({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function MySessionsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clientData, trainer } = useClient();
 
@@ -335,7 +336,7 @@ export default function MySessionsScreen() {
       <View style={s.calendarWrap}>
         {/* Week nav */}
         <View style={s.weekNav}>
-          <TouchableOpacity onPress={() => shiftWeek(-1)} style={s.weekArrow}>
+          <TouchableOpacity hitSlop={6} onPress={() => shiftWeek(-1)} style={s.weekArrow}>
             <Ionicons name="chevron-back" size={16} color={CoachColors.textMuted} />
           </TouchableOpacity>
           <Text style={s.weekLabel}>
@@ -343,7 +344,7 @@ export default function MySessionsScreen() {
             {' – '}
             {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </Text>
-          <TouchableOpacity onPress={() => shiftWeek(1)} style={s.weekArrow}>
+          <TouchableOpacity hitSlop={6} onPress={() => shiftWeek(1)} style={s.weekArrow}>
             <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
           </TouchableOpacity>
         </View>
@@ -355,7 +356,7 @@ export default function MySessionsScreen() {
             const isToday = isSameDay(d, today);
             const count = sessionCountByDay[d.toDateString()] || 0;
             return (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                 key={i}
                 style={[s.dayCell, isSelected && s.dayCellSelected]}
                 onPress={() => {
@@ -422,7 +423,7 @@ export default function MySessionsScreen() {
             { key: 'history',  label: 'History',  count: pastSessions.length      },
           ] as const
         ).map(({ key, label, count }) => (
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={4}
             key={key}
             style={[s.tab, activeTab === key && s.tabActive]}
             onPress={() => {
@@ -450,7 +451,7 @@ export default function MySessionsScreen() {
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

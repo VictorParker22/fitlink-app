@@ -18,8 +18,12 @@ import type { CopilotAction, ActionPriority, ActionCategory } from '../../lib/co
 
 // ─── Priority config ──────────────────────────────────────────────────────────
 const PRIORITY: Record<ActionPriority, { color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  critical:    { color: CoachColors.danger,        bg: CoachColors.dangerSoft,   border: CoachColors.danger,      icon: 'alert-circle'      },
-  high:        { color: CoachColors.warning,       bg: CoachColors.warningSoft,  border: CoachColors.warning,     icon: 'warning'           },
+  // All five icons are outline: they render side by side in the same action
+  // list, where two filled glyphs among three outline ones read as a weight
+  // inconsistency rather than as added emphasis (the color already carries
+  // severity).
+  critical:    { color: CoachColors.danger,        bg: CoachColors.dangerSoft,   border: CoachColors.danger,      icon: 'alert-circle-outline' },
+  high:        { color: CoachColors.warning,       bg: CoachColors.warningSoft,  border: CoachColors.warning,     icon: 'warning-outline'   },
   medium:      { color: CoachColors.accent,        bg: CoachColors.accentSofter, border: CoachColors.accentSoft,  icon: 'time-outline'      },
   low:         { color: CoachColors.textSecondary, bg: CoachColors.surface,      border: CoachColors.borderMuted, icon: 'chatbubble-outline' },
   celebration: { color: CoachColors.accent,        bg: CoachColors.accentSoft,   border: CoachColors.accentSoft,  icon: 'flame-outline'     },
@@ -105,7 +109,7 @@ const ActionCard: React.FC<{
         </View>
 
         {/* CTA */}
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={[styles.ctaBtn, { borderColor: p.color }]}
           onPress={handleCta}
           activeOpacity={0.75}

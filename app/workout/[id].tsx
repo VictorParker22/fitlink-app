@@ -155,7 +155,7 @@ export default function WorkoutDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -270,7 +270,7 @@ export default function WorkoutDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
+          <TouchableOpacity hitSlop={4} onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.assignHeaderTitle}>Assign to client</Text>
@@ -289,14 +289,14 @@ export default function WorkoutDetailScreen() {
               selectionColor={CoachColors.accent}
             />
             {searchQuery !== '' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={20} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
           {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No clients found</Text>
@@ -342,34 +342,34 @@ export default function WorkoutDetailScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* Custom Header */}
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{workout.name}</Text>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity onPress={() => router.push(`/create-workout?editId=${workout.id}` as any)} style={styles.navBtn} accessibilityLabel="Edit">
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.push(`/create-workout?editId=${workout.id}` as any)} style={styles.navBtn} accessibilityLabel="Edit">
               <Ionicons name="pencil" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDuplicate} style={styles.navBtn} accessibilityLabel="Duplicate" disabled={duplicating}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDuplicate} style={styles.navBtn} accessibilityLabel="Duplicate" disabled={duplicating}>
               <Ionicons name="copy-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
               <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               onPress={() => { setIsFavorite(!isFavorite); }}
               style={styles.navBtn}
               accessibilityLabel="Favorite"
             >
               <Ionicons name={isFavorite ? "star" : "star-outline"} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={[styles.navBtn, { marginLeft: 4 }]} accessibilityLabel="Delete" disabled={deleting}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDelete} style={[styles.navBtn, { marginLeft: 4 }]} accessibilityLabel="Delete" disabled={deleting}>
               <Ionicons name="trash-outline" size={22} color={CoachColors.danger} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Description */}
           <View style={styles.descSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
@@ -550,7 +550,7 @@ export default function WorkoutDetailScreen() {
       >
         <View style={styles.videoModalOverlay}>
           <View style={styles.videoModalHeader}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={4}
               style={styles.videoCloseBtn}
               onPress={() => { setShowVideoModal(false); setVideoUrl(null); }}
             >
@@ -585,6 +585,7 @@ export default function WorkoutDetailScreen() {
         transparent
         animationType="fade"
         statusBarTranslucent
+        onRequestClose={() => setLoadingAudioId(null)}
       >
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
@@ -598,6 +599,17 @@ export default function WorkoutDetailScreen() {
               <View style={[styles.loadingDot, { opacity: 0.7 }]} />
               <View style={[styles.loadingDot, { opacity: 1 }]} />
             </View>
+            {/* A blocking overlay must never trap the user — if the request
+                stalls, this is the visible way back out. */}
+            <TouchableOpacity
+              onPress={() => setLoadingAudioId(null)}
+              hitSlop={12}
+              style={styles.loadingCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel voice generation"
+            >
+              <Text style={styles.loadingCancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1035,6 +1047,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
+  },
+  loadingCancel: {
+    marginTop: 18,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  loadingCancelText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14,
+    color: CoachColors.textSecondary,
+    textAlign: 'center',
   },
   loadingDots: {
     flexDirection: 'row',

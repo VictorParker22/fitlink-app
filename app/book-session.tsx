@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
@@ -114,9 +115,13 @@ export default function BookSessionScreen() {
     setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
 
   // Shake animation for the submit button on validation failure
+  const reduceMotion = useReducedMotion();
   const shakeX = useSharedValue(0);
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
   const triggerShake = () => {
+    // Reduce Motion: skip the shake. The inline field errors below are what
+    // actually communicate the failure, and they are announced regardless.
+    if (reduceMotion) return;
     shakeX.value = withSequence(
       withTiming(-8, { duration: 55 }),
       withTiming( 8, { duration: 55 }),
@@ -283,7 +288,7 @@ export default function BookSessionScreen() {
                 />
               </View>
               {!!errors.groupName && (
-                <View style={st.errorRow}>
+                <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
                   <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.groupName}</Text>
                 </View>
@@ -320,7 +325,7 @@ export default function BookSessionScreen() {
                     />
                   </View>
                   {!!errors.client && (
-                    <View style={st.errorRow}>
+                    <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
                       <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                       <Text style={st.errorText}>{errors.client}</Text>
                     </View>
@@ -332,7 +337,7 @@ export default function BookSessionScreen() {
                         <Text style={st.noClientsText}>No matching clients</Text>
                       </View>
                     ) : (
-                      <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                      <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 180 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                         {filteredClients.map((client, i) => (
                           <TouchableOpacity
                             key={client.id}
@@ -450,7 +455,7 @@ export default function BookSessionScreen() {
                 />
               </View>
               {!!errors.location && (
-                <View style={st.errorRow}>
+                <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
                   <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.location}</Text>
                 </View>
@@ -563,7 +568,7 @@ export default function BookSessionScreen() {
               <Text style={st.sheetDone}>Done</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
             <View style={st.timeGrid}>
               {HOURS.map((h) => (
                 <View key={h}>

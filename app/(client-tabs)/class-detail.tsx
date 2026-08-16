@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkout, ClassInfo } from '../../context/WorkoutContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +26,7 @@ const HERO_HEIGHT = 380;
 
 // ─── COMPONENT ───────────────────────────────────────────
 export default function ClassDetailScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{
     id: string;
@@ -198,7 +199,7 @@ export default function ClassDetailScreen() {
   return (
     <>
     <View style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 130 }]}>
 
         {/* ── HERO IMAGE ── */}
         <View style={s.heroWrap}>
@@ -211,14 +212,14 @@ export default function ClassDetailScreen() {
 
           {/* Overlay nav */}
           <SafeAreaView style={s.heroNav} edges={['top']}>
-            <TouchableOpacity onPress={() => router.push(ClientRoute.exploreClasses)} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to explore classes">
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.push(ClientRoute.exploreClasses)} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to explore classes">
               <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <View style={s.navRight}>
-              <TouchableOpacity onPress={handleShare} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share this class">
+              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleShare} style={s.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Share this class">
                 <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                 onPress={toggleFavorite}
                 style={s.navBtn}
                 activeOpacity={0.6}
@@ -298,7 +299,7 @@ export default function ClassDetailScreen() {
             <View style={s.premiumBanner}>
               <Ionicons name="lock-closed" size={16} color={CoachColors.warning} />
               <Text style={s.premiumText}>Requires On-Demand Pass</Text>
-              <TouchableOpacity style={s.premiumBtn} onPress={handleSubscribe} disabled={subscribing}>
+              <TouchableOpacity hitSlop={6} style={s.premiumBtn} onPress={handleSubscribe} disabled={subscribing}>
                 <Text style={s.premiumBtnText}>{subscribing ? 'Upgrading...' : 'Upgrade'}</Text>
               </TouchableOpacity>
             </View>
@@ -374,7 +375,6 @@ export default function ClassDetailScreen() {
             </View>
           </View>
 
-          <View style={{ height: 60 }} />
         </View>
       </ScrollView>
     </View>

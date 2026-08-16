@@ -5,7 +5,7 @@ import {
   Modal, Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -116,6 +116,7 @@ function toBullets(raw?: string | null): string[] {
 }
 
 export default function StrengthSessionScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId: string }>();
   const { workoutHistory, recordStrengthWorkout } = useWorkout();
@@ -687,7 +688,7 @@ export default function StrengthSessionScreen() {
     return (
       <View style={s.container}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          <TouchableOpacity onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={[s.center, { flex: 1, paddingBottom: 100 }]}>
@@ -725,7 +726,7 @@ export default function StrengthSessionScreen() {
           <View style={s.liveHeader}>
             <View style={s.liveHeaderTopRow}>
               <Text style={s.liveEyebrow}>Active workout</Text>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                 style={s.allExBtn}
                 onPress={() => { Haptics.selectionAsync(); setShowAllExercises(true); }}
                 activeOpacity={0.7}
@@ -856,7 +857,7 @@ export default function StrengthSessionScreen() {
                       (tapped, prefilled to a repeat, or typed by hand). */}
                   {curSetIdx === 0 && suggestion
                     && parseFloat(weightStr) !== suggestion.suggestedWeight && (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
                       style={s.suggestChip}
                       onPress={applySuggestion}
                       activeOpacity={0.8}
@@ -899,16 +900,16 @@ export default function StrengthSessionScreen() {
                   </View>
 
                   <View style={s.stepRow}>
-                    <TouchableOpacity style={s.stepBtn} onPress={() => bumpWeight(-2.5)} accessibilityRole="button" accessibilityLabel="Minus 2.5 kilograms">
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(-2.5)} accessibilityRole="button" accessibilityLabel="Minus 2.5 kilograms">
                       <Text style={s.stepBtnText}>−2.5</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.stepBtn} onPress={() => bumpWeight(2.5)} accessibilityRole="button" accessibilityLabel="Plus 2.5 kilograms">
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(2.5)} accessibilityRole="button" accessibilityLabel="Plus 2.5 kilograms">
                       <Text style={s.stepBtnText}>+2.5</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.stepBtn} onPress={() => bumpReps(-1)} accessibilityRole="button" accessibilityLabel="Minus one rep">
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpReps(-1)} accessibilityRole="button" accessibilityLabel="Minus one rep">
                       <Text style={s.stepBtnText}>−1 rep</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.stepBtn} onPress={() => bumpReps(1)} accessibilityRole="button" accessibilityLabel="Plus one rep">
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpReps(1)} accessibilityRole="button" accessibilityLabel="Plus one rep">
                       <Text style={s.stepBtnText}>+1 rep</Text>
                     </TouchableOpacity>
                   </View>
@@ -919,7 +920,7 @@ export default function StrengthSessionScreen() {
                       {FEELS.map(f => {
                         const active = feel === f.key;
                         return (
-                          <TouchableOpacity
+                          <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                             key={f.key}
                             style={[s.feelChip, active && s.feelChipActive]}
                             onPress={() => pickFeel(f.key)}
@@ -991,7 +992,7 @@ export default function StrengthSessionScreen() {
                   const isDone = done >= ex.sets;
                   const isCurrent = i === exIdx;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
                       key={ex.key}
                       style={[s.railPill, isDone && s.railPillDone, isCurrent && s.railPillCurrent]}
                       onPress={() => goToExercise(i)}
@@ -1010,7 +1011,7 @@ export default function StrengthSessionScreen() {
             </View>
 
             {/* Prev / Next */}
-            <View style={s.navBar}>
+            <View style={[s.navBar, { paddingBottom: insets.bottom + 70 }]}>
               <TouchableOpacity
                 style={[s.prevBtn, exIdx === 0 && s.prevBtnDisabled]}
                 onPress={() => goToExercise(exIdx - 1)}
@@ -1061,7 +1062,7 @@ export default function StrengthSessionScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
               <View style={s.modalHeader}>
                 <Text style={s.modalTitle} accessibilityRole="header">All exercises</Text>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                   onPress={() => setShowAllExercises(false)}
                   style={s.modalClose}
                   accessibilityRole="button"
@@ -1070,7 +1071,7 @@ export default function StrengthSessionScreen() {
                   <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
               </View>
-              <ScrollView
+              <ScrollView keyboardShouldPersistTaps="handled"
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32 }}
                 showsVerticalScrollIndicator={false}
@@ -1129,11 +1130,11 @@ export default function StrengthSessionScreen() {
     <View style={s.container}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <TouchableOpacity onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back to workouts">
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back to workouts">
           <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           <Text style={s.overviewEyebrow}>Strength session</Text>
           <Text style={s.overviewTitle} accessibilityRole="header">{session.name || 'Workout'}</Text>
           <Text style={s.overviewMeta}>{overviewMetaParts.join(' · ')}</Text>
@@ -1170,7 +1171,7 @@ export default function StrengthSessionScreen() {
           </View>
         </ScrollView>
 
-        <View style={s.overviewFooter}>
+        <View style={[s.overviewFooter, { paddingBottom: insets.bottom + 70 }]}>
           <TouchableOpacity
             style={[s.startBtn, exercises.length === 0 && { opacity: 0.5 }]}
             onPress={startLive}

@@ -37,8 +37,9 @@ const FEATURES = [
   { icon: 'nutrition-outline',  text: 'Personalised nutrition plans' },
   { icon: 'heart-outline',      text: 'Apple Health and Google Fit sync' },
   { icon: 'chatbubble-outline', text: 'Direct messaging with your coach' },
-  { icon: 'trending-up',        text: 'Progress tracking and analytics' },
-  { icon: 'checkmark-circle',   text: 'Daily habit tracker and streaks' },
+  // Outline like the rest of the list — these two were the only filled glyphs.
+  { icon: 'trending-up-outline',      text: 'Progress tracking and analytics' },
+  { icon: 'checkmark-circle-outline', text: 'Daily habit tracker and streaks' },
   { icon: 'calendar-outline',   text: 'Session booking and scheduling' },
 ];
 
@@ -112,7 +113,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
       <View style={s.container}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity style={s.closeBtn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close paywall">
+          <TouchableOpacity hitSlop={6} style={s.closeBtn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close paywall">
             <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -215,7 +216,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
                 the current period. Manage in your device Settings.
               </Text>
 
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                 style={s.restoreBtn}
                 onPress={handleRestore}
                 disabled={restoring}

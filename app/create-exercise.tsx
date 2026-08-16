@@ -238,7 +238,7 @@ export default function CreateExerciseScreen() {
 
           {/* Header */}
           <View style={s.header}>
-            <TouchableOpacity onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
+            <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
               <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.headerTitle}>{editId ? 'Edit exercise' : 'New exercise'}</Text>
@@ -259,7 +259,7 @@ export default function CreateExerciseScreen() {
                   autoCapitalize="words"
                   selectionColor={CoachColors.accent}
                 />
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                   style={[s.autoFillBtn, (!name.trim() || generating) && s.autoFillBtnDisabled]}
                   onPress={() => handleGenerateAI()}
                   disabled={!name.trim() || generating}
@@ -288,7 +288,7 @@ export default function CreateExerciseScreen() {
             <Section label="Category">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={cat}
                     style={[s.chip, category === cat && s.chipActive]}
                     onPress={() => setCategory(cat)}
@@ -304,7 +304,7 @@ export default function CreateExerciseScreen() {
             <Section label="Target muscle">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {MUSCLE_GROUPS.map((mg) => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={mg}
                     style={[s.chip, muscleGroup === mg && s.chipActive]}
                     onPress={() => setMuscleGroup(mg)}
@@ -320,7 +320,7 @@ export default function CreateExerciseScreen() {
             <Section label="Equipment">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
                 {EQUIPMENT_OPTIONS.map((eq) => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={eq}
                     style={[s.chip, equipment === eq && s.chipActive]}
                     onPress={() => setEquipment(eq)}

@@ -49,7 +49,7 @@ export default function TrainerClassDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -122,22 +122,22 @@ export default function TrainerClassDetailScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* Custom Header Row */}
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{classItem.title}</Text>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               onPress={() => router.push(`/create-class?editId=${classItem.id}` as any)}
               style={styles.navBtn}
               accessibilityLabel="Edit"
             >
               <Ionicons name="pencil" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
               <Ionicons name="share-outline" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={styles.navBtn} accessibilityLabel="Delete" disabled={deleting}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDelete} style={styles.navBtn} accessibilityLabel="Delete" disabled={deleting}>
               <Ionicons name="trash-outline" size={20} color={CoachColors.danger} />
             </TouchableOpacity>
           </View>
@@ -169,7 +169,7 @@ export default function TrainerClassDetailScreen() {
               <View style={styles.placeholderMedia}>
                 <Ionicons name="videocam-outline" size={48} color={CoachColors.textFaint} />
                 {isExternalVideo && (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                     style={styles.externalLinkBtn}
                     onPress={() => Linking.openURL(classItem.video_url!)}
                   >

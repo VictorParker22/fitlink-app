@@ -99,6 +99,15 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function ClientDetailScreen() {
   const { id }      = useLocalSearchParams<{ id: string }>();
   const router      = useRouter();
+
+  /**
+   * Never navigate while a native Modal is still on screen — the documented
+   * iOS freeze in this codebase. Callers dismiss the sheet first; this waits
+   * for the dismissal animation to land before pushing.
+   */
+  const dismissThenGo = (route: string) => {
+    setTimeout(() => router.push(route as any), 300);
+  };
   const { showAlert } = useAlert();
   const reduced     = useReducedMotion();
   const {
@@ -485,7 +494,7 @@ export default function ClientDetailScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
           <Ionicons name="person-outline" size={52} color={CoachColors.border} />
           <Text style={s.emptyStateTitle}>Client not found</Text>
-          <TouchableOpacity style={s.outlineBtn} onPress={() => router.back()}>
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.outlineBtn} onPress={() => router.back()}>
             <Text style={s.outlineBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -522,7 +531,7 @@ export default function ClientDetailScreen() {
             <View style={[s.trialFill, { width: `${pct * 100}%` as any, backgroundColor: isExp ? CoachColors.danger : daysLeft <= 5 ? CoachColors.warning : CoachColors.accent }]} />
           </View>
         </View>
-        <TouchableOpacity style={s.trialUpgradeBtn} onPress={() => setShowUpgradeModal(true)} accessibilityRole="button" accessibilityLabel="Upgrade from trial">
+        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.trialUpgradeBtn} onPress={() => setShowUpgradeModal(true)} accessibilityRole="button" accessibilityLabel="Upgrade from trial">
           <Text style={s.trialUpgradeText}>Upgrade</Text>
         </TouchableOpacity>
       </View>
@@ -534,7 +543,7 @@ export default function ClientDetailScreen() {
           <Text style={[s.trialTitle, { color: CoachColors.danger }]}>Gone quiet</Text>
           <Text style={s.quietSub}>Low session activity in the last 30 days</Text>
         </View>
-        <TouchableOpacity style={s.quietNudgeBtn} onPress={startConversation} accessibilityRole="button" accessibilityLabel="Send a nudge message">
+        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.quietNudgeBtn} onPress={startConversation} accessibilityRole="button" accessibilityLabel="Send a nudge message">
           <Text style={s.quietNudgeText}>Nudge</Text>
         </TouchableOpacity>
       </View>
@@ -557,7 +566,7 @@ export default function ClientDetailScreen() {
         </View>
       </SafeAreaView>
 
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ══════════════ HERO ══════════════ */}
         <Animated.View entering={reduced ? undefined : FadeIn.duration(400)} style={s.hero}>
@@ -646,7 +655,7 @@ export default function ClientDetailScreen() {
           {TABS.map((tab, i) => {
             const isActive = activeTab === tab.key;
             return (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                 key={tab.key}
                 style={[s.tabItem, { width: TAB_W }]}
                 onPress={() => handleTabChange(tab.key, i)}
@@ -686,7 +695,7 @@ export default function ClientDetailScreen() {
                     <TouchableOpacity onPress={() => setEditingNotes(false)}>
                       <Text style={s.notesCancelText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.notesSaveBtn} onPress={saveNotes} disabled={notesSaving}>
+                    <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.notesSaveBtn} onPress={saveNotes} disabled={notesSaving}>
                       <Text style={s.notesSaveBtnText}>{notesSaving ? 'Saving…' : 'Save'}</Text>
                     </TouchableOpacity>
                   </View>
@@ -1280,7 +1289,7 @@ export default function ClientDetailScreen() {
             {progressLogs.length === 0 ? (
               <View style={s.emptyBlock}>
                 <Text style={s.emptyBlockTitle}>No check-ins yet</Text>
-                <TouchableOpacity style={s.emptyBlockBtn} onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
+                <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.emptyBlockBtn} onPress={() => router.push(`/client/${client.id}/log-progress` as any)}>
                   <Text style={s.emptyBlockBtnText}>Log First Check-In</Text>
                 </TouchableOpacity>
               </View>
@@ -1366,14 +1375,14 @@ export default function ClientDetailScreen() {
             </Text>
             <View style={{ width: 24 }} />
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12 }}>
             {assignMode === 'enroll' && (
               <>
                 <Text style={s.modalHint}>Select a program to enroll {client.name}.</Text>
                 {plans.length === 0 ? (
                   <View style={s.emptyBlock}>
                     <Text style={s.emptyBlockTitle}>No programs yet</Text>
-                    <TouchableOpacity style={s.emptyBlockBtn} onPress={() => { setAssignMode(null); router.push('/create-plan' as any); }}>
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.emptyBlockBtn} onPress={() => { setAssignMode(null); dismissThenGo('/create-plan'); }}>
                       <Text style={s.emptyBlockBtnText}>Create Program</Text>
                     </TouchableOpacity>
                   </View>
@@ -1419,7 +1428,7 @@ export default function ClientDetailScreen() {
             )}
             {(assignMode === 'workout' || assignMode === 'diet') && (
               <>
-                <TouchableOpacity style={s.quickAddBtn} onPress={() => { const m=assignMode; setAssignMode(null); router.push(m==='workout'?'/create-workout':'/create-diet' as any); }} activeOpacity={0.8}>
+                <TouchableOpacity style={s.quickAddBtn} onPress={() => { const m=assignMode; setAssignMode(null); dismissThenGo(m==='workout'?'/create-workout':'/create-diet'); }} activeOpacity={0.8}>
                   <Ionicons name="add" size={18} color={CoachColors.accent} />
                   <Text style={s.quickAddBtnText}>Create new {assignMode==='workout'?'workout':'diet plan'}</Text>
                 </TouchableOpacity>
@@ -1458,12 +1467,12 @@ export default function ClientDetailScreen() {
             <Text style={s.modalNavTitle}>Choose a Plan</Text>
             <View style={{ width: 24 }} />
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12 }}>
             <Text style={s.modalHint}>Upgrade {client.name} from trial to a full membership.</Text>
             {plans.length === 0 ? (
               <View style={s.emptyBlock}>
                 <Text style={s.emptyBlockTitle}>No plans yet</Text>
-                <TouchableOpacity style={s.emptyBlockBtn} onPress={() => { setShowUpgradeModal(false); router.push('/create-plan' as any); }}>
+                <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.emptyBlockBtn} onPress={() => { setShowUpgradeModal(false); dismissThenGo('/create-plan'); }}>
                   <Text style={s.emptyBlockBtnText}>Create Plan</Text>
                 </TouchableOpacity>
               </View>
@@ -1578,7 +1587,7 @@ export default function ClientDetailScreen() {
                     <Text style={s.cqFieldLabel}>Answer type</Text>
                     <View style={s.cqTypeRow}>
                       {Q_TYPES.map((t) => (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           key={t.key}
                           style={[s.cqTypeChip, qType === t.key && s.cqTypeChipActive]}
                           onPress={() => setQType(t.key)}
@@ -1687,8 +1696,10 @@ const s = StyleSheet.create({
   actionPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
   actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.borderMuted, borderRadius: 14, paddingVertical: 14 },
   actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
-  unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textPrimary },
+  // minHeight so the unread count is not clipped at large Dynamic Type sizes.
+  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, minHeight: 18, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
+  // onAccent (dark ink) on the solid danger fill: 5.75:1. textPrimary was 2.82:1.
+  unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.onAccent },
 
   // ICON TRAY
   iconTray:      { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 6 },
@@ -1768,8 +1779,10 @@ const s = StyleSheet.create({
   // MESSAGE ROW
   messageRow:      { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   messageAvatarWrap: { position: 'relative' },
-  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
-  msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textPrimary },
+  // minHeight so the unread count is not clipped at large Dynamic Type sizes.
+  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, minHeight: 17, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
+  // onAccent on the solid danger fill — see unreadDotText.
+  msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.onAccent },
   messageText:     { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textPrimary },
   messageTime:     { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
   messageEmpty:    { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textFaint, fontStyle: 'italic' },

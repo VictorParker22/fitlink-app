@@ -188,7 +188,7 @@ export default function PassVersionsScreen() {
   return (
     <View style={[st.container, { paddingTop: insets.top }]}>
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
+        <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.backBtn}>
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -245,7 +245,7 @@ export default function PassVersionsScreen() {
                   <Text style={st.honestyLine}>
                     {h.client!.name} is {w} week{w === 1 ? '' : 's'} in and paid for this shape of season. Moving them early is your call, not the app's.
                   </Text>
-                  <TouchableOpacity style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy}>
+                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy}>
                     <Text style={st.askBtnText}>Ask {firstName} if they want v{currentVersionNumber}</Text>
                   </TouchableOpacity>
                 </View>

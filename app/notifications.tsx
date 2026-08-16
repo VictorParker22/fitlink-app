@@ -163,7 +163,7 @@ export default function NotificationsScreen() {
     <View style={[st.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>Notifications</Text>

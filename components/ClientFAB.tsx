@@ -28,6 +28,7 @@ import * as Haptics from 'expo-haptics';
 import { useClient } from '../context/ClientContext';
 import { useWorkout } from '../context/WorkoutContext';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,9 @@ interface QuickAction {
 
 export default function ClientFAB() {
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Reduce Motion: the quick-actions sheet appears/disappears without the
+  // spring slide — a plain fade keeps the state change legible.
+  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { todayWorkout, trainer } = useClient();
@@ -140,8 +144,8 @@ export default function ClientFAB() {
       >
         {/* Scrim */}
         <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
+          entering={reduceMotion ? undefined : FadeIn.duration(200)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(200)}
           style={s.scrim}
         >
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeSheet} activeOpacity={1} />
@@ -149,8 +153,8 @@ export default function ClientFAB() {
 
         {/* Sheet */}
         <Animated.View
-          entering={SlideInDown.springify().damping(24).stiffness(260)}
-          exiting={SlideOutDown.duration(220)}
+          entering={reduceMotion ? FadeIn.duration(120) : SlideInDown.springify().damping(24).stiffness(260)}
+          exiting={reduceMotion ? FadeOut.duration(120) : SlideOutDown.duration(220)}
           style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}
         >
           {/* Handle */}
@@ -159,7 +163,7 @@ export default function ClientFAB() {
           {/* Header */}
           <View style={s.sheetHeader}>
             <Text style={s.sheetTitle}>Quick actions</Text>
-            <TouchableOpacity style={s.closeBtn} onPress={closeSheet}>
+            <TouchableOpacity hitSlop={8} style={s.closeBtn} onPress={closeSheet}>
               <Ionicons name="close" size={18} color={CoachColors.textSecondary} />
             </TouchableOpacity>
           </View>

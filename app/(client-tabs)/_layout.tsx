@@ -92,7 +92,7 @@ function AthleteTabBar({ state, navigation }: any) {
           const showDot = tab.name === 'my-messages' && unreadFromCoach && !isFocused;
 
           return (
-            <Pressable
+            <Pressable hitSlop={{ top: 9, bottom: 9 }}
               key={route.key}
               onPress={() => handlePress(route.name, route.key)}
               style={styles.tabButton}
@@ -109,7 +109,14 @@ function AthleteTabBar({ state, navigation }: any) {
                 />
                 {showDot && <View style={styles.dot} />}
               </View>
-              <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+              {/* Dynamic Type: tab labels share a fixed-width fifth of the bar,
+                  so they shrink to fit rather than wrap the whole bar taller. */}
+              <Text
+                style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {tab.label}
               </Text>
             </Pressable>

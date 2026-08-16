@@ -246,8 +246,9 @@ const styles = StyleSheet.create({
   },
 
   avatarChip: {
-    width: 26,
-    height: 26,
+    // minWidth/minHeight: holds the scalable two-letter initials.
+    minWidth: 26,
+    minHeight: 26,
     borderRadius: 8,
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',

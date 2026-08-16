@@ -67,11 +67,11 @@ export default function CertificationsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Certifications</Text>
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save certifications">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save certifications">
             <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
@@ -82,7 +82,7 @@ export default function CertificationsScreen() {
           {certs.length > 0 ? (
             <View style={s.chipGrid}>
               {certs.map((cert) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   key={cert}
                   style={s.chipSelected}
                   onPress={() => removeCert(cert)}
@@ -130,7 +130,7 @@ export default function CertificationsScreen() {
           <Text style={s.sectionLabel}>Common certifications</Text>
           <View style={s.chipGrid}>
             {PRESET_CERTS.filter((c) => !certs.includes(c)).map((cert) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                 key={cert}
                 style={s.chip}
                 onPress={() => addCert(cert)}

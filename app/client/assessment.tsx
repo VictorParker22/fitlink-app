@@ -266,7 +266,7 @@ function WheelPicker({ min, max, value, onChange }: { min: number, max: number, 
 
   return (
     <View style={styles.wheelContainer}>
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         bounces={false}
@@ -437,7 +437,7 @@ function TagsPicker({ question, value, onChange }: any) {
       <View style={styles.tagsInputBox}>
         <View style={styles.tagsList}>
           {tags.map((tag: string) => (
-            <TouchableOpacity key={tag} style={styles.tagItem} onPress={() => handleRemoveTag(tag)}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} key={tag} style={styles.tagItem} onPress={() => handleRemoveTag(tag)}>
               <Text style={styles.tagText}>{tag}</Text>
             </TouchableOpacity>
           ))}
@@ -464,7 +464,7 @@ function TagsPicker({ question, value, onChange }: any) {
           <Text style={styles.suggestionsLabel}>Most common:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
              {question.suggestions.filter((s: string) => !tags.includes(s)).map((s: string) => (
-               <TouchableOpacity key={s} style={styles.suggestionItem} onPress={() => handleAddTag(s)}>
+               <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} key={s} style={styles.suggestionItem} onPress={() => handleAddTag(s)}>
                  <Text style={styles.suggestionText}>{s}</Text>
                  <Ionicons name="add" size={14} color={CoachColors.accent} />
                </TouchableOpacity>
@@ -609,7 +609,7 @@ export default function AssessmentScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={2} onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Assessment</Text>
@@ -619,7 +619,7 @@ export default function AssessmentScreen() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.questionTitle}>{question.title}</Text>
         {(question as any).subtitle && (
           <Text style={styles.questionSubtitle}>{(question as any).subtitle}</Text>
@@ -632,7 +632,7 @@ export default function AssessmentScreen() {
               {Object.keys((question as any).config).map((u) => {
                 const isActive = currentAnswer.unit === u;
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                     key={u}
                     style={[styles.unitBtn, isActive && styles.unitBtnActive]}
                     onPress={() => {
@@ -756,7 +756,7 @@ export default function AssessmentScreen() {
                 {Object.keys((question as any).config).map((u) => {
                   const isActive = currentAnswer.unit === u;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                       key={u}
                       style={[styles.unitBtn, isActive && styles.unitBtnActive]}
                       onPress={() => {
@@ -892,7 +892,7 @@ export default function AssessmentScreen() {
               {(question as any).options.map((option: any) => {
                 const isSelected = (currentAnswer || []).includes(option.id);
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                     key={option.id}
                     style={[styles.cloudPill, isSelected && styles.cloudPillActive]}
                     onPress={() => handleSelect(option.id)}
@@ -911,7 +911,7 @@ export default function AssessmentScreen() {
                   {currentAnswer.map((id: string) => {
                     const opt = (question as any).options.find((o: any) => o.id === id);
                     return (
-                      <TouchableOpacity key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
+                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
                         <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
                         <Ionicons name="close" size={14} color={CoachColors.accent} />
                       </TouchableOpacity>
@@ -981,7 +981,7 @@ export default function AssessmentScreen() {
               }
 
               return (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                   key={option.id}
                   style={[styles.optionBtn, isSelected && styles.optionBtnActive]}
                   activeOpacity={0.7}

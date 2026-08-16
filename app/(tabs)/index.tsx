@@ -175,7 +175,7 @@ export default function CoachHomeScreen() {
       <View style={[emptyStyles.root, { paddingTop: insets.top }]}>
         <StatusBar style="light" />
         <ScrollView
-          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}
           showsVerticalScrollIndicator={false}
         >
           <View style={emptyStyles.header}>
@@ -294,14 +294,16 @@ export default function CoachHomeScreen() {
       <StatusBar style="light" />
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── HEADER ──────────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <View>
-            <Text style={styles.weekday}>{weekday}</Text>
-            <Text style={styles.monthDay}>{monthDay}</Text>
+            {/* Dynamic Type: the date is a tight single line sharing the header
+                row with the icon buttons — shrink to fit rather than wrap. */}
+            <Text style={styles.weekday} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{weekday}</Text>
+            <Text style={styles.monthDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{monthDay}</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -353,7 +355,7 @@ export default function CoachHomeScreen() {
             </Text>
             {nextSession.notes ? <Text style={styles.nextSub}>{nextSession.notes}</Text> : null}
             <View style={styles.nextActions}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
                 style={styles.joinBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push(`/session/${nextSession.id}` as any)}
@@ -363,7 +365,7 @@ export default function CoachHomeScreen() {
                 <Text style={styles.joinBtnText}>Join session</Text>
               </TouchableOpacity>
               {nextSession.client_id && (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
                   style={styles.planBtn}
                   activeOpacity={0.85}
                   onPress={() => router.push(`/client/${nextSession.client_id}` as any)}
@@ -562,7 +564,9 @@ const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -3, right: -3,
-    minWidth: 16, height: 16, borderRadius: 8,
+    // minHeight, not height: the count inside scales with Dynamic Type and
+    // would be clipped by a hard 16pt box at large text sizes.
+    minWidth: 16, minHeight: 16, borderRadius: 8,
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,

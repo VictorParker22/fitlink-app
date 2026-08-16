@@ -7,6 +7,7 @@ import { Radius, Spacing } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useHaptic } from '../hooks/useHaptic';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import * as Haptics from 'expo-haptics';
 
 // Chart palette: accent + neutral variants (single-accent design system)
@@ -37,6 +38,8 @@ function MacroDonut({ size, cals, protein, carbs, fat }: { size: number; cals: n
 export default function NutritionWidget() {
   const { diets, mealLogs, logMealEaten } = useClient();
   const [loggingId, setLoggingId] = useState<string | null>(null);
+  // Reduce Motion: the "up next" box appears without sliding up.
+  const reduceMotion = useReducedMotion();
 
   // Compute macros
   const globalMacros = useMemo(() => {
@@ -184,7 +187,7 @@ export default function NutritionWidget() {
         </View>
 
         {nextMealInfo ? (
-          <Animated.View entering={FadeInUp} exiting={FadeOut} style={st.nextMealBox}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp} exiting={reduceMotion ? undefined : FadeOut} style={st.nextMealBox}>
             <View style={st.nextMealLeft}>
               <Text style={st.nextMealLabel}>Up next</Text>
               <Text style={st.nextMealName}>{nextMealInfo.meal.meals.name}</Text>
@@ -192,7 +195,7 @@ export default function NutritionWidget() {
                 {nextMealInfo.meal.meals.calories} kcal · {nextMealInfo.meal.meals.protein}g protein
               </Text>
             </View>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               activeOpacity={0.8}
               onPress={handleLogMeal}
               style={st.logBtn}
@@ -210,13 +213,13 @@ export default function NutritionWidget() {
           </Animated.View>
         ) : hasLoggedAnything ? (
           // All meals logged AND there were real calories — genuine completion
-          <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
             <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
             <Text style={[st.nextMealName, { marginLeft: 0 }]}>All meals logged today</Text>
           </Animated.View>
         ) : (
           // nextMealInfo is null but 0 cals — edge case: plan exists, meals have no data
-          <Animated.View entering={FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
             <Ionicons name="information-circle-outline" size={20} color={CoachColors.textMuted} />
             <Text style={[st.nextMealName, { color: CoachColors.textMuted, fontSize: 13 }]}>Add meals to your plan to track progress</Text>
           </Animated.View>

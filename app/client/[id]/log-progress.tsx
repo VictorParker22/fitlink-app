@@ -121,7 +121,7 @@ export default function LogProgressScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: CoachColors.bg }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Close">
+        <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: CoachColors.textPrimary }]}>Log progress</Text>
@@ -147,10 +147,10 @@ export default function LogProgressScreen() {
             <View style={styles.inputHeader}>
               <Text style={[styles.inputLabel, { color: CoachColors.textPrimary }]}>Weight</Text>
               <View style={styles.unitToggle}>
-                <TouchableOpacity onPress={() => setUnit('lbs')} style={[styles.unitBtn, unit === 'lbs' && { backgroundColor: ACCENT }]}>
+                <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setUnit('lbs')} style={[styles.unitBtn, unit === 'lbs' && { backgroundColor: ACCENT }]}>
                   <Text style={[styles.unitText, unit === 'lbs' ? { color: CoachColors.onAccent } : { color: CoachColors.textMuted }]}>lbs</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setUnit('kg')} style={[styles.unitBtn, unit === 'kg' && { backgroundColor: ACCENT }]}>
+                <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setUnit('kg')} style={[styles.unitBtn, unit === 'kg' && { backgroundColor: ACCENT }]}>
                   <Text style={[styles.unitText, unit === 'kg' ? { color: CoachColors.onAccent } : { color: CoachColors.textMuted }]}>kg</Text>
                 </TouchableOpacity>
               </View>
@@ -179,7 +179,7 @@ export default function LogProgressScreen() {
           </View>
 
           {/* Measurements Toggle */}
-          <TouchableOpacity 
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
             style={[styles.measurementsToggle, { backgroundColor: CoachColors.surface }]} 
             onPress={() => setShowMeasurements(!showMeasurements)}
             activeOpacity={0.7}

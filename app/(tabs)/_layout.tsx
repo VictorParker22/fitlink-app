@@ -216,7 +216,14 @@ function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, reduce
       </Animated.View>
 
       {/* Micro-label — fades out when active (icon lifts to show it is selected) */}
-      <Animated.Text style={[styles.tabLabel, labelStyle]}>
+      {/* Dynamic Type: the pill bar is a fixed height, so the micro-label
+          shrinks to fit rather than wrapping and blowing the bar out. */}
+      <Animated.Text
+        style={[styles.tabLabel, labelStyle]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
         {config.label}
       </Animated.Text>
     </Pressable>
@@ -344,7 +351,8 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     minWidth: 16,
-    height: 16,
+    // minHeight so the unread count is not clipped at large Dynamic Type sizes.
+    minHeight: 16,
     borderRadius: 8,
     backgroundColor: CoachColors.accent,
     alignItems: 'center',

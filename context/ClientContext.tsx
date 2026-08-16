@@ -855,8 +855,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
     if (error) throw error;
     setActiveGymVisit(data);
     
-    // Schedule smart reminders
-    const { status } = await Notifications.requestPermissionsAsync();
+    // Schedule smart reminders. Only READ the permission here — firing the
+    // system prompt off the back of a gym check-in is a cold ask in the middle
+    // of an unrelated action, and it would race the primed ask in AuthContext
+    // for the single prompt iOS allows.
+    const { status } = await Notifications.getPermissionsAsync();
     if (status === 'granted') {
       await Notifications.scheduleNotificationAsync({
         content: { title: "Still at the gym? 🏋️‍♂️", body: "You've been checked in for 1 hour!" },

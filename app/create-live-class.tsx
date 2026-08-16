@@ -129,7 +129,7 @@ export default function CreateLiveClassScreen() {
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
+          <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{isEditMode ? 'Edit class' : 'Schedule a Class'}</Text>
@@ -162,7 +162,7 @@ export default function CreateLiveClassScreen() {
           <Section label="Category">
             <View style={s.chipGrid}>
               {CATEGORIES.map(cat => (
-                <Pressable
+                <Pressable hitSlop={{ top: 6, bottom: 6 }}
                   key={cat}
                   style={[s.chip, category === cat && s.chipActive]}
                   onPress={() => {
@@ -194,7 +194,7 @@ export default function CreateLiveClassScreen() {
           <Section label="Duration (minutes)">
             <View style={s.durationRow}>
               {DURATIONS.map(min => (
-                <Pressable
+                <Pressable hitSlop={{ top: 2, bottom: 2 }}
                   key={min}
                   style={[s.durationBtn, duration === min && s.durationBtnActive]}
                   onPress={() => {

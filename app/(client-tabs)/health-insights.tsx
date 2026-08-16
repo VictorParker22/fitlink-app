@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, Animated, Easing, Dimensions, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useClient } from '../../context/ClientContext';
 import { Spacing, Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 // ─── Try to import health hook; gracefully handle missing module ────
 let useHealthHook: (() => any) | null = null;
@@ -71,6 +72,7 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Component ──────────────────────────────────────────────────────
 export default function HealthInsightsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clientData } = useClient();
 
@@ -105,7 +107,13 @@ export default function HealthInsightsScreen() {
 
   // ─── Pulse animation for heart rate ─────────────────────────────
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    // Reduce Motion: the heart icon stays solid instead of beating.
+    if (reduceMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 0.3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -116,7 +124,7 @@ export default function HealthInsightsScreen() {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulseAnim]);
+  }, [pulseAnim, reduceMotion]);
 
   // ─── Derived Values ─────────────────────────────────────────────
   const stepsProgress = Math.min(data.stepsToday / STEP_GOAL, 1);
@@ -158,12 +166,12 @@ export default function HealthInsightsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Back button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
+      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
         <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
       >
@@ -241,7 +249,9 @@ export default function HealthInsightsScreen() {
               </Svg>
               {/* Center label */}
               <View style={styles.ringCenter}>
-                <Text style={styles.ringStepCount}>{data.stepsToday.toLocaleString()}</Text>
+                {/* Dynamic Type: this sits inside the fixed-diameter progress
+                    ring, so the numeral must shrink rather than wrap/clip. */}
+                <Text style={styles.ringStepCount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{data.stepsToday.toLocaleString()}</Text>
                 <Text style={styles.ringStepLabel}>steps</Text>
                 <Text style={styles.ringGoalText}>{`/ ${STEP_GOAL.toLocaleString()} goal`}</Text>
               </View>
@@ -281,7 +291,8 @@ export default function HealthInsightsScreen() {
             <View style={styles.hrMainDisplay}>
               <View style={styles.hrBpmRow}>
                 <Animated.View style={[styles.pulseDot, { opacity: pulseAnim, backgroundColor: CoachColors.accent }]} />
-                <Text style={styles.hrBpmNumber}>{data.heartRateLatest ?? '—'}</Text>
+                {/* Tight single-line numeral in a row with the dot and unit. */}
+                <Text style={styles.hrBpmNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{data.heartRateLatest ?? '—'}</Text>
                 <Text style={styles.hrBpmUnit}>BPM</Text>
               </View>
               <Text style={styles.hrLatestLabel}>Latest reading</Text>
@@ -691,7 +702,9 @@ const styles = StyleSheet.create({
   miniStatLabel: {
     fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: CoachColors.textMuted,
+    // textSecondary, not textMuted: this label sits on an accentSofter tint,
+    // where textMuted only reaches 4.46:1 (needs 4.5:1 at 13px).
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
 
@@ -767,7 +780,8 @@ const styles = StyleSheet.create({
   hrPillLabel: {
     fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: CoachColors.textMuted,
+    // On accentSofter — see miniStatLabel.
+    color: CoachColors.textSecondary,
     marginTop: 2,
   },
 
@@ -784,7 +798,8 @@ const styles = StyleSheet.create({
   restingHrLabel: {
     fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: CoachColors.textMuted,
+    // On accentSofter — see miniStatLabel.
+    color: CoachColors.textSecondary,
     marginBottom: 2,
   },
   restingHrValueRow: {
@@ -800,7 +815,8 @@ const styles = StyleSheet.create({
   restingHrUnit: {
     fontFamily: CoachFonts.body,
     fontSize: 13,
-    color: CoachColors.textMuted,
+    // On accentSofter — see miniStatLabel.
+    color: CoachColors.textSecondary,
   },
   restingHrBadge: {
     flexDirection: 'row',

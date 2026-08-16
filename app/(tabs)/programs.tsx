@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage, Switch, Alert as RNAlert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -183,7 +183,7 @@ function PassCard({
       )}
 
       {!hasTrack && (
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={passStyles.buildTrackBtn}
           activeOpacity={0.8}
           onPress={() => router.push(`/pass-track-editor?planId=${item.id}` as any)}
@@ -194,7 +194,7 @@ function PassCard({
 
       {/* ── Footer actions ── */}
       <View style={passStyles.footer}>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
           onPress={() => router.push(`/pass-track-editor?planId=${item.id}` as any)}
@@ -202,7 +202,7 @@ function PassCard({
           <Text style={passStyles.footerBtnAccent}>Edit track</Text>
         </TouchableOpacity>
         <View style={passStyles.footerDivider} />
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
           onPress={() => router.push(`/pass-holders?planId=${item.id}` as any)}
@@ -210,7 +210,7 @@ function PassCard({
           <Text style={passStyles.footerBtnText}>Holders</Text>
         </TouchableOpacity>
         <View style={passStyles.footerDivider} />
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpanded(v => !v); }}
@@ -245,7 +245,7 @@ function PassCard({
 
           <View style={{ gap: 8, marginTop: 14 }}>
             <Text style={passStyles.autoflowStepLabel}>Auto-assign a workout</Text>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
               style={[passStyles.autoflowPicker, selectedWorkout && passStyles.autoflowPickerFilled]}
               onPress={() => setShowWorkoutPicker(true)}
               activeOpacity={0.8}
@@ -287,7 +287,7 @@ function PassCard({
             />
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
             style={[passStyles.autoflowSaveBtn, saving && { opacity: 0.6 }]}
             onPress={save}
             disabled={saving}
@@ -299,14 +299,31 @@ function PassCard({
       )}
 
       {/* ── Workout Picker Sheet ── */}
-      <Modal visible={showWorkoutPicker} transparent animationType="slide">
+      <Modal
+        visible={showWorkoutPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWorkoutPicker(false)}
+      >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowWorkoutPicker(false)} />
           <View style={passStyles.pickerSheet}>
-            <Text style={passStyles.pickerSheetTitle}>Select a workout to assign</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {/* A backdrop tap is not a discoverable dismiss on its own — HIG
+                wants a visible close control on every sheet. */}
+            <View style={passStyles.pickerSheetHead}>
+              <Text style={[passStyles.pickerSheetTitle, { flex: 1, marginBottom: 0 }]}>Select a workout to assign</Text>
+              <TouchableOpacity
+                onPress={() => setShowWorkoutPicker(false)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Close workout picker"
+              >
+                <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {workouts.map(w => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                   key={w.id}
                   style={[passStyles.pickerRow, selectedWorkoutId === w.id && passStyles.pickerRowActive]}
                   onPress={() => { setSelectedWorkoutId(w.id); setShowWorkoutPicker(false); }}
@@ -408,6 +425,7 @@ const passStyles = StyleSheet.create({
     borderTopWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 40, maxHeight: '70%',
   },
   pickerSheetTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 16 },
+  pickerSheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
   pickerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -488,6 +506,7 @@ const passEmptyStyles = StyleSheet.create({
 
 
 export default function ProgramsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const { workouts, exercises, diets, plans, classes, refreshData, refreshPlans, deleteWorkout, deleteDietPlan, deleteClass } = useApp();
@@ -713,7 +732,7 @@ export default function ProgramsScreen() {
           <Text style={styles.rowSubtitle} numberOfLines={1}>{muscleSummary}</Text>
           <Text style={styles.rowDescription} numberOfLines={1}>{statLine}</Text>
         </View>
-        <TouchableOpacity onPress={() => handleDeleteWorkout(item.id, item.name)} style={styles.actionBtn}>
+        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteWorkout(item.id, item.name)} style={styles.actionBtn}>
           <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -786,7 +805,7 @@ export default function ProgramsScreen() {
           <Text style={styles.rowSubtitle} numberOfLines={1}>{subtitle}</Text>
           <Text style={styles.rowDescription} numberOfLines={2}>{desc}</Text>
         </View>
-        <TouchableOpacity onPress={() => handleDeleteDiet(item.id, item.name)} style={styles.actionBtn}>
+        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteDiet(item.id, item.name)} style={styles.actionBtn}>
           <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -853,7 +872,7 @@ export default function ProgramsScreen() {
             </View>
           </View>
         </View>
-        <TouchableOpacity onPress={() => handleDeleteClass(item.id, item.title)} style={styles.actionBtn}>
+        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteClass(item.id, item.title)} style={styles.actionBtn}>
           <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -919,7 +938,7 @@ export default function ProgramsScreen() {
               </Text>
             )}
           </View>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
             style={styles.headerAddBtn}
             onPress={handleHeaderAdd}
             accessibilityRole="button"
@@ -948,7 +967,7 @@ export default function ProgramsScreen() {
             selectionColor={CoachColors.accent}
           />
           {searchQuery !== '' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setSearchQuery('')} style={styles.clearBtn}>
               <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
             </TouchableOpacity>
           )}
@@ -958,7 +977,7 @@ export default function ProgramsScreen() {
         <View style={styles.filtersWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.togglesContainer}>
             {(['plans', 'workouts', 'diets', 'classes', 'exercises'] as TabType[]).map((tab) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
                 key={tab}
                 style={[styles.toggleBtn, activeTab === tab && styles.toggleBtnActive]}
                 onPress={() => {
@@ -981,7 +1000,7 @@ export default function ProgramsScreen() {
           <View style={styles.categorySubWrapper}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categorySubScroll}>
               {categories.map((cat) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                   key={cat}
                   style={[styles.catTag, activeCategory === cat && styles.catTagActive]}
                   onPress={() => {
@@ -1009,7 +1028,7 @@ export default function ProgramsScreen() {
         </View>
 
         {/* Flat List Content */}
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           data={currentData as any}
           keyExtractor={(item: any) => item.id}
           renderItem={
@@ -1019,7 +1038,7 @@ export default function ProgramsScreen() {
             activeTab === 'classes' ? renderClassItem :
             renderPlanItem) as any
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 130 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

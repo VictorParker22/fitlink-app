@@ -426,7 +426,7 @@ export default function AthleteFoodScreen() {
               : 'Once a coach takes you on and writes a meal plan, it shows up here.'}
           </Text>
           {trainer && (
-            <Pressable style={st.emptyBtn} onPress={() => router.push(ClientRoute.myMessages)} accessibilityRole="button">
+            <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.emptyBtn} onPress={() => router.push(ClientRoute.myMessages)} accessibilityRole="button">
               <Text style={st.emptyBtnText}>Ask {coachFirst} about food</Text>
             </Pressable>
           )}
@@ -437,7 +437,7 @@ export default function AthleteFoodScreen() {
 
   return (
     <View style={st.container}>
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130, paddingHorizontal: 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
@@ -525,7 +525,7 @@ export default function AthleteFoodScreen() {
                   </View>
                   <View style={st.nextBtnRow}>
                     {canSwap && (
-                      <Pressable
+                      <Pressable hitSlop={{ top: 4, bottom: 4 }}
                         style={st.swapBtn}
                         onPress={() => setSwapSheetKey(m.key)}
                         accessibilityRole="button"
@@ -536,7 +536,7 @@ export default function AthleteFoodScreen() {
                         </Text>
                       </Pressable>
                     )}
-                    <Pressable
+                    <Pressable hitSlop={{ top: 4, bottom: 4 }}
                       style={[st.ateBtn, !canSwap && { flex: 1 }]}
                       onPress={() => logMeal(m, null)}
                       accessibilityRole="button"
@@ -611,13 +611,13 @@ export default function AthleteFoodScreen() {
                     : `${coachFirst} left this one open — suggest your own and he'll sign off.`}
                 </Text>
 
-                <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 9, paddingTop: 15 }} showsVerticalScrollIndicator={false}>
+                <ScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 9, paddingTop: 15 }} showsVerticalScrollIndicator={false}>
                   {alternatives.map((a: any) => {
                     const dKcal = Math.round((a.calories || 0) - sheetMeal.calories);
                     const dP = Math.round((a.protein || 0) - sheetMeal.protein);
                     const isSel = selectedSwapId === a.id;
                     return (
-                      <Pressable
+                      <Pressable hitSlop={{ top: 1, bottom: 1 }}
                         key={a.id}
                         style={[st.altRow, isSel && st.altRowSelected]}
                         onPress={() => setSelectedSwapId(isSel ? null : a.id)}
@@ -664,7 +664,7 @@ export default function AthleteFoodScreen() {
                         {ownLogState === 'failed' && (
                           <Text style={st.ownFailed}>That didn't send — try again.</Text>
                         )}
-                        <Pressable
+                        <Pressable hitSlop={{ top: 3, bottom: 3 }}
                           style={[st.ownSendBtn, !ownLogText.trim() && { opacity: 0.4 }]}
                           disabled={!ownLogText.trim() || ownLogState === 'sending'}
                           onPress={() => sendOwnLog(sheetMeal)}
@@ -678,7 +678,7 @@ export default function AthleteFoodScreen() {
                         </Pressable>
                       </View>
                     ) : (
-                      <Pressable style={st.ownRow} onPress={() => setOwnLogOpen(true)} accessibilityRole="button">
+                      <Pressable hitSlop={{ top: 1, bottom: 1 }} style={st.ownRow} onPress={() => setOwnLogOpen(true)} accessibilityRole="button">
                         <View style={st.ownPlus}>
                           <Ionicons name="add" size={16} color={C.accent} />
                         </View>

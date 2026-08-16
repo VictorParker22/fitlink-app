@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
+import { View, Text, StyleSheet, PixelRatio, type StyleProp, type TextStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -39,7 +39,10 @@ export default function RollingNumber({ text, style, digitHeight, accessibilityL
   const reduced = useReducedMotion();
   const flat = StyleSheet.flatten(style) || {};
   const fontSize = flat.fontSize ?? 16;
-  const height = digitHeight ?? Math.ceil(fontSize * 1.3);
+  // Dynamic Type: the digits DO scale (allowFontScaling stays on), so the clip
+  // window has to grow with the user's text-size setting or the glyphs get
+  // sliced. getFontScale() is the same multiplier RN applies to fontSize.
+  const height = digitHeight ?? Math.ceil(fontSize * 1.3 * PixelRatio.getFontScale());
 
   if (reduced) {
     return (
@@ -118,14 +121,14 @@ function RollingChar({
     <View style={{ height, overflow: 'hidden', justifyContent: 'center' }}>
       <Animated.Text
         style={[style, { lineHeight: height }, incomingStyle]}
-        allowFontScaling={false}
+        numberOfLines={1}
       >
         {current}
       </Animated.Text>
       {outgoing !== null && (
         <Animated.Text
           style={[style, rnStyles.outgoing, { lineHeight: height }, outgoingStyle]}
-          allowFontScaling={false}
+          numberOfLines={1}
         >
           {outgoing}
         </Animated.Text>

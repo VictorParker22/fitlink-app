@@ -8,8 +8,9 @@
  * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
+  AccessibilityInfo,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, StatusBar,
 } from 'react-native';
@@ -33,6 +34,12 @@ export default function ClientLoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // accessibilityLiveRegion is Android-only, so on iOS an error that merely
+  // appears on screen is silent for VoiceOver. Announce it explicitly.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(`Sign in failed. ${error}`);
+  }, [error]);
+
   const [success, setSuccess] = useState('');
 
   const handleSignIn = async () => {
@@ -82,7 +89,7 @@ export default function ClientLoginScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={5}
             style={st.backBtn}
             onPress={() => router.back()}
             activeOpacity={0.7}
@@ -96,7 +103,13 @@ export default function ClientLoginScreen() {
           <Text style={st.subtitle}>Sign in to pick up where you left off.</Text>
 
           {error ? (
-            <View style={st.messageBox}>
+            <View
+              style={st.messageBox}
+              accessible
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              accessibilityLabel={`Sign in failed. ${error}`}
+            >
               <Ionicons name="alert-circle" size={17} color={C.danger} />
               <Text style={st.errorText}>{error}</Text>
             </View>
@@ -118,6 +131,9 @@ export default function ClientLoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
               autoFocus
               accessibilityLabel="Email"
               selectionColor={C.accent}
@@ -134,10 +150,13 @@ export default function ClientLoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
                 accessibilityLabel="Password"
                 selectionColor={C.accent}
               />
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                 onPress={() => setShowPassword(!showPassword)}
                 style={st.showBtn}
                 accessibilityRole="button"
@@ -148,7 +167,7 @@ export default function ClientLoginScreen() {
             </View>
           </View>
 
-          <TouchableOpacity onPress={handleForgotPassword} style={st.forgotRow} accessibilityRole="button" accessibilityLabel="Forgot password">
+          <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={handleForgotPassword} style={st.forgotRow} accessibilityRole="button" accessibilityLabel="Forgot password">
             <Text style={st.forgotText}>Forgot password</Text>
           </TouchableOpacity>
 
@@ -163,7 +182,7 @@ export default function ClientLoginScreen() {
             <Text style={st.primaryBtnText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => router.push('/(auth)/client-signup')}
             style={st.footerRow}
             accessibilityRole="button"
@@ -176,7 +195,7 @@ export default function ClientLoginScreen() {
 
           <View style={{ flex: 1 }} />
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => router.push('/(auth)/login' as any)}
             style={st.coachRow}
             accessibilityRole="button"

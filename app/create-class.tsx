@@ -311,7 +311,7 @@ export default function CreateClassScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleBack} style={styles.backBtn}>
             <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
@@ -369,7 +369,7 @@ export default function CreateClassScreen() {
                   {CLASS_CATEGORIES.map(cat => {
                     const active = category === cat;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                         key={cat}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => { Haptics.selectionAsync(); setCategory(cat); }}
@@ -385,7 +385,7 @@ export default function CreateClassScreen() {
                 <View style={[styles.inputGroup, { flex: 1, marginRight: Spacing.md }]}>
                   <Text style={styles.sectionLabel}>Difficulty</Text>
                   {DIFFICULTIES.map(diff => (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       key={diff}
                       style={[styles.diffChip, difficulty === diff && styles.diffChipActive]}
                       onPress={() => { Haptics.selectionAsync(); setDifficulty(diff); }}
@@ -398,14 +398,14 @@ export default function CreateClassScreen() {
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.sectionLabel}>Duration (min)</Text>
                   <View style={styles.stepperContainer}>
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.max(5, duration - 5)); }}
                     >
                       <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{duration}</Text>
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.min(120, duration + 5)); }}
                     >
@@ -421,7 +421,7 @@ export default function CreateClassScreen() {
                   {EQUIPMENT_LIST.map(eq => {
                     const active = equipment.includes(eq);
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                         key={eq}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleEquipment(eq)}
@@ -439,7 +439,7 @@ export default function CreateClassScreen() {
                   {TAGS_LIST.map(tag => {
                     const active = tags.includes(tag);
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                         key={tag}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleTag(tag)}
@@ -512,7 +512,7 @@ export default function CreateClassScreen() {
                 {workouts && workouts.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                     {workouts.map(w => (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                         key={w.id}
                         style={[styles.workoutCard, workoutId === w.id && styles.workoutCardActive]}
                         onPress={() => setWorkoutId(workoutId === w.id ? '' : w.id)}
@@ -619,7 +619,7 @@ export default function CreateClassScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add class video</Text>
-              <TouchableOpacity onPress={() => setShowVideoModal(false)}>
+              <TouchableOpacity hitSlop={12} onPress={() => setShowVideoModal(false)}>
                 <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>

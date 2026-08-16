@@ -187,7 +187,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
           <View style={st.gymMusicRow}>
             <Text style={st.gymMusicLabel}>Connect music</Text>
             <View style={st.gymMusicBtns}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                 style={st.gymMusicBtn}
                 onPress={() => openMusic('spotify')}
                 activeOpacity={0.8}
@@ -195,7 +195,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
                 <Ionicons name="play-circle" size={16} color={CoachColors.textSecondary} />
                 <Text style={st.gymMusicBtnText}>Connect Spotify</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                 style={st.gymMusicBtn}
                 onPress={() => openMusic('apple')}
                 activeOpacity={0.8}

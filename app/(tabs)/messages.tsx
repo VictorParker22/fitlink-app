@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Switch, Modal, FlatList, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -59,6 +59,7 @@ function formatLong(ts: string | null) {
 }
 
 export default function MessagesScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const { clients } = useApp();
@@ -174,9 +175,9 @@ export default function MessagesScreen() {
   if (isFullyEmpty) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ScrollView
+        <ScrollView keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.emptyScroll}
+          contentContainerStyle={[styles.emptyScroll, { paddingBottom: insets.bottom + 130 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} colors={[CoachColors.accent]} />}
         >
           <View style={styles.header}>
@@ -189,7 +190,7 @@ export default function MessagesScreen() {
             <Text style={styles.emptyCardBody}>
               Add someone and their conversation opens here. You can send workouts and meal plans straight into it.
             </Text>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
               style={styles.emptyCta}
               activeOpacity={0.85}
               onPress={() => router.push('/add-client' as any)}
@@ -244,7 +245,7 @@ export default function MessagesScreen() {
               : `${unreadTotal} unread · oldest waiting ${formatLong(oldestWaiting)}`}
           </Text>
         </View>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={3}
           style={styles.composeBadge}
           activeOpacity={0.8}
           onPress={() => setShowComposePicker(true)}
@@ -268,9 +269,9 @@ export default function MessagesScreen() {
         />
       </View>
 
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} colors={[CoachColors.accent]} />}
       >
         {waiting.length > 0 && (
@@ -281,7 +282,7 @@ export default function MessagesScreen() {
                 const hours = conv.last_message_at ? (Date.now() - new Date(conv.last_message_at).getTime()) : 0;
                 const timeColor = hours >= WAITING_WARN_MS ? CoachColors.warning : CoachColors.textMuted;
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                     key={conv.id}
                     style={[styles.convItem, i < waiting.length - 1 && styles.convItemBorder]}
                     activeOpacity={0.7}
@@ -314,7 +315,7 @@ export default function MessagesScreen() {
             <Text style={styles.sectionLabel}>Earlier</Text>
             <View>
               {earlier.map((conv, i) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                   key={conv.id}
                   style={[styles.convItem, i < earlier.length - 1 && styles.convItemBorder]}
                   activeOpacity={0.7}
@@ -349,7 +350,7 @@ export default function MessagesScreen() {
             <Text style={styles.sectionLabel}>Haven't spoken yet</Text>
             <View style={styles.pillRow}>
               {unconnectedClients.slice(0, 3).map((client) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                   key={client.id}
                   style={styles.pill}
                   activeOpacity={0.7}
@@ -362,7 +363,7 @@ export default function MessagesScreen() {
                 </TouchableOpacity>
               ))}
               {unconnectedClients.length > 3 && (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   style={styles.pillMore}
                   activeOpacity={0.7}
                   onPress={() => setShowComposePicker(true)}
@@ -384,17 +385,17 @@ export default function MessagesScreen() {
           <View style={styles.composeSheet}>
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>New message</Text>
-              <TouchableOpacity onPress={() => setShowComposePicker(false)} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity hitSlop={12} onPress={() => setShowComposePicker(false)} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
-            <FlatList
+            <FlatList keyboardShouldPersistTaps="handled"
               data={composeClients}
               keyExtractor={(c) => c.id}
               style={{ maxHeight: 420 }}
               showsVerticalScrollIndicator={false}
               renderItem={({ item: client }) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
                   style={styles.composeRow}
                   activeOpacity={0.7}
                   onPress={() => startConversation(client.id)}
@@ -472,7 +473,8 @@ const styles = StyleSheet.create({
   convPreview: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 2 },
 
   unreadBadge: {
-    minWidth: 20, height: 20, borderRadius: 10,
+    // minHeight so the unread count is not clipped at large Dynamic Type sizes.
+    minWidth: 20, minHeight: 20, borderRadius: 10,
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,
   },

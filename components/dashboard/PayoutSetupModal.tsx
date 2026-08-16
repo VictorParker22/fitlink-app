@@ -245,7 +245,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.skipRow} onPress={goNext} activeOpacity={0.7}>
+          <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.skipRow} onPress={goNext} activeOpacity={0.7}>
             <Text style={styles.skipText}>I'll set this up later</Text>
           </TouchableOpacity>
         </View>

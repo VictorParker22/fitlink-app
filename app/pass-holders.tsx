@@ -317,7 +317,7 @@ export default function PassHoldersScreen() {
   return (
     <View style={[st.container, { paddingTop: insets.top }]}>
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
+        <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.backBtn}>
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -326,7 +326,7 @@ export default function PassHoldersScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
@@ -406,7 +406,7 @@ export default function PassHoldersScreen() {
             ) : (
               <View>
                 {rosterRows.map(({ enrollment, client }, i) => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                     key={enrollment.id}
                     style={[st.holderRow, i === rosterRows.length - 1 && { borderBottomWidth: 0 }]}
                     onPress={() => router.push(`/client/${client!.id}` as any)}
@@ -484,7 +484,7 @@ export default function PassHoldersScreen() {
                 const stale = enrollment.status === 'active' && daysSince(enrollment.updated_at) >= STALLED_DAYS;
                 const outdated = !finished && !isOnLatestTrack(enrollment.track_snapshot, track);
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                     key={enrollment.id}
                     style={[
                       st.holderRow,
@@ -523,7 +523,7 @@ export default function PassHoldersScreen() {
 
       <View style={[st.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {hasHolders && (
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
             style={st.outlineBtn}
             onPress={() => setComposeOpen(true)}
             activeOpacity={0.8}
@@ -533,7 +533,7 @@ export default function PassHoldersScreen() {
             <Text style={st.outlineBtnText}>{bulkLabel}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
           style={st.limeBtn}
           onPress={() => router.push(`/pass-track-editor?planId=${plan.id}` as any)}
           activeOpacity={0.8}
@@ -572,7 +572,7 @@ export default function PassHoldersScreen() {
                   <TouchableOpacity onPress={() => setComposeOpen(false)} disabled={sending}>
                     <Text style={st.sheetCancel}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                     style={[st.limeBtn, st.sheetSendBtn, (!composeText.trim() || sending) && { opacity: 0.5 }]}
                     onPress={sendToAll}
                     disabled={!composeText.trim() || sending}

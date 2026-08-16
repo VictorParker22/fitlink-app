@@ -77,21 +77,21 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                 <Ionicons name="sparkles" size={22} color={CoachColors.accent} />
                 <Text style={st.aiModalTitle}>AI coach</Text>
               </View>
-              <TouchableOpacity onPress={handleClose}>
+              <TouchableOpacity hitSlop={12} onPress={handleClose}>
                 <Ionicons name="close" size={22} color={CoachColors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {/* Client selector */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                 style={[st.aiClientChip, !selectedClientId && st.aiClientChipActive]}
                 onPress={() => setSelectedClientId(null)}
               >
                 <Text style={[st.aiClientChipText, !selectedClientId && { color: CoachColors.onAccent }]}>General</Text>
               </TouchableOpacity>
               {clients.filter(c => c.status === 'active').slice(0, 8).map(c => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                   key={c.id}
                   style={[st.aiClientChip, selectedClientId === c.id && st.aiClientChipActive]}
                   onPress={() => setSelectedClientId(c.id)}
@@ -103,7 +103,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
 
             {/* Response area */}
             {(coachResponse || coachLoading) && (
-              <ScrollView style={st.aiResponseArea} showsVerticalScrollIndicator={false}>
+              <ScrollView keyboardShouldPersistTaps="handled" style={st.aiResponseArea} showsVerticalScrollIndicator={false}>
                 {coachLoading ? (
                   <View style={{ alignItems: 'center', paddingVertical: 32, gap: 12 }}>
                     <ActivityIndicator size="small" color={CoachColors.accent} />
@@ -123,7 +123,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                   selectedClientId ? `Is ${getClientById(selectedClientId)?.name?.split(' ')[0] || 'this client'} on track with their goals?` : 'Give me a 4-week progressive overload plan',
                   'What are the best exercises for hypertrophy?',
                 ].map(q => (
-                  <TouchableOpacity key={q} style={st.aiQuickPrompt} onPress={() => setCoachPrompt(q)} activeOpacity={0.7}>
+                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} key={q} style={st.aiQuickPrompt} onPress={() => setCoachPrompt(q)} activeOpacity={0.7}>
                     <Ionicons name="chatbubble-outline" size={14} color={CoachColors.textFaint} />
                     <Text style={st.aiQuickPromptText} numberOfLines={1}>{q}</Text>
                   </TouchableOpacity>
@@ -142,7 +142,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                 multiline
                 editable={!coachLoading}
               />
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={4}
                 style={[st.aiSendBtn, (!coachPrompt.trim() || coachLoading) && { opacity: 0.3 }]}
                 onPress={() => { handleCoachAsk(); Keyboard.dismiss(); }}
                 disabled={!coachPrompt.trim() || coachLoading}

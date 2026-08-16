@@ -14,6 +14,9 @@
       "bundleIdentifier": "fitlink.app",
       "infoPlist": {
         "NSContactsUsageDescription": "FitLink needs access to your contacts to invite clients.",
+        "NSCameraUsageDescription": "FitLink uses the camera so you can take a profile or client photo, film exercise demos, and broadcast live classes.",
+        "NSMicrophoneUsageDescription": "FitLink uses the microphone to record audio for your exercise videos and to carry your voice during live classes.",
+        "NSPhotoLibraryUsageDescription": "FitLink needs access to your photo library so you can choose profile pictures, progress photos, class thumbnails and exercise videos.",
         "ITSAppUsesNonExemptEncryption": false,
         "NSHealthShareUsageDescription": "FitLink needs access to your health data to track your fitness progress and share insights with your coach.",
         "NSHealthUpdateUsageDescription": "FitLink needs access to update your health data."

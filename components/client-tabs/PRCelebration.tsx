@@ -239,7 +239,7 @@ export default function PRCelebration({
                   placeholder="Write a message"
                   placeholderTextColor={CoachColors.textFaint}
                 />
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
                   style={[s.sendBtn, (sendState === 'sent') && s.sendBtnDone]}
                   onPress={handleSend}
                   activeOpacity={0.85}
@@ -256,7 +256,7 @@ export default function PRCelebration({
             )}
 
             {squad && (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                 style={s.squadRow}
                 onPress={() => { Haptics.selectionAsync(); setShareSquad(v => !v); }}
                 activeOpacity={0.8}

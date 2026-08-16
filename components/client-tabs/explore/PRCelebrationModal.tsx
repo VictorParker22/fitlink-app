@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 const { width: W, height: H } = Dimensions.get('window');
 const PARTICLE_COUNT = 14;
@@ -62,6 +63,8 @@ export default function PRCelebrationModal({
   // ── Auto-dismiss timer ────────────────────────────────────────────────────
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const reduceMotion = useReducedMotion();
+
   const dismiss = useCallback(() => {
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
     Animated.parallel([
@@ -74,11 +77,10 @@ export default function PRCelebrationModal({
   useEffect(() => {
     if (!visible) return;
 
-    // Heavy haptic feedback — this is a big moment for the client
+    // One success notification. This used to fire three haptics inside 300ms
+    // (success + heavy + medium), which reads as a malfunction rather than a
+    // celebration and is exactly the overuse the HIG warns against.
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Follow-up impact to make it feel more physical
-    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 120);
-    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 300);
 
     // Reset all animated values
     cardScale.setValue(0);
@@ -86,6 +88,20 @@ export default function PRCelebrationModal({
     backdropOpacity.setValue(0);
     trophyScale.setValue(1);
     particleAnims.forEach(p => { p.dist.setValue(0); p.opacity.setValue(1); });
+
+    // Reduce Motion: no burst, no spring, no pulsing trophy. The celebration
+    // still appears (and still auto-dismisses) — it just arrives already
+    // composed instead of exploding onto the screen.
+    if (reduceMotion) {
+      backdropOpacity.setValue(1);
+      cardOpacity.setValue(1);
+      cardScale.setValue(1);
+      particleAnims.forEach(p => { p.opacity.setValue(0); });
+      dismissTimer.current = setTimeout(() => dismiss(), 3500);
+      return () => {
+        if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      };
+    }
 
     // 1. Backdrop fade in
     Animated.timing(backdropOpacity, {
@@ -149,7 +165,7 @@ export default function PRCelebrationModal({
       clearTimeout(pulseTimeout);
       pulseAnim.stop();
     };
-  }, [visible]);
+  }, [visible, reduceMotion]);
 
   if (!visible) return null;
 
@@ -157,10 +173,13 @@ export default function PRCelebrationModal({
 
   return (
     <Modal transparent animationType="none" visible={visible} statusBarTranslucent>
-      <TouchableWithoutFeedback onPress={dismiss} accessible accessibilityLabel="Dismiss personal record celebration">
+      {/* The wrapper is NOT itself accessible: making it one element swallowed
+          the card and VoiceOver announced only "Dismiss…", never the PR
+          itself. The card below carries the announcement. */}
+      <TouchableWithoutFeedback onPress={dismiss} accessible={false}>
         <View style={s.root}>
           {/* Backdrop */}
-          <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]} />
+          <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]} importantForAccessibility="no" accessibilityElementsHidden />
 
           {/* Particles */}
           {particleAnims.map((p, i) => {
@@ -178,6 +197,8 @@ export default function PRCelebrationModal({
             return (
               <Animated.View
                 key={i}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
                 style={[
                   s.particle,
                   { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
@@ -187,8 +208,16 @@ export default function PRCelebrationModal({
             );
           })}
 
-          {/* Card */}
+          {/* Card — reads as ONE element and is announced on appear, so the
+              PR is not a silently-flashed visual for VoiceOver users. */}
           <Animated.View
+            accessible
+            accessibilityRole="alert"
+            accessibilityViewIsModal
+            accessibilityLiveRegion="assertive"
+            accessibilityLabel={`New personal record. ${weight % 1 === 0 ? weight : weight.toFixed(1)} kilograms lifted on ${exerciseName}. That's your best ever.`}
+            accessibilityHint="Double tap anywhere to continue"
+            onAccessibilityTap={dismiss}
             style={[
               s.card,
               { opacity: cardOpacity, transform: [{ scale: cardScale }] },

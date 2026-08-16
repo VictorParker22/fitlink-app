@@ -66,14 +66,14 @@ export default function SubscriptionsScreen() {
       >
         {/* ── Header ── */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={st.headerTitle}>Passes</Text>
             <Text style={st.headerSub}>What each pass brings in</Text>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={4}
             onPress={() => router.push('/create-plan' as any)}
             style={st.addBtn}
             accessibilityRole="button"
@@ -138,7 +138,7 @@ export default function SubscriptionsScreen() {
                   </View>
 
                   <View style={st.passFooter}>
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                       style={st.footerBtn}
                       activeOpacity={0.7}
                       onPress={() => router.push(`/pass-holders?planId=${plan.id}` as any)}
@@ -147,7 +147,7 @@ export default function SubscriptionsScreen() {
                       <Text style={st.footerBtnText}>Holders</Text>
                     </TouchableOpacity>
                     <View style={st.footerDivider} />
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                       style={st.footerBtn}
                       activeOpacity={0.7}
                       onPress={() => router.push(`/pass-track-editor?planId=${plan.id}` as any)}

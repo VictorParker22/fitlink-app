@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useApp } from '../../context/AppContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { height: H } = Dimensions.get('window');
 const W = Dimensions.get('window').width;
@@ -99,6 +100,9 @@ export default function CancelSessionSheet({
   const [selectedDay,    setSelectedDay]    = useState<Date | null>(null);
   const [selectedTime,   setSelectedTime]   = useState<string>('09:00');
   const [loading,        setLoading]        = useState(false);
+  // Reduce Motion: the sheet still needs to arrive and leave, but it does so
+  // as a fade rather than a spring slide up from the bottom of the screen.
+  const reduceMotion = useReducedMotion();
 
   // Reanimated values
   const translateY      = useSharedValue(H);
@@ -108,11 +112,11 @@ export default function CancelSessionSheet({
 
   useEffect(() => {
     if (visible) {
-      translateY.value      = withSpring(0, { damping: 22, stiffness: 270, mass: 0.9 });
-      backdropOpacity.value = withTiming(1, { duration: 240 });
+      translateY.value      = reduceMotion ? 0 : withSpring(0, { damping: 22, stiffness: 270, mass: 0.9 });
+      backdropOpacity.value = withTiming(1, { duration: reduceMotion ? 0 : 240 });
     } else {
-      translateY.value      = withSpring(H, { damping: 26, stiffness: 300 });
-      backdropOpacity.value = withTiming(0, { duration: 200 });
+      translateY.value      = reduceMotion ? H : withSpring(H, { damping: 26, stiffness: 300 });
+      backdropOpacity.value = withTiming(0, { duration: reduceMotion ? 0 : 200 });
       // Reset form state after dismiss animation completes
       const t = setTimeout(() => {
         setSelectedReason(null);
@@ -121,7 +125,7 @@ export default function CancelSessionSheet({
       }, 320);
       return () => clearTimeout(t);
     }
-  }, [visible]);
+  }, [visible, reduceMotion]);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],

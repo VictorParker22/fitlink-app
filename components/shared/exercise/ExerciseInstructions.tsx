@@ -100,7 +100,7 @@ export default function ExerciseInstructions({
     <View style={styles.container}>
       {/* Voice + Text Controls */}
       <View style={styles.instructionActions}>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={[styles.voiceBtn, (isSpeaking || isLoadingAudio) && styles.voiceBtnActive]}
           onPress={handleSpeak}
           activeOpacity={0.7}
@@ -120,7 +120,7 @@ export default function ExerciseInstructions({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={styles.showTextBtn}
           onPress={() => setShowText(!showText)}
           activeOpacity={0.7}

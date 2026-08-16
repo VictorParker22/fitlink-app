@@ -53,7 +53,7 @@ function VideoBubble({ url, onReview }: { url: string; onReview?: () => void }) 
         <VideoView player={player} style={styles.videoBubble} contentFit="cover" nativeControls />
       </View>
       {onReview && (
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
           style={styles.reviewAffordance}
           onPress={onReview}
           activeOpacity={0.8}
@@ -106,7 +106,7 @@ function FormReviewComposer({
         <View style={styles.reviewCard}>
           <View style={styles.modalHeaderRow}>
             <Text style={styles.modalSheetTitle}>Review form</Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
+            <TouchableOpacity hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
               <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
@@ -117,7 +117,7 @@ function FormReviewComposer({
 
           {/* Timestamp controls */}
           <View style={styles.timestampRow}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={3}
               style={styles.stepBtn}
               onPress={() => adjustSeconds(-1)}
               activeOpacity={0.7}
@@ -130,7 +130,7 @@ function FormReviewComposer({
               <Text style={styles.timestampText}>{fmtClock(seconds)}</Text>
               <Text style={styles.timestampLabel}>pinned at</Text>
             </View>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={3}
               style={styles.stepBtn}
               onPress={() => adjustSeconds(1)}
               activeOpacity={0.7}
@@ -139,7 +139,7 @@ function FormReviewComposer({
             >
               <Text style={styles.stepBtnText}>+1s</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={3}
               style={styles.playheadBtn}
               onPress={captureFromPlayer}
               activeOpacity={0.7}
@@ -160,7 +160,7 @@ function FormReviewComposer({
             maxLength={500}
           />
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
             style={[styles.reviewSendBtn, !canSend && { opacity: 0.4 }]}
             onPress={() => onSend(seconds, comment.trim())}
             disabled={!canSend}
@@ -782,7 +782,7 @@ export default function ChatScreen() {
         behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24)}
       >
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           ref={flatListRef}
           data={messagesWithDividers}
           keyExtractor={(item, i) => 'id' in item ? item.id : `divider-${i}`}
@@ -938,12 +938,12 @@ export default function ChatScreen() {
           <View style={styles.workoutPickerContent}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a workout</Text>
-              <TouchableOpacity onPress={() => setShowWorkoutPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity hitSlop={12} onPress={() => setShowWorkoutPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <FlatList
+            <FlatList keyboardShouldPersistTaps="handled"
               data={workouts}
               keyExtractor={(w) => w.id}
               showsVerticalScrollIndicator={false}
@@ -985,12 +985,12 @@ export default function ChatScreen() {
           <View style={styles.workoutPickerContent}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a meal plan</Text>
-              <TouchableOpacity onPress={() => setShowDietPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
+              <TouchableOpacity hitSlop={12} onPress={() => setShowDietPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <FlatList
+            <FlatList keyboardShouldPersistTaps="handled"
               data={diets}
               keyExtractor={(d) => d.id}
               showsVerticalScrollIndicator={false}

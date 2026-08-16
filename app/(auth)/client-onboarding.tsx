@@ -293,7 +293,7 @@ export default function ClientOnboardingScreen() {
       >
         {/* Header: back + segmented progress + count */}
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={5}
             onPress={goBack}
             style={[s.backBtn, step === 0 && { opacity: 0.35 }]}
             disabled={step === 0}

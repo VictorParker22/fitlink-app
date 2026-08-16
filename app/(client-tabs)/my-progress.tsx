@@ -366,8 +366,8 @@ export default function AthleteProgressScreen() {
 
   return (
     <View style={s.container}>
-      <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 14 }]}
+      <ScrollView keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
@@ -431,7 +431,7 @@ export default function AthleteProgressScreen() {
                   {chartableLifts.map((lift) => {
                     const active = activeLift?.exerciseId === lift.exerciseId;
                     return (
-                      <Pressable
+                      <Pressable hitSlop={{ top: 6, bottom: 6 }}
                         key={lift.exerciseId}
                         style={[s.chip, active && s.chipActive]}
                         onPress={() => {
@@ -812,7 +812,6 @@ export default function AthleteProgressScreen() {
           })
         )}
 
-        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* ── Fullscreen photo viewer ── */}

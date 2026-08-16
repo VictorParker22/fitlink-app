@@ -23,7 +23,7 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
         <Text style={st.sectionTag}>Today</Text>
         <Text style={st.emptyHero}>Rest day.</Text>
         <Text style={st.emptyContext}>No prescription. Move if you want — or don't.</Text>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
           style={st.browseBtn}
           activeOpacity={0.85}
           onPress={() => router.push(ClientRoute.workouts as any)}
@@ -62,7 +62,7 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
         {/* §1 Workout name = hero at 28px */}
         <Text style={st.workoutTitle}>{workoutName}</Text>
         <Text style={st.completedSub}>Logged. Recovery protocol in progress.</Text>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={st.logSessionBtn}
           activeOpacity={0.8}
           onPress={() => router.push(ClientRoute.myProgress as any)}

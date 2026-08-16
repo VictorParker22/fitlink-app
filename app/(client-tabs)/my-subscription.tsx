@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useClient } from '../../context/ClientContext';
@@ -12,6 +12,7 @@ import { ClientRoute, SharedRoute } from '../../types/routes';
 import * as Haptics from 'expo-haptics';
 
 export default function MySubscriptionScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clientData, subscription, paymentHistory, plans, cancelSubscription, setupPaymentMethod, refreshData } = useClient();
   const { showAlert } = useAlert();
@@ -122,7 +123,7 @@ export default function MySubscriptionScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} colors={[CoachColors.accent]} />}
       >

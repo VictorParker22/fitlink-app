@@ -236,7 +236,7 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                 );
               })()}
 
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                 style={styles.modalCloseBtn}
                 onPress={() => setSelectedBadge(null)}
                 activeOpacity={0.8}

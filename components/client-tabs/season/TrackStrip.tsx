@@ -97,7 +97,7 @@ export default function TrackStrip({
         const isCurrentWeek = !seasonCompleted && g.week === currentWeek;
         const clusterDone = g.indices.filter((i) => i < position || seasonCompleted).length;
         return (
-          <Pressable
+          <Pressable hitSlop={{ top: 9, bottom: 9 }}
             key={g.week}
             style={s.cluster}
             onLayout={(e) => {

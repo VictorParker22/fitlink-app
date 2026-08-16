@@ -64,6 +64,8 @@ export default function ActiveWorkoutPlayer({
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
+  // Rest seconds held back while a PR celebration Modal is on screen.
+  const pendingRestRef = useRef<number | null>(null);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   // PR celebration state — null when no PR, populated when a new PR is hit mid-set
   const [pendingPr, setPendingPr] = useState<{ exerciseName: string; weight: number } | null>(null);
@@ -179,7 +181,8 @@ export default function ActiveWorkoutPlayer({
       // ── PR Detection ──────────────────────────────────────────────────
       // Only check when a positive weight is entered; bodyweight exercises
       // (weight === 0) intentionally skip PR checking.
-      if (weight > 0 && checkAndUpdatePr(exercise.exerciseId, weight)) {
+      const isPr = weight > 0 && checkAndUpdatePr(exercise.exerciseId, weight);
+      if (isPr) {
         setPendingPr({ exerciseName: exercise.exerciseName, weight });
         // Notify coach — fire-and-forget, never block the workout UI
         if (clientData?.trainer_id) {
@@ -209,8 +212,16 @@ export default function ActiveWorkoutPlayer({
         }
       }
       if (exercise.restSeconds > 0) {
-        setRestTimeLeft(exercise.restSeconds);
-        setShowRestTimer(true);
+        if (isPr) {
+          // Two native Modals must never be visible at once (documented iOS
+          // freeze). A set that is both a PR and rest-timed used to open the
+          // celebration and the rest timer in the same commit — queue the rest
+          // timer and start it once the celebration has been dismissed.
+          pendingRestRef.current = exercise.restSeconds;
+        } else {
+          setRestTimeLeft(exercise.restSeconds);
+          setShowRestTimer(true);
+        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -278,9 +289,15 @@ export default function ActiveWorkoutPlayer({
       <Modal visible={showRestTimer} transparent animationType="fade" onRequestClose={() => setShowRestTimer(false)}>
         <View style={s.restOverlay}>
           <View style={s.restCard}>
-            <Text style={s.restTag}>Rest timer</Text>
-            <Text style={s.restTime}>{formatTime(restTimeLeft)}</Text>
-            <Text style={s.restHint}>Breathe and prepare for next set</Text>
+            <View
+              accessible
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={`Rest timer. ${formatTime(restTimeLeft)} remaining. Breathe and prepare for the next set.`}
+            >
+              <Text style={s.restTag}>Rest timer</Text>
+              <Text style={s.restTime}>{formatTime(restTimeLeft)}</Text>
+              <Text style={s.restHint}>Breathe and prepare for next set</Text>
+            </View>
             <TouchableOpacity
               style={s.restSkipBtn}
               onPress={() => {
@@ -288,6 +305,9 @@ export default function ActiveWorkoutPlayer({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Skip rest"
+              accessibilityHint="Ends the rest timer and returns to the workout"
             >
               <Ionicons name="play-skip-forward" size={14} color={CoachColors.onAccent} />
               <Text style={s.restSkipText}>Skip rest</Text>
@@ -320,7 +340,13 @@ export default function ActiveWorkoutPlayer({
         </View>
 
         {/* Progress bar */}
-        <View style={s.progressRow}>
+        <View
+          style={s.progressRow}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Workout progress"
+          accessibilityValue={{ min: 0, max: totalSets, now: completedSets, text: `${completedSets} of ${totalSets} sets done` }}
+        >
           <View style={s.progressTrack}>
             <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
           </View>
@@ -329,7 +355,7 @@ export default function ActiveWorkoutPlayer({
       </View>
 
       {/* Exercise List */}
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         {exerciseStates.map((exercise, exIdx) => {
           const completedInEx = exercise.sets.filter((s) => s.completed).length;
           const allDone = completedInEx === exercise.sets.length;
@@ -340,6 +366,11 @@ export default function ActiveWorkoutPlayer({
                 style={s.exHeader}
                 onPress={() => toggleExercise(exIdx)}
                 activeOpacity={0.7}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ expanded: exercise.expanded }}
+                accessibilityLabel={`${exercise.exerciseName}, ${exercise.targetSets} sets of ${exercise.targetReps} reps${exercise.restSeconds > 0 ? `, ${exercise.restSeconds} seconds rest` : ''}, ${completedInEx} of ${exercise.sets.length} sets logged${allDone ? ', all done' : ''}`}
+                accessibilityHint={exercise.expanded ? 'Collapses this exercise' : 'Expands this exercise to log your sets'}
               >
                 <View style={{ position: 'relative' }}>
                   <ExerciseThumbnail
@@ -415,6 +446,9 @@ export default function ActiveWorkoutPlayer({
                           keyboardType="numeric"
                           editable={!set.completed}
                           selectTextOnFocus
+                          accessibilityLabel={`${exercise.exerciseName}, set ${setIdx + 1}, weight in pounds`}
+                          accessibilityState={{ disabled: set.completed }}
+                          accessibilityHint={set.completed ? 'Locked because this set is already logged' : undefined}
                         />
                       </View>
 
@@ -428,13 +462,19 @@ export default function ActiveWorkoutPlayer({
                           keyboardType="numeric"
                           editable={!set.completed}
                           selectTextOnFocus
+                          accessibilityLabel={`${exercise.exerciseName}, set ${setIdx + 1}, reps`}
+                          accessibilityState={{ disabled: set.completed }}
+                          accessibilityHint={set.completed ? 'Locked because this set is already logged' : undefined}
                         />
                       </View>
 
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={4}
                         style={[s.checkBtn, set.completed && s.checkBtnDone]}
                         onPress={() => completeSet(exIdx, setIdx)}
                         activeOpacity={0.6}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: set.completed }}
+                        accessibilityLabel={`Log set ${setIdx + 1} of ${exercise.exerciseName}`}
                       >
                         <Ionicons
                           name={set.completed ? 'checkmark-circle' : 'ellipse-outline'}
@@ -456,6 +496,11 @@ export default function ActiveWorkoutPlayer({
           style={[s.finishBtn, progress >= 1 && s.finishBtnReady]}
           onPress={handleFinish}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={progress >= 1 ? 'Finish session' : 'Complete workout'}
+          accessibilityHint={progress >= 1
+            ? 'Saves this session'
+            : `You still have ${totalSets - completedSets} set${totalSets - completedSets === 1 ? '' : 's'} left. Finishing now saves what you have done`}
         >
           <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={18} color={progress >= 1 ? CoachColors.onAccent : CoachColors.textPrimary} />
           <Text style={[s.finishBtnText, progress >= 1 && { color: CoachColors.onAccent }]}>
@@ -478,12 +523,14 @@ export default function ActiveWorkoutPlayer({
       >
         <View style={s.videoModalOverlay}>
           <View style={s.videoModalHeader}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={4}
               style={s.videoCloseBtn}
               onPress={() => {
                 setShowVideoModal(false);
                 setVideoUrl(null);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Close video"
             >
               <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
@@ -507,7 +554,18 @@ export default function ActiveWorkoutPlayer({
         visible={pendingPr !== null}
         exerciseName={pendingPr?.exerciseName ?? ''}
         weight={pendingPr?.weight ?? 0}
-        onDismiss={() => setPendingPr(null)}
+        onDismiss={() => {
+          setPendingPr(null);
+          const rest = pendingRestRef.current;
+          pendingRestRef.current = null;
+          // Let the celebration finish dismissing before the next Modal opens.
+          if (rest && rest > 0) {
+            setTimeout(() => {
+              setRestTimeLeft(rest);
+              setShowRestTimer(true);
+            }, 300);
+          }
+        }}
       />
     </View>
   );

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 export interface ActivityHeatmapCalendarProps {
   activityMap: Record<string, { inClub: boolean; progress: number; workoutName?: string; duration?: number }>;
@@ -25,9 +26,15 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: today's cell stays lit at full glow rather than pulsing.
+    if (reduceMotion) {
+      glowAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
           toValue: 1,
@@ -40,8 +47,10 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [glowAnim]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glowAnim, reduceMotion]);
 
   const getMonthName = (month: number) => {
     const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -139,11 +148,11 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
       <Text style={styles.tagHeader}>Activity calendar</Text>
 
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={handlePrevMonth} style={styles.navBtn}>
+        <TouchableOpacity hitSlop={6} onPress={handlePrevMonth} style={styles.navBtn}>
           <Ionicons name="chevron-back" size={16} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{getMonthName(calMonth)}, {calYear}</Text>
-        <TouchableOpacity onPress={handleNextMonth} style={styles.navBtn}>
+        <TouchableOpacity hitSlop={6} onPress={handleNextMonth} style={styles.navBtn}>
           <Ionicons name="chevron-forward" size={16} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>

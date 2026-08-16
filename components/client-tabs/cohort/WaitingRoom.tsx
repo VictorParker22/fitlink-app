@@ -312,7 +312,7 @@ export default function WaitingRoom({
             )}
           </View>
 
-          <Pressable
+          <Pressable hitSlop={{ top: 3, bottom: 3 }}
             style={s.ghostBtn}
             onPress={() => {
               tap();
@@ -320,6 +320,7 @@ export default function WaitingRoom({
             }}
             accessibilityRole="button"
             accessibilityLabel={fullPlanShown ? 'Hide the full plan' : 'See the full plan'}
+            accessibilityState={{ expanded: fullPlanShown }}
             accessibilityHint={
               fullPlanShown ? 'Collapses every week back down' : 'Shows every week of the season below'
             }
@@ -349,7 +350,7 @@ export default function WaitingRoom({
                   <Text style={s.prepTitle}>{item.title}</Text>
                   <Text style={s.prepBody}>{item.body}</Text>
                   {item.action && item.actionLabel ? (
-                    <Pressable
+                    <Pressable hitSlop={{ top: 7, bottom: 7 }}
                       style={s.prepAction}
                       onPress={() => {
                         tap();
@@ -382,7 +383,7 @@ export default function WaitingRoom({
                 Running {planName}
               </Text>
             </View>
-            <Pressable
+            <Pressable hitSlop={{ top: 5, bottom: 5 }}
               style={s.coachBtn}
               onPress={() => {
                 tap();

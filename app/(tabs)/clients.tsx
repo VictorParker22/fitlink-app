@@ -924,11 +924,11 @@ export default function ClientsScreen() {
         {clients.length === 0 ? (
           <EmptyRoster onAdd={() => router.push('/add-client' as any)} insets={insets} />
         ) : (
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             data={filtered}
             keyExtractor={item => item.id}
             renderItem={renderClient}
-            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 130 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />
@@ -1129,12 +1129,14 @@ const styles = StyleSheet.create({
   avatarInitials: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.036), color: CoachColors.textSecondary },
   unreadDot: {
     position: 'absolute', top: -2, right: -2,
-    minWidth: 15, height: 15, borderRadius: 8,
+    // minHeight so the unread count is not clipped at large Dynamic Type sizes.
+    minWidth: 15, minHeight: 15, borderRadius: 8,
     backgroundColor: CoachColors.danger,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
     borderWidth: 1.5, borderColor: CoachColors.bg,
   },
-  unreadDotText: { fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.textPrimary },
+  // onAccent (dark ink) on the solid danger fill: 5.75:1. textPrimary was 2.82:1.
+  unreadDotText: { fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.onAccent },
 
   // Card body
   cardBody: { flex: 1, justifyContent: 'center', gap: 3 },

@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +24,7 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // ─── MAIN COMPONENT ──────────────────────────────────────
 export default function ClassPlayerScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{
     title: string;
@@ -55,6 +56,7 @@ export default function ClassPlayerScreen() {
 // COMPLETION SCREEN
 // ─────────────────────────────────────────────────────────
 function CompletionScreen({ entry, params }: { entry: any; params: any }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clearLastCompleted, startWorkout } = useWorkout();
   const { user } = useAuth();
@@ -278,6 +280,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
               {[1, 2, 3, 4, 5].map(star => (
                 <TouchableOpacity
                   key={star}
+                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     handleRate(star);
@@ -307,7 +310,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         </View>
 
         {/* Actions */}
-        <View style={cs.actions}>
+        <View style={[cs.actions, { paddingBottom: insets.bottom + 130 }]}>
           <TouchableOpacity style={cs.startAgainBtn} onPress={handleStartAgain} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Start this class again">
             <Ionicons name="refresh" size={18} color={CoachColors.onAccent} />
             <Text style={cs.startAgainText}>Start again</Text>
@@ -1120,7 +1123,7 @@ const cs = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  actions: { paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 90 : 80, gap: 10 },
+  actions: { paddingHorizontal: 20, gap: 10 },
   startAgainBtn: {
     backgroundColor: CoachColors.accent, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

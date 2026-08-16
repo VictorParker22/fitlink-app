@@ -469,7 +469,7 @@ export default function PassTrackEditorScreen() {
           </View>
 
           {/* Card */}
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
             style={[st.trackCard, isMilestone && st.trackCardMilestone, isActive && st.trackCardActive]}
             activeOpacity={0.85}
             onLongPress={drag}
@@ -500,14 +500,14 @@ export default function PassTrackEditorScreen() {
     <View style={[st.container, { paddingTop: insets.top }]}>
       {/* ── HEADER ── */}
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.closeBtn}>
+        <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.closeBtn}>
           <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={st.headerTitle}>Track editor</Text>
           <Text style={st.headerSub}>{plan.name} · {track.length} node{track.length === 1 ? '' : 's'}</Text>
         </View>
-        <TouchableOpacity onPress={handleSave} disabled={saving} style={st.saveBtn}>
+        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} onPress={handleSave} disabled={saving} style={st.saveBtn}>
           <Text style={st.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
         </TouchableOpacity>
       </View>
@@ -554,16 +554,16 @@ export default function PassTrackEditorScreen() {
           <>
             {/* ── QUICK ADD ── */}
             <View style={st.quickAdd}>
-              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('workouts')}>
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={st.quickAddPill} onPress={() => setActiveTab('workouts')}>
                 <Text style={st.quickAddText}>+ Workout</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('diets')}>
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={st.quickAddPill} onPress={() => setActiveTab('diets')}>
                 <Text style={st.quickAddText}>+ Meal plan</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={st.quickAddPill} onPress={() => setActiveTab('classes')}>
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={st.quickAddPill} onPress={() => setActiveTab('classes')}>
                 <Text style={st.quickAddText}>+ Class</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[st.quickAddPill, st.quickAddPillAccent]} onPress={() => setShowMilestoneInput(true)}>
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={[st.quickAddPill, st.quickAddPillAccent]} onPress={() => setShowMilestoneInput(true)}>
                 <Text style={[st.quickAddText, { color: CoachColors.accent }]}>+ Milestone</Text>
               </TouchableOpacity>
             </View>
@@ -582,7 +582,7 @@ export default function PassTrackEditorScreen() {
                     onSubmitEditing={addMilestone}
                     autoFocus
                   />
-                  <TouchableOpacity onPress={addMilestone} style={st.milestoneAddBtn}>
+                  <TouchableOpacity hitSlop={7} onPress={addMilestone} style={st.milestoneAddBtn}>
                     <Ionicons name="add" size={18} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
@@ -596,7 +596,7 @@ export default function PassTrackEditorScreen() {
             <View style={st.section}>
               <View style={st.tabs}>
                 {SOURCE_TABS.map(({ key, label, icon }) => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                     key={key}
                     style={[st.tab, activeTab === key && st.tabActive]}
                     onPress={() => setActiveTab(key)}
@@ -624,7 +624,7 @@ export default function PassTrackEditorScreen() {
                     {workouts.map(w => {
                       const count = countOf('workout', w.id);
                       return (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           key={w.id}
                           style={st.contentCard}
                           onPress={() => addNode('workout', w.id)}
@@ -679,7 +679,7 @@ export default function PassTrackEditorScreen() {
                         c.category || null,
                       ].filter(Boolean).join(' · ');
                       return (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           key={c.id}
                           style={st.contentCard}
                           onPress={() => addNode('class', c.id, c.title)}
@@ -724,7 +724,7 @@ export default function PassTrackEditorScreen() {
                     {diets.map(d => {
                       const count = countOf('diet', d.id);
                       return (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           key={d.id}
                           style={st.contentCard}
                           onPress={() => addNode('diet', d.id)}
@@ -770,7 +770,7 @@ export default function PassTrackEditorScreen() {
              because we navigate (router.back) right after publishing. ── */}
       {review && (
         <View style={[st.reviewOverlay, { paddingTop: insets.top }]}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
             <Text style={st.reviewTitle}>
               {review.length} change{review.length === 1 ? '' : 's'} to a live season
             </Text>

@@ -33,6 +33,13 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
     onClose();
   };
 
+  // Never navigate while this native Modal is still on screen — the documented
+  // iOS freeze. Dismiss first, let the dismissal animation land, then push.
+  const closeThenGo = (route: string) => {
+    handleClose();
+    setTimeout(() => router.push(route as any), 300);
+  };
+
   const searchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return [];
@@ -54,8 +61,10 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           type: 'client',
           title: c.name,
           subtitle: c.email || c.phone || c.status,
-          icon: 'person',
-          onPress: () => { handleClose(); router.push(`/client/${c.id}` as any); },
+          // Result rows use outline icons (section headers use the filled
+          // variant) — matches the session and plan rows below.
+          icon: 'person-outline',
+          onPress: () => closeThenGo(`/client/${c.id}`),
         })),
       });
     }
@@ -81,7 +90,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
             title: client?.name || s.group_name || 'Session',
             subtitle: `${s.type} · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${s.status}`,
             icon: 'calendar-outline',
-            onPress: () => { handleClose(); router.push(`/session/${s.id}` as any); },
+            onPress: () => closeThenGo(`/session/${s.id}`),
           };
         }),
       });
@@ -101,19 +110,22 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           title: p.name,
           subtitle: `$${p.price} / ${p.period === 'monthly' ? 'mo' : p.period}`,
           icon: 'document-text-outline',
-          onPress: () => { handleClose(); router.push('/subscriptions' as any); },
+          onPress: () => closeThenGo('/subscriptions'),
         })),
       });
     }
 
     // Search quick actions
     const quickActions = [
-      { id: 'qa-add-client', title: 'Add client', subtitle: 'Create a new client profile', icon: 'person-add', route: '/add-client' },
+      // All outline: these render as result rows, and rows use outline icons
+      // throughout this modal. 'today-outline' rather than a second
+      // 'calendar-outline' so Schedule and Book session stay distinguishable.
+      { id: 'qa-add-client', title: 'Add client', subtitle: 'Create a new client profile', icon: 'person-add-outline', route: '/add-client' },
       { id: 'qa-book-session', title: 'Book session', subtitle: 'Schedule a training session', icon: 'calendar-outline', route: '/book-session' },
-      { id: 'qa-messages', title: 'Messages', subtitle: 'Open conversations', icon: 'chatbubble', route: '/(tabs)/messages' },
-      { id: 'qa-programs', title: 'New plan', subtitle: 'Create a workout program', icon: 'document-text', route: '/(tabs)/programs' },
-      { id: 'qa-schedule', title: 'Schedule', subtitle: 'View your calendar', icon: 'calendar', route: '/(tabs)/schedule' },
-      { id: 'qa-profile', title: 'Profile', subtitle: 'Edit your profile settings', icon: 'person-circle', route: '/(tabs)/profile' },
+      { id: 'qa-messages', title: 'Messages', subtitle: 'Open conversations', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
+      { id: 'qa-programs', title: 'New plan', subtitle: 'Create a workout program', icon: 'document-text-outline', route: '/(tabs)/programs' },
+      { id: 'qa-schedule', title: 'Schedule', subtitle: 'View your calendar', icon: 'today-outline', route: '/(tabs)/schedule' },
+      { id: 'qa-profile', title: 'Profile', subtitle: 'Edit your profile settings', icon: 'person-circle-outline', route: '/(tabs)/profile' },
     ];
     const matchedActions = quickActions.filter(a =>
       a.title.toLowerCase().includes(q) || a.subtitle.toLowerCase().includes(q)
@@ -125,7 +137,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
         data: matchedActions.map(a => ({
           ...a,
           type: 'action',
-          onPress: () => { handleClose(); router.push(a.route as any); },
+          onPress: () => closeThenGo(a.route),
         })),
       });
     }
@@ -157,12 +169,12 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
                   <Ionicons name="close-circle" size={20} color={CoachColors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity onPress={handleClose} style={st.searchCancel}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleClose} style={st.searchCancel}>
               <Text style={st.searchCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -176,12 +188,12 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               {/* Recent / Suggestions */}
               <View style={st.searchSuggestions}>
                 {[
-                  { label: 'Clients', icon: 'people', onPress: () => { handleClose(); router.push('/(tabs)/clients'); } },
-                  { label: 'Schedule', icon: 'calendar', onPress: () => { handleClose(); router.push('/(tabs)/schedule'); } },
-                  { label: 'Programs', icon: 'document-text', onPress: () => { handleClose(); router.push('/(tabs)/programs'); } },
-                  { label: 'Messages', icon: 'chatbubble', onPress: () => { handleClose(); router.push('/(tabs)/messages'); } },
+                  { label: 'Clients', icon: 'people', onPress: () => closeThenGo('/(tabs)/clients') },
+                  { label: 'Schedule', icon: 'calendar', onPress: () => closeThenGo('/(tabs)/schedule') },
+                  { label: 'Programs', icon: 'document-text', onPress: () => closeThenGo('/(tabs)/programs') },
+                  { label: 'Messages', icon: 'chatbubble', onPress: () => closeThenGo('/(tabs)/messages') },
                 ].map((s, i) => (
-                  <TouchableOpacity key={i} style={st.searchSuggestionChip} onPress={s.onPress} activeOpacity={0.7}>
+                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} key={i} style={st.searchSuggestionChip} onPress={s.onPress} activeOpacity={0.7}>
                     <Ionicons name={s.icon as any} size={16} color={CoachColors.textSecondary} />
                     <Text style={st.searchSuggestionText}>{s.label}</Text>
                   </TouchableOpacity>

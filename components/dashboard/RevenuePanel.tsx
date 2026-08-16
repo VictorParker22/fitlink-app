@@ -69,7 +69,7 @@ export default function RevenuePanel() {
         </View>
       )}
 
-      <TouchableOpacity
+      <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
         style={st.revCta}
         onPress={() => router.push('/subscriptions' as any)}
         activeOpacity={0.7}

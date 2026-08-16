@@ -373,7 +373,7 @@ export default function AccountabilityQueue() {
           ))}
 
           {hiddenCount > 0 && (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
               style={styles.showAllBtn}
               activeOpacity={0.7}
               onPress={() => setShowAll(true)}
@@ -384,7 +384,7 @@ export default function AccountabilityQueue() {
             </TouchableOpacity>
           )}
           {showAll && queue.length > VISIBLE_CAP && (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
               style={styles.showAllBtn}
               activeOpacity={0.7}
               onPress={() => setShowAll(false)}
@@ -421,7 +421,8 @@ const styles = StyleSheet.create({
   },
   countBadge: {
     minWidth: 20,
-    height: 20,
+    // minHeight so the count is not clipped at large Dynamic Type sizes.
+    minHeight: 20,
     borderRadius: 10,
     paddingHorizontal: 6,
     backgroundColor: CoachColors.accentSoft,

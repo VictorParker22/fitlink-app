@@ -408,7 +408,7 @@ export default function FindCoachScreen() {
   // ── Shared header ──────────────────────────────────────────────────────────
   const Header = ({ title, sub }: { title: string; sub?: string }) => (
     <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-      <TouchableOpacity onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+      <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
         <Ionicons name="chevron-back" size={19} color={C.textSecondary} />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>
@@ -450,7 +450,7 @@ export default function FindCoachScreen() {
             />
           ))}
         </View>
-        <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.body, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
           <Text style={s.questionPrompt}>{q.prompt}</Text>
           <Text style={s.questionContext}>{q.context}</Text>
           <View style={{ gap: 9, marginTop: 22 }}>
@@ -501,7 +501,7 @@ export default function FindCoachScreen() {
             <Text style={s.emptyBody}>When coaches join, they'll show up here matched against your answers.</Text>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.body, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
             <View style={{ gap: 11 }}>
               {matches.map((m, idx) => (
                 <TouchableOpacity
@@ -567,9 +567,9 @@ export default function FindCoachScreen() {
     const days = enabledDays(t.working_hours);
     return (
       <View style={s.container}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
           <View style={[s.profileHero, { paddingTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={goBack} style={s.backBtnOnHero} accessibilityRole="button" accessibilityLabel="Back">
+            <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtnOnHero} accessibilityRole="button" accessibilityLabel="Back">
               <Ionicons name="chevron-back" size={19} color={C.textPrimary} />
             </TouchableOpacity>
           </View>
@@ -652,7 +652,7 @@ export default function FindCoachScreen() {
           </View>
         </ScrollView>
 
-        <View style={[s.footer, { paddingBottom: insets.bottom + 14 }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + 70 }]}>
           <TouchableOpacity
             style={s.primaryBtn}
             activeOpacity={0.85}
@@ -677,7 +677,7 @@ export default function FindCoachScreen() {
     return (
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Header title={`Ask ${firstName(t.name)}`} sub="The answer is theirs — this sends a request, not money" />
-        <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.body, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={s.summaryCard}>
             <Text style={s.summaryEyebrow}>What {firstName(t.name)} will see</Text>
             <View style={{ gap: 11, marginTop: 13 }}>
@@ -736,7 +736,7 @@ export default function FindCoachScreen() {
           ) : null}
         </ScrollView>
 
-        <View style={[s.footer, { paddingBottom: insets.bottom + 14 }]}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + 70 }]}>
           <TouchableOpacity
             style={[s.primaryBtn, sending && { opacity: 0.6 }]}
             onPress={sendRequest}
@@ -809,7 +809,8 @@ const s = StyleSheet.create({
   progressSegDone: { backgroundColor: C.accent },
   progressSegActive: { backgroundColor: 'rgba(198,242,78,0.45)' },
 
-  body: { padding: 20, paddingBottom: 140 },
+  // paddingBottom is applied inline from the safe-area inset + floating tab bar.
+  body: { padding: 20 },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
 
   // Intake

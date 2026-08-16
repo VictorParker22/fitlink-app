@@ -107,8 +107,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   segment: {
-    width: 52,
-    height: 56,
+    minWidth: 52,
+    // minHeight: the 22pt countdown numerals scale with Dynamic Type and a
+    // hard 56pt box clips them. Width is a minimum for the same reason.
+    minHeight: 56,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',

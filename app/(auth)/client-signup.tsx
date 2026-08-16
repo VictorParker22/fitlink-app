@@ -19,6 +19,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import {
+  AccessibilityInfo,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
   ActivityIndicator, StatusBar,
@@ -59,6 +60,12 @@ export default function ClientSignupScreen() {
   const [flowStep, setFlowStep] = useState<FlowStep>('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // accessibilityLiveRegion is Android-only, so on iOS an error that merely
+  // appears on screen is silent for VoiceOver. Announce it explicitly.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(`Sign up failed. ${error}`);
+  }, [error]);
+
   const [success, setSuccess] = useState('');
 
   const [name, setName] = useState('');
@@ -306,7 +313,7 @@ export default function ClientSignupScreen() {
           >
             <Text style={st.primaryBtnText}>Get started</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => router.push('/(auth)/client-login')}
             style={st.footerRow}
             accessibilityRole="button"
@@ -333,7 +340,7 @@ export default function ClientSignupScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <TouchableOpacity style={st.backBtn} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={5} style={st.backBtn} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={18} color="#C9CEC2" />
           </TouchableOpacity>
 
@@ -375,7 +382,13 @@ export default function ClientSignupScreen() {
 
           {/* Messages */}
           {error ? (
-            <View style={st.messageBox}>
+            <View
+              style={st.messageBox}
+              accessible
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              accessibilityLabel={`Sign up failed. ${error}`}
+            >
               <Ionicons name="alert-circle" size={17} color={C.danger} />
               <Text style={st.errorText}>{error}</Text>
             </View>
@@ -401,6 +414,9 @@ export default function ClientSignupScreen() {
                   autoCapitalize="none"
                   autoFocus
                   keyboardType="email-address"
+                  autoComplete="username"
+                  textContentType="username"
+                  returnKeyType="next"
                   accessibilityLabel="Email or phone number"
                   selectionColor={C.accent}
                 />
@@ -431,11 +447,14 @@ export default function ClientSignupScreen() {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
+                    autoComplete="password-new"
+                    textContentType="newPassword"
+                    returnKeyType="go"
                     autoFocus
                     accessibilityLabel="Create password"
                     selectionColor={C.accent}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
                     <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
                   </TouchableOpacity>
                 </View>
@@ -469,6 +488,9 @@ export default function ClientSignupScreen() {
                   placeholderTextColor={C.textFaint}
                   value={name}
                   onChangeText={setName}
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
                   accessibilityLabel="Name"
                   selectionColor={C.accent}
                 />
@@ -483,6 +505,9 @@ export default function ClientSignupScreen() {
                   onChangeText={setContact}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
                   accessibilityLabel="Email"
                   selectionColor={C.accent}
                 />
@@ -497,10 +522,13 @@ export default function ClientSignupScreen() {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
+                    autoComplete="password-new"
+                    textContentType="newPassword"
+                    returnKeyType="go"
                     accessibilityLabel="Create password"
                     selectionColor={C.accent}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
                     <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
                   </TouchableOpacity>
                 </View>
@@ -560,7 +588,7 @@ export default function ClientSignupScreen() {
 
           {/* Footer */}
           {flowStep !== 'pick_trainer' && (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               onPress={() => router.push('/(auth)/client-login')}
               style={st.footerRow}
               accessibilityRole="button"

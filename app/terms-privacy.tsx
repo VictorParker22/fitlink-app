@@ -84,7 +84,7 @@ export default function TermsPrivacyScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Terms & privacy</Text>

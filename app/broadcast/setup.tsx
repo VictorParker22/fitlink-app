@@ -174,7 +174,7 @@ export default function BroadcastSetupScreen() {
               contentContainerStyle={s.categoryRow}
             >
               {CATEGORIES.map(cat => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   key={cat.label}
                   style={[s.categoryChip, category === cat.label && s.categoryChipActive]}
                   onPress={() => {

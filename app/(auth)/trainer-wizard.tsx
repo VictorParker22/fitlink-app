@@ -5,6 +5,7 @@ import {
   Dimensions, Linking, ActivityIndicator, Image,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,12 +39,13 @@ export default function TrainerWizardScreen() {
 
   const [step, setStep] = useState(0);
   const slideAnim = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
 
   const [completionVisible, setCompletionVisible] = useState(false);
   const progressAnim = useSharedValue(1 / STEPS.length);
 
   const setProgress = (nextStep: number) => {
-    progressAnim.value = withTiming((nextStep + 1) / STEPS.length, { duration: 350 });
+    progressAnim.value = withTiming((nextStep + 1) / STEPS.length, { duration: reduceMotion ? 0 : 350 });
   };
 
   const progressStyle = useAnimatedStyle(() => ({
@@ -89,6 +91,14 @@ export default function TrainerWizardScreen() {
   const [saving, setSaving] = useState(false);
 
   const animateToStep = (nextStep: number) => {
+    // Reduce Motion: swap steps in place rather than sliding the whole screen
+    // sideways, which is the most nausea-inducing motion in the wizard.
+    if (reduceMotion) {
+      slideAnim.value = 0;
+      setStep(nextStep);
+      setProgress(nextStep);
+      return;
+    }
     const direction = nextStep > step ? 1 : -1;
     // Slide current step out, swap step, then slide new step in
     slideAnim.value = withTiming(-direction * SCREEN_WIDTH, { duration: 200 }, (finished) => {
@@ -270,7 +280,7 @@ export default function TrainerWizardScreen() {
             <Text style={styles.doneCardEyebrow}>Last step</Text>
             <Text style={styles.doneCardTitle}>Bring in your first athlete</Text>
             <Text style={styles.doneCardSubtitle}>Someone you already train is the easiest place to start.</Text>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
               style={styles.doneCardBtn}
               onPress={() => router.push('/add-client' as any)}
               activeOpacity={0.85}
@@ -296,11 +306,11 @@ export default function TrainerWizardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         {step > 0 ? (
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back to previous step">
+          <TouchableOpacity hitSlop={4} onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back to previous step">
             <Ionicons name="arrow-back" size={18} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         ) : (
@@ -409,7 +419,7 @@ export default function TrainerWizardScreen() {
                 {DAYS.map((day) => {
                   const isActive = activeDays[day];
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                       key={day}
                       style={[styles.dayRow, isActive ? styles.dayRowActive : styles.dayRowInactive]}
                       onPress={() => setActiveDays(prev => ({ ...prev, [day]: !prev[day] }))}

@@ -437,7 +437,7 @@ export default function ExploreClassesScreen() {
           autoCorrect={false}
         />
         {searchQuery !== '' && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} style={s.searchClearBtn}>
+          <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setSearchQuery('')} style={s.searchClearBtn}>
             <Ionicons name="close-circle" size={16} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         )}
@@ -538,7 +538,7 @@ export default function ExploreClassesScreen() {
       )}
 
       {/* Class List */}
-      <FlatList
+      <FlatList keyboardShouldPersistTaps="handled"
         data={sortedClasses}
         keyExtractor={(item) => item.id}
         renderItem={renderClassItem}
@@ -579,7 +579,7 @@ export default function ExploreClassesScreen() {
                   : 'Clear the filters or the search to see the whole library.'}
             </Text>
             {activeFilters.size > 0 && (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setActiveFilters(new Set());
@@ -675,7 +675,7 @@ export default function ExploreClassesScreen() {
             <View style={s.sortSheetDivider} />
 
             <Text style={s.filterSectionTitle}>CATEGORY</Text>
-            <ScrollView
+            <ScrollView keyboardShouldPersistTaps="handled"
               contentContainerStyle={s.filterChips}
               showsVerticalScrollIndicator={false}
             >
@@ -683,7 +683,7 @@ export default function ExploreClassesScreen() {
                 const isActive = activeFilters.has(cat);
                 const catColor = CATEGORY_COLORS[cat] || '#FFFFFF';
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                     key={cat}
                     style={[
                       s.filterChip,
@@ -876,7 +876,9 @@ const s = StyleSheet.create({
   liveBadgeText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 9,
-    color: CoachColors.textPrimary,
+    // On the solid `danger` fill, textPrimary is only 2.82:1. onAccent (the
+    // near-black ink) reaches 5.75:1 — the only tier that passes on danger.
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   upcomingBadgeText: {

@@ -30,6 +30,7 @@ import { supabase } from '../../lib/supabase';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { isBroadcastDndEnabled, setBroadcastDnd } from '../../lib/broadcastFocus';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width } = Dimensions.get('window');
 
@@ -370,7 +371,14 @@ export default function StudioScreen() {
 
   // Pulsing live dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    // Reduce Motion: the LIVE dot stays lit rather than blinking. "Live" is
+    // still conveyed by the dot's colour and the adjacent LIVE label.
+    if (reduceMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 0.2, duration: 600, useNativeDriver: true }),
@@ -379,7 +387,7 @@ export default function StudioScreen() {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulseAnim]);
+  }, [pulseAnim, reduceMotion]);
 
   // Abrupt stream disconnect
   const [abruptEndedClass, setAbruptEndedClass] = useState<LiveClassItem | null>(null);
@@ -659,7 +667,7 @@ export default function StudioScreen() {
 
       <ScrollView
         style={s.scrollFlex}
-        contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}
+        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
       >
 
@@ -680,7 +688,7 @@ export default function StudioScreen() {
                 : 'Ready when you are'}
             </Text>
           </View>
-          <TouchableOpacity style={s.headerBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
+          <TouchableOpacity hitSlop={3} style={s.headerBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
             <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -696,13 +704,13 @@ export default function StudioScreen() {
               </View>
               <Text style={s.alertCardSub} numberOfLines={1}>{abruptEndedClass.title}</Text>
               <View style={s.alertCardActions}>
-                <TouchableOpacity style={s.alertSaveBtn} onPress={handleSaveVod} disabled={isSavingVod}>
+                <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }} style={s.alertSaveBtn} onPress={handleSaveVod} disabled={isSavingVod}>
                   {isSavingVod
                     ? <ActivityIndicator color={CoachColors.onAccent} size="small" />
                     : <Text style={s.alertSaveBtnText}>Save to library</Text>
                   }
                 </TouchableOpacity>
-                <TouchableOpacity style={s.alertDismissBtn} onPress={() => setAbruptEndedClass(null)} disabled={isSavingVod}>
+                <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }} style={s.alertDismissBtn} onPress={() => setAbruptEndedClass(null)} disabled={isSavingVod}>
                   <Text style={s.alertDismissBtnText}>Dismiss</Text>
                 </TouchableOpacity>
               </View>
@@ -749,7 +757,7 @@ export default function StudioScreen() {
                 <View style={s.goLiveDot} />
                 <Text style={s.goLiveBtnText}>Go live now</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.scheduleInsteadBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
+              <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.scheduleInsteadBtn} onPress={handleScheduleNew} activeOpacity={0.8}>
                 <Text style={s.scheduleInsteadBtnText}>Schedule one instead</Text>
               </TouchableOpacity>
               <Text style={s.emptyFootnote}>
@@ -895,7 +903,8 @@ export default function StudioScreen() {
 
             <View style={s.chartCard}>
               <View style={s.chartCardTop}>
-                <Text style={s.chartBigNum}>{sparklineData.reduce((a, b) => a + b.value, 0).toLocaleString()}</Text>
+                {/* Tight single-line numeral in the chart header row. */}
+                <Text style={s.chartBigNum} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{sparklineData.reduce((a, b) => a + b.value, 0).toLocaleString()}</Text>
                 <Text style={s.chartBigLabel}>total takes</Text>
               </View>
               <View style={s.chartWrapper}>
@@ -1044,10 +1053,12 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: CoachColors.textPrimary,
   },
+  // textSecondary, not textMuted: this sits on the warningSoft alert tint,
+  // where textMuted only reaches 3.96:1 (needs 4.5:1 at 12px).
   alertCardSub: {
     fontFamily: CoachFonts.body,
     fontSize: 12,
-    color: CoachColors.textMuted,
+    color: CoachColors.textSecondary,
     marginBottom: 10,
   },
   alertCardActions: { flexDirection: 'row', gap: 8 },
@@ -1137,7 +1148,8 @@ const s = StyleSheet.create({
   liveReenterBtnText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 14,
-    color: '#FFFFFF',
+    // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
+    color: CoachColors.onAccent,
   },
 
   // ── Never-broadcast empty state ──────────────────────────────────────────────
@@ -1415,7 +1427,8 @@ const s = StyleSheet.create({
   stickyLiveBtnText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 14.5,
-    color: '#FFFFFF',
+    // See liveReenterBtnText.
+    color: CoachColors.onAccent,
     letterSpacing: 0.2,
   },
 });

@@ -16,9 +16,14 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Get the trainer ID
-  SELECT id INTO v_trainer_id FROM public.trainers WHERE auth_user_id = v_user_id;
-  
+  -- Get the trainer ID.
+  -- NOTE: trainers.id IS the auth user id everywhere in the app (every query
+  -- reads/writes trainers with .eq('id', user.id) and inserts trainer_id: user.id).
+  -- This function previously matched on a non-existent trainers.auth_user_id
+  -- column, so coach account deletion ALWAYS failed — a Guideline 5.1.1(v)
+  -- violation. Match on the real key.
+  SELECT id INTO v_trainer_id FROM public.trainers WHERE id = v_user_id;
+
   IF v_trainer_id IS NULL THEN
     RAISE EXCEPTION 'Trainer profile not found';
   END IF;

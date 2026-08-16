@@ -229,7 +229,7 @@ export default function SessionsCard() {
       <Text style={st.sub}>
         Want to set one up with {coachFirst}? Booking happens on {coachFirst}'s side — a message is how one gets on the calendar.
       </Text>
-      <Pressable
+      <Pressable hitSlop={{ top: 3, bottom: 3 }}
         style={st.messageBtn}
         onPress={() => router.push(ClientRoute.myMessages)}
         accessibilityRole="button"

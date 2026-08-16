@@ -234,7 +234,7 @@ export default function CoachContextHeroCard() {
           <Text style={s.sub}>{hero.sub}</Text>
 
           {/* CTA — haptic weight matches urgency of the state */}
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
             style={[s.cta, { backgroundColor: hero.ctaColor }]}
             onPress={() => {
               // heavy = urgent action (trial expiring), medium = entry/navigation

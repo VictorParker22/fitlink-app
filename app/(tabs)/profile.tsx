@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, ActivityIndicator, Share, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,6 +37,7 @@ function initials(name: string) {
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
@@ -165,11 +166,19 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
 
           {/* ── Hero ─────────────────────────────────────────────────────── */}
           <View style={s.hero}>
-            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8} style={s.avatarWrap}>
+            <TouchableOpacity
+              onPress={handlePickImage}
+              activeOpacity={0.8}
+              style={s.avatarWrap}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+              accessibilityState={{ busy: uploading }}
+            >
               {trainer?.avatar_url ? (
                 <Image source={{ uri: trainer.avatar_url }} style={s.avatarImage} />
               ) : (
@@ -192,7 +201,7 @@ export default function ProfileScreen() {
                 <Text style={s.elitePillText}>Coach Elite</Text>
               </View>
             ) : (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                 style={s.eliteOutlinePill}
                 activeOpacity={0.8}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/studio' as any); }}
@@ -210,33 +219,37 @@ export default function ProfileScreen() {
             )}
 
             <View style={s.statRow}>
-              <View style={s.statBlock}>
+              <View style={s.statBlock} accessible accessibilityLabel={`${activeClients.length} athletes`}>
                 <Text style={s.statNum}>{activeClients.length}</Text>
                 <Text style={s.statLabel}>Athletes</Text>
               </View>
               <View style={s.statDivider} />
-              <View style={s.statBlock}>
+              <View style={s.statBlock} accessible accessibilityLabel={`${completedSessions} completed sessions`}>
                 <Text style={s.statNum}>{completedSessions}</Text>
                 <Text style={s.statLabel}>Sessions</Text>
               </View>
               <View style={s.statDivider} />
-              <View style={s.statBlock}>
+              <View style={s.statBlock} accessible accessibilityLabel={`${totalReferrals} referrals`}>
                 <Text style={s.statNum}>{totalReferrals}</Text>
                 <Text style={s.statLabel}>Referrals</Text>
               </View>
             </View>
 
             <View style={s.heroActions}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                 style={s.actionPrimary}
+                accessibilityRole="button"
+                accessibilityLabel="Edit profile"
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings' as any); }}
                 activeOpacity={0.85}
               >
                 <Ionicons name="create-outline" size={16} color={CoachColors.onAccent} />
                 <Text style={s.actionPrimaryText}>Edit profile</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                 style={s.actionSecondary}
+                accessibilityRole="button"
+                accessibilityLabel="Share profile"
                 onPress={handleShareProfile}
                 activeOpacity={0.85}
               >
@@ -266,12 +279,25 @@ export default function ProfileScreen() {
           <Text style={s.sectionLabel}>Support</Text>
           <MenuSection items={SUPPORT_ITEMS} router={router} />
 
-          <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.signOutBtn}
+            onPress={handleSignOut}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
             <Ionicons name="log-out-outline" size={18} color={CoachColors.danger} />
             <Text style={s.signOutText}>Sign out</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={s.deleteBtn}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+            accessibilityHint="Permanently deletes your account and all your data. This cannot be undone."
+          >
             <Ionicons name="trash-outline" size={12} color={CoachColors.textFaint} />
             <Text style={s.deleteText}>Delete account</Text>
           </TouchableOpacity>
@@ -293,6 +319,9 @@ function MenuSection({ items, router }: { items: typeof ACCOUNT_ITEMS; router: R
             style={s.blockRow}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route as any); }}
             activeOpacity={0.7}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
           >
             <Ionicons name={item.icon as any} size={19} color={CoachColors.accent} />
             <Text style={s.blockRowText}>{item.label}</Text>

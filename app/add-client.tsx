@@ -351,7 +351,7 @@ export default function AddClientScreen() {
             <TouchableOpacity onPress={finishToClient} activeOpacity={0.85} style={st.ctaBtn}>
               <Text style={st.ctaBtnText}>Go to profile</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={finishToDashboard} activeOpacity={0.7} style={st.successSecondaryBtn}>
+            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} onPress={finishToDashboard} activeOpacity={0.7} style={st.successSecondaryBtn}>
               <Text style={st.successSecondaryText}>Back to dashboard</Text>
             </TouchableOpacity>
           </View>
@@ -363,10 +363,10 @@ export default function AddClientScreen() {
   // ═══════════ RENDER ═══════════
   return (
     <View style={st.container}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
         {/* Header */}
         <View style={st.header}>
-          <TouchableOpacity onPress={goBack} style={st.headerBack}>
+          <TouchableOpacity hitSlop={4} onPress={goBack} style={st.headerBack}>
             <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -376,7 +376,7 @@ export default function AddClientScreen() {
             <Text style={st.headerSubtitle}>Step {step} of 3</Text>
           </View>
           {step > 1 && (
-            <TouchableOpacity onPress={goNext} style={st.headerSkip}>
+            <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} onPress={goNext} style={st.headerSkip}>
               <Text style={st.headerSkipText}>{step === 3 ? '' : 'Skip'}</Text>
             </TouchableOpacity>
           )}
@@ -498,7 +498,7 @@ export default function AddClientScreen() {
                   autoFocus
                 />
                 {findQuery !== '' && (
-                  <TouchableOpacity onPress={() => { setFindQuery(''); setFindResults([]); }}>
+                  <TouchableOpacity hitSlop={12} onPress={() => { setFindQuery(''); setFindResults([]); }}>
                     <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
                   </TouchableOpacity>
                 )}
@@ -534,7 +534,7 @@ export default function AddClientScreen() {
                         <Text style={st.findResultName}>{client.name}</Text>
                         <Text style={st.findResultContact}>{client.email || client.phone || 'No contact'}</Text>
                       </View>
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                         style={[st.linkBtn, linking === client.id && { opacity: 0.5 }]}
                         onPress={() => handleLinkClient(client)}
                         disabled={linking === client.id}
@@ -615,7 +615,7 @@ export default function AddClientScreen() {
                 <>
                   <Text style={[st.sectionLabel, { marginTop: 14 }]}>How they start</Text>
                   <View style={st.startModeRow}>
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                       style={[st.startModeCard, startMode === 'trial' && st.startModeCardActive]}
                       onPress={() => setStartMode('trial')}
                       activeOpacity={0.7}
@@ -623,7 +623,7 @@ export default function AddClientScreen() {
                       <Text style={[st.startModeTitle, startMode === 'trial' && st.startModeTitleActive]}>14-day trial</Text>
                       <Text style={st.startModeDesc}>Charges after {trialEndLabel}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                       style={[st.startModeCard, startMode === 'paying' && st.startModeCardActive]}
                       onPress={() => setStartMode('paying')}
                       activeOpacity={0.7}
@@ -646,7 +646,7 @@ export default function AddClientScreen() {
                 {GOAL_SUGGESTIONS.map(g => {
                   const isSelected = goals.toLowerCase().includes(g.toLowerCase());
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                       key={g}
                       style={[st.goalChip, isSelected && st.goalChipActive]}
                       onPress={() => {

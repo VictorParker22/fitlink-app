@@ -335,7 +335,7 @@ export default function WeeklyCheckIn() {
         >
           {/* Header */}
           <View style={s.modalHeader}>
-            <TouchableOpacity onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+            <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
               <Ionicons name={step === 0 ? 'close' : 'chevron-back'} size={20} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
@@ -388,7 +388,7 @@ export default function WeeklyCheckIn() {
                   <>
                     <View style={s.chipRow}>
                       {[1, 2, 3, 4, 5].map((n) => (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           key={n}
                           style={[s.numChip, answers[current.id] === n && s.chipSelected]}
                           onPress={() => answerAndAdvance(current, n)}
@@ -411,7 +411,7 @@ export default function WeeklyCheckIn() {
                 {current.kind === 'choice' && (
                   <View style={s.chipRow}>
                     {(current.options || []).map((opt) => (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
                         key={opt}
                         style={[s.optChip, answers[current.id] === opt && s.chipSelected]}
                         onPress={() => answerAndAdvance(current, opt)}
@@ -448,7 +448,7 @@ export default function WeeklyCheckIn() {
                           <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
                         </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                         style={s.nextBtn}
                         onPress={() => answerAndAdvance(current, val)}
                         activeOpacity={0.85}
@@ -472,7 +472,7 @@ export default function WeeklyCheckIn() {
                       maxLength={280}
                     />
                     <View style={s.textActions}>
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                         style={[s.nextBtn, { flex: 1 }, !textDraft.trim() && s.nextBtnDisabled]}
                         onPress={() => textDraft.trim() && answerAndAdvance(current, textDraft.trim())}
                         disabled={!textDraft.trim()}
@@ -481,7 +481,7 @@ export default function WeeklyCheckIn() {
                         <Text style={[s.nextBtnText, !textDraft.trim() && s.nextBtnTextDisabled]}>Next</Text>
                       </TouchableOpacity>
                       {current.optional && (
-                        <TouchableOpacity
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                           style={s.skipBtn}
                           onPress={() => {
                             const next = { ...answers };

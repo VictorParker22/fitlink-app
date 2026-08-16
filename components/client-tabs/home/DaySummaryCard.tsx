@@ -54,7 +54,7 @@ export default function DaySummaryCard({
         </View>
       </View>
 
-      <TouchableOpacity
+      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
         style={st.viewDetailsBtn}
         activeOpacity={0.8}
         onPress={() => router.push(ClientRoute.myProgress as any)}

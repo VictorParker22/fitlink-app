@@ -42,7 +42,7 @@ export default function ExerciseMediaDemo({
     if (isExternal && onPlayVideo) {
       return (
         <View style={{ marginBottom: Spacing.xl }}>
-          <TouchableOpacity 
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} 
             style={styles.watchVideoBtn} 
             onPress={() => onPlayVideo(videoUrl, exerciseName)}
           >

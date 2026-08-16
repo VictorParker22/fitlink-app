@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
+  AccessibilityInfo,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
   StatusBar, Animated,
@@ -39,6 +40,12 @@ export default function LoginScreen() {
   // Shared
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // accessibilityLiveRegion is Android-only, so on iOS an error that merely
+  // appears on screen is silent for VoiceOver. Announce it explicitly.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(`Sign in failed. ${error}`);
+  }, [error]);
+
   const [success, setSuccess] = useState('');
 
   // Phone
@@ -240,7 +247,7 @@ export default function LoginScreen() {
 
             {/* Header — back + logo */}
             <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={5}
                 style={styles.backButton}
                 onPress={() => router.back()}
                 activeOpacity={0.7}
@@ -295,6 +302,8 @@ export default function LoginScreen() {
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
                     autoComplete="tel"
+                    textContentType="telephoneNumber"
+                    returnKeyType="done"
                     accessibilityLabel="Phone number"
                     selectionColor={CoachColors.accent}
                   />
@@ -339,6 +348,8 @@ export default function LoginScreen() {
                       value={emailName}
                       onChangeText={setEmailName}
                       autoComplete="name"
+                      textContentType="name"
+                      returnKeyType="next"
                       accessibilityLabel="Full name"
                       selectionColor={CoachColors.accent}
                     />
@@ -356,6 +367,8 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    textContentType="emailAddress"
+                    returnKeyType="next"
                     accessibilityLabel="Email address"
                     selectionColor={CoachColors.accent}
                   />
@@ -380,7 +393,9 @@ export default function LoginScreen() {
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry={!showPassword}
-                        autoComplete="password"
+                        autoComplete={isSignUp ? 'password-new' : 'password'}
+                        textContentType={isSignUp ? 'newPassword' : 'password'}
+                        returnKeyType={isSignUp ? 'next' : 'go'}
                         accessibilityLabel="Password"
                         selectionColor={CoachColors.accent}
                       />
@@ -413,6 +428,9 @@ export default function LoginScreen() {
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
                         secureTextEntry={!showConfirmPassword}
+                        autoComplete="password-new"
+                        textContentType="newPassword"
+                        returnKeyType="go"
                         accessibilityLabel="Confirm password"
                         selectionColor={CoachColors.accent}
                       />
@@ -472,7 +490,7 @@ export default function LoginScreen() {
               <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
               style={styles.altMethodBtn}
               onPress={() => switchMode('email')}
               accessibilityRole="button"
@@ -492,7 +510,7 @@ export default function LoginScreen() {
           </View>
         )}
         {authMode === 'email' && !isSignUp && (
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
             style={styles.altMethodBtn}
             onPress={() => switchMode('phone')}
             accessibilityRole="button"
@@ -541,7 +559,13 @@ function Messages({ error, success }: { error: string; success: string }) {
   return (
     <View style={styles.messages}>
       {error ? (
-        <View style={styles.messageRow}>
+        <View
+          style={styles.messageRow}
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          accessibilityLabel={`Sign in failed. ${error}`}
+        >
           <Ionicons name="alert-circle" size={16} color={CoachColors.danger} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -612,6 +636,7 @@ function OtpBoxes({
         keyboardType="number-pad"
         maxLength={OTP_LENGTH}
         autoComplete="one-time-code"
+        textContentType="oneTimeCode"
         autoFocus
         accessibilityLabel="Verification code"
       />

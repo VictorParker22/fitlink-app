@@ -68,11 +68,11 @@ export default function SpecializationsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Specializations</Text>
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save specializations">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save specializations">
             <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
@@ -83,7 +83,7 @@ export default function SpecializationsScreen() {
           {specs.length > 0 ? (
             <View style={s.chipGrid}>
               {specs.map((spec) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   key={spec}
                   style={s.chipSelected}
                   onPress={() => removeSpec(spec)}
@@ -131,7 +131,7 @@ export default function SpecializationsScreen() {
           <Text style={s.sectionLabel}>Popular specializations</Text>
           <View style={s.chipGrid}>
             {PRESET_SPECS.filter((c) => !specs.includes(c)).map((spec) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                 key={spec}
                 style={s.chip}
                 onPress={() => addSpec(spec)}

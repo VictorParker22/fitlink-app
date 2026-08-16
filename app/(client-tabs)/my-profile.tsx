@@ -18,12 +18,12 @@
 import { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity,
-  ActivityIndicator, Modal, TextInput, Switch,
+  ActivityIndicator, Modal, TextInput, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
@@ -33,6 +33,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute, SharedRoute } from '../../types/routes';
 
 export default function ClientProfileScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signOut } = useAuth();
   const {
@@ -88,9 +89,20 @@ export default function ClientProfileScreen() {
   };
 
   const pickImage = async (source: 'camera' | 'library') => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    // Ask for the permission that actually matches the source. This used to
+    // request the photo library even when the camera was chosen, so the camera
+    // prompt fired cold from launchCameraAsync and a library denial blocked a
+    // camera shot that never needed it.
+    const { status } = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow photo access to change your picture.');
+      Alert.alert(
+        'Permission needed',
+        source === 'camera'
+          ? 'Allow camera access to take a new profile picture. You can change this in Settings.'
+          : 'Allow photo access to change your picture. You can change this in Settings.',
+      );
       return;
     }
     const pickerOptions: ImagePicker.ImagePickerOptions = {
@@ -178,7 +190,7 @@ export default function ClientProfileScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
 
         {/* Header: who you are */}
         <View style={s.headerRow}>
@@ -197,22 +209,29 @@ export default function ClientProfileScreen() {
               {latestWeight ? ` · ${latestWeight} lbs` : ''}
             </Text>
           </View>
-          <TouchableOpacity style={s.editBtn} onPress={handlePickImage} activeOpacity={0.8} accessibilityRole="button">
+          <TouchableOpacity
+            hitSlop={{ top: 6, bottom: 6 }}
+            style={s.editBtn}
+            onPress={handlePickImage}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile photo"
+          >
             <Text style={s.editBtnText}>Edit</Text>
           </TouchableOpacity>
         </View>
 
         {/* What you've done — real totals */}
         <View style={s.statRow}>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`${sessionsDone} sessions`}>
             <Text style={s.statNum}>{sessionsDone}</Text>
             <Text style={s.statLabel}>sessions</Text>
           </View>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={`${prCount} personal records`}>
             <Text style={s.statNum}>{prCount}</Text>
             <Text style={s.statLabel}>PRs</Text>
           </View>
-          <View style={s.statCard}>
+          <View style={s.statCard} accessible accessibilityLabel={weeksIn ? `${weeksIn} ${weeksIn === 1 ? 'week' : 'weeks'} in` : 'Weeks in, not known yet'}>
             <Text style={s.statNum}>{weeksIn ?? '—'}</Text>
             <Text style={s.statLabel}>{weeksIn === 1 ? 'week in' : 'weeks in'}</Text>
           </View>
@@ -237,6 +256,8 @@ export default function ClientProfileScreen() {
               disabled={healthBusy}
               accessibilityRole="switch"
               accessibilityLabel="Share your Apple Health data with your coach"
+              accessibilityState={{ checked: healthSharingEnabled, disabled: healthBusy, busy: healthBusy }}
+              accessibilityHint={healthBusy ? 'Updating, please wait' : undefined}
               trackColor={{ false: '#33382F', true: CoachColors.accent }}
               thumbColor={healthSharingEnabled ? CoachColors.bg : CoachColors.textMuted}
               ios_backgroundColor="#33382F"
@@ -268,7 +289,13 @@ export default function ClientProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={handleDeleteAccount} style={s.deleteRow} accessibilityRole="button">
+        <TouchableOpacity
+          onPress={handleDeleteAccount}
+          style={s.deleteRow}
+          accessibilityRole="button"
+          accessibilityLabel="Delete my account"
+          accessibilityHint="Permanently removes your account, training history, check-ins and progress. This cannot be undone."
+        >
           <Text style={s.deleteText}>Delete my account</Text>
         </TouchableOpacity>
 
@@ -281,9 +308,12 @@ export default function ClientProfileScreen() {
         animationType="fade"
         onRequestClose={() => setShowDeleteModal(false)}
       >
-        <View style={s.modalOverlay}>
-          <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Delete account</Text>
+        <KeyboardAvoidingView
+          style={s.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={s.modalContent} accessibilityViewIsModal accessibilityRole="alert">
+            <Text style={s.modalTitle} accessibilityRole="header">Delete account</Text>
             <Text style={s.modalMessage}>
               Type <Text style={s.modalStrong}>DELETE</Text> to permanently erase your account and everything you've logged.
             </Text>
@@ -294,27 +324,39 @@ export default function ClientProfileScreen() {
               placeholder="Type DELETE"
               placeholderTextColor={CoachColors.textFaint}
               autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="done"
               autoFocus
+              accessibilityLabel="Confirmation field"
+              accessibilityHint="Type the word DELETE in capitals to unlock the delete button"
             />
             <View style={s.modalButtons}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                 style={[s.modalBtn, s.modalBtnCancel]}
                 onPress={() => setShowDeleteModal(false)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
               >
                 <Text style={s.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                 style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.35 }]}
                 onPress={handleConfirmDelete}
                 disabled={deleteInput !== 'DELETE'}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Delete forever"
+                accessibilityState={{ disabled: deleteInput !== 'DELETE' }}
+                accessibilityHint={deleteInput !== 'DELETE'
+                  ? 'Unavailable until you type DELETE in the field above'
+                  : 'Permanently erases your account and everything you have logged'}
               >
                 <Text style={s.modalBtnConfirmText}>Delete forever</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -486,5 +528,6 @@ const s = StyleSheet.create({
   modalBtnCancel: { borderWidth: 1, borderColor: '#2E322B' },
   modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: '#C9CEC2' },
   modalBtnConfirm: { backgroundColor: CoachColors.danger },
-  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: '#FFFFFF' },
+  // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
 });

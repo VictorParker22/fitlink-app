@@ -140,7 +140,7 @@ export default function NewCoachSetupCards() {
           {items.map((item, index) => {
             const isNext = !item.complete && item.id === nextItem?.id;
             return (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                 key={item.id}
                 style={[
                   styles.checkItem,

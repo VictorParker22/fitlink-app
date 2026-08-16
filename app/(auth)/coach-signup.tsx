@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
+  AccessibilityInfo,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
   StatusBar, Animated,
@@ -33,6 +34,12 @@ export default function CoachSignupScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // accessibilityLiveRegion is Android-only, so on iOS an error that merely
+  // appears on screen is silent for VoiceOver. Announce it explicitly.
+  useEffect(() => {
+    if (error) AccessibilityInfo.announceForAccessibility(`Sign up failed. ${error}`);
+  }, [error]);
+
   const [success, setSuccess] = useState('');
 
   const [name, setName] = useState('');
@@ -153,7 +160,7 @@ export default function CoachSignupScreen() {
           <Animated.View style={{ opacity: fadeAnim }}>
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={5}
                 style={styles.backButton}
                 onPress={() => step === 'otp' ? setStep('info') : router.back()}
                 activeOpacity={0.7}
@@ -205,6 +212,8 @@ export default function CoachSignupScreen() {
                       value={name}
                       onChangeText={setName}
                       autoComplete="name"
+                      textContentType="name"
+                      returnKeyType="next"
                       accessibilityLabel="Full name"
                       selectionColor={CoachColors.accent}
                     />
@@ -222,6 +231,8 @@ export default function CoachSignupScreen() {
                           keyboardType="email-address"
                           autoCapitalize="none"
                           autoComplete="email"
+                          textContentType="emailAddress"
+                          returnKeyType="next"
                           accessibilityLabel="Email address"
                           selectionColor={CoachColors.accent}
                         />
@@ -239,6 +250,9 @@ export default function CoachSignupScreen() {
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
+                            autoComplete="password-new"
+                            textContentType="newPassword"
+                            returnKeyType="next"
                             accessibilityLabel="Password"
                             selectionColor={CoachColors.accent}
                           />
@@ -267,6 +281,8 @@ export default function CoachSignupScreen() {
                         onChangeText={setPhone}
                         keyboardType="phone-pad"
                         autoComplete="tel"
+                        textContentType="telephoneNumber"
+                        returnKeyType="done"
                         accessibilityLabel="Phone number"
                         selectionColor={CoachColors.accent}
                       />
@@ -363,7 +379,13 @@ function Messages({ error, success }: { error: string; success: string }) {
   return (
     <View style={styles.messages}>
       {error ? (
-        <View style={styles.messageRow}>
+        <View
+          style={styles.messageRow}
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          accessibilityLabel={`Sign up failed. ${error}`}
+        >
           <Ionicons name="alert-circle" size={16} color={CoachColors.danger} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -439,6 +461,7 @@ function OtpBoxes({
         keyboardType="number-pad"
         maxLength={OTP_LENGTH}
         autoComplete="one-time-code"
+        textContentType="oneTimeCode"
         autoFocus
         accessibilityLabel="Verification code"
       />

@@ -62,7 +62,7 @@ export default function ReferralsScreen() {
       >
         {/* ── Header ── */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -104,7 +104,7 @@ export default function ReferralsScreen() {
         <Text style={st.sectionTitle}>History</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.filterScroll}>
           {FILTERS.map((f) => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               key={f}
               style={[st.filterChip, filter === f && st.filterChipActive]}
               onPress={() => setFilter(f)}

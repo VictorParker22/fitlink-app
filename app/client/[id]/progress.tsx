@@ -79,7 +79,7 @@ export default function ProgressDashboardScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: CoachColors.bg }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -95,14 +95,14 @@ export default function ProgressDashboardScreen() {
           </View>
           <Text style={[styles.headerSubtitle, { color: CoachColors.textMuted }]}>Progress • Last {rangeDays} days</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Log progress">
+        <TouchableOpacity hitSlop={4} onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Log progress">
           <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>
         {(['7D', '30D', '90D'] as TimeRange[]).map(r => (
-          <TouchableOpacity 
+          <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} 
             key={r} 
             style={[styles.filterPill, timeRange === r ? { backgroundColor: LIME } : { backgroundColor: CoachColors.surface }]}
             onPress={() => setTimeRange(r)}
@@ -172,7 +172,7 @@ export default function ProgressDashboardScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: CoachColors.textMuted }]}>No weight logs yet</Text>
-              <TouchableOpacity onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.logBtn, { backgroundColor: LIME }]}>
+              <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.logBtn, { backgroundColor: LIME }]}>
                 <Text style={styles.logBtnText}>Log weight</Text>
               </TouchableOpacity>
             </View>
@@ -221,7 +221,7 @@ export default function ProgressDashboardScreen() {
               <Text style={[styles.emptyText, { color: CoachColors.textMuted }]}>No completed sessions</Text>
             </View>
           )}
-          <TouchableOpacity style={[styles.viewAllBtn, { borderTopColor: CoachColors.borderMuted, borderTopWidth: 1 }]}>
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={[styles.viewAllBtn, { borderTopColor: CoachColors.borderMuted, borderTopWidth: 1 }]}>
             <Text style={[styles.viewAllText, { color: LIME }]}>View all sessions</Text>
           </TouchableOpacity>
         </Card>

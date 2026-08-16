@@ -91,7 +91,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
       </View>
 
       <View style={st.logRow}>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={2}
           style={st.stepBtn}
           activeOpacity={0.7}
           onPress={() => adjustWeight(-0.5)}
@@ -114,7 +114,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           <Text style={st.inputUnit}>{unit}</Text>
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={2}
           style={st.stepBtn}
           activeOpacity={0.7}
           onPress={() => adjustWeight(0.5)}
@@ -125,7 +125,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={2}
           style={[st.saveBtn, isSubmitting && { opacity: 0.6 }]}
           activeOpacity={0.85}
           disabled={isSubmitting}

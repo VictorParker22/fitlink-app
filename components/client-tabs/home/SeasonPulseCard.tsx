@@ -203,7 +203,7 @@ export default function SeasonPulseCard() {
         <View style={st.barTrack}>
           <View style={[st.barFillStatic, { width: '100%' }]} />
         </View>
-        <Pressable
+        <Pressable hitSlop={{ top: 3, bottom: 3 }}
           style={st.reviewBtnWide}
           onPress={openSeason}
           accessibilityRole="button"
@@ -232,7 +232,7 @@ export default function SeasonPulseCard() {
           <Text style={st.statLine}>{season.preStart}</Text>
           {season.runLine ? <Text style={st.runLine}>{season.runLine}</Text> : null}
         </View>
-        <Pressable
+        <Pressable hitSlop={{ top: 3, bottom: 3 }}
           style={st.reviewBtnWide}
           onPress={openSeason}
           accessibilityRole="button"
@@ -279,7 +279,7 @@ export default function SeasonPulseCard() {
       </View>
 
       <View style={st.ctaRow}>
-        <Pressable
+        <Pressable hitSlop={{ top: 3, bottom: 3 }}
           style={st.continueBtn}
           onPress={continueSeason}
           accessibilityRole="button"
@@ -289,7 +289,7 @@ export default function SeasonPulseCard() {
         >
           <Text style={st.continueBtnText}>Continue</Text>
         </Pressable>
-        <Pressable
+        <Pressable hitSlop={{ top: 3, bottom: 3 }}
           style={st.reviewBtn}
           onPress={openSeason}
           accessibilityRole="button"

@@ -36,7 +36,7 @@ export default function ContactSupportScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Contact support</Text>
@@ -54,7 +54,7 @@ export default function ContactSupportScreen() {
             {TOPICS.map((topic) => {
               const active = selectedTopic === topic;
               return (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   key={topic}
                   style={[s.topicChip, active && s.topicChipActive]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedTopic(topic); }}

@@ -508,7 +508,7 @@ export default function BroadcastStudioScreen() {
       <View style={[s.container, { backgroundColor: CoachColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
         <Ionicons name="mic-off" size={48} color={CoachColors.textFaint} />
         <Text style={s.errorText}>No access to camera or microphone.</Text>
-        <TouchableOpacity style={s.backBtnAlt} onPress={() => router.back()}>
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.backBtnAlt} onPress={() => router.back()}>
           <Text style={s.backBtnAltText}>Go back</Text>
         </TouchableOpacity>
       </View>
@@ -554,7 +554,7 @@ export default function BroadcastStudioScreen() {
               </>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={s.discardBtn} onPress={() => router.back()} disabled={isSaving}>
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.discardBtn} onPress={() => router.back()} disabled={isSaving}>
             <Text style={s.discardBtnText}>Return to studio</Text>
           </TouchableOpacity>
         </View>
@@ -628,7 +628,7 @@ export default function BroadcastStudioScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => handlePinMessage(item)}
             style={s.chatPanelBubble}
             activeOpacity={0.7}
@@ -706,7 +706,7 @@ export default function BroadcastStudioScreen() {
 
         {/* Top Bar */}
         <View style={s.topBar}>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={2}
             onPress={() => {
               if (isBroadcasting) {
                 Alert.alert('Leave Studio?', 'This will end your current broadcast.', [
@@ -747,13 +747,13 @@ export default function BroadcastStudioScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={2}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsMuted(v => !v); }}
               style={[s.iconBtn, isMuted && { backgroundColor: CoachColors.danger }]}
             >
               <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={20} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={2}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCameraPosition(v => v === 'front' ? 'back' : 'front'); }}
               style={s.iconBtn}
             >
@@ -783,7 +783,7 @@ export default function BroadcastStudioScreen() {
               const opacity = opacityMap.get(item.id) ?? new Animated.Value(1);
               return (
                 <Animated.View key={item.id} style={{ opacity }}>
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                     onPress={() => handlePinMessage(item)}
                     activeOpacity={0.7}
                     style={s.chatOverlayBubble}
@@ -811,17 +811,17 @@ export default function BroadcastStudioScreen() {
 
           {/* Dock */}
           <View style={s.dock}>
-            <TouchableOpacity style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('activity'); }}>
+            <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('activity'); }}>
               <Ionicons name="pulse-outline" size={22} color={activeDockTab === 'activity' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'activity' && s.dockLabelActive]}>Activity</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('chat'); }}>
+            <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('chat'); }}>
               <Ionicons name="chatbubble-ellipses-outline" size={22} color={activeDockTab === 'chat' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'chat' && s.dockLabelActive]}>Chat</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('actions'); }}>
+            <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('actions'); }}>
               <Ionicons name="grid-outline" size={22} color={activeDockTab === 'actions' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'actions' && s.dockLabelActive]}>Actions</Text>
             </TouchableOpacity>
@@ -831,8 +831,10 @@ export default function BroadcastStudioScreen() {
               onPress={isBroadcasting ? handleStopBroadcast : handleStartBroadcast}
               activeOpacity={0.85}
             >
-              <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={18} color={isBroadcasting ? '#FFFFFF' : CoachColors.onAccent} />
-              <Text style={[s.goLiveDockBtnText, isBroadcasting && { color: '#FFFFFF' }]}>
+              {/* onAccent in both states: on the live (danger) fill white is only
+                  3.27:1, while onAccent reaches 5.75:1 on danger and 14.53:1 on accent. */}
+              <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={18} color={CoachColors.onAccent} />
+              <Text style={s.goLiveDockBtnText}>
                 {isBroadcasting ? 'End' : 'Go live'}
               </Text>
             </TouchableOpacity>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Dimensions, ViewStyle } from 'react-native';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -29,8 +30,14 @@ export function Skeleton({
   style,
 }: SkeletonProps) {
   const shimmer = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Reduce Motion: hold a steady mid-tone instead of looping the shimmer.
+    if (reduceMotion) {
+      shimmer.setValue(0.5);
+      return;
+    }
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(shimmer, {
@@ -47,7 +54,7 @@ export function Skeleton({
     );
     animation.start();
     return () => animation.stop();
-  }, [shimmer]);
+  }, [shimmer, reduceMotion]);
 
   const opacity = shimmer.interpolate({
     inputRange: [0, 1],

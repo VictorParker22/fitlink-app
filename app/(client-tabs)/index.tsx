@@ -574,7 +574,7 @@ export default function AthleteTodayScreen() {
               </Pressable>
 
               {sentState === 'moved' || sentState === 'beat-sent' ? (
-                <Pressable style={st.sentRow} onPress={openThread} accessibilityRole="button">
+                <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.sentRow} onPress={openThread} accessibilityRole="button">
                   <Text style={st.sentText}>
                     Told {coachFirst}. He can see it now — open the thread if you want to add anything.
                   </Text>
@@ -627,7 +627,7 @@ export default function AthleteTodayScreen() {
               )}
 
               {sentState === 'reason-sent' ? (
-                <Pressable style={st.sentRow} onPress={openThread} accessibilityRole="button">
+                <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.sentRow} onPress={openThread} accessibilityRole="button">
                   <Text style={st.sentText}>
                     Told {coachFirst}. No lecture coming — open the thread if you want to say more.
                   </Text>
@@ -680,7 +680,7 @@ export default function AthleteTodayScreen() {
             )}
 
           {(instruction.kind === 'milestone' || instruction.kind === 'complete' || instruction.kind === 'rest') && trainer && (
-            <Pressable style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
+            <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
               <Text style={st.secondaryBtnText}>Message {coachFirst}</Text>
             </Pressable>
           )}
@@ -688,7 +688,7 @@ export default function AthleteTodayScreen() {
           {/* 25c: waiting on the coach — one real action */}
           {instruction.kind === 'waiting' && (
             sentState === 'hello-sent' ? (
-              <Pressable style={st.sentRow} onPress={openThread} accessibilityRole="button">
+              <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.sentRow} onPress={openThread} accessibilityRole="button">
                 <Text style={st.sentText}>
                   Sent. {coachFirst} can see you're ready — open the thread if you want to add anything.
                 </Text>
@@ -707,7 +707,7 @@ export default function AthleteTodayScreen() {
                     <Text style={st.primaryBtnText}>Tell {coachFirst} you're ready</Text>
                   )}
                 </Pressable>
-                <Pressable style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
+                <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.secondaryBtnWide} onPress={openThread} accessibilityRole="button">
                   <Text style={st.secondaryBtnText}>Open the thread</Text>
                 </Pressable>
                 {sentState === 'failed' && (
@@ -731,7 +731,7 @@ export default function AthleteTodayScreen() {
 
         {/* ── Check-in waiting — coach asked this week, not answered yet ── */}
         {trainer && checkinWaiting && (
-          <Pressable
+          <Pressable hitSlop={{ top: 3, bottom: 3 }}
             style={st.checkinChip}
             onPress={() => router.push(ClientRoute.myProgress)}
             accessibilityRole="button"

@@ -404,7 +404,7 @@ export default function ScheduleScreen() {
               });
 
               return (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                   key={i}
                   style={[s.dayCell, isSelected && s.dayCellSelected]}
                   onPress={() => { setSelectedDate(d); setExpandedSession(null); }}
@@ -466,7 +466,7 @@ export default function ScheduleScreen() {
         {!hasAnySessions ? (
           // ── Nothing booked at all yet (day-one empty state) ─────────────
           <ScrollView
-            contentContainerStyle={[s.emptyScroll, { paddingBottom: insets.bottom + 80 }]}
+            contentContainerStyle={[s.emptyScroll, { paddingBottom: insets.bottom + 130 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />
@@ -499,7 +499,7 @@ export default function ScheduleScreen() {
 
             {/* ── DAY TIMELINE ─────────────────────────────────────────── */}
             <ScrollView
-              contentContainerStyle={[s.sessionList, { paddingBottom: insets.bottom + 80 }]}
+              contentContainerStyle={[s.sessionList, { paddingBottom: insets.bottom + 130 }]}
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />

@@ -37,7 +37,7 @@ export default function AlertPill({
   const colors = getBadgeColors();
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
       activeOpacity={0.85}
       style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }]}
       onPress={onPress}

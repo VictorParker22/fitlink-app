@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 export interface PassStreakCalendarProps {
   currentStreak: number;
@@ -12,9 +13,15 @@ export interface PassStreakCalendarProps {
 
 export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }: PassStreakCalendarProps) {
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: hold the streak highlight steady instead of pulsing it.
+    if (reduceMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
@@ -27,8 +34,10 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [pulseAnim]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim, reduceMotion]);
 
   // Strip calculation
   const weekDays = useMemo(() => {

@@ -20,7 +20,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, TextInput, StatusBar, Dimensions,
+  ScrollView, TextInput, StatusBar, Dimensions, KeyboardAvoidingView, Platform,
   ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,6 +37,7 @@ import Avatar from '../../components/Avatar';
 import { useRestChime } from '../../hooks/useRestChime';
 import CancelSessionSheet from '../../components/sessions/CancelSessionSheet';
 import { setCompletionData } from './sessionCompletionCache';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width: W } = Dimensions.get('window');
 
@@ -478,7 +479,7 @@ export default function TrainerSessionScreen() {
                               accessibilityLabel={`Reps for set ${setIdx + 1}`}
                             />
                           </View>
-                          <TouchableOpacity
+                          <TouchableOpacity hitSlop={2}
                             style={styles.awCheckBtn}
                             onPress={() => completeSet(exIdx, setIdx)}
                             activeOpacity={0.6}
@@ -532,7 +533,7 @@ export default function TrainerSessionScreen() {
             <Text style={styles.restBarLabel}>Rest timer</Text>
             <Text style={styles.restBarTime}>{formatTime(restRemaining)}</Text>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
             style={styles.restBarSkip}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -585,6 +586,9 @@ function DetailView({
   onNotesSave, onStartTracking, onBookFollowUp, onBack,
   getClientSessions,
 }: DetailViewProps) {
+  // Reduce Motion: the staggered slide-up entrance is decorative only —
+  // drop it entirely and render the detail already in place.
+  const reduceMotion = useReducedMotion();
   const statusCfg = STATUS_CONFIG[session.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.upcoming;
   const dateLabel = new Date(session.date).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -611,12 +615,20 @@ function DetailView({
       <LinearGradient colors={[CoachColors.bg, CoachColors.surface, CoachColors.bg]} style={StyleSheet.absoluteFill} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* The Observations field sits directly above the primary CTA — without
+            this the keyboard covers both. */}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 60 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
           {/* ── Detail Header ── */}
-          <Animated.View entering={FadeIn.duration(300)} style={dt.headerRow}>
+          <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(300)} style={dt.headerRow}>
             <TouchableOpacity
               style={dt.backBtn}
               onPress={onBack}
@@ -632,7 +644,7 @@ function DetailView({
           </Animated.View>
 
           {/* ── Client Hero Card ── */}
-          <Animated.View entering={FadeInUp.delay(60).duration(350)}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp.delay(60).duration(350)}>
             <LinearGradient
               colors={[CoachColors.surface, CoachColors.bg]}
               style={dt.heroCard}
@@ -678,7 +690,7 @@ function DetailView({
           </Animated.View>
 
           {/* ── Workout Plan ── */}
-          <Animated.View entering={FadeInUp.delay(160).duration(350)} style={dt.card}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp.delay(160).duration(350)} style={dt.card}>
             <Text style={dt.cardTag}>Planned workout</Text>
             <Text style={dt.cardTitle}>Exercise lineup</Text>
 
@@ -724,7 +736,7 @@ function DetailView({
           </Animated.View>
 
           {/* ── Coach Notes ── */}
-          <Animated.View entering={FadeInUp.delay(240).duration(350)} style={dt.card}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp.delay(240).duration(350)} style={dt.card}>
             <View style={dt.cardTitleRow}>
               <Text style={dt.cardTag}>Coach notes</Text>
               {notesSaved && (
@@ -749,7 +761,7 @@ function DetailView({
           </Animated.View>
 
           {/* ── Actions ── */}
-          <Animated.View entering={FadeInUp.delay(320).duration(350)} style={dt.actionsCard}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInUp.delay(320).duration(350)} style={dt.actionsCard}>
             {session.status === 'upcoming' && (
               <TouchableOpacity
                 style={dt.primaryCTA}
@@ -784,6 +796,7 @@ function DetailView({
           </Animated.View>
 
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -879,8 +892,9 @@ const styles = StyleSheet.create({
     minHeight:     56,
   },
   awExIdx: {
-    width:          28,
-    height:         28,
+    // minWidth/minHeight: holds the scalable exercise number.
+    minWidth:       28,
+    minHeight:      28,
     borderRadius:   14,
     backgroundColor:CoachColors.surface,
     alignItems:     'center',

@@ -354,7 +354,7 @@ export default function ClientMessagesScreen() {
               <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{count} exercises</Text>
             </View>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             style={[styles.attachCta, { backgroundColor: isMine ? CoachColors.bg : CoachColors.accent }]}
             onPress={() => router.push(ClientRoute.workouts)}
             activeOpacity={0.8}
@@ -383,7 +383,7 @@ export default function ClientMessagesScreen() {
               )}
             </View>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             style={[styles.attachCta, { backgroundColor: isMine ? CoachColors.bg : CoachColors.accent }]}
             onPress={() => router.push(ClientRoute.myDiet)}
             activeOpacity={0.8}
@@ -404,7 +404,7 @@ export default function ClientMessagesScreen() {
             </Text>
           </View>
           {!isMine && (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               style={[styles.attachCta, { backgroundColor: CoachColors.accent }]}
               onPress={() => router.push(ClientRoute.myProgress)}
               activeOpacity={0.8}
@@ -445,7 +445,7 @@ export default function ClientMessagesScreen() {
   if (!conversation) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <TouchableOpacity style={styles.emptyBackBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
+        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.emptyBackBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
           <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.emptyState}>
@@ -461,7 +461,7 @@ export default function ClientMessagesScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push(ClientRoute.more)} style={styles.backBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Back">
+        <TouchableOpacity hitSlop={7} onPress={() => router.push(ClientRoute.more)} style={styles.backBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerAvatar}>
@@ -481,7 +481,7 @@ export default function ClientMessagesScreen() {
         {loading ? (
           <View style={styles.emptyState}><ActivityIndicator size="large" color={CoachColors.accent} /></View>
         ) : (
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             ref={flatListRef}
             data={messagesWithDividers}
             keyExtractor={(item, i) => 'id' in item ? item.id : `divider-${i}`}
@@ -547,7 +547,7 @@ export default function ClientMessagesScreen() {
         <View style={[styles.inputBar, {
           paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 6, 22),
         }]}>
-          <TouchableOpacity onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
+          <TouchableOpacity hitSlop={5} onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
             <Ionicons name="image-outline" size={20} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <TextInput
@@ -563,7 +563,7 @@ export default function ClientMessagesScreen() {
             accessibilityLabel="Type a message to your coach"
             accessibilityRole="text"
           />
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={2}
             style={[styles.sendBtn, newMessage.trim() && styles.sendBtnActive]}
             onPress={handleSend}
             disabled={!newMessage.trim() || sending}

@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 interface PassMembershipCardProps {
   clientName: string;
@@ -38,17 +39,25 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
 }) => {
   const tier = getTierInfo(currentLevel);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: park the sweeping shimmer off-card so it never travels.
+    if (reduceMotion) {
+      shimmerAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.timing(shimmerAnim, {
         toValue: 1,
         duration: 3000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
-    ).start();
-  }, [shimmerAnim]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmerAnim, reduceMotion]);
 
   const date = new Date(memberSince);
   const month = date.toLocaleString('default', { month: 'long' });

@@ -217,7 +217,7 @@ export default function WeekSection({
       // advances track_position. Class completion is not wired to the track.
       const canOpenClass = !!cls;
       return (
-        <Pressable
+        <Pressable hitSlop={{ top: 1, bottom: 1 }}
           key={index}
           style={[s.nodeCard, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
           onPress={() => {
@@ -389,7 +389,7 @@ export default function WeekSection({
     // (muscle thumb + focus line) — every line from real data or omitted.
     const canOpen = !!w;
     return (
-      <Pressable
+      <Pressable hitSlop={{ top: 1, bottom: 1 }}
         key={index}
         style={[s.nodeCard, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
         onPress={() => {
@@ -450,7 +450,7 @@ export default function WeekSection({
   if (status === 'past' && !expanded) {
     return (
       <Wrap {...wrapProps}>
-        <Pressable
+        <Pressable hitSlop={{ top: 2, bottom: 2 }}
           style={s.pastRow}
           onPress={() => {
             tap();
@@ -483,6 +483,7 @@ export default function WeekSection({
         }
         disabled={status !== 'past'}
         accessibilityRole={status === 'past' ? 'button' : 'header'}
+        accessibilityState={status === 'past' ? { expanded: true } : undefined}
         accessibilityLabel={`Week ${week}${title ? `, ${title}` : ''}${status === 'current' ? ', this week' : status === 'future' ? ', ahead' : ', done'}${status === 'past' ? '. Double tap to collapse' : ''}`}
       >
         <Text style={[s.headerText, status === 'current' && s.headerTextCurrent, status === 'future' && s.headerTextFuture]}>

@@ -59,7 +59,7 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+            <TouchableOpacity hitSlop={6} style={styles.closeBtn} onPress={onClose}>
               <Ionicons name="close" size={18} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>

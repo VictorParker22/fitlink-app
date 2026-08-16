@@ -175,7 +175,7 @@ export default function CheckoutScreen() {
 
   if (!plan || !client) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.errorState}>
           <Ionicons name="alert-circle-outline" size={44} color={CoachColors.danger} />
           <Text style={styles.errorText}>Plan or client not found</Text>
@@ -193,7 +193,7 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, letterSpacing: -0.3, color: CoachColors.textPrimary },
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
 
   summaryCard: {
     alignItems: 'center', paddingVertical: 28, paddingHorizontal: 18, borderRadius: 16,

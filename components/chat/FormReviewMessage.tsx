@@ -47,7 +47,7 @@ function PinnedVideo({ videoUrl, seconds }: { videoUrl: string; seconds: number 
         contentFit="cover"
         nativeControls
       />
-      <TouchableOpacity
+      <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
         style={styles.pinChipOverVideo}
         onPress={seekToPin}
         activeOpacity={0.8}

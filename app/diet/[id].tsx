@@ -114,7 +114,7 @@ export default function DietDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -224,7 +224,7 @@ export default function DietDetailScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
-          <TouchableOpacity onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
+          <TouchableOpacity hitSlop={4} onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.assignHeaderTitle}>Assign to athlete</Text>
@@ -243,14 +243,14 @@ export default function DietDetailScreen() {
               selectionColor={CoachColors.accent}
             />
             {searchQuery !== '' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={20} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.assignList} showsVerticalScrollIndicator={false}>
           {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No clients found</Text>
@@ -313,7 +313,7 @@ export default function DietDetailScreen() {
               P {Math.round(m.protein * servings)}  C {Math.round(m.carbs * servings)}  F {Math.round(m.fat * servings)}
             </Text>
             {hasSwaps && (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                 style={styles.swapTag}
                 onPress={() => setExpandedSwapId(prev => prev === dm.id ? null : dm.id)}
                 activeOpacity={0.7}
@@ -358,7 +358,7 @@ export default function DietDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 140 }}>
 
         {/* ── Hero ── */}
         {diet.image_url ? (
@@ -369,17 +369,17 @@ export default function DietDetailScreen() {
               style={styles.heroGradient}
             >
               <View style={[styles.topNav, { marginTop: insets.top || Spacing.lg }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.glassBtn} accessibilityLabel="Go back" accessibilityRole="button">
+                <TouchableOpacity hitSlop={3} onPress={() => router.back()} style={styles.glassBtn} accessibilityLabel="Go back" accessibilityRole="button">
                   <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
                 <View style={styles.topNavActions}>
-                  <TouchableOpacity onPress={handleEdit} style={styles.glassBtn} accessibilityLabel="Edit">
+                  <TouchableOpacity hitSlop={3} onPress={handleEdit} style={styles.glassBtn} accessibilityLabel="Edit">
                     <Ionicons name="pencil" size={20} color={CoachColors.textPrimary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDuplicate} style={styles.glassBtn} disabled={duplicating} accessibilityLabel="Duplicate">
+                  <TouchableOpacity hitSlop={3} onPress={handleDuplicate} style={styles.glassBtn} disabled={duplicating} accessibilityLabel="Duplicate">
                     <Ionicons name="copy-outline" size={20} color={CoachColors.textPrimary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDelete} style={styles.glassBtn} disabled={deleting} accessibilityLabel="Delete">
+                  <TouchableOpacity hitSlop={3} onPress={handleDelete} style={styles.glassBtn} disabled={deleting} accessibilityLabel="Delete">
                     <Ionicons name="trash-outline" size={20} color={CoachColors.danger} />
                   </TouchableOpacity>
                 </View>
@@ -397,17 +397,17 @@ export default function DietDetailScreen() {
         ) : (
           <View style={[styles.flatHero, { paddingTop: (insets.top || Spacing.lg) + Spacing.sm }]}>
             <View style={styles.topNav}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
+              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
                 <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <View style={styles.topNavActions}>
-                <TouchableOpacity onPress={handleEdit} style={styles.navBtn} accessibilityLabel="Edit">
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleEdit} style={styles.navBtn} accessibilityLabel="Edit">
                   <Ionicons name="pencil" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleDuplicate} style={styles.navBtn} disabled={duplicating} accessibilityLabel="Duplicate">
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDuplicate} style={styles.navBtn} disabled={duplicating} accessibilityLabel="Duplicate">
                   <Ionicons name="copy-outline" size={22} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} style={styles.navBtn} disabled={deleting} accessibilityLabel="Delete">
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDelete} style={styles.navBtn} disabled={deleting} accessibilityLabel="Delete">
                   <Ionicons name="trash-outline" size={22} color={CoachColors.danger} />
                 </TouchableOpacity>
               </View>

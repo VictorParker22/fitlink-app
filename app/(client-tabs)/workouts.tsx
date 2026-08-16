@@ -518,7 +518,7 @@ export default function ClientWorkoutsScreen() {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <StatusBar barStyle="light-content" />
-        <Pressable
+        <Pressable hitSlop={{ top: 4, bottom: 4 }}
           style={s.exploreBack}
           onPress={() => setShowExplore(false)}
           accessibilityRole="button"
@@ -620,7 +620,7 @@ export default function ClientWorkoutsScreen() {
         <Text style={s.noteBody}>
           A full multi-week programme from {coachFirst} — every session mapped out, week by week.
         </Text>
-        <Pressable
+        <Pressable hitSlop={{ top: 3, bottom: 3 }}
           style={s.emptyBtn}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -755,7 +755,7 @@ export default function ClientWorkoutsScreen() {
               Every session is in your history, and {coachFirst} can see all of it. What comes next
               is a conversation, not a countdown.
             </Text>
-            <Pressable
+            <Pressable hitSlop={{ top: 3, bottom: 3 }}
               style={s.emptyBtn}
               onPress={() => router.push(ClientRoute.myMessages)}
               accessibilityRole="button"
@@ -801,7 +801,7 @@ export default function ClientWorkoutsScreen() {
               : 'Once a coach takes you on, your whole programme lives here — what you did, what is next, and what is ahead.'}
           </Text>
           {trainer && (
-            <Pressable
+            <Pressable hitSlop={{ top: 3, bottom: 3 }}
               style={s.emptyBtn}
               onPress={() => router.push(ClientRoute.myMessages)}
               accessibilityRole="button"

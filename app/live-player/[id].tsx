@@ -317,7 +317,7 @@ export default function LivePlayerScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={styles.errorText}>Class not found.</Text>
-        <TouchableOpacity style={styles.backBtnAlt} onPress={() => router.back()}>
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={styles.backBtnAlt} onPress={() => router.back()}>
           <Text style={styles.backBtnAltText}>Go back</Text>
         </TouchableOpacity>
       </View>
@@ -336,7 +336,7 @@ export default function LivePlayerScreen() {
     >
       {/* Header Bar */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.closeBtn}>
           <Ionicons name="chevron-down" size={28} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
@@ -363,7 +363,7 @@ export default function LivePlayerScreen() {
             <Ionicons name="sparkles" size={32} color={CoachColors.accent} style={{ marginBottom: 8 }} />
             <Text style={styles.endedTitle}>Broadcast has concluded</Text>
             <Text style={styles.endedSub}>Your coach has wrapped up this live class. Thanks for training live!</Text>
-            <TouchableOpacity style={styles.backToExploreBtn} onPress={() => router.back()}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={styles.backToExploreBtn} onPress={() => router.back()}>
               <Text style={styles.backToExploreText}>Explore more classes</Text>
             </TouchableOpacity>
           </View>
@@ -385,7 +385,7 @@ export default function LivePlayerScreen() {
             <Ionicons name="warning-outline" size={32} color={CoachColors.warning} style={{ marginBottom: 8 }} />
             <Text style={styles.endedTitle}>Stream not configured</Text>
             <Text style={styles.endedSub}>Coach may still be setting up. Try again in a moment.</Text>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               style={styles.backToExploreBtn}
               onPress={async () => {
                 setLoading(true);
@@ -417,7 +417,7 @@ export default function LivePlayerScreen() {
             <Text style={styles.reconnectText}>Reconnecting…</Text>
           </View>
         )}
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           ref={chatListRef}
           data={chatMessages}
           keyExtractor={(item) => item.id}
@@ -514,7 +514,8 @@ const styles = StyleSheet.create({
   liveBadgeText: {
     fontFamily: CoachFonts.bodyBold,
     fontSize: 10,
-    color: '#FFFFFF',
+    // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
+    color: CoachColors.onAccent,
     letterSpacing: 1,
   },
   viewersBadge: {

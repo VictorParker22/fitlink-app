@@ -112,7 +112,7 @@ export default function AnalyticsScreen() {
       >
         {/* ── Header ── */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>

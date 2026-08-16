@@ -6,6 +6,8 @@ import { HealthSnapshot } from '../../../context/HealthContext';
 import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
+import { useReducedMotion } from '../../../lib/useReducedMotion';
+
 const CARD_MARGIN = Spacing.md;
 
 interface ActivityInsightsBentoProps {
@@ -63,10 +65,16 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
   };
 
   const streakAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Reduce Motion: no throbbing streak flame — hold it at rest scale.
+    if (reduceMotion) {
+      streakAnim.setValue(1);
+      return;
+    }
     if (streak > 7) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(streakAnim, {
             toValue: 1.2,
@@ -81,11 +89,13 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      loop.start();
+      return () => loop.stop();
     } else {
       streakAnim.setValue(1);
     }
-  }, [streak]);
+  }, [streak, streakAnim, reduceMotion]);
 
   const renderStepsRing = (steps: number) => {
     const radius = 12;

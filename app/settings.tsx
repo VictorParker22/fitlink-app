@@ -131,7 +131,7 @@ export default function SettingsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Settings</Text>
@@ -270,7 +270,7 @@ export default function SettingsScreen() {
                   <Text style={s.connectedPillText}>Connected</Text>
                 </View>
               ) : (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                   style={[s.stripeBtn, isConnectingStripe && { opacity: 0.5 }]}
                   onPress={handleConnectStripe}
                   disabled={isConnectingStripe}

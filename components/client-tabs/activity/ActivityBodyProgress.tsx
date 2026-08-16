@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import * as Haptics from 'expo-haptics';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
@@ -14,9 +15,15 @@ interface ActivityBodyProgressProps {
 
 export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ progressLogs }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.loop(
+    // Reduce Motion: park the decorative pulse fully opaque, never loop.
+    if (reduceMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 0.3,
@@ -29,8 +36,10 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [pulseAnim]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim, reduceMotion]);
 
   const validEntries = useMemo(() => {
     if (!progressLogs) return [];

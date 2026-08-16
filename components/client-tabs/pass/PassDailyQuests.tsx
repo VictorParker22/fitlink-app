@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 export interface PassDailyQuestsProps {
   todayWorkout: any;
@@ -31,10 +32,16 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
   const isAllDone = completedCount === QUESTS.length;
 
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Reduce Motion: show the "all done" border at full strength, no glow loop.
+    if (reduceMotion) {
+      glowAnim.setValue(isAllDone ? 1 : 0);
+      return;
+    }
     if (isAllDone) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
@@ -47,11 +54,13 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
             useNativeDriver: false,
           }),
         ])
-      ).start();
+      );
+      loop.start();
+      return () => loop.stop();
     } else {
       glowAnim.setValue(0);
     }
-  }, [isAllDone, glowAnim]);
+  }, [isAllDone, glowAnim, reduceMotion]);
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],

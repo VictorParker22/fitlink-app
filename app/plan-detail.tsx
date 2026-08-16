@@ -72,7 +72,7 @@ export default function PlanDetailScreen() {
   if (!plan) {
     return (
       <View style={[st.container, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()} style={st.navBtn}>
+        <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.navBtn}>
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={st.notFound}>
@@ -148,12 +148,12 @@ export default function PlanDetailScreen() {
         <View style={[st.heroContainer, { paddingTop: insets.top }]}>
           {/* Nav */}
           <View style={st.heroNav}>
-            <TouchableOpacity onPress={() => router.back()} style={st.navBtn}>
+            <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.navBtn}>
               <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={st.headerTitle}>Pass details</Text>
             <View style={st.navRight}>
-              <TouchableOpacity style={st.navBtn} onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}>
+              <TouchableOpacity hitSlop={4} style={st.navBtn} onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}>
                 <Ionicons name="create-outline" size={18} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -317,7 +317,7 @@ export default function PlanDetailScreen() {
               })}
             </ScrollView>
 
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={1}
               style={st.editTrackBtn}
               onPress={() => router.push({ pathname: '/pass-track-editor', params: { planId: plan.id } } as any)}
               activeOpacity={0.7}
@@ -382,7 +382,7 @@ export default function PlanDetailScreen() {
           ) : (
             <View style={st.membersList}>
               {subscribers.map((client) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                   key={client.id}
                   style={st.memberCard}
                   onPress={() => router.push(`/client/${client.id}` as any)}

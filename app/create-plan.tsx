@@ -558,7 +558,7 @@ export default function CreatePassScreen() {
         {(Object.keys(TOOL_META) as DayNode['kind'][]).map(kind => {
           const active = selectedTool === kind;
           return (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
               key={kind}
               style={[s.paletteChip, active && s.paletteChipActive]}
               onPress={() => setSelectedTool(active ? null : kind)}
@@ -612,7 +612,7 @@ export default function CreatePassScreen() {
         <Text style={s.weeksBig}>{weeks} weeks</Text>
         <View style={s.weeksRow}>
           {WEEK_LENGTHS.map(w => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
               key={w}
               style={[s.weekChip, weeks === w && s.weekChipActive]}
               onPress={() => setWeeks(w)}
@@ -712,10 +712,10 @@ export default function CreatePassScreen() {
       })}
 
       <View style={s.outlineBtnRow}>
-        <TouchableOpacity style={s.outlineBtn} onPress={addRestWeek} activeOpacity={0.7}>
+        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.outlineBtn} onPress={addRestWeek} activeOpacity={0.7}>
           <Text style={s.outlineBtnText}>+ Rest week</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.outlineBtn} onPress={() => setShowMilestoneInput(true)} activeOpacity={0.7}>
+        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.outlineBtn} onPress={() => setShowMilestoneInput(true)} activeOpacity={0.7}>
           <Text style={s.outlineBtnText}>+ Milestone</Text>
         </TouchableOpacity>
       </View>
@@ -733,7 +733,7 @@ export default function CreatePassScreen() {
             autoFocus
             selectionColor={CoachColors.accent}
           />
-          <TouchableOpacity onPress={addFinalMilestone} style={s.milestoneAddBtn}>
+          <TouchableOpacity hitSlop={8} onPress={addFinalMilestone} style={s.milestoneAddBtn}>
             <Ionicons name="add" size={16} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
@@ -858,7 +858,7 @@ export default function CreatePassScreen() {
 
         {isCohort && (
           <View style={s.cohortBox}>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
               style={s.dateRow}
               onPress={() => setDatePicker('start')}
               activeOpacity={0.7}
@@ -873,7 +873,7 @@ export default function CreatePassScreen() {
             </TouchableOpacity>
             {cohortErrors.start && <Text style={s.errorText}>{cohortErrors.start}</Text>}
 
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
               style={s.dateRow}
               onPress={() => setDatePicker('deadline')}
               activeOpacity={0.7}
@@ -914,7 +914,7 @@ export default function CreatePassScreen() {
         <Text style={[s.eyebrow, { marginTop: 22 }]}>Price</Text>
         <View style={s.segmented}>
           {(['month', 'year'] as const).map(p => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
               key={p}
               style={[s.segment, period === p && s.segmentActive]}
               onPress={() => setPeriod(p)}
@@ -972,7 +972,7 @@ export default function CreatePassScreen() {
 
         <View style={s.quickPickRow}>
           {quickPicks.map(qp => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
               key={qp}
               style={[s.weekChip, price === qp && s.weekChipActive]}
               onPress={() => setPriceText(String(qp))}
@@ -1234,7 +1234,7 @@ export default function CreatePassScreen() {
                 <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ maxHeight: 380 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 380 }}>
               {(picker?.kind === 'diet' ? diets : workouts).length === 0 ? (
                 <View style={s.sheetEmptyWrap}>
                   <Text style={s.sheetEmpty}>
@@ -1242,7 +1242,7 @@ export default function CreatePassScreen() {
                       ? 'No meal plans in your library yet — build one now and it drops straight into this day when you come back.'
                       : 'No workouts in your library yet — build one now and it drops straight into this day when you come back.'}
                   </Text>
-                  <TouchableOpacity style={s.sheetCreateBtn} onPress={handleCreateFromPicker} activeOpacity={0.85}>
+                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.sheetCreateBtn} onPress={handleCreateFromPicker} activeOpacity={0.85}>
                     <Ionicons name="add" size={16} color={CoachColors.onAccent} />
                     <Text style={s.sheetCreateBtnText}>
                       {picker?.kind === 'diet' ? 'Create a meal plan' : 'Create a workout'}
@@ -1251,7 +1251,7 @@ export default function CreatePassScreen() {
                 </View>
               ) : picker?.kind === 'diet' ? (
                 diets.map(d => (
-                  <TouchableOpacity key={d.id} style={s.sheetItem} onPress={() => handlePickContent(d.id, d.name)} activeOpacity={0.7}>
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} key={d.id} style={s.sheetItem} onPress={() => handlePickContent(d.id, d.name)} activeOpacity={0.7}>
                     <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.sheetItemName} numberOfLines={1}>{d.name}</Text>
@@ -1262,7 +1262,7 @@ export default function CreatePassScreen() {
                 ))
               ) : (
                 workouts.map(w => (
-                  <TouchableOpacity key={w.id} style={s.sheetItem} onPress={() => handlePickContent(w.id, w.name)} activeOpacity={0.7}>
+                  <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} key={w.id} style={s.sheetItem} onPress={() => handlePickContent(w.id, w.name)} activeOpacity={0.7}>
                     <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.sheetItemName} numberOfLines={1}>{w.name}</Text>
@@ -1273,7 +1273,7 @@ export default function CreatePassScreen() {
                 ))
               )}
               {(picker?.kind === 'diet' ? diets : workouts).length > 0 && (
-                <TouchableOpacity style={s.sheetCreateRow} onPress={handleCreateFromPicker} activeOpacity={0.7}>
+                <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} style={s.sheetCreateRow} onPress={handleCreateFromPicker} activeOpacity={0.7}>
                   <Ionicons name="add" size={16} color={CoachColors.accent} />
                   <Text style={s.sheetCreateRowText}>
                     {picker?.kind === 'diet' ? 'Not here? Create a meal plan' : 'Not here? Create a workout'}

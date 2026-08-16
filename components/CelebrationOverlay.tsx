@@ -124,7 +124,7 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
                 <Text style={st.shareBtnText}>Share with coach</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={st.dismissBtn} activeOpacity={0.8} onPress={onDismiss}>
+              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.dismissBtn} activeOpacity={0.8} onPress={onDismiss}>
                 <Text style={st.dismissBtnText}>Dismiss</Text>
               </TouchableOpacity>
             </View>

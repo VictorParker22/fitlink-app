@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../context/ClientContext';
@@ -92,6 +92,7 @@ function composition(wk: WeekSummary): string {
 }
 
 export default function MyPassScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clientData, plans, trainer, enrollment } = useClient();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -227,7 +228,7 @@ export default function MyPassScreen() {
         <View style={s.header}>
           <Text style={s.headerTitle}>Pass</Text>
         </View>
-        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
           <View style={s.enrolledCard}>
             <Text style={s.enrolledEyebrow}>Your season</Text>
             <Text style={s.enrolledPlanName}>{enrolledPlan?.name || 'Your pass'}</Text>
@@ -250,13 +251,16 @@ export default function MyPassScreen() {
                 ) : null}
               </View>
             ) : null}
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
               style={s.enrolledCta}
               activeOpacity={0.85}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({ pathname: ClientRoute.workouts, params: { view: 'season' } });
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Go to training"
+              accessibilityHint="Opens your season in the training tab"
             >
               <Text style={s.enrolledCtaText}>Go to training</Text>
               <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
@@ -341,14 +345,14 @@ export default function MyPassScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
         {/* Plan switcher — only if the coach sells more than one */}
         {plans && plans.length > 1 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.switcher} contentContainerStyle={s.switcherContent}>
             {plans.map((p: any) => {
               const active = p.id === plan.id;
               return (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
                   key={p.id}
                   style={[s.switcherChip, active && s.switcherChipActive]}
                   activeOpacity={0.8}
@@ -356,6 +360,10 @@ export default function MyPassScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelectedPlanId(p.id);
                   }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={p.name}
+                  accessibilityHint={active ? undefined : 'Shows this pass instead'}
                 >
                   <Text style={[s.switcherChipText, active && s.switcherChipTextActive]} numberOfLines={1}>
                     {p.name}
@@ -494,7 +502,7 @@ export default function MyPassScreen() {
             </View>
           </View>
         ) : null}
-        <View style={s.footer}>
+        <View style={[s.footer, { paddingBottom: insets.bottom + 70 }]}>
           <View>
             <Text style={s.footerPrice}>{priceLabel}</Text>
             <Text style={s.footerPeriod}>{periodLabel}</Text>
@@ -623,7 +631,7 @@ const s = StyleSheet.create({
   blockedLink: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.accent },
   footer: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34,
+    paddingHorizontal: 20, paddingTop: 14,
   },
   footerCtaDisabled: { backgroundColor: CoachColors.borderMuted },
   footerPrice: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },

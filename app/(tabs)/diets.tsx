@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Dimensions, TextInput, ScrollView, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
@@ -32,6 +32,7 @@ function getCategoryLabel(key: string): string {
 const CATEGORIES = ['All', 'Balanced', 'High Protein', 'Weight Loss', 'Keto', 'Vegan'];
 
 export default function DietsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { diets, clientDiets, refreshData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
@@ -150,7 +151,7 @@ export default function DietsScreen() {
           <Text style={styles.headerSub}>Nutrition database</Text>
           <Text style={styles.title}>Diet plans</Text>
         </View>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={3}
           style={styles.addBtn}
           activeOpacity={0.85}
           onPress={() => router.push('/create-diet' as any)}
@@ -175,7 +176,7 @@ export default function DietsScreen() {
             accessibilityLabel="Search nutrition plans"
           />
           {searchQuery !== '' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
               <Ionicons name="close-circle" size={18} color={CoachColors.textMuted} />
             </TouchableOpacity>
           )}
@@ -189,7 +190,7 @@ export default function DietsScreen() {
           contentContainerStyle={styles.filterScroll}
         >
           {CATEGORIES.map((cat) => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               key={cat}
               style={[styles.filterPill, activeCategory === cat && styles.filterPillActive]}
               onPress={() => setActiveCategory(cat)}
@@ -209,11 +210,11 @@ export default function DietsScreen() {
         <Text style={styles.resultsText}>{filteredDiets.length} plans cataloged</Text>
       </View>
 
-      <FlatList
+      <FlatList keyboardShouldPersistTaps="handled"
         data={filteredDiets}
         keyExtractor={(item) => item.id}
         renderItem={renderDiet}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textPrimary} colors={[CoachColors.textPrimary]} />}
         ListEmptyComponent={
@@ -221,7 +222,7 @@ export default function DietsScreen() {
             <Ionicons name="nutrition-outline" size={32} color={CoachColors.textFaint} />
             <Text style={styles.emptyTitle}>No diet plans found</Text>
             <Text style={styles.emptyText}>Adjust your search query or filter to locate nutrition programs.</Text>
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={3}
               style={styles.emptyCTA}
               onPress={() => router.push('/create-diet' as any)}
               accessibilityRole="button"

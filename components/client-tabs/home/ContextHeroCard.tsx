@@ -24,6 +24,7 @@ import {
   UIManager,
 } from 'react-native';
 import TodayWorkoutCard from './TodayWorkoutCard';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,6 +51,7 @@ export default function ContextHeroCard({
   onSkip,
 }: ContextHeroCardProps) {
   const prevState = useRef<HeroState | null>(null);
+  const reducedMotion = useReducedMotion();
 
   // Determine current state — pure computation, no side effects
   const heroState: HeroState = (() => {
@@ -64,7 +66,8 @@ export default function ContextHeroCard({
   // LayoutAnimation must be called SYNCHRONOUSLY before the render that
   // causes a state change. We detect the transition here during render
   // (safe — we're not calling setState, just configuring animation).
-  if (prevState.current !== null && prevState.current !== heroState) {
+  // Reduce Motion: swap the card contents instantly — no spring scale.
+  if (!reducedMotion && prevState.current !== null && prevState.current !== heroState) {
     LayoutAnimation.configureNext({
       duration: 320,
       create: { type: LayoutAnimation.Types.spring, property: LayoutAnimation.Properties.scaleXY, springDamping: 0.75 },

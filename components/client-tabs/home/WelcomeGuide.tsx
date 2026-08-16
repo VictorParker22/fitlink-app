@@ -116,7 +116,7 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
           {STEPS.map((step, idx) => {
             const isDone = completedSteps.includes(step.id);
             return (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                 key={step.id}
                 style={[st.stepCard, isDone && st.stepCardDone]}
                 onPress={() => router.push(step.route as any)}

@@ -680,7 +680,7 @@ export default function CreateWorkoutScreen() {
               selectionColor={CoachColors.accent}
             />
             {exerciseSearch.length > 0 && (
-              <TouchableOpacity onPress={() => setExerciseSearch('')}>
+              <TouchableOpacity hitSlop={12} onPress={() => setExerciseSearch('')}>
                 <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
               </TouchableOpacity>
             )}
@@ -693,7 +693,7 @@ export default function CreateWorkoutScreen() {
             contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingVertical: 8, alignItems: 'center' }}
           >
             {pickerCategories.map((bp, i) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                 key={bp.label}
                 onPress={() => setSelectedBodyPart(bp.key)}
                 style={[s.filterChip, selectedBodyPart === bp.key && s.filterChipActive, i > 0 && { marginLeft: 8 }]}
@@ -710,7 +710,7 @@ export default function CreateWorkoutScreen() {
             style={{ flexGrow: 0, flexShrink: 0 }}
             contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 8, alignItems: 'center' }}
           >
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
               onPress={() => setShowBodyMap(prev => !prev)}
               style={[s.filterChip, s.bodyMapChip, showBodyMap && s.filterChipActive]}
               activeOpacity={0.7}
@@ -723,7 +723,7 @@ export default function CreateWorkoutScreen() {
             {REGIONS.map((region) => {
               const isActive = selectedMuscles.includes(region.id);
               return (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                   key={region.id}
                   onPress={() => toggleMuscleFilter(region.id)}
                   style={[s.filterChip, isActive && s.filterChipActive, { marginLeft: 8 }]}
@@ -753,7 +753,7 @@ export default function CreateWorkoutScreen() {
 
           <Text style={s.resultCount}>{filteredPickerExercises.length} in {activeCategoryLabel}</Text>
 
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             data={filteredPickerExercises}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
@@ -872,7 +872,7 @@ export default function CreateWorkoutScreen() {
 
             <View style={s.chipRow}>
               {examplePrompts.map(ex => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
                   key={ex}
                   style={s.exampleChip}
                   onPress={() => !aiLoading && setAiPrompt(ex)}
@@ -932,7 +932,7 @@ export default function CreateWorkoutScreen() {
               {BODY_FOCUS.map(bp => {
                 const isActive = selectedFocus.includes(bp.key);
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={bp.key}
                     style={[s.chip, isActive && s.chipActive]}
                     onPress={() => toggleFocus(bp.key)}
@@ -949,7 +949,7 @@ export default function CreateWorkoutScreen() {
               {EQUIPMENT_TAGS.map(eq => {
                 const isActive = selectedEquipment.includes(eq.key);
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={eq.key}
                     style={[s.chip, isActive && s.chipActive]}
                     onPress={() => toggleEquipment(eq.key)}
@@ -974,7 +974,7 @@ export default function CreateWorkoutScreen() {
             {suggestedNames.length > 0 && (
               <View style={[s.chipRow, { marginTop: Spacing.sm }]}>
                 {suggestedNames.map(n => (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                     key={n}
                     style={[s.chip, name === n && s.chipActive]}
                     onPress={() => setName(n)}
@@ -1020,7 +1020,7 @@ export default function CreateWorkoutScreen() {
               <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.builderHeaderTitle}>{editId ? 'Edit workout' : 'Build workout'}</Text>
-            <TouchableOpacity style={s.createBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.createBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : (
@@ -1201,7 +1201,7 @@ export default function CreateWorkoutScreen() {
                         </TouchableOpacity>
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
-                          <TouchableOpacity
+                          <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                             style={s.voiceBtn}
                             onPress={() => handleSpeak(ex.exercise_id, ex.notes || ex.instructions)}
                             activeOpacity={0.7}
@@ -1221,7 +1221,7 @@ export default function CreateWorkoutScreen() {
                             </Text>
                           </TouchableOpacity>
 
-                          <TouchableOpacity
+                          <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                             style={s.voiceBtn}
                             onPress={() => setShowNotesExerciseId(prev => prev === ex.exercise_id ? null : ex.exercise_id)}
                             activeOpacity={0.7}
@@ -1257,14 +1257,14 @@ export default function CreateWorkoutScreen() {
                             <View key={param.field} style={s.inlineControl}>
                               <Text style={s.inlineControlLabel}>{param.label}</Text>
                               <View style={s.inlineControlStepper}>
-                                <TouchableOpacity
+                                <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                                   style={s.stepperBtn}
                                   onPress={() => updateExercise(ex.exercise_id, param.field, Math.max(1, (param.value as number) - param.step))}
                                 >
                                   <Ionicons name="remove" size={16} color={CoachColors.textPrimary} />
                                 </TouchableOpacity>
                                 <Text style={s.inlineControlValue}>{param.value}</Text>
-                                <TouchableOpacity
+                                <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                                   style={s.stepperBtn}
                                   onPress={() => updateExercise(ex.exercise_id, param.field, (param.value as number) + param.step)}
                                 >
@@ -1275,7 +1275,7 @@ export default function CreateWorkoutScreen() {
                           ))}
                         </View>
 
-                        <TouchableOpacity style={s.removeBtn} onPress={() => removeExercise(ex.exercise_id)}>
+                        <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.removeBtn} onPress={() => removeExercise(ex.exercise_id)}>
                           <Text style={s.removeBtnText}>Remove exercise</Text>
                         </TouchableOpacity>
                       </View>
@@ -1300,7 +1300,7 @@ export default function CreateWorkoutScreen() {
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Add demo video</Text>
-              <TouchableOpacity onPress={() => { setVideoModalExercise(null); setVideoUrlInput(''); }}>
+              <TouchableOpacity hitSlop={12} onPress={() => { setVideoModalExercise(null); setVideoUrlInput(''); }}>
                 <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -1443,12 +1443,29 @@ export default function CreateWorkoutScreen() {
       </Modal>
 
       {/* Loading Overlay */}
-      <Modal visible={loadingAudioId !== null} transparent animationType="fade" statusBarTranslucent>
+      <Modal
+        visible={loadingAudioId !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setLoadingAudioId(null)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.loadingCard}>
             <ActivityIndicator size="large" color={CoachColors.accent} style={{ marginBottom: 16 }} />
             <Text style={s.loadingTitle}>Generating voice</Text>
             <Text style={s.loadingSubtitle}>Creating a natural voice guide for this exercise. This only happens once.</Text>
+            {/* A blocking overlay must never trap the user — if the request
+                stalls, this is the visible way back out. */}
+            <TouchableOpacity
+              onPress={() => setLoadingAudioId(null)}
+              hitSlop={12}
+              style={s.loadingCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel voice generation"
+            >
+              <Text style={s.loadingCancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1711,6 +1728,8 @@ const s = StyleSheet.create({
   },
   loadingTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 8, textAlign: 'center' },
   loadingSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 18 },
+  loadingCancel: { marginTop: 18, minHeight: 44, justifyContent: 'center', paddingHorizontal: 20 },
+  loadingCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center' },
 
   // ── Assign sheet (18g) ──
   assignSheet: {

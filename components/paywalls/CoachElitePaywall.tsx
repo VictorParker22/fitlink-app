@@ -242,7 +242,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
             {/* Term selector — only when the store actually offers both */}
             {annualPkg && (
               <View style={s.termGroup}>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                   style={[s.termRow, term === 'monthly' && s.termRowActive]}
                   onPress={() => setTerm('monthly')}
                   activeOpacity={0.85}
@@ -256,7 +256,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
                   <Text style={s.termLabel}>Monthly</Text>
                   <Text style={s.termPrice}>{monthlyPriceString}/mo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                   style={[s.termRow, term === 'annual' && s.termRowActive]}
                   onPress={() => setTerm('annual')}
                   activeOpacity={0.85}
@@ -332,7 +332,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
               ? `${trialLabel}, then ${term === 'annual' && annualPriceString ? `${annualPriceString}/year` : `${priceString}/month`} · cancel any time`
               : 'Cancel any time'}
           </Text>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
             onPress={handleRestore}
             disabled={restoring || purchasing}
             style={s.restoreBtn}

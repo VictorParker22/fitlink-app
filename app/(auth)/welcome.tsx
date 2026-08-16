@@ -21,13 +21,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * coach signup; the athlete fork is a quiet text link, not a second button.
  */
 
-const BG = '#101210';
-const ACCENT = '#C6F24E';
-const TEXT_PRIMARY = '#EDEFE8';
-const TEXT_SECONDARY = '#9BA095';
-const TEXT_MUTED = '#8A8F85';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+
+// This screen used to redeclare the palette as local hex literals identical to
+// the tokens, which meant design-system fixes (e.g. the textFaint contrast
+// correction) silently skipped it. Aliased to the tokens instead — same values,
+// now actually shared.
+const BG = CoachColors.bg;
+const ACCENT = CoachColors.accent;
+const TEXT_PRIMARY = CoachColors.textPrimary;
+const TEXT_SECONDARY = CoachColors.textSecondary;
+const TEXT_MUTED = CoachColors.textMuted;
 
 function AnimatedPrimaryButton({ title, onPress }: { title: string; onPress: () => void }) {
+  const reduceMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -35,8 +43,8 @@ function AnimatedPrimaryButton({ title, onPress }: { title: string; onPress: () 
     <Animated.View style={[styles.primaryBtn, style]}>
       <Pressable
         style={styles.primaryBtnPressable}
-        onPressIn={() => (scale.value = withSpring(0.97))}
-        onPressOut={() => (scale.value = withSpring(1))}
+        onPressIn={() => { if (!reduceMotion) scale.value = withSpring(0.97); }}
+        onPressOut={() => { if (!reduceMotion) scale.value = withSpring(1); }}
         onPress={onPress}
       >
         <Text style={styles.primaryBtnText}>{title}</Text>
@@ -49,16 +57,24 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const cardIn = useSharedValue(0);
-  const contentIn = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
+  const cardIn = useSharedValue(reduceMotion ? 1 : 0);
+  const contentIn = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
+    // Reduce Motion: the staggered rise is pure decoration — land on the
+    // final layout immediately.
+    if (reduceMotion) {
+      contentIn.value = 1;
+      cardIn.value = 1;
+      return;
+    }
     contentIn.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) });
     cardIn.value = withDelay(
       160,
       withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) })
     );
-  }, []);
+  }, [reduceMotion, contentIn, cardIn]);
 
   const contentStyle = useAnimatedStyle(() => ({
     opacity: contentIn.value,
@@ -168,13 +184,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   brand: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 16,
     letterSpacing: 3.4,
     color: TEXT_PRIMARY,
   },
   signIn: {
-    fontFamily: 'Epilogue-SemiBold',
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13,
     color: '#C9CEC2',
   },
@@ -187,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   headline: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 40,
     lineHeight: 40,
     letterSpacing: -0.8,
@@ -223,22 +239,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
   },
   timePillText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 14,
     color: ACCENT,
   },
   cardTitle: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 14.5,
     color: TEXT_PRIMARY,
   },
   cardTitleSm: {
-    fontFamily: 'Epilogue-SemiBold',
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 13.5,
     color: TEXT_PRIMARY,
   },
   cardSub: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 12,
     color: TEXT_SECONDARY,
     marginTop: 1,
@@ -250,7 +266,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   joinPillText: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12.5,
     color: BG,
   },
@@ -262,13 +278,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   nudgeText: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     fontSize: 12.5,
     color: ACCENT,
   },
 
   body: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 14,
     lineHeight: 21.7,
     color: TEXT_SECONDARY,
@@ -286,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryBtnText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: CoachFonts.headingBold,
     fontSize: 15.5,
     color: BG,
   },
@@ -297,12 +313,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   athleteLinkText: {
-    fontFamily: 'Epilogue-Regular',
+    fontFamily: CoachFonts.body,
     fontSize: 13,
     color: TEXT_MUTED,
   },
   athleteLinkTextStrong: {
-    fontFamily: 'Epilogue-Bold',
+    fontFamily: CoachFonts.bodyBold,
     color: '#C9CEC2',
   },
 });

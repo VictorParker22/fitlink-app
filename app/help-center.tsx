@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,6 +56,7 @@ export default function HelpCenterScreen() {
   const router = useRouter();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const reduceMotion = useReducedMotion();
 
   const sections = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,14 +71,17 @@ export default function HelpCenterScreen() {
 
   const toggleItem = (key: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // Reduce Motion: expand/collapse instantly rather than easing the height.
+    if (!reduceMotion) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     setExpandedItem((prev) => (prev === key ? null : key));
   };
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Help center</Text>
@@ -117,7 +122,15 @@ export default function HelpCenterScreen() {
                 const isExpanded = expandedItem === key;
                 return (
                   <View key={key}>
-                    <TouchableOpacity style={s.faqItem} activeOpacity={0.7} onPress={() => toggleItem(key)}>
+                    <TouchableOpacity
+                      style={s.faqItem}
+                      activeOpacity={0.7}
+                      onPress={() => toggleItem(key)}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.q}
+                      accessibilityHint={isExpanded ? 'Collapses the answer' : 'Expands the answer'}
+                      accessibilityState={{ expanded: isExpanded }}
+                    >
                       <View style={s.faqHeader}>
                         <Text style={s.faqQuestion}>{item.q}</Text>
                         <Ionicons name={isExpanded ? 'remove' : 'add'} size={18} color={CoachColors.accent} />

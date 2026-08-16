@@ -142,7 +142,7 @@ export default function WorkoutPreview({ activeWorkout, onStart, onBack }: Worko
 
   return (
     <View style={s.container}>
-      <TouchableOpacity
+      <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
         onPress={onBack}
         style={s.backBtn}
         accessibilityRole="button"

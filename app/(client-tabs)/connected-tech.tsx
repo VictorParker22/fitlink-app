@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -81,6 +81,7 @@ function formatSyncTime(date: Date): string {
 
 // ─── COMPONENT ───────────────────────────────────────────
 export default function ConnectedTechScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
     isHealthAvailable,
@@ -185,11 +186,11 @@ export default function ConnectedTechScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Back button */}
-      <TouchableOpacity style={s.backBtn} onPress={() => router.push(ClientRoute.myProfile)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to profile">
+      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.backBtn} onPress={() => router.push(ClientRoute.myProfile)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to profile">
         <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── BANNER ── */}
         <TouchableOpacity style={s.banner} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Book a fitness assessment">

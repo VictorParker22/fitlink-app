@@ -32,7 +32,7 @@ export default function EditClientScreen() {
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={styles.notFound}>Client not found</Text>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
             style={styles.secondaryBtn}
             onPress={() => router.back()}
             accessibilityRole="button"
@@ -77,7 +77,7 @@ export default function EditClientScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={4}
             onPress={() => router.back()}
             style={styles.backBtn}
             accessibilityRole="button"
@@ -110,7 +110,7 @@ export default function EditClientScreen() {
             <Text style={styles.label}>Status</Text>
             <View style={styles.statusRow}>
               {statuses.map((s) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                   key={s.value}
                   style={[styles.statusChip, status === s.value && { backgroundColor: `${s.color}18`, borderColor: `${s.color}40` }]}
                   onPress={() => setStatus(s.value)}
@@ -130,11 +130,11 @@ export default function EditClientScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Plan</Text>
               <View style={styles.planGrid}>
-                <TouchableOpacity style={[styles.planChip, !selectedPlan && styles.planChipActive]} onPress={() => setSelectedPlan(null)}>
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={[styles.planChip, !selectedPlan && styles.planChipActive]} onPress={() => setSelectedPlan(null)}>
                   <Text style={[styles.planChipText, !selectedPlan && styles.planChipTextActive]}>None</Text>
                 </TouchableOpacity>
                 {plans.map((plan) => (
-                  <TouchableOpacity key={plan.id} style={[styles.planChip, selectedPlan === plan.id && styles.planChipActive]} onPress={() => setSelectedPlan(plan.id)}>
+                  <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} key={plan.id} style={[styles.planChip, selectedPlan === plan.id && styles.planChipActive]} onPress={() => setSelectedPlan(plan.id)}>
                     <Text style={[styles.planChipText, selectedPlan === plan.id && styles.planChipTextActive]}>{plan.name} · ${plan.price}</Text>
                   </TouchableOpacity>
                 ))}

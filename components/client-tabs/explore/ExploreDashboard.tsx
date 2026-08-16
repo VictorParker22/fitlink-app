@@ -351,7 +351,7 @@ export default function ExploreDashboard() {
         On-demand classes come from the coach you train with. Once you have one, their classes and
         live sessions live here.
       </Text>
-      <Pressable
+      <Pressable hitSlop={{ top: 3, bottom: 3 }}
         style={s.noteBtn}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

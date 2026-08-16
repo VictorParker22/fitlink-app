@@ -89,7 +89,7 @@ export default function CreateAccountScreen() {
       >
         {/* Header — back button + logo */}
         <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={2}
             style={styles.backButton}
             onPress={() => router.back()}
             activeOpacity={0.7}

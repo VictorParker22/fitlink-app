@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type PropsWithChildren } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
@@ -18,6 +18,24 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * In-context priming shown before the one-shot iOS notification prompt.
+ * Resolves true only if the user actively opts in.
+ */
+function primeForPushPermission(): Promise<boolean> {
+  return new Promise(resolve => {
+    Alert.alert(
+      'Turn on notifications?',
+      "FitLink uses notifications for the things you'd want a nudge about: a new message from your coach, a session starting soon, and your check-in reminders. Nothing else.",
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Turn on', onPress: () => resolve(true) },
+      ],
+      { cancelable: false },
+    );
+  });
+}
+
 async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('default', {
@@ -32,6 +50,15 @@ async function registerForPushNotificationsAsync() {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
+      // HIG / App Review: never fire the system notification prompt cold. The
+      // iOS prompt can only ever be shown ONCE, so asking silently at login —
+      // before the user has seen anything the notifications are about — burns
+      // the single chance and reads as a demand. Explain first, in our own
+      // words, and only surface the system dialog if they opt in. Declining
+      // here leaves the system permission untouched, so Settings (and a later
+      // launch) can still ask.
+      const wantsPush = await primeForPushPermission();
+      if (!wantsPush) return null;
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
