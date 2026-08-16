@@ -61,6 +61,9 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
   const [showRating, setShowRating] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [syncFailed, setSyncFailed] = useState(false);
+  // The reason the sync failed, shown to the user. A dev-only console warn
+  // meant a coach on a real device had no way to tell us why nothing saved.
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [ratingFailed, setRatingFailed] = useState(false);
   const completionIdRef = useRef<string | null>(null);
   const syncedRef = useRef(false);
@@ -82,7 +85,9 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         .maybeSingle();
 
       if (clsError || !cls?.trainer_id) {
-        if (__DEV__) console.warn('[class-player] class lookup failed:', clsError?.message ?? 'class not readable');
+        const why = clsError?.message ?? 'this class is not readable on your account';
+        if (__DEV__) console.warn('[class-player] class lookup failed:', why);
+        setSyncError(`Class lookup: ${why}`);
         setSyncFailed(true);
         return;
       }
@@ -107,6 +112,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
 
       if (insertError) {
         if (__DEV__) console.warn('[class-player] completion insert failed:', insertError.message);
+        setSyncError(`${insertError.message}${insertError.code ? ` (${insertError.code})` : ''}`);
         setSyncFailed(true);
         return;
       }
@@ -291,9 +297,12 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
           </View>
 
           {syncFailed && (
-            <Text style={cs.syncWarn}>
-              Saved on this device, but we couldn't sync it to your coach yet.
-            </Text>
+            <>
+              <Text style={cs.syncWarn}>
+                Saved on this device, but we couldn't sync it to your coach yet.
+              </Text>
+              {syncError && <Text style={cs.syncWarnDetail}>{syncError}</Text>}
+            </>
           )}
         </View>
 
@@ -1093,6 +1102,14 @@ const cs = StyleSheet.create({
   starsRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  syncWarnDetail: {
+    fontFamily: CoachFonts.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 16,
   },
   syncWarn: {
     fontFamily: CoachFonts.body,
