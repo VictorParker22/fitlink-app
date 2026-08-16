@@ -192,38 +192,50 @@ export default function ClientOnboardingScreen() {
       if (user) {
         const weightLbs = weightText.trim() ? Math.round(parseFloat(weightText)) : null;
 
-        const updatePayload: Record<string, any> = {};
-        if (goal) updatePayload.goals = goal;
-        if (days !== null) updatePayload.weekly_goal = days;
-        if (weightLbs && !Number.isNaN(weightLbs)) updatePayload.weight_lbs = weightLbs;
-
-        // Everything without its own column goes into assessment_data.intake,
-        // merged over whatever is already there.
-        const { data: existing } = await supabase
+        // The whole intake lives in assessment_data.intake. The clients table
+        // has no goals / weekly_goal / weight_lbs columns — writing to them
+        // failed the entire update with 42703, and the filter below used
+        // `user_id`, which does not exist either (the column is auth_user_id).
+        // Neither error surfaced because postgrest RESOLVES with { error }
+        // instead of throwing, so the catch was dead and every athlete's
+        // answers were silently discarded.
+        const { data: existing, error: readErr } = await supabase
           .from('clients')
           .select('assessment_data')
-          .eq('user_id', user.id)
+          .eq('auth_user_id', user.id)
           .maybeSingle();
+        if (readErr && __DEV__) {
+          console.warn('[ClientOnboarding] could not read prior assessment:', readErr.message);
+        }
         const prior = existing?.assessment_data && typeof existing.assessment_data === 'object'
           ? existing.assessment_data
           : {};
-        updatePayload.assessment_data = {
-          ...prior,
-          intake: {
-            goal,
-            experience,
-            days_per_week: days,
-            limitation: limitation.trim() || null,
-            weight_lbs: weightLbs && !Number.isNaN(weightLbs) ? weightLbs : null,
-            completed_at: new Date().toISOString(),
+
+        const updatePayload = {
+          assessment_data: {
+            ...prior,
+            intake: {
+              goal,
+              experience,
+              days_per_week: days,
+              limitation: limitation.trim() || null,
+              weight_lbs: weightLbs && !Number.isNaN(weightLbs) ? weightLbs : null,
+              completed_at: new Date().toISOString(),
+            },
           },
         };
 
-        await supabase.from('clients').update(updatePayload).eq('user_id', user.id);
+        const { error: writeErr } = await supabase
+          .from('clients')
+          .update(updatePayload)
+          .eq('auth_user_id', user.id);
+        if (writeErr && __DEV__) {
+          console.warn('[ClientOnboarding] intake save failed:', writeErr.message);
+        }
       }
     } catch (e) {
-      // Non-critical — never trap the athlete in intake.
-      console.warn('[ClientOnboarding] Failed to save intake:', e);
+      // Never trap the athlete in intake — but do say so in dev.
+      if (__DEV__) console.warn('[ClientOnboarding] intake save threw:', e);
     }
 
     // Completion contract — AuthGuard depends on this flag. Keyed per account
