@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const SUPABASE_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co';
+// Exported because direct storage REST uploads need it — the client's own
+// `supabaseUrl` property is not public API and can read as undefined.
+export const SUPABASE_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IxZ1QUlo0for6NcOQvf-xw_D0-vmrXL';
 
 /**

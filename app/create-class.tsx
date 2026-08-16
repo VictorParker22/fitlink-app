@@ -11,7 +11,7 @@ import { useApp } from '../context/AppContext';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 
 const CLASS_CATEGORIES = [
   'Meditation', 'Strength', 'Pilates', 'Running', 'Yoga', 'HIIT',
@@ -115,25 +115,46 @@ export default function CreateClassScreen() {
     }
   };
 
+  const MAX_BYTES: Record<'class-thumbnails' | 'class-videos', number> = {
+    'class-videos': 500 * 1024 * 1024, // matches the bucket's file_size_limit
+    'class-thumbnails': 10 * 1024 * 1024,
+  };
+
   const uploadFile = async (asset: ImagePicker.ImagePickerAsset, bucket: 'class-thumbnails' | 'class-videos') => {
-    const ext = asset.uri.split('.').pop() || (bucket === 'class-videos' ? 'mp4' : 'jpg');
+    const ext = (asset.uri.split('.').pop() || (bucket === 'class-videos' ? 'mp4' : 'jpg')).toLowerCase();
     const fileName = `${bucket}-${Date.now()}.${ext}`;
 
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
+    // Refuse oversized files up front with a real number, rather than letting
+    // the server reject them after a long upload.
+    const size = (asset as any).fileSize as number | undefined;
+    const limit = MAX_BYTES[bucket];
+    if (typeof size === 'number' && size > limit) {
+      const mb = (n: number) => Math.round(n / (1024 * 1024));
+      throw new Error(
+        `That file is ${mb(size)} MB and the limit is ${mb(limit)} MB. Trim it and try again.`,
+      );
+    }
 
+    // NOTE: do NOT fetch(asset.uri).blob() here. That pulls the entire video
+    // into JS memory before uploading — a phone-recorded clip is hundreds of
+    // MB and it froze the app (the blob was never even used). FormData streams
+    // straight from the file URI instead.
     const formData = new FormData();
-    formData.append('', {
+    // The field name must be non-empty; it was '' before, which the storage
+    // API rejects.
+    formData.append('file', {
       uri: asset.uri,
       name: fileName,
       type: asset.mimeType || (bucket === 'class-videos' ? 'video/mp4' : 'image/jpeg'),
     } as any);
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
+    if (!session) throw new Error('You are signed out. Sign in and try again.');
 
+    // `(supabase as any).supabaseUrl` is not public API and can be undefined,
+    // which produced a request to "undefined/storage/v1/...".
     const uploadRes = await fetch(
-      `${(supabase as any).supabaseUrl}/storage/v1/object/${bucket}/${fileName}`,
+      `${SUPABASE_URL}/storage/v1/object/${bucket}/${fileName}`,
       {
         method: 'POST',
         headers: {
@@ -144,7 +165,19 @@ export default function CreateClassScreen() {
       }
     );
 
-    if (!uploadRes.ok) throw new Error('Upload failed');
+    if (!uploadRes.ok) {
+      // Surface what the server actually said — "Upload failed" told the coach
+      // nothing while the real answer was a missing bucket.
+      let detail = `${uploadRes.status}`;
+      try {
+        const body = await uploadRes.json();
+        if (body?.message) detail = body.message;
+        else if (body?.error) detail = body.error;
+      } catch {
+        // non-JSON body — keep the status code
+      }
+      throw new Error(`Upload failed (${detail})`);
+    }
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
     return urlData.publicUrl;
   };
@@ -190,13 +223,21 @@ export default function CreateClassScreen() {
 
     if (result.canceled || !result.assets[0]) return;
 
+    // Close the source sheet BEFORE the upload. Showing an alert while this
+    // native Modal is still visible is the documented iOS double-modal freeze
+    // this codebase has been bitten by before — and on failure the sheet used
+    // to stay open underneath the alert.
+    setShowVideoModal(false);
     setUploadingMedia(true);
     try {
       const url = await uploadFile(result.assets[0], 'class-videos');
       setVideoUrl(url);
-      setShowVideoModal(false);
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Upload Failed', message: err.message || 'Failed to upload video' });
+      showAlert({
+        type: 'error',
+        title: 'Video not uploaded',
+        message: err.message || 'Failed to upload video',
+      });
     } finally {
       setUploadingMedia(false);
     }

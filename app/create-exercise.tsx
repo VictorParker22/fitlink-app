@@ -8,7 +8,7 @@ import { Image } from 'expo-image';
 import { useApp, sanitizeCategory } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 
 const CATEGORIES = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core', 'Cardio', 'Full Body', 'Flexibility'];
 const MUSCLE_GROUPS = [
@@ -83,17 +83,20 @@ export default function CreateExerciseScreen() {
       const fileName = `exercise-img-${Date.now()}.${ext}`;
 
       const formData = new FormData();
-      formData.append('', {
+      // Field name must be non-empty — '' is rejected by the storage API.
+      formData.append('file', {
         uri: asset.uri,
         name: fileName,
         type: asset.mimeType || 'image/jpeg',
       } as any);
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      if (!session) throw new Error('You are signed out. Sign in and try again.');
 
+      // `(supabase as any).supabaseUrl` is not public API and can be
+      // undefined, producing a request to "undefined/storage/v1/...".
       const uploadRes = await fetch(
-        `${(supabase as any).supabaseUrl}/storage/v1/object/exercise-videos/${fileName}`,
+        `${SUPABASE_URL}/storage/v1/object/exercise-videos/${fileName}`,
         {
           method: 'POST',
           headers: {
@@ -104,7 +107,14 @@ export default function CreateExerciseScreen() {
         }
       );
 
-      if (!uploadRes.ok) throw new Error('Upload failed');
+      if (!uploadRes.ok) {
+        let detail = `${uploadRes.status}`;
+        try {
+          const body = await uploadRes.json();
+          detail = body?.message || body?.error || detail;
+        } catch { /* non-JSON body — keep the status */ }
+        throw new Error(`Upload failed (${detail})`);
+      }
       const { data: urlData } = supabase.storage.from('exercise-videos').getPublicUrl(fileName);
       setImageUrl(urlData.publicUrl);
     } catch (err: any) {

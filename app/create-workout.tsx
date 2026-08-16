@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams } from 'expo-router';
 
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { Spacing, FontFamily, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
@@ -464,17 +464,20 @@ export default function CreateWorkoutScreen() {
     const mimeType = asset.mimeType || 'video/mp4';
 
     const formData = new FormData();
-    formData.append('', {
+    // Field name must be non-empty — '' is rejected by the storage API.
+    formData.append('file', {
       uri: asset.uri,
       name: fileName,
       type: mimeType,
     } as any);
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
+    if (!session) throw new Error('You are signed out. Sign in and try again.');
 
+    // `(supabase as any).supabaseUrl` is not public API and can be undefined,
+    // producing a request to "undefined/storage/v1/...".
     const uploadRes = await fetch(
-      `${(supabase as any).supabaseUrl}/storage/v1/object/exercise-videos/${fileName}`,
+      `${SUPABASE_URL}/storage/v1/object/exercise-videos/${fileName}`,
       {
         method: 'POST',
         headers: {
