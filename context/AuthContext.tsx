@@ -239,8 +239,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     try {
-      // Device flags are per-device fast paths only; each account's auth
-      // metadata restores them on the next sign-in (see app/_layout.tsx).
+      // Onboarding flags are keyed per account now (lib/onboardingFlags.ts),
+      // so signing out must NOT erase them — a different account on this
+      // device reads different keys and correctly sees the wizard, while this
+      // account keeps its completed setup. Only the old device-global keys are
+      // cleared, so a legacy flag can never leak between accounts.
       await SecureStore.deleteItemAsync('fitlink_wizard_complete');
       await SecureStore.deleteItemAsync('fitlink_onboarded');
       await SecureStore.deleteItemAsync('fitlink_client_onboarded');

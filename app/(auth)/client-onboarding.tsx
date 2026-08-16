@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
+import { clientOnboardedKey } from '../../lib/onboardingFlags';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -225,12 +226,24 @@ export default function ClientOnboardingScreen() {
       console.warn('[ClientOnboarding] Failed to save intake:', e);
     }
 
-    // Completion contract — AuthGuard depends on this flag.
-    await SecureStore.setItemAsync('fitlink_client_onboarded', 'true');
+    // Completion contract — AuthGuard depends on this flag. Keyed per account
+    // so a shared device never leaks completion between athletes, and this
+    // athlete never repeats intake (see lib/onboardingFlags.ts).
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser?.id) {
+      await SecureStore.setItemAsync(clientOnboardedKey(authUser.id), 'true').catch(() => {});
+    }
+    // updateUser resolves with { error } instead of throwing, so check it.
     try {
-      await supabase.auth.updateUser({ data: { client_onboarded: true } });
-    } catch {
-      // Non-critical
+      const { error } = await supabase.auth.updateUser({ data: { client_onboarded: true } });
+      if (error) {
+        const retry = await supabase.auth.updateUser({ data: { client_onboarded: true } });
+        if (retry.error && __DEV__) {
+          console.warn('[ClientOnboarding] could not persist metadata:', retry.error.message);
+        }
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[ClientOnboarding] metadata write threw:', e);
     }
 
     setSaving(false);

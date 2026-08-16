@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { onboardedKey } from '../../lib/onboardingFlags';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -207,8 +208,11 @@ export default function TrainerWizardScreen() {
   };
 
   const handleConnectBank = async () => {
-    const started = await handleStripeSetup();
-    if (started) await completeWizard();
+    // Reaching this step IS finishing setup. Stripe can be connected, skipped,
+    // or fail — none of that should leave the coach permanently un-onboarded,
+    // which is what happened while completion hung off a truthy return here.
+    await handleStripeSetup();
+    await completeWizard();
   };
 
   const handleSkipPayments = async () => {
@@ -216,14 +220,31 @@ export default function TrainerWizardScreen() {
   };
 
   const completeWizard = async () => {
-    // Write BOTH keys — fitlink_onboarded is what AuthGuard reads
-    await SecureStore.setItemAsync('fitlink_onboarded', 'true');
-    await SecureStore.setItemAsync('fitlink_wizard_complete', 'true');
-    // Also persist to Supabase user_metadata so it survives cache clears
+    const userId = user?.id;
+    // Per-account key, so a different coach on this device still sees the
+    // wizard and this coach never repeats it (see lib/onboardingFlags.ts).
+    if (userId) {
+      await SecureStore.setItemAsync(onboardedKey(userId), 'true').catch(() => {});
+    }
+    // Persist to user_metadata so a fresh device knows too. updateUser RESOLVES
+    // with { error } rather than throwing, so the old try/catch never fired and
+    // failures were invisible — coaches ended up with no metadata at all.
     try {
-      await supabase.auth.updateUser({ data: { wizard_complete: true, onboarded: true } });
+      const { error } = await supabase.auth.updateUser({
+        data: { wizard_complete: true, onboarded: true },
+      });
+      if (error) {
+        // One retry, then give up quietly — the device flag above still holds
+        // for this account on this device.
+        const retry = await supabase.auth.updateUser({
+          data: { wizard_complete: true, onboarded: true },
+        });
+        if (retry.error && __DEV__) {
+          console.warn('[TrainerWizard] could not persist onboarding metadata:', retry.error.message);
+        }
+      }
     } catch (e) {
-      // Non-critical — SecureStore fallback still works
+      if (__DEV__) console.warn('[TrainerWizard] metadata write threw:', e);
     }
     setCompletionVisible(true);
   };

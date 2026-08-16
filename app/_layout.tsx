@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { onboardedKey, clientOnboardedKey } from '../lib/onboardingFlags';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
@@ -88,28 +89,43 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
 
-  // Onboarding flags. The device-local SecureStore flag is only a fast path —
-  // the source of truth is the account's auth metadata, which the wizards set
-  // on completion. Sign-out wipes the local flags (correct on shared devices),
-  // so without the metadata check every re-login re-triggered the wizard.
+  // Onboarding flags are stored PER ACCOUNT, not per device.
+  //
+  // They used to be device-global, so signing out had to erase them or the next
+  // person on the phone would inherit the previous one's completed setup. But
+  // erasing them meant the same person re-logging in had to redo the wizard
+  // whenever their account metadata was missing (which happens — see the
+  // wizard's completion path). Keying by user id gets both: a different account
+  // on this device has different keys and correctly sees the wizard, while the
+  // same account never repeats it. Auth metadata remains a secondary source so
+  // a fresh device still knows.
   useEffect(() => {
     if (loading) return;
+    if (!user) {
+      setHasOnboarded(false);
+      setHasClientOnboarded(false);
+      return;
+    }
+    const trainerKey = onboardedKey(user.id);
+    const clientKey = clientOnboardedKey(user.id);
     Promise.all([
-      SecureStore.getItemAsync('fitlink_onboarded'),
-      SecureStore.getItemAsync('fitlink_client_onboarded'),
+      SecureStore.getItemAsync(trainerKey),
+      SecureStore.getItemAsync(clientKey),
     ]).then(([onboarded, clientOnboarded]) => {
-      const meta = (user?.user_metadata ?? {}) as Record<string, any>;
+      const meta = (user.user_metadata ?? {}) as Record<string, any>;
+      // Tolerate booleans and strings — metadata has been written both ways.
+      const truthy = (v: any) => v === true || v === 'true';
       const trainerDone =
-        onboarded === 'true' || meta.onboarded === true || meta.wizard_complete === true;
-      const clientDone = clientOnboarded === 'true' || meta.client_onboarded === true;
+        onboarded === 'true' || truthy(meta.onboarded) || truthy(meta.wizard_complete);
+      const clientDone = clientOnboarded === 'true' || truthy(meta.client_onboarded);
       setHasOnboarded(trainerDone);
       setHasClientOnboarded(clientDone);
-      // Re-seed the device flags from account truth so offline cold starts stay correct.
+      // Re-seed this account's device flag so offline cold starts stay correct.
       if (trainerDone && onboarded !== 'true') {
-        SecureStore.setItemAsync('fitlink_onboarded', 'true').catch(() => {});
+        SecureStore.setItemAsync(trainerKey, 'true').catch(() => {});
       }
       if (clientDone && clientOnboarded !== 'true') {
-        SecureStore.setItemAsync('fitlink_client_onboarded', 'true').catch(() => {});
+        SecureStore.setItemAsync(clientKey, 'true').catch(() => {});
       }
     });
   }, [user, loading]);
