@@ -64,10 +64,9 @@ import SeasonTrack from '../../components/client-tabs/season/SeasonTrack';
 import TrackStrip from '../../components/client-tabs/season/TrackStrip';
 import WaitingRoom from '../../components/client-tabs/cohort/WaitingRoom';
 import DayOneOverlay from '../../components/client-tabs/cohort/DayOneOverlay';
-import MuscleMap from '../../components/anatomy/MuscleMap';
+import WorkoutCard, { workoutMetaParts } from '../../components/client-tabs/workout/WorkoutCard';
 import {
   aggregateWorkoutMuscles,
-  focusLineForWorkout,
   type WorkoutMuscleInfo,
 } from '../../components/client-tabs/season/workoutMuscles';
 
@@ -540,11 +539,11 @@ export default function ClientWorkoutsScreen() {
   // One-off client_workouts assignment card — used both as the main surface
   // (no pass) and inside "Extras from your coach" (enrolled). Calendar labels
   // are honest here (assigned_date exists): "Today" / "Tomorrow" /
-  // "Mon 18 Aug", or "From Tuesday" with the one-tap Move-to-today pill when
-  // overdue. Same when/what/does anatomy as the season's node cards.
+  // "Mon 18 Aug", or "From Tuesday" with the one-tap move to today when
+  // overdue. Rendered by the shared WorkoutCard, so an extra and a season
+  // session are the same object on screen.
   const renderAssignment = (cw: any) => {
-    const wr = cw.workouts || {};
-    const exs: any[] = wr.workout_exercises || [];
+    const wr = cw.workouts || null;
     const done = cw.status === 'completed';
     const overdue = !done && isOverdue(cw.assigned_date);
     const whenLabel = overdue
@@ -554,64 +553,35 @@ export default function ClientWorkoutsScreen() {
         })()
       : assignmentDayLabel(cw.assigned_date);
     const eyebrow = [whenLabel, `One-off from ${coachFirst}`].filter(Boolean).join(' · ');
-    const meta: string[] = [];
-    if (exs.length > 0) meta.push(`${exs.length} exercise${exs.length === 1 ? '' : 's'}`);
-    const totalSets = exs.reduce((sum: number, ex: any) => sum + (Number(ex.sets) || 0), 0);
-    if (totalSets > 0) meta.push(`${totalSets} sets`);
-    const mins = wr.duration || wr.duration_minutes;
-    if (mins) meta.push(`${mins} min`);
     const info = wr?.id ? muscleInfoFor(wr) : null;
-    const focus = wr?.id ? focusLineForWorkout(wr, info) : null;
+    const hasMeta = workoutMetaParts(wr).length > 0;
     return (
-      <Pressable
+      <WorkoutCard
         key={cw.id}
-        style={[s.nodeRow, done && s.nodeRowDone]}
-        onPress={() => {
-          if (done) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          startAssignedWorkout(cw);
-        }}
-        disabled={done}
-        accessibilityRole="button"
-        accessibilityLabel={`${eyebrow}, ${wr.name || 'Session'}, ${done ? 'done' : meta.length > 0 ? meta.join(', ') : 'assigned'}${focus ? `. ${focus}` : ''}${done ? '' : '. Double tap to preview'}`}
-      >
-        <View style={{ flex: 1 }}>
-          <View style={s.whenRow}>
-            <Text style={[s.whenText, overdue && s.whenTextOverdue]} numberOfLines={1}>
-              {eyebrow}
-            </Text>
-            {done && (
-              <View style={s.doneChip}>
-                <Text style={s.doneChipText}>Done</Text>
-              </View>
-            )}
-          </View>
-          <Text style={s.nodeName} numberOfLines={1}>
-            {wr.name || 'Session'}
-          </Text>
-          {meta.length > 0 && <Text style={s.nodeSub}>{meta.join(' · ')}</Text>}
-          {focus ? (
-            <Text style={s.focusText} numberOfLines={1}>
-              {focus}
-            </Text>
-          ) : null}
-        </View>
-        {!overdue && info && (
-          <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={64} />
-        )}
-        {overdue && (
-          <Pressable
-            style={s.movePill}
-            onPress={() => moveToToday(cw)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Move ${wr.name || 'session'} to today`}
-          >
-            <Text style={s.movePillText}>Move to today</Text>
-          </Pressable>
-        )}
-        {!done && <Ionicons name="chevron-forward" size={17} color={C.textFaint} />}
-      </Pressable>
+        workout={wr}
+        name={wr?.name || 'Session'}
+        eyebrow={eyebrow}
+        eyebrowTone={overdue ? 'late' : 'default'}
+        statusChip={done ? 'done' : null}
+        statusSpoken={done ? 'done' : hasMeta ? null : 'assigned'}
+        muscleInfo={info}
+        dimmed={done}
+        reduceMotion={reducedMotion}
+        onPress={
+          done
+            ? undefined
+            : () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                startAssignedWorkout(cw);
+              }
+        }
+        // Slip recovery lives in the corner circle — the same slot the meal
+        // card uses for swap — and only ever appears on a session that is
+        // actually overdue.
+        onSecondaryAction={overdue ? () => moveToToday(cw) : undefined}
+        secondaryIcon="today-outline"
+        secondaryLabel={`Move ${wr?.name || 'session'} to today`}
+      />
     );
   };
 
@@ -715,7 +685,7 @@ export default function ClientWorkoutsScreen() {
                 label="Extras from your coach"
                 sub={`One-off sessions from ${coachFirst}, on top of your season.`}
               />
-              <View style={{ gap: 10 }}>{assignedList.map(renderAssignment)}</View>
+              <View style={{ gap: 12 }}>{assignedList.map(renderAssignment)}</View>
             </>
           )}
         </>
@@ -775,7 +745,7 @@ export default function ClientWorkoutsScreen() {
               label="Extras from your coach"
               sub={`One-off sessions from ${coachFirst}, on top of your season.`}
             />
-            <View style={{ gap: 10 }}>{assignedList.map(renderAssignment)}</View>
+            <View style={{ gap: 12 }}>{assignedList.map(renderAssignment)}</View>
           </>
         )}
       </>
@@ -787,7 +757,7 @@ export default function ClientWorkoutsScreen() {
       <>
         <Text style={s.screenTitle}>Train</Text>
         <Text style={s.screenSub}>Sessions {coachFirst} put on your plan</Text>
-        <View style={{ gap: 9, marginTop: 18 }}>{assignedList.map(renderAssignment)}</View>
+        <View style={{ gap: 12, marginTop: 18 }}>{assignedList.map(renderAssignment)}</View>
         {findSeasonCard}
       </>
     );
@@ -920,40 +890,9 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 15,
   },
-  nodeRowDone: { opacity: 0.6 },
   nodeIcon: { width: 20, textAlign: 'center' },
   nodeName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
   nodeSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18 },
-
-  // Assignment card anatomy — when-row, done chip, focus line (mirrors the
-  // season node cards in WeekSection so both sections speak one language).
-  whenRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  whenText: {
-    flexShrink: 1,
-    fontFamily: F.bodyBold,
-    fontSize: 11,
-    color: C.textFaint,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  whenTextOverdue: { color: C.warning },
-  doneChip: {
-    backgroundColor: C.accentSoft,
-    borderRadius: 999,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  doneChipText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent },
-  focusText: { fontFamily: F.body, fontSize: 13, color: C.textSecondary, marginTop: 3, lineHeight: 18 },
-
-  // Slip recovery — the one-tap move.
-  movePill: {
-    backgroundColor: C.accentSoft,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  movePillText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   noteCard: {
     backgroundColor: C.surface,

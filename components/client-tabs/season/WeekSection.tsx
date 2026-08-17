@@ -14,6 +14,11 @@
  * Every tap routes through the parent's callbacks so the preview-first
  * contract in workouts.tsx stays the single entry point.
  *
+ * Workout nodes — current, done and ahead alike — are drawn by the shared
+ * components/client-tabs/workout/WorkoutCard, the same card the Extras list
+ * uses and the Train-side sibling of the Food tab's MealCard. Diet, class and
+ * milestone nodes keep their own compact rows; they are not sessions.
+ *
  * COHORTS: a cohort pass has a real start date, so each node carries a real
  * calendar date (resolved upstream in SeasonTrack). Three things follow, and
  * ONLY for cohorts:
@@ -40,8 +45,8 @@ import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { formatNodeDay } from '../../../lib/cohort';
 import type { TrackNode } from '../../../context/AppContext';
-import MuscleMap from '../../anatomy/MuscleMap';
-import { focusLineForWorkout, type WorkoutMuscleInfo } from './workoutMuscles';
+import WorkoutCard from '../workout/WorkoutCard';
+import { type WorkoutMuscleInfo } from './workoutMuscles';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -292,12 +297,6 @@ export default function WeekSection({
     // Workout node
     const w = workoutById(node.id);
     const exercises: any[] = w?.workout_exercises || [];
-    const totalSets = exercises.reduce((sum: number, ex: any) => sum + (Number(ex.sets) || 0), 0);
-    const meta: string[] = [];
-    if (exercises.length > 0) meta.push(`${exercises.length} exercise${exercises.length === 1 ? '' : 's'}`);
-    if (totalSets > 0) meta.push(`${totalSets} sets`);
-    const mins = w?.duration || w?.duration_minutes || null;
-    if (mins) meta.push(`${mins} min`);
     const name = w?.name || node.label || 'Session';
 
     // WHEN / WHAT IT DOES — position label and muscle focus, real data only.
@@ -311,133 +310,86 @@ export default function WeekSection({
       .filter(Boolean)
       .join(', ');
     const info = w ? muscleInfoFor(w) : null;
-    const focus = w ? focusLineForWorkout(w, info) : null;
 
     if (isCurrent) {
       const CardWrap = reducedMotion ? View : Animated.View;
       const cardProps = reducedMotion
         ? {}
         : { entering: FadeInDown.springify().damping(16).stiffness(160) };
+      // The hero keeps its larger treatment and its out-loud "Preview session"
+      // button — the preview-first contract deserves a labelled affordance —
+      // but it is now the same card as every other session on the screen.
       return (
-        <CardWrap key={index} style={s.currentCard} {...cardProps}>
-          <View style={s.currentEyebrowRow}>
-            <View style={s.upNextChip}>
-              <Text style={s.upNextChipText}>Up next</Text>
-            </View>
-            <Text
-              style={[
-                s.currentWhen,
-                isToday && s.whenTextToday,
-                offset !== null && offset < 0 && s.whenTextLate,
-              ]}
-            >
-              {whenLabel}
-            </Text>
-          </View>
-          <View style={s.currentHeadRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.currentTitle}>{name}</Text>
-              {meta.length > 0 && <Text style={s.currentMeta}>{meta.join(' · ')}</Text>}
-              {focus ? (
-                <Text style={s.currentFocus} numberOfLines={2}>
-                  {focus}
-                </Text>
-              ) : null}
-            </View>
-            {info && (
-              <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={72} />
+        <CardWrap key={index} {...cardProps}>
+          <WorkoutCard
+            workout={w}
+            name={name}
+            hero
+            eyebrow={whenLabel}
+            eyebrowSpoken={whenSpoken}
+            eyebrowTone={isToday ? 'today' : offset !== null && offset < 0 ? 'late' : 'default'}
+            statusChip="up-next"
+            muscleInfo={info}
+            reduceMotion={reducedMotion}
+            primaryLabel={w ? 'Preview session' : null}
+            accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
+            onPress={
+              w
+                ? () => {
+                    tap();
+                    onOpenWorkout(w, { viewOnly: false });
+                  }
+                : undefined
+            }
+          >
+            {exercises.length > 0 && (
+              <View style={s.exerciseList}>
+                {[...exercises]
+                  .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+                  .slice(0, 5)
+                  .map((ex: any, i: number) => (
+                    <View key={ex.id || i} style={s.exerciseRow}>
+                      <Text style={s.exerciseName} numberOfLines={1}>
+                        {ex.exercises?.name || 'Exercise'}
+                      </Text>
+                      {ex.sets && ex.reps ? <Text style={s.exerciseMeta}>{ex.sets}×{ex.reps}</Text> : null}
+                    </View>
+                  ))}
+                {exercises.length > 5 && <Text style={s.exerciseMore}>+{exercises.length - 5} more</Text>}
+              </View>
             )}
-          </View>
-          {exercises.length > 0 && (
-            <View style={s.exerciseList}>
-              {[...exercises]
-                .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
-                .slice(0, 5)
-                .map((ex: any, i: number) => (
-                  <View key={ex.id || i} style={s.exerciseRow}>
-                    <Text style={s.exerciseName} numberOfLines={1}>
-                      {ex.exercises?.name || 'Exercise'}
-                    </Text>
-                    {ex.sets && ex.reps ? <Text style={s.exerciseMeta}>{ex.sets}×{ex.reps}</Text> : null}
-                  </View>
-                ))}
-              {exercises.length > 5 && <Text style={s.exerciseMore}>+{exercises.length - 5} more</Text>}
-            </View>
-          )}
-          {w ? (
-            <Pressable
-              style={s.previewBtn}
-              onPress={() => {
-                tap();
-                onOpenWorkout(w, { viewOnly: false });
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${whenSpoken}, ${name}, up next${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}. Double tap to preview`}
-              accessibilityHint="Opens the session preview. Nothing starts until you tap start there"
-            >
-              <Text style={s.previewBtnText}>Preview session</Text>
-            </Pressable>
-          ) : (
-            <Text style={s.nodeSub}>Loading the session details…</Text>
-          )}
+            {!w && <Text style={s.nodeSub}>Loading the session details…</Text>}
+          </WorkoutCard>
         </CardWrap>
       );
     }
 
-    // Done or upcoming workout card — both open the same preview, view-only.
-    // WHEN (week · session + status chip), WHAT (name + meta), WHAT IT DOES
-    // (muscle thumb + focus line) — every line from real data or omitted.
+    // Done or upcoming session — both open the same preview, view-only.
     const canOpen = !!w;
     return (
-      <Pressable hitSlop={{ top: 1, bottom: 1 }}
+      <WorkoutCard
         key={index}
-        style={[s.nodeCard, done && s.nodeRowDone, status === 'future' && s.nodeRowFuture]}
-        onPress={() => {
-          if (!canOpen) return;
-          tap();
-          onOpenWorkout(w, { viewOnly: true });
-        }}
-        disabled={!canOpen}
-        accessibilityRole="button"
-        accessibilityLabel={`${whenSpoken}, ${name}, ${done ? 'done' : isMissed ? 'missed' : isToday ? 'today' : 'ahead on your plan'}${meta.length > 0 ? `, ${meta.join(', ')}` : ''}${focus ? `. ${focus}` : ''}${canOpen ? '. Double tap to preview' : ''}`}
-      >
-        <View style={{ flex: 1 }}>
-          <View style={s.whenRow}>
-            <Text
-              style={[
-                s.whenText,
-                isToday && !done && s.whenTextToday,
-                isMissed && s.whenTextLate,
-              ]}
-            >
-              {whenLabel}
-            </Text>
-            {done && (
-              <View style={s.doneChip}>
-                <Text style={s.doneChipText}>Done</Text>
-              </View>
-            )}
-            {!done && isMissed && (
-              <View style={s.missedChip}>
-                <Text style={s.missedChipText}>Missed</Text>
-              </View>
-            )}
-          </View>
-          <Text style={s.nodeName} numberOfLines={1}>
-            {name}
-          </Text>
-          {meta.length > 0 && <Text style={s.nodeSub}>{meta.join(' · ')}</Text>}
-          {focus ? (
-            <Text style={s.focusText} numberOfLines={1}>
-              {focus}
-            </Text>
-          ) : null}
-        </View>
-        {info && (
-          <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={64} />
-        )}
-        {canOpen && <Ionicons name="chevron-forward" size={17} color={C.textFaint} />}
-      </Pressable>
+        workout={w}
+        name={name}
+        eyebrow={whenLabel}
+        eyebrowSpoken={whenSpoken}
+        eyebrowTone={isMissed ? 'late' : isToday && !done ? 'today' : 'default'}
+        statusChip={done ? 'done' : isMissed ? 'missed' : null}
+        statusSpoken={done ? 'done' : isMissed ? 'missed' : isToday ? 'today' : 'ahead on your plan'}
+        muscleInfo={info}
+        viewOnly
+        dimmed={done}
+        transparent={status === 'future'}
+        reduceMotion={reducedMotion}
+        onPress={
+          canOpen
+            ? () => {
+                tap();
+                onOpenWorkout(w, { viewOnly: true });
+              }
+            : undefined
+        }
+      />
     );
   };
 
@@ -512,7 +464,7 @@ export default function WeekSection({
           </View>
         </View>
       ) : (
-        <View style={{ gap: 8 }}>{nodes.map(renderNode)}</View>
+        <View style={{ gap: 12 }}>{nodes.map(renderNode)}</View>
       )}
     </Wrap>
   );
@@ -605,7 +557,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
   },
   missedChipText: { fontFamily: F.bodyBold, fontSize: 11, color: C.warning },
-  focusText: { fontFamily: F.body, fontSize: 13, color: C.textSecondary, marginTop: 3, lineHeight: 18 },
   nodeRowDone: { opacity: 0.65 },
   nodeRowFuture: { backgroundColor: 'transparent' },
   nodeIconWrap: {
@@ -629,50 +580,10 @@ const s = StyleSheet.create({
   },
   markerText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary },
 
-  // The current node — the big treatment.
-  currentCard: {
-    backgroundColor: '#1E211D',
-    borderWidth: 1.5,
-    borderColor: C.accent,
-    borderRadius: 18,
-    padding: 16,
-  },
-  currentEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  upNextChip: {
-    backgroundColor: C.accent,
-    borderRadius: 999,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-  },
-  upNextChipText: {
-    fontFamily: F.bodyBold,
-    fontSize: 11,
-    color: C.onAccent,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  currentWhen: {
-    fontFamily: F.bodyBold,
-    fontSize: 11,
-    color: C.textMuted,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  currentHeadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 9 },
-  currentTitle: { fontFamily: F.headingBold, fontSize: 21.5, color: C.textPrimary },
-  currentMeta: { fontFamily: F.bodyMedium, fontSize: 13.5, color: C.textMuted, marginTop: 4 },
-  currentFocus: { fontFamily: F.body, fontSize: 13.5, color: C.textSecondary, marginTop: 5, lineHeight: 19 },
+  // The current node's exercise list — the one extra the hero card carries.
   exerciseList: { gap: 7, marginTop: 13 },
   exerciseRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
   exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   exerciseMeta: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   exerciseMore: { fontFamily: F.body, fontSize: 13, color: C.textFaint },
-  previewBtn: {
-    backgroundColor: C.accent,
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  previewBtnText: { fontFamily: F.bodyBold, fontSize: 16, color: C.onAccent },
 });
