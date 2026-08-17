@@ -143,10 +143,12 @@ export default function ActiveWorkoutPlayer({
           videoUrl: ex.video_url,
           instructionText: ex.exercises?.instructions || '',
           muscleInfo,
-          // Opens on the body when there is a body to show. What a movement does
-          // to you is the question you ask standing at the rack; the demo is one
-          // tap away for when you need the how.
-          mediaView: muscleInfo ? ('muscles' as const) : ('demo' as const),
+          // Opens on the DEMO. The first question at the rack is "what am I
+          // actually doing", and you answer it by watching the movement — the
+          // body is the follow-up. Falls back to muscles only when there is no
+          // demo media at all, so the panel is never empty.
+          mediaView:
+            ex.video_url || ex.exercises?.image_url ? ('demo' as const) : ('muscles' as const),
           sets: Array.from({ length: ex.sets || 3 }, () => ({
             weight: '',
             reps: String(ex.reps || 10),
@@ -622,6 +624,11 @@ export default function ActiveWorkoutPlayer({
         {exerciseStates.map((exercise, exIdx) => {
           const completedInEx = exercise.sets.filter((s) => s.completed).length;
           const allDone = completedInEx === exercise.sets.length;
+          // Which face the panel can actually show. Resolved here rather than
+          // trusted from state: an exercise with no demo media must never land
+          // on the demo face, whatever the stored preference says.
+          const hasDemo = !!(exercise.videoUrl || exercise.imageUrl);
+          const showMuscles = !!exercise.muscleInfo && (exercise.mediaView === 'muscles' || !hasDemo);
 
           return (
             <View key={exIdx} style={[s.exCard, allDone && s.exCardDone]}>
@@ -708,10 +715,13 @@ export default function ActiveWorkoutPlayer({
                         thumbnail beside a full-width GIF. One panel, two
                         faces: each gets the whole width, and the card gets no
                         taller. The switch only appears when both faces exist. */}
-                    {exercise.muscleInfo && (
+                    {/* Both faces, or no switch. A tab pair where one tab leads
+                        nowhere is worse than no tabs — and "Demo" is first
+                        because watching the movement is the first question. */}
+                    {hasDemo && exercise.muscleInfo && (
                       <View style={s.mediaTabs}>
-                        {(['muscles', 'demo'] as const).map((view) => {
-                          const on = exercise.mediaView === view;
+                        {(['demo', 'muscles'] as const).map((view) => {
+                          const on = showMuscles === (view === 'muscles');
                           return (
                             <TouchableOpacity
                               key={view}
@@ -736,7 +746,7 @@ export default function ActiveWorkoutPlayer({
                       </View>
                     )}
 
-                    {exercise.muscleInfo && exercise.mediaView === 'muscles' ? (
+                    {showMuscles && exercise.muscleInfo ? (
                       <View style={s.anatomyPanel}>
                         <MuscleMap
                           primary={exercise.muscleInfo.primary}
@@ -1008,8 +1018,8 @@ const s = StyleSheet.create({
   // ── The media panel ────────────────────────────────────────────────────
   mediaTabs: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 14,
   },
   mediaTab: {
     flexDirection: 'row',
@@ -1031,12 +1041,16 @@ const s = StyleSheet.create({
   mediaTabTextOn: { color: CoachColors.onAccent },
   anatomyPanel: {
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 22,
     paddingHorizontal: 16,
     borderRadius: 22,
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
+    // Matches the demo's own marginBottom (Spacing.xl) so the gap down to the
+    // instructions row is identical whichever face is showing — switching tabs
+    // must not make the card below it jump.
+    marginBottom: 20,
   },
   anatomyCaption: {
     marginTop: 14,
