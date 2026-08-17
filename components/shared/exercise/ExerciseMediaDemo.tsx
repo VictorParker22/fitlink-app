@@ -65,9 +65,6 @@ export default function ExerciseMediaDemo({
           resizeMode="cover"
           onError={() => setFailedUrl(imageUrl)}
         />
-        <View style={styles.gifOverlay}>
-          <Text style={styles.gifOverlayText}>ExerciseDB demo</Text>
-        </View>
       </View>
     );
   }
@@ -112,21 +109,5 @@ const styles = StyleSheet.create({
   gifImage: {
     width: '100%',
     height: '100%',
-  },
-  gifOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  gifOverlayText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 12.5,
-    color: CoachColors.textPrimary,
   },
 });

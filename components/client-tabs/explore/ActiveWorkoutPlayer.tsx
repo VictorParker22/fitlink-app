@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform, Linking, Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -360,6 +361,27 @@ export default function ActiveWorkoutPlayer({
           openRestTimer(exercise.restSeconds);
         }
       }
+      // Carry the weight forward to every later set of this exercise that the
+      // athlete has not already given a value. This is what makes sets 2 and 3
+      // a single tap on "Log set": the same load is the overwhelmingly common
+      // case, and re-typing it three times was most of the cost of logging.
+      // Only EMPTY sets are filled — a value they entered themselves is never
+      // overwritten, including one they deliberately dropped for a back-off set.
+      // Rebuilt rather than mutated: the untouched set objects in `updated` are
+      // still the same references the previous state holds, and writing through
+      // them would edit rendered state in place — the shape that produces "it
+      // only updates when something else re-renders" bugs.
+      if (set.weight) {
+        updated[exIdx] = {
+          ...exercise,
+          sets: exercise.sets.map((later, i) =>
+            i > setIdx && !later.completed && !later.weight
+              ? { ...later, weight: set.weight }
+              : later
+          ),
+        };
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       const allDone = exercise.sets.every((s) => s.completed);
@@ -565,7 +587,22 @@ export default function ActiveWorkoutPlayer({
       </View>
 
       {/* Exercise List */}
-      <ScrollView keyboardShouldPersistTaps="handled" style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Typing is the secondary path now, but when it does happen the keyboard
+          must not sit on top of the field. `padding` is iOS-only on purpose:
+          on Android it double-compensates against adjustResize and pushes the
+          content off screen instead. `on-drag` dismissal means scrolling to the
+          next exercise puts the keyboard away without a second tap. */}
+      <KeyboardAvoidingView
+        style={s.scroll}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {exerciseStates.map((exercise, exIdx) => {
           const completedInEx = exercise.sets.filter((s) => s.completed).length;
           const allDone = completedInEx === exercise.sets.length;
@@ -704,6 +741,7 @@ export default function ActiveWorkoutPlayer({
             button partly behind the bar. */}
         <View style={{ height: Math.max(insets.bottom, 14) + 70 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Video Modal */}
       <Modal
