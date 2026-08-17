@@ -94,13 +94,20 @@ export function muscleInfoForExercise(we: any): WorkoutMuscleInfo | null {
 export function focusLineForWorkout(workout: any, info: WorkoutMuscleInfo | null): string | null {
   const desc = typeof workout?.description === 'string' ? workout.description.trim() : '';
   if (desc) return desc.replace(/\s+/g, ' ');
-  if (info && info.topLabels.length > 0) {
-    const labels = info.topLabels;
-    const joined =
-      labels.length === 1
-        ? labels[0]
-        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-    return `Targets ${joined}`;
-  }
-  return null;
+  return targetsLine(info);
+}
+
+/**
+ * "Targets chest, triceps and front delts" — the picture, said in words, for
+ * anyone who cannot see it or does not read anatomy. Null when nothing mapped,
+ * so callers omit the line rather than printing "Targets ".
+ */
+export function targetsLine(info: WorkoutMuscleInfo | null): string | null {
+  if (!info || info.topLabels.length === 0) return null;
+  const labels = info.topLabels;
+  const joined =
+    labels.length === 1
+      ? labels[0]
+      : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+  return `Targets ${joined}`;
 }

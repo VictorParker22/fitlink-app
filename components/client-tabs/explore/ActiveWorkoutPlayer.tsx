@@ -15,7 +15,7 @@ import ExerciseInstructions from '../../../components/shared/exercise/ExerciseIn
 import PRCelebrationModal from './PRCelebrationModal';
 import MuscleMap from '../../anatomy/MuscleMap';
 import SessionSetRow from '../workout/SessionSetRow';
-import { muscleInfoForExercise, type WorkoutMuscleInfo } from '../season/workoutMuscles';
+import { muscleInfoForExercise, targetsLine, type WorkoutMuscleInfo } from '../season/workoutMuscles';
 import { supabase } from '../../../lib/supabase';
 
 interface SetLog {
@@ -38,6 +38,8 @@ interface ExerciseState {
   instructionText?: string;
   /** This exercise's own regions — the card's portrait. Null when unmappable. */
   muscleInfo: WorkoutMuscleInfo | null;
+  /** Which face the expanded card shows: what it does to you, or how to do it. */
+  mediaView: 'muscles' | 'demo';
   sets: SetLog[];
   expanded: boolean;
 }
@@ -128,24 +130,31 @@ export default function ActiveWorkoutPlayer({
   useEffect(() => {
     if (activeWorkout) {
       const exercises = activeWorkout.workouts?.workout_exercises || [];
-      const states: ExerciseState[] = exercises.map((ex: any) => ({
-        exerciseId: ex.exercise_id || ex.exercises?.id || `ex-${Math.random()}`,
-        exerciseName: ex.exercises?.name || 'Exercise',
-        muscleGroup: ex.exercises?.muscle_group || '',
-        targetSets: ex.sets || 3,
-        targetReps: ex.reps || 10,
-        restSeconds: ex.rest_seconds || 60,
-        imageUrl: ex.exercises?.image_url,
-        videoUrl: ex.video_url,
-        instructionText: ex.exercises?.instructions || '',
-        muscleInfo: muscleInfoForExercise(ex),
-        sets: Array.from({ length: ex.sets || 3 }, () => ({
-          weight: '',
-          reps: String(ex.reps || 10),
-          completed: false,
-        })),
-        expanded: false,
-      }));
+      const states: ExerciseState[] = exercises.map((ex: any) => {
+        const muscleInfo = muscleInfoForExercise(ex);
+        return {
+          exerciseId: ex.exercise_id || ex.exercises?.id || `ex-${Math.random()}`,
+          exerciseName: ex.exercises?.name || 'Exercise',
+          muscleGroup: ex.exercises?.muscle_group || '',
+          targetSets: ex.sets || 3,
+          targetReps: ex.reps || 10,
+          restSeconds: ex.rest_seconds || 60,
+          imageUrl: ex.exercises?.image_url,
+          videoUrl: ex.video_url,
+          instructionText: ex.exercises?.instructions || '',
+          muscleInfo,
+          // Opens on the body when there is a body to show. What a movement does
+          // to you is the question you ask standing at the rack; the demo is one
+          // tap away for when you need the how.
+          mediaView: muscleInfo ? ('muscles' as const) : ('demo' as const),
+          sets: Array.from({ length: ex.sets || 3 }, () => ({
+            weight: '',
+            reps: String(ex.reps || 10),
+            completed: false,
+          })),
+          expanded: false,
+        };
+      });
       if (states.length > 0) states[0].expanded = true;
       setExerciseStates(states);
       setElapsedSeconds(0);
@@ -236,6 +245,13 @@ export default function ActiveWorkoutPlayer({
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
   }, [showRestTimer, restTimeLeft, closeRest]);
+
+  const setMediaView = useCallback((index: number, view: 'muscles' | 'demo') => {
+    Haptics.selectionAsync();
+    setExerciseStates((prev) =>
+      prev.map((ex, i) => (i === index ? { ...ex, mediaView: view } : ex))
+    );
+  }, []);
 
   const toggleExercise = useCallback((index: number) => {
     setExerciseStates((prev) =>
@@ -624,22 +640,26 @@ export default function ActiveWorkoutPlayer({
                 accessibilityLabel={`${exercise.exerciseName}, ${exercise.targetSets} sets of ${exercise.targetReps} reps${exercise.restSeconds > 0 ? `, ${exercise.restSeconds} seconds rest` : ''}, ${completedInEx} of ${exercise.sets.length} sets logged${allDone ? ', all done' : ''}`}
                 accessibilityHint={exercise.expanded ? 'Collapses this exercise' : 'Expands this exercise to log your sets'}
               >
-                {/* The portrait: this exercise's own regions lit on the body,
-                    the exercise photo when the muscles do not map, and nothing
-                    at all when neither exists — a blank silhouette would be a
+                {/* The portrait, on COLLAPSED cards only. Once the card opens,
+                    the body gets the full media panel below and a thumbnail of
+                    the same thing beside the title would be a smaller, worse
+                    copy of it. Nothing at all when the muscles do not map and
+                    there is no photo — a blank silhouette would be a
                     placeholder pretending to be information. */}
-                {exercise.muscleInfo ? (
-                  <View style={s.portrait}>
-                    <MuscleMap
-                      primary={exercise.muscleInfo.primary}
-                      secondary={exercise.muscleInfo.secondary}
-                      view={exercise.muscleInfo.view}
-                      height={54}
-                    />
-                  </View>
-                ) : exercise.imageUrl ? (
-                  <Image source={{ uri: exercise.imageUrl }} style={s.portrait} resizeMode="cover" />
-                ) : null}
+                {!exercise.expanded && (
+                  exercise.muscleInfo ? (
+                    <View style={s.portrait}>
+                      <MuscleMap
+                        primary={exercise.muscleInfo.primary}
+                        secondary={exercise.muscleInfo.secondary}
+                        view={exercise.muscleInfo.view}
+                        height={72}
+                      />
+                    </View>
+                  ) : exercise.imageUrl ? (
+                    <Image source={{ uri: exercise.imageUrl }} style={s.portrait} resizeMode="cover" />
+                  ) : null
+                )}
 
                 <View style={{ flex: 1 }}>
                   <Text style={s.exEyebrow}>
@@ -680,12 +700,67 @@ export default function ActiveWorkoutPlayer({
               {exercise.expanded && (
                 <View style={s.expandedContent}>
                   <View style={{ marginBottom: 16 }}>
-                    <ExerciseMediaDemo
-                      imageUrl={exercise.imageUrl}
-                      videoUrl={exercise.videoUrl}
-                      exerciseName={exercise.exerciseName}
-                      onPlayVideo={handlePlayVideo}
-                    />
+                    {/* ── The media panel ──────────────────────────────────
+                        The body and the demo are two answers to two different
+                        questions — "what will this do to me" and "how do I do
+                        it" — and they were competing for the same vertical
+                        space, which is how the anatomy ended up a 72pt
+                        thumbnail beside a full-width GIF. One panel, two
+                        faces: each gets the whole width, and the card gets no
+                        taller. The switch only appears when both faces exist. */}
+                    {exercise.muscleInfo && (
+                      <View style={s.mediaTabs}>
+                        {(['muscles', 'demo'] as const).map((view) => {
+                          const on = exercise.mediaView === view;
+                          return (
+                            <TouchableOpacity
+                              key={view}
+                              style={[s.mediaTab, on && s.mediaTabOn]}
+                              onPress={() => setMediaView(exIdx, view)}
+                              activeOpacity={0.8}
+                              accessibilityRole="tab"
+                              accessibilityState={{ selected: on }}
+                              accessibilityLabel={view === 'muscles' ? 'Muscles worked' : 'Movement demo'}
+                            >
+                              <Ionicons
+                                name={view === 'muscles' ? 'body-outline' : 'play-circle-outline'}
+                                size={15}
+                                color={on ? CoachColors.onAccent : CoachColors.textMuted}
+                              />
+                              <Text style={[s.mediaTabText, on && s.mediaTabTextOn]}>
+                                {view === 'muscles' ? 'Muscles' : 'Demo'}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {exercise.muscleInfo && exercise.mediaView === 'muscles' ? (
+                      <View style={s.anatomyPanel}>
+                        <MuscleMap
+                          primary={exercise.muscleInfo.primary}
+                          secondary={exercise.muscleInfo.secondary}
+                          view={exercise.muscleInfo.view}
+                          height={196}
+                        />
+                        {/* The picture said in words — for anyone who cannot
+                            see it, and for anyone who does not read anatomy. */}
+                        {targetsLine(exercise.muscleInfo) ? (
+                          <Text style={s.anatomyCaption}>
+                            {targetsLine(exercise.muscleInfo)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : (
+                      <ExerciseMediaDemo
+                        imageUrl={exercise.imageUrl}
+                        videoUrl={exercise.videoUrl}
+                        exerciseName={exercise.exerciseName}
+                        onPlayVideo={handlePlayVideo}
+                      />
+                    )}
+
                     <ExerciseInstructions
                       exerciseId={exercise.exerciseId}
                       instructionText={exercise.instructionText}
@@ -909,13 +984,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  // The round portrait. 72 here against the browse card's 92: this one sits
-  // beside the title rather than above it, so it is sized to the two lines of
-  // type it stands next to.
+  // The round portrait, on collapsed cards. 96 — the browse card's 92 plus a
+  // little, because in a scrolling list of six exercises this silhouette is
+  // the thing the eye lands on, and at 72 it read as an afterthought.
   portrait: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -930,6 +1005,47 @@ const s = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
+  // ── The media panel ────────────────────────────────────────────────────
+  mediaTabs: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  mediaTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 38,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+  },
+  mediaTabOn: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  mediaTabText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 13.5,
+    color: CoachColors.textMuted,
+  },
+  mediaTabTextOn: { color: CoachColors.onAccent },
+  anatomyPanel: {
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+  },
+  anatomyCaption: {
+    marginTop: 14,
+    textAlign: 'center',
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 14,
+    color: CoachColors.textSecondary,
+  },
+
   exAction: { alignItems: 'center', gap: 3 },
   exProgress: {
     width: 52,
