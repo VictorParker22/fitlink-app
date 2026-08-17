@@ -471,8 +471,10 @@ export default function HealthInsightsScreen() {
           </>
         )}
 
-        {/* Bottom spacer for tab bar */}
-        <View style={{ height: 120 }} />
+        {/* No bottom spacer here — the ScrollView's own contentContainerStyle
+            already pads insets.bottom + 130, which clears the floating tab bar.
+            The old fixed 120 was sized for a tab bar that no longer exists and
+            stacked on top of that, leaving a large dead gap. */}
       </ScrollView>
     </SafeAreaView>
   );

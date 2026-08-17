@@ -341,7 +341,9 @@ export default function ConnectedTechScreen() {
         onRequestClose={() => setActiveGuide(null)}
       >
         <View style={s.modalOverlay}>
-          <View style={s.modalSheet}>
+          {/* A Modal does not inherit the screen's safe area — the sheet's own
+              bottom padding has to come from the real inset. */}
+          <View style={[s.modalSheet, { paddingBottom: insets.bottom + 24 }]}>
             {/* Drag handle */}
             <View style={s.dragHandle} />
 
@@ -561,7 +563,7 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    // paddingBottom is applied inline from the safe-area inset.
     maxHeight: '85%',
   },
   dragHandle: {

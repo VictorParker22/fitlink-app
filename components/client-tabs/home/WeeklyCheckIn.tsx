@@ -26,6 +26,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
@@ -132,6 +133,7 @@ function ratingWord(q: Question, v: number) {
 
 export default function WeeklyCheckIn() {
   const { clientData, trainer } = useClient();
+  const insets = useSafeAreaInsets();
   const coachFirst = (trainer?.name || 'Your coach').split(' ')[0];
 
   const [open, setOpen] = useState(false);
@@ -336,8 +338,10 @@ export default function WeeklyCheckIn() {
           style={s.modal}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Header */}
-          <View style={s.modalHeader}>
+          {/* Header. presentationStyle="pageSheet" is iOS-only — on Android
+              this Modal is full-screen, so the status bar has to be cleared
+              here. A Modal does not inherit the screen's safe area. */}
+          <View style={[s.modalHeader, Platform.OS === 'android' && { paddingTop: insets.top + 18 }]}>
             <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
               <Ionicons name={step === 0 ? 'close' : 'chevron-back'} size={22} color={CoachColors.textSecondary} />
             </TouchableOpacity>
@@ -545,9 +549,11 @@ export default function WeeklyCheckIn() {
             )}
           </ScrollView>
 
-          {/* Footer: send */}
+          {/* Footer: send. paddingBottom clears the home indicator — a Modal
+              has no safe area of its own. No tab-bar clearance needed: a
+              native Modal renders above the bar. */}
           {onSummary && !success && (
-            <View style={s.footer}>
+            <View style={[s.footer, { paddingBottom: insets.bottom + 20 }]}>
               <TouchableOpacity
                 style={[s.sendBtn, (answered === 0 || submitting) && s.sendBtnDisabled]}
                 onPress={handleSubmit}

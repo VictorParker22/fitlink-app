@@ -337,7 +337,16 @@ export default function CreateClassScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Root-stack screen — no tab bar. Clear only the sticky footer (which
+            renders on steps 1–2) plus the home indicator. */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: wizardStep < 3 ? Math.max(insets.bottom, Spacing.md) + 84 : insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
 
           {wizardStep === 1 && (
             <View style={styles.stepContainer}>
@@ -607,7 +616,6 @@ export default function CreateClassScreen() {
             </View>
           )}
 
-          <View style={{ height: 100 }} />
         </ScrollView>
 
         {/* Footer Navigation */}
@@ -719,7 +727,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
   },
   stepContainer: {
     flex: 1,

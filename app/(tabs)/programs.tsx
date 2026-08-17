@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage, Switch, Alert as RNAlert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage, Switch, Alert as RNAlert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -1027,7 +1027,10 @@ export default function ProgramsScreen() {
           </Text>
         </View>
 
-        {/* Flat List Content */}
+        {/* Flat List Content — PassCard's autoflow panel embeds a multiline
+            "welcome message" input and a Save button inside these rows, so the
+            list needs a KAV to keep the focused row above the keyboard. */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList keyboardShouldPersistTaps="handled"
           data={currentData as any}
           keyExtractor={(item: any) => item.id}
@@ -1076,6 +1079,7 @@ export default function ProgramsScreen() {
             )
           }
         />
+        </KeyboardAvoidingView>
       </SafeAreaView>
 
       {/* Action Sheet Modal */}

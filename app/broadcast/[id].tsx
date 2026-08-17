@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   ActivityIndicator,
   Animated,
   ScrollView,
@@ -14,6 +13,11 @@ import {
   KeyboardAvoidingView,
   Dimensions,
 } from 'react-native';
+// The camera preview is deliberately full-bleed and runs under the status bar /
+// home indicator. Only the *controls* overlay is inset — and react-native's own
+// SafeAreaView is an iOS-only no-op, so those controls sat under the Android
+// status bar. The context version insets on both platforms.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';

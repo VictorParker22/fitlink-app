@@ -1098,7 +1098,7 @@ export default function StrengthSessionScreen() {
               </View>
               <ScrollView keyboardShouldPersistTaps="handled"
                 style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: insets.bottom + 32 }}
                 showsVerticalScrollIndicator={false}
               >
                 {renderExerciseList()}

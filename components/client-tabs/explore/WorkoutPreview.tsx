@@ -318,9 +318,12 @@ export default function WorkoutPreview({ activeWorkout, onStart, onBack }: Worko
       </ScrollView>
 
       {/* The one commit — nothing above this starts anything.
-          Bottom padding clears the floating tab bar, which is
-          position:absolute and was covering this button entirely. */}
-      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 92 }]}>
+          Bottom padding clears the floating tab bar, which is position:absolute
+          and was covering this button entirely. Measured from the real bar in
+          (client-tabs)/_layout.tsx: paddingTop 11 + button ~44 +
+          Math.max(insets.bottom, 14). The old +92 was sized for the retired
+          glass bar and left a dead gap. */}
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) + 55 }]}>
         <TouchableOpacity
           style={[s.startBtn, exercises.length === 0 && { opacity: 0.5 }]}
           onPress={() => {

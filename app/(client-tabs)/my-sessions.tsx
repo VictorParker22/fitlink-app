@@ -527,7 +527,8 @@ export default function MySessionsScreen() {
           </>
         )}
 
-        <View style={{ height: 100 }} />
+        {/* No bottom spacer — contentContainerStyle already pads
+            insets.bottom + 130, which clears the floating tab bar. */}
       </ScrollView>
     </SafeAreaView>
   );

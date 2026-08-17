@@ -29,6 +29,8 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -366,6 +368,10 @@ export default function AthleteProgressScreen() {
 
   return (
     <View style={s.container}>
+      {/* The inline weight composer sits mid-page; without this the keyboard
+          covered it. 'padding' is correct on iOS only — on Android the activity
+          already resizes (adjustResize) and padding double-counts. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled"
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
@@ -813,6 +819,7 @@ export default function AthleteProgressScreen() {
         )}
 
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ── Fullscreen photo viewer ── */}
       <Modal

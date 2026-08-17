@@ -633,7 +633,11 @@ export default function AthleteFoodScreen() {
               style={{ flex: 1, justifyContent: 'flex-end' }}
               pointerEvents="box-none"
             >
-              <View style={[st.sheet, { paddingBottom: insets.bottom + 16 }]}>
+              {/* This sheet is an in-screen overlay, not a native Modal, so the
+                  floating tab bar draws over it — Cancel / Use were sitting
+                  under the bar. Bar height: paddingTop 11 + button ~44 +
+                  Math.max(insets.bottom, 14), plus the sheet's own 16. */}
+              <View style={[st.sheet, { paddingBottom: Math.max(insets.bottom, 14) + 55 + 16 }]}>
                 <View style={st.grabber} />
                 <Text style={st.sheetTitle}>Instead of {sheetMeal.name.toLowerCase()}</Text>
                 <Text style={st.sheetSub}>

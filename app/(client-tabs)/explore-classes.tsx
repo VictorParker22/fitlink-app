@@ -14,7 +14,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Modal, ScrollView, TextInput, RefreshControl, Alert,
+  Modal, ScrollView, TextInput, RefreshControl, Alert, KeyboardAvoidingView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -537,7 +537,10 @@ export default function ExploreClassesScreen() {
         </View>
       )}
 
-      {/* Class List */}
+      {/* Class List — inside a KeyboardAvoidingView so the list shrinks rather
+          than sliding under the keyboard raised by the search field above.
+          'padding' on iOS only; Android already resizes via adjustResize. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList keyboardShouldPersistTaps="handled"
         data={sortedClasses}
         keyExtractor={(item) => item.id}
@@ -596,6 +599,7 @@ export default function ExploreClassesScreen() {
           )
         }
       />
+      </KeyboardAvoidingView>
 
       {/* Filter FAB — lifted clear of the floating tab bar, and present only
           when the library actually has more than one category to sort into. */}
@@ -654,7 +658,9 @@ export default function ExploreClassesScreen() {
       {/* ── FILTER MODAL ── */}
       <Modal visible={showFilterModal} transparent animationType="slide" onRequestClose={() => setShowFilterModal(false)}>
         <View style={s.filterOverlay}>
-          <View style={s.filterSheet}>
+          {/* A Modal does not inherit the screen's safe area — the sheet's own
+              bottom padding has to come from the real inset. */}
+          <View style={[s.filterSheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={s.filterDragHandle} />
             <View style={s.filterHeader}>
               <Text style={s.filterTitle}>Filter</Text>
@@ -1121,7 +1127,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: CoachColors.border,
     paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    // paddingBottom is applied inline from the safe-area inset.
     maxHeight: '75%',
   },
   filterDragHandle: {

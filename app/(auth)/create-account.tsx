@@ -4,6 +4,7 @@ import {
   Animated, StatusBar, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -13,6 +14,7 @@ const CARD_HEIGHT = SCREEN_HEIGHT * 0.34;
 
 export default function CreateAccountScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Animated values
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -83,12 +85,16 @@ export default function CreateAccountScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Header — back button + logo */}
-        <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
+        {/* Header — back button + logo. Auth screen: no tab bar, so the only
+            clearances that matter are the status bar / Dynamic Island here and
+            the home indicator on the scroll content above. The old
+            SCREEN_HEIGHT * 0.06 was ~56pt on a 15 Pro Max, i.e. inside the
+            59pt island. */}
+        <Animated.View style={[styles.header, { opacity: headerOpacity, paddingTop: insets.top + 12 }]}>
           <TouchableOpacity hitSlop={2}
             style={styles.backButton}
             onPress={() => router.back()}
@@ -202,16 +208,13 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: {},
 
-  // Header
+  // Header — paddingTop applied inline from insets.top
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: SCREEN_HEIGHT * 0.06,
     paddingHorizontal: 20,
     paddingBottom: 16,
   },

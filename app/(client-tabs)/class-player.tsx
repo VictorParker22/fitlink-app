@@ -226,7 +226,10 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         style={StyleSheet.absoluteFill}
         accessible={false}
       />
-      <SafeAreaView style={cs.safeArea} edges={['top', 'bottom']}>
+      {/* Only 'top' — the actions block below derives its own bottom clearance
+          from the real insets. Applying edges 'bottom' here as well counted the
+          home indicator twice and left a dead gap under the buttons. */}
+      <SafeAreaView style={cs.safeArea} edges={['top']}>
         <View style={cs.content}>
           {/* Check icon */}
           <View style={cs.checkCircle}>
@@ -310,7 +313,9 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         </View>
 
         {/* Actions */}
-        <View style={[cs.actions, { paddingBottom: insets.bottom + 130 }]}>
+        {/* Clears the floating tab bar (it renders over href:null screens too):
+            paddingTop 11 + button ~44 + Math.max(insets.bottom, 14). */}
+        <View style={[cs.actions, { paddingBottom: Math.max(insets.bottom, 14) + 55 }]}>
           <TouchableOpacity style={cs.startAgainBtn} onPress={handleStartAgain} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Start this class again">
             <Ionicons name="refresh" size={20} color={CoachColors.onAccent} />
             <Text style={cs.startAgainText}>Start again</Text>

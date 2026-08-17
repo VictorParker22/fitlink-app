@@ -23,7 +23,7 @@ import {
   ScrollView, TextInput, StatusBar, Dimensions, KeyboardAvoidingView, Platform,
   ActivityIndicator, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -85,6 +85,7 @@ const STATUS_CONFIG = {
 
 export default function TrainerSessionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string; mode?: string }>();
   const sessionId = params.id;
   const mode = params.mode ?? 'track'; // 'detail' | 'track'
@@ -386,7 +387,14 @@ export default function TrainerSessionScreen() {
       {/* ── Exercise List ───────────────────────────────────────── */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: W * 0.04, paddingTop: 12 }}
+        // The SafeAreaView above is edges={['top']}, so the bottom inset has to
+        // come from here. When the rest bar is up it floats over the list, so
+        // the last exercise needs to clear that too.
+        contentContainerStyle={{
+          paddingHorizontal: W * 0.04,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + (restRemaining !== null ? 92 : 24),
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -522,12 +530,11 @@ export default function TrainerSessionScreen() {
             </TouchableOpacity>
           </>
         )}
-        <View style={{ height: restRemaining !== null ? 100 : 48 }} />
       </ScrollView>
 
       {/* ── Floating Rest Timer Bar ──────────────────────────────── */}
       {restRemaining !== null && (
-        <View style={styles.restBar}>
+        <View style={[styles.restBar, { bottom: insets.bottom + 12 }]}>
           <View style={styles.restBarInfo}>
             <Ionicons name="timer-outline" size={20} color={CoachColors.accent} />
             <Text style={styles.restBarLabel}>Rest timer</Text>

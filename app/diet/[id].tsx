@@ -358,7 +358,7 @@ export default function DietDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + 76 }}>
 
         {/* ── Hero ── */}
         {diet.image_url ? (

@@ -143,7 +143,17 @@ export default function TrainerClassDetailScreen() {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Bottom clearance is derived, not fixed: this is a root-stack screen so
+            there is no tab bar. Only the absolutely-positioned draft CTA (its own
+            paddingTop + button + insets.bottom) has to be cleared, and only when
+            it actually renders. */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: classItem.status === 'draft' ? insets.bottom + 78 : insets.bottom + 24 },
+          ]}
+        >
 
           {/* Media Header (Video or Thumbnail) */}
           <View style={styles.mediaContainer}>
@@ -310,7 +320,6 @@ export default function TrainerClassDetailScreen() {
             </View>
           </View>
 
-          <View style={{ height: 120 }} />
         </ScrollView>
 
         {/* Footer CTA */}
@@ -386,9 +395,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: {},
 
   // Media
   mediaContainer: {

@@ -125,7 +125,8 @@ const styles = StyleSheet.create({
   inputContainer: { borderRadius: 12, borderWidth: 1, flex: 1, marginBottom: 10, backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
   textArea: { flex: 1, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19, color: CoachColors.textPrimary },
 
-  footer: { padding: 16, paddingBottom: 20, borderTopWidth: 1, backgroundColor: CoachColors.bg, borderTopColor: CoachColors.borderMuted },
+  // SafeAreaView edges={['top','bottom']} already applies the home-indicator inset.
+  footer: { padding: 16, paddingBottom: 10, borderTopWidth: 1, backgroundColor: CoachColors.bg, borderTopColor: CoachColors.borderMuted },
 
   saveBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,

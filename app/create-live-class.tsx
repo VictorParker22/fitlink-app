@@ -227,7 +227,10 @@ export default function CreateLiveClassScreen() {
         </ScrollView>
 
         {/* ── Footer CTA ───────────────────────────────────────────────── */}
-        <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 80 + 12 }]}>
+        {/* This is a root-stack modal — the coach tab bar is NOT on screen here,
+            so the footer only clears the home indicator. (It previously added a
+            full tab-bar height, leaving a ~92pt dead gap under the CTA.) */}
+        <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity
             style={[s.ctaBtn, saving && s.ctaBtnDisabled]}
             onPress={handleSchedule}

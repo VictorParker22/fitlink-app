@@ -152,7 +152,10 @@ export default function CoachSignupScreen() {
 
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 34 }]}
+          // The sticky footer below is a flex sibling (not an overlay) and it
+          // already carries insets.bottom — repeating it here just added a
+          // home-indicator-sized dead gap at the end of the form.
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}

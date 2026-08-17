@@ -310,7 +310,6 @@ export default function ProfileScreen() {
             <Text style={s.deleteText}>Delete account</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
 

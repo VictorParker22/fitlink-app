@@ -4,6 +4,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Animated, Easing,
   useWindowDimensions, ScrollView, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -74,6 +75,7 @@ export default function PRCelebration({
   useAndroidBack(useCallback(() => { onDone(); return true; }, [onDone]));
 
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const [message, setMessage] = useState(defaultMessage);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
@@ -187,7 +189,7 @@ export default function PRCelebration({
         <Animated.View style={{ flex: 1, opacity: cardOpacity, transform: [{ scale: cardScale }] }}>
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={s.scrollContent}
+            contentContainerStyle={[s.scrollContent, { paddingTop: insets.top + 28 }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -282,7 +284,10 @@ export default function PRCelebration({
             <View style={{ height: 16 }} />
           </ScrollView>
 
-          <View style={s.footer}>
+          {/* This overlay is an in-screen absoluteFill View, so the floating
+              tab bar draws over it — "Finish session" was partly under the bar.
+              paddingTop 11 + button ~44 + Math.max(insets.bottom, 14). */}
+          <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) + 55 }]}>
             <TouchableOpacity
               style={s.doneBtn}
               onPress={() => { shareWithSquad(); onDone(); }}

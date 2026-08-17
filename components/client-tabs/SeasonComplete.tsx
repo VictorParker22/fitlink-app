@@ -3,6 +3,7 @@ import { useAndroidBack } from '../../hooks/useAndroidBack';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -70,6 +71,7 @@ export default function SeasonComplete({
   // the screen underneath while this was still covering it.
   useAndroidBack(useCallback(() => { onDone(); return true; }, [onDone]));
 
+  const insets = useSafeAreaInsets();
   const [sessionStats, setSessionStats] = useState<{ done: number; total: number } | null>(null);
   const [lifts, setLifts] = useState<LiftLine[]>([]);
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
@@ -192,7 +194,7 @@ export default function SeasonComplete({
       <Animated.View style={{ flex: 1, opacity: cardOpacity, transform: [{ scale: cardScale }] }}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={s.scrollContent}
+          contentContainerStyle={[s.scrollContent, { paddingTop: insets.top + 28 }]}
           showsVerticalScrollIndicator={false}
         >
           <Text style={s.eyebrow}>
@@ -309,7 +311,10 @@ export default function SeasonComplete({
           <View style={{ height: 16 }} />
         </ScrollView>
 
-        <View style={s.footer}>
+        {/* In-screen absoluteFill overlay, so the floating tab bar draws over
+            it — "Done" was partly under the bar. paddingTop 11 + button ~44 +
+            Math.max(insets.bottom, 14). */}
+        <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) + 55 }]}>
           <TouchableOpacity
             style={s.doneBtn}
             onPress={() => { shareWithSquad(); onDone(); }}

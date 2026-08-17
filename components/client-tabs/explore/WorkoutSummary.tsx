@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
@@ -39,6 +40,7 @@ export default function WorkoutSummary({
   onConfirmFinish,
   onContinueWorkout,
 }: WorkoutSummaryProps) {
+  const insets = useSafeAreaInsets();
   let totalSetsCompleted = 0;
   let totalVolume = 0;
   let exercisesCompleted = 0;
@@ -139,7 +141,10 @@ export default function WorkoutSummary({
           <Text style={s.continueBtnText}>Continue workout</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        {/* Clears the floating tab bar, which renders over this screen and was
+            covering "Continue workout": paddingTop 11 + button ~44 +
+            Math.max(insets.bottom, 14). */}
+        <View style={{ height: Math.max(insets.bottom, 14) + 55 }} />
       </ScrollView>
     </View>
   );

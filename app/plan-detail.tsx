@@ -142,6 +142,9 @@ export default function PlanDetailScreen() {
     <View style={st.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        // Root-stack screen with no tab bar and no sticky footer — the only
+        // thing to clear is the home indicator.
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textPrimary} />}
       >
         {/* ── HERO CARD ── */}
@@ -427,7 +430,6 @@ export default function PlanDetailScreen() {
           </View>
         </View>
 
-        <View style={{ height: 120 }} />
       </ScrollView>
     </View>
   );

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ImageBackground, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, Image, PanResponder, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+// react-native's own SafeAreaView is an iOS-only no-op on Android, which left
+// this header under the Android status bar. Use the context version instead.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -606,7 +609,7 @@ export default function AssessmentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity hitSlop={2} onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
@@ -1242,7 +1245,9 @@ const styles = StyleSheet.create({
   badgePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
 
   footer: {
-    padding: 20, paddingBottom: 28,
+    // edges={['bottom']} on the SafeAreaView already supplies the home-indicator
+    // inset — this is breathing room only (was 28, which stacked on top of it).
+    padding: 20, paddingBottom: 12,
     backgroundColor: CoachColors.bg,
     borderTopWidth: 1, borderTopColor: CoachColors.border,
   },

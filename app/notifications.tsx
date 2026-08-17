@@ -171,7 +171,7 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={st.scrollContent}
+        contentContainerStyle={[st.scrollContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
       >
@@ -187,8 +187,6 @@ export default function NotificationsScreen() {
             {renderSection('Earlier', pastNotifs)}
           </>
         )}
-
-        <View style={{ height: 60 }} />
       </ScrollView>
     </View>
   );

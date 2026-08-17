@@ -1033,7 +1033,7 @@ export default function CreateWorkoutScreen() {
             data={selectedExercises}
             onDragEnd={({ data }) => setSelectedExercises(data)}
             keyExtractor={(item) => item.exercise_id}
-            contentContainerStyle={s.scrollContent}
+            contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
@@ -1065,7 +1065,6 @@ export default function CreateWorkoutScreen() {
                     <Text style={s.addExerciseBtnText}>Add exercise</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={{ height: 120 }} />
               </>
             }
             renderItem={({ item: ex, drag, isActive, getIndex }) => {
@@ -1566,7 +1565,9 @@ const s = StyleSheet.create({
   createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, minWidth: 64, alignItems: 'center' },
   createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
-  scrollContent: { paddingBottom: 120 },
+  // Bottom clearance is applied inline from insets — the builder has no sticky
+  // footer (Save lives in the header) and no tab bar renders over this screen.
+  scrollContent: {},
   builderIntro: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
   titleInput: {
     fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, marginBottom: 6, padding: 0,

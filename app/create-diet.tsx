@@ -627,7 +627,7 @@ export default function CreateDietScreen() {
   // ────────────────────────────── STEP 1 ──────────────────────────────
   const renderStep1 = () => (
     <>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Text style={s.eyebrow}>Plan name</Text>
           <TextInput
@@ -992,7 +992,7 @@ export default function CreateDietScreen() {
 
       {/* Slot detail sheet */}
       <Modal visible={slotSheetIndex !== null} animationType="slide" transparent onRequestClose={() => setSlotSheetIndex(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>{slotSheetSlot?.label || 'Meal'}</Text>
@@ -1123,7 +1123,7 @@ export default function CreateDietScreen() {
 
       {/* Food search modal (saved + USDA) */}
       <Modal visible={searchSlotIndex !== null} animationType="slide" transparent onRequestClose={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={[s.modalContent, { height: '90%' }]}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>
@@ -1279,7 +1279,9 @@ const s = StyleSheet.create({
   customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 6 },
   customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 12, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
 
-  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, backgroundColor: CoachColors.bg },
+  // Inside SafeAreaView edges={['top','bottom']} — the inset is already applied,
+  // so this is breathing room only (was 28, stacking to ~62pt of dead space).
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: CoachColors.bg },
   cta: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   ctaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
 

@@ -619,7 +619,9 @@ const styles = StyleSheet.create({
   payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: '#C9CEC2' },
 
   // Footer
-  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, alignItems: 'center', gap: 9 },
+  // edges={['bottom']} on the enclosing SafeAreaView supplies the home-indicator
+  // inset; these paddings are breathing room only (were 24 / 30, which stacked).
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, alignItems: 'center', gap: 9 },
   nextBtn: {
     width: '100%', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15,
@@ -645,6 +647,6 @@ const styles = StyleSheet.create({
   doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
   doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
-  doneFooter: { paddingHorizontal: 26, paddingBottom: 30, alignItems: 'center' },
+  doneFooter: { paddingHorizontal: 26, paddingBottom: 12, alignItems: 'center' },
   doneFooterLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 });

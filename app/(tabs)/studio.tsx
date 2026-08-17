@@ -687,7 +687,11 @@ export default function StudioScreen() {
 
       <ScrollView
         style={s.scrollFlex}
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]}
+        // The sticky CTA below is a flex sibling, not an overlay, and it already
+        // carries the full tab-bar clearance (Math.max(insets.bottom,12)+80+12).
+        // The scroller therefore ends above it — repeating the tab-bar allowance
+        // here just left ~164pt of dead space at the end of the list.
+        contentContainerStyle={[s.scroll, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
       >
 

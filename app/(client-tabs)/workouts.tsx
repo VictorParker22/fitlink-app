@@ -483,8 +483,11 @@ export default function ClientWorkoutsScreen() {
   }
 
   if (activeWorkout && sessionStarted) {
+    // Plain View, not SafeAreaView: ActiveWorkoutPlayer applies insets.top + 8
+    // to its own header. Wrapping it in edges={['top']} counted the status bar
+    // twice.
     return (
-      <SafeAreaView style={s.container} edges={['top']}>
+      <View style={s.container}>
         <StatusBar barStyle="light-content" />
         <ActiveWorkoutPlayer
           activeWorkout={activeWorkout}
@@ -494,7 +497,7 @@ export default function ClientWorkoutsScreen() {
             setSessionStarted(false);
           }}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 

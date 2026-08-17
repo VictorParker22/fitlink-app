@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -292,10 +292,17 @@ export default function CoachHomeScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
+      {/* CheckInInbox renders a multiline reply field + Send button inside this
+          scroller, so the whole dashboard needs the keyboard treatment:
+          - KAV lifts the focused reply field clear of the keyboard,
+          - keyboardShouldPersistTaps lets the Send button fire on the first tap
+            instead of being swallowed by the keyboard dismissal. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── HEADER ──────────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
@@ -506,6 +513,7 @@ export default function CoachHomeScreen() {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* One-time first-client celebration (flag set before this renders). */}
       {celebratedName !== null && (

@@ -610,7 +610,10 @@ const st = StyleSheet.create({
   // Root wraps everything so LinearGradient covers the full screen
   root:      { flex: 1, backgroundColor: CoachColors.bg },
   container: { flex: 1 },
-  scroll:    { paddingHorizontal: W * 0.05, paddingBottom: 100 },
+  // No trailing padding here: the screen is a root-stack modal (no tab bar) and
+  // the last child is an explicit `insets.bottom + 20` spacer. The old 100 was
+  // sized for a tab bar that never renders over this screen.
+  scroll:    { paddingHorizontal: W * 0.05 },
 
   // Header
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: W * 0.05, paddingVertical: 10 },

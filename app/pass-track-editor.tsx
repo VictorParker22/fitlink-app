@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -512,12 +512,17 @@ export default function PassTrackEditorScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* The milestone field and the per-node inputs live inside this list, so the
+          list needs the keyboard treatment. No tab bar and no sticky footer here
+          (Save is in the header) — bottom clearance is just the home indicator. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <DraggableFlatList
         data={track}
         onDragEnd={onDragEnd}
         keyExtractor={item => item._uid}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         renderItem={renderTrackItem}
         ListHeaderComponent={
           <>
@@ -761,15 +766,16 @@ export default function PassTrackEditorScreen() {
               )}
             </View>
 
-            <View style={{ height: 100 }} />
           </>
         }
       />
+      </KeyboardAvoidingView>
 
       {/* ── 21b: blast-radius review — in-screen overlay, NOT a native Modal,
              because we navigate (router.back) right after publishing. ── */}
       {review && (
         <View style={[st.reviewOverlay, { paddingTop: insets.top }]}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
             <Text style={st.reviewTitle}>
               {review.length} change{review.length === 1 ? '' : 's'} to a live season
@@ -871,6 +877,7 @@ export default function PassTrackEditorScreen() {
               <Text style={st.publishBtnText}>{saving ? 'Publishing…' : 'Publish changes'}</Text>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         </View>
       )}
     </View>

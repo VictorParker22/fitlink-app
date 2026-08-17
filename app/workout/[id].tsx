@@ -369,7 +369,13 @@ export default function WorkoutDetailScreen() {
           </View>
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Clears the always-on sticky "Assign to client" CTA (button + its own
+            insets.bottom padding). No tab bar renders over this stack screen. */}
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 76 }]}
+        >
           {/* Description */}
           <View style={styles.descSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
@@ -526,7 +532,6 @@ export default function WorkoutDetailScreen() {
             </View>
           </View>
 
-          <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
 
@@ -649,9 +654,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: {},
 
   // Description Section
   descSection: {

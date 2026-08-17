@@ -952,8 +952,11 @@ const st = StyleSheet.create({
 
   // CTA
   ctaWrap: {
+    // Absolute inside a SafeAreaView edges={['top','bottom']} — the home-indicator
+    // inset is already applied by that container, so this is breathing room only.
+    // (Was 30, which stacked on the inset for ~64pt of dead space.)
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingBottom: 30, paddingTop: 16,
+    paddingHorizontal: 20, paddingBottom: 12, paddingTop: 16,
     backgroundColor: CoachColors.bg,
   },
   ctaBtn: {
