@@ -8,6 +8,8 @@ interface SetLog {
   weight: string;
   reps: string;
   completed: boolean;
+  /** Stopwatch time, present only on sets the athlete chose to time. */
+  seconds?: number;
 }
 
 interface ExerciseState {
@@ -107,10 +109,33 @@ export default function WorkoutSummary({
         <View style={s.breakdownCard}>
           {exerciseStates.map((ex, i) => {
             const completedSets = ex.sets.filter((s) => s.completed).length;
+            // Time under tension, but only from the sets that were actually
+            // timed — an untimed set contributes nothing rather than a zero,
+            // and when none were timed the line is omitted instead of showing
+            // 0:00. A total that silently mixes timed and untimed sets would
+            // read as the whole exercise.
+            const timed = ex.sets.filter((set) => set.completed && (set.seconds ?? 0) > 0);
+            const timedSeconds = timed.reduce((sum, set) => sum + (set.seconds || 0), 0);
             return (
-              <View key={i} style={s.exRow} accessible accessibilityLabel={`${ex.exerciseName}, ${completedSets} of ${ex.targetSets} sets`}>
+              <View
+                key={i}
+                style={s.exRow}
+                accessible
+                accessibilityLabel={
+                  `${ex.exerciseName}, ${completedSets} of ${ex.targetSets} sets` +
+                  (timedSeconds > 0
+                    ? `, ${formatDuration(timedSeconds)} timed across ${timed.length} set${timed.length === 1 ? '' : 's'}`
+                    : '')
+                }
+              >
                 <View style={[s.dot, { backgroundColor: completedSets > 0 ? CoachColors.accent : CoachColors.textFaint }]} />
                 <Text style={s.exName} numberOfLines={1}>{ex.exerciseName}</Text>
+                {timedSeconds > 0 && (
+                  <View style={s.timedPill}>
+                    <Ionicons name="stopwatch-outline" size={12} color={CoachColors.textSecondary} />
+                    <Text style={s.timedText}>{formatDuration(timedSeconds)}</Text>
+                  </View>
+                )}
                 <Text style={s.exSets}>{completedSets}/{ex.targetSets} sets</Text>
               </View>
             );
@@ -249,6 +274,20 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 14.5,
     color: CoachColors.textPrimary,
+  },
+  timedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: CoachColors.bg,
+  },
+  timedText: {
+    fontFamily: CoachFonts.bodyBold,
+    fontSize: 11.5,
+    color: CoachColors.textSecondary,
   },
   exSets: {
     fontFamily: CoachFonts.bodyBold,

@@ -71,6 +71,23 @@ export function aggregateWorkoutMuscles(workout: any): WorkoutMuscleInfo | null 
 }
 
 /**
+ * The same aggregate for ONE exercise, so the in-session card can wear its own
+ * portrait the way a workout card wears the session's.
+ *
+ * Deliberately routed through aggregateWorkoutMuscles rather than reimplemented:
+ * a second copy of the counting and view-picking would drift, and the "null when
+ * nothing maps" contract is the part that must never diverge — an exercise with
+ * no recognisable muscle string renders no silhouette at all, because a blank
+ * body is a placeholder pretending to be information.
+ *
+ * @param we a `workout_exercises` row with its joined `exercises`.
+ */
+export function muscleInfoForExercise(we: any): WorkoutMuscleInfo | null {
+  if (!we?.exercises) return null;
+  return aggregateWorkoutMuscles({ workout_exercises: [we] });
+}
+
+/**
  * The one-line "what will this do" label: the coach's own description when
  * they wrote one, else a "Targets …" line from the muscle aggregate, else null.
  */

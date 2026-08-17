@@ -33,6 +33,14 @@ export interface ExerciseLogEntry {
   reps: number;
   completed: boolean;
   feel?: SetFeel; // optional — how the set felt; older logs won't have it
+  /**
+   * Wall-clock seconds the athlete actually spent under tension, when they
+   * chose to time the set. Optional and opt-in: a set that was not timed
+   * carries no `seconds` at all rather than a 0, because 0 would read as
+   * "instant" in every consumer. `exercises` is jsonb, so this needed no
+   * migration — same way `feel` was added.
+   */
+  seconds?: number;
 }
 
 interface ClientData {
@@ -94,7 +102,7 @@ interface ClientContextType {
    * failed); surfaces must OMIT the stat while null, never render 0.
    */
   completedWorkoutCount: number | null;
-  logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => void;
+  logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel, seconds?: number) => void;
   checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
@@ -417,11 +425,19 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
 
   // Log individual exercise set completion (in-memory only)
-  const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => {
+  const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel, seconds?: number) => {
     const key = `${workoutId}-${exerciseId}-${setIndex}`;
     setExerciseLogs((prev) => ({
       ...prev,
-      [key]: { weight, reps, completed: true, ...(feel ? { feel } : {}) },
+      [key]: {
+        weight,
+        reps,
+        completed: true,
+        ...(feel ? { feel } : {}),
+        // Guard on > 0, not on presence: an untimed set passes undefined and a
+        // stopwatch stopped on the same second passes 0. Neither is a duration.
+        ...(seconds && seconds > 0 ? { seconds: Math.round(seconds) } : {}),
+      },
     }));
   }, []);
 
@@ -516,7 +532,8 @@ export function ClientProvider({ children }: PropsWithChildren) {
            weight: entry.weight,
            reps: entry.reps,
            completed: entry.completed,
-           ...(entry.feel ? { feel: entry.feel } : {})
+           ...(entry.feel ? { feel: entry.feel } : {}),
+           ...(entry.seconds ? { seconds: entry.seconds } : {})
         };
       });
 

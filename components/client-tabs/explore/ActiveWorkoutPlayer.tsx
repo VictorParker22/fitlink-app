@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Vibration, Platform, Linking, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform, Linking, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,16 +9,20 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useClient } from '../../../context/ClientContext';
 
-import ExerciseThumbnail from '../../../components/shared/exercise/ExerciseThumbnail';
 import ExerciseMediaDemo from '../../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../../components/shared/exercise/ExerciseInstructions';
 import PRCelebrationModal from './PRCelebrationModal';
+import MuscleMap from '../../anatomy/MuscleMap';
+import SessionSetRow from '../workout/SessionSetRow';
+import { muscleInfoForExercise, type WorkoutMuscleInfo } from '../season/workoutMuscles';
 import { supabase } from '../../../lib/supabase';
 
 interface SetLog {
   weight: string;
   reps: string;
   completed: boolean;
+  /** Stopwatch time, only when the athlete chose to time this set. */
+  seconds?: number;
 }
 
 interface ExerciseState {
@@ -31,9 +35,14 @@ interface ExerciseState {
   imageUrl?: string;
   videoUrl?: string;
   instructionText?: string;
+  /** This exercise's own regions — the card's portrait. Null when unmappable. */
+  muscleInfo: WorkoutMuscleInfo | null;
   sets: SetLog[];
   expanded: boolean;
 }
+
+/** Which set owns the single running stopwatch. Only one set can, ever. */
+type RunningSet = { exIdx: number; setIdx: number; startedAt: number };
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -74,17 +83,29 @@ export default function ActiveWorkoutPlayer({
   // rest for the whole workout, the timer never opens again — no repeated
   // dismissal of the same sheet on every set.
   const [skipAllRest, setSkipAllRest] = useState(false);
-  // The "for the rest of this workout" choice is only offered on the FIRST
-  // rest — after that the athlete has already decided. Captured as state when
-  // the sheet opens so the decision is stable for that whole showing.
-  const restShownOnceRef = useRef(false);
-  const [offerSkipAll, setOfferSkipAll] = useState(false);
+  // "Skip rest for this workout" is offered on EVERY rest, not just the first.
+  // It used to appear once and never again, on the theory that the athlete had
+  // already decided — but the decision people actually want to make is "I have
+  // had enough of resting NOW", four sets in, and by then the only control was
+  // gone. Offering it every time costs one line in a sheet that is already
+  // open; hiding it costs the athlete the choice.
   const openRestTimer = useCallback((seconds: number) => {
-    setOfferSkipAll(!restShownOnceRef.current);
-    restShownOnceRef.current = true;
     setRestTimeLeft(seconds);
     setShowRestTimer(true);
   }, []);
+
+  // ── The set stopwatch ────────────────────────────────────────────────────
+  // One timer for the whole session, held here rather than inside the row:
+  // collapsing an exercise unmounts its rows, and a timer that dies when you
+  // look at the next exercise is a timer you cannot trust. You also cannot do
+  // two sets at once, so a single running set is the honest model.
+  const [runningSet, setRunningSet] = useState<RunningSet | null>(null);
+  const [runningElapsed, setRunningElapsed] = useState(0);
+  // Auto-time carries across sets once the athlete turns it on — same spirit as
+  // "skip rest for this workout": decide once, mid-flow, no repeated taps.
+  const [autoTime, setAutoTime] = useState(false);
+  // The set to auto-start once rest finishes, when auto-time is on.
+  const pendingAutoRef = useRef<{ exIdx: number; setIdx: number } | null>(null);
   // Rest seconds held back while a PR celebration Modal is on screen.
   const pendingRestRef = useRef<number | null>(null);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
@@ -116,6 +137,7 @@ export default function ActiveWorkoutPlayer({
         imageUrl: ex.exercises?.image_url,
         videoUrl: ex.video_url,
         instructionText: ex.exercises?.instructions || '',
+        muscleInfo: muscleInfoForExercise(ex),
         sets: Array.from({ length: ex.sets || 3 }, () => ({
           weight: '',
           reps: String(ex.reps || 10),
@@ -137,13 +159,70 @@ export default function ActiveWorkoutPlayer({
     };
   }, []);
 
-  // Rest countdown timer
+  // Ticks the visible stopwatch. The VALUE is always derived from the start
+  // timestamp, never accumulated from ticks — a JS thread that stalls (or a
+  // phone that sleeps mid-set) drops ticks, and a counter built from them would
+  // quietly under-report the athlete's real time under tension.
+  useEffect(() => {
+    if (!runningSet) return;
+    const tick = () => setRunningElapsed(Math.floor((Date.now() - runningSet.startedAt) / 1000));
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [runningSet]);
+
+  /** Stops the stopwatch and writes its seconds onto the set it belonged to. */
+  const stopSetTimer = useCallback((): number => {
+    if (!runningSet) return 0;
+    const elapsed = Math.max(0, Math.floor((Date.now() - runningSet.startedAt) / 1000));
+    const { exIdx, setIdx } = runningSet;
+    setExerciseStates((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const sets = [...ex.sets];
+        sets[setIdx] = { ...sets[setIdx], seconds: elapsed > 0 ? elapsed : undefined };
+        return { ...ex, sets };
+      })
+    );
+    setRunningSet(null);
+    setRunningElapsed(0);
+    return elapsed;
+  }, [runningSet]);
+
+  const startSetTimer = useCallback((exIdx: number, setIdx: number) => {
+    // Starting a new set's timer ends the previous one rather than racing it.
+    if (runningSet && (runningSet.exIdx !== exIdx || runningSet.setIdx !== setIdx)) stopSetTimer();
+    setRunningSet({ exIdx, setIdx, startedAt: Date.now() });
+    setRunningElapsed(0);
+  }, [runningSet, stopSetTimer]);
+
+  const toggleSetTimer = useCallback((exIdx: number, setIdx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (runningSet && runningSet.exIdx === exIdx && runningSet.setIdx === setIdx) stopSetTimer();
+    else startSetTimer(exIdx, setIdx);
+  }, [runningSet, startSetTimer, stopSetTimer]);
+
+  /**
+   * Closes the rest sheet and, when auto-time is on, starts the next set's
+   * stopwatch. Every way out of rest funnels through here — countdown expiry,
+   * "Skip rest", and "Skip rest for this workout" — so the athlete cannot end
+   * up back on the floor with a timer that silently did not start.
+   */
+  const closeRest = useCallback(() => {
+    setShowRestTimer(false);
+    const next = pendingAutoRef.current;
+    pendingAutoRef.current = null;
+    if (next && autoTime) startSetTimer(next.exIdx, next.setIdx);
+  }, [autoTime, startSetTimer]);
+
+  // Rest countdown. Declared after closeRest because it depends on it —
+  // referencing it any earlier would hit the temporal dead zone on first render.
   useEffect(() => {
     if (showRestTimer && restTimeLeft > 0) {
       restTimerRef.current = setInterval(() => {
         setRestTimeLeft((t) => {
           if (t <= 1) {
-            setShowRestTimer(false);
+            closeRest();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             if (Platform.OS !== 'web') Vibration.vibrate([0, 300, 150, 300]);
             return 0;
@@ -155,7 +234,7 @@ export default function ActiveWorkoutPlayer({
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
-  }, [showRestTimer, restTimeLeft]);
+  }, [showRestTimer, restTimeLeft, closeRest]);
 
   const toggleExercise = useCallback((index: number) => {
     setExerciseStates((prev) =>
@@ -178,11 +257,32 @@ export default function ActiveWorkoutPlayer({
   }, []);
 
   const completeSet = useCallback((exIdx: number, setIdx: number) => {
+    // Logging a set that is being timed stops its stopwatch — pressing "log"
+    // IS the end of the set, and making the athlete stop the timer separately
+    // would just record their reaction time on top of their work.
+    //
+    // Folded into the same state update rather than calling stopSetTimer():
+    // that helper writes through setExerciseStates, and the `updated` array
+    // below is built from the pre-update `exerciseStates`, so the two writes
+    // would race and the last one would win. This is exactly the shape that
+    // loses data silently.
+    let timedSeconds: number | undefined;
+    if (runningSet && runningSet.exIdx === exIdx && runningSet.setIdx === setIdx) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - runningSet.startedAt) / 1000));
+      if (elapsed > 0) timedSeconds = elapsed;
+      setRunningSet(null);
+      setRunningElapsed(0);
+    }
+
     const updated = exerciseStates.map((ex, i) => {
       if (i !== exIdx) return ex;
       const newSets = [...ex.sets];
       const wasCompleted = newSets[setIdx].completed;
-      newSets[setIdx] = { ...newSets[setIdx], completed: !wasCompleted };
+      newSets[setIdx] = {
+        ...newSets[setIdx],
+        completed: !wasCompleted,
+        ...(timedSeconds ? { seconds: timedSeconds } : {}),
+      };
       return { ...ex, sets: newSets };
     });
 
@@ -196,7 +296,9 @@ export default function ActiveWorkoutPlayer({
         exercise.exerciseId,
         setIdx,
         weight,
-        parseInt(set.reps) || 0
+        parseInt(set.reps) || 0,
+        undefined,
+        set.seconds
       );
 
       // ── PR Detection ──────────────────────────────────────────────────
@@ -232,7 +334,22 @@ export default function ActiveWorkoutPlayer({
           }
         }
       }
-      if (exercise.restSeconds > 0 && !skipAllRest) {
+      // ── Auto-time hand-off ────────────────────────────────────────────────
+      // When auto-time is on, the next set in this exercise starts its own
+      // stopwatch as soon as rest is over (or immediately, when rest is off).
+      //
+      // It deliberately does NOT start when an exercise is merely expanded:
+      // opening a card is a look, and this app's preview-before-commit rule
+      // says nothing that runs a clock may begin on a bare tap. Logging a set
+      // is an explicit commit, so chaining from there is fair.
+      const nextIdx = exercise.sets.findIndex((sl, i) => i > setIdx && !sl.completed);
+      const willRest = exercise.restSeconds > 0 && !skipAllRest;
+      if (autoTime && nextIdx !== -1) {
+        if (willRest) pendingAutoRef.current = { exIdx, setIdx: nextIdx };
+        else startSetTimer(exIdx, nextIdx);
+      }
+
+      if (willRest) {
         if (isPr) {
           // Two native Modals must never be visible at once (documented iOS
           // freeze). A set that is both a PR and rest-timed used to open the
@@ -254,7 +371,14 @@ export default function ActiveWorkoutPlayer({
     }
 
     setExerciseStates(updated);
-  }, [exerciseStates, activeWorkout, logExerciseSet]);
+    // Full dependency list. The old one named three of these and got away with
+    // it only because `exerciseStates` changes on every set, rebuilding the
+    // callback often enough to hide the stale reads — `skipAllRest` in
+    // particular was captured from a render before the athlete turned rest off.
+  }, [
+    exerciseStates, activeWorkout, logExerciseSet, checkAndUpdatePr, clientData, trainer,
+    skipAllRest, openRestTimer, runningSet, autoTime, startSetTimer,
+  ]);
 
   const handleFinish = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -282,13 +406,6 @@ export default function ActiveWorkoutPlayer({
     ]);
   };
 
-  const getExerciseVideoUrl = (exerciseId: string): string | undefined => {
-    if (!activeWorkout) return undefined;
-    const workoutExercises = activeWorkout.workouts?.workout_exercises || [];
-    const we = workoutExercises.find((w: any) => w.exercise_id === exerciseId || w.exercises?.id === exerciseId);
-    return we?.video_url;
-  };
-
   const handlePlayVideo = (url: string, exerciseName?: string) => {
     if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('instagram.com') || url.includes('tiktok.com')) {
       Linking.openURL(url);
@@ -306,7 +423,7 @@ export default function ActiveWorkoutPlayer({
   return (
     <View style={s.container}>
       {/* Rest Timer Overlay */}
-      <Modal visible={showRestTimer} transparent animationType="fade" onRequestClose={() => setShowRestTimer(false)}>
+      <Modal visible={showRestTimer} transparent animationType="fade" onRequestClose={closeRest}>
         <View style={s.restOverlay}>
           <View style={s.restCard}>
             <View
@@ -321,7 +438,7 @@ export default function ActiveWorkoutPlayer({
             <TouchableOpacity
               style={s.restSkipBtn}
               onPress={() => {
-                setShowRestTimer(false);
+                closeRest();
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }}
               activeOpacity={0.8}
@@ -333,26 +450,26 @@ export default function ActiveWorkoutPlayer({
               <Text style={s.restSkipText}>Skip rest</Text>
             </TouchableOpacity>
 
-            {/* Offered on the FIRST rest only — after that the athlete has
-                already made the call, and repeating it is the nag we are
-                removing. Applies to this session only; the coach's rest
-                targets are untouched and it resets next workout. */}
-            {offerSkipAll && (
-              <TouchableOpacity
-                style={s.restSkipAllBtn}
-                onPress={() => {
-                  setSkipAllRest(true);
-                  setShowRestTimer(false);
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Skip rest for the rest of this workout"
-                accessibilityHint="Rest timers will not open again during this session"
-              >
-                <Text style={s.restSkipAllText}>Skip rest for this workout</Text>
-              </TouchableOpacity>
-            )}
+            {/* Offered on EVERY rest. The mind people change is "I have had
+                enough of resting" four sets in — offering this only on the
+                first rest put the control furthest from the moment it is
+                wanted. Session-scoped: the coach's rest targets are untouched
+                and it resets next workout, and the header pill turns it back
+                on the instant they want rest again. */}
+            <TouchableOpacity
+              style={s.restSkipAllBtn}
+              onPress={() => {
+                setSkipAllRest(true);
+                closeRest();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Skip rest for the rest of this workout"
+              accessibilityHint="Rest timers stop opening for this session. You can turn them back on from the header at any time"
+            >
+              <Text style={s.restSkipAllText}>Skip rest for this workout</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -374,23 +491,6 @@ export default function ActiveWorkoutPlayer({
               {activeWorkout?.workouts?.name || 'Workout'}
             </Text>
           </View>
-          {/* A way back: skipping rest for the session is reversible, so the
-              athlete is never locked out of their coach's rest targets. */}
-          {skipAllRest && (
-            <TouchableOpacity
-              style={s.restOffPill}
-              onPress={() => {
-                setSkipAllRest(false);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Rest timers off. Double tap to turn them back on"
-            >
-              <Ionicons name="timer-outline" size={13} color={CoachColors.textMuted} />
-              <Text style={s.restOffText}>Rest off</Text>
-            </TouchableOpacity>
-          )}
           <View style={s.timerPill}>
             <Ionicons name="time-outline" size={13} color={CoachColors.accent} />
             <Text style={s.timerText}>{formatDuration(elapsedSeconds)}</Text>
@@ -410,6 +510,58 @@ export default function ActiveWorkoutPlayer({
           </View>
           <Text style={s.progressLabel}>{completedSets}/{totalSets} sets</Text>
         </View>
+
+        {/* Session controls. Both live here rather than appearing only when
+            already switched on: a preference you can reach at any point is a
+            preference you can change your mind about mid-workout, which is the
+            whole point of them. */}
+        <View style={s.controlRow}>
+          <TouchableOpacity
+            style={[s.controlPill, autoTime && s.controlPillOn]}
+            onPress={() => {
+              setAutoTime((v) => !v);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: autoTime }}
+            accessibilityLabel="Auto-time sets"
+            accessibilityHint="Starts the stopwatch on your next set as soon as rest ends"
+          >
+            <Ionicons
+              name="stopwatch-outline"
+              size={14}
+              color={autoTime ? CoachColors.accent : CoachColors.textMuted}
+            />
+            <Text style={[s.controlText, autoTime && s.controlTextOn]}>Auto-time sets</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.controlPill, skipAllRest && s.controlPillOff]}
+            onPress={() => {
+              setSkipAllRest((v) => !v);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: !skipAllRest }}
+            accessibilityLabel={skipAllRest ? 'Rest timers off' : 'Rest timers on'}
+            accessibilityHint={
+              skipAllRest
+                ? 'Turns your coach’s rest timers back on'
+                : 'Stops rest timers opening for the rest of this session'
+            }
+          >
+            <Ionicons
+              name={skipAllRest ? 'ban-outline' : 'timer-outline'}
+              size={14}
+              color={skipAllRest ? CoachColors.textMuted : CoachColors.textSecondary}
+            />
+            <Text style={[s.controlText, skipAllRest && { color: CoachColors.textMuted }]}>
+              {skipAllRest ? 'Rest off' : 'Rest on'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Exercise List */}
@@ -420,47 +572,71 @@ export default function ActiveWorkoutPlayer({
 
           return (
             <View key={exIdx} style={[s.exCard, allDone && s.exCardDone]}>
+              {/* The card head, in the same anatomy as MealCard/WorkoutCard —
+                  round portrait, oversized title, meta line — laid out
+                  horizontally because six of these stack on one screen
+                  mid-session and the browse card's vertical stack would push
+                  the sets you are working on below the fold. */}
               <TouchableOpacity
                 style={s.exHeader}
                 onPress={() => toggleExercise(exIdx)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
                 accessible
                 accessibilityRole="button"
                 accessibilityState={{ expanded: exercise.expanded }}
                 accessibilityLabel={`${exercise.exerciseName}, ${exercise.targetSets} sets of ${exercise.targetReps} reps${exercise.restSeconds > 0 ? `, ${exercise.restSeconds} seconds rest` : ''}, ${completedInEx} of ${exercise.sets.length} sets logged${allDone ? ', all done' : ''}`}
                 accessibilityHint={exercise.expanded ? 'Collapses this exercise' : 'Expands this exercise to log your sets'}
               >
-                <View style={{ position: 'relative' }}>
-                  <ExerciseThumbnail
-                    imageUrl={exercise.imageUrl}
-                    hasVideo={!!exercise.videoUrl}
-                    size={44}
-                  />
-                  {allDone && (
-                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: CoachColors.surface, borderRadius: 10, padding: 2 }}>
-                      <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
-                    </View>
-                  )}
-                </View>
+                {/* The portrait: this exercise's own regions lit on the body,
+                    the exercise photo when the muscles do not map, and nothing
+                    at all when neither exists — a blank silhouette would be a
+                    placeholder pretending to be information. */}
+                {exercise.muscleInfo ? (
+                  <View style={s.portrait}>
+                    <MuscleMap
+                      primary={exercise.muscleInfo.primary}
+                      secondary={exercise.muscleInfo.secondary}
+                      view={exercise.muscleInfo.view}
+                      height={54}
+                    />
+                  </View>
+                ) : exercise.imageUrl ? (
+                  <Image source={{ uri: exercise.imageUrl }} style={s.portrait} resizeMode="cover" />
+                ) : null}
+
                 <View style={{ flex: 1 }}>
-                  <Text style={s.exName}>{exercise.exerciseName}</Text>
-                  <View style={s.exMeta}>
-                    <Text style={s.exTarget}>
-                      {exercise.targetSets} sets • {exercise.targetReps} reps
-                    </Text>
-                    {exercise.restSeconds > 0 && (
-                      <Text style={s.exRestTag}>
-                        • {exercise.restSeconds}s rest
+                  <Text style={s.exEyebrow}>
+                    Exercise {exIdx + 1} of {exerciseStates.length}
+                  </Text>
+                  <Text style={s.exName} numberOfLines={2}>{exercise.exerciseName}</Text>
+                  <Text style={s.exTarget} numberOfLines={1}>
+                    {exercise.targetSets} sets · {exercise.targetReps} reps
+                    {exercise.restSeconds > 0 ? ` · ${exercise.restSeconds}s rest` : ''}
+                  </Text>
+                </View>
+
+                {/* The card language's circular action, carrying this
+                    exercise's real progress rather than a decorative chevron.
+                    The chevron survives underneath it, small: the circle says
+                    where you are, but nothing else on a collapsed card says
+                    "this opens", and an undiscoverable card is worse than a
+                    slightly busier one. */}
+                <View style={s.exAction}>
+                  <View style={[s.exProgress, allDone && s.exProgressDone]}>
+                    {allDone ? (
+                      <Ionicons name="checkmark" size={24} color={CoachColors.onAccent} />
+                    ) : (
+                      <Text style={s.exProgressText}>
+                        {completedInEx}/{exercise.sets.length}
                       </Text>
                     )}
                   </View>
+                  <Ionicons
+                    name={exercise.expanded ? 'chevron-up' : 'chevron-down'}
+                    size={15}
+                    color={CoachColors.textMuted}
+                  />
                 </View>
-
-                <Ionicons
-                  name={exercise.expanded ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color={CoachColors.textMuted}
-                />
               </TouchableOpacity>
 
               {/* Expanded Media & Sets */}
@@ -481,68 +657,25 @@ export default function ActiveWorkoutPlayer({
                   </View>
 
                   <View style={s.setsContainer}>
-                    <View style={s.setHeaderRow}>
-                      <Text style={[s.setHeaderText, { width: 36 }]}>Set</Text>
-                      <Text style={[s.setHeaderText, { flex: 1 }]}>Weight (lbs)</Text>
-                      <Text style={[s.setHeaderText, { flex: 1 }]}>Reps</Text>
-                      <Text style={[s.setHeaderText, { width: 44, textAlign: 'center' }]}>Log</Text>
-                    </View>
-
                     {exercise.sets.map((set, setIdx) => (
-                      <View key={setIdx} style={[s.setRow, set.completed && s.setRowDone]}>
-                      <View style={s.setNumBox}>
-                        <Text style={[s.setNumText, set.completed && { color: CoachColors.accent }]}>{setIdx + 1}</Text>
-                      </View>
-
-                      <View style={s.setInputBox}>
-                        <TextInput
-                          style={[s.setInput, set.completed && s.setInputDone]}
-                          value={set.weight}
-                          onChangeText={(v) => updateSetValue(exIdx, setIdx, 'weight', v)}
-                          placeholder="0"
-                          placeholderTextColor={CoachColors.textFaint}
-                          keyboardType="numeric"
-                          editable={!set.completed}
-                          selectTextOnFocus
-                          accessibilityLabel={`${exercise.exerciseName}, set ${setIdx + 1}, weight in pounds`}
-                          accessibilityState={{ disabled: set.completed }}
-                          accessibilityHint={set.completed ? 'Locked because this set is already logged' : undefined}
-                        />
-                      </View>
-
-                      <View style={s.setInputBox}>
-                        <TextInput
-                          style={[s.setInput, set.completed && s.setInputDone]}
-                          value={set.reps}
-                          onChangeText={(v) => updateSetValue(exIdx, setIdx, 'reps', v)}
-                          placeholder="0"
-                          placeholderTextColor={CoachColors.textFaint}
-                          keyboardType="numeric"
-                          editable={!set.completed}
-                          selectTextOnFocus
-                          accessibilityLabel={`${exercise.exerciseName}, set ${setIdx + 1}, reps`}
-                          accessibilityState={{ disabled: set.completed }}
-                          accessibilityHint={set.completed ? 'Locked because this set is already logged' : undefined}
-                        />
-                      </View>
-
-                      <TouchableOpacity hitSlop={4}
-                        style={[s.checkBtn, set.completed && s.checkBtnDone]}
-                        onPress={() => completeSet(exIdx, setIdx)}
-                        activeOpacity={0.6}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: set.completed }}
-                        accessibilityLabel={`Log set ${setIdx + 1} of ${exercise.exerciseName}`}
-                      >
-                        <Ionicons
-                          name={set.completed ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={24}
-                          color={set.completed ? CoachColors.accent : CoachColors.textMuted}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
+                      <SessionSetRow
+                        key={setIdx}
+                        setNumber={setIdx + 1}
+                        exerciseName={exercise.exerciseName}
+                        weight={set.weight}
+                        reps={set.reps}
+                        completed={set.completed}
+                        seconds={set.seconds}
+                        timerRunning={
+                          !!runningSet && runningSet.exIdx === exIdx && runningSet.setIdx === setIdx
+                        }
+                        timerElapsed={runningElapsed}
+                        onChange={(field, value) => updateSetValue(exIdx, setIdx, field, value)}
+                        onLog={() => completeSet(exIdx, setIdx)}
+                        onToggleTimer={() => toggleSetTimer(exIdx, setIdx)}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -699,137 +832,104 @@ const s = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  controlRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  controlPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
+  },
+  controlPillOn: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSoft },
+  controlPillOff: { backgroundColor: 'transparent' },
+  controlText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
+  },
+  controlTextOn: { color: CoachColors.accent },
+
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
+  // Card language: 30 radius, 20 padding — the same shell as MealCard and
+  // WorkoutCard, so browsing a session and doing one look like one product.
   exCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 30,
+    padding: 20,
+    marginBottom: 14,
   },
-  exCardDone: { borderColor: CoachColors.accent },
+  exCardDone: { borderColor: CoachColors.accentSoft },
   exHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
-  exIdxBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
+  // The round portrait. 72 here against the browse card's 92: this one sits
+  // beside the title rather than above it, so it is sized to the two lines of
+  // type it stands next to.
+  portrait: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
-    borderColor: CoachColors.border,
+    borderColor: CoachColors.borderMuted,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  exIdxBoxDone: {
-    backgroundColor: CoachColors.accentSofter,
-    borderColor: CoachColors.accent,
-  },
-  exIdxText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 12.5,
-    color: CoachColors.textPrimary,
-  },
-  exName: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
-    color: CoachColors.textPrimary,
-  },
-  exMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  exTarget: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
-    color: CoachColors.textMuted,
-    letterSpacing: 0.8,
-  },
-  exRestTag: {
+  exEyebrow: {
     fontFamily: CoachFonts.bodyBold,
     fontSize: 11,
     color: CoachColors.textFaint,
-  },
-  watchDemoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginLeft: 6,
-  },
-  watchDemoText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
-    color: CoachColors.accent,
-    letterSpacing: 1,
-  },
-  setsContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: CoachColors.borderMuted,
-    gap: 8,
-  },
-  setHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  setHeaderText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
-    color: CoachColors.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  setRow: {
-    flexDirection: 'row',
+  exAction: { alignItems: 'center', gap: 3 },
+  exProgress: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
-    gap: 8,
-  },
-  setRowDone: { opacity: 0.8 },
-  setNumBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: CoachColors.bg,
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: CoachColors.accentSoft,
   },
-  setNumText: {
+  exProgressDone: { backgroundColor: CoachColors.accent },
+  exProgressText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 15,
+    color: CoachColors.accent,
+  },
+  // Oversized, tight-leading title — the card language's loudest signal, and
+  // the thing you need to read from arm's length with a bar in your hands.
+  exName: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 22,
+    lineHeight: 25,
+    letterSpacing: -0.3,
     color: CoachColors.textPrimary,
+    marginTop: 3,
   },
-  setInputBox: {
-    flex: 1,
-    height: 43,
-    backgroundColor: CoachColors.bg,
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
+  exTarget: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 14,
+    color: CoachColors.textMuted,
+    marginTop: 5,
   },
-  setInput: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 15.5,
-    color: CoachColors.textPrimary,
+  setsContainer: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: CoachColors.borderMuted,
+    gap: 10,
   },
-  setInputDone: { color: CoachColors.accent },
-  checkBtn: {
-    width: 44,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkBtnDone: {},
   finishBtn: {
     height: 48,
     backgroundColor: CoachColors.surface,
@@ -898,22 +998,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-  },
-  restOffPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minHeight: 26,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
-    marginRight: 6,
-  },
-  restOffText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
-    color: CoachColors.textMuted,
   },
   restSkipAllBtn: {
     width: '100%',
