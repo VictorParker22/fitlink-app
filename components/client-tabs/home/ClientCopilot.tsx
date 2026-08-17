@@ -21,7 +21,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +66,8 @@ interface ClientCopilotProps {
 interface CopilotRow {
   id: string;
   icon: keyof typeof Ionicons.glyphMap;
+  /** Real coach photo for coach-authored rows; the icon circle is the honest fallback. */
+  avatarUrl?: string;
   title: string;
   sub: string;
   onPress?: () => void;
@@ -184,6 +186,7 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
       out.push({
         id: `msg-${latestCoachMessage.id}`,
         icon: 'chatbubble-ellipses',
+        avatarUrl: trainer.avatar_url || undefined,
         title: `Coach ${coachFirst} messaged you`,
         sub: messageSnippet(latestCoachMessage.content),
         onPress: () => router.push(ClientRoute.myMessages),
@@ -348,9 +351,13 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
             accessibilityRole={row.onPress ? 'button' : undefined}
             accessibilityLabel={`${row.title}. ${row.sub}`}
           >
-            <View style={st.iconCircle}>
-              <Ionicons name={row.icon} size={18} color={C.accent} />
-            </View>
+            {row.avatarUrl ? (
+              <Image source={{ uri: row.avatarUrl }} style={st.avatarCircle} />
+            ) : (
+              <View style={st.iconCircle}>
+                <Ionicons name={row.icon} size={18} color={C.accent} />
+              </View>
+            )}
             <View style={st.rowTextCol}>
               <Text style={st.rowTitle} numberOfLines={1}>{row.title}</Text>
               <Text style={st.rowSub} numberOfLines={2}>{row.sub}</Text>
@@ -413,6 +420,14 @@ const st = StyleSheet.create({
     backgroundColor: C.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Same footprint as iconCircle — the coach's real photo replaces the icon,
+  // never resizes the row. Background shows while the image loads.
+  avatarCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: C.accentSoft,
   },
   rowTextCol: { flex: 1 },
   rowTitle: {
