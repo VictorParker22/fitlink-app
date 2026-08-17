@@ -32,7 +32,22 @@ let getColorsFn: GetColors | null | undefined;
 
 function loadGetColors(): GetColors | null {
   if (getColorsFn !== undefined) return getColorsFn;
+  // Probe for the native module BEFORE requiring the package. The package's
+  // module factory calls requireNativeModule('ImageColors') at import time and
+  // THROWS when the binary predates the rebuild — and Metro red-boxes any
+  // error thrown inside a module factory even when the require() caller
+  // catches it (the app keeps running, but the dev overlay appears). Probing
+  // with requireOptionalNativeModule returns null instead of throwing, so the
+  // package factory never runs on an unbuilt binary and nothing red-boxes.
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { requireOptionalNativeModule } = require('expo-modules-core');
+    const native = requireOptionalNativeModule?.('ImageColors');
+    if (!native) {
+      if (__DEV__) console.warn('[MealColor] ImageColors native module absent — rebuild required. Cards use the fallback palette.');
+      getColorsFn = null;
+      return getColorsFn;
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     getColorsFn = require('react-native-image-colors').getColors as GetColors;
   } catch {
