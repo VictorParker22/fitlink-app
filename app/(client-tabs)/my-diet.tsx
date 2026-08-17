@@ -16,7 +16,14 @@
  * rest-day logs stay in-memory for the session.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import RollingNumber from '../../components/RollingNumber';
 import {
   View,
   Text,
@@ -262,6 +269,34 @@ export default function AthleteFoodScreen() {
   const kcalLeft = target.kcal - consumed.kcal;
   const pct = (v: number, t: number) => (t > 0 ? Math.min(100, Math.round((v / t) * 100)) : 0);
 
+  // ── Live meter — one animated fill shared by the room card and the pinned
+  // bar, so marking a meal visibly moves the meter wherever the athlete is.
+  const fillPct = useSharedValue(pct(consumed.kcal, target.kcal));
+  useEffect(() => {
+    const next = pct(consumed.kcal, target.kcal);
+    fillPct.value = reduceMotion
+      ? next
+      : withTiming(next, { duration: 550, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consumed.kcal, target.kcal, reduceMotion]);
+  // Two styles from ONE shared value — Reanimated does not support mounting
+  // the same animated style object on two views, but both bars must move
+  // together from the same source of truth.
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fillPct.value}%` }));
+  const stickyFillStyle = useAnimatedStyle(() => ({ width: `${fillPct.value}%` }));
+
+  // Pinned meter visibility: appears once the in-flow room card scrolls out.
+  const [stickyVisible, setStickyVisible] = useState(false);
+  const roomCardBottomRef = useRef(180); // measured on layout; sane default
+  const stickyOpacity = useSharedValue(0);
+  useEffect(() => {
+    stickyOpacity.value = reduceMotion
+      ? (stickyVisible ? 1 : 0)
+      : withTiming(stickyVisible ? 1 : 0, { duration: 180 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stickyVisible, reduceMotion]);
+  const stickyStyle = useAnimatedStyle(() => ({ opacity: stickyOpacity.value }));
+
   // ── Log / unlog ───────────────────────────────────────────────────────────
   const logMeal = useCallback(async (m: DayMeal, swapMealId: string | null) => {
     if (!clientData || !plan) return;
@@ -424,6 +459,11 @@ export default function AthleteFoodScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130, paddingHorizontal: 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
+        onScroll={(e) => {
+          const past = e.nativeEvent.contentOffset.y > roomCardBottomRef.current;
+          setStickyVisible((prev) => (prev === past ? prev : past));
+        }}
+        scrollEventThrottle={32}
       >
         {/* Header */}
         <Text style={st.title}>Food</Text>
@@ -435,6 +475,10 @@ export default function AthleteFoodScreen() {
         {/* ── Room left ── */}
         <View
           style={st.roomCard}
+          onLayout={(e) => {
+            // The pinned meter takes over once this card scrolls out of view.
+            roomCardBottomRef.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height - insets.top;
+          }}
           accessible={true}
           accessibilityLabel={`${Math.abs(kcalLeft).toLocaleString()} calories ${kcalLeft >= 0 ? 'left' : 'over'} of ${target.kcal.toLocaleString()}. Protein ${consumed.p} of ${target.p} grams, carbs ${consumed.c} of ${target.c} grams, fat ${consumed.f} of ${target.f} grams`}
         >
@@ -446,7 +490,7 @@ export default function AthleteFoodScreen() {
             <Text style={st.roomOf}>of {target.kcal.toLocaleString()}</Text>
           </View>
           <View style={st.roomBarTrack}>
-            <View style={[st.roomBarFill, { width: `${pct(consumed.kcal, target.kcal)}%` }, kcalLeft < 0 && { backgroundColor: C.warning }]} />
+            <Animated.View style={[st.roomBarFill, fillStyle, kcalLeft < 0 && { backgroundColor: C.warning }]} />
           </View>
           <View style={st.macroRow}>
             {([
@@ -539,6 +583,33 @@ export default function AthleteFoodScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* ── Pinned meter — instant feedback wherever the athlete is.
+          pointerEvents none: purely informational, taps pass through. ── */}
+      <Animated.View
+        style={[st.stickyMeter, { paddingTop: insets.top + 8 }, stickyStyle]}
+        pointerEvents="none"
+        accessibilityElementsHidden={!stickyVisible}
+        importantForAccessibility={stickyVisible ? 'auto' : 'no-hide-descendants'}
+        accessible={stickyVisible}
+        accessibilityLabel={`${Math.abs(kcalLeft).toLocaleString()} calories ${kcalLeft >= 0 ? 'left' : 'over'} of ${target.kcal.toLocaleString()}`}
+      >
+        <View style={st.stickyRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+            <RollingNumber
+              text={Math.abs(kcalLeft).toLocaleString()}
+              style={st.stickyKcal}
+            />
+            <Text style={st.stickyLabel}>{kcalLeft >= 0 ? 'kcal left' : 'kcal over'}</Text>
+          </View>
+          <Text style={st.stickyOf}>of {target.kcal.toLocaleString()}</Text>
+        </View>
+        <View style={st.stickyTrack}>
+          <Animated.View
+            style={[st.stickyFill, stickyFillStyle, kcalLeft < 0 && { backgroundColor: C.warning }]}
+          />
+        </View>
+      </Animated.View>
 
       {/* ── 23b: swap sheet — the coach's bounds, from the inside ── */}
       {sheetMeal && (() => {
@@ -700,6 +771,20 @@ const st = StyleSheet.create({
   roomOf: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
   roomBarTrack: { height: 7, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 13, overflow: 'hidden' },
   roomBarFill: { height: '100%', backgroundColor: C.accent },
+
+  // Pinned meter (compact mirror of the room card, shares its animated fill)
+  stickyMeter: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    backgroundColor: C.bg,
+    paddingHorizontal: 20, paddingBottom: 10,
+    borderBottomWidth: 1, borderBottomColor: C.borderMuted,
+  },
+  stickyRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  stickyKcal: { fontFamily: F.headingBold, fontSize: 17, color: C.textPrimary },
+  stickyLabel: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
+  stickyOf: { fontFamily: F.body, fontSize: 11, color: C.textMuted },
+  stickyTrack: { height: 5, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 7, overflow: 'hidden' },
+  stickyFill: { height: '100%', backgroundColor: C.accent },
   macroRow: { flexDirection: 'row', gap: 9, marginTop: 15 },
   macroLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   macroLabel: { fontFamily: F.body, fontSize: 11, color: C.textMuted },
