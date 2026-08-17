@@ -64,6 +64,21 @@ export default function ActiveWorkoutPlayer({
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
+  // Rest preference for THIS session. Once the athlete says they are skipping
+  // rest for the whole workout, the timer never opens again — no repeated
+  // dismissal of the same sheet on every set.
+  const [skipAllRest, setSkipAllRest] = useState(false);
+  // The "for the rest of this workout" choice is only offered on the FIRST
+  // rest — after that the athlete has already decided. Captured as state when
+  // the sheet opens so the decision is stable for that whole showing.
+  const restShownOnceRef = useRef(false);
+  const [offerSkipAll, setOfferSkipAll] = useState(false);
+  const openRestTimer = useCallback((seconds: number) => {
+    setOfferSkipAll(!restShownOnceRef.current);
+    restShownOnceRef.current = true;
+    setRestTimeLeft(seconds);
+    setShowRestTimer(true);
+  }, []);
   // Rest seconds held back while a PR celebration Modal is on screen.
   const pendingRestRef = useRef<number | null>(null);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
@@ -211,7 +226,7 @@ export default function ActiveWorkoutPlayer({
           }
         }
       }
-      if (exercise.restSeconds > 0) {
+      if (exercise.restSeconds > 0 && !skipAllRest) {
         if (isPr) {
           // Two native Modals must never be visible at once (documented iOS
           // freeze). A set that is both a PR and rest-timed used to open the
@@ -219,8 +234,7 @@ export default function ActiveWorkoutPlayer({
           // timer and start it once the celebration has been dismissed.
           pendingRestRef.current = exercise.restSeconds;
         } else {
-          setRestTimeLeft(exercise.restSeconds);
-          setShowRestTimer(true);
+          openRestTimer(exercise.restSeconds);
         }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -312,6 +326,27 @@ export default function ActiveWorkoutPlayer({
               <Ionicons name="play-skip-forward" size={14} color={CoachColors.onAccent} />
               <Text style={s.restSkipText}>Skip rest</Text>
             </TouchableOpacity>
+
+            {/* Offered on the FIRST rest only — after that the athlete has
+                already made the call, and repeating it is the nag we are
+                removing. Applies to this session only; the coach's rest
+                targets are untouched and it resets next workout. */}
+            {offerSkipAll && (
+              <TouchableOpacity
+                style={s.restSkipAllBtn}
+                onPress={() => {
+                  setSkipAllRest(true);
+                  setShowRestTimer(false);
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Skip rest for the rest of this workout"
+                accessibilityHint="Rest timers will not open again during this session"
+              >
+                <Text style={s.restSkipAllText}>Skip rest for this workout</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -333,6 +368,23 @@ export default function ActiveWorkoutPlayer({
               {activeWorkout?.workouts?.name || 'Workout'}
             </Text>
           </View>
+          {/* A way back: skipping rest for the session is reversible, so the
+              athlete is never locked out of their coach's rest targets. */}
+          {skipAllRest && (
+            <TouchableOpacity
+              style={s.restOffPill}
+              onPress={() => {
+                setSkipAllRest(false);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Rest timers off. Double tap to turn them back on"
+            >
+              <Ionicons name="timer-outline" size={12} color={CoachColors.textMuted} />
+              <Text style={s.restOffText}>Rest off</Text>
+            </TouchableOpacity>
+          )}
           <View style={s.timerPill}>
             <Ionicons name="time-outline" size={12} color={CoachColors.accent} />
             <Text style={s.timerText}>{formatDuration(elapsedSeconds)}</Text>
@@ -559,11 +611,8 @@ export default function ActiveWorkoutPlayer({
           const rest = pendingRestRef.current;
           pendingRestRef.current = null;
           // Let the celebration finish dismissing before the next Modal opens.
-          if (rest && rest > 0) {
-            setTimeout(() => {
-              setRestTimeLeft(rest);
-              setShowRestTimer(true);
-            }, 300);
+          if (rest && rest > 0 && !skipAllRest) {
+            setTimeout(() => openRestTimer(rest), 300);
           }
         }}
       />
@@ -840,6 +889,37 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  restOffPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 26,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    marginRight: 6,
+  },
+  restOffText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    color: CoachColors.textMuted,
+  },
+  restSkipAllBtn: {
+    width: '100%',
+    minHeight: 44,
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restSkipAllText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13,
+    color: CoachColors.textSecondary,
   },
   restSkipText: {
     fontFamily: CoachFonts.bodyBold,
