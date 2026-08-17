@@ -19,6 +19,7 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,9 @@ import GymCheckInWidget from '../../components/client-tabs/progress/GymCheckInWi
 import HydrationCell from '../../components/client-tabs/home/HydrationCell';
 import HabitTracker from '../../components/client-tabs/home/HabitTracker';
 import { useHealth } from '../../context/HealthContext';
+import { proxyGifStill } from '../../lib/exercisedb';
+import MuscleMap from '../../components/anatomy/MuscleMap';
+import { muscleInfoForExercise } from '../../components/client-tabs/season/workoutMuscles';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -228,8 +232,11 @@ export default function AthleteTodayScreen() {
   const workoutRow = todayWorkout?.workouts || todayWorkout;
   const exercises: any[] = workoutRow?.workout_exercises || [];
   const exerciseCount = exercises.length;
+  // Real columns only. This used to fall back to exerciseCount * 8 — an
+  // invented "about 24 min" presented as fact, exactly the fabricated-metric
+  // shape INVARIANTS §4 exists for. No duration on the row, no duration shown.
   const durationMin: number | null =
-    workoutRow?.duration || workoutRow?.duration_minutes || (exerciseCount > 0 ? exerciseCount * 8 : null);
+    workoutRow?.duration || workoutRow?.duration_minutes || null;
   const startWorkoutId = todayWorkout
     ? (todayWorkout.workout_id || todayWorkout.workouts?.id || todayWorkout.id)
     : null;
@@ -548,23 +555,53 @@ export default function AthleteTodayScreen() {
           <Text style={st.heroTitle}>{instruction.title}</Text>
           <Text style={st.heroSub}>{instruction.sub}</Text>
 
-          {/* Exercise chips — real names only */}
+          {/* The session, shown rather than listed. A filmstrip of the actual
+              movements — the exercise's real demo still when it has one, its
+              own muscle regions when it does not, the bare name when neither
+              exists. Every tile is real data; nothing is a stock photo. The
+              old "+1 more" chip hid a third of the workout behind a label —
+              the strip scrolls, so every exercise gets a face. */}
           {(instruction.kind === 'workout' || instruction.kind === 'lapsed') && exercises.length > 0 && (
-            <View style={st.chipRow}>
-              {exercises.slice(0, 2).map((ex: any, i: number) => (
-                <View key={ex.id || i} style={st.chip}>
-                  <Text style={st.chipText}>
-                    {ex.exercises?.name || 'Exercise'}
-                    {ex.sets && ex.reps ? ` ${ex.sets}×${ex.reps}` : ''}
-                  </Text>
-                </View>
-              ))}
-              {exercises.length > 2 && (
-                <View style={st.chip}>
-                  <Text style={[st.chipText, { color: C.textMuted }]}>+{exercises.length - 2} more</Text>
-                </View>
-              )}
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={st.stripScroll}
+              contentContainerStyle={st.strip}
+            >
+              {exercises.map((ex: any, i: number) => {
+                const still = proxyGifStill(ex.exercises?.image_url);
+                const info = still ? null : muscleInfoForExercise(ex);
+                const setsReps = ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : null;
+                const name = ex.exercises?.name || 'Exercise';
+                return (
+                  <View
+                    key={ex.id || i}
+                    style={st.stripTile}
+                    accessible
+                    accessibilityLabel={`${name}${setsReps ? `, ${setsReps}` : ''}`}
+                  >
+                    {still ? (
+                      <Image source={{ uri: still }} style={st.stripImage} resizeMode="contain" />
+                    ) : info ? (
+                      <View style={st.stripMapWell}>
+                        <MuscleMap
+                          primary={info.primary}
+                          secondary={info.secondary}
+                          view={info.view}
+                          height={64}
+                        />
+                      </View>
+                    ) : (
+                      <View style={st.stripMapWell}>
+                        <Text style={st.stripFallback} numberOfLines={3}>{name}</Text>
+                      </View>
+                    )}
+                    <Text style={st.stripName} numberOfLines={1}>{name}</Text>
+                    {setsReps ? <Text style={st.stripMeta}>{setsReps}</Text> : null}
+                  </View>
+                );
+              })}
+            </ScrollView>
           )}
 
           {/* 26a: no coach yet — the self-serve path */}
@@ -789,9 +826,16 @@ export default function AthleteTodayScreen() {
             accessibilityLabel={`Message from ${trainer?.name}: ${coachPreviewText}. Double tap to reply`}
           >
             <View style={st.coachRow}>
-              <View style={st.coachAvatar}>
-                <Text style={st.coachAvatarText}>{initials(trainer?.name)}</Text>
-              </View>
+              {/* The coach's actual face when they have uploaded one — a
+                  message from a person should look like it came from one.
+                  Initials remain the honest fallback, never a stock head. */}
+              {trainer?.avatar_url ? (
+                <Image source={{ uri: trainer.avatar_url }} style={st.coachAvatarImg} />
+              ) : (
+                <View style={st.coachAvatar}>
+                  <Text style={st.coachAvatarText}>{initials(trainer?.name)}</Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={st.coachName}>{trainer?.name}</Text>
                 <Text style={st.coachMsg} numberOfLines={2}>{coachPreviewText}</Text>
@@ -907,12 +951,51 @@ const st = StyleSheet.create({
   heroTitle: { fontFamily: F.headingBold, fontSize: 27, color: C.textPrimary, marginTop: 11, lineHeight: 31.5 },
   heroSub: { fontFamily: F.body, fontSize: 14.5, color: C.textSecondary, marginTop: 6, lineHeight: 21.5 },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 15 },
-  chip: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
-    paddingVertical: 6, paddingHorizontal: 11,
+  // ── The filmstrip ─────────────────────────────────────────────────────────
+  // Negative margins bleed the scroll out to the hero's edges so tiles slide
+  // under the card border instead of clipping mid-air; padding restores the
+  // resting alignment.
+  stripScroll: { marginTop: 16, marginHorizontal: -20 },
+  strip: { paddingHorizontal: 20, gap: 10 },
+  stripTile: { width: 108 },
+  stripImage: {
+    width: 108,
+    height: 108,
+    borderRadius: 18,
+    // The stills are drawings on white — the tile keeps that paper white so
+    // `contain` letterboxing is invisible instead of a white box on dark.
+    backgroundColor: '#FFFFFF',
   },
-  chipText: { fontFamily: F.bodyMedium, fontSize: 13, color: C.textSecondary },
+  stripMapWell: {
+    width: 108,
+    height: 108,
+    borderRadius: 18,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  stripFallback: {
+    fontFamily: F.bodySemiBold,
+    fontSize: 12.5,
+    color: C.textSecondary,
+    textAlign: 'center',
+  },
+  stripName: {
+    marginTop: 7,
+    fontFamily: F.bodySemiBold,
+    fontSize: 12.5,
+    color: C.textSecondary,
+  },
+  stripMeta: {
+    marginTop: 1,
+    fontFamily: F.bodyBold,
+    fontSize: 12,
+    color: C.textMuted,
+  },
+
 
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, paddingVertical: 15,
@@ -963,6 +1046,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   coachAvatarText: { fontFamily: F.bodyBold, fontSize: 14, color: C.accent },
+  coachAvatarImg: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2A3320' },
   coachName: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   coachMsg: { fontFamily: F.body, fontSize: 14.5, color: C.textSecondary, marginTop: 3, lineHeight: 21.5 },
   replyPill: {
