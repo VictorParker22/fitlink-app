@@ -1,5 +1,7 @@
 # FitLink — Project Rules & Context
 
+> **Read [`INVARIANTS.md`](./INVARIANTS.md) first.** This file describes what the project *is*; that one describes what will *bite you*. Every rule in it exists because breaking it shipped a real bug. Run `npm run check` (typecheck + invariant scan) before committing.
+
 ## Project Overview
 
 **FitLink — The Coaching Platform**

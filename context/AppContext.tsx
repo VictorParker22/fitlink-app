@@ -868,7 +868,7 @@ export function AppProvider({ children }: PropsWithChildren) {
    * undefined; read assessment_data instead (lib/clientGoals.ts).
    */
   const stripPhantomClientColumns = (updates: Partial<Client>, existingAssessment?: any) => {
-    const { goals, completed_workouts, ...rest } = updates as any;
+    const { goals, completed_workouts, ...rest } = updates as any; // invariant-ok: this IS the guard that strips the phantom columns
     const payload: Record<string, any> = { ...rest };
     if (goals !== undefined) {
       const list = String(goals).split(',').map((g) => g.trim()).filter(Boolean);
@@ -2054,7 +2054,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       .select()
       .single();
     if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
-      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.');
+      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.'); // invariant-ok: warning names the phantom columns on purpose
       ({ data: newClass, error } = await supabase.from('live_classes').insert(basePayload).select().single());
     }
     if (error) throw error;
@@ -2088,7 +2088,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       .update(Object.keys(vodExtras).length ? { ...baseUpdates, ...vodExtras } : baseUpdates)
       .eq('id', id).select().single();
     if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
-      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.');
+      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.'); // invariant-ok: warning names the phantom columns on purpose
       ({ data, error } = await supabase.from('live_classes').update(baseUpdates).eq('id', id).select().single());
     }
     if (error) throw error;
