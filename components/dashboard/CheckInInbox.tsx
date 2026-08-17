@@ -579,11 +579,11 @@ const c = StyleSheet.create({
     borderColor: CoachColors.borderMuted,
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontFamily: CoachFonts.body,
     fontSize: 14.5,
     color: CoachColors.textPrimary,
-    minHeight: 44,
+    minHeight: 53,
   },
   replyBtn: {
     flexDirection: 'row',

@@ -501,13 +501,13 @@ const s = StyleSheet.create({
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     paddingHorizontal: 15,
-    paddingVertical: 14,
+    paddingVertical: 17,
     fontFamily: CoachFonts.body,
     fontSize: 17,
     color: CoachColors.textPrimary,
   },
   textArea: {
-    height: 110,
+    height: 132,
     paddingTop: 14,
   },
 

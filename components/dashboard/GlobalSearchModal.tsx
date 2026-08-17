@@ -251,7 +251,7 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
     paddingHorizontal: 14,
-    height: 44,
+    height: 53,
     gap: 10,
   },
   searchInput: {

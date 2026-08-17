@@ -546,9 +546,10 @@ export default function ClientMessagesScreen() {
         )}
 
         {/* Input bar */}
-        <View style={[styles.inputBar, {
-          paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 6, 22),
-        }]}>
+        {/* The spacer below clears the tab bar, so the bar itself only needs
+            its own breathing room — adding the safe-area inset here too was
+            counting it twice. */}
+        <View style={[styles.inputBar, { paddingBottom: 10 }]}>
           <TouchableOpacity hitSlop={5} onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
             <Ionicons name="image-outline" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
@@ -575,8 +576,17 @@ export default function ClientMessagesScreen() {
             <Ionicons name="send" size={17} color={newMessage.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
           </TouchableOpacity>
         </View>
-        {/* Spacer to clear the floating glass tab bar (BAR_H=84 + MARGIN=14 + device inset) */}
-        <View style={{ height: insets.bottom + 100, backgroundColor: CoachColors.surface }} />
+        {/* Clears the floating tab bar. Measured from the real bar in
+            (client-tabs)/_layout.tsx: paddingTop 11 + button ~44 +
+            max(insets.bottom, 14). The old value assumed a glass bar of
+            BAR_H 84 that no longer exists, which left a large dead gap under
+            the composer. Zero while the keyboard is up — the bar is behind it. */}
+        <View
+          style={{
+            height: isKeyboardVisible ? 0 : Math.max(insets.bottom, 14) + 55,
+            backgroundColor: CoachColors.surface,
+          }}
+        />
       </KeyboardAvoidingView>
     </View>
   );
@@ -642,7 +652,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1, backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 16, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },

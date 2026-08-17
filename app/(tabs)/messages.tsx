@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 12, marginHorizontal: 20, marginTop: 18, marginBottom: 6,
-    paddingHorizontal: 14, height: 42,
+    paddingHorizontal: 14, height: 50,
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, paddingVertical: 0 },
 
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   composeSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
   composeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
+    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
   composeRowName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   composeRowHint: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },

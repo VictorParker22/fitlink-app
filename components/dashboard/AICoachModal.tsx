@@ -199,12 +199,12 @@ const st = StyleSheet.create({
   aiInputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     backgroundColor: CoachColors.bg, borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 6,
+    paddingHorizontal: 14, paddingVertical: 7,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   aiInput: {
     flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary,
-    paddingVertical: 10, maxHeight: 80,
+    paddingVertical: 12, maxHeight: 80,
   },
   aiSendBtn: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.accent,

@@ -190,7 +190,7 @@ const st = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: CoachColors.bg,
     borderRadius: 10,
-    height: 40,
+    height: 48,
     paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,

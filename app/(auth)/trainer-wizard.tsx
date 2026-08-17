@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   // Fields
   fieldRow: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13,
+    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 16,
   },
   fieldRowFilled: { borderColor: CoachColors.border },
   fieldLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary,
     marginTop: 2, padding: 0,
   },
-  fieldTextArea: { minHeight: 44 },
+  fieldTextArea: { minHeight: 53 },
 
   // Availability
   dayRow: {

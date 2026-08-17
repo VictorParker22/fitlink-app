@@ -759,7 +759,7 @@ const s = StyleSheet.create({
     borderRadius: 13,
     padding: 13,
     marginTop: 14,
-    minHeight: 84,
+    minHeight: 101,
     textAlignVertical: 'top',
     fontFamily: CoachFonts.body,
     fontSize: 15,

@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
   unitBtn: { paddingHorizontal: 10, paddingVertical: 4 },
   unitText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
   
-  input: { height: 48, borderRadius: 8, paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 19 },
-  textArea: { minHeight: 100, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19 },
+  input: { height: 58, borderRadius: 8, paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 19 },
+  textArea: { minHeight: 120, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19 },
 
   measurementsToggle: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12, marginBottom: 10 },
   measurementsToggleText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, marginLeft: 6 },

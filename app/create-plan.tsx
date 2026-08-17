@@ -1388,15 +1388,15 @@ const s = StyleSheet.create({
   // Inputs
   nameInput: {
     fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 17,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   promiseHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   charCounter: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginBottom: 8 },
   promiseInput: {
     fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
-    borderWidth: 1, borderColor: CoachColors.border, minHeight: 68, textAlignVertical: 'top',
+    backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: CoachColors.border, minHeight: 82, textAlignVertical: 'top',
   },
 
   // Cards
@@ -1476,7 +1476,7 @@ const s = StyleSheet.create({
   weekEditor: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 10 },
   weekLabelInput: {
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   outlineBtnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
@@ -1490,7 +1490,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 14,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
-  milestoneTextInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 12 },
+  milestoneTextInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 14 },
   milestoneAddBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   milestoneChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   milestoneChip: {
@@ -1558,7 +1558,7 @@ const s = StyleSheet.create({
   errorText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.warning, marginTop: 6, lineHeight: 19 },
   capacityInput: {
     fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   cohortPreview: {

@@ -1194,11 +1194,11 @@ const styles = StyleSheet.create({
 
   // Tags Styles
   tagsContainer: { flex: 1 },
-  tagsInputBox: { borderWidth: 2, borderColor: CoachColors.accent, borderRadius: 20, padding: 16, minHeight: 140 },
+  tagsInputBox: { borderWidth: 2, borderColor: CoachColors.accent, borderRadius: 20, padding: 16, minHeight: 168 },
   tagsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tagItem: { backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
   tagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
-  tagInput: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, minWidth: 100, paddingVertical: 8 },
+  tagInput: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, minWidth: 100, paddingVertical: 10 },
   tagsFooterBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 'auto', paddingTop: 10 },
   tagsCount: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
   suggestionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 10 },

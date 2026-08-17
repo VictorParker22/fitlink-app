@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Vibration, Platform, Linking, Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -60,6 +61,11 @@ export default function ActiveWorkoutPlayer({
   onCancelWorkout,
 }: ActiveWorkoutPlayerProps) {
   const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer } = useClient();
+  // This player renders inside the Train tab, so it sits under BOTH the status
+  // bar / Dynamic Island and the floating tab bar. It had no safe-area
+  // handling at all: the header ran under the notch and the finish button sat
+  // behind the tab bar.
+  const insets = useSafeAreaInsets();
 
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -352,7 +358,7 @@ export default function ActiveWorkoutPlayer({
       </Modal>
 
       {/* Header */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <View style={s.headerTop}>
           <TouchableOpacity
             onPress={handleConfirmCancel}
@@ -560,7 +566,10 @@ export default function ActiveWorkoutPlayer({
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 60 }} />
+        {/* Clears the floating tab bar (paddingTop 11 + button ~44 +
+            max(inset, 14)) plus the home indicator. A flat 60 left the finish
+            button partly behind the bar. */}
+        <View style={{ height: Math.max(insets.bottom, 14) + 70 }} />
       </ScrollView>
 
       {/* Video Modal */}
@@ -800,7 +809,7 @@ const s = StyleSheet.create({
   },
   setInputBox: {
     flex: 1,
-    height: 36,
+    height: 43,
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
     borderColor: CoachColors.border,

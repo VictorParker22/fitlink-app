@@ -1250,7 +1250,7 @@ const s = StyleSheet.create({
 
   nameInput: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary,
-    borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingVertical: 12, marginBottom: 24, marginTop: 8,
+    borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingVertical: 14, marginBottom: 24, marginTop: 8,
   },
 
   card: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: CoachColors.border },
@@ -1277,7 +1277,7 @@ const s = StyleSheet.create({
   customRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   customField: { flex: 1 },
   customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 6 },
-  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 12, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, backgroundColor: CoachColors.bg },
   cta: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
@@ -1349,7 +1349,7 @@ const s = StyleSheet.create({
   uploadedImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   imageOverlayText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, marginTop: 4 },
-  descInput: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, padding: 14, marginTop: 12, minHeight: 80, textAlignVertical: 'top', fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary },
+  descInput: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, padding: 14, marginTop: 12, minHeight: 96, textAlignVertical: 'top', fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },

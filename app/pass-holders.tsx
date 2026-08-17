@@ -717,7 +717,7 @@ const st = StyleSheet.create({
   },
   sheetHint: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8, lineHeight: 20 },
   sheetInput: {
-    marginTop: 12, minHeight: 90, maxHeight: 160, borderRadius: 12,
+    marginTop: 12, minHeight: 108, maxHeight: 160, borderRadius: 12,
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg,
     padding: 12, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     textAlignVertical: 'top',

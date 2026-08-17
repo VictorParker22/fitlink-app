@@ -1755,7 +1755,7 @@ const s = StyleSheet.create({
 
   // NOTES
   notesWrap:        { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, gap: 10 },
-  notesInput:       { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, minHeight: 72, textAlignVertical: 'top', lineHeight: 24.5 },
+  notesInput:       { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, minHeight: 86, textAlignVertical: 'top', lineHeight: 24.5 },
   notesText:        { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textSecondary, lineHeight: 24.5 },
   notesPlaceholder: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textFaint, lineHeight: 24.5, fontStyle: 'italic' },
   notesEditRow:     { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },

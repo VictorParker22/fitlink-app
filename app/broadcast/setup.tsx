@@ -438,7 +438,7 @@ const s = StyleSheet.create({
     fontSize: 20,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
-    minHeight: 28,
+    minHeight: 34,
   },
   charCounter: {
     fontFamily: CoachFonts.body,
@@ -454,7 +454,7 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.body,
     fontSize: 15.5,
     color: CoachColors.textPrimary,
-    minHeight: 60,
+    minHeight: 72,
     textAlignVertical: 'top',
   },
   categoryRow: {

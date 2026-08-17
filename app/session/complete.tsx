@@ -720,7 +720,7 @@ const st = StyleSheet.create({
     fontFamily:      CoachFonts.body,
     fontSize: 15.5,
     color:           CoachColors.textPrimary,
-    minHeight:       84,
+    minHeight: 101,
     lineHeight: 22.5,
   },
 

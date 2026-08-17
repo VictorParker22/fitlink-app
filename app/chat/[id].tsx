@@ -1108,7 +1108,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1, backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 16, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },
@@ -1201,9 +1201,9 @@ const styles = StyleSheet.create({
   reviewInput: {
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11,
+    paddingHorizontal: 14, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
-    minHeight: 72, maxHeight: 140, textAlignVertical: 'top',
+    minHeight: 86, maxHeight: 140, textAlignVertical: 'top',
   },
   reviewSendBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 12,

@@ -658,7 +658,7 @@ const st = StyleSheet.create({
   fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
   input: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 14, paddingVertical: 15, paddingHorizontal: 15,
+    borderRadius: 14, paddingVertical: 18, paddingHorizontal: 15,
     fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
   },
   fieldHint: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, marginTop: 7 },

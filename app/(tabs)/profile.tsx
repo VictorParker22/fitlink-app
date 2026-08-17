@@ -517,7 +517,7 @@ const s = StyleSheet.create({
   modalInput: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 13,
+    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 16,
     letterSpacing: 2, marginBottom: 18,
   },
   modalButtons: { flexDirection: 'row', gap: 10 },

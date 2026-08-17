@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.base,
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
     marginTop: Spacing.sm,
     borderWidth: 1,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    height: 40,
+    height: 48,
     color: CoachColors.textPrimary,
     fontFamily: CoachFonts.bodyMedium,
   },

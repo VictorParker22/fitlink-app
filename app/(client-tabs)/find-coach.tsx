@@ -923,7 +923,7 @@ const s = StyleSheet.create({
   noteLabel: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   noteInput: {
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: '#2E322B',
-    borderRadius: 13, padding: 13, marginTop: 11, minHeight: 84,
+    borderRadius: 13, padding: 13, marginTop: 11, minHeight: 101,
     textAlignVertical: 'top', fontFamily: F.body, fontSize: 14.5,
     color: C.textPrimary, lineHeight: 21.5,
   },

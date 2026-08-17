@@ -224,7 +224,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontFamily: CoachFonts.body,
     fontSize: 16,
     color: CoachColors.textPrimary,

@@ -370,7 +370,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#2E322B',
     borderRadius: 13, padding: 13, marginTop: 12,
     fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
-    lineHeight: 22.5, minHeight: 62, textAlignVertical: 'top',
+    lineHeight: 22.5, minHeight: 74, textAlignVertical: 'top',
   },
   sendBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,

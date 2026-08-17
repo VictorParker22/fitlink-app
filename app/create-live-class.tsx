@@ -364,7 +364,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
+    paddingVertical: 17,
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 18,
     color: CoachColors.textPrimary,
@@ -374,7 +374,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
   },
   textArea: {
-    height: 110,
+    height: 132,
     paddingTop: 14,
   },
 

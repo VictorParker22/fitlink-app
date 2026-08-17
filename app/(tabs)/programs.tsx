@@ -415,7 +415,7 @@ const passStyles = StyleSheet.create({
   autoflowPickerPlaceholder: { flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textFaint },
   autoflowInput: {
     backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.border,
-    padding: 12, minHeight: 74, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
+    padding: 12, minHeight: 89, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
   },
   autoflowSaveBtn: { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
   autoflowSaveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },

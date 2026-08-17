@@ -981,7 +981,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
   milestoneTextInput: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 14,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 17,
   },
   milestoneAddBtn: {
     width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
@@ -1079,7 +1079,7 @@ const st = StyleSheet.create({
   messageInput: {
     fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 14, padding: 14, marginTop: 10, minHeight: 88, textAlignVertical: 'top', lineHeight: 21.5,
+    borderRadius: 14, padding: 14, marginTop: 10, minHeight: 106, textAlignVertical: 'top', lineHeight: 21.5,
   },
   noNotifyNote: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint, marginTop: 14 },
 

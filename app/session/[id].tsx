@@ -953,7 +953,7 @@ const styles = StyleSheet.create({
   },
   awSetInput: {
     flex:       1,
-    height:     40,
+    height: 48,
     fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.04,
     color:      CoachColors.textPrimary,
@@ -1276,7 +1276,7 @@ const dt = StyleSheet.create({
     fontFamily:      CoachFonts.body,
     fontSize:        W * 0.035,
     color:           CoachColors.textPrimary,
-    minHeight:       100,
+    minHeight: 120,
     lineHeight:      W * 0.052,
   },
 

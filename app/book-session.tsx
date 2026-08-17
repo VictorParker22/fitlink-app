@@ -642,14 +642,14 @@ const st = StyleSheet.create({
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.surface, borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 4,
+    paddingHorizontal: 14, paddingVertical: 5,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   inputRowError: {
     borderColor: CoachColors.danger,
     backgroundColor: CoachColors.dangerSoft,
   },
-  input: { flex: 1, fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.038), color: CoachColors.textPrimary, paddingVertical: 12 },
+  input: { flex: 1, fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.038), color: CoachColors.textPrimary, paddingVertical: 14 },
 
   // Inline error message
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, paddingLeft: 4 },

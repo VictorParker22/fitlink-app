@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 4, paddingHorizontal: 14, height: 46,
+    borderRadius: 4, paddingHorizontal: 14, height: 55,
   },
   searchInput: {
     flex: 1, fontFamily: CoachFonts.headingBold, fontSize: 13.5,

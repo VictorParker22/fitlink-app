@@ -843,7 +843,7 @@ const st = StyleSheet.create({
   // Inputs
   inputWrap: {
     flex: 1, backgroundColor: CoachColors.surface, borderRadius: 14,
-    paddingHorizontal: 15, paddingVertical: 12,
+    paddingHorizontal: 15, paddingVertical: 14,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
@@ -854,7 +854,7 @@ const st = StyleSheet.create({
   },
   input: {
     flex: 1, fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
-    paddingVertical: 14,
+    paddingVertical: 17,
   },
   contactRow: { marginTop: 10 },
   helperText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 12, lineHeight: 19 },

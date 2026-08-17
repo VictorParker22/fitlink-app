@@ -845,7 +845,7 @@ const st = StyleSheet.create({
   ownBoxLabel: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
   ownInput: {
     fontFamily: F.body, fontSize: 15.5, color: C.textPrimary,
-    marginTop: 8, minHeight: 44, textAlignVertical: 'top', padding: 0,
+    marginTop: 8, minHeight: 53, textAlignVertical: 'top', padding: 0,
   },
   ownFailed: { fontFamily: F.body, fontSize: 13, color: C.danger, marginTop: 6 },
   ownSendBtn: {

@@ -341,14 +341,14 @@ const s = StyleSheet.create({
     borderRadius: 14, overflow: 'hidden',
   },
 
-  fieldGroup: { paddingVertical: 6 },
+  fieldGroup: { paddingVertical: 7 },
   fieldBorder: { borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 8, paddingTop: 12 },
   fieldLabel: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: 11,
     color: CoachColors.textFaint, letterSpacing: 0.8, marginBottom: 3,
   },
-  fieldInput: { fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textPrimary, paddingVertical: 4 },
-  textArea: { minHeight: 64 },
+  fieldInput: { fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textPrimary, paddingVertical: 5 },
+  textArea: { minHeight: 77 },
 
   dayRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },

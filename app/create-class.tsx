@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     color: CoachColors.textPrimary,
   },
   textArea: {
-    height: 100,
+    height: 120,
   },
   charCount: {
     fontFamily: CoachFonts.body,

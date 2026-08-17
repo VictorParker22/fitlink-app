@@ -1074,7 +1074,7 @@ const s = StyleSheet.create({
     borderColor: C.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 13,
     fontFamily: F.bodyMedium,
     fontSize: 15.5,
     color: C.textPrimary,

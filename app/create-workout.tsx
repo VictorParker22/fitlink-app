@@ -1518,7 +1518,7 @@ const s = StyleSheet.create({
   nameField: {
     fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 14,
   },
 
   describeCard: {
@@ -1540,7 +1540,7 @@ const s = StyleSheet.create({
   },
   describeInput: {
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
-    paddingVertical: 12, minHeight: 90, textAlignVertical: 'top',
+    paddingVertical: 14, minHeight: 108, textAlignVertical: 'top',
   },
   exampleChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full,
@@ -1628,7 +1628,7 @@ const s = StyleSheet.create({
 
   notesInput: {
     fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, lineHeight: 21.5,
-    padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, minHeight: 80,
+    padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, minHeight: 96,
   },
 
   inlineControlsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
@@ -1653,7 +1653,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderRadius: Radius.sm,
-    paddingHorizontal: 12, height: 44,
+    paddingHorizontal: 12, height: 53,
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, height: '100%' },
 
@@ -1708,7 +1708,7 @@ const s = StyleSheet.create({
   modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, marginBottom: 8 },
   urlInputRow: { flexDirection: 'row', gap: 8 },
   urlInput: {
-    flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: 12,
+    flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: 14,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, borderWidth: 1, borderColor: CoachColors.border,
   },
   urlPasteBtn: { width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },

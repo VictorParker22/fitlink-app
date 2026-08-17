@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontFamily: CoachFonts.body,
     fontSize: 15.5,
     color: CoachColors.textPrimary,

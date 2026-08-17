@@ -1049,8 +1049,8 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, paddingHorizontal: W * 0.037, paddingVertical: 12,
-    gap: 10, minHeight: 44, marginHorizontal: W * 0.05, marginBottom: 12,
+    borderRadius: 12, paddingHorizontal: W * 0.037, paddingVertical: 14,
+    gap: 10, minHeight: 53, marginHorizontal: W * 0.05, marginBottom: 12,
   },
   searchInput: {
     flex: 1, fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.035), color: CoachColors.textPrimary,

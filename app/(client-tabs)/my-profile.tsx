@@ -513,7 +513,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border,
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 13,
+    paddingVertical: 16,
     letterSpacing: 2,
     marginBottom: 18,
   },

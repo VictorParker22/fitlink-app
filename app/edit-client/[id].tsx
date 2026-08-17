@@ -183,10 +183,10 @@ const styles = StyleSheet.create({
   label: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' },
   input: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 14,
     fontFamily: CoachFonts.body, fontSize: 20, color: CoachColors.textPrimary,
   },
-  textArea: { minHeight: 80, paddingTop: 12 },
+  textArea: { minHeight: 96, paddingTop: 12 },
 
   statusRow: { flexDirection: 'row', gap: 6 },
   statusChip: {

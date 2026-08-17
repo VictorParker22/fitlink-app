@@ -766,7 +766,7 @@ const s = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     paddingHorizontal: 16,
-    height: 44,
+    height: 53,
   },
   searchIcon: { marginRight: 8 },
   searchInputField: {

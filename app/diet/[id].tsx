@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm, paddingVertical: 10,
+    paddingHorizontal: Spacing.sm, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: CoachColors.border,
   },
   searchInput: {

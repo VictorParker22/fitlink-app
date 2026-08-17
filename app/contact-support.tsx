@@ -135,7 +135,7 @@ const s = StyleSheet.create({
 
   textArea: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 16, minHeight: 140,
+    borderRadius: 14, padding: 16, minHeight: 168,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, lineHeight: 22.5,
   },
 
