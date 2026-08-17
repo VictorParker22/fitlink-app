@@ -80,7 +80,7 @@ export default function ProgressDashboardScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: CoachColors.bg }]} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>
@@ -96,7 +96,7 @@ export default function ProgressDashboardScreen() {
           <Text style={[styles.headerSubtitle, { color: CoachColors.textMuted }]}>Progress • Last {rangeDays} days</Text>
         </View>
         <TouchableOpacity hitSlop={4} onPress={() => router.push(`/client/${id}/log-progress` as any)} style={[styles.backBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Log progress">
-          <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -239,55 +239,55 @@ const styles = StyleSheet.create({
   headerCenter: { alignItems: 'center' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   avatarMini: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.borderMuted },
-  avatarText: { fontSize: 10, fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18 },
-  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, marginTop: 2 },
+  avatarText: { fontSize: 11, fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20 },
+  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 2 },
   
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, paddingBottom: 10 },
   filterPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  filterText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15 },
+  filterText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17 },
   
   scrollContent: { paddingHorizontal: 16, paddingTop: 6 },
 
   card: { padding: 16, marginBottom: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 },
-  cardTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17 },
-  cardTitleRight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
+  cardTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19 },
+  cardTitleRight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
 
   gridContainer: { alignItems: 'center', marginVertical: 10 },
   dayLabels: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginBottom: 5 },
-  dayLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, width: 24, textAlign: 'center' },
+  dayLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, width: 24, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   gridCell: { width: 24, height: 24, borderRadius: 4 },
-  streakText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, textAlign: 'center', marginTop: 6 },
+  streakText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, textAlign: 'center', marginTop: 6 },
 
-  trendText: { fontFamily: CoachFonts.bodyBold, fontSize: 15 },
+  trendText: { fontFamily: CoachFonts.bodyBold, fontSize: 17 },
   barChartContainer: { marginTop: 6 },
-  latestReading: { fontFamily: CoachFonts.headingBold, fontSize: 24, marginBottom: 16 },
-  latestDate: { fontFamily: CoachFonts.bodyMedium, fontSize: 15 },
+  latestReading: { fontFamily: CoachFonts.headingBold, fontSize: 27, marginBottom: 16 },
+  latestDate: { fontFamily: CoachFonts.bodyMedium, fontSize: 17 },
   barsArea: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 120, paddingTop: 20 },
   barColumn: { alignItems: 'center', flex: 1 },
   bar: { width: 12, borderRadius: 6, minHeight: 4 },
-  barLabel: { fontFamily: CoachFonts.body, fontSize: 10, marginTop: 8 },
+  barLabel: { fontFamily: CoachFonts.body, fontSize: 11, marginTop: 8 },
 
   emptyState: { padding: 20, alignItems: 'center', gap: 10 },
-  emptyText: { fontFamily: CoachFonts.body, fontSize: 15 },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 17 },
   logBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999 },
-  logBtnText: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.onAccent, fontSize: 15 },
+  logBtnText: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.onAccent, fontSize: 17 },
 
   metricsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   metricCard: { flex: 1, padding: 10 },
-  metricLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, marginBottom: 4 },
-  metricValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22 },
-  metricDelta: { fontFamily: CoachFonts.bodyBold, fontSize: 13, marginTop: 4 },
+  metricLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, marginBottom: 4 },
+  metricValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 24.5 },
+  metricDelta: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, marginTop: 4 },
 
-  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, marginBottom: 6 },
+  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 6 },
   historyCard: { marginBottom: 20 },
   historyRow: { flexDirection: 'row', padding: 10 },
   historyIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
   historyInfo: { flex: 1, justifyContent: 'center' },
-  historyType: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
-  historyDate: { fontFamily: CoachFonts.body, fontSize: 15, marginTop: 2 },
+  historyType: { fontFamily: CoachFonts.bodySemiBold, fontSize: 19 },
+  historyDate: { fontFamily: CoachFonts.body, fontSize: 17, marginTop: 2 },
   viewAllBtn: { padding: 10, alignItems: 'center' },
-  viewAllText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
+  viewAllText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
 });

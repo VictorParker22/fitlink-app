@@ -36,7 +36,7 @@ export default function TomorrowPreview({ tomorrowWorkout }: TomorrowPreviewProp
       </View>
 
       <View style={st.actionBtn}>
-        <Ionicons name="chevron-forward" size={16} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-forward" size={18} color={CoachColors.textPrimary} />
       </View>
     </TouchableOpacity>
   );
@@ -60,7 +60,7 @@ const st = StyleSheet.create({
   },
   sectionTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -68,14 +68,14 @@ const st = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   subtitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
     textTransform: 'uppercase',

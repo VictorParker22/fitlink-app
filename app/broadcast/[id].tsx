@@ -491,7 +491,7 @@ export default function BroadcastStudioScreen() {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: CoachColors.bg, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
         <ActivityIndicator color={CoachColors.accent} size="large" />
-        <Text style={{ color: CoachColors.textMuted, fontFamily: CoachFonts.body, fontSize: 12, marginTop: 12 }}>
+        <Text style={{ color: CoachColors.textMuted, fontFamily: CoachFonts.body, fontSize: 13.5, marginTop: 12 }}>
           {hasPermission === null ? 'Checking permissions…' : 'Loading broadcast studio…'}
         </Text>
         {/* Cancel button so the user is never trapped on the loading screen */}
@@ -500,7 +500,7 @@ export default function BroadcastStudioScreen() {
           style={{ marginTop: 32, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, backgroundColor: CoachColors.surface }}
           activeOpacity={0.7}
         >
-          <Text style={{ color: CoachColors.textSecondary, fontFamily: CoachFonts.body, fontSize: 14 }}>Cancel</Text>
+          <Text style={{ color: CoachColors.textSecondary, fontFamily: CoachFonts.body, fontSize: 15.5 }}>Cancel</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -509,7 +509,7 @@ export default function BroadcastStudioScreen() {
   if (hasPermission === false) {
     return (
       <View style={[s.container, { backgroundColor: CoachColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
-        <Ionicons name="mic-off" size={48} color={CoachColors.textFaint} />
+        <Ionicons name="mic-off" size={54} color={CoachColors.textFaint} />
         <Text style={s.errorText}>No access to camera or microphone.</Text>
         <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.backBtnAlt} onPress={() => router.back()}>
           <Text style={s.backBtnAltText}>Go back</Text>
@@ -524,7 +524,7 @@ export default function BroadcastStudioScreen() {
       <SafeAreaView style={s.recapContainer}>
         <View style={s.recapCard}>
           <View style={{ marginBottom: Spacing.md }}>
-            <Ionicons name="checkmark-circle" size={56} color={CoachColors.accent} />
+            <Ionicons name="checkmark-circle" size={63} color={CoachColors.accent} />
           </View>
           <Text style={s.recapTag}>Stream completed</Text>
           <Text style={s.recapTitle}>{liveClass.title}</Text>
@@ -552,7 +552,7 @@ export default function BroadcastStudioScreen() {
               <ActivityIndicator color={CoachColors.onAccent} size="small" />
             ) : (
               <>
-                <Ionicons name="library" size={18} color={CoachColors.onAccent} />
+                <Ionicons name="library" size={20} color={CoachColors.onAccent} />
                 <Text style={s.saveVodBtnText}>Save to on-demand library</Text>
               </>
             )}
@@ -577,7 +577,7 @@ export default function BroadcastStudioScreen() {
       </View>
       {activityEvents.length === 0 ? (
         <View style={s.emptyPanel}>
-          <Ionicons name="volume-mute-outline" size={32} color={CoachColors.textFaint} />
+          <Ionicons name="volume-mute-outline" size={36} color={CoachColors.textFaint} />
           <Text style={s.emptyPanelTitle}>It's quiet. Too quiet…</Text>
           <Text style={s.emptyPanelSub}>
             We'll show your new joins, follows, and markers here during the stream.
@@ -625,7 +625,7 @@ export default function BroadcastStudioScreen() {
         onContentSizeChange={() => chatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
           <View style={s.emptyPanel}>
-            <Ionicons name="chatbubbles-outline" size={28} color={CoachColors.textFaint} />
+            <Ionicons name="chatbubbles-outline" size={31} color={CoachColors.textFaint} />
             <Text style={s.emptyPanelTitle}>No messages yet</Text>
             <Text style={s.emptyPanelSub}>Chat messages from your viewers will appear here.</Text>
           </View>
@@ -730,7 +730,7 @@ export default function BroadcastStudioScreen() {
             }}
             style={s.iconBtn}
           >
-            <Ionicons name="close" size={22} color="#FFFFFF" />
+            <Ionicons name="close" size={25} color="#FFFFFF" />
           </TouchableOpacity>
 
           <View style={s.topBarCenter}>
@@ -743,7 +743,7 @@ export default function BroadcastStudioScreen() {
             {isBroadcasting && <Text style={s.timerText}>{formatTimer(elapsedSeconds)}</Text>}
             {isBroadcasting && viewerCount > 0 && (
               <View style={s.viewerPill}>
-                <Ionicons name="eye" size={12} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="eye" size={13} color="rgba(255,255,255,0.6)" />
                 <Text style={s.viewerPillText}>{viewerCount}</Text>
               </View>
             )}
@@ -754,13 +754,13 @@ export default function BroadcastStudioScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsMuted(v => !v); }}
               style={[s.iconBtn, isMuted && { backgroundColor: CoachColors.danger }]}
             >
-              <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={20} color="#FFFFFF" />
+              <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={22} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity hitSlop={2}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCameraPosition(v => v === 'front' ? 'back' : 'front'); }}
               style={s.iconBtn}
             >
-              <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="camera-reverse-outline" size={25} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -768,13 +768,13 @@ export default function BroadcastStudioScreen() {
         {/* Pinned banner */}
         {pinnedMessage && (
           <View style={s.pinnedBanner} pointerEvents="box-none">
-            <Ionicons name="pin" size={11} color={CoachColors.accent} style={{ marginRight: 6, marginTop: 1 }} />
+            <Ionicons name="pin" size={12} color={CoachColors.accent} style={{ marginRight: 6, marginTop: 1 }} />
             <View style={{ flex: 1 }}>
               <Text style={s.pinnedSender}>{pinnedMessage.sender}</Text>
               <Text style={s.pinnedContent} numberOfLines={2}>{pinnedMessage.content}</Text>
             </View>
             <TouchableOpacity onPress={handleUnpinMessage} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
           </View>
         )}
@@ -803,7 +803,7 @@ export default function BroadcastStudioScreen() {
         {/* Marker toast */}
         {markerToast && (
           <Animated.View style={[s.markerToast, { opacity: markerToastAnim }]}>
-            <Ionicons name="bookmark" size={12} color={CoachColors.accent} />
+            <Ionicons name="bookmark" size={13} color={CoachColors.accent} />
             <Text style={s.markerToastText}>{markerToast}</Text>
           </Animated.View>
         )}
@@ -815,17 +815,17 @@ export default function BroadcastStudioScreen() {
           {/* Dock */}
           <View style={s.dock}>
             <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('activity'); }}>
-              <Ionicons name="pulse-outline" size={22} color={activeDockTab === 'activity' ? CoachColors.accent : CoachColors.textMuted} />
+              <Ionicons name="pulse-outline" size={25} color={activeDockTab === 'activity' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'activity' && s.dockLabelActive]}>Activity</Text>
             </TouchableOpacity>
 
             <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('chat'); }}>
-              <Ionicons name="chatbubble-ellipses-outline" size={22} color={activeDockTab === 'chat' ? CoachColors.accent : CoachColors.textMuted} />
+              <Ionicons name="chatbubble-ellipses-outline" size={25} color={activeDockTab === 'chat' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'chat' && s.dockLabelActive]}>Chat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} style={s.dockTab} onPress={() => { Haptics.selectionAsync(); setActiveDockTab('actions'); }}>
-              <Ionicons name="grid-outline" size={22} color={activeDockTab === 'actions' ? CoachColors.accent : CoachColors.textMuted} />
+              <Ionicons name="grid-outline" size={25} color={activeDockTab === 'actions' ? CoachColors.accent : CoachColors.textMuted} />
               <Text style={[s.dockLabel, activeDockTab === 'actions' && s.dockLabelActive]}>Actions</Text>
             </TouchableOpacity>
 
@@ -836,7 +836,7 @@ export default function BroadcastStudioScreen() {
             >
               {/* onAccent in both states: on the live (danger) fill white is only
                   3.27:1, while onAccent reaches 5.75:1 on danger and 14.53:1 on accent. */}
-              <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={18} color={CoachColors.onAccent} />
+              <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={20} color={CoachColors.onAccent} />
               <Text style={s.goLiveDockBtnText}>
                 {isBroadcasting ? 'End' : 'Go live'}
               </Text>
@@ -874,15 +874,15 @@ const s = StyleSheet.create({
   liveBadgeActive: { backgroundColor: CoachColors.dangerSoft, borderColor: CoachColors.danger },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.4)' },
   liveDotActive: { backgroundColor: CoachColors.danger },
-  liveBadgeText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
+  liveBadgeText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
   liveBadgeTextActive: { color: CoachColors.danger },
-  timerText: { fontFamily: CoachFonts.headingBold, fontSize: 14, color: 'rgba(255,255,255,0.75)', letterSpacing: 0.5 },
+  timerText: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: 'rgba(255,255,255,0.75)', letterSpacing: 0.5 },
   viewerPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full,
   },
-  viewerPillText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: 'rgba(255,255,255,0.7)' },
+  viewerPillText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: 'rgba(255,255,255,0.7)' },
 
   pinnedBanner: {
     flexDirection: 'row', alignItems: 'flex-start',
@@ -890,8 +890,8 @@ const s = StyleSheet.create({
     borderRadius: Radius.xs, marginHorizontal: Spacing.md,
     paddingHorizontal: 10, paddingVertical: 8, gap: 4,
   },
-  pinnedSender: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.accent, marginBottom: 2 },
-  pinnedContent: { fontFamily: CoachFonts.body, fontSize: 12, color: '#FFFFFF', lineHeight: 16 },
+  pinnedSender: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.accent, marginBottom: 2 },
+  pinnedContent: { fontFamily: CoachFonts.body, fontSize: 13.5, color: '#FFFFFF', lineHeight: 18 },
 
   chatOverlay: { justifyContent: 'flex-end', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
   chatOverlayBubble: {
@@ -900,8 +900,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 5, marginBottom: 4,
     alignSelf: 'flex-start', maxWidth: '75%',
   },
-  chatOverlaySender: { fontFamily: CoachFonts.headingBold, fontSize: 12, color: CoachColors.accent },
-  chatOverlayContent: { fontFamily: CoachFonts.body, fontSize: 12, color: '#FFFFFF', flexShrink: 1 },
+  chatOverlaySender: { fontFamily: CoachFonts.headingBold, fontSize: 13.5, color: CoachColors.accent },
+  chatOverlayContent: { fontFamily: CoachFonts.body, fontSize: 13.5, color: '#FFFFFF', flexShrink: 1 },
 
   markerToast: {
     position: 'absolute', top: 80, alignSelf: 'center',
@@ -910,7 +910,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 8,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  markerToastText: { fontFamily: CoachFonts.headingBold, fontSize: 12, color: '#FFFFFF' },
+  markerToastText: { fontFamily: CoachFonts.headingBold, fontSize: 13.5, color: '#FFFFFF' },
 
   commandCenter: { backgroundColor: CoachColors.bg, borderTopWidth: 1, borderTopColor: CoachColors.border },
   panel: { overflow: 'hidden' },
@@ -920,16 +920,16 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
-  panelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textSecondary, letterSpacing: 2, textTransform: 'uppercase' },
+  panelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 2, textTransform: 'uppercase' },
   panelHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  panelSubtitle: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
+  panelSubtitle: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
   liveDotSmall: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: CoachColors.textFaint },
   liveDotSmallActive: { backgroundColor: CoachColors.danger },
   panelScroll: { flex: 1 },
 
   emptyPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xl, gap: 8 },
-  emptyPanelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center' },
-  emptyPanelSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 18 },
+  emptyPanelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: CoachColors.textSecondary, textAlign: 'center' },
+  emptyPanelSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 20 },
 
   activityRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -937,13 +937,13 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted, gap: 10,
   },
   activityDot: { width: 6, height: 6, borderRadius: 3 },
-  activityLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
-  activityTime: { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textFaint, marginTop: 2 },
+  activityLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  activityTime: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 2 },
 
   chatPanelList: { flex: 1, paddingHorizontal: Spacing.md },
   chatPanelBubble: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
-  chatPanelSender: { fontFamily: CoachFonts.headingBold, fontSize: 12, color: CoachColors.accent, marginBottom: 2 },
-  chatPanelContent: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textPrimary, lineHeight: 18 },
+  chatPanelSender: { fontFamily: CoachFonts.headingBold, fontSize: 13.5, color: CoachColors.accent, marginBottom: 2 },
+  chatPanelContent: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary, lineHeight: 20 },
 
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: Spacing.sm, gap: 8 },
   quickActionTile: {
@@ -952,7 +952,7 @@ const s = StyleSheet.create({
     justifyContent: 'center', borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   quickActionIconBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  quickActionLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9, letterSpacing: 0.5, textAlign: 'center' },
+  quickActionLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, letterSpacing: 0.5, textAlign: 'center' },
 
   dock: {
     flexDirection: 'row', alignItems: 'center',
@@ -960,7 +960,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, gap: 4,
   },
   dockTab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 4 },
-  dockLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9, color: CoachColors.textMuted, letterSpacing: 0.5 },
+  dockLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5 },
   dockLabelActive: { color: CoachColors.accent },
   goLiveDockBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -969,11 +969,11 @@ const s = StyleSheet.create({
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6,
   },
   goLiveDockBtnLive: { backgroundColor: CoachColors.danger, shadowColor: CoachColors.danger },
-  goLiveDockBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent, letterSpacing: 0.8 },
+  goLiveDockBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent, letterSpacing: 0.8 },
 
-  errorText: { fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary, marginBottom: 20, marginTop: 12, textAlign: 'center' },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary, marginBottom: 20, marginTop: 12, textAlign: 'center' },
   backBtnAlt: { backgroundColor: CoachColors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.xs },
-  backBtnAltText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textPrimary },
+  backBtnAltText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textPrimary },
 
   recapContainer: { flex: 1, backgroundColor: CoachColors.bg, justifyContent: 'center', paddingHorizontal: Spacing.lg },
   recapCard: {
@@ -981,17 +981,17 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border, borderRadius: Radius.md,
     padding: Spacing.xl, alignItems: 'center',
   },
-  recapTag: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textMuted, letterSpacing: 2, marginBottom: 4, textTransform: 'uppercase' },
-  recapTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 8 },
-  recapSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl },
+  recapTag: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 2, marginBottom: 4, textTransform: 'uppercase' },
+  recapTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 8 },
+  recapSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl },
   recapStatsRow: {
     flexDirection: 'row', backgroundColor: CoachColors.bg,
     borderRadius: Radius.sm, paddingVertical: 14, paddingHorizontal: 16,
     marginBottom: Spacing.xl, width: '100%', justifyContent: 'space-around', alignItems: 'center',
   },
   recapStatBox: { alignItems: 'center' },
-  recapStatLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 8, color: CoachColors.textMuted, letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
-  recapStatVal: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  recapStatLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9, color: CoachColors.textMuted, letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
+  recapStatVal: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
   recapStatDivider: { width: 1, height: 28, backgroundColor: CoachColors.border },
   saveVodBtn: {
     backgroundColor: CoachColors.accent, width: '100%', paddingVertical: 16,
@@ -999,7 +999,7 @@ const s = StyleSheet.create({
     justifyContent: 'center', gap: 8, marginBottom: 12,
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },
-  saveVodBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent, letterSpacing: 1 },
+  saveVodBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent, letterSpacing: 1 },
   discardBtn: { paddingVertical: 10 },
-  discardBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted, letterSpacing: 1 },
+  discardBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted, letterSpacing: 1 },
 });

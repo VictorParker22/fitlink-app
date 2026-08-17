@@ -74,7 +74,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
       {mergedFeed.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconContainer}>
-            <Ionicons name="barbell-outline" size={48} color={CoachColors.textFaint} />
+            <Ionicons name="barbell-outline" size={54} color={CoachColors.textFaint} />
           </View>
           <Text style={styles.emptyText}>
             No recent activity yet. Complete your first workout to see it here.
@@ -108,7 +108,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
                 </View>
               </View>
               <View style={styles.navButtonContainer}>
-                <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+                <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
               </View>
             </TouchableOpacity>
           ))}

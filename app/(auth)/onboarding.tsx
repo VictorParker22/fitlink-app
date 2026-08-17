@@ -166,13 +166,13 @@ export default function OnboardingScreen() {
         >
           {/* Icon block */}
           <View style={[styles.roleIcon, { borderColor: CoachColors.accent }]}>
-            <Ionicons name="barbell-outline" size={20} color={CoachColors.accent} />
+            <Ionicons name="barbell-outline" size={22} color={CoachColors.accent} />
           </View>
           <View style={styles.roleText}>
             <Text style={styles.roleTitle}>I'm a trainer</Text>
             <Text style={styles.roleSub}>Set up your business in 4 minutes</Text>
           </View>
-          <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
+          <Ionicons name="arrow-forward" size={20} color={CoachColors.textFaint} />
         </TouchableOpacity>
 
         <View style={styles.rowDivider} />
@@ -186,13 +186,13 @@ export default function OnboardingScreen() {
           accessibilityLabel="I'm a client — join or find a trainer"
         >
           <View style={[styles.roleIcon, { borderColor: CoachColors.textPrimary }]}>
-            <Ionicons name="person-outline" size={20} color={CoachColors.textPrimary} />
+            <Ionicons name="person-outline" size={22} color={CoachColors.textPrimary} />
           </View>
           <View style={styles.roleText}>
             <Text style={styles.roleTitle}>I'm a client</Text>
             <Text style={styles.roleSub}>Join or find your trainer</Text>
           </View>
-          <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
+          <Ionicons name="arrow-forward" size={20} color={CoachColors.textFaint} />
         </TouchableOpacity>
 
         <View style={styles.rowDivider} />
@@ -206,7 +206,7 @@ export default function OnboardingScreen() {
           accessibilityLabel="Sign in to existing account"
         >
           <Text style={styles.signInText}>I already have an account</Text>
-          <Ionicons name="log-in-outline" size={15} color={CoachColors.accent} style={{ marginLeft: 6 }} />
+          <Ionicons name="log-in-outline" size={17} color={CoachColors.accent} style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -242,14 +242,14 @@ const styles = StyleSheet.create({
   },
   logoName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     letterSpacing: 5,
     textTransform: 'uppercase',
   },
   logoTagline: {
     fontFamily: CoachFonts.body,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
 
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 2.5,
     marginBottom: 10,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 30,
+    fontSize: 33.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 28,
@@ -356,14 +356,14 @@ const styles = StyleSheet.create({
   },
   roleTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   roleSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.2,
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   },
   signInText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
     letterSpacing: 2,
     textTransform: 'uppercase',

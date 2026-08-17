@@ -158,7 +158,7 @@ const s = StyleSheet.create({
   },
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -166,7 +166,7 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
@@ -184,7 +184,7 @@ const s = StyleSheet.create({
   },
   scoreText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     letterSpacing: 0.3,
   },
   loadingRow: {
@@ -198,7 +198,7 @@ const s = StyleSheet.create({
   },
   noDataText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textFaint,
   },
 });

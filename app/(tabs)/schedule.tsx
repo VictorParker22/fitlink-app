@@ -319,7 +319,7 @@ export default function ScheduleScreen() {
               accessibilityRole="button"
               accessibilityLabel="Book new session"
             >
-              <Ionicons name="add" size={20} color={CoachColors.onAccent} />
+              <Ionicons name="add" size={22} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
         </View>
@@ -392,7 +392,7 @@ export default function ScheduleScreen() {
               accessibilityLabel="Previous week"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-back" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-back" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             {weekDays.map((d, i) => {
@@ -458,7 +458,7 @@ export default function ScheduleScreen() {
               accessibilityLabel="Next week"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           </View>
         </View>
@@ -692,7 +692,7 @@ function SessionRow({
               <Avatar name={client.name} size="sm" imageUrl={client.avatar_url} />
             ) : (
               <View style={s.groupAvatar}>
-                <Ionicons name="people" size={14} color={CoachColors.textSecondary} />
+                <Ionicons name="people" size={16} color={CoachColors.textSecondary} />
               </View>
             )}
 
@@ -710,12 +710,12 @@ function SessionRow({
 
             {isCompleted && (
               <View style={s.statusBadge}>
-                <Ionicons name="checkmark" size={14} color={CoachColors.textSecondary} />
+                <Ionicons name="checkmark" size={16} color={CoachColors.textSecondary} />
               </View>
             )}
             {isCancelled && (
               <View style={s.statusBadge}>
-                <Ionicons name="close" size={14} color={CoachColors.danger} />
+                <Ionicons name="close" size={16} color={CoachColors.danger} />
               </View>
             )}
             {session.status === 'upcoming' && (
@@ -737,7 +737,7 @@ function SessionRow({
                 accessibilityRole="button"
                 accessibilityLabel="Mark session as completed"
               >
-                <Ionicons name="checkmark-circle-outline" size={15} color={CoachColors.textPrimary} />
+                <Ionicons name="checkmark-circle-outline" size={17} color={CoachColors.textPrimary} />
                 <Text style={s.actionText}>Complete</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -747,7 +747,7 @@ function SessionRow({
                 accessibilityRole="button"
                 accessibilityLabel="View session details"
               >
-                <Ionicons name="document-text-outline" size={15} color={CoachColors.textPrimary} />
+                <Ionicons name="document-text-outline" size={17} color={CoachColors.textPrimary} />
                 <Text style={s.actionText}>Details</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -757,7 +757,7 @@ function SessionRow({
                 accessibilityRole="button"
                 accessibilityLabel="Cancel session"
               >
-                <Ionicons name="close-circle-outline" size={15} color={CoachColors.danger} />
+                <Ionicons name="close-circle-outline" size={17} color={CoachColors.danger} />
                 <Text style={[s.actionText, { color: CoachColors.danger }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -772,7 +772,7 @@ function SessionRow({
                 accessibilityRole="button"
                 accessibilityLabel="Undo — mark session as upcoming"
               >
-                <Ionicons name="arrow-undo" size={14} color={CoachColors.textSecondary} />
+                <Ionicons name="arrow-undo" size={16} color={CoachColors.textSecondary} />
                 <Text style={s.actionText}>Undo</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -782,7 +782,7 @@ function SessionRow({
                 accessibilityRole="button"
                 accessibilityLabel={session.notes ? 'Edit session notes' : 'Add session notes'}
               >
-                <Ionicons name="document-text-outline" size={14} color={CoachColors.textPrimary} />
+                <Ionicons name="document-text-outline" size={16} color={CoachColors.textPrimary} />
                 <Text style={s.actionText}>{session.notes ? 'Edit notes' : 'Add notes'}</Text>
               </TouchableOpacity>
             </View>
@@ -1116,7 +1116,7 @@ const s = StyleSheet.create({
   },
   freeDayDesc: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.033),
-    color: CoachColors.textSecondary, marginTop: 8, lineHeight: 19,
+    color: CoachColors.textSecondary, marginTop: 8, lineHeight: 21.5,
   },
   regularsList: { marginTop: 14 },
   regularRow: {

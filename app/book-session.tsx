@@ -234,7 +234,7 @@ export default function BookSessionScreen() {
         {/* HEADER */}
         <View style={st.header}>
           <TouchableOpacity onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={st.headerCenter}>
             <Text style={st.headerTitle}>New session</Text>
@@ -260,12 +260,12 @@ export default function BookSessionScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={[st.typeIconCircle, { backgroundColor: isActive ? CoachColors.accentSoft : CoachColors.borderMuted }]}>
-                    <Ionicons name={type.icon} size={20} color={isActive ? type.color : CoachColors.textFaint} />
+                    <Ionicons name={type.icon} size={22} color={isActive ? type.color : CoachColors.textFaint} />
                   </View>
                   <Text style={[st.typeLabel, isActive && { color: type.color }]}>{type.label}</Text>
                   {isActive && (
                     <View style={[st.typeCheck, { backgroundColor: type.color }]}>
-                      <Ionicons name="checkmark" size={10} color={CoachColors.onAccent} />
+                      <Ionicons name="checkmark" size={11} color={CoachColors.onAccent} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -278,7 +278,7 @@ export default function BookSessionScreen() {
             <View style={st.section}>
               <Text style={st.sectionLabel}>Group name</Text>
               <View style={[st.inputRow, !!errors.groupName && st.inputRowError]}>
-                <Ionicons name="people" size={18} color={errors.groupName ? CoachColors.danger : CoachColors.textFaint} />
+                <Ionicons name="people" size={20} color={errors.groupName ? CoachColors.danger : CoachColors.textFaint} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Evening HIIT"
@@ -289,7 +289,7 @@ export default function BookSessionScreen() {
               </View>
               {!!errors.groupName && (
                 <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
-                  <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
+                  <Ionicons name="alert-circle" size={15} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.groupName}</Text>
                 </View>
               )}
@@ -309,13 +309,13 @@ export default function BookSessionScreen() {
                     <Text style={st.selectedSub}>Tap to change</Text>
                   </View>
                   <View style={st.removeClient}>
-                    <Ionicons name="close" size={14} color={CoachColors.textSecondary} />
+                    <Ionicons name="close" size={16} color={CoachColors.textSecondary} />
                   </View>
                 </TouchableOpacity>
               ) : (
                 <>
                   <View style={[st.inputRow, !!errors.client && st.inputRowError]}>
-                    <Ionicons name="search" size={16} color={errors.client ? CoachColors.danger : CoachColors.textFaint} />
+                    <Ionicons name="search" size={18} color={errors.client ? CoachColors.danger : CoachColors.textFaint} />
                     <TextInput
                       style={st.input}
                       placeholder="Search clients..."
@@ -326,14 +326,14 @@ export default function BookSessionScreen() {
                   </View>
                   {!!errors.client && (
                     <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
-                      <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
+                      <Ionicons name="alert-circle" size={15} color={CoachColors.danger} />
                       <Text style={st.errorText}>{errors.client}</Text>
                     </View>
                   )}
                   <View style={[st.clientList, !!errors.client && { borderColor: CoachColors.dangerSoft }]}>
                     {filteredClients.length === 0 ? (
                       <View style={st.noClients}>
-                        <Ionicons name="person-outline" size={24} color={CoachColors.textFaint} />
+                        <Ionicons name="person-outline" size={27} color={CoachColors.textFaint} />
                         <Text style={st.noClientsText}>No matching clients</Text>
                       </View>
                     ) : (
@@ -357,7 +357,7 @@ export default function BookSessionScreen() {
                                 <Text style={st.clientEmail}>{(client as any).email}</Text>
                               )}
                             </View>
-                            <Ionicons name="add-circle-outline" size={20} color={CoachColors.textFaint} />
+                            <Ionicons name="add-circle-outline" size={22} color={CoachColors.textFaint} />
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -409,10 +409,10 @@ export default function BookSessionScreen() {
             <Text style={st.sectionLabel}>Time</Text>
             <TouchableOpacity style={st.timeBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.7}>
               <View style={st.dateTimeIcon}>
-                <Ionicons name="time" size={18} color={CoachColors.accent} />
+                <Ionicons name="time" size={20} color={CoachColors.accent} />
               </View>
               <Text style={st.timeValue}>{formatTime(selectedHour, selectedMinute)}</Text>
-              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           </View>
 
@@ -445,7 +445,7 @@ export default function BookSessionScreen() {
                 <Text style={st.requiredStar}>*</Text>
               </View>
               <View style={[st.inputRow, !!errors.location && st.inputRowError, { marginTop: 10 }]}>
-                <Ionicons name="location-outline" size={16} color={errors.location ? CoachColors.danger : CoachColors.textFaint} />
+                <Ionicons name="location-outline" size={18} color={errors.location ? CoachColors.danger : CoachColors.textFaint} />
                 <TextInput
                   style={st.input}
                   placeholder="e.g. Downtown Gym, Studio B"
@@ -456,7 +456,7 @@ export default function BookSessionScreen() {
               </View>
               {!!errors.location && (
                 <View style={st.errorRow} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
-                  <Ionicons name="alert-circle" size={13} color={CoachColors.danger} />
+                  <Ionicons name="alert-circle" size={15} color={CoachColors.danger} />
                   <Text style={st.errorText}>{errors.location}</Text>
                 </View>
               )}
@@ -494,7 +494,7 @@ export default function BookSessionScreen() {
           <View style={st.section}>
             <Text style={st.sectionLabel}>Notes</Text>
             <View style={[st.inputRow, { alignItems: 'flex-start', minHeight: 80 }]}>
-              <Ionicons name="document-text-outline" size={16} color={CoachColors.textFaint} style={{ marginTop: 2 }} />
+              <Ionicons name="document-text-outline" size={18} color={CoachColors.textFaint} style={{ marginTop: 2 }} />
               <TextInput
                 style={[st.input, { minHeight: 60, textAlignVertical: 'top' }]}
                 placeholder="Upper body focus, bring bands..."
@@ -520,12 +520,12 @@ export default function BookSessionScreen() {
                 <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : success ? (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color={CoachColors.textPrimary} />
+                  <Ionicons name="checkmark-circle" size={22} color={CoachColors.textPrimary} />
                   <Text style={[st.submitText, { color: CoachColors.textPrimary }]}>Booked!</Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name="calendar-outline" size={20} color={CoachColors.onAccent} />
+                  <Ionicons name="calendar-outline" size={22} color={CoachColors.onAccent} />
                   <Text style={st.submitText}>
                     {repeatWeeks > 0 ? `Book ${repeatWeeks} sessions` : 'Book session'}
                   </Text>
@@ -636,7 +636,7 @@ const st = StyleSheet.create({
 
   // Section label row (for label + required star)
   sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  requiredStar:    { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.danger, lineHeight: 20 },
+  requiredStar:    { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.danger, lineHeight: 22.5 },
 
   // Inputs
   inputRow: {

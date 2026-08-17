@@ -278,7 +278,7 @@ export default function ClientOnboardingScreen() {
       <View style={[s.container, s.center]}>
         <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
         <View style={s.doneRing}>
-          <Ionicons name="checkmark" size={30} color={CoachColors.accent} />
+          <Ionicons name="checkmark" size={34} color={CoachColors.accent} />
         </View>
         <Text style={s.doneTitle}>Sent to {coachName}</Text>
         <Text style={s.doneSub}>Your answers are on their way. Your plan gets built from them.</Text>
@@ -309,7 +309,7 @@ export default function ClientOnboardingScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={18} color={CoachColors.textSecondary} />
+            <Ionicons name="chevron-back" size={20} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <View style={s.progressRow}>
             {QUESTIONS.map((q, i) => (
@@ -485,19 +485,19 @@ const s = StyleSheet.create({
   progressSeg: { flex: 1, height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted },
   progressSegDone: { backgroundColor: CoachColors.accent },
   progressSegActive: { backgroundColor: 'rgba(198,242,78,0.45)' },
-  progressCount: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  progressCount: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
   body: { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 24 },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 29,
+    lineHeight: 36,
     color: CoachColors.textPrimary,
   },
   why: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14.5,
+    lineHeight: 21.5,
     color: CoachColors.textMuted,
     marginTop: 9,
   },
@@ -533,13 +533,13 @@ const s = StyleSheet.create({
   },
   optionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
   optionSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13.5,
+    lineHeight: 19,
     color: CoachColors.textMuted,
     marginTop: 3,
   },
@@ -560,7 +560,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.accent,
     backgroundColor: 'rgba(198,242,78,0.1)',
   },
-  dayChipText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textSecondary },
+  dayChipText: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textSecondary },
   dayChipTextSelected: { color: CoachColors.accent },
 
   textInput: {
@@ -573,8 +573,8 @@ const s = StyleSheet.create({
     minHeight: 110,
     textAlignVertical: 'top',
     fontFamily: CoachFonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15.5,
+    lineHeight: 22.5,
     color: CoachColors.textPrimary,
   },
 
@@ -592,12 +592,12 @@ const s = StyleSheet.create({
   },
   weightInput: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 30,
+    fontSize: 33.5,
     color: CoachColors.textPrimary,
     minWidth: 90,
     padding: 0,
   },
-  weightUnit: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  weightUnit: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
 
   hintCard: {
     flexDirection: 'row',
@@ -618,12 +618,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hintAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
+  hintAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
   hintText: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     color: '#A9AF9F',
   },
 
@@ -645,11 +645,11 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
   },
-  continueText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  continueText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   continueTextDisabled: { color: CoachColors.textFaint },
   footerHint: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textAlign: 'center',
     marginTop: 9,
@@ -665,11 +665,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
   doneSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14.5,
+    lineHeight: 21.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
   },

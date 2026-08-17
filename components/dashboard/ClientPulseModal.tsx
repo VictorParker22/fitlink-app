@@ -60,7 +60,7 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
             </View>
 
             <TouchableOpacity hitSlop={6} style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={18} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -83,13 +83,13 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
           {/* Action CTAs */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.primaryBtn} onPress={handleMessage}>
-              <Ionicons name="chatbubble" size={16} color={CoachColors.onAccent} />
+              <Ionicons name="chatbubble" size={18} color={CoachColors.onAccent} />
               <Text style={styles.primaryBtnText}>Message {firstName}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryBtn} onPress={handleViewProfile}>
               <Text style={styles.secondaryBtnText}>Full profile</Text>
-              <Ionicons name="arrow-forward" size={14} color={CoachColors.textPrimary} />
+              <Ionicons name="arrow-forward" size={16} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   statusDot: {
@@ -163,13 +163,13 @@ const styles = StyleSheet.create({
   },
   clientName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   clientMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     marginTop: 2,
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 8,
+    fontSize: 9,
     color: CoachColors.textMuted,
     letterSpacing: 1.5,
     marginBottom: 4,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
     textTransform: 'capitalize',
   },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },

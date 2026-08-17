@@ -313,24 +313,24 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   eyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent,
     letterSpacing: 1.6, textTransform: 'uppercase',
   },
   bigRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 12 },
   bigNumber: {
-    fontFamily: CoachFonts.headingBold, fontSize: 74, lineHeight: 78,
+    fontFamily: CoachFonts.headingBold, fontSize: 83, lineHeight: 87.5,
     color: CoachColors.textPrimary, letterSpacing: -2,
   },
   bigUnit: {
-    fontFamily: CoachFonts.body, fontSize: 26, color: CoachColors.textMuted,
+    fontFamily: CoachFonts.body, fontSize: 29, color: CoachColors.textMuted,
     marginBottom: 10,
   },
   liftLine: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary,
     marginTop: 8, textAlign: 'center',
   },
   priorLine: {
-    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted,
     marginTop: 5, textAlign: 'center',
   },
 
@@ -343,11 +343,11 @@ const s = StyleSheet.create({
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 76 },
   chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   bar: { width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  barLabel: { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textFaint },
+  barLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
   barLabelCurrent: { color: CoachColors.accent, fontFamily: CoachFonts.bodyBold },
   chartCaption: {
-    fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted,
-    lineHeight: 18, marginTop: 13, paddingTop: 12,
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted,
+    lineHeight: 20, marginTop: 13, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: '#21241F',
   },
 
@@ -358,29 +358,29 @@ const s = StyleSheet.create({
     borderRadius: 18, padding: 15, marginTop: 12,
   },
   tellEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 1.1, textTransform: 'uppercase',
   },
   tellHint: {
-    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted,
-    marginTop: 6, lineHeight: 17,
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted,
+    marginTop: 6, lineHeight: 19,
   },
   tellInput: {
     backgroundColor: '#1E211D',
     borderWidth: 1, borderColor: '#2E322B',
     borderRadius: 13, padding: 13, marginTop: 12,
-    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary,
-    lineHeight: 20, minHeight: 62, textAlignVertical: 'top',
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
+    lineHeight: 22.5, minHeight: 62, textAlignVertical: 'top',
   },
   sendBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 11, alignItems: 'center', marginTop: 11,
   },
   sendBtnDone: { borderColor: 'rgba(198,242,78,0.4)', backgroundColor: CoachColors.accentSofter },
-  sendBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  sendBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   sendBtnTextDone: { color: CoachColors.accent },
   sendError: {
-    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.danger,
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.danger,
     marginTop: 8, textAlign: 'center',
   },
 
@@ -395,10 +395,10 @@ const s = StyleSheet.create({
   },
   squadBoxOn: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
   squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: CoachColors.accent },
-  squadLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  squadLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   squadHint: {
-    fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted,
-    marginTop: 2, lineHeight: 16,
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    marginTop: 2, lineHeight: 18,
   },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
@@ -406,5 +406,5 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16, alignItems: 'center',
   },
-  doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 });

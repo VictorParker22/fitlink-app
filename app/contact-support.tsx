@@ -37,7 +37,7 @@ export default function ContactSupportScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
           <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Contact support</Text>
           <View style={{ width: 36 }} />
@@ -81,7 +81,7 @@ export default function ContactSupportScreen() {
           )}
 
           <TouchableOpacity style={s.sendBtn} onPress={handleSend} activeOpacity={0.85}>
-            <Ionicons name="mail-outline" size={17} color={CoachColors.onAccent} />
+            <Ionicons name="mail-outline" size={19} color={CoachColors.onAccent} />
             <Text style={s.sendBtnText}>Send via email</Text>
           </TouchableOpacity>
 
@@ -110,17 +110,17 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
 
   heroTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
     marginTop: 16, letterSpacing: -0.3,
   },
-  heroSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20, marginTop: 8 },
+  heroSubtitle: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5, marginTop: 8 },
 
   fieldLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.8, marginTop: 24, marginBottom: 10,
   },
 
@@ -130,24 +130,24 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   topicChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  topicText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  topicText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   topicTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
 
   textArea: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 16, minHeight: 140,
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, lineHeight: 22.5,
   },
 
-  emailNote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginTop: 10 },
+  emailNote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, marginTop: 10 },
 
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15, marginTop: 24,
   },
-  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 
   directRow: { alignItems: 'center', marginTop: 24, gap: 3 },
-  directRowLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
-  directRowEmail: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
+  directRowLabel: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint },
+  directRowEmail: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
 });

@@ -332,16 +332,16 @@ const s = StyleSheet.create({
   scrollContent: { paddingTop: 84, paddingHorizontal: 20 },
 
   eyebrow: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.accent,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent,
     letterSpacing: 1.6, textTransform: 'uppercase', textAlign: 'center',
   },
   title: {
-    fontFamily: F.headingBold, fontSize: 31, lineHeight: 36,
+    fontFamily: F.headingBold, fontSize: 34.5, lineHeight: 40.5,
     color: C.textPrimary, textAlign: 'center', marginTop: 11,
   },
   sub: {
-    fontFamily: F.body, fontSize: 13, color: C.textMuted,
-    textAlign: 'center', marginTop: 9, lineHeight: 19,
+    fontFamily: F.body, fontSize: 14.5, color: C.textMuted,
+    textAlign: 'center', marginTop: 9, lineHeight: 21.5,
   },
 
   card: {
@@ -349,29 +349,29 @@ const s = StyleSheet.create({
     borderRadius: 18, padding: 16, marginTop: 12,
   },
   cardLabel: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase',
   },
   divider: { height: 1, backgroundColor: '#21241F', marginBottom: 11 },
   liftRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
-  liftName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  liftFrom: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint },
-  liftArrow: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint },
+  liftName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  liftFrom: { fontFamily: F.body, fontSize: 14, color: C.textFaint },
+  liftArrow: { fontFamily: F.body, fontSize: 14, color: C.textFaint },
   liftTo: {
-    fontFamily: F.headingBold, fontSize: 16.5, color: C.accent,
+    fontFamily: F.headingBold, fontSize: 18.5, color: C.accent,
     minWidth: 58, textAlign: 'right',
   },
   cardFoot: {
-    fontFamily: F.body, fontSize: 12, color: C.textMuted, lineHeight: 17,
+    fontFamily: F.body, fontSize: 13.5, color: C.textMuted, lineHeight: 19,
     marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#21241F',
   },
 
   sectionLabel: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase', marginTop: 26,
   },
-  nextTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
-  nextSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 4, lineHeight: 18 },
+  nextTitle: { fontFamily: F.bodySemiBold, fontSize: 16, color: C.textPrimary },
+  nextSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 4, lineHeight: 20 },
   plansCard: { borderColor: 'rgba(198,242,78,0.22)', backgroundColor: '#1A2213' },
   breakCard: { backgroundColor: '#141613', borderColor: '#1E211D' },
 
@@ -380,14 +380,14 @@ const s = StyleSheet.create({
     paddingVertical: 11, alignItems: 'center', marginTop: 12, minHeight: 40,
     justifyContent: 'center',
   },
-  askBtnText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
+  askBtnText: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.accent },
   sentRow: {
     marginTop: 12, borderRadius: 12, backgroundColor: C.accentSofter,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)', padding: 11,
   },
-  sentText: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary, lineHeight: 18 },
+  sentText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary, lineHeight: 20 },
   sendError: {
-    fontFamily: F.body, fontSize: 12, color: C.danger, marginTop: 8, textAlign: 'center',
+    fontFamily: F.body, fontSize: 13.5, color: C.danger, marginTop: 8, textAlign: 'center',
   },
 
   squadRow: {
@@ -401,9 +401,9 @@ const s = StyleSheet.create({
   },
   squadBoxOn: { borderColor: C.accent, backgroundColor: C.accentSofter },
   squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: C.accent },
-  squadLabel: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
+  squadLabel: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   squadHint: {
-    fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16,
+    fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18,
   },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
@@ -411,5 +411,5 @@ const s = StyleSheet.create({
     backgroundColor: C.accent, borderRadius: 999,
     paddingVertical: 16, alignItems: 'center',
   },
-  doneBtnText: { fontFamily: F.bodyBold, fontSize: 15, color: C.onAccent },
+  doneBtnText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },
 });

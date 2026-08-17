@@ -23,7 +23,7 @@ export const PassQuickStats: React.FC<PassQuickStatsProps> = ({
     <View>
       <View style={styles.card}>
         <View style={styles.col}>
-          <Ionicons name="shield" size={16} color={CoachColors.accent} style={styles.icon} />
+          <Ionicons name="shield" size={18} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{level}</Text>
           <Text style={styles.label}>Level</Text>
         </View>
@@ -40,13 +40,13 @@ export const PassQuickStats: React.FC<PassQuickStatsProps> = ({
         </View>
         <View style={styles.divider} />
         <View style={styles.col}>
-          <Ionicons name="barbell" size={16} color={CoachColors.accent} style={styles.icon} />
+          <Ionicons name="barbell" size={18} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{workoutsThisMonth}</Text>
           <Text style={styles.label}>This month</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.col}>
-          <Ionicons name="flash" size={16} color={CoachColors.accent} style={styles.icon} />
+          <Ionicons name="flash" size={18} color={CoachColors.accent} style={styles.icon} />
           <Text style={styles.number}>{totalXp}</Text>
           <Text style={styles.label}>Total XP</Text>
         </View>
@@ -86,13 +86,13 @@ const styles = StyleSheet.create({
   },
   number: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
   label: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',

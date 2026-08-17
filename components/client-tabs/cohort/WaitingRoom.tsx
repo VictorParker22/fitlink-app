@@ -254,7 +254,7 @@ export default function WaitingRoom({
       >
         <View style={s.confirmRow}>
           <View style={s.checkCircle}>
-            <Ionicons name="checkmark" size={15} color={C.onAccent} />
+            <Ionicons name="checkmark" size={17} color={C.onAccent} />
           </View>
           <Text style={s.eyebrow}>{"You're in"}</Text>
         </View>
@@ -288,7 +288,7 @@ export default function WaitingRoom({
             {weekOne.isRestWeek && weekOne.rows.length === 0 ? (
               <View style={s.weekRow}>
                 <View style={s.rowIcon}>
-                  <Ionicons name="moon-outline" size={14} color={C.textFaint} />
+                  <Ionicons name="moon-outline" size={16} color={C.textFaint} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.rowName}>Rest week</Text>
@@ -299,7 +299,7 @@ export default function WaitingRoom({
               weekOne.rows.map((row) => (
                 <View key={row.index} style={s.weekRow}>
                   <View style={s.rowIcon}>
-                    <Ionicons name={iconFor(row.kind)} size={14} color={C.textFaint} />
+                    <Ionicons name={iconFor(row.kind)} size={16} color={C.textFaint} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.rowName} numberOfLines={1}>
@@ -326,7 +326,7 @@ export default function WaitingRoom({
             }
           >
             <Text style={s.ghostBtnText}>{fullPlanShown ? 'Hide the full plan' : 'See the full plan'}</Text>
-            <Ionicons name={fullPlanShown ? 'chevron-up' : 'chevron-down'} size={14} color={C.textSecondary} />
+            <Ionicons name={fullPlanShown ? 'chevron-up' : 'chevron-down'} size={16} color={C.textSecondary} />
           </Pressable>
         </View>
       ) : null}
@@ -344,7 +344,7 @@ export default function WaitingRoom({
                 accessibilityLabel={!item.action ? `${item.title}. ${item.body}` : undefined}
               >
                 <View style={s.rowIcon}>
-                  <Ionicons name={item.icon} size={14} color={C.accent} />
+                  <Ionicons name={item.icon} size={16} color={C.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.prepTitle}>{item.title}</Text>
@@ -415,21 +415,21 @@ const s = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.accent,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
     fontFamily: F.headingBold,
-    fontSize: 28,
-    lineHeight: 33,
+    fontSize: 31.5,
+    lineHeight: 37,
     color: C.textPrimary,
     marginTop: 12,
   },
-  runLine: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textMuted, marginTop: 6 },
-  startLine: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary, marginTop: 10 },
-  sizeLine: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 5 },
+  runLine: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textMuted, marginTop: 6 },
+  startLine: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary, marginTop: 10 },
+  sizeLine: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 5 },
 
   section: {
     borderTopWidth: 1,
@@ -439,12 +439,12 @@ const s = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  sectionSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, lineHeight: 17, marginTop: 4 },
+  sectionSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, lineHeight: 19, marginTop: 4 },
 
   weekList: {
     backgroundColor: C.surface,
@@ -462,8 +462,8 @@ const s = StyleSheet.create({
     paddingVertical: 11,
   },
   rowIcon: { width: 22, alignItems: 'center' },
-  rowName: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  rowDay: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  rowName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  rowDay: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
 
   ghostBtn: {
     flexDirection: 'row',
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
     paddingVertical: 11,
     marginTop: 12,
   },
-  ghostBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  ghostBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 
   prepCard: {
     flexDirection: 'row',
@@ -488,8 +488,8 @@ const s = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 14,
   },
-  prepTitle: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  prepBody: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3, lineHeight: 17 },
+  prepTitle: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  prepBody: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3, lineHeight: 19 },
   prepAction: {
     alignSelf: 'flex-start',
     backgroundColor: C.accentSoft,
@@ -498,7 +498,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 13,
     marginTop: 10,
   },
-  prepActionText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
+  prepActionText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   coachRow: {
     flexDirection: 'row',
@@ -512,8 +512,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     marginTop: 12,
   },
-  coachName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
-  coachSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  coachName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
+  coachSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
   coachBtn: {
     borderWidth: 1,
     borderColor: C.border,
@@ -521,5 +521,5 @@ const s = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
   },
-  coachBtnText: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary },
+  coachBtnText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
 });

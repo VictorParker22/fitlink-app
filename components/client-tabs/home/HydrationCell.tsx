@@ -166,7 +166,7 @@ const st = StyleSheet.create({
   // 9px — decorative (52pt hero is the primary). HIG §17 Intentional Deviation.
   micro: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -176,13 +176,13 @@ const st = StyleSheet.create({
   // 52pt hero — matches the editorial stat grid system
   hero: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 52,
+    fontSize: 58,
     letterSpacing: -2,
-    lineHeight: 54,
+    lineHeight: 60.5,
   },
   unit: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textMuted,
     letterSpacing: 0,
   },
@@ -204,13 +204,13 @@ const st = StyleSheet.create({
   // 11pt — HIG minimum. Shows remaining oz — this IS the info carrier.
   sub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginBottom: 10,
   },
   toast: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     marginBottom: 10,
     letterSpacing: 0.2,

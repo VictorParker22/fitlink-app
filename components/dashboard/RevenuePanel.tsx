@@ -75,7 +75,7 @@ export default function RevenuePanel() {
         activeOpacity={0.7}
       >
         <Text style={st.revCtaText}>Manage subscriptions</Text>
-        <Ionicons name="chevron-forward" size={14} color={CoachColors.accent} />
+        <Ionicons name="chevron-forward" size={16} color={CoachColors.accent} />
       </TouchableOpacity>
     </View>
   );
@@ -97,22 +97,22 @@ const st = StyleSheet.create({
     justifyContent: 'space-around',
   },
   revStat: { alignItems: 'center', gap: 2 },
-  revStatValue: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
-  revStatLabel: { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  revStatValue: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
+  revStatLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   revStatDivider: { width: 1, height: 30, backgroundColor: CoachColors.borderMuted },
   revPlans: { gap: 10 },
   revPlanRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   revPlanInfo: { width: 90 },
-  revPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
-  revPlanMeta: { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textMuted },
+  revPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  revPlanMeta: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
   revBarTrack: { flex: 1, height: 6, backgroundColor: CoachColors.borderMuted, borderRadius: 3, overflow: 'hidden' },
   revBarFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 3 },
-  revPlanAmount: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textPrimary, width: 60, textAlign: 'right' },
+  revPlanAmount: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textPrimary, width: 60, textAlign: 'right' },
   revCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10, borderRadius: 12,
     backgroundColor: CoachColors.accentSofter,
     borderWidth: 1, borderColor: CoachColors.accentSoft,
   },
-  revCtaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  revCtaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 });

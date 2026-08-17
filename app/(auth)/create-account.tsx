@@ -96,7 +96,7 @@ export default function CreateAccountScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerLogo}>FitLink</Text>
         </Animated.View>
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   headerLogo: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textSecondary,
     letterSpacing: 4,
     textTransform: 'uppercase',
@@ -263,16 +263,16 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
     textAlign: 'center',
-    lineHeight: 38,
+    lineHeight: 42.5,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   cardSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   cardButtonText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
@@ -302,12 +302,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
   },
   footerLink: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     textDecorationLine: 'underline',
   },

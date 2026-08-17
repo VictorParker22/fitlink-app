@@ -209,7 +209,7 @@ function ExerciseBar({
         <Animated.View style={[st.exBarFill, { backgroundColor: barColor }, barStyle]} />
       </View>
       {!isPartial && (
-        <Ionicons name="checkmark" size={14} color={CoachColors.accent} style={st.exCheck} />
+        <Ionicons name="checkmark" size={16} color={CoachColors.accent} style={st.exCheck} />
       )}
     </Animated.View>
   );
@@ -551,13 +551,13 @@ const st = StyleSheet.create({
   },
   heroName: {
     fontFamily:    CoachFonts.headingBold,
-    fontSize:      18,
+    fontSize: 20,
     color:         CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
   heroMeta: {
     fontFamily: CoachFonts.body,
-    fontSize:   12,
+    fontSize: 13.5,
     color:      CoachColors.textMuted,
     marginTop:  1,
   },
@@ -570,22 +570,22 @@ const st = StyleSheet.create({
   },
   completedBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize:   11,
+    fontSize: 12.5,
     color:      CoachColors.accent,
   },
   headline: {
     fontFamily:    CoachFonts.headingBold,
-    fontSize:      26,
+    fontSize: 29,
     color:         CoachColors.textPrimary,
     letterSpacing: -0.5,
-    lineHeight:    32,
+    lineHeight: 36,
   },
   subline: {
     fontFamily: CoachFonts.body,
-    fontSize:   13.5,
+    fontSize: 15,
     color:      CoachColors.textSecondary,
     marginTop:  9,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
 
   // ── Stats row ─────────────────────────────────────────────────────────────
@@ -605,12 +605,12 @@ const st = StyleSheet.create({
   },
   statLabel: {
     fontFamily: CoachFonts.body,
-    fontSize:   11,
+    fontSize: 12.5,
     color:      CoachColors.textMuted,
   },
   statValue: {
     fontFamily:    CoachFonts.headingBold,
-    fontSize:      17,
+    fontSize: 19,
     color:         CoachColors.textPrimary,
     marginTop:     2,
   },
@@ -630,7 +630,7 @@ const st = StyleSheet.create({
   },
   cardTag: {
     fontFamily:    CoachFonts.bodyBold,
-    fontSize:      11,
+    fontSize: 12.5,
     color:         CoachColors.textFaint,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
@@ -642,7 +642,7 @@ const st = StyleSheet.create({
   },
   cardTitle: {
     fontFamily:    CoachFonts.headingBold,
-    fontSize:      16,
+    fontSize: 18,
     color:         CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginTop:     6,
@@ -659,12 +659,12 @@ const st = StyleSheet.create({
   exInfo: { width: W * 0.3 },
   exName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize:   13,
+    fontSize: 14.5,
     color:      CoachColors.textPrimary,
   },
   exMeta: {
     fontFamily: CoachFonts.body,
-    fontSize:   11,
+    fontSize: 12.5,
     color:      CoachColors.textMuted,
     marginTop:  1,
   },
@@ -700,14 +700,14 @@ const st = StyleSheet.create({
   },
   muscleChipText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize:   11.5,
+    fontSize: 13,
     color:      CoachColors.textSecondary,
   },
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   savedText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize:   11,
+    fontSize: 12.5,
     color:      CoachColors.accent,
   },
   notesInput: {
@@ -718,20 +718,20 @@ const st = StyleSheet.create({
     padding:         13,
     marginTop:       9,
     fontFamily:      CoachFonts.body,
-    fontSize:        14,
+    fontSize: 15.5,
     color:           CoachColors.textPrimary,
     minHeight:       84,
-    lineHeight:      20,
+    lineHeight: 22.5,
   },
 
   // ── What's Next ───────────────────────────────────────────────────────────
   nextDesc: {
     fontFamily: CoachFonts.body,
-    fontSize:   12.5,
+    fontSize: 14,
     color:      CoachColors.textSecondary,
     marginTop:  -8,
     marginBottom: 15,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   bookCTA: {
     backgroundColor: CoachColors.accent,
@@ -743,7 +743,7 @@ const st = StyleSheet.create({
   },
   bookCTAText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize:   14,
+    fontSize: 15.5,
     color:      CoachColors.onAccent,
   },
 
@@ -761,7 +761,7 @@ const st = StyleSheet.create({
   },
   doneBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize:   13.5,
+    fontSize: 15,
     color:      CoachColors.textMuted,
   },
 });

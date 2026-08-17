@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   headerLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     letterSpacing: 0.6,
     color: CoachColors.textFaint,
     textTransform: 'uppercase',
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   countBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
   },
   countBadgeTextAttention: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   emptyLine: {
     fontFamily: CoachFonts.body,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textMuted,
     paddingHorizontal: 20,
   },
@@ -476,19 +476,19 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   rowSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginTop: 2,
-    lineHeight: 17,
+    lineHeight: 19,
   },
   rowAction: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.accent,
   },
   showAllBtn: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   showAllText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
 });

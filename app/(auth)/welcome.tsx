@@ -185,13 +185,13 @@ const styles = StyleSheet.create({
   },
   brand: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     letterSpacing: 3.4,
     color: TEXT_PRIMARY,
   },
   signIn: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: '#C9CEC2',
   },
 
@@ -204,8 +204,8 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 40,
-    lineHeight: 40,
+    fontSize: 45,
+    lineHeight: 45,
     letterSpacing: -0.8,
     color: TEXT_PRIMARY,
   },
@@ -240,22 +240,22 @@ const styles = StyleSheet.create({
   },
   timePillText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: ACCENT,
   },
   cardTitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: TEXT_PRIMARY,
   },
   cardTitleSm: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: TEXT_PRIMARY,
   },
   cardSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: TEXT_SECONDARY,
     marginTop: 1,
   },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   joinPillText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: BG,
   },
   alertDot: {
@@ -279,14 +279,14 @@ const styles = StyleSheet.create({
   },
   nudgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: ACCENT,
   },
 
   body: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
-    lineHeight: 21.7,
+    fontSize: 15.5,
+    lineHeight: 24.5,
     color: TEXT_SECONDARY,
     marginTop: 22,
   },
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15.5,
+    fontSize: 17.5,
     color: BG,
   },
 
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   },
   athleteLinkText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: TEXT_MUTED,
   },
   athleteLinkTextStrong: {

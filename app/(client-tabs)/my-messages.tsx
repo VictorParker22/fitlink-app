@@ -347,11 +347,11 @@ export default function ClientMessagesScreen() {
           <Text style={[styles.attachTag, { color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }]}>WORKOUT</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={styles.attachIcon}>
-              <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+              <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{wName}</Text>
-              <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{count} exercises</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{wName}</Text>
+              <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{count} exercises</Text>
             </View>
           </View>
           <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
@@ -359,7 +359,7 @@ export default function ClientMessagesScreen() {
             onPress={() => router.push(ClientRoute.workouts)}
             activeOpacity={0.8}
           >
-            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open workout</Text>
+            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open workout</Text>
           </TouchableOpacity>
         </View>
       );
@@ -374,12 +374,12 @@ export default function ClientMessagesScreen() {
           <Text style={[styles.attachTag, { color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }]}>MEAL PLAN</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={styles.attachIcon}>
-              <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+              <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{dName}</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{dName}</Text>
               {!!cal && (
-                <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{cal} cal/day target</Text>
+                <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{cal} cal/day target</Text>
               )}
             </View>
           </View>
@@ -388,7 +388,7 @@ export default function ClientMessagesScreen() {
             onPress={() => router.push(ClientRoute.myDiet)}
             activeOpacity={0.8}
           >
-            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open meal plan</Text>
+            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open meal plan</Text>
           </TouchableOpacity>
         </View>
       );
@@ -398,8 +398,8 @@ export default function ClientMessagesScreen() {
       return (
         <View style={{ minWidth: 200, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="clipboard-outline" size={16} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
-            <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, flex: 1 }}>
+            <Ionicons name="clipboard-outline" size={18} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
+            <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, flex: 1 }}>
               {coachFirst} asked for a check-in
             </Text>
           </View>
@@ -409,7 +409,7 @@ export default function ClientMessagesScreen() {
               onPress={() => router.push(ClientRoute.myProgress)}
               activeOpacity={0.8}
             >
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent }}>Answer it</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent }}>Answer it</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -421,7 +421,7 @@ export default function ClientMessagesScreen() {
       return (
         <View style={{ minWidth: 180, gap: 4 }}>
           <Text style={[styles.attachTag, { color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }]}>COACHING NOTE</Text>
-          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, lineHeight: 20 }}>{text}</Text>
+          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, lineHeight: 22.5 }}>{text}</Text>
         </View>
       );
     }
@@ -446,10 +446,10 @@ export default function ClientMessagesScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.emptyBackBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
-          <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={29} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.emptyState}>
-          <Ionicons name="chatbubble-outline" size={44} color={CoachColors.textFaint} />
+          <Ionicons name="chatbubble-outline" size={49} color={CoachColors.textFaint} />
           <Text style={styles.emptyTitle}>No conversation yet</Text>
           <Text style={styles.emptyText}>Your coach will start the thread with you</Text>
         </View>
@@ -462,7 +462,7 @@ export default function ClientMessagesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity hitSlop={7} onPress={() => router.push(ClientRoute.more)} style={styles.backBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerAvatar}>
           {trainer?.avatar_url ? (
@@ -513,7 +513,7 @@ export default function ClientMessagesScreen() {
                     {renderMessageContent(msg, isMine && !msg.pending)}
                     {msg.pending ? (
                       <View style={styles.pendingRow}>
-                        <Ionicons name="time-outline" size={10} color={CoachColors.textMuted} />
+                        <Ionicons name="time-outline" size={11} color={CoachColors.textMuted} />
                         <Text style={styles.pendingText}>Waiting to send</Text>
                       </View>
                     ) : (
@@ -550,7 +550,7 @@ export default function ClientMessagesScreen() {
           paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 6, 22),
         }]}>
           <TouchableOpacity hitSlop={5} onPress={handleImagePick} style={styles.attachBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send a photo">
-            <Ionicons name="image-outline" size={20} color={CoachColors.textSecondary} />
+            <Ionicons name="image-outline" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -572,7 +572,7 @@ export default function ClientMessagesScreen() {
             accessibilityLabel="Send message"
             accessibilityRole="button"
           >
-            <Ionicons name="send" size={15} color={newMessage.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
+            <Ionicons name="send" size={17} color={newMessage.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
           </TouchableOpacity>
         </View>
         {/* Spacer to clear the floating glass tab bar (BAR_H=84 + MARGIN=14 + device inset) */}
@@ -598,15 +598,15 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  headerAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
-  headerName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  headerSub: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint, marginTop: 1 },
+  headerAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent },
+  headerName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerSub: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 1 },
 
   messageList: { padding: 16, paddingBottom: 12, flexGrow: 1 },
 
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 },
   dateLine: { flex: 1, height: 1, backgroundColor: CoachColors.border },
-  dateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint },
+  dateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint },
 
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   bubbleRowRight: { justifyContent: 'flex-end' },
@@ -616,15 +616,15 @@ const styles = StyleSheet.create({
   // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
   bubblePending: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderBottomRightRadius: 4 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
-  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, color: CoachColors.textMuted },
-  bubbleText: { fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 21 },
+  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.textMuted },
+  bubbleText: { fontFamily: CoachFonts.body, fontSize: 15.5, lineHeight: 23.5 },
   bubbleTextSent: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodyMedium },
   bubbleTextReceived: { color: CoachColors.textPrimary },
-  bubbleTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, marginTop: 5 },
+  bubbleTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, marginTop: 5 },
   bubbleTimeSent: { color: 'rgba(16,18,16,0.5)', textAlign: 'right' },
   bubbleTimeReceived: { color: CoachColors.textFaint },
 
-  attachTag: { fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.8 },
+  attachTag: { fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.8 },
   attachIcon: {
     width: 40, height: 40, borderRadius: 8,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingHorizontal: 16, paddingVertical: 11,
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },
   sendBtn: {
@@ -654,8 +654,8 @@ const styles = StyleSheet.create({
   sendBtnActive: { backgroundColor: CoachColors.accent },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 64, paddingHorizontal: 40 },
-  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  emptyText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 19 },
+  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 21.5 },
 
   typingRow: { flexDirection: 'row', marginBottom: 8 },
   typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },

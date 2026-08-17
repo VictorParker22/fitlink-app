@@ -528,12 +528,12 @@ export default function CreatePassScreen() {
             <Text style={s.dayLetter}>{DAY_LETTERS[i]}</Text>
             {rest ? (
               <>
-                <Ionicons name="moon-outline" size={14} color={CoachColors.textFaint} />
+                <Ionicons name="moon-outline" size={16} color={CoachColors.textFaint} />
                 <Text style={[s.dayLabel, { color: CoachColors.textFaint }]}>Rest</Text>
               </>
             ) : day.length === 1 ? (
               <>
-                <Ionicons name={TOOL_META[day[0].kind].icon} size={14} color={day[0].kind === 'workout' ? CoachColors.accent : CoachColors.textSecondary} />
+                <Ionicons name={TOOL_META[day[0].kind].icon} size={16} color={day[0].kind === 'workout' ? CoachColors.accent : CoachColors.textSecondary} />
                 <Text style={s.dayLabel} numberOfLines={2}>
                   {day[0].name || TOOL_META[day[0].kind].label}
                 </Text>
@@ -550,7 +550,7 @@ export default function CreatePassScreen() {
                 ))}
               </View>
             ) : (
-              <Ionicons name="add" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="add" size={18} color={CoachColors.textFaint} />
             )}
           </TouchableOpacity>
         );
@@ -574,7 +574,7 @@ export default function CreatePassScreen() {
               onPress={() => setSelectedTool(active ? null : kind)}
               activeOpacity={0.7}
             >
-              <Ionicons name={TOOL_META[kind].icon} size={15} color={active ? CoachColors.onAccent : CoachColors.textSecondary} />
+              <Ionicons name={TOOL_META[kind].icon} size={17} color={active ? CoachColors.onAccent : CoachColors.textSecondary} />
               <Text style={[s.paletteChipText, active && s.paletteChipTextActive]}>{TOOL_META[kind].label}</Text>
             </TouchableOpacity>
           );
@@ -698,7 +698,7 @@ export default function CreatePassScreen() {
                 )}
               </View>
               <Text style={s.weekRowLabel} numberOfLines={1}>{wk.label || ''}</Text>
-              <Ionicons name={isEditing ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textFaint} />
+              <Ionicons name={isEditing ? 'chevron-up' : 'chevron-down'} size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             {isEditing && (
@@ -732,7 +732,7 @@ export default function CreatePassScreen() {
 
       {showMilestoneInput && (
         <View style={s.milestoneInputRow}>
-          <Ionicons name="trophy-outline" size={16} color={CoachColors.accent} />
+          <Ionicons name="trophy-outline" size={18} color={CoachColors.accent} />
           <TextInput
             style={s.milestoneTextInput}
             placeholder="e.g. Season complete"
@@ -744,7 +744,7 @@ export default function CreatePassScreen() {
             selectionColor={CoachColors.accent}
           />
           <TouchableOpacity hitSlop={8} onPress={addFinalMilestone} style={s.milestoneAddBtn}>
-            <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+            <Ionicons name="add" size={18} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
       )}
@@ -752,10 +752,10 @@ export default function CreatePassScreen() {
         <View style={s.milestoneChips}>
           {finalMilestones.map((m, i) => (
             <View key={i} style={s.milestoneChip}>
-              <Ionicons name="trophy-outline" size={12} color={CoachColors.accent} />
+              <Ionicons name="trophy-outline" size={13} color={CoachColors.accent} />
               <Text style={s.milestoneChipText}>{m}</Text>
               <TouchableOpacity onPress={() => setFinalMilestones(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
-                <Ionicons name="close" size={13} color={CoachColors.textFaint} />
+                <Ionicons name="close" size={15} color={CoachColors.textFaint} />
               </TouchableOpacity>
             </View>
           ))}
@@ -879,7 +879,7 @@ export default function CreatePassScreen() {
                 <Text style={s.dateLabel}>Starts on</Text>
                 <Text style={s.dateValue}>{startsOn.toDateString()}</Text>
               </View>
-              <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+              <Ionicons name="calendar-outline" size={19} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             {cohortErrors.start && <Text style={s.errorText}>{cohortErrors.start}</Text>}
 
@@ -894,7 +894,7 @@ export default function CreatePassScreen() {
                 <Text style={s.dateLabel}>Enrollment closes</Text>
                 <Text style={s.dateValue}>{enrollmentCloses.toDateString()}</Text>
               </View>
-              <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+              <Ionicons name="calendar-outline" size={19} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             {cohortErrors.deadline
               ? <Text style={s.errorText}>{cohortErrors.deadline}</Text>
@@ -914,7 +914,7 @@ export default function CreatePassScreen() {
 
             {cohortSummary && (
               <View style={s.cohortPreview}>
-                <Ionicons name="calendar" size={14} color={CoachColors.accent} />
+                <Ionicons name="calendar" size={16} color={CoachColors.accent} />
                 <Text style={s.cohortPreviewText}>{cohortSummary}</Text>
               </View>
             )}
@@ -947,7 +947,7 @@ export default function CreatePassScreen() {
             activeOpacity={0.7}
             accessibilityLabel="Lower price by five dollars"
           >
-            <Ionicons name="remove" size={20} color={price <= 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
+            <Ionicons name="remove" size={22} color={price <= 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={s.priceCenter}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -971,7 +971,7 @@ export default function CreatePassScreen() {
             activeOpacity={0.7}
             accessibilityLabel="Raise price by five dollars"
           >
-            <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+            <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
         {price > 0 && (
@@ -1130,7 +1130,7 @@ export default function CreatePassScreen() {
                     {c.status === 'trial' ? <Text style={s.clientSub}>On trial</Text> : null}
                   </View>
                   <View style={[s.checkbox, selected && s.checkboxOn]}>
-                    {selected && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                    {selected && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                   </View>
                 </TouchableOpacity>
               );
@@ -1167,7 +1167,7 @@ export default function CreatePassScreen() {
         {/* ── Header ── */}
         <View style={s.header}>
           <TouchableOpacity onPress={goBack} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name={step === 1 ? 'close' : 'chevron-back'} size={22} color={CoachColors.textPrimary} />
+            <Ionicons name={step === 1 ? 'close' : 'chevron-back'} size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ alignItems: 'center', flex: 1 }}>
             <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || 'New pass'}</Text>
@@ -1241,7 +1241,7 @@ export default function CreatePassScreen() {
             <View style={s.sheetHeader}>
               <Text style={s.sheetTitle}>{picker?.kind === 'diet' ? 'Pick a meal plan' : 'Pick a workout'}</Text>
               <TouchableOpacity onPress={() => setPicker(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+                <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 380 }}>
@@ -1253,7 +1253,7 @@ export default function CreatePassScreen() {
                       : 'No workouts in your library yet — build one now and it drops straight into this day when you come back.'}
                   </Text>
                   <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.sheetCreateBtn} onPress={handleCreateFromPicker} activeOpacity={0.85}>
-                    <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+                    <Ionicons name="add" size={18} color={CoachColors.onAccent} />
                     <Text style={s.sheetCreateBtnText}>
                       {picker?.kind === 'diet' ? 'Create a meal plan' : 'Create a workout'}
                     </Text>
@@ -1262,29 +1262,29 @@ export default function CreatePassScreen() {
               ) : picker?.kind === 'diet' ? (
                 diets.map(d => (
                   <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} key={d.id} style={s.sheetItem} onPress={() => handlePickContent(d.id, d.name)} activeOpacity={0.7}>
-                    <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.sheetItemName} numberOfLines={1}>{d.name}</Text>
                       <Text style={s.sheetItemSub}>{d.diet_plan_meals?.length || 0} meals</Text>
                     </View>
-                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                    <Ionicons name="add" size={20} color={CoachColors.accent} />
                   </TouchableOpacity>
                 ))
               ) : (
                 workouts.map(w => (
                   <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} key={w.id} style={s.sheetItem} onPress={() => handlePickContent(w.id, w.name)} activeOpacity={0.7}>
-                    <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.sheetItemName} numberOfLines={1}>{w.name}</Text>
                       <Text style={s.sheetItemSub}>{w.workout_exercises?.length || 0} exercises</Text>
                     </View>
-                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                    <Ionicons name="add" size={20} color={CoachColors.accent} />
                   </TouchableOpacity>
                 ))
               )}
               {(picker?.kind === 'diet' ? diets : workouts).length > 0 && (
                 <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} style={s.sheetCreateRow} onPress={handleCreateFromPicker} activeOpacity={0.7}>
-                  <Ionicons name="add" size={16} color={CoachColors.accent} />
+                  <Ionicons name="add" size={18} color={CoachColors.accent} />
                   <Text style={s.sheetCreateRowText}>
                     {picker?.kind === 'diet' ? 'Not here? Create a meal plan' : 'Not here? Create a workout'}
                   </Text>
@@ -1368,33 +1368,33 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
   },
   headerBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 1 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 1 },
   progressBar: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, paddingBottom: 14 },
   progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: CoachColors.borderMuted },
   progressSegDone: { backgroundColor: CoachColors.accent },
 
   // Typography
-  title: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary, marginTop: 8, marginBottom: 6 },
-  subtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20, marginBottom: 18 },
+  title: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, marginTop: 8, marginBottom: 6 },
+  subtitle: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 18 },
   eyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 8, marginTop: 14,
   },
-  helperText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 6, lineHeight: 17 },
-  contextLine: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 12, lineHeight: 18 },
-  footnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 17, marginTop: 16, textAlign: 'center' },
+  helperText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 6, lineHeight: 19 },
+  contextLine: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 12, lineHeight: 20 },
+  footnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, lineHeight: 19, marginTop: 16, textAlign: 'center' },
 
   // Inputs
   nameInput: {
-    fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   promiseHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  charCounter: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginBottom: 8 },
+  charCounter: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginBottom: 8 },
   promiseInput: {
-    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
     borderWidth: 1, borderColor: CoachColors.border, minHeight: 68, textAlignVertical: 'top',
   },
@@ -1404,14 +1404,14 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 18,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  weeksBig: { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.accent, marginBottom: 12 },
+  weeksBig: { fontFamily: CoachFonts.headingBold, fontSize: 36, color: CoachColors.accent, marginBottom: 12 },
   weeksRow: { flexDirection: 'row', gap: 8 },
   weekChip: {
     paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999,
     borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.bg,
   },
   weekChipActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  weekChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  weekChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
   weekChipTextActive: { color: CoachColors.onAccent },
 
   // Toggle
@@ -1420,8 +1420,8 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 18,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  toggleSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2, lineHeight: 17 },
+  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  toggleSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2, lineHeight: 19 },
   switch: {
     width: 46, height: 27, borderRadius: 14, backgroundColor: CoachColors.borderMuted,
     padding: 3, justifyContent: 'center',
@@ -1440,13 +1440,13 @@ const s = StyleSheet.create({
   dayCellFilled: { borderColor: CoachColors.border },
   dayCellWorkout: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
   dayCellRest: { borderStyle: 'dashed', backgroundColor: CoachColors.bg },
-  dayLetter: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint },
-  dayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 8.5, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 2 },
+  dayLetter: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint },
+  dayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 9.5, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 2 },
   dayIconStack: { alignItems: 'center', gap: 4, paddingTop: 1 },
 
   // Palette
   paletteSection: { marginTop: 6 },
-  paletteHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginBottom: 10 },
+  paletteHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginBottom: 10 },
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   paletteChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -1454,12 +1454,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.surface,
   },
   paletteChipActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  paletteChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  paletteChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   paletteChipTextActive: { color: CoachColors.onAccent },
 
   // Step 2 summary
-  summaryBig: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary },
-  summaryBreakdown: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 4 },
+  summaryBig: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary },
+  summaryBreakdown: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 4 },
 
   // Step 3 — season map
   weekRow: {
@@ -1468,14 +1468,14 @@ const s = StyleSheet.create({
   },
   weekRowEditing: { borderColor: CoachColors.border },
   weekRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  weekRowNum: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13, color: CoachColors.textPrimary, width: 34 },
+  weekRowNum: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14.5, color: CoachColors.textPrimary, width: 34 },
   weekDots: { flexDirection: 'row', gap: 5, flex: 1, alignItems: 'center' },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  weekRestText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
-  weekRowLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, maxWidth: 90, textAlign: 'right' },
+  weekRestText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint },
+  weekRowLabel: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, maxWidth: 90, textAlign: 'right' },
   weekEditor: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 10 },
   weekLabelInput: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
     borderWidth: 1, borderColor: CoachColors.border,
   },
@@ -1484,13 +1484,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
     borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9,
   },
-  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   milestoneInputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
     backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 14,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
-  milestoneTextInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, paddingVertical: 12 },
+  milestoneTextInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 12 },
   milestoneAddBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   milestoneChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   milestoneChip: {
@@ -1498,9 +1498,9 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accentSofter, borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
-  milestoneChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary },
+  milestoneChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, justifyContent: 'center' },
-  legendText: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  legendText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
   // Step 4 — price
   segmented: {
@@ -1509,7 +1509,7 @@ const s = StyleSheet.create({
   },
   segment: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 11 },
   segmentActive: { backgroundColor: CoachColors.borderMuted },
-  segmentText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textFaint },
+  segmentText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textFaint },
   segmentTextActive: { color: CoachColors.textPrimary },
   priceDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 26, gap: 14 },
   priceCenter: { alignItems: 'center' },
@@ -1517,13 +1517,13 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: CoachColors.border, backgroundColor: CoachColors.surface,
   },
-  priceDollar: { fontFamily: CoachFonts.headingSemiBold, fontSize: 24, color: CoachColors.textSecondary, marginBottom: 8 },
+  priceDollar: { fontFamily: CoachFonts.headingSemiBold, fontSize: 27, color: CoachColors.textSecondary, marginBottom: 8 },
   priceInput: {
-    fontFamily: CoachFonts.headingBold, fontSize: 52, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 58, color: CoachColors.textPrimary,
     minWidth: 80, textAlign: 'center', padding: 0,
   },
-  pricePeriod: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginBottom: 12 },
-  priceEditHint: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 2 },
+  pricePeriod: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textMuted, marginBottom: 12 },
+  priceEditHint: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 2 },
 
   // Step 4 — product type + cohort dates
   typeCard: {
@@ -1539,8 +1539,8 @@ const s = StyleSheet.create({
   },
   radioOn: { borderColor: CoachColors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CoachColors.accent },
-  typeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
-  typeSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3, lineHeight: 17 },
+  typeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 21.5 },
+  typeSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3, lineHeight: 19 },
   cohortBox: {
     backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, marginTop: 6,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -1551,13 +1551,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, marginTop: 8,
   },
   dateLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint,
     letterSpacing: 0.8, textTransform: 'uppercase',
   },
-  dateValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, marginTop: 3 },
-  errorText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.warning, marginTop: 6, lineHeight: 17 },
+  dateValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, marginTop: 3 },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.warning, marginTop: 6, lineHeight: 19 },
   capacityInput: {
-    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: 1, borderColor: CoachColors.border,
   },
@@ -1565,12 +1565,12 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16,
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 14,
   },
-  cohortPreviewText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary, flex: 1 },
-  sheetDone: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.accent },
+  cohortPreviewText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
+  sheetDone: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.accent },
 
   // Market meter
   meterHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  meterBand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  meterBand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
   meterTrack: {
     flexDirection: 'row', height: 8, borderRadius: 999, overflow: 'visible',
     marginTop: 6, gap: 3,
@@ -1582,15 +1582,15 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, marginLeft: -2,
   },
   meterLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 },
-  meterLabelText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
-  priceSubline: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, textAlign: 'center', marginTop: 4 },
+  meterLabelText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  priceSubline: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center', marginTop: 4 },
   quickPickRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
-  keepBig: { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.accent },
-  keepSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 3 },
+  keepBig: { fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.accent },
+  keepSub: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 3 },
   compareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
-  compareName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  compareMeta: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
-  comparePrice: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  compareName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  compareMeta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
+  comparePrice: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textSecondary },
 
   // Step 5 — preview
   previewCard: {
@@ -1599,12 +1599,12 @@ const s = StyleSheet.create({
   },
   previewHero: { backgroundColor: CoachColors.accent, padding: 20 },
   previewEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: 'rgba(16,18,16,0.65)',
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: 'rgba(16,18,16,0.65)',
     letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 6,
   },
-  previewName: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.onAccent },
-  previewPromise: { fontFamily: CoachFonts.body, fontSize: 13.5, color: 'rgba(16,18,16,0.75)', marginTop: 5, lineHeight: 19 },
-  previewCohort: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: 'rgba(16,18,16,0.85)', marginTop: 8 },
+  previewName: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.onAccent },
+  previewPromise: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(16,18,16,0.75)', marginTop: 5, lineHeight: 21.5 },
+  previewCohort: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: 'rgba(16,18,16,0.85)', marginTop: 8 },
   previewBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coachAvatar: { width: 40, height: 40, borderRadius: 20 },
@@ -1612,21 +1612,21 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textSecondary },
-  coachName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  coachSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 1 },
+  coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
+  coachName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  coachSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 1 },
   statRow: { flexDirection: 'row', gap: 8 },
   statCell: {
     flex: 1, alignItems: 'center', paddingVertical: 10,
     backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
-  statLabel: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted, marginTop: 2 },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
   mockCta: {
     backgroundColor: CoachColors.accent, opacity: 0.55, borderRadius: 999,
     paddingVertical: 13, alignItems: 'center',
   },
-  mockCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  mockCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   // Offer list
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
@@ -1635,9 +1635,9 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  clientInitial: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textSecondary },
-  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  clientSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  clientInitial: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  clientSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
   checkbox: {
     width: 22, height: 22, borderRadius: 7, borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
@@ -1654,12 +1654,12 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999, height: 52,
     alignItems: 'center', justifyContent: 'center',
   },
-  primaryBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  primaryBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   draftBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, height: 52,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24,
   },
-  draftBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  draftBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
 
   // Picker sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
@@ -1669,26 +1669,26 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderColor: CoachColors.border,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
-  sheetEmpty: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 19 },
+  sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
+  sheetEmpty: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 21.5 },
   sheetEmptyWrap: { paddingVertical: 22, paddingHorizontal: 8, gap: 16, alignItems: 'center' },
   sheetCreateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingHorizontal: 20, paddingVertical: 12,
   },
-  sheetCreateBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  sheetCreateBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
   sheetCreateRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', borderRadius: 14,
     paddingVertical: 13, marginBottom: 8,
   },
-  sheetCreateRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  sheetCreateRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   sheetItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderRadius: 14, padding: 13, marginBottom: 8,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  sheetItemName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  sheetItemSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  sheetItemName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  sheetItemSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
 });

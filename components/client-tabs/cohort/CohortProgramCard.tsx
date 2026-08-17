@@ -206,7 +206,7 @@ export default function CohortProgramCard({
           <Text style={s.pointsTitle}>How a cohort works</Text>
           {points.map(p => (
             <View key={p.text} style={s.pointRow}>
-              <Ionicons name={p.icon} size={12} color={C.accent} />
+              <Ionicons name={p.icon} size={13} color={C.accent} />
               <Text style={s.pointText}>{p.text}</Text>
             </View>
           ))}
@@ -238,25 +238,25 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.accentSofter,
   },
-  dateDay: { fontFamily: F.headingBold, fontSize: 26, lineHeight: 30, color: C.accent },
+  dateDay: { fontFamily: F.headingBold, fontSize: 29, lineHeight: 33.5, color: C.accent },
   dateMonth: {
-    fontFamily: F.bodyBold, fontSize: 10, color: C.accent,
+    fontFamily: F.bodyBold, fontSize: 11, color: C.accent,
     letterSpacing: 1.4, marginTop: 1,
   },
   dateMeta: { flex: 1 },
   dateEyebrow: {
-    fontFamily: F.bodyBold, fontSize: 9.5, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 10.5, color: C.textFaint,
     letterSpacing: 1.1, textTransform: 'uppercase',
   },
-  dateRun: { fontFamily: F.headingSemiBold, fontSize: 16, color: C.textPrimary, marginTop: 4 },
-  dateWeeks: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 2 },
+  dateRun: { fontFamily: F.headingSemiBold, fontSize: 18, color: C.textPrimary, marginTop: 4 },
+  dateWeeks: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 2 },
 
   // Deadline
   deadlineRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   deadlineIcon: { marginTop: 2 },
   deadlineText: {
-    flex: 1, fontFamily: F.bodySemiBold, fontSize: 12.5,
-    color: C.textSecondary, lineHeight: 18,
+    flex: 1, fontFamily: F.bodySemiBold, fontSize: 14,
+    color: C.textSecondary, lineHeight: 20,
   },
   deadlineWarning: { color: C.warning },
 
@@ -267,7 +267,7 @@ const s = StyleSheet.create({
   pipOpen: { borderWidth: 1, borderColor: C.border },
   barTrack: { height: 5, borderRadius: 3, backgroundColor: C.borderMuted, overflow: 'hidden' },
   barFill: { height: 5, borderRadius: 3, backgroundColor: C.accent },
-  seatsLabel: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary, marginTop: 7 },
+  seatsLabel: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary, marginTop: 7 },
 
   // How a cohort works
   points: {
@@ -275,9 +275,9 @@ const s = StyleSheet.create({
     paddingTop: 12, gap: 7,
   },
   pointsTitle: {
-    fontFamily: F.bodyBold, fontSize: 9.5, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 10.5, color: C.textFaint,
     letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 1,
   },
   pointRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pointText: { fontFamily: F.body, fontSize: 12.5, color: C.textSecondary, flex: 1 },
+  pointText: { fontFamily: F.body, fontSize: 14, color: C.textSecondary, flex: 1 },
 });

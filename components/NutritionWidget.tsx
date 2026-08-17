@@ -128,11 +128,11 @@ export default function NutritionWidget() {
       <View style={st.container}>
         <Text style={st.sectionTitle}>Nutrition · daily macros</Text>
         <View style={[st.card, { alignItems: 'center', paddingVertical: 24, gap: 8 }]}>
-          <Ionicons name="nutrition-outline" size={28} color={CoachColors.textFaint} />
-          <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center' }}>
+          <Ionicons name="nutrition-outline" size={31} color={CoachColors.textFaint} />
+          <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: CoachColors.textSecondary, textAlign: 'center' }}>
             Add calories to your meals
           </Text>
-          <Text style={{ fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 17 }}>
+          <Text style={{ fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 19 }}>
             Set calorie & macro targets in your nutrition plan to start tracking here.
           </Text>
         </View>
@@ -161,7 +161,7 @@ export default function NutritionWidget() {
                 </>
               ) : (
                 <>
-                  <Text style={[st.donutCals, { fontSize: 10 }]}>Log{`\n`}meal</Text>
+                  <Text style={[st.donutCals, { fontSize: 11 }]}>Log{`\n`}meal</Text>
                 </>
               )}
             </View>
@@ -205,7 +205,7 @@ export default function NutritionWidget() {
                 <ActivityIndicator size="small" color={CoachColors.onAccent} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle-outline" size={18} color={CoachColors.onAccent} />
+                  <Ionicons name="checkmark-circle-outline" size={20} color={CoachColors.onAccent} />
                   <Text style={st.logBtnText}>Log</Text>
                 </>
               )}
@@ -214,14 +214,14 @@ export default function NutritionWidget() {
         ) : hasLoggedAnything ? (
           // All meals logged AND there were real calories — genuine completion
           <Animated.View entering={reduceMotion ? undefined : FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
-            <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+            <Ionicons name="checkmark-circle" size={22} color={CoachColors.accent} />
             <Text style={[st.nextMealName, { marginLeft: 0 }]}>All meals logged today</Text>
           </Animated.View>
         ) : (
           // nextMealInfo is null but 0 cals — edge case: plan exists, meals have no data
           <Animated.View entering={reduceMotion ? undefined : FadeInUp} style={[st.nextMealBox, { justifyContent: 'center', gap: 8 }]}>
-            <Ionicons name="information-circle-outline" size={20} color={CoachColors.textMuted} />
-            <Text style={[st.nextMealName, { color: CoachColors.textMuted, fontSize: 13 }]}>Add meals to your plan to track progress</Text>
+            <Ionicons name="information-circle-outline" size={22} color={CoachColors.textMuted} />
+            <Text style={[st.nextMealName, { color: CoachColors.textMuted, fontSize: 14.5 }]}>Add meals to your plan to track progress</Text>
           </Animated.View>
         )}
       </View>
@@ -236,7 +236,7 @@ const st = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 8,
@@ -266,12 +266,12 @@ const st = StyleSheet.create({
   },
   donutCals: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   donutLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textSecondary,
   },
   macroBars: {
@@ -286,7 +286,7 @@ const st = StyleSheet.create({
   },
   macroBarLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
     width: 10,
   },
@@ -303,7 +303,7 @@ const st = StyleSheet.create({
   },
   macroBarVal: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textPrimary,
     width: 32,
     textAlign: 'right',
@@ -321,20 +321,20 @@ const st = StyleSheet.create({
   },
   nextMealLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   nextMealName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginTop: 2,
   },
   nextMealMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     marginTop: 2,
   },
@@ -349,7 +349,7 @@ const st = StyleSheet.create({
   },
   logBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
 });

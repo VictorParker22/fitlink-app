@@ -63,7 +63,7 @@ export default function ReferralsScreen() {
         {/* ── Header ── */}
         <View style={st.header}>
           <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={st.headerTitle}>Referrals</Text>
@@ -79,7 +79,7 @@ export default function ReferralsScreen() {
             Anyone who signs up with it shows in the list below, with the reward once it's recorded.
           </Text>
           <TouchableOpacity style={st.shareBtn} onPress={handleInvite} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Share referral link">
-            <Ionicons name="share-outline" size={16} color={CoachColors.onAccent} />
+            <Ionicons name="share-outline" size={18} color={CoachColors.onAccent} />
             <Text style={st.shareBtnText}>Share your link</Text>
           </TouchableOpacity>
         </View>
@@ -184,13 +184,13 @@ const st = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21.5,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -205,23 +205,23 @@ const st = StyleSheet.create({
   },
   codeLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
   },
   codeValue: {
     fontFamily: CoachFonts.mono,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.accent,
     marginTop: 8,
     letterSpacing: 1,
   },
   codeDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   shareBtn: {
     flexDirection: 'row',
@@ -235,7 +235,7 @@ const st = StyleSheet.create({
   },
   shareBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
   },
 
@@ -250,19 +250,19 @@ const st = StyleSheet.create({
   },
   statLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   statValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginTop: 4,
   },
 
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginTop: 22,
     marginBottom: 10,
@@ -283,7 +283,7 @@ const st = StyleSheet.create({
   },
   filterText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   filterTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
@@ -308,12 +308,12 @@ const st = StyleSheet.create({
   },
   refName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   refDate: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -331,13 +331,13 @@ const st = StyleSheet.create({
   },
   statusText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textSecondary,
   },
   statusTextActive: { color: CoachColors.accent },
   rewardText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.accent,
   },
 
@@ -351,15 +351,15 @@ const st = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

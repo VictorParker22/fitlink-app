@@ -354,7 +354,7 @@ export default function TrainerSessionScreen() {
             accessibilityLabel="Cancel session"
             style={styles.awCancelBtn}
           >
-            <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
 
           {/* Client name */}
@@ -369,7 +369,7 @@ export default function TrainerSessionScreen() {
 
           {/* Elapsed timer pill */}
           <View style={styles.awTimerPill}>
-            <Ionicons name="radio-button-on" size={8} color={CoachColors.accent} />
+            <Ionicons name="radio-button-on" size={9} color={CoachColors.accent} />
             <Text style={styles.awTimerText}>{formatDuration(elapsedSeconds)}</Text>
           </View>
         </View>
@@ -392,7 +392,7 @@ export default function TrainerSessionScreen() {
       >
         {noWorkoutAssigned ? (
           <View style={styles.emptyState}>
-            <Ionicons name="barbell-outline" size={44} color={CoachColors.textFaint} style={{ marginBottom: 12 }} />
+            <Ionicons name="barbell-outline" size={49} color={CoachColors.textFaint} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyTitle}>No workout assigned</Text>
             <Text style={styles.emptyBody}>
               Assign a workout from the Workouts tab to track exercises here.
@@ -415,7 +415,7 @@ export default function TrainerSessionScreen() {
                   >
                     <View style={[styles.awExIdx, allDone && { backgroundColor: CoachColors.accentSoft }]}>
                       {allDone
-                        ? <Ionicons name="checkmark" size={14} color={CoachColors.accent} />
+                        ? <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
                         : <Text style={styles.awExIdxText}>{exIdx + 1}</Text>
                       }
                     </View>
@@ -514,7 +514,7 @@ export default function TrainerSessionScreen() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={styles.awFinishBtnGradient}
               >
-                <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={19} color={CoachColors.onAccent} />
+                <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={21} color={CoachColors.onAccent} />
                 <Text style={styles.awFinishBtnText}>
                   {progress >= 1 ? 'Finish session' : 'Finish session'}
                 </Text>
@@ -529,7 +529,7 @@ export default function TrainerSessionScreen() {
       {restRemaining !== null && (
         <View style={styles.restBar}>
           <View style={styles.restBarInfo}>
-            <Ionicons name="timer-outline" size={18} color={CoachColors.accent} />
+            <Ionicons name="timer-outline" size={20} color={CoachColors.accent} />
             <Text style={styles.restBarLabel}>Rest timer</Text>
             <Text style={styles.restBarTime}>{formatTime(restRemaining)}</Text>
           </View>
@@ -635,7 +635,7 @@ function DetailView({
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Ionicons name="arrow-back" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="arrow-back" size={22} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             <Text style={dt.headerTitle}>Session details</Text>
             <View style={[dt.statusPill, { backgroundColor: statusCfg.bg, borderColor: `${statusCfg.color}35` }]}>
@@ -654,7 +654,7 @@ function DetailView({
                   ? <Avatar name={client.name} size="lg" imageUrl={client.avatar_url} />
                   : (
                     <View style={dt.groupIcon}>
-                      <Ionicons name="people" size={26} color={CoachColors.accent} />
+                      <Ionicons name="people" size={29} color={CoachColors.accent} />
                     </View>
                   )
                 }
@@ -674,15 +674,15 @@ function DetailView({
               {/* Date / time / duration row */}
               <View style={dt.infoRow}>
                 <View style={dt.infoItem}>
-                  <Ionicons name="calendar-outline" size={14} color={CoachColors.textMuted} />
+                  <Ionicons name="calendar-outline" size={16} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{dateLabel}</Text>
                 </View>
                 <View style={dt.infoItem}>
-                  <Ionicons name="time-outline" size={14} color={CoachColors.textMuted} />
+                  <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{timeLabel}</Text>
                 </View>
                 <View style={dt.infoItem}>
-                  <Ionicons name="hourglass-outline" size={14} color={CoachColors.textMuted} />
+                  <Ionicons name="hourglass-outline" size={16} color={CoachColors.textMuted} />
                   <Text style={dt.infoText}>{session.duration} min</Text>
                 </View>
               </View>
@@ -696,7 +696,7 @@ function DetailView({
 
             {noWorkoutAssigned ? (
               <View style={dt.emptyWorkout}>
-                <Ionicons name="barbell-outline" size={28} color={CoachColors.textFaint} />
+                <Ionicons name="barbell-outline" size={31} color={CoachColors.textFaint} />
                 <Text style={dt.emptyWorkoutText}>No workout assigned to this client yet.</Text>
               </View>
             ) : (
@@ -713,7 +713,7 @@ function DetailView({
                       </View>
                       {ex.restSeconds > 0 && (
                         <View style={dt.restChip}>
-                          <Ionicons name="timer-outline" size={10} color={CoachColors.textMuted} />
+                          <Ionicons name="timer-outline" size={11} color={CoachColors.textMuted} />
                           <Text style={dt.restChipText}>{ex.restSeconds}s</Text>
                         </View>
                       )}
@@ -741,7 +741,7 @@ function DetailView({
               <Text style={dt.cardTag}>Coach notes</Text>
               {notesSaved && (
                 <View style={dt.savedPill}>
-                  <Ionicons name="checkmark" size={10} color={CoachColors.accent} />
+                  <Ionicons name="checkmark" size={11} color={CoachColors.accent} />
                   <Text style={dt.savedText}>Saved</Text>
                 </View>
               )}
@@ -775,7 +775,7 @@ function DetailView({
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={dt.primaryCTAGradient}
                 >
-                  <Ionicons name="play-circle" size={20} color={CoachColors.onAccent} />
+                  <Ionicons name="play-circle" size={22} color={CoachColors.onAccent} />
                   <Text style={dt.primaryCTAText}>Start tracking</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -788,7 +788,7 @@ function DetailView({
               accessibilityRole="button"
               accessibilityLabel="Book a follow-up session"
             >
-              <Ionicons name="calendar-outline" size={17} color={CoachColors.accent} />
+              <Ionicons name="calendar-outline" size={19} color={CoachColors.accent} />
               <Text style={dt.secondaryCTAText}>
                 {session.status === 'upcoming' ? 'Book another session' : 'Book follow-up session'}
               </Text>
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  awExIdxText:      { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textMuted },
+  awExIdxText:      { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textMuted },
   awExName:         { fontFamily: CoachFonts.headingSemiBold, fontSize: W * 0.038, color: CoachColors.textPrimary, marginBottom: 2 },
   awExTarget:       { fontFamily: CoachFonts.bodyMedium, fontSize: W * 0.03, color: CoachColors.textMuted },
   awExProgressPill: {
@@ -922,7 +922,7 @@ const styles = StyleSheet.create({
   },
   awSetHeaderText: {
     fontFamily:    CoachFonts.bodyBold,
-    fontSize:      10,
+    fontSize: 11,
     color:         CoachColors.textFaint,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -1222,7 +1222,7 @@ const dt = StyleSheet.create({
     justifyContent: 'center',
     flexShrink:     0,
   },
-  exNumText:   { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
+  exNumText:   { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent },
   exName:      { fontFamily: CoachFonts.bodySemiBold, fontSize: W * 0.036, color: CoachColors.textPrimary, marginBottom: 2 },
   exMeta:      { fontFamily: CoachFonts.body, fontSize: W * 0.029, color: CoachColors.textMuted },
   restChip: {
@@ -1234,7 +1234,7 @@ const dt = StyleSheet.create({
     paddingVertical:   4,
     borderRadius:   8,
   },
-  restChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 10, color: CoachColors.textMuted },
+  restChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted },
 
   // Muscle chips
   muscleChips: {

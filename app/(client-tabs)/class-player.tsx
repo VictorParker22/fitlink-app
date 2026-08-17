@@ -230,7 +230,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         <View style={cs.content}>
           {/* Check icon */}
           <View style={cs.checkCircle}>
-            <Ionicons name={entry.completed ? 'checkmark' : 'flag'} size={40} color={CoachColors.onAccent} />
+            <Ionicons name={entry.completed ? 'checkmark' : 'flag'} size={45} color={CoachColors.onAccent} />
           </View>
 
           <Text style={cs.title}>
@@ -312,7 +312,7 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
         {/* Actions */}
         <View style={[cs.actions, { paddingBottom: insets.bottom + 130 }]}>
           <TouchableOpacity style={cs.startAgainBtn} onPress={handleStartAgain} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Start this class again">
-            <Ionicons name="refresh" size={18} color={CoachColors.onAccent} />
+            <Ionicons name="refresh" size={20} color={CoachColors.onAccent} />
             <Text style={cs.startAgainText}>Start again</Text>
           </TouchableOpacity>
           <TouchableOpacity style={cs.doneBtn} onPress={handleGoBack} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Done, return to class detail">
@@ -398,7 +398,7 @@ function VideoClassPlayer({ params }: { params: any }) {
       
       {hasError ? (
         <View style={vs.errorContainer}>
-          <Ionicons name="warning-outline" size={48} color="rgba(255,255,255,0.4)" />
+          <Ionicons name="warning-outline" size={54} color="rgba(255,255,255,0.4)" />
           <Text style={vs.errorTitle}>Video unavailable</Text>
           <Text style={vs.errorMessage}>Please check your connection or try again later.</Text>
           <TouchableOpacity style={vs.retryBtn} onPress={() => setHasError(false)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Retry loading video">
@@ -440,21 +440,21 @@ function VideoClassPlayer({ params }: { params: any }) {
           {/* Top bar */}
           <SafeAreaView style={vs.topBar} edges={['top']}>
             <TouchableOpacity onPress={handleMinimize} style={vs.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Minimize player">
-              <Ionicons name="chevron-down" size={28} color={CoachColors.textPrimary} />
+              <Ionicons name="chevron-down" size={31} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <View style={vs.topInfo}>
               <Text style={vs.topTitle} numberOfLines={1}>{title}</Text>
               <Text style={vs.topInstructor}>{instructor}</Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={vs.navBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Stop workout">
-              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </SafeAreaView>
 
           {/* Center controls */}
           <View style={vs.centerControls}>
             <TouchableOpacity style={vs.skipBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Rewind 15 seconds">
-              <Ionicons name="play-back" size={28} color={CoachColors.textPrimary} />
+              <Ionicons name="play-back" size={31} color={CoachColors.textPrimary} />
               <Text style={vs.skipLabel}>15s</Text>
             </TouchableOpacity>
 
@@ -465,11 +465,11 @@ function VideoClassPlayer({ params }: { params: any }) {
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? 'Pause workout' : 'Play workout'}
             >
-              <Ionicons name={isPlaying ? 'pause' : 'play'} size={40} color={CoachColors.textPrimary} />
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={45} color={CoachColors.textPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity style={vs.skipBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Skip forward 15 seconds">
-              <Ionicons name="play-forward" size={28} color={CoachColors.textPrimary} />
+              <Ionicons name="play-forward" size={31} color={CoachColors.textPrimary} />
               <Text style={vs.skipLabel}>15s</Text>
             </TouchableOpacity>
           </View>
@@ -589,7 +589,7 @@ function RunningClassPlayer({ params }: { params: any }) {
                   accessibilityRole="button"
                   accessibilityLabel="Decrease speed"
                 >
-                  <Ionicons name="remove" size={28} color={CoachColors.textPrimary} />
+                  <Ionicons name="remove" size={31} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={rs.speedAdjustBtn}
@@ -598,7 +598,7 @@ function RunningClassPlayer({ params }: { params: any }) {
                   accessibilityRole="button"
                   accessibilityLabel="Increase speed"
                 >
-                  <Ionicons name="add" size={28} color={CoachColors.textPrimary} />
+                  <Ionicons name="add" size={31} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
@@ -740,13 +740,13 @@ function RunningClassPlayer({ params }: { params: any }) {
         {/* Top nav */}
         <View style={rs.activeTopBar}>
           <TouchableOpacity onPress={handleMinimize} style={rs.activeNavBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Minimize player">
-            <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.6)" />
+            <Ionicons name="chevron-down" size={27} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
           <Text style={rs.activeTopTitle} numberOfLines={1}>
             {activeSession.classInfo.title}
           </Text>
           <TouchableOpacity onPress={handleStop} style={rs.activeNavBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Stop workout">
-            <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
+            <Ionicons name="close" size={25} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
         </View>
 
@@ -800,7 +800,7 @@ function RunningClassPlayer({ params }: { params: any }) {
               accessibilityRole="button"
               accessibilityLabel="Decrease PR"
             >
-              <Ionicons name="remove" size={22} color="rgba(255,255,255,0.6)" />
+              <Ionicons name="remove" size={25} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
             <Text style={rs.prValue}>{activeSession.pr.toFixed(1)}</Text>
             <TouchableOpacity
@@ -810,7 +810,7 @@ function RunningClassPlayer({ params }: { params: any }) {
               accessibilityRole="button"
               accessibilityLabel="Increase PR"
             >
-              <Ionicons name="add" size={22} color="rgba(255,255,255,0.6)" />
+              <Ionicons name="add" size={25} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
           </View>
         </View>
@@ -823,7 +823,7 @@ function RunningClassPlayer({ params }: { params: any }) {
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? 'Pause run' : 'Resume run'}
         >
-          <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color={CoachColors.textPrimary} />
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={29} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         {/* Timeline */}
@@ -878,8 +878,8 @@ const vs = StyleSheet.create({
   },
   navBtn: { padding: 10 },
   topInfo: { flex: 1, alignItems: 'center' },
-  topTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  topInstructor: { fontFamily: CoachFonts.body, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  topTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  topInstructor: { fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   centerControls: {
     position: 'absolute', top: '40%', left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48,
@@ -890,19 +890,19 @@ const vs = StyleSheet.create({
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
   },
   skipBtn: { alignItems: 'center', gap: 4 },
-  skipLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: 'rgba(255,255,255,0.6)' },
+  skipLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: 'rgba(255,255,255,0.6)' },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingHorizontal: 20, paddingBottom: 12,
   },
   categoryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   categoryDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  categoryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13 },
-  levelText: { fontFamily: CoachFonts.body, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  categoryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
+  levelText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.5)' },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2 },
   progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
-  timeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.6)', width: 42 },
+  timeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.6)', width: 42 },
   errorContainer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: CoachColors.bg,
@@ -910,10 +910,10 @@ const vs = StyleSheet.create({
     justifyContent: 'center',
     padding: 32,
   },
-  errorTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginTop: 16, marginBottom: 8, letterSpacing: 1 },
-  errorMessage: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 32 },
+  errorTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textPrimary, marginTop: 16, marginBottom: 8, letterSpacing: 1 },
+  errorMessage: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 32 },
   retryBtn: { paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 2 },
-  retryBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13, color: CoachColors.accent, letterSpacing: 1 },
+  retryBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14.5, color: CoachColors.accent, letterSpacing: 1 },
 });
 
 // ─── RUNNING CLASS STYLES ────────────────────────────────
@@ -928,25 +928,25 @@ const rs = StyleSheet.create({
 
   // Setup shared
   skipBtn: { alignSelf: 'flex-end', paddingHorizontal: 20, paddingVertical: 8 },
-  skipText: { fontFamily: CoachFonts.body, fontSize: 16, color: 'rgba(255,255,255,0.7)' },
+  skipText: { fontFamily: CoachFonts.body, fontSize: 18, color: 'rgba(255,255,255,0.7)' },
   setupContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  phaseLabel: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
+  phaseLabel: { fontFamily: CoachFonts.body, fontSize: 17, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
   setupTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
-    textAlign: 'center', lineHeight: 32, marginBottom: 48,
+    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
+    textAlign: 'center', lineHeight: 36, marginBottom: 48,
   },
 
   // Speed display
   speedDisplay: { alignItems: 'center', marginBottom: 24 },
-  speedValue: { fontFamily: CoachFonts.headingBold, fontSize: 96, color: CoachColors.textPrimary, lineHeight: 104 },
-  speedUnit: { fontFamily: CoachFonts.headingBold, fontSize: 48, color: CoachColors.textPrimary, marginTop: -12 },
+  speedValue: { fontFamily: CoachFonts.headingBold, fontSize: 107.5, color: CoachColors.textPrimary, lineHeight: 116.5 },
+  speedUnit: { fontFamily: CoachFonts.headingBold, fontSize: 54, color: CoachColors.textPrimary, marginTop: -12 },
   speedControls: { flexDirection: 'row', gap: 32, marginBottom: 40 },
   speedAdjustBtn: {
     width: 52, height: 52, borderRadius: 26, borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center',
   },
   continueBtn: { backgroundColor: CoachColors.accent, paddingVertical: 16, paddingHorizontal: 48 },
-  continueBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.onAccent },
+  continueBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.onAccent },
 
   // Difficulty
   difficultyRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
@@ -955,19 +955,19 @@ const rs = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
   },
   difficultyBtnActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  difficultyBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  difficultyBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
   difficultyBtnTextActive: { color: CoachColors.onAccent },
 
   // PR Result
   prResult: { alignItems: 'center', marginTop: 8 },
-  prResultLabel: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(255,255,255,0.6)', marginBottom: 6 },
-  prResultRange: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 4 },
-  prResultValue: { fontFamily: CoachFonts.headingBold, fontSize: 64, color: CoachColors.textPrimary, lineHeight: 72 },
+  prResultLabel: { fontFamily: CoachFonts.body, fontSize: 17, color: 'rgba(255,255,255,0.6)', marginBottom: 6 },
+  prResultRange: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, marginBottom: 4 },
+  prResultValue: { fontFamily: CoachFonts.headingBold, fontSize: 71.5, color: CoachColors.textPrimary, lineHeight: 80.5 },
   beginRunBtn: {
     backgroundColor: CoachColors.accent, marginHorizontal: 20, paddingVertical: 16,
     alignItems: 'center', marginBottom: Platform.OS === 'ios' ? 90 : 80,
   },
-  beginRunBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.onAccent },
+  beginRunBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.onAccent },
 
   // ── Active Run ──
   activeContainer: { flex: 1 },
@@ -977,15 +977,15 @@ const rs = StyleSheet.create({
   },
   activeNavBtn: { padding: 8 },
   activeTopTitle: {
-    fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: 'rgba(255,255,255,0.7)',
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: 'rgba(255,255,255,0.7)',
     flex: 1, textAlign: 'center',
   },
 
   // Arc
   arcContainer: { alignItems: 'center', marginTop: 8 },
   arcInfo: { position: 'absolute', top: 70, alignItems: 'center' },
-  arcPhaseLabel: { fontFamily: CoachFonts.body, fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
-  arcTime: { fontFamily: CoachFonts.headingBold, fontSize: 36, color: CoachColors.textPrimary },
+  arcPhaseLabel: { fontFamily: CoachFonts.body, fontSize: 15.5, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
+  arcTime: { fontFamily: CoachFonts.headingBold, fontSize: 40.5, color: CoachColors.textPrimary },
 
   // Metrics — centered with divider
   metricsRow: {
@@ -997,16 +997,16 @@ const rs = StyleSheet.create({
     width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.1)',
     alignSelf: 'center',
   },
-  metricLabel: { fontFamily: CoachFonts.body, fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 6 },
-  metricValue: { fontFamily: CoachFonts.headingBold, fontSize: 52, color: CoachColors.textPrimary, lineHeight: 58 },
-  prRef: { fontFamily: CoachFonts.body, fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
+  metricLabel: { fontFamily: CoachFonts.body, fontSize: 15.5, color: 'rgba(255,255,255,0.5)', marginBottom: 6 },
+  metricValue: { fontFamily: CoachFonts.headingBold, fontSize: 58, color: CoachColors.textPrimary, lineHeight: 65 },
+  prRef: { fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
 
   // PR Control — properly centered & aligned
   prSection: {
     alignItems: 'center', marginTop: 36, paddingVertical: 20,
   },
   prLabel: {
-    fontFamily: CoachFonts.body, fontSize: 13, color: 'rgba(255,255,255,0.45)',
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.45)',
     letterSpacing: 0.5, marginBottom: 12,
   },
   prRow: {
@@ -1018,7 +1018,7 @@ const rs = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   prValue: {
-    fontFamily: CoachFonts.headingBold, fontSize: 36, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 40.5, color: CoachColors.textPrimary,
     minWidth: 80, textAlign: 'center',
   },
 
@@ -1045,7 +1045,7 @@ const rs = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   timelineLabels: { flexDirection: 'row', justifyContent: 'space-between' },
-  timelineTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: 'rgba(255,255,255,0.35)' },
+  timelineTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.35)' },
 });
 
 // ─── COMPLETION SCREEN STYLES ────────────────────────────
@@ -1061,15 +1061,15 @@ const cs = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.textPrimary,
     marginBottom: 8,
   },
   classTitle: {
-    fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: 'rgba(255,255,255,0.8)',
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: 'rgba(255,255,255,0.8)',
     textAlign: 'center', marginBottom: 4,
   },
   instructor: {
-    fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(255,255,255,0.5)',
+    fontFamily: CoachFonts.body, fontSize: 17, color: 'rgba(255,255,255,0.5)',
     marginBottom: 36,
   },
 
@@ -1078,8 +1078,8 @@ const cs = StyleSheet.create({
     gap: 24, marginBottom: 32,
   },
   statCol: { alignItems: 'center', minWidth: 64 },
-  statValue: { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary },
-  statLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 },
+  statValue: { fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.45)', marginTop: 4 },
   statDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.12)' },
 
   completionRow: { width: '100%', alignItems: 'center' },
@@ -1088,7 +1088,7 @@ const cs = StyleSheet.create({
     borderRadius: 2, marginBottom: 8, overflow: 'hidden',
   },
   completionFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
-  completionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  completionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: 'rgba(255,255,255,0.5)' },
 
   ratingContainer: {
     alignItems: 'center',
@@ -1097,7 +1097,7 @@ const cs = StyleSheet.create({
   },
   ratingLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 2,
     color: 'rgba(255,255,255,0.4)',
     marginBottom: 12,
@@ -1108,7 +1108,7 @@ const cs = StyleSheet.create({
   },
   syncWarnDetail: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: 'rgba(255,255,255,0.4)',
     textAlign: 'center',
     marginTop: 4,
@@ -1116,7 +1116,7 @@ const cs = StyleSheet.create({
   },
   syncWarn: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
     marginTop: 10,
@@ -1128,10 +1128,10 @@ const cs = StyleSheet.create({
     backgroundColor: CoachColors.accent, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  startAgainText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.onAccent },
+  startAgainText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.onAccent },
   doneBtn: {
     backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 14,
     alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  doneText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: 'rgba(255,255,255,0.7)' },
+  doneText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: 'rgba(255,255,255,0.7)' },
 });

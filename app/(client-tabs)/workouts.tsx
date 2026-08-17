@@ -524,7 +524,7 @@ export default function ClientWorkoutsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back to your programme"
         >
-          <Ionicons name="chevron-back" size={18} color={C.textSecondary} />
+          <Ionicons name="chevron-back" size={20} color={C.textSecondary} />
           <Text style={s.exploreBackText}>Back to your programme</Text>
         </Pressable>
         <ExploreDashboard />
@@ -607,7 +607,7 @@ export default function ClientWorkoutsScreen() {
             <Text style={s.movePillText}>Move to today</Text>
           </Pressable>
         )}
-        {!done && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
+        {!done && <Ionicons name="chevron-forward" size={17} color={C.textFaint} />}
       </Pressable>
     );
   };
@@ -840,12 +840,12 @@ export default function ClientWorkoutsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Library, ${coachFirst}'s classes. Double tap to open the on-demand library`}
         >
-          <Ionicons name="videocam-outline" size={16} color={C.textSecondary} style={s.nodeIcon} />
+          <Ionicons name="videocam-outline" size={18} color={C.textSecondary} style={s.nodeIcon} />
           <View style={{ flex: 1 }}>
             <Text style={s.nodeName}>Library — {coachFirst}'s classes</Text>
             <Text style={s.nodeSub}>On-demand classes and live sessions, any time</Text>
           </View>
-          <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+          <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
         </Pressable>
       </ScrollView>
 
@@ -903,8 +903,8 @@ export default function ClientWorkoutsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
 
-  screenTitle: { fontFamily: F.headingBold, fontSize: 22, color: C.textPrimary },
-  screenSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
+  screenTitle: { fontFamily: F.headingBold, fontSize: 24.5, color: C.textPrimary },
+  screenSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3 },
 
   nodeRow: {
     flexDirection: 'row',
@@ -919,8 +919,8 @@ const s = StyleSheet.create({
   },
   nodeRowDone: { opacity: 0.6 },
   nodeIcon: { width: 20, textAlign: 'center' },
-  nodeName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
-  nodeSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
+  nodeName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
+  nodeSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18 },
 
   // Assignment card anatomy — when-row, done chip, focus line (mirrors the
   // season node cards in WeekSection so both sections speak one language).
@@ -928,7 +928,7 @@ const s = StyleSheet.create({
   whenText: {
     flexShrink: 1,
     fontFamily: F.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: C.textFaint,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -940,8 +940,8 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  doneChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent },
-  focusText: { fontFamily: F.body, fontSize: 11.5, color: C.textSecondary, marginTop: 3, lineHeight: 16 },
+  doneChipText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent },
+  focusText: { fontFamily: F.body, fontSize: 13, color: C.textSecondary, marginTop: 3, lineHeight: 18 },
 
   // Slip recovery — the one-tap move.
   movePill: {
@@ -950,7 +950,7 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
   },
-  movePillText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
+  movePillText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   noteCard: {
     backgroundColor: C.surface,
@@ -960,8 +960,8 @@ const s = StyleSheet.create({
     padding: 15,
     marginTop: 15,
   },
-  noteTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  noteBody: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 4, lineHeight: 18 },
+  noteTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  noteBody: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 4, lineHeight: 20 },
 
   emptyCard: {
     backgroundColor: C.surface,
@@ -979,7 +979,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
-  emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 
   // Section chapters — hairline, eyebrow, one-line sub. The rhythm change is
   // what keeps the column from reading as one flat newspaper.
@@ -992,16 +992,16 @@ const s = StyleSheet.create({
   },
   sectionHeadLabel: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sectionHeadSub: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
-    lineHeight: 17,
+    lineHeight: 19,
     marginTop: 4,
   },
 
@@ -1012,5 +1012,5 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  exploreBackText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  exploreBackText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 });

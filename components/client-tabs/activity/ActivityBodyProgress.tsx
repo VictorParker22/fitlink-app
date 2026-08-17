@@ -55,7 +55,7 @@ export const ActivityBodyProgress: React.FC<ActivityBodyProgressProps> = ({ prog
         <Text style={styles.tagHeader}>Body progress</Text>
         <Text style={styles.title}>Weight trend</Text>
         <View style={styles.emptyState}>
-          <Ionicons name="scale-outline" size={48} color={CoachColors.textFaint} />
+          <Ionicons name="scale-outline" size={54} color={CoachColors.textFaint} />
           <Text style={styles.emptyText}>Log your first weight to start tracking trends</Text>
           <TouchableOpacity
             style={styles.logButtonWrapper}

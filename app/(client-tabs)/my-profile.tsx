@@ -382,7 +382,7 @@ function MenuRow({ label, onPress }: { label: string; onPress: () => void }) {
       accessibilityRole="button"
     >
       <Text style={s.menuLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
+      <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} />
     </TouchableOpacity>
   );
 }
@@ -399,13 +399,13 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
-  name: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },
-  nameSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+  name: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
+  nameSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
   editBtn: {
     borderWidth: 1, borderColor: '#2E322B', borderRadius: 999,
     paddingHorizontal: 13, paddingVertical: 8,
   },
-  editBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: '#C9CEC2' },
+  editBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },
 
   statRow: { flexDirection: 'row', gap: 9, marginTop: 20 },
   statCard: {
@@ -416,12 +416,12 @@ const s = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
   },
-  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
-  statLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 3 },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3 },
 
   sectionLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: CoachColors.textFaint,
@@ -436,13 +436,13 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   visRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 30 },
-  visLabel: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
-  visAlways: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.textMuted },
+  visLabel: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 21.5 },
+  visAlways: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.textMuted },
   visDivider: { height: 1, backgroundColor: '#21241F', marginVertical: 10 },
   visFootnote: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 19,
     color: CoachColors.textFaint,
     marginTop: 14,
     paddingTop: 13,
@@ -462,7 +462,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 14,
   },
-  menuLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  menuLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
 
   exitRow: {
     flexDirection: 'row',
@@ -472,11 +472,11 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
   exitDivider: { width: 1, height: 12, backgroundColor: '#2E322B' },
-  signOutText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
-  leaveText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.danger },
+  signOutText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
+  leaveText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.danger },
 
   deleteRow: { alignItems: 'center', marginTop: 22 },
-  deleteText: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+  deleteText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
 
   // Modal
   modalOverlay: {
@@ -494,11 +494,11 @@ const s = StyleSheet.create({
     borderRadius: 18,
     padding: 22,
   },
-  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
   modalMessage: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14.5,
+    lineHeight: 21.5,
     color: CoachColors.textMuted,
     marginTop: 8,
     marginBottom: 18,
@@ -506,7 +506,7 @@ const s = StyleSheet.create({
   modalStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
   modalInput: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
@@ -526,8 +526,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   modalBtnCancel: { borderWidth: 1, borderColor: '#2E322B' },
-  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: '#C9CEC2' },
+  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: '#C9CEC2' },
   modalBtnConfirm: { backgroundColor: CoachColors.danger },
   // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
-  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 });

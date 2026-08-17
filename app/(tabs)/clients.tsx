@@ -223,7 +223,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -253,7 +253,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
                       <ActivityIndicator size="small" color={CoachColors.accent} />
                     ) : (
                       <View style={[styles.habitCheck, done && styles.habitCheckDone]}>
-                        {done && <Ionicons name="checkmark" size={14} color={CoachColors.onAccent} />}
+                        {done && <Ionicons name="checkmark" size={16} color={CoachColors.onAccent} />}
                       </View>
                     )}
                   </TouchableOpacity>
@@ -346,7 +346,7 @@ function SwipeActionsPanel({ prog, actions }: SwipeActionsPanelProps) {
           accessibilityRole="button"
           accessibilityLabel={a.a11yLabel}
         >
-          <Ionicons name={a.icon as any} size={18} color={CoachColors.textPrimary} />
+          <Ionicons name={a.icon as any} size={20} color={CoachColors.textPrimary} />
           <Text style={styles.swipeBtnLabel}>{a.label}</Text>
         </TouchableOpacity>
       ))}
@@ -789,7 +789,7 @@ export default function ClientsScreen() {
     <View>
       {/* Search */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={15} color={CoachColors.textFaint} />
+        <Ionicons name="search" size={17} color={CoachColors.textFaint} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search athletes"
@@ -810,7 +810,7 @@ export default function ClientsScreen() {
             accessibilityRole="button"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
+            <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
           </TouchableOpacity>
         )}
       </View>
@@ -905,7 +905,7 @@ export default function ClientsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open workout and pass library"
             >
-              <Ionicons name="barbell-outline" size={16} color={CoachColors.textPrimary} />
+              <Ionicons name="barbell-outline" size={18} color={CoachColors.textPrimary} />
               <Text style={styles.libraryBtnText}>Library</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -915,7 +915,7 @@ export default function ClientsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Add new athlete"
             >
-              <Ionicons name="add" size={18} color={CoachColors.onAccent} />
+              <Ionicons name="add" size={20} color={CoachColors.onAccent} />
               <Text style={styles.addBtnText}>Add</Text>
             </TouchableOpacity>
           </View>
@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   libraryBtnText: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary,
   },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
   // Section
   sectionBlock: { paddingHorizontal: W * 0.05, marginBottom: 14 },
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase',
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, letterSpacing: 1.1, textTransform: 'uppercase',
     color: CoachColors.textFaint, marginBottom: 10,
   },
 
@@ -1090,14 +1090,14 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, borderWidth: 1.5,
     backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
   },
-  attnAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 15 },
+  attnAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 17 },
   attnBody: { flex: 1, gap: 2 },
   attnNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   attnName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037), color: CoachColors.textPrimary, flexShrink: 1 },
   attnTag: {
     borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2,
   },
-  attnTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.3 },
+  attnTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.3 },
   attnMeta: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted },
   attnCta: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.032), color: CoachColors.accent },
 
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: CoachColors.bg,
   },
   // onAccent (dark ink) on the solid danger fill: 5.75:1. textPrimary was 2.82:1.
-  unreadDotText: { fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.onAccent },
+  unreadDotText: { fontFamily: CoachFonts.bodyBold, fontSize: 9, color: CoachColors.onAccent },
 
   // Card body
   cardBody: { flex: 1, justifyContent: 'center', gap: 3 },
@@ -1150,7 +1150,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   setupBadgeText: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 8, color: CoachColors.warning, letterSpacing: 0.3,
+    fontFamily: CoachFonts.bodyBold, fontSize: 9, color: CoachColors.warning, letterSpacing: 0.3,
   },
   activeTodayDot: {
     width: 7, height: 7, borderRadius: 3.5,
@@ -1171,8 +1171,8 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
   },
-  statCardLabel: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
-  statCardValue: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.textPrimary, marginTop: 2 },
+  statCardLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  statCardValue: { fontFamily: CoachFonts.bodyBold, fontSize: 19, color: CoachColors.textPrimary, marginTop: 2 },
 
   // Swipe actions panel
   // Width is driven by the ACTIONS_W constant (responsive, no hard-coded px)
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: CoachColors.accent,
     backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
   },
-  requestAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.accent },
+  requestAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.accent },
   requestActions: { flexDirection: 'row', gap: 8 },
   requestAcceptBtn: {
     flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.048), color: CoachColors.textPrimary },
-  sheetSub: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.031), color: CoachColors.textMuted, marginTop: 4, lineHeight: 18 },
+  sheetSub: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.031), color: CoachColors.textMuted, marginTop: 4, lineHeight: 20 },
   sheetLoading: { paddingVertical: 40, alignItems: 'center' },
   sheetFootnote: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.029), color: CoachColors.textFaint,
@@ -1255,7 +1255,7 @@ const styles = StyleSheet.create({
   },
   emptyHeroSub: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.033),
-    color: CoachColors.textSecondary, marginTop: 8, lineHeight: 20,
+    color: CoachColors.textSecondary, marginTop: 8, lineHeight: 22.5,
   },
   emptyHeroBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999,
@@ -1270,7 +1270,7 @@ const styles = StyleSheet.create({
   emptyPreviewLineSub: { height: 9, borderRadius: 3, backgroundColor: '#1E211D' },
   emptyPreviewCaption: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted,
-    marginTop: 14, lineHeight: 19,
+    marginTop: 14, lineHeight: 21.5,
   },
 
   // Empty state — filtered tab with no results

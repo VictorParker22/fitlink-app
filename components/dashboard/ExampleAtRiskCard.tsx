@@ -32,7 +32,7 @@ export default function ExampleAtRiskCard({ onDismiss }: { onDismiss: () => void
           accessibilityRole="button"
           accessibilityLabel="Dismiss example card"
         >
-          <Ionicons name="close" size={16} color={CoachColors.textFaint} />
+          <Ionicons name="close" size={18} color={CoachColors.textFaint} />
         </TouchableOpacity>
       </View>
 
@@ -78,7 +78,7 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
   exampleChip: {
@@ -90,7 +90,7 @@ const s = StyleSheet.create({
   },
   exampleChipText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.4,
   },
@@ -115,17 +115,17 @@ const s = StyleSheet.create({
   },
   avatarText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
   },
   rowName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   rowDetail: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -138,14 +138,14 @@ const s = StyleSheet.create({
   },
   rowTagText: {
     fontFamily: CoachFonts.body,
-    fontSize: 9.5,
+    fontSize: 10.5,
     color: CoachColors.textFaint,
   },
   caption: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
-    lineHeight: 16,
+    lineHeight: 18,
     marginTop: 12,
   },
 });

@@ -166,7 +166,7 @@ function CheckInCard({
         {/* Reply indicator */}
         {hasReplied && (
           <View style={c.repliedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={CoachColors.accent} />
+            <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
           </View>
         )}
 
@@ -189,7 +189,7 @@ function CheckInCard({
                 accessible
                 accessibilityLabel={`${m.label}, ${(item as any)[m.key] || 'not rated'} out of 5`}
               >
-                <Ionicons name={m.icon as any} size={13} color={CoachColors.textMuted} style={c.ratingIcon} />
+                <Ionicons name={m.icon as any} size={15} color={CoachColors.textMuted} style={c.ratingIcon} />
                 <Text style={c.ratingLabel}>{m.label}</Text>
                 <RatingBar value={(item as any)[m.key] || 0} />
                 <Text style={c.ratingVal}>
@@ -255,7 +255,7 @@ function CheckInCard({
               <ActivityIndicator size="small" color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="send" size={14} color={note.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
+                <Ionicons name="send" size={16} color={note.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
                 <Text style={[c.replyBtnText, !note.trim() && c.replyBtnTextDisabled]}>
                   {hasReplied ? 'Update reply' : 'Send reply'}
                 </Text>
@@ -415,7 +415,7 @@ const s = StyleSheet.create({
   },
   tagHeader: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -423,7 +423,7 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
@@ -442,7 +442,7 @@ const s = StyleSheet.create({
   },
   unrepliedText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     letterSpacing: 0.3,
   },
@@ -478,18 +478,18 @@ const c = StyleSheet.create({
   },
   avatarText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.accent,
   },
   clientName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   weekLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -502,7 +502,7 @@ const c = StyleSheet.create({
   },
   scoreText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     letterSpacing: 0.3,
   },
   repliedBadge: {
@@ -527,13 +527,13 @@ const c = StyleSheet.create({
   ratingIcon: { width: 20, textAlign: 'center' },
   ratingLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
     width: 50,
   },
   ratingVal: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     width: 20,
     textAlign: 'right',
     letterSpacing: 0.3,
@@ -549,16 +549,16 @@ const c = StyleSheet.create({
   },
   textBlockLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   textBlockBody: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
 
   divider: {
@@ -569,7 +569,7 @@ const c = StyleSheet.create({
   // Reply
   replyLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     letterSpacing: 0.3,
   },
@@ -581,7 +581,7 @@ const c = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     minHeight: 44,
   },
@@ -601,7 +601,7 @@ const c = StyleSheet.create({
   },
   replyBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.onAccent,
     letterSpacing: -0.1,
   },

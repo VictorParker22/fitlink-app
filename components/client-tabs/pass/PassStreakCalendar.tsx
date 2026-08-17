@@ -146,7 +146,7 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
       <View style={styles.streakHeader}>
         <Text style={styles.sectionHeader}>Current streak</Text>
         <View style={styles.fireBadge}>
-          <Ionicons name="flame" size={12} color={CoachColors.accent} />
+          <Ionicons name="flame" size={13} color={CoachColors.accent} />
           <Text style={styles.fireBadgeText}>{currentStreak}</Text>
         </View>
       </View>
@@ -157,7 +157,7 @@ export default function PassStreakCalendar({ currentStreak, workouts, mealLogs }
             <View style={styles.circleContainer}>
               {day.status === 'completed' && (
                 <View style={[styles.circle, styles.circleCompleted]}>
-                  <Ionicons name="checkmark-sharp" size={20} color={CoachColors.onAccent} />
+                  <Ionicons name="checkmark-sharp" size={22} color={CoachColors.onAccent} />
                 </View>
               )}
               {day.status === 'today' && (
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2,
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
   fireBadge: {
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   fireBadgeText: {
     color: CoachColors.accent,
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
   },
   stripContainer: {
     flexDirection: 'row',
@@ -294,10 +294,10 @@ const styles = StyleSheet.create({
   missedText: {
     color: CoachColors.textFaint,
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
   },
   dayLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     fontFamily: CoachFonts.bodySemiBold,
   },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
   },
   gridHeaderLabel: {
-    fontSize: 8,
+    fontSize: 9,
     color: CoachColors.textFaint,
     fontFamily: CoachFonts.bodyBold,
     width: 10,

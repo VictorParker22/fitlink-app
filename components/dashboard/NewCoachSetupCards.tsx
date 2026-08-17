@@ -157,7 +157,7 @@ export default function NewCoachSetupCards() {
                   isNext && styles.checkCircleNext,
                 ]}>
                   {item.complete ? (
-                    <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />
+                    <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />
                   ) : (
                     <Text style={[styles.checkNumber, isNext && styles.checkNumberNext]}>
                       {index + 1}
@@ -238,12 +238,12 @@ const styles = StyleSheet.create({
   },
   ringNumber: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   ringOf: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   headerText: {
@@ -252,12 +252,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
 
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   checkNumber: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
   },
   checkNumberNext: {
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   checkLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
   },
   checkLabelDone: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   checkSublabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 2,
   },

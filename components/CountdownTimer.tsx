@@ -117,12 +117,12 @@ const styles = StyleSheet.create({
   },
   segmentValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     letterSpacing: -0.5,
   },
   segmentLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 0.5,
     marginTop: 4,
     position: 'absolute',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   segmentSeparator: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     marginTop: -4,
   },
   expiredContainer: {
@@ -144,6 +144,6 @@ const styles = StyleSheet.create({
   },
   expiredText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
   },
 });

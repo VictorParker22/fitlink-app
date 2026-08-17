@@ -460,7 +460,7 @@ export default function PassTrackEditorScreen() {
             {!isActive && index > 0 && <View style={st.railLineTop} />}
             <View style={[st.marker, isMilestone && st.markerMilestone, isActive && st.markerActive]}>
               {isMilestone ? (
-                <Ionicons name="trophy" size={18} color={CoachColors.accent} />
+                <Ionicons name="trophy" size={20} color={CoachColors.accent} />
               ) : (
                 <Text style={st.markerText}>{index + 1}</Text>
               )}
@@ -475,7 +475,7 @@ export default function PassTrackEditorScreen() {
             onLongPress={drag}
           >
             <View style={st.trackCardIcon}>
-              <Ionicons name={getNodeIcon(node)} size={19} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
+              <Ionicons name={getNodeIcon(node)} size={21} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
             </View>
 
             <View style={st.trackCardInfo}>
@@ -484,11 +484,11 @@ export default function PassTrackEditorScreen() {
             </View>
 
             <TouchableOpacity onPressIn={drag} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={st.dragHandle}>
-              <Ionicons name="reorder-three-outline" size={22} color={CoachColors.textFaint} />
+              <Ionicons name="reorder-three-outline" size={25} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => removeNode(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={st.removeBtn}>
-              <Ionicons name="close" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="close" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           </TouchableOpacity>
         </View>
@@ -501,7 +501,7 @@ export default function PassTrackEditorScreen() {
       {/* ── HEADER ── */}
       <View style={st.header}>
         <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.closeBtn}>
-          <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={st.headerTitle}>Track editor</Text>
@@ -526,7 +526,7 @@ export default function PassTrackEditorScreen() {
               <Text style={st.previewLabel}>Track preview</Text>
               {track.length === 0 ? (
                 <View style={st.previewEmpty}>
-                  <Ionicons name="map-outline" size={22} color={CoachColors.textFaint} />
+                  <Ionicons name="map-outline" size={25} color={CoachColors.textFaint} />
                   <Text style={st.previewEmptyText}>Add workouts and milestones below</Text>
                 </View>
               ) : (
@@ -537,7 +537,7 @@ export default function PassTrackEditorScreen() {
                       <View key={idx} style={st.previewNodeWrap}>
                         {idx > 0 && <View style={st.previewConnector} />}
                         <View style={[st.previewNode, isMilestone && st.previewNodeMilestone]}>
-                          <Ionicons name={getNodeIcon(node)} size={16} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
+                          <Ionicons name={getNodeIcon(node)} size={18} color={isMilestone ? CoachColors.accent : CoachColors.textSecondary} />
                         </View>
                         <Text style={st.previewNodeLabel} numberOfLines={1}>{getNodeLabel(node)}</Text>
                       </View>
@@ -572,7 +572,7 @@ export default function PassTrackEditorScreen() {
             {showMilestoneInput && (
               <View style={st.milestoneInput}>
                 <View style={st.milestoneInputRow}>
-                  <Ionicons name="trophy-outline" size={18} color={CoachColors.accent} />
+                  <Ionicons name="trophy-outline" size={20} color={CoachColors.accent} />
                   <TextInput
                     style={st.milestoneTextInput}
                     placeholder="e.g. Week 1 complete"
@@ -583,7 +583,7 @@ export default function PassTrackEditorScreen() {
                     autoFocus
                   />
                   <TouchableOpacity hitSlop={7} onPress={addMilestone} style={st.milestoneAddBtn}>
-                    <Ionicons name="add" size={18} color={CoachColors.onAccent} />
+                    <Ionicons name="add" size={20} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity onPress={() => setShowMilestoneInput(false)}>
@@ -616,7 +616,7 @@ export default function PassTrackEditorScreen() {
               {activeTab === 'workouts' ? (
                 workouts.length === 0 ? (
                   <View style={st.emptyContent}>
-                    <Ionicons name="barbell-outline" size={26} color={CoachColors.textFaint} />
+                    <Ionicons name="barbell-outline" size={29} color={CoachColors.textFaint} />
                     <Text style={st.emptyContentText}>No workouts in your library yet</Text>
                   </View>
                 ) : (
@@ -631,7 +631,7 @@ export default function PassTrackEditorScreen() {
                           activeOpacity={0.7}
                         >
                           <View style={st.contentIcon}>
-                            <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+                            <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
                           </View>
                           <View style={st.contentInfo}>
                             <Text style={st.contentName} numberOfLines={1}>{w.name}</Text>
@@ -651,7 +651,7 @@ export default function PassTrackEditorScreen() {
                             </TouchableOpacity>
                           )}
                           <View style={st.addContentBtn}>
-                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                            <Ionicons name="add" size={20} color={CoachColors.accent} />
                           </View>
                         </TouchableOpacity>
                       );
@@ -661,7 +661,7 @@ export default function PassTrackEditorScreen() {
               ) : activeTab === 'classes' ? (
                 publishedClasses.length === 0 ? (
                   <View style={st.emptyContent}>
-                    <Ionicons name="videocam-outline" size={26} color={CoachColors.textFaint} />
+                    <Ionicons name="videocam-outline" size={29} color={CoachColors.textFaint} />
                     <Text style={st.emptyContentText}>
                       {classes.length === 0
                         ? 'No classes in your library yet'
@@ -686,7 +686,7 @@ export default function PassTrackEditorScreen() {
                           activeOpacity={0.7}
                         >
                           <View style={st.contentIcon}>
-                            <Ionicons name="videocam-outline" size={18} color={CoachColors.textSecondary} />
+                            <Ionicons name="videocam-outline" size={20} color={CoachColors.textSecondary} />
                           </View>
                           <View style={st.contentInfo}>
                             <Text style={st.contentName} numberOfLines={1}>{c.title}</Text>
@@ -706,7 +706,7 @@ export default function PassTrackEditorScreen() {
                             </TouchableOpacity>
                           )}
                           <View style={st.addContentBtn}>
-                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                            <Ionicons name="add" size={20} color={CoachColors.accent} />
                           </View>
                         </TouchableOpacity>
                       );
@@ -716,7 +716,7 @@ export default function PassTrackEditorScreen() {
               ) : (
                 diets.length === 0 ? (
                   <View style={st.emptyContent}>
-                    <Ionicons name="nutrition-outline" size={26} color={CoachColors.textFaint} />
+                    <Ionicons name="nutrition-outline" size={29} color={CoachColors.textFaint} />
                     <Text style={st.emptyContentText}>No meal plans in your library yet</Text>
                   </View>
                 ) : (
@@ -731,7 +731,7 @@ export default function PassTrackEditorScreen() {
                           activeOpacity={0.7}
                         >
                           <View style={st.contentIcon}>
-                            <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                            <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
                           </View>
                           <View style={st.contentInfo}>
                             <Text style={st.contentName} numberOfLines={1}>{d.name}</Text>
@@ -751,7 +751,7 @@ export default function PassTrackEditorScreen() {
                             </TouchableOpacity>
                           )}
                           <View style={st.addContentBtn}>
-                            <Ionicons name="add" size={18} color={CoachColors.accent} />
+                            <Ionicons name="add" size={20} color={CoachColors.accent} />
                           </View>
                         </TouchableOpacity>
                       );
@@ -890,15 +890,15 @@ const st = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.textPrimary, textAlign: 'center' },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, textAlign: 'center' },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
   saveBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
-  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // Preview
   previewSection: { paddingHorizontal: 20, paddingTop: 18, marginBottom: 20 },
   previewLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5,
     color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 12,
   },
   previewEmpty: {
@@ -906,7 +906,7 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 16,
     borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
   },
-  previewEmptyText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  previewEmptyText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   previewTrack: { paddingVertical: 6, gap: 0 },
   previewNodeWrap: { alignItems: 'center', width: 72, position: 'relative' },
   previewConnector: {
@@ -920,12 +920,12 @@ const st = StyleSheet.create({
     overflow: 'hidden',
   },
   previewNodeMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
-  previewNodeLabel: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted, textAlign: 'center' },
+  previewNodeLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center' },
 
   // Section
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5,
     color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 12,
   },
 
@@ -940,7 +940,7 @@ const st = StyleSheet.create({
   },
   markerMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
   markerActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.bg },
-  markerText: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: CoachColors.textSecondary },
+  markerText: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: CoachColors.textSecondary },
 
   trackCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -959,8 +959,8 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   trackCardInfo: { flex: 1, gap: 2 },
-  trackCardName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  trackCardSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  trackCardName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  trackCardSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   dragHandle: { padding: 4 },
   removeBtn: { padding: 4, marginLeft: 2 },
 
@@ -971,7 +971,7 @@ const st = StyleSheet.create({
     borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9,
   },
   quickAddPillAccent: { borderColor: 'rgba(198,242,78,0.4)' },
-  quickAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  quickAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
 
   // Milestone Input
   milestoneInput: { paddingHorizontal: 20, marginBottom: 18, gap: 8 },
@@ -981,13 +981,13 @@ const st = StyleSheet.create({
     paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
   milestoneTextInput: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, paddingVertical: 14,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 14,
   },
   milestoneAddBtn: {
     width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  cancelText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, textAlign: 'center' },
+  cancelText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, textAlign: 'center' },
 
   // Tabs
   tabs: {
@@ -1000,7 +1000,7 @@ const st = StyleSheet.create({
     gap: 6, paddingVertical: 10, borderRadius: 11,
   },
   tabActive: { backgroundColor: CoachColors.borderMuted },
-  tabText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textFaint },
+  tabText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textFaint },
   tabTextActive: { color: CoachColors.textPrimary },
 
   // Content List
@@ -1015,8 +1015,8 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   contentInfo: { flex: 1, gap: 2 },
-  contentName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  contentSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  contentName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  contentSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   addContentBtn: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
@@ -1025,19 +1025,19 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 6, marginRight: 2,
   },
-  everyWeekText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent },
+  everyWeekText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent },
 
   // Empty
   emptyContent: { alignItems: 'center', paddingVertical: 30, gap: 8 },
-  emptyContentText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  emptyContentText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
 
   // 21b review overlay
   reviewOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: CoachColors.bg, paddingHorizontal: 20,
   },
-  reviewTitle: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary, marginTop: 22 },
-  reviewSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 6, lineHeight: 19 },
+  reviewTitle: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary, marginTop: 22 },
+  reviewSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 6, lineHeight: 21.5 },
 
   changeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -1047,12 +1047,12 @@ const st = StyleSheet.create({
   changeIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   changeIconAdded: { backgroundColor: CoachColors.accentSoft },
   changeIconRemoved: { backgroundColor: CoachColors.warningSoft },
-  changeIconText: { fontFamily: CoachFonts.headingBold, fontSize: 17 },
-  changeName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  changeWeek: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2, lineHeight: 17 },
+  changeIconText: { fontFamily: CoachFonts.headingBold, fontSize: 19 },
+  changeName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  changeWeek: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2, lineHeight: 19 },
 
   reviewEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 26, marginBottom: 10,
   },
   radioCard: {
@@ -1065,36 +1065,36 @@ const st = StyleSheet.create({
     width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: CoachColors.border, marginTop: 1,
   },
   radioDotSelected: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accent },
-  radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  radioSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 4, lineHeight: 18 },
+  radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  radioSub: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 4, lineHeight: 20 },
 
   notifyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 14,
   },
-  notifyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  notifySub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
-  notifyEdit: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
+  notifyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  notifySub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
+  notifyEdit: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent },
   messageInput: {
-    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 14, padding: 14, marginTop: 10, minHeight: 88, textAlignVertical: 'top', lineHeight: 19,
+    borderRadius: 14, padding: 14, marginTop: 10, minHeight: 88, textAlignVertical: 'top', lineHeight: 21.5,
   },
-  noNotifyNote: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 14 },
+  noNotifyNote: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint, marginTop: 14 },
 
   reviewFooter: { flexDirection: 'row', gap: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
   backOutlineBtn: {
     paddingHorizontal: 22, paddingVertical: 14, borderRadius: 999,
     borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
   },
-  backOutlineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  backOutlineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
   publishBtn: {
     flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
   },
-  publishBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
+  publishBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },
 
   // Not Found
-  notFoundText: { fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textMuted, textAlign: 'center', marginTop: 100 },
+  notFoundText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textMuted, textAlign: 'center', marginTop: 100 },
 });

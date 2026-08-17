@@ -118,7 +118,7 @@ export const RevenueIntelligenceCard: React.FC = () => {
               <Text style={styles.funnelLabel}>{item.label}</Text>
             </View>
             {i < arr.length - 1 && (
-              <Ionicons name="chevron-forward" size={12} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={13} color={CoachColors.textFaint} />
             )}
           </React.Fragment>
         ))}
@@ -151,12 +151,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   tapHint: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
   figureRow: {
@@ -167,14 +167,14 @@ const styles = StyleSheet.create({
   },
   figureLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.3,
     marginBottom: 2,
   },
   figureValue: {
     fontFamily: CoachFonts.mono,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   riskText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.warning,
     flex: 1,
   },
@@ -206,12 +206,12 @@ const styles = StyleSheet.create({
   },
   funnelValue: {
     fontFamily: CoachFonts.mono,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   funnelLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
 });

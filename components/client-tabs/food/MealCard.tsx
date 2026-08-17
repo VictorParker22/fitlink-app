@@ -108,7 +108,7 @@ export default function MealCard({
             <Image source={{ uri: imageUrl }} style={st.plate} contentFit="cover" transition={180} />
           ) : (
             <View style={[st.plate, st.plateEmpty, { borderColor: palette.inkSoft }]}>
-              <Ionicons name="restaurant-outline" size={26} color={palette.inkSoft} />
+              <Ionicons name="restaurant-outline" size={29} color={palette.inkSoft} />
             </View>
           )}
         </View>
@@ -142,7 +142,7 @@ export default function MealCard({
           accessibilityRole="button"
           accessibilityLabel={swapLabel || `Swap ${meal.name}`}
         >
-          <Ionicons name="swap-horizontal" size={19} color={palette.ink} />
+          <Ionicons name="swap-horizontal" size={21} color={palette.ink} />
         </Pressable>
       )}
     </Animated.View>
@@ -159,10 +159,10 @@ const st = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
   },
   title: {
-    fontFamily: F.headingBold, fontSize: 27, lineHeight: 30,
+    fontFamily: F.headingBold, fontSize: 30, lineHeight: 33.5,
     letterSpacing: -0.4, marginTop: 18,
   },
   bottomRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 10 },
-  meta: { fontFamily: F.bodyMedium, fontSize: 13, marginBottom: 6 },
+  meta: { fontFamily: F.bodyMedium, fontSize: 14.5, marginBottom: 6 },
   arrowBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
 });

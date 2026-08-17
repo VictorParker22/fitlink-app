@@ -333,7 +333,7 @@ export default function ExploreDashboard() {
             transition={160}
           />
         ) : null}
-        <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+        <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
       </Pressable>
     );
   };
@@ -459,7 +459,7 @@ export default function ExploreDashboard() {
                 accessibilityLabel={`See all ${classRows.length} classes. Double tap to open the full list`}
               >
                 <Text style={s.moreRowText}>See all {classRows.length} classes</Text>
-                <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+                <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
               </Pressable>
             )}
           </>
@@ -475,8 +475,8 @@ export default function ExploreDashboard() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
 
-  screenTitle: { fontFamily: F.headingBold, fontSize: 22, color: C.textPrimary },
-  screenSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
+  screenTitle: { fontFamily: F.headingBold, fontSize: 24.5, color: C.textPrimary },
+  screenSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3 },
 
   // Section chapters — hairline, eyebrow, one-line sub (workouts.tsx rhythm).
   sectionHead: {
@@ -488,16 +488,16 @@ const s = StyleSheet.create({
   },
   sectionHeadLabel: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sectionHeadSub: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
-    lineHeight: 17,
+    lineHeight: 19,
     marginTop: 4,
   },
 
@@ -520,7 +520,7 @@ const s = StyleSheet.create({
   whenText: {
     flexShrink: 1,
     fontFamily: F.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: C.textFaint,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -529,8 +529,8 @@ const s = StyleSheet.create({
   liveDotWrap: { justifyContent: 'center' },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
 
-  nodeName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
-  nodeSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
+  nodeName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
+  nodeSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18 },
 
   thumb: { width: 64, height: 48, borderRadius: 10, backgroundColor: C.borderMuted },
 
@@ -540,7 +540,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  joinPillText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.onAccent },
+  joinPillText: { fontFamily: F.bodyBold, fontSize: 14, color: C.onAccent },
 
   // Category chips — derived from real rows, and they really filter.
   chipRow: { marginBottom: 12, marginHorizontal: -20 },
@@ -556,7 +556,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   chipActive: { backgroundColor: C.accentSoft, borderColor: C.accent },
-  chipText: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary },
+  chipText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
   chipTextActive: { color: C.accent },
 
   moreRow: {
@@ -567,7 +567,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 2,
     marginTop: 2,
   },
-  moreRowText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  moreRowText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 
   noteCard: {
     backgroundColor: C.surface,
@@ -577,8 +577,8 @@ const s = StyleSheet.create({
     padding: 15,
     marginTop: 18,
   },
-  noteTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  noteBody: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 4, lineHeight: 18 },
+  noteTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  noteBody: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 4, lineHeight: 20 },
   noteBtn: {
     borderWidth: 1,
     borderColor: C.border,
@@ -587,5 +587,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
-  noteBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  noteBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 });

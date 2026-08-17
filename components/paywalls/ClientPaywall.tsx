@@ -114,7 +114,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity hitSlop={6} style={s.closeBtn} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close paywall">
-            <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -126,7 +126,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
           {/* Hero */}
           <View style={s.hero}>
             <View style={s.heroIconWrap}>
-              <Ionicons name="flash" size={32} color={CoachColors.accent} />
+              <Ionicons name="flash" size={36} color={CoachColors.accent} />
             </View>
             <Text style={s.heroTag}>FitLink premium</Text>
             <Text style={s.heroTitle}>Train smarter.{'\n'}Every day.</Text>
@@ -140,7 +140,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
             {FEATURES.map((f, i) => (
               <View key={i} style={s.featureRow}>
                 <View style={s.featureIcon}>
-                  <Ionicons name={f.icon as any} size={18} color={CoachColors.accent} />
+                  <Ionicons name={f.icon as any} size={20} color={CoachColors.accent} />
                 </View>
                 <Text style={s.featureText}>{f.text}</Text>
               </View>
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
   },
   heroTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -280,19 +280,19 @@ const s = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 30,
+    fontSize: 33.5,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
-    lineHeight: 36,
+    lineHeight: 40.5,
     marginBottom: 12,
   },
   heroSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24.5,
   },
 
   // Features
@@ -313,7 +313,7 @@ const s = StyleSheet.create({
   },
   featureText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
 
@@ -348,13 +348,13 @@ const s = StyleSheet.create({
   },
   saveBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
   planLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -362,14 +362,14 @@ const s = StyleSheet.create({
   planLabelSelected: { color: CoachColors.accent },
   planPrice: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textMuted,
     letterSpacing: -0.5,
   },
   planPriceSelected: { color: CoachColors.textPrimary },
   planPeriod: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
   },
   planPeriodSelected: { color: CoachColors.textSecondary },
@@ -385,7 +385,7 @@ const s = StyleSheet.create({
   },
   ctaText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.onAccent,
     letterSpacing: -0.3,
   },
@@ -393,16 +393,16 @@ const s = StyleSheet.create({
   // Legal
   legal: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
     marginBottom: 12,
   },
   restoreBtn: { alignItems: 'center', paddingVertical: 10 },
   restoreText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
   },

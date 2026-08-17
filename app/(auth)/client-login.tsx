@@ -96,7 +96,7 @@ export default function ClientLoginScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={18} color="#C9CEC2" />
+            <Ionicons name="chevron-back" size={20} color="#C9CEC2" />
           </TouchableOpacity>
 
           <Text style={st.title}>Welcome back</Text>
@@ -110,13 +110,13 @@ export default function ClientLoginScreen() {
               accessibilityLiveRegion="assertive"
               accessibilityLabel={`Sign in failed. ${error}`}
             >
-              <Ionicons name="alert-circle" size={17} color={C.danger} />
+              <Ionicons name="alert-circle" size={19} color={C.danger} />
               <Text style={st.errorText}>{error}</Text>
             </View>
           ) : null}
           {success ? (
             <View style={st.messageBox}>
-              <Ionicons name="checkmark-circle" size={17} color={C.accent} />
+              <Ionicons name="checkmark-circle" size={19} color={C.accent} />
               <Text style={st.successText}>{success}</Text>
             </View>
           ) : null}
@@ -219,44 +219,44 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   title: {
-    fontFamily: F.headingBold, fontSize: 27, lineHeight: 32,
+    fontFamily: F.headingBold, fontSize: 30, lineHeight: 36,
     color: C.textPrimary, marginTop: 26,
   },
-  subtitle: { fontFamily: F.body, fontSize: 13, lineHeight: 20, color: C.textMuted, marginTop: 9, marginBottom: 26 },
+  subtitle: { fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textMuted, marginTop: 9, marginBottom: 26 },
 
   messageBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
-  errorText: { fontFamily: F.body, fontSize: 13, color: C.danger, flex: 1 },
-  successText: { fontFamily: F.body, fontSize: 13, color: C.accent, flex: 1 },
+  errorText: { fontFamily: F.body, fontSize: 14.5, color: C.danger, flex: 1 },
+  successText: { fontFamily: F.body, fontSize: 14.5, color: C.accent, flex: 1 },
 
   field: { marginBottom: 11 },
-  fieldLabel: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginBottom: 7 },
+  fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
   input: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 14, paddingVertical: 15, paddingHorizontal: 15,
-    fontFamily: F.bodyMedium, fontSize: 15, color: C.textPrimary,
+    fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
   },
   passwordWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14,
   },
   showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
-  showText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
+  showText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   forgotRow: { alignSelf: 'flex-start', marginTop: 4, marginBottom: 20, paddingVertical: 4 },
-  forgotText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: '#C9CEC2' },
+  forgotText: { fontFamily: F.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
 
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, paddingVertical: 16, alignItems: 'center',
   },
-  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
+  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.onAccent },
   btnDisabled: { opacity: 0.5 },
 
   footerRow: { alignItems: 'center', marginTop: 20, paddingVertical: 8 },
-  footerText: { fontFamily: F.body, fontSize: 13, color: C.textMuted },
+  footerText: { fontFamily: F.body, fontSize: 14.5, color: C.textMuted },
   footerLink: { fontFamily: F.bodySemiBold, color: C.accent },
 
   coachRow: { alignItems: 'center', paddingVertical: 8, marginTop: 16 },

@@ -145,7 +145,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       <View style={styles.header}>
         <Text style={styles.tagHeader}>Log activity</Text>
         <TouchableOpacity hitSlop={12} onPress={onClose}>
-          <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
+          <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -154,7 +154,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       <TouchableOpacity style={styles.typeSelector} onPress={() => setScreen('picker')}>
         <View style={styles.categoryDot} />
         <Text style={styles.typeSelectorText}>{selectedType.name}</Text>
-        <Ionicons name="chevron-down" size={20} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-down" size={22} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <TextInput
@@ -227,7 +227,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
 
       <TouchableOpacity style={styles.notesToggle} onPress={() => setShowNotes(!showNotes)}>
         <Text style={styles.notesToggleText}>Add notes</Text>
-        <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textPrimary} />
+        <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={22} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       {showNotes && (
@@ -269,7 +269,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
     <View style={styles.pickerContainer}>
       <View style={styles.pickerHeader}>
         <TouchableOpacity onPress={() => setScreen('form')} style={styles.pickerBack}>
-          <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.pickerTitle}>Select activity type</Text>
       </View>
@@ -278,7 +278,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         styles.searchBar,
         { borderColor: isSearchFocused ? CoachColors.accent : CoachColors.bg }
       ]}>
-        <Ionicons name="search" size={20} color={CoachColors.textMuted} style={styles.searchIcon} />
+        <Ionicons name="search" size={22} color={CoachColors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search activity..."
@@ -372,14 +372,14 @@ const styles = StyleSheet.create({
   },
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   modalTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.xl,
   },
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
   dayName: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     marginBottom: 4,
   },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   pickerTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   searchBar: {

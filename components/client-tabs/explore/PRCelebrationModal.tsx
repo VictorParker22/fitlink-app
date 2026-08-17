@@ -228,7 +228,7 @@ export default function PRCelebrationModal({
 
             {/* Trophy */}
             <Animated.View style={[s.trophy, { transform: [{ scale: trophyScale }] }]}>
-              <Ionicons name="trophy" size={64} color={CoachColors.accent} />
+              <Ionicons name="trophy" size={72} color={CoachColors.accent} />
             </Animated.View>
 
             {/* Badge */}
@@ -309,21 +309,21 @@ const s = StyleSheet.create({
   },
   badgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.onAccent,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   weight: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 72,
+    fontSize: 80.5,
     color: CoachColors.textPrimary,
-    lineHeight: 78,
+    lineHeight: 87.5,
     textAlign: 'center',
   },
   weightUnit: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     marginTop: 2,
@@ -331,22 +331,22 @@ const s = StyleSheet.create({
   },
   exerciseName: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   sub: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   hint: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.5,
   },

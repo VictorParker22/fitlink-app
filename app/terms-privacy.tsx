@@ -85,7 +85,7 @@ export default function TermsPrivacyScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Terms & privacy</Text>
         <View style={{ width: 36 }} />
@@ -114,12 +114,12 @@ export default function TermsPrivacyScreen() {
         ))}
 
         <TouchableOpacity style={s.contactCard} activeOpacity={0.7} onPress={openPrivacyEmail}>
-          <Ionicons name="mail-outline" size={18} color={CoachColors.accent} />
+          <Ionicons name="mail-outline" size={20} color={CoachColors.accent} />
           <View style={{ flex: 1 }}>
             <Text style={s.contactTitle}>Privacy questions?</Text>
             <Text style={s.contactEmail}>{PRIVACY_EMAIL}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+          <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -137,21 +137,21 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 60, paddingTop: 16 },
 
   pageTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary,
     letterSpacing: -0.3, marginBottom: 6,
   },
   lastUpdated: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint,
     letterSpacing: 0.8, marginBottom: 22,
   },
 
   section: { marginBottom: 22 },
-  sectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, marginBottom: 6 },
-  sectionContent: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 21 },
+  sectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, marginBottom: 6 },
+  sectionContent: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 23.5 },
 
   divider: { height: 1, backgroundColor: CoachColors.borderMuted, marginVertical: 26 },
 
@@ -160,6 +160,6 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginTop: 6,
   },
-  contactTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  contactEmail: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 1 },
+  contactTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  contactEmail: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 1 },
 });

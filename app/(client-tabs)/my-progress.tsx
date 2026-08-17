@@ -496,7 +496,7 @@ export default function AthleteProgressScreen() {
                         textColor={C.textSecondary}
                         textFontSize={11}
                         textShiftY={-8}
-                        xAxisLabelTextStyle={{ color: C.textMuted, fontFamily: F.body, fontSize: 10 }}
+                        xAxisLabelTextStyle={{ color: C.textMuted, fontFamily: F.body, fontSize: 11 }}
                         yAxisOffset={Math.max(0, Math.min(...activeLift.points.map((p) => p.weight)) * 0.9)}
                       />
                     </View>
@@ -528,7 +528,7 @@ export default function AthleteProgressScreen() {
                 accessibilityLabel={`${pr.name}, new best ${pr.weight}, ${shortDate(pr.date)}`}
               >
                 <View style={s.prBadge}>
-                  <Ionicons name="trending-up" size={14} color={C.accent} />
+                  <Ionicons name="trending-up" size={16} color={C.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.prName}>{pr.name}</Text>
@@ -551,12 +551,12 @@ export default function AthleteProgressScreen() {
               accessibilityLabel={`How training felt. ${feelSummary.line}${feelSummary.heavy ? ` Heavy week — worth mentioning to ${coachFirst} in your next check-in.` : ''}`}
             >
               <View style={s.feelRow}>
-                <Ionicons name="pulse-outline" size={18} color={feelSummary.heavy ? C.warning : C.accent} />
+                <Ionicons name="pulse-outline" size={20} color={feelSummary.heavy ? C.warning : C.accent} />
                 <Text style={s.feelText}>{feelSummary.line}</Text>
               </View>
               {feelSummary.heavy && (
                 <View style={[s.feelRow, s.feelHeavyRow]}>
-                  <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
+                  <Ionicons name="alert-circle-outline" size={20} color={C.warning} />
                   <Text style={[s.feelText, { color: C.warning }]}>
                     Heavy week — worth mentioning to {coachFirst} in your next check-in.
                   </Text>
@@ -607,7 +607,7 @@ export default function AthleteProgressScreen() {
                   textColor={C.textSecondary}
                   textFontSize={11}
                   textShiftY={-8}
-                  xAxisLabelTextStyle={{ color: C.textMuted, fontFamily: F.body, fontSize: 10 }}
+                  xAxisLabelTextStyle={{ color: C.textMuted, fontFamily: F.body, fontSize: 11 }}
                   yAxisOffset={Math.max(0, Math.min(...weightEntries.map((p: any) => p.weight)) * 0.97)}
                 />
               </View>
@@ -688,7 +688,7 @@ export default function AthleteProgressScreen() {
                   {firstPhotoLog.weight ? ` · ${Number(firstPhotoLog.weight).toFixed(1)} lbs` : ''}
                 </Text>
               </View>
-              <Ionicons name="arrow-forward" size={17} color={C.textFaint} style={{ alignSelf: 'center' }} />
+              <Ionicons name="arrow-forward" size={19} color={C.textFaint} style={{ alignSelf: 'center' }} />
               <View style={{ flex: 1 }}>
                 <Pressable
                   onPress={() => setViewerPhoto(latestPhotoLog!.photos[0])}
@@ -828,7 +828,7 @@ export default function AthleteProgressScreen() {
             <Image source={{ uri: viewerPhoto }} style={s.viewerImage} contentFit="contain" />
           )}
           <TouchableOpacity style={s.viewerClose} onPress={() => setViewerPhoto(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Close photo">
-            <Ionicons name="close" size={22} color={C.textPrimary} />
+            <Ionicons name="close" size={25} color={C.textPrimary} />
           </TouchableOpacity>
         </View>
       </Modal>
@@ -855,12 +855,12 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: F.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: C.textPrimary,
   },
   subtitle: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
     marginTop: 2,
   },
@@ -881,7 +881,7 @@ const s = StyleSheet.create({
   },
   avatarInitials: {
     fontFamily: F.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.accent,
   },
 
@@ -896,23 +896,23 @@ const s = StyleSheet.create({
   },
   summaryKicker: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.accent,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   summaryBody: {
     fontFamily: F.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: C.textPrimary,
-    lineHeight: 22,
+    lineHeight: 24.5,
     marginTop: 8,
   },
 
   // Sections
   sectionTitle: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
@@ -928,9 +928,9 @@ const s = StyleSheet.create({
   },
   emptyText: {
     fontFamily: F.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.textMuted,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
 
   // Lift chips
@@ -951,7 +951,7 @@ const s = StyleSheet.create({
   },
   chipText: {
     fontFamily: F.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textSecondary,
   },
   chipTextActive: {
@@ -965,18 +965,18 @@ const s = StyleSheet.create({
   },
   liftName: {
     fontFamily: F.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: C.textPrimary,
   },
   liftRange: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
     marginTop: 3,
   },
   liftDelta: {
     fontFamily: F.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.accent,
   },
   factRow: {
@@ -989,9 +989,9 @@ const s = StyleSheet.create({
   },
   factText: {
     fontFamily: F.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: C.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // How training felt
@@ -1003,9 +1003,9 @@ const s = StyleSheet.create({
   feelText: {
     flex: 1,
     fontFamily: F.bodyMedium,
-    fontSize: 13.5,
+    fontSize: 15,
     color: C.textPrimary,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
   feelHeavyRow: {
     marginTop: 12,
@@ -1046,18 +1046,18 @@ const s = StyleSheet.create({
   },
   prName: {
     fontFamily: F.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: C.textPrimary,
   },
   prSub: {
     fontFamily: F.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: C.textMuted,
     marginTop: 2,
   },
   prWeight: {
     fontFamily: F.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: C.accent,
   },
 
@@ -1076,7 +1076,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     fontFamily: F.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: C.textPrimary,
   },
   composerBtn: {
@@ -1088,7 +1088,7 @@ const s = StyleSheet.create({
   },
   composerBtnText: {
     fontFamily: F.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.onAccent,
   },
 
@@ -1111,7 +1111,7 @@ const s = StyleSheet.create({
   },
   compareCaption: {
     fontFamily: F.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textMuted,
     textAlign: 'center',
     marginTop: 7,
@@ -1141,7 +1141,7 @@ const s = StyleSheet.create({
   },
   photoThumbDate: {
     fontFamily: F.body,
-    fontSize: 10,
+    fontSize: 11,
     color: C.textMuted,
     textAlign: 'center',
     marginTop: 5,
@@ -1163,19 +1163,19 @@ const s = StyleSheet.create({
   },
   coachAvatarText: {
     fontFamily: F.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.accent,
   },
   coachMeta: {
     fontFamily: F.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: C.textMuted,
   },
   coachNote: {
     fontFamily: F.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.textPrimary,
-    lineHeight: 19.5,
+    lineHeight: 22,
     marginTop: 4,
   },
 
@@ -1192,7 +1192,7 @@ const s = StyleSheet.create({
   },
   checkinWeek: {
     fontFamily: F.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: C.textPrimary,
   },
   ratingRow: {
@@ -1211,20 +1211,20 @@ const s = StyleSheet.create({
   },
   ratingLabel: {
     fontFamily: F.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textMuted,
   },
   ratingValue: {
     fontFamily: F.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textSecondary,
   },
   checkinNote: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
     marginTop: 8,
-    lineHeight: 17,
+    lineHeight: 19,
   },
   repliedDot: {
     width: 8,

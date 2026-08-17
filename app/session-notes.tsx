@@ -50,7 +50,7 @@ export default function SessionNotesScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close session notes"
         >
-          <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Session notes</Text>
         <View style={{ width: 36 }} />
@@ -59,7 +59,7 @@ export default function SessionNotesScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
           <View style={styles.sessionInfo}>
-            <Ionicons name="calendar-outline" size={20} color={CoachColors.accent} />
+            <Ionicons name="calendar-outline" size={22} color={CoachColors.accent} />
             <View style={styles.sessionInfoText}>
               <Text style={styles.sessionTitle}>{title}</Text>
               <Text style={styles.sessionDate}>{displayDate} • {session.type}</Text>
@@ -110,20 +110,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
   closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
 
   content: { flex: 1, padding: 16 },
 
   sessionInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   sessionInfoText: { flex: 1 },
-  sessionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
-  sessionDate: { fontFamily: CoachFonts.body, fontSize: 13, marginTop: 2, color: CoachColors.textSecondary },
+  sessionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 19, color: CoachColors.textPrimary },
+  sessionDate: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 2, color: CoachColors.textSecondary },
 
-  label: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, marginBottom: 4, color: CoachColors.textPrimary },
-  subLabel: { fontFamily: CoachFonts.body, fontSize: 15, marginBottom: 10, color: CoachColors.textMuted },
+  label: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 4, color: CoachColors.textPrimary },
+  subLabel: { fontFamily: CoachFonts.body, fontSize: 17, marginBottom: 10, color: CoachColors.textMuted },
 
   inputContainer: { borderRadius: 12, borderWidth: 1, flex: 1, marginBottom: 10, backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
-  textArea: { flex: 1, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary },
+  textArea: { flex: 1, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19, color: CoachColors.textPrimary },
 
   footer: { padding: 16, paddingBottom: 20, borderTopWidth: 1, backgroundColor: CoachColors.bg, borderTopColor: CoachColors.borderMuted },
 
@@ -131,5 +131,5 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
   },
-  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },
 });

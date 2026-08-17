@@ -387,9 +387,9 @@ const styles = StyleSheet.create({
 export function ErrorBoundary(props: ErrorBoundaryProps) {
   return (
     <View style={[styles.loadingContainer, { padding: 20 }]}>
-      <Ionicons name="warning" size={48} color={CoachColors.warning} style={{ marginBottom: 10 }} />
-      <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 4 }}>Something went wrong</Text>
-      <Text style={{ fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 20 }}>
+      <Ionicons name="warning" size={54} color={CoachColors.warning} style={{ marginBottom: 10 }} />
+      <Text style={{ fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, marginBottom: 4 }}>Something went wrong</Text>
+      <Text style={{ fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 20 }}>
         {__DEV__ ? props.error.message : "We're sorry, an unexpected error occurred. Please try again."}
       </Text>
       <TouchableOpacity
@@ -397,8 +397,8 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24 }}
         activeOpacity={0.85}
       >
-        <Ionicons name="refresh" size={18} color={CoachColors.onAccent} />
-        <Text style={{ fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.onAccent }}>Try again</Text>
+        <Ionicons name="refresh" size={20} color={CoachColors.onAccent} />
+        <Text style={{ fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.onAccent }}>Try again</Text>
       </TouchableOpacity>
     </View>
   );

@@ -106,30 +106,30 @@ export default function SeasonHero({
 const s = StyleSheet.create({
   eyebrow: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.accent,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
     fontFamily: F.headingBold,
-    fontSize: 28,
-    lineHeight: 33,
+    fontSize: 31.5,
+    lineHeight: 37,
     color: C.textPrimary,
     marginTop: 8,
   },
   // Cohort run — the real calendar window, under the pass name.
   runLine: {
     fontFamily: F.bodyMedium,
-    fontSize: 12.5,
+    fontSize: 14,
     color: C.textMuted,
     marginTop: 5,
   },
   description: {
     fontFamily: F.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: C.textSecondary,
-    lineHeight: 19,
+    lineHeight: 21.5,
     marginTop: 6,
   },
   barTrack: {
@@ -146,7 +146,7 @@ const s = StyleSheet.create({
   },
   barCaption: {
     fontFamily: F.bodyMedium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     marginTop: 6,
   },

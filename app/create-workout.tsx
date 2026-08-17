@@ -661,7 +661,7 @@ export default function CreateWorkoutScreen() {
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <View style={s.pickerHeader}>
             <TouchableOpacity onPress={() => { setShowPicker(false); setExerciseSearch(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+              <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.pickerTitle}>Add exercises</Text>
             <TouchableOpacity onPress={() => setShowPicker(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -670,7 +670,7 @@ export default function CreateWorkoutScreen() {
           </View>
 
           <View style={s.searchBox}>
-            <Ionicons name="search" size={18} color={CoachColors.textFaint} />
+            <Ionicons name="search" size={20} color={CoachColors.textFaint} />
             <TextInput
               style={s.searchInput}
               placeholder={`Search ${exercises.length} exercises`}
@@ -681,7 +681,7 @@ export default function CreateWorkoutScreen() {
             />
             {exerciseSearch.length > 0 && (
               <TouchableOpacity hitSlop={12} onPress={() => setExerciseSearch('')}>
-                <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
+                <Ionicons name="close-circle" size={20} color={CoachColors.textFaint} />
               </TouchableOpacity>
             )}
           </View>
@@ -717,7 +717,7 @@ export default function CreateWorkoutScreen() {
               accessibilityRole="button"
               accessibilityLabel={showBodyMap ? 'Hide body map' : 'Show body map'}
             >
-              <Ionicons name="body-outline" size={13} color={showBodyMap ? CoachColors.accent : CoachColors.textSecondary} />
+              <Ionicons name="body-outline" size={15} color={showBodyMap ? CoachColors.accent : CoachColors.textSecondary} />
               <Text style={[s.filterChipText, showBodyMap && s.filterChipTextActive]}>Body map</Text>
             </TouchableOpacity>
             {REGIONS.map((region) => {
@@ -763,8 +763,8 @@ export default function CreateWorkoutScreen() {
             windowSize={5}
             ListEmptyComponent={() => (
               <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
-                <Ionicons name="search-outline" size={48} color={CoachColors.borderMuted} />
-                <Text style={{ fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textMuted, marginTop: 16, textAlign: 'center' }}>
+                <Ionicons name="search-outline" size={54} color={CoachColors.borderMuted} />
+                <Text style={{ fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textMuted, marginTop: 16, textAlign: 'center' }}>
                   No exercises found.
                 </Text>
               </View>
@@ -791,7 +791,7 @@ export default function CreateWorkoutScreen() {
                         onError={() => setFailedGifs(prev => new Set(prev).add(item.image_url!))}
                       />
                     ) : (
-                      <Ionicons name="barbell-outline" size={20} color={CoachColors.textFaint} />
+                      <Ionicons name="barbell-outline" size={22} color={CoachColors.textFaint} />
                     )}
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -800,11 +800,11 @@ export default function CreateWorkoutScreen() {
                   </View>
                   {isAdded ? (
                     <View style={s.addCircleActive}>
-                      <Ionicons name="checkmark" size={16} color={CoachColors.onAccent} />
+                      <Ionicons name="checkmark" size={18} color={CoachColors.onAccent} />
                     </View>
                   ) : (
                     <View style={s.addCircle}>
-                      <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
+                      <Ionicons name="add" size={20} color={CoachColors.textSecondary} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -823,7 +823,7 @@ export default function CreateWorkoutScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add-circle-outline" size={18} color={CoachColors.accent} />
+                <Ionicons name="add-circle-outline" size={20} color={CoachColors.accent} />
                 <Text style={s.createExerciseRowText}>Not here? Create an exercise</Text>
               </TouchableOpacity>
             }
@@ -847,7 +847,7 @@ export default function CreateWorkoutScreen() {
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.setupHeader}>
           <TouchableOpacity onPress={() => setMode('setup')} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ width: 36 }} />
         </View>
@@ -915,7 +915,7 @@ export default function CreateWorkoutScreen() {
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.setupHeader}>
           <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={skipSetup} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={s.skipText}>Skip setup</Text>
@@ -988,13 +988,13 @@ export default function CreateWorkoutScreen() {
 
             <TouchableOpacity style={s.describeCard} onPress={() => setMode('describe')} activeOpacity={0.8}>
               <View style={s.describeCardIcon}>
-                <Ionicons name="chatbubble-outline" size={20} color={CoachColors.accent} />
+                <Ionicons name="chatbubble-outline" size={22} color={CoachColors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.describeCardTitle}>Describe it instead</Text>
                 <Text style={s.describeCardHint} numberOfLines={1}>"Push day for an intermediate lifter, dumbbells only, 45 minutes"</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
             </TouchableOpacity>
           </ScrollView>
 
@@ -1017,7 +1017,7 @@ export default function CreateWorkoutScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <View style={s.builderHeader}>
             <TouchableOpacity style={s.iconBtn} onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="arrow-back" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.builderHeaderTitle}>{editId ? 'Edit workout' : 'Build workout'}</Text>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.createBtn} onPress={handleSave} disabled={saving}>
@@ -1053,7 +1053,7 @@ export default function CreateWorkoutScreen() {
             }
             ListEmptyComponent={
               <View style={s.emptyBuilder}>
-                <Ionicons name="barbell-outline" size={28} color={CoachColors.borderMuted} />
+                <Ionicons name="barbell-outline" size={31} color={CoachColors.borderMuted} />
                 <Text style={s.emptyBuilderText}>No exercises yet — add your first one below.</Text>
               </View>
             }
@@ -1061,7 +1061,7 @@ export default function CreateWorkoutScreen() {
               <>
                 <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xl }}>
                   <TouchableOpacity style={s.addExerciseBtn} onPress={() => setShowPicker(true)} activeOpacity={0.8}>
-                    <Ionicons name="add" size={18} color={CoachColors.accent} />
+                    <Ionicons name="add" size={20} color={CoachColors.accent} />
                     <Text style={s.addExerciseBtnText}>Add exercise</Text>
                   </TouchableOpacity>
                 </View>
@@ -1087,7 +1087,7 @@ export default function CreateWorkoutScreen() {
                       activeOpacity={0.7}
                     >
                       <TouchableOpacity onPressIn={drag} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: Spacing.sm }}>
-                        <Ionicons name="reorder-three-outline" size={22} color={CoachColors.textFaint} />
+                        <Ionicons name="reorder-three-outline" size={25} color={CoachColors.textFaint} />
                       </TouchableOpacity>
                       <View style={[s.accordionThumb, ex.image_url && !failedGifs.has(ex.image_url) ? { padding: 0, overflow: 'hidden' } : {}]}>
                         {ex.image_url && !failedGifs.has(ex.image_url) ? (
@@ -1099,14 +1099,14 @@ export default function CreateWorkoutScreen() {
                             onError={() => setFailedGifs(prev => new Set(prev).add(ex.image_url!))}
                           />
                         ) : (
-                          <Ionicons name="barbell" size={22} color={CoachColors.textFaint} />
+                          <Ionicons name="barbell" size={25} color={CoachColors.textFaint} />
                         )}
                       </View>
                       <View style={s.accordionInfo}>
                         <Text style={s.accordionName} numberOfLines={1}>{ex.name}</Text>
                         <Text style={s.accordionSub}>{ex.sets} × {ex.reps} · {ex.rest_seconds}s rest</Text>
                       </View>
-                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textSecondary} />
+                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={22} color={CoachColors.textSecondary} />
                     </TouchableOpacity>
 
                     {isExpanded && (
@@ -1132,7 +1132,7 @@ export default function CreateWorkoutScreen() {
                               }
                             }}
                           >
-                            <Ionicons name={isLinkedToPrev ? 'link' : 'link-outline'} size={18} color={CoachColors.accent} />
+                            <Ionicons name={isLinkedToPrev ? 'link' : 'link-outline'} size={20} color={CoachColors.accent} />
                             <Text style={s.linkGroupText}>
                               {isLinkedToPrev ? 'Unlink from previous' : 'Link with previous (superset)'}
                             </Text>
@@ -1173,7 +1173,7 @@ export default function CreateWorkoutScreen() {
                         >
                           {ex.video_url ? (
                             <View style={s.mediaPresent}>
-                              <Ionicons name="play-circle-outline" size={44} color={CoachColors.textPrimary} />
+                              <Ionicons name="play-circle-outline" size={49} color={CoachColors.textPrimary} />
                               <Text style={s.mediaLabel}>Demo video added</Text>
                             </View>
                           ) : ex.image_url && !failedGifs.has(ex.image_url) ? (
@@ -1187,14 +1187,14 @@ export default function CreateWorkoutScreen() {
                               <View style={s.mediaOverlayBar}>
                                 <Text style={s.mediaOverlayText}>Demo video</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                  <Ionicons name="camera-outline" size={14} color={CoachColors.textSecondary} />
+                                  <Ionicons name="camera-outline" size={16} color={CoachColors.textSecondary} />
                                   <Text style={s.mediaOverlayText}>Replace</Text>
                                 </View>
                               </View>
                             </View>
                           ) : (
                             <View style={s.mediaEmpty}>
-                              <Ionicons name="videocam-outline" size={28} color={CoachColors.textFaint} />
+                              <Ionicons name="videocam-outline" size={31} color={CoachColors.textFaint} />
                               <Text style={s.mediaLabel}>Demo video</Text>
                             </View>
                           )}
@@ -1226,7 +1226,7 @@ export default function CreateWorkoutScreen() {
                             onPress={() => setShowNotesExerciseId(prev => prev === ex.exercise_id ? null : ex.exercise_id)}
                             activeOpacity={0.7}
                           >
-                            <Ionicons name={showNotesExerciseId === ex.exercise_id ? 'eye-off-outline' : 'create-outline'} size={16} color={CoachColors.textSecondary} />
+                            <Ionicons name={showNotesExerciseId === ex.exercise_id ? 'eye-off-outline' : 'create-outline'} size={18} color={CoachColors.textSecondary} />
                             <Text style={s.voiceBtnText}>
                               {showNotesExerciseId === ex.exercise_id ? 'Hide note' : 'Note for the athlete'}
                             </Text>
@@ -1261,14 +1261,14 @@ export default function CreateWorkoutScreen() {
                                   style={s.stepperBtn}
                                   onPress={() => updateExercise(ex.exercise_id, param.field, Math.max(1, (param.value as number) - param.step))}
                                 >
-                                  <Ionicons name="remove" size={16} color={CoachColors.textPrimary} />
+                                  <Ionicons name="remove" size={18} color={CoachColors.textPrimary} />
                                 </TouchableOpacity>
                                 <Text style={s.inlineControlValue}>{param.value}</Text>
                                 <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                                   style={s.stepperBtn}
                                   onPress={() => updateExercise(ex.exercise_id, param.field, (param.value as number) + param.step)}
                                 >
-                                  <Ionicons name="add" size={16} color={CoachColors.textPrimary} />
+                                  <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -1301,7 +1301,7 @@ export default function CreateWorkoutScreen() {
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Add demo video</Text>
               <TouchableOpacity hitSlop={12} onPress={() => { setVideoModalExercise(null); setVideoUrlInput(''); }}>
-                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -1330,7 +1330,7 @@ export default function CreateWorkoutScreen() {
                     onPress={handlePasteVideoUrl}
                     disabled={!videoUrlInput.trim()}
                   >
-                    <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
+                    <Ionicons name="checkmark" size={22} color={CoachColors.onAccent} />
                   </TouchableOpacity>
                 </View>
 
@@ -1342,24 +1342,24 @@ export default function CreateWorkoutScreen() {
 
                 <TouchableOpacity style={s.videoOptionBtn} onPress={handlePickVideo}>
                   <View style={s.videoOptionIcon}>
-                    <Ionicons name="cloud-upload-outline" size={20} color={CoachColors.textPrimary} />
+                    <Ionicons name="cloud-upload-outline" size={22} color={CoachColors.textPrimary} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={s.videoOptionTitle}>Upload from gallery</Text>
                     <Text style={s.videoOptionSub}>Choose a video from your phone</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={s.videoOptionBtn} onPress={handleRecordVideo}>
                   <View style={s.videoOptionIcon}>
-                    <Ionicons name="recording-outline" size={20} color={CoachColors.textPrimary} />
+                    <Ionicons name="recording-outline" size={22} color={CoachColors.textPrimary} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={s.videoOptionTitle}>Record a demo</Text>
                     <Text style={s.videoOptionSub}>Film the exercise with your camera</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               </>
             )}
@@ -1417,7 +1417,7 @@ export default function CreateWorkoutScreen() {
               activeOpacity={0.7}
             >
               <Text style={s.passTrackRowText}>Add to a pass track instead</Text>
-              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1486,18 +1486,18 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary },
   setupScroll: { paddingHorizontal: Spacing.lg, paddingBottom: 40 },
   title: {
-    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
-    lineHeight: 30, marginBottom: 8, marginTop: 4,
+    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
+    lineHeight: 33.5, marginBottom: 8, marginTop: 4,
   },
   subtitle: {
-    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
-    lineHeight: 18, marginBottom: 24,
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted,
+    lineHeight: 20, marginBottom: 24,
   },
   sectionLabel: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary,
     marginBottom: 10,
   },
 
@@ -1512,11 +1512,11 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft,
     borderColor: CoachColors.accent,
   },
-  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   chipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
 
   nameField: {
-    fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 12,
   },
@@ -1530,8 +1530,8 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
-  describeCardTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
-  describeCardHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, fontStyle: 'italic' },
+  describeCardTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
+  describeCardHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, fontStyle: 'italic' },
 
   describeInputWrap: {
     backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
@@ -1539,7 +1539,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, marginBottom: 16,
   },
   describeInput: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     paddingVertical: 12, minHeight: 90, textAlignVertical: 'top',
   },
   exampleChip: {
@@ -1547,7 +1547,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
   },
-  exampleChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  exampleChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
 
   // ── Footer / primary CTA (shared) ──
   footer: { paddingHorizontal: Spacing.lg, paddingTop: 12 },
@@ -1555,34 +1555,34 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderRadius: Radius.full, backgroundColor: CoachColors.accent, height: 52,
   },
-  primaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  primaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
 
   // ── Builder ──
   builderHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  builderHeaderTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  builderHeaderTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, minWidth: 64, alignItems: 'center' },
-  createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   scrollContent: { paddingBottom: 120 },
   builderIntro: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
   titleInput: {
-    fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 6, padding: 0,
+    fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, marginBottom: 6, padding: 0,
   },
-  summaryLine: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 4 },
-  statsLine: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  summaryLine: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 4 },
+  statsLine: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   emptyBuilder: { alignItems: 'center', paddingVertical: 40, gap: 10, paddingHorizontal: Spacing.lg },
-  emptyBuilderText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center' },
+  emptyBuilderText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center' },
 
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md,
     paddingVertical: 14,
   },
-  addExerciseBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  addExerciseBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
 
   accordionContainer: { backgroundColor: 'transparent' },
   accordionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
@@ -1591,8 +1591,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
   },
   accordionInfo: { flex: 1 },
-  accordionName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 3 },
-  accordionSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  accordionName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 3 },
+  accordionSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
 
   expandedContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
 
@@ -1600,12 +1600,12 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md,
     backgroundColor: CoachColors.accentSofter, borderRadius: Radius.sm, marginBottom: Spacing.lg,
   },
-  linkGroupText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.accent },
+  linkGroupText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.accent },
 
   infoCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 14, marginBottom: Spacing.md, gap: 10 },
   metaTag: { backgroundColor: CoachColors.borderMuted, paddingHorizontal: 9, paddingVertical: 3, borderRadius: Radius.full },
-  metaTagText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary },
-  infoCardDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 18 },
+  metaTagText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary },
+  infoCardDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 20 },
 
   mediaPlaceholder: {
     width: '100%', aspectRatio: 16 / 9, backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
@@ -1613,41 +1613,41 @@ const s = StyleSheet.create({
   },
   mediaEmpty: { alignItems: 'center' },
   mediaPresent: { alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', backgroundColor: CoachColors.surface },
-  mediaLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary, marginTop: 8 },
+  mediaLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 8 },
   mediaOverlayBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 6, paddingHorizontal: 10,
     backgroundColor: 'rgba(0,0,0,0.55)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  mediaOverlayText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary },
+  mediaOverlayText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary },
 
   voiceBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9,
     borderRadius: Radius.full, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
-  voiceBtnText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  voiceBtnText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
 
   notesInput: {
-    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, lineHeight: 19,
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, lineHeight: 21.5,
     padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, minHeight: 80,
   },
 
   inlineControlsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
   inlineControl: { flex: 1, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  inlineControlLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textFaint, marginBottom: 8 },
+  inlineControlLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textFaint, marginBottom: 8 },
   inlineControlStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 4 },
   stepperBtn: { padding: 4 },
-  inlineControlValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  inlineControlValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
 
   removeBtn: { alignItems: 'center', paddingVertical: 12, marginTop: Spacing.sm, backgroundColor: CoachColors.dangerSoft, borderRadius: Radius.md },
-  removeBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.danger },
+  removeBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.danger },
 
   separator: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: Spacing.lg },
   separatorModal: { height: 1, backgroundColor: CoachColors.borderMuted },
 
   // ── Picker ──
   pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  pickerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
-  pickerDone: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  pickerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
+  pickerDone: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
@@ -1655,14 +1655,14 @@ const s = StyleSheet.create({
     marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderRadius: Radius.sm,
     paddingHorizontal: 12, height: 44,
   },
-  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, height: '100%' },
+  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, height: '100%' },
 
   filterChip: {
     flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
   filterChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  filterChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  filterChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
   filterChipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
   bodyMapChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   bodyMapWrap: {
@@ -1670,17 +1670,17 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md, backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md,
   },
-  bodyMapHint: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 8 },
+  bodyMapHint: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 8 },
 
-  resultCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, paddingHorizontal: Spacing.lg, paddingBottom: 8 },
+  resultCount: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, paddingHorizontal: Spacing.lg, paddingBottom: 8 },
 
   exercisePickItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md },
   exercisePickIcon: {
     width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
   },
-  exercisePickName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  exercisePickSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  exercisePickName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  exercisePickSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
 
   addCircle: {
     width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border,
@@ -1695,7 +1695,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, marginTop: 8,
   },
-  createExerciseRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  createExerciseRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   // ── Modals shared ──
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
@@ -1704,32 +1704,32 @@ const s = StyleSheet.create({
     padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xl },
-  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginBottom: 8 },
+  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, marginBottom: 8 },
   urlInputRow: { flexDirection: 'row', gap: 8 },
   urlInput: {
     flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: 12,
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, borderWidth: 1, borderColor: CoachColors.border,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, borderWidth: 1, borderColor: CoachColors.border,
   },
   urlPasteBtn: { width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.xl },
   dividerLine: { flex: 1, height: 1, backgroundColor: CoachColors.borderMuted },
-  dividerText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
+  dividerText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
   videoOptionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
   videoOptionIcon: { width: 38, height: 38, borderRadius: Radius.sm, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-  videoOptionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  videoOptionSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  videoOptionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  videoOptionSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   uploadingContainer: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.md },
-  uploadingText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary },
+  uploadingText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textSecondary },
 
   loadingCard: {
     backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderWidth: 1, borderColor: CoachColors.border,
     paddingVertical: 36, paddingHorizontal: 32, alignItems: 'center', width: '80%', maxWidth: 320, alignSelf: 'center', marginBottom: 'auto', marginTop: 'auto',
   },
-  loadingTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 8, textAlign: 'center' },
-  loadingSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 18 },
+  loadingTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  loadingSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 20 },
   loadingCancel: { marginTop: 18, minHeight: 44, justifyContent: 'center', paddingHorizontal: 20 },
-  loadingCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center' },
+  loadingCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textSecondary, textAlign: 'center' },
 
   // ── Assign sheet (18g) ──
   assignSheet: {
@@ -1737,16 +1737,16 @@ const s = StyleSheet.create({
     padding: Spacing.lg, paddingBottom: Spacing['2xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0,
   },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border, alignSelf: 'center', marginBottom: 18 },
-  assignTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, marginBottom: 6 },
-  assignSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 18 },
-  assignEmptyText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: Spacing.lg },
+  assignTitle: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary, marginBottom: 6 },
+  assignSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 20 },
+  assignEmptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: Spacing.lg },
 
   clientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   clientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   clientAvatarImg: { width: 40, height: 40, borderRadius: 20 },
-  clientAvatarText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
-  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  clientSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  clientAvatarText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  clientSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioCircleActive: { borderColor: CoachColors.accent },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: CoachColors.accent },
@@ -1755,8 +1755,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 14, marginTop: 8, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
   },
-  passTrackRowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  passTrackRowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
-  notNowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
-  assignFootnote: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 16, marginTop: 4 },
+  notNowText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
+  assignFootnote: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 18, marginTop: 4 },
 });

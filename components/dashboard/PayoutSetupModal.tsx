@@ -104,7 +104,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
-            <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -120,7 +120,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Bottom content */}
         <View style={styles.bottomContent}>
           <View style={styles.iconBadge}>
-            <Ionicons name="wallet-outline" size={28} color={CoachColors.accent} />
+            <Ionicons name="wallet-outline" size={31} color={CoachColors.accent} />
           </View>
 
           <Text style={styles.screenTag}>Payouts</Text>
@@ -135,13 +135,13 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           </Text>
 
           <View style={styles.trustRow}>
-            <Ionicons name="lock-closed" size={14} color={CoachColors.accent} />
+            <Ionicons name="lock-closed" size={16} color={CoachColors.accent} />
             <Text style={styles.trustText}>Your financial data stays with Stripe, not us</Text>
           </View>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
+            <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
       </View>
@@ -169,7 +169,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -204,25 +204,25 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           <View style={styles.bulletGroup}>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="shield-checkmark" size={16} color={CoachColors.accent} />
+                <Ionicons name="shield-checkmark" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Bank-level 256-bit encryption</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="business-outline" size={16} color={CoachColors.accent} />
+                <Ionicons name="business-outline" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Trusted by millions of businesses worldwide</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="flash" size={16} color={CoachColors.accent} />
+                <Ionicons name="flash" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>Fast payouts directly to your bank account</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
-                <Ionicons name="eye-off-outline" size={16} color={CoachColors.accent} />
+                <Ionicons name="eye-off-outline" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.bulletText}>FitLink never sees your banking details</Text>
             </View>
@@ -239,7 +239,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
               <ActivityIndicator color={CoachColors.textPrimary} />
             ) : (
               <>
-                <Ionicons name="card-outline" size={18} color={CoachColors.textPrimary} style={{ marginRight: 10 }} />
+                <Ionicons name="card-outline" size={20} color={CoachColors.textPrimary} style={{ marginRight: 10 }} />
                 <Text style={styles.stripeConnectText}>Connect with Stripe</Text>
               </>
             )}
@@ -262,7 +262,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         {/* Header */}
         <View style={styles.screenHeader}>
           <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[0, 1, 2].map(i => (
@@ -348,7 +348,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* Done button */}
           <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>Got it</Text>
-            <Ionicons name="rocket-outline" size={18} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
+            <Ionicons name="rocket-outline" size={20} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
 
           <View style={{ height: 32 }} />
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   // ── Typography ──
   screenTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 2.5,
     marginBottom: 8,        // 8pt: tag → title
@@ -458,17 +458,17 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
-    lineHeight: 38,
+    lineHeight: 42.5,
     marginBottom: 24,       // 8pt: title → body
   },
   screenBody: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
-    lineHeight: 23,         // 1.53× for readability
+    lineHeight: 26,         // 1.53× for readability
     marginBottom: 16,       // 8pt: paragraph gap
   },
 
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   trustText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     flex: 1,
   },
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   },
   stripeBadgeLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   stripeLogoImg: {
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     flex: 1,
   },
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   },
   stripeConnectText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     textDecorationLine: 'underline',
   },
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   },
   pricingTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 34,
+    fontSize: 38,
     color: CoachColors.textPrimary,
     marginBottom: 32,       // 8pt: title → first section
   },
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   pricingCard: {
@@ -624,15 +624,15 @@ const styles = StyleSheet.create({
   },
   pricingCardTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     marginBottom: 16,       // 8pt: title → body
   },
   pricingCardBody: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 24.5,
     marginBottom: 12,
   },
   feeDetailRow: {
@@ -640,12 +640,12 @@ const styles = StyleSheet.create({
   },
   feeLabel: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   feeSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   feeDivider: {
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   stripeMiniPrefix: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   stripeMiniLogo: {
@@ -689,14 +689,14 @@ const styles = StyleSheet.create({
   },
   freePillText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.onAccent,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   freeTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     flex: 1,
   },

@@ -142,13 +142,13 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
             <View style={[styles.iconContainer, { backgroundColor: CoachColors.accentSoft }]}>
-              <Ionicons name="flame" size={14} color={CoachColors.accent} />
+              <Ionicons name="flame" size={16} color={CoachColors.accent} />
             </View>
             <Text style={styles.statTextMain}>{streak} day streak</Text>
           </View>
           <View style={styles.statRow}>
             <View style={styles.iconContainerMuted}>
-              <Ionicons name="footsteps" size={14} color={CoachColors.textSecondary} />
+              <Ionicons name="footsteps" size={16} color={CoachColors.textSecondary} />
             </View>
             <Text style={styles.statTextSub}>
               {healthSnapshot ? `${healthSnapshot.stepsToday} steps` : 'No device'}
@@ -156,7 +156,7 @@ export const ActivityReadinessHero: React.FC<ActivityReadinessHeroProps> = ({
           </View>
           <View style={styles.statRow}>
             <View style={styles.iconContainerMuted}>
-              <Ionicons name="heart" size={14} color={CoachColors.textSecondary} />
+              <Ionicons name="heart" size={16} color={CoachColors.textSecondary} />
             </View>
             <Text style={styles.statTextSub}>
               {healthSnapshot?.restingHeartRate ? `${healthSnapshot.restingHeartRate} bpm` : '--'}

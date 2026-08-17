@@ -313,7 +313,7 @@ export default function CoachHomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={unreadNotifs > 0 ? `Notifications, ${unreadNotifs} unread` : 'Notifications'}
             >
-              <Ionicons name="notifications-outline" size={19} color={CoachColors.textSecondary} />
+              <Ionicons name="notifications-outline" size={21} color={CoachColors.textSecondary} />
               {unreadNotifs > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</Text>
@@ -539,15 +539,15 @@ const styles = StyleSheet.create({
   },
   weekday: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 30,
+    fontSize: 33.5,
     color: CoachColors.textPrimary,
-    lineHeight: 34,
+    lineHeight: 38,
   },
   monthDay: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 30,
+    fontSize: 33.5,
     color: CoachColors.textFaint,
-    lineHeight: 34,
+    lineHeight: 38,
   },
   headerRight: {
     flexDirection: 'row',
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
   },
   avatarCircle: {
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
   },
 
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   subtitleDanger: {
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   },
   subtitleDot: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textFaint,
   },
 
@@ -631,21 +631,21 @@ const styles = StyleSheet.create({
   },
   nextLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
   nextTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21.5,
     color: CoachColors.textPrimary,
     marginTop: 8,
   },
   nextSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   nextActions: {
     flexDirection: 'row',
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   },
   joinBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.onAccent,
   },
   planBtn: {
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   },
   planBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
 
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   },
   noSessionText: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
   },
 
@@ -718,12 +718,12 @@ const styles = StyleSheet.create({
   },
   timelineTime: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
   timelineTitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
     marginTop: 2,
   },
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   // Between sessions
   betweenLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     letterSpacing: 0.6,
     color: CoachColors.textFaint,
     textTransform: 'uppercase',
@@ -757,19 +757,19 @@ const styles = StyleSheet.create({
   },
   betweenText: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     flex: 1,
     marginRight: 12,
   },
   betweenCta: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
   betweenEmpty: {
     fontFamily: CoachFonts.body,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textFaint,
     paddingHorizontal: 20,
   },
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   },
   revenueMonth: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
   },
   revenueValueRow: {
@@ -803,12 +803,12 @@ const styles = StyleSheet.create({
   },
   revenueValue: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
   revenueLink: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
 });
@@ -828,12 +828,12 @@ const emptyStyles = StyleSheet.create({
   },
   dateText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   welcomeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     marginTop: 2,
   },
@@ -844,7 +844,7 @@ const emptyStyles = StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.onAccent,
   },
   section: {
@@ -861,12 +861,12 @@ const emptyStyles = StyleSheet.create({
   },
   primaryCtaText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginBottom: 11,
   },
@@ -880,15 +880,15 @@ const emptyStyles = StyleSheet.create({
   },
   placeholderTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   placeholderBody: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   libraryLink: {
     paddingHorizontal: 20,
@@ -896,7 +896,7 @@ const emptyStyles = StyleSheet.create({
   },
   libraryLinkText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
 });

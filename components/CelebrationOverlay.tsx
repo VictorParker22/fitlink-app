@@ -111,7 +111,7 @@ export default function CelebrationOverlay({ celebration, onDismiss }: Celebrati
 
             {/* Icon Box */}
             <View style={st.iconBox}>
-              <Ionicons name={celebration.icon as any || 'trophy-outline'} size={36} color={CoachColors.accent} />
+              <Ionicons name={celebration.icon as any || 'trophy-outline'} size={40} color={CoachColors.accent} />
             </View>
 
             {/* Title & Subtitle */}
@@ -200,7 +200,7 @@ const st = StyleSheet.create({
   },
   headerTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     marginBottom: 16,
@@ -217,7 +217,7 @@ const st = StyleSheet.create({
   },
   badgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -235,7 +235,7 @@ const st = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
@@ -243,10 +243,10 @@ const st = StyleSheet.create({
   },
   subtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 24,
   },
   btnCol: {
@@ -262,7 +262,7 @@ const st = StyleSheet.create({
   },
   shareBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },
@@ -273,7 +273,7 @@ const st = StyleSheet.create({
   },
   dismissBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },

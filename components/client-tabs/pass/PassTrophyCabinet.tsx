@@ -155,7 +155,7 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
                 />
                 {!isEarned && (
                   <View style={styles.lockOverlay}>
-                    <Ionicons name="lock-closed" size={10} color={CoachColors.onAccent} />
+                    <Ionicons name="lock-closed" size={11} color={CoachColors.onAccent} />
                   </View>
                 )}
               </View>
@@ -229,7 +229,7 @@ export const PassTrophyCabinet: React.FC<PassTrophyCabinetProps> = (props) => {
 
                     {/* Reward Pill */}
                     <View style={styles.rewardRow}>
-                      <Ionicons name="flash" size={14} color={CoachColors.accent} />
+                      <Ionicons name="flash" size={16} color={CoachColors.accent} />
                       <Text style={styles.rewardText}>+{selectedBadge.xpReward} XP reward</Text>
                     </View>
                   </View>
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     marginBottom: 8,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   badgeName: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     textAlign: 'center',
   },
   badgeNameEarned: {
@@ -362,13 +362,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   modalDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
     marginBottom: 20,
@@ -389,12 +389,12 @@ const styles = StyleSheet.create({
   },
   modalProgressLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
   },
   modalProgressPct: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
   modalBarBg: {
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   rewardText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     letterSpacing: 1,
   },
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   },
   modalCloseText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
     letterSpacing: 1.5,
   },

@@ -149,7 +149,7 @@ export default function WorkoutPreview({ activeWorkout, onStart, onBack }: Worko
         accessibilityLabel="Go back"
         accessibilityHint="Returns without starting the session"
       >
-        <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-back" size={29} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView
@@ -346,17 +346,17 @@ const s = StyleSheet.create({
   backBtn: { paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
 
   eyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent,
     letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 8,
   },
   title: {
-    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
-    lineHeight: 33, marginTop: 8,
+    fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary,
+    lineHeight: 37, marginTop: 8,
   },
-  meta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 8 },
+  meta: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 8 },
   desc: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
-    lineHeight: 21, marginTop: 14,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary,
+    lineHeight: 23.5, marginTop: 14,
   },
 
   targetsCard: {
@@ -370,7 +370,7 @@ const s = StyleSheet.create({
   targetDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: CoachColors.accent },
   targetDotSecondary: { backgroundColor: CoachColors.accentSoft },
   targetRowText: {
-    flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 12.5,
+    flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14,
     color: CoachColors.textSecondary,
   },
 
@@ -383,29 +383,29 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14, paddingHorizontal: 15,
   },
-  exName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  exMeta: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+  exName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  exMeta: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
 
   exExpanded: {
     paddingHorizontal: 15, paddingBottom: 14, gap: 12,
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
     paddingTop: 12,
   },
-  exNoDetails: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  exNoDetails: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   exMuscleRow: { alignItems: 'center' },
   exInstrBlock: { gap: 6 },
   exInstrLine: { flexDirection: 'row', gap: 8 },
-  exInstrDot: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.accent, lineHeight: 19 },
+  exInstrDot: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.accent, lineHeight: 21.5 },
   exInstrText: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 12.5,
-    color: CoachColors.textSecondary, lineHeight: 19,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 14,
+    color: CoachColors.textSecondary, lineHeight: 21.5,
   },
   exTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 4, paddingHorizontal: 10,
   },
-  tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11.5, color: CoachColors.textSecondary },
+  tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
 
   footer: {
     paddingHorizontal: 20, paddingTop: 12,
@@ -415,5 +415,5 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16, alignItems: 'center',
   },
-  startBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  startBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 });

@@ -341,7 +341,7 @@ export default function ClientSignupScreen() {
           bounces={false}
         >
           <TouchableOpacity hitSlop={5} style={st.backBtn} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={18} color="#C9CEC2" />
+            <Ionicons name="chevron-back" size={20} color="#C9CEC2" />
           </TouchableOpacity>
 
           {/* Title */}
@@ -389,13 +389,13 @@ export default function ClientSignupScreen() {
               accessibilityLiveRegion="assertive"
               accessibilityLabel={`Sign up failed. ${error}`}
             >
-              <Ionicons name="alert-circle" size={17} color={C.danger} />
+              <Ionicons name="alert-circle" size={19} color={C.danger} />
               <Text style={st.errorText}>{error}</Text>
             </View>
           ) : null}
           {success ? (
             <View style={st.messageBox}>
-              <Ionicons name="checkmark-circle" size={17} color={C.accent} />
+              <Ionicons name="checkmark-circle" size={19} color={C.accent} />
               <Text style={st.successText}>{success}</Text>
             </View>
           ) : null}
@@ -558,7 +558,7 @@ export default function ClientSignupScreen() {
                 <ActivityIndicator size="large" color={C.accent} style={{ marginTop: 40 }} />
               ) : trainers.length === 0 ? (
                 <View style={st.emptySection}>
-                  <Ionicons name="people-outline" size={40} color={C.textFaint} />
+                  <Ionicons name="people-outline" size={45} color={C.textFaint} />
                   <Text style={st.emptyText}>No coaches available yet</Text>
                 </View>
               ) : (
@@ -611,27 +611,27 @@ const st = StyleSheet.create({
   // Welcome (25a)
   welcomeBody: { flex: 1, paddingHorizontal: 24 },
   brand: {
-    fontFamily: F.headingBold, fontSize: 13, letterSpacing: 3.4,
+    fontFamily: F.headingBold, fontSize: 14.5, letterSpacing: 3.4,
     color: C.textFaint, textTransform: 'uppercase',
   },
   coachAvatarWrap: {
     width: 72, height: 72, borderRadius: 36, backgroundColor: '#2A3320',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  coachAvatarText: { fontFamily: F.headingBold, fontSize: 24, color: C.accent },
+  coachAvatarText: { fontFamily: F.headingBold, fontSize: 27, color: C.accent },
   welcomeTitle: {
-    fontFamily: F.headingBold, fontSize: 31, lineHeight: 37,
+    fontFamily: F.headingBold, fontSize: 34.5, lineHeight: 41.5,
     color: C.textPrimary, marginTop: 20,
   },
-  welcomeSub: { fontFamily: F.body, fontSize: 14, lineHeight: 22, color: '#A9AF9F', marginTop: 12 },
+  welcomeSub: { fontFamily: F.body, fontSize: 15.5, lineHeight: 24.5, color: '#A9AF9F', marginTop: 12 },
   stepsCol: { gap: 11, marginTop: 26 },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   stepNum: {
     width: 24, height: 24, borderRadius: 8, backgroundColor: '#1E211D',
     borderWidth: 1, borderColor: '#2E322B', alignItems: 'center', justifyContent: 'center',
   },
-  stepNumText: { fontFamily: F.bodyBold, fontSize: 11.5, color: C.accent },
-  stepLabel: { flex: 1, fontFamily: F.body, fontSize: 13.5, color: '#C9CEC2' },
+  stepNumText: { fontFamily: F.bodyBold, fontSize: 13, color: C.accent },
+  stepLabel: { flex: 1, fontFamily: F.body, fontSize: 15, color: '#C9CEC2' },
   welcomeFooter: { paddingHorizontal: 24, paddingTop: 26 },
 
   // Form steps
@@ -641,43 +641,43 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   title: {
-    fontFamily: F.headingBold, fontSize: 27, lineHeight: 32,
+    fontFamily: F.headingBold, fontSize: 30, lineHeight: 36,
     color: C.textPrimary, marginTop: 26,
   },
-  subtitle: { fontFamily: F.body, fontSize: 13, lineHeight: 20, color: C.textMuted, marginTop: 9, marginBottom: 26 },
+  subtitle: { fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textMuted, marginTop: 9, marginBottom: 26 },
 
   messageBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
-  errorText: { fontFamily: F.body, fontSize: 13, color: C.danger, flex: 1 },
-  successText: { fontFamily: F.body, fontSize: 13, color: C.accent, flex: 1 },
+  errorText: { fontFamily: F.body, fontSize: 14.5, color: C.danger, flex: 1 },
+  successText: { fontFamily: F.body, fontSize: 14.5, color: C.accent, flex: 1 },
 
   field: { marginBottom: 11 },
-  fieldLabel: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginBottom: 7 },
+  fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
   input: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 14, paddingVertical: 15, paddingHorizontal: 15,
-    fontFamily: F.bodyMedium, fontSize: 15, color: C.textPrimary,
+    fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
   },
-  fieldHint: { fontFamily: F.body, fontSize: 11, color: C.textFaint, marginTop: 7 },
+  fieldHint: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, marginTop: 7 },
   passwordWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14,
   },
   showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
-  showText: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent },
+  showText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, paddingVertical: 16, alignItems: 'center',
   },
-  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
+  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.onAccent },
   btnDisabled: { opacity: 0.5 },
 
   termsText: {
-    fontFamily: F.body, fontSize: 11, color: C.textFaint,
-    textAlign: 'center', marginTop: 12, lineHeight: 16,
+    fontFamily: F.body, fontSize: 12.5, color: C.textFaint,
+    textAlign: 'center', marginTop: 12, lineHeight: 18,
   },
   termsLink: { color: C.textMuted },
 
@@ -686,18 +686,18 @@ const st = StyleSheet.create({
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 16, padding: 15, marginBottom: 10,
   },
-  trainerName: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
-  trainerSpec: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 2 },
+  trainerName: { fontFamily: F.bodySemiBold, fontSize: 16, color: C.textPrimary },
+  trainerSpec: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 2 },
   selectBadge: {
     borderWidth: 1, borderColor: C.border, borderRadius: 999,
     paddingHorizontal: 14, paddingVertical: 7,
   },
-  selectText: { fontFamily: F.bodySemiBold, fontSize: 12, color: '#C9CEC2' },
+  selectText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },
 
   emptySection: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontFamily: F.body, fontSize: 14, color: C.textMuted },
+  emptyText: { fontFamily: F.body, fontSize: 15.5, color: C.textMuted },
 
   footerRow: { alignItems: 'center', marginTop: 20, paddingVertical: 8 },
-  footerText: { fontFamily: F.body, fontSize: 13, color: C.textMuted },
+  footerText: { fontFamily: F.body, fontSize: 14.5, color: C.textMuted },
   footerLink: { fontFamily: F.bodySemiBold, color: C.accent },
 });

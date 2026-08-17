@@ -190,12 +190,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wordmark: {
-    fontSize: 26,
+    fontSize: 29,
     letterSpacing: 5.2,
     color: '#EDEFE8',
   },
   audience: {
-    fontSize: 12.5,
+    fontSize: 14,
     letterSpacing: 1,
     color: '#6C7266',
     marginTop: 9,

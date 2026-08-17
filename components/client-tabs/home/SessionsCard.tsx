@@ -254,36 +254,36 @@ const st = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
     fontFamily: F.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: C.textPrimary,
     marginTop: 7,
   },
   sub: {
     fontFamily: F.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: C.textMuted,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // State 1
   sessionHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sessionWhen: {
     fontFamily: F.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: C.textPrimary,
     marginTop: 7,
   },
   moreLine: {
     fontFamily: F.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: C.accent,
     marginTop: 6,
   },
@@ -294,7 +294,7 @@ const st = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
-  viewPillText: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary },
+  viewPillText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
 
   // State 2
   messageBtn: {
@@ -305,12 +305,12 @@ const st = StyleSheet.create({
     alignItems: 'center',
     marginTop: 13,
   },
-  messageBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  messageBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
 
   // State 3
   coachSectionLabel: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -334,10 +334,10 @@ const st = StyleSheet.create({
     justifyContent: 'center',
   },
   coachAvatarImg: { width: 36, height: 36, borderRadius: 18 },
-  coachAvatarText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent },
-  coachName: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  coachSpec: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  coachReason: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.accent, marginTop: 3 },
+  coachAvatarText: { fontFamily: F.bodyBold, fontSize: 14, color: C.accent },
+  coachName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  coachSpec: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
+  coachReason: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent, marginTop: 3 },
   browseRow: {
     borderTopWidth: 1,
     borderTopColor: C.borderMuted,
@@ -345,5 +345,5 @@ const st = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
   },
-  browseText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.accent },
+  browseText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.accent },
 });

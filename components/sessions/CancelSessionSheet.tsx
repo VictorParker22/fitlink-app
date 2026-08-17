@@ -281,7 +281,7 @@ export default function CancelSessionSheet({
                     {r.label}
                   </Text>
                   {active && (
-                    <Ionicons name="checkmark-circle" size={17} color={r.color} />
+                    <Ionicons name="checkmark-circle" size={19} color={r.color} />
                   )}
                 </TouchableOpacity>
               );
@@ -293,7 +293,7 @@ export default function CancelSessionSheet({
             <View style={s.rescheduleBlock}>
               {/* Callout */}
               <View style={s.callout}>
-                <Ionicons name="flash" size={13} color={CoachColors.accent} />
+                <Ionicons name="flash" size={15} color={CoachColors.accent} />
                 <Text style={s.calloutText}>
                   No cancel & rebook — we'll move it in one tap.
                 </Text>
@@ -371,7 +371,7 @@ export default function CancelSessionSheet({
                   <ActivityIndicator size="small" color={CoachColors.onAccent} />
                 ) : (
                   <>
-                    <Ionicons name="calendar" size={17} color={CoachColors.onAccent} />
+                    <Ionicons name="calendar" size={19} color={CoachColors.onAccent} />
                     <Text style={s.rescheduleCTAText} numberOfLines={1}>
                       {rescheduleCTALabel}
                     </Text>
@@ -395,7 +395,7 @@ export default function CancelSessionSheet({
                 <ActivityIndicator size="small" color={CoachColors.danger} />
               ) : (
                 <>
-                  <Ionicons name="close-circle" size={17} color={CoachColors.danger} />
+                  <Ionicons name="close-circle" size={19} color={CoachColors.danger} />
                   <Text style={s.cancelCTAText}>Cancel this session</Text>
                 </>
               )}
@@ -558,7 +558,7 @@ const s = StyleSheet.create({
   },
   dayChipWeekday: {
     fontFamily:    CoachFonts.bodyBold,
-    fontSize:      9,
+    fontSize: 10,
     color:         CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -571,7 +571,7 @@ const s = StyleSheet.create({
   },
   dayChipMonth: {
     fontFamily:    CoachFonts.body,
-    fontSize:      9,
+    fontSize: 10,
     color:         CoachColors.textMuted,
     textTransform: 'uppercase',
   },

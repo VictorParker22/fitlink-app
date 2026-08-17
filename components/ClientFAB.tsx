@@ -130,7 +130,7 @@ export default function ClientFAB() {
           accessibilityLabel="Quick actions"
           accessibilityHint="Opens a menu with quick actions for workouts, nutrition, and messaging"
         >
-          <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -164,7 +164,7 @@ export default function ClientFAB() {
           <View style={s.sheetHeader}>
             <Text style={s.sheetTitle}>Quick actions</Text>
             <TouchableOpacity hitSlop={8} style={s.closeBtn} onPress={closeSheet}>
-              <Ionicons name="close" size={18} color={CoachColors.textSecondary} />
+              <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -182,13 +182,13 @@ export default function ClientFAB() {
               accessibilityLabel={action.label}
             >
               <View style={[s.actionIcon, { backgroundColor: `${action.color}18` }]}>
-                <Ionicons name={action.icon} size={22} color={action.color} />
+                <Ionicons name={action.icon} size={25} color={action.color} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.actionLabel}>{action.label}</Text>
                 <Text style={s.actionSub}>{action.sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -258,7 +258,7 @@ const s = StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
@@ -294,14 +294,14 @@ const s = StyleSheet.create({
   },
   actionLabel: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
     marginBottom: 2,
   },
   actionSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
 });

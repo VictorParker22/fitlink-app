@@ -142,16 +142,16 @@ const s = StyleSheet.create({
   },
   sectionHeadLabel: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sectionHeadSub: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
-    lineHeight: 17,
+    lineHeight: 19,
     marginTop: 4,
   },
 
@@ -168,6 +168,6 @@ const s = StyleSheet.create({
   },
   thumb: { width: '100%', height: 84, backgroundColor: C.borderMuted },
   cardBody: { paddingVertical: 11, paddingHorizontal: 12 },
-  name: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  meta: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
+  name: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  meta: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18 },
 });

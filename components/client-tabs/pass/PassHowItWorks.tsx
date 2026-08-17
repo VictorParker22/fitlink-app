@@ -43,7 +43,7 @@ export const PassHowItWorks: React.FC = () => {
       <Pressable style={styles.headerRow} onPress={toggleExpand}>
         <Text style={styles.headerText}>How it works</Text>
         <Animated.View style={{ transform: [{ rotate: rotateInterpolation }] }}>
-          <Ionicons name="chevron-down" size={20} color={CoachColors.textMuted} />
+          <Ionicons name="chevron-down" size={22} color={CoachColors.textMuted} />
         </Animated.View>
       </Pressable>
 
@@ -55,7 +55,7 @@ export const PassHowItWorks: React.FC = () => {
       >
         <View style={styles.row}>
           <View style={styles.iconCircle}>
-            <Ionicons name="barbell" size={18} color={CoachColors.accent} />
+            <Ionicons name="barbell" size={20} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.title}>Complete workouts</Text>
@@ -65,7 +65,7 @@ export const PassHowItWorks: React.FC = () => {
 
         <View style={styles.row}>
           <View style={styles.iconCircle}>
-            <Ionicons name="restaurant" size={18} color={CoachColors.accent} />
+            <Ionicons name="restaurant" size={20} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.title}>Log your meals</Text>
@@ -75,7 +75,7 @@ export const PassHowItWorks: React.FC = () => {
 
         <View style={styles.row}>
           <View style={styles.iconCircle}>
-            <Ionicons name="fitness" size={18} color={CoachColors.accent} />
+            <Ionicons name="fitness" size={20} color={CoachColors.accent} />
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.title}>Gym check-ins</Text>
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -132,13 +132,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   description: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
 });

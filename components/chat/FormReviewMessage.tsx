@@ -105,7 +105,7 @@ export default function FormReviewMessage({
 const styles = StyleSheet.create({
   tag: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 0.8,
   },
   videoWrap: {
@@ -130,12 +130,12 @@ const styles = StyleSheet.create({
   },
   pinChipTime: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.accent,
   },
   pinChipLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
   pinRow: {
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   pinTime: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.accent,
   },
   pinTrack: {
@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   },
   pinnedWord: {
     fontFamily: CoachFonts.body,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textMuted,
   },
   comment: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13.5,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22.5,
   },
 });

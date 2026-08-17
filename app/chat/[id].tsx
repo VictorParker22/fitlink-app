@@ -60,7 +60,7 @@ function VideoBubble({ url, onReview }: { url: string; onReview?: () => void }) 
           accessibilityRole="button"
           accessibilityLabel="Review form on this video"
         >
-          <Ionicons name="videocam-outline" size={13} color={CoachColors.accent} />
+          <Ionicons name="videocam-outline" size={15} color={CoachColors.accent} />
           <Text style={styles.reviewAffordanceText}>Review form</Text>
         </TouchableOpacity>
       )}
@@ -110,7 +110,7 @@ function FormReviewComposer({
           <View style={styles.modalHeaderRow}>
             <Text style={styles.modalSheetTitle}>Review form</Text>
             <TouchableOpacity hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
-              <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -639,16 +639,16 @@ export default function ChatScreen() {
         <View style={{ minWidth: 200, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={{ backgroundColor: isMine ? 'rgba(16,18,16,0.13)' : 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.6, color: isMine ? CoachColors.onAccent : CoachColors.textSecondary }}>WORKOUT ATTACHMENT</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.6, color: isMine ? CoachColors.onAccent : CoachColors.textSecondary }}>WORKOUT ATTACHMENT</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 2 }}>
             <View style={{ width: 42, height: 42, borderRadius: 6, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="barbell-outline" size={22} color={CoachColors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{wName}</Text>
-              <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{count} exercises</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{wName}</Text>
+              <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{count} exercises</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -660,7 +660,7 @@ export default function ChatScreen() {
             onPress={() => router.push(`/workout/${wId}` as any)}
             activeOpacity={0.8}
           >
-            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open workout</Text>
+            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open workout</Text>
           </TouchableOpacity>
         </View>
       );
@@ -676,7 +676,7 @@ export default function ChatScreen() {
         <View style={{ minWidth: 200, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={{ backgroundColor: isMine ? 'rgba(16,18,16,0.13)' : 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.6, color: isMine ? CoachColors.onAccent : CoachColors.textSecondary }}>MEAL PLAN ATTACHMENT</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.6, color: isMine ? CoachColors.onAccent : CoachColors.textSecondary }}>MEAL PLAN ATTACHMENT</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 2 }}>
@@ -684,12 +684,12 @@ export default function ChatScreen() {
               width: 42, height: 42, borderRadius: 6, alignItems: 'center', justifyContent: 'center',
               backgroundColor: isMine ? 'rgba(16,18,16,0.13)' : 'rgba(255,255,255,0.08)',
             }}>
-              <Ionicons name="nutrition-outline" size={20} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
+              <Ionicons name="nutrition-outline" size={22} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{dName}</Text>
+              <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary }} numberOfLines={1}>{dName}</Text>
               {!!cal && (
-                <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{cal} cal/day target</Text>
+                <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>{cal} cal/day target</Text>
               )}
             </View>
           </View>
@@ -702,7 +702,7 @@ export default function ChatScreen() {
             onPress={() => router.push(`/diet/${dId}` as any)}
             activeOpacity={0.8}
           >
-            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open meal plan</Text>
+            <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: isMine ? CoachColors.textPrimary : CoachColors.onAccent }}>Open meal plan</Text>
           </TouchableOpacity>
         </View>
       );
@@ -711,8 +711,8 @@ export default function ChatScreen() {
     if (content === '[CHECKIN_REQUEST]') {
       return (
         <View style={{ minWidth: 180, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="clipboard-outline" size={16} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
-          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, flex: 1 }}>
+          <Ionicons name="clipboard-outline" size={18} color={isMine ? CoachColors.onAccent : CoachColors.textPrimary} />
+          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, flex: 1 }}>
             Asked for a check-in
           </Text>
         </View>
@@ -723,8 +723,8 @@ export default function ChatScreen() {
       const text = content.replace('[QUICK_NOTE:', '').replace(/\]$/, '');
       return (
         <View style={{ minWidth: 180, gap: 4 }}>
-          <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 9, letterSpacing: 0.6, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>COACHING NOTE</Text>
-          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, lineHeight: 20 }}>{text}</Text>
+          <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.6, color: isMine ? 'rgba(16,18,16,0.6)' : CoachColors.textMuted }}>COACHING NOTE</Text>
+          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: isMine ? CoachColors.onAccent : CoachColors.textPrimary, lineHeight: 22.5 }}>{text}</Text>
         </View>
       );
     }
@@ -752,7 +752,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Back to messages">
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerAvatar}>
           {clientAvatar ? (
@@ -775,7 +775,7 @@ export default function ChatScreen() {
           accessibilityRole="button"
           accessibilityLabel="Invite client to app"
         >
-          <Ionicons name="paper-plane-outline" size={15} color={CoachColors.textPrimary} />
+          <Ionicons name="paper-plane-outline" size={17} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -818,7 +818,7 @@ export default function ChatScreen() {
                   {renderMessageContent(msg, isMine && !msg.pending)}
                   {msg.pending ? (
                     <View style={styles.pendingRow}>
-                      <Ionicons name="time-outline" size={10} color={CoachColors.textMuted} />
+                      <Ionicons name="time-outline" size={11} color={CoachColors.textMuted} />
                       <Text style={styles.pendingText}>Waiting to send</Text>
                     </View>
                   ) : (
@@ -900,7 +900,7 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel="Send a photo"
           >
-            <Ionicons name="image-outline" size={20} color={CoachColors.textSecondary} />
+            <Ionicons name="image-outline" size={22} color={CoachColors.textSecondary} />
           </TouchableOpacity>
 
           <TextInput
@@ -941,7 +941,7 @@ export default function ChatScreen() {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a workout</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowWorkoutPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
-                <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -958,7 +958,7 @@ export default function ChatScreen() {
                     onPress={() => sendCustomContent(`[WORKOUT_CARD:${w.id}:${w.name}:${count}]`)}
                   >
                     <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+                      <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.workoutPickerTitle} numberOfLines={1}>{w.name}</Text>
@@ -972,7 +972,7 @@ export default function ChatScreen() {
               }}
               ListEmptyComponent={
                 <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 13 }}>No workouts created in your library yet.</Text>
+                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 14.5 }}>No workouts created in your library yet.</Text>
                 </View>
               }
             />
@@ -988,7 +988,7 @@ export default function ChatScreen() {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a meal plan</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowDietPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
-                <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -1006,7 +1006,7 @@ export default function ChatScreen() {
                     width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
                     backgroundColor: 'rgba(255,255,255,0.06)',
                   }}>
-                    <Ionicons name="nutrition-outline" size={18} color={CoachColors.textPrimary} />
+                    <Ionicons name="nutrition-outline" size={20} color={CoachColors.textPrimary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.workoutPickerTitle} numberOfLines={1}>{d.name}</Text>
@@ -1021,7 +1021,7 @@ export default function ChatScreen() {
               )}
               ListEmptyComponent={
                 <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 13 }}>No meal plans created in your library yet.</Text>
+                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 14.5 }}>No meal plans created in your library yet.</Text>
                 </View>
               }
             />
@@ -1056,19 +1056,19 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
-  headerAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textSecondary },
+  headerAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textSecondary },
   inviteBtn: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center'
   },
-  headerName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  headerSub: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint, marginTop: 1 },
+  headerName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerSub: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 1 },
 
   messageList: { padding: 16, paddingBottom: 12, flexGrow: 1 },
 
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 },
   dateLine: { flex: 1, height: 1, backgroundColor: CoachColors.border },
-  dateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint },
+  dateText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint },
 
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   bubbleRowRight: { justifyContent: 'flex-end' },
@@ -1078,11 +1078,11 @@ const styles = StyleSheet.create({
   // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
   bubblePending: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderBottomRightRadius: 4 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
-  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, color: CoachColors.textMuted },
-  bubbleText: { fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 21 },
+  pendingText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.textMuted },
+  bubbleText: { fontFamily: CoachFonts.body, fontSize: 15.5, lineHeight: 23.5 },
   bubbleTextSent: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodyMedium },
   bubbleTextReceived: { color: CoachColors.textPrimary },
-  bubbleTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 9.5, marginTop: 5 },
+  bubbleTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, marginTop: 5 },
   bubbleTimeSent: { color: 'rgba(16,18,16,0.5)', textAlign: 'right' },
   bubbleTimeReceived: { color: CoachColors.textFaint },
 
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9, alignItems: 'center',
   },
   quickActionText: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: CoachColors.textSecondary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary,
   },
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
@@ -1109,7 +1109,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingHorizontal: 16, paddingVertical: 11,
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },
   sendBtn: {
@@ -1124,8 +1124,8 @@ const styles = StyleSheet.create({
   },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 64, paddingHorizontal: 40 },
-  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  emptyText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 19 },
+  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 21.5 },
 
   typingRow: { flexDirection: 'row', marginBottom: 8 },
   typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },
@@ -1141,19 +1141,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 36, gap: 12
   },
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  modalSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  modalSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
 
   workoutPickerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 13,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 12, padding: 14, marginBottom: 10
   },
-  workoutPickerTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  workoutPickerSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  workoutPickerTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.textPrimary },
+  workoutPickerSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
   attachBadge: {
     backgroundColor: CoachColors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999
   },
-  attachBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.onAccent },
+  attachBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
 
   videoBubbleWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
   videoBubble: { width: 220, height: 280 },
@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
     backgroundColor: 'rgba(16,18,16,0.55)',
   },
-  reviewAffordanceText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
+  reviewAffordanceText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
 
   reviewOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1187,27 +1187,27 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.bg,
   },
-  stepBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textPrimary },
+  stepBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.textPrimary },
   timestampDisplay: { flex: 1, alignItems: 'center' },
-  timestampText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.accent },
-  timestampLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, marginTop: 1 },
+  timestampText: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.accent },
+  timestampLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted, marginTop: 1 },
   playheadBtn: {
     height: 38, borderRadius: 10, paddingHorizontal: 12,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)',
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(16,18,16,0.55)',
   },
-  playheadBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
+  playheadBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
   reviewInput: {
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11,
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     minHeight: 72, maxHeight: 140, textAlignVertical: 'top',
   },
   reviewSendBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 12,
     paddingVertical: 13, alignItems: 'center',
   },
-  reviewSendText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  reviewSendText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 });

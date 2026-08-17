@@ -167,7 +167,7 @@ export default function CoachSignupScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Go back"
               >
-                <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.headerLogo}>FITLINK</Text>
               <View style={styles.backButton} />
@@ -386,13 +386,13 @@ function Messages({ error, success }: { error: string; success: string }) {
           accessibilityLiveRegion="assertive"
           accessibilityLabel={`Sign up failed. ${error}`}
         >
-          <Ionicons name="alert-circle" size={16} color={CoachColors.danger} />
+          <Ionicons name="alert-circle" size={18} color={CoachColors.danger} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
       {success ? (
         <View style={styles.messageRow}>
-          <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+          <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
           <Text style={styles.successText}>{success}</Text>
         </View>
       ) : null}
@@ -481,18 +481,18 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   headerLogo: {
-    fontFamily: CoachFonts.headingBold, fontSize: 13, letterSpacing: 2.8,
+    fontFamily: CoachFonts.headingBold, fontSize: 14.5, letterSpacing: 2.8,
     color: CoachColors.textFaint,
   },
 
   // Title
   titleBlock: { paddingTop: 28 },
   title: {
-    fontFamily: CoachFonts.headingBold, fontSize: 30, lineHeight: 35,
+    fontFamily: CoachFonts.headingBold, fontSize: 33.5, lineHeight: 39,
     letterSpacing: -0.6, color: CoachColors.textPrimary,
   },
   subtitle: {
-    fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 20,
+    fontFamily: CoachFonts.body, fontSize: 15, lineHeight: 22.5,
     color: CoachColors.textSecondary, marginTop: 10,
   },
   subtitleStrong: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
@@ -502,25 +502,25 @@ const styles = StyleSheet.create({
   authTabs: { flexDirection: 'row', marginTop: 24, gap: 22, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
   authTab: { paddingBottom: 11, borderBottomWidth: 2, borderBottomColor: 'transparent', marginBottom: -1 },
   authTabActive: { borderBottomColor: CoachColors.accent },
-  authTabText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+  authTabText: { fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textMuted },
   authTabTextActive: { color: CoachColors.textPrimary, fontFamily: CoachFonts.bodyBold },
 
   // Messages
   messages: { marginTop: 18, gap: 8 },
   messageRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  errorText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.danger, flex: 1 },
-  successText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.accent, flex: 1 },
+  errorText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.danger, flex: 1 },
+  successText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.accent, flex: 1 },
 
   // Form
   form: { marginTop: 22, gap: 16 },
   field: {},
-  fieldLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 7 },
+  fieldLabel: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginBottom: 7 },
   fieldBox: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: 12, paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 13 : 4,
   },
-  fieldHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginTop: 7 },
-  input: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, padding: 0 },
+  fieldHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, marginTop: 7 },
+  input: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17.5, color: CoachColors.textPrimary, padding: 0 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   flex1: { flex: 1 },
 
@@ -533,12 +533,12 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: { borderColor: CoachColors.border },
   otpBoxActive: { borderColor: CoachColors.accent },
-  otpDigit: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  otpDigit: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
   otpCursor: { width: 2, height: 24, backgroundColor: CoachColors.accent },
   otpHiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%' },
 
   resendRow: { alignItems: 'center', marginTop: 20 },
-  resendText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  resendText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
   resendLink: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textFaint },
 
   // Sticky footer
@@ -549,17 +549,17 @@ const styles = StyleSheet.create({
     paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
   },
   primaryBtnDisabled: { backgroundColor: CoachColors.borderMuted },
-  primaryBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.onAccent },
+  primaryBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.onAccent },
   primaryBtnTextDisabled: { color: CoachColors.textFaint },
 
   termsText: {
-    fontFamily: CoachFonts.body, fontSize: 11.5, lineHeight: 17, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19, color: CoachColors.textFaint,
     marginTop: 14, textAlign: 'center',
   },
   termsLink: { color: CoachColors.textSecondary, textDecorationLine: 'underline' },
 
   footerLinkRow: {
-    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted,
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textMuted,
     marginTop: 18, textAlign: 'center',
   },
   footerLinkStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },

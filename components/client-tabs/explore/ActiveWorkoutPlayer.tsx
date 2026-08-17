@@ -323,7 +323,7 @@ export default function ActiveWorkoutPlayer({
               accessibilityLabel="Skip rest"
               accessibilityHint="Ends the rest timer and returns to the workout"
             >
-              <Ionicons name="play-skip-forward" size={14} color={CoachColors.onAccent} />
+              <Ionicons name="play-skip-forward" size={16} color={CoachColors.onAccent} />
               <Text style={s.restSkipText}>Skip rest</Text>
             </TouchableOpacity>
 
@@ -360,7 +360,7 @@ export default function ActiveWorkoutPlayer({
             accessibilityRole="button"
             accessibilityLabel="Close workout"
           >
-            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
+            <Ionicons name="close" size={25} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <View style={s.headerCenter}>
             <Text style={s.tagHeader}>Active session</Text>
@@ -381,12 +381,12 @@ export default function ActiveWorkoutPlayer({
               accessibilityRole="button"
               accessibilityLabel="Rest timers off. Double tap to turn them back on"
             >
-              <Ionicons name="timer-outline" size={12} color={CoachColors.textMuted} />
+              <Ionicons name="timer-outline" size={13} color={CoachColors.textMuted} />
               <Text style={s.restOffText}>Rest off</Text>
             </TouchableOpacity>
           )}
           <View style={s.timerPill}>
-            <Ionicons name="time-outline" size={12} color={CoachColors.accent} />
+            <Ionicons name="time-outline" size={13} color={CoachColors.accent} />
             <Text style={s.timerText}>{formatDuration(elapsedSeconds)}</Text>
           </View>
         </View>
@@ -432,7 +432,7 @@ export default function ActiveWorkoutPlayer({
                   />
                   {allDone && (
                     <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: CoachColors.surface, borderRadius: 10, padding: 2 }}>
-                      <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+                      <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
                     </View>
                   )}
                 </View>
@@ -554,7 +554,7 @@ export default function ActiveWorkoutPlayer({
             ? 'Saves this session'
             : `You still have ${totalSets - completedSets} set${totalSets - completedSets === 1 ? '' : 's'} left. Finishing now saves what you have done`}
         >
-          <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={18} color={progress >= 1 ? CoachColors.onAccent : CoachColors.textPrimary} />
+          <Ionicons name={progress >= 1 ? 'trophy' : 'flag'} size={20} color={progress >= 1 ? CoachColors.onAccent : CoachColors.textPrimary} />
           <Text style={[s.finishBtnText, progress >= 1 && { color: CoachColors.onAccent }]}>
             {progress >= 1 ? 'Finish session' : 'Complete workout'}
           </Text>
@@ -584,7 +584,7 @@ export default function ActiveWorkoutPlayer({
               accessibilityRole="button"
               accessibilityLabel="Close video"
             >
-              <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.videoModalTitle} numberOfLines={1}>
               {videoExerciseName}
@@ -640,14 +640,14 @@ const s = StyleSheet.create({
   headerCenter: { flex: 1, marginHorizontal: 12 },
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   workoutName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
   },
   timerPill: {
@@ -663,7 +663,7 @@ const s = StyleSheet.create({
   },
   timerText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
   },
   progressRow: {
@@ -685,7 +685,7 @@ const s = StyleSheet.create({
   },
   progressLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -722,12 +722,12 @@ const s = StyleSheet.create({
   },
   exIdxText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
   },
   exName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   exMeta: {
@@ -738,13 +738,13 @@ const s = StyleSheet.create({
   },
   exTarget: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.8,
   },
   exRestTag: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
   watchDemoBtn: {
@@ -755,7 +755,7 @@ const s = StyleSheet.create({
   },
   watchDemoText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 1,
   },
@@ -774,7 +774,7 @@ const s = StyleSheet.create({
   },
   setHeaderText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -795,7 +795,7 @@ const s = StyleSheet.create({
   },
   setNumText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
   },
   setInputBox: {
@@ -810,7 +810,7 @@ const s = StyleSheet.create({
   },
   setInput: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   setInputDone: { color: CoachColors.accent },
@@ -839,7 +839,7 @@ const s = StyleSheet.create({
   },
   finishBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
@@ -861,7 +861,7 @@ const s = StyleSheet.create({
   },
   restTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 2,
     marginBottom: 8,
@@ -869,14 +869,14 @@ const s = StyleSheet.create({
   },
   restTime: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 48,
+    fontSize: 54,
     color: CoachColors.textPrimary,
     letterSpacing: -1,
     marginBottom: 4,
   },
   restHint: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     marginBottom: 20,
   },
@@ -903,7 +903,7 @@ const s = StyleSheet.create({
   },
   restOffText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   restSkipAllBtn: {
@@ -918,12 +918,12 @@ const s = StyleSheet.create({
   },
   restSkipAllText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   restSkipText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.onAccent,
     letterSpacing: 1,
   },
@@ -951,7 +951,7 @@ const s = StyleSheet.create({
   },
   videoModalTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   videoModalCard: {

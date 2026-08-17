@@ -60,7 +60,7 @@ export default function WorkoutSummary({
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* Trophy icon — purely decorative, the heading below says the same */}
         <View style={s.trophyCard} importantForAccessibility="no" accessibilityElementsHidden>
-          <Ionicons name="trophy" size={40} color={CoachColors.accent} />
+          <Ionicons name="trophy" size={45} color={CoachColors.accent} />
         </View>
 
         <Text style={s.tagHeader} importantForAccessibility="no">Session complete // performance review</Text>
@@ -77,22 +77,22 @@ export default function WorkoutSummary({
         {/* Stats Grid */}
         <View style={s.grid}>
           <View style={s.statCard} accessible accessibilityLabel={`Duration, ${formatDuration(elapsedSeconds)}`}>
-            <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
+            <Ionicons name="time-outline" size={20} color={CoachColors.accent} />
             <Text style={s.statValue}>{formatDuration(elapsedSeconds)}</Text>
             <Text style={s.statLabel}>Duration</Text>
           </View>
           <View style={s.statCard} accessible accessibilityLabel={`${exercisesCompleted} exercises`}>
-            <Ionicons name="barbell-outline" size={18} color={CoachColors.accent} />
+            <Ionicons name="barbell-outline" size={20} color={CoachColors.accent} />
             <Text style={s.statValue}>{exercisesCompleted}</Text>
             <Text style={s.statLabel}>Exercises</Text>
           </View>
           <View style={s.statCard} accessible accessibilityLabel={`${totalSetsCompleted} sets done`}>
-            <Ionicons name="layers-outline" size={18} color={CoachColors.accent} />
+            <Ionicons name="layers-outline" size={20} color={CoachColors.accent} />
             <Text style={s.statValue}>{totalSetsCompleted}</Text>
             <Text style={s.statLabel}>Sets done</Text>
           </View>
           <View style={s.statCard} accessible accessibilityLabel={`Volume, ${totalVolume.toLocaleString()} pounds`}>
-            <Ionicons name="trending-up-outline" size={18} color={CoachColors.accent} />
+            <Ionicons name="trending-up-outline" size={20} color={CoachColors.accent} />
             <Text style={s.statValue}>
               {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume.toLocaleString()}
             </Text>
@@ -124,7 +124,7 @@ export default function WorkoutSummary({
           accessibilityLabel="Save and finish"
           accessibilityHint="Saves this session to your history and closes the workout"
         >
-          <Ionicons name="checkmark-circle" size={18} color={CoachColors.onAccent} />
+          <Ionicons name="checkmark-circle" size={20} color={CoachColors.onAccent} />
           <Text style={s.finishBtnText}>Save & finish →</Text>
         </TouchableOpacity>
 
@@ -162,7 +162,7 @@ const s = StyleSheet.create({
   },
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -170,14 +170,14 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,
+    fontSize: 31.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 2,
   },
   workoutName: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.accent,
     marginBottom: 24,
   },
@@ -200,12 +200,12 @@ const s = StyleSheet.create({
   },
   statValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
   },
   statLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -213,7 +213,7 @@ const s = StyleSheet.create({
   breakdownHeader: {
     alignSelf: 'flex-start',
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -242,12 +242,12 @@ const s = StyleSheet.create({
   exName: {
     flex: 1,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   exSets: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -265,7 +265,7 @@ const s = StyleSheet.create({
   },
   finishBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.onAccent,
     letterSpacing: 1,
   },
@@ -281,7 +281,7 @@ const s = StyleSheet.create({
   },
   continueBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
   },

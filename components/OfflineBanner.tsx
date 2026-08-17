@@ -44,7 +44,7 @@ export default function OfflineBanner() {
   return (
     <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 6 }]}>
       <Animated.View style={[styles.pill, { transform: [{ translateY: slide }] }]}>
-        <Ionicons name="cloud-offline-outline" size={13} color={CoachColors.textSecondary} />
+        <Ionicons name="cloud-offline-outline" size={15} color={CoachColors.textSecondary} />
         <Text style={styles.text}>Offline — showing saved data</Text>
       </Animated.View>
     </View>
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textSecondary,
   },
 });

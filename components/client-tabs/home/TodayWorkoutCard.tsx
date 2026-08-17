@@ -29,7 +29,7 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
           onPress={() => router.push(ClientRoute.workouts as any)}
         >
           <Text style={st.browseBtnText}>Explore catalog</Text>
-          <Ionicons name="arrow-forward" size={14} color={CoachColors.onAccent} />
+          <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
         </TouchableOpacity>
         {/* §11 Accent line */}
         <View style={[st.accentLine, { backgroundColor: CoachColors.borderMuted }]} />
@@ -55,7 +55,7 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
         <View style={st.topTagRow}>
           <Text style={st.sectionTag}>Today</Text>
           <View style={st.completedPill}>
-            <Ionicons name="checkmark-circle" size={12} color={CoachColors.accent} />
+            <Ionicons name="checkmark-circle" size={13} color={CoachColors.accent} />
             <Text style={st.completedPillText}>Done</Text>
           </View>
         </View>
@@ -67,7 +67,7 @@ export default function TodayWorkoutCard({ workout, trainerName = 'COACH', isCom
           activeOpacity={0.8}
           onPress={() => router.push(ClientRoute.myProgress as any)}
         >
-          <Ionicons name="create-outline" size={14} color={CoachColors.textSecondary} />
+          <Ionicons name="create-outline" size={16} color={CoachColors.textSecondary} />
           <Text style={st.logSessionBtnText}>Rate your session</Text>
         </TouchableOpacity>
         {/* §11 Accent line = done state */}
@@ -157,22 +157,22 @@ const st = StyleSheet.create({
   },
   sectionTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11, // raised from 9pt — track position ("day 3 of 10") is unique info
+    fontSize: 12.5, // raised from 9pt — track position ("day 3 of 10") is unique info
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   workoutTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,        // Up from 22px — this is what they came to see
+    fontSize: 31.5,        // Up from 22px — this is what they came to see
     color: CoachColors.textPrimary,
     letterSpacing: -0.8, // Tight tracking = premium
     marginBottom: 4,
-    lineHeight: 32,
+    lineHeight: 36,
   },
   workoutSubtitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -190,7 +190,7 @@ const st = StyleSheet.create({
   },
   startBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -217,16 +217,16 @@ const st = StyleSheet.create({
   },
   completedPillText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   completedSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   logSessionBtn: {
     flexDirection: 'row',
@@ -243,7 +243,7 @@ const st = StyleSheet.create({
   },
   logSessionBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   // §2 Empty card: card surface, left-aligned editorial (not centred — centred = generic)
@@ -261,18 +261,18 @@ const st = StyleSheet.create({
   // §1 Empty hero: 32px direct statement — "Rest day." not "NO ASSIGNED WORKOUT TODAY"
   emptyHero: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
     letterSpacing: -0.8,
     marginTop: 6,
     marginBottom: 6,
-    lineHeight: 36,
+    lineHeight: 40.5,
   },
   emptyContext: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 18,
   },
   // §14 Browse btn: min 44pt height, accent bg for contrast
@@ -288,7 +288,7 @@ const st = StyleSheet.create({
   },
   browseBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },

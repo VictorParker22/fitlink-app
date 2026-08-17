@@ -252,12 +252,12 @@ export default function MessagesScreen() {
           accessibilityRole="button"
           accessibilityLabel="New message"
         >
-          <Ionicons name="chatbubble-ellipses-outline" size={17} color={CoachColors.onAccent} />
+          <Ionicons name="chatbubble-ellipses-outline" size={19} color={CoachColors.onAccent} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchBox}>
-        <Ionicons name="search" size={15} color={CoachColors.textFaint} />
+        <Ionicons name="search" size={17} color={CoachColors.textFaint} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search messages"
@@ -386,7 +386,7 @@ export default function MessagesScreen() {
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>New message</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowComposePicker(false)} accessibilityRole="button" accessibilityLabel="Close">
-                <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
             <FlatList keyboardShouldPersistTaps="handled"
@@ -411,7 +411,7 @@ export default function MessagesScreen() {
               )}
               ListEmptyComponent={
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 13 }}>No athletes yet.</Text>
+                  <Text style={{ fontFamily: CoachFonts.body, color: CoachColors.textMuted, fontSize: 14.5 }}>No athletes yet.</Text>
                 </View>
               }
             />
@@ -439,8 +439,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4,
   },
-  title: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary, letterSpacing: -0.4 },
-  subtitle: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 2 },
+  title: { fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary, letterSpacing: -0.4 },
+  subtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 2 },
   composeBadge: {
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
     borderRadius: 12, marginHorizontal: 20, marginTop: 18, marginBottom: 6,
     paddingHorizontal: 14, height: 42,
   },
-  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary, paddingVertical: 0 },
+  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, paddingVertical: 0 },
 
   list: { paddingHorizontal: 20, paddingBottom: 40 },
   section: { marginTop: 20 },
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 6,
   },
 
@@ -465,12 +465,12 @@ const styles = StyleSheet.create({
   convItemBorder: { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
   convContent: { flex: 1, minWidth: 0 },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  convNameStrong: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
-  convName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, flex: 1 },
-  convTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5 },
-  convTimeMuted: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: CoachColors.textFaint },
-  convPreviewStrong: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textPrimary, marginTop: 2 },
-  convPreview: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 2 },
+  convNameStrong: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
+  convName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textSecondary, flex: 1 },
+  convTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13 },
+  convTimeMuted: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textFaint },
+  convPreviewStrong: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, marginTop: 2 },
+  convPreview: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 2 },
 
   unreadBadge: {
     // minHeight so the unread count is not clipped at large Dynamic Type sizes.
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  unreadText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.onAccent },
+  unreadText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.onAccent },
 
   avatar: {
     backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center',
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   avatarText: { fontFamily: CoachFonts.bodyBold },
 
   noMatches: { paddingVertical: 24, alignItems: 'center' },
-  noMatchesText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
+  noMatchesText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint },
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: {
@@ -495,9 +495,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
     paddingVertical: 6, paddingRight: 13, paddingLeft: 6,
   },
-  pillName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary },
+  pillName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
   pillMore: { justifyContent: 'center', borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  pillMoreText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textMuted },
+  pillMoreText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },
 
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
@@ -507,13 +507,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 36,
   },
   composeSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  composeSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  composeSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
   composeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
-  composeRowName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  composeRowHint: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textMuted },
+  composeRowName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  composeRowHint: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },
 
   emptyScroll: { paddingBottom: 40 },
   emptyCard: {
@@ -521,13 +521,13 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: 16, padding: 18,
   },
-  emptyCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
-  emptyCardBody: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginTop: 8, lineHeight: 19 },
+  emptyCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
+  emptyCardBody: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 8, lineHeight: 21.5 },
   emptyCta: {
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 13, alignItems: 'center', marginTop: 16,
   },
-  emptyCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  emptyCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   emptySection: { marginHorizontal: 20, marginTop: 24 },
   previewThread: { gap: 8, opacity: 0.5 },
@@ -536,19 +536,19 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.border, borderRadius: 16, borderBottomRightRadius: 4,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  previewBubbleTextRight: { fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19, color: CoachColors.textSecondary },
+  previewBubbleTextRight: { fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5, color: CoachColors.textSecondary },
   previewBubbleLeft: {
     alignSelf: 'flex-start', maxWidth: '74%',
     backgroundColor: CoachColors.surface, borderRadius: 16, borderBottomLeftRadius: 4,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  previewBubbleTextLeft: { fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19, color: CoachColors.textSecondary },
+  previewBubbleTextLeft: { fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5, color: CoachColors.textSecondary },
 
   reminderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 15,
   },
-  reminderTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  reminderSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 2 },
+  reminderTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  reminderSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
 });

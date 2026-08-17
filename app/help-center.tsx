@@ -82,7 +82,7 @@ export default function HelpCenterScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Help center</Text>
         <View style={{ width: 36 }} />
@@ -92,7 +92,7 @@ export default function HelpCenterScreen() {
         <Text style={s.heroTitle}>How can we help?</Text>
 
         <View style={s.searchWrap}>
-          <Ionicons name="search" size={16} color={CoachColors.textFaint} />
+          <Ionicons name="search" size={18} color={CoachColors.textFaint} />
           <TextInput
             style={s.searchInput}
             placeholder="Search questions"
@@ -104,7 +104,7 @@ export default function HelpCenterScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           )}
         </View>
@@ -133,7 +133,7 @@ export default function HelpCenterScreen() {
                     >
                       <View style={s.faqHeader}>
                         <Text style={s.faqQuestion}>{item.q}</Text>
-                        <Ionicons name={isExpanded ? 'remove' : 'add'} size={18} color={CoachColors.accent} />
+                        <Ionicons name={isExpanded ? 'remove' : 'add'} size={20} color={CoachColors.accent} />
                       </View>
                       {isExpanded && <Text style={s.faqAnswer}>{item.a}</Text>}
                     </TouchableOpacity>
@@ -146,9 +146,9 @@ export default function HelpCenterScreen() {
         ))}
 
         <TouchableOpacity style={s.contactRow} activeOpacity={0.7} onPress={() => router.push('/contact-support' as any)}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color={CoachColors.accent} />
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color={CoachColors.accent} />
           <Text style={s.contactRowText}>Still stuck? Contact support</Text>
-          <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+          <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -166,11 +166,11 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
 
   heroTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
     marginTop: 16, marginBottom: 14, letterSpacing: -0.3,
   },
 
@@ -179,12 +179,12 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 12, paddingHorizontal: 14, height: 44,
   },
-  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, paddingVertical: 0 },
+  searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 0 },
 
-  emptyText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, marginTop: 24, lineHeight: 20 },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, marginTop: 24, lineHeight: 22.5 },
 
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.8, marginTop: 22, marginBottom: 8,
   },
 
@@ -194,8 +194,8 @@ const s = StyleSheet.create({
   },
   faqItem: { paddingVertical: 14, paddingHorizontal: 16 },
   faqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  faqQuestion: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, flex: 1, lineHeight: 19 },
-  faqAnswer: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20, marginTop: 10 },
+  faqQuestion: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, flex: 1, lineHeight: 21.5 },
+  faqAnswer: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5, marginTop: 10 },
   divider: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: 16 },
 
   contactRow: {
@@ -203,5 +203,5 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 15, marginTop: 28,
   },
-  contactRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
+  contactRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
 });

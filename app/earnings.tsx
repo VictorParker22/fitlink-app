@@ -258,7 +258,7 @@ export default function EarningsScreen() {
         {/* ── Header ──────────────────────────────────── */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.headerTitle}>Earnings</Text>
@@ -385,7 +385,7 @@ export default function EarningsScreen() {
               {stripeLoading ? (
                 <ActivityIndicator size="small" color={CoachColors.textPrimary} />
               ) : (
-                <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+                <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
               )}
             </TouchableOpacity>
 
@@ -613,13 +613,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21.5,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -634,21 +634,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginTop: 22,
     marginBottom: 4,
   },
   projectionTag: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
   },
   sectionDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 12,
   },
   sectionDescStrong: {
@@ -684,23 +684,23 @@ const styles = StyleSheet.create({
   },
   pendingBadge: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.warning,
     letterSpacing: 0.6,
   },
   pendingHeadline: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     marginTop: 10,
-    lineHeight: 26,
+    lineHeight: 29,
   },
   pendingDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
     marginTop: 8,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
   connectBtn: {
     backgroundColor: CoachColors.accent,
@@ -712,12 +712,12 @@ const styles = StyleSheet.create({
   },
   connectBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
   },
   pendingFootnote: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
     textAlign: 'center',
     marginTop: 9,
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   },
   headlineLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
   },
@@ -746,16 +746,16 @@ const styles = StyleSheet.create({
   },
   headlineValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
+    fontSize: 40.5,
     letterSpacing: -0.5,
     color: CoachColors.accent,
   },
   headlineDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   headlineFooter: {
     flexDirection: 'row',
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
   },
   headlineFooterText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
 
@@ -788,12 +788,12 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   statValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginTop: 4,
   },
@@ -812,12 +812,12 @@ const styles = StyleSheet.create({
   },
   dashboardBtnTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   dashboardBtnSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -845,23 +845,23 @@ const styles = StyleSheet.create({
   },
   breakdownName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   breakdownMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
   breakdownAmount: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   breakdownAfterFee: {
     fontFamily: CoachFonts.body,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textFaint,
   },
   breakdownBarTrack: {
@@ -898,18 +898,18 @@ const styles = StyleSheet.create({
   },
   heldName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   heldMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
   heldAmount: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   txRow: {
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
   },
   txAvatarText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textSecondary,
   },
 
@@ -940,24 +940,24 @@ const styles = StyleSheet.create({
   },
   poolLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
   },
   poolValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     marginTop: 5,
   },
   poolMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   poolMetaSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginTop: 3,
   },
@@ -976,19 +976,19 @@ const styles = StyleSheet.create({
   poolClassName: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
   poolClassMins: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   poolClassPct: {
     width: 36,
     textAlign: 'right',
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
   },
   poolHistory: {
@@ -999,17 +999,17 @@ const styles = StyleSheet.create({
   },
   poolHistoryLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
     marginBottom: 6,
   },
   emptyClassText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // ── Empty state ──
@@ -1020,16 +1020,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 20,
     maxWidth: 260,
   },
 
@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   payoutInfoTitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
     marginBottom: 12,
@@ -1065,8 +1065,8 @@ const styles = StyleSheet.create({
   payoutInfoText: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

@@ -492,7 +492,7 @@ export default function ClientDetailScreen() {
     return (
       <SafeAreaView style={s.root}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <Ionicons name="person-outline" size={52} color={CoachColors.border} />
+          <Ionicons name="person-outline" size={58} color={CoachColors.border} />
           <Text style={s.emptyStateTitle}>Client not found</Text>
           <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.outlineBtn} onPress={() => router.back()}>
             <Text style={s.outlineBtnText}>Go Back</Text>
@@ -557,11 +557,11 @@ export default function ClientDetailScreen() {
       <SafeAreaView edges={['top']}>
         <View style={s.nav}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.navTitle} numberOfLines={1}>{toTitleCase(client.name)}</Text>
           <TouchableOpacity onPress={() => router.push(`/edit-client/${id}` as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Edit client">
-            <Ionicons name="ellipsis-horizontal" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="ellipsis-horizontal" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -623,11 +623,11 @@ export default function ClientDetailScreen() {
               {clientUnread > 0 && (
                 <View style={s.unreadDot}><Text style={s.unreadDotText}>{clientUnread > 9 ? '9+' : clientUnread}</Text></View>
               )}
-              <Ionicons name="chatbubble-ellipses" size={17} color={CoachColors.onAccent} />
+              <Ionicons name="chatbubble-ellipses" size={19} color={CoachColors.onAccent} />
               <Text style={s.actionPrimaryText}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.actionSecondary} onPress={() => router.push(`/book-session?clientId=${client.id}` as any)} activeOpacity={0.85}>
-              <Ionicons name="calendar-outline" size={17} color={CoachColors.textPrimary} />
+              <Ionicons name="calendar-outline" size={19} color={CoachColors.textPrimary} />
               <Text style={s.actionSecondaryText}>Book Session</Text>
             </TouchableOpacity>
           </View>
@@ -643,7 +643,7 @@ export default function ClientDetailScreen() {
                 : { icon: 'ribbon-outline', label: 'Enroll', action: () => setAssignMode('enroll') },
             ].map(item => (
               <TouchableOpacity key={item.label} style={s.iconTrayItem} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); item.action(); }} activeOpacity={0.65}>
-                <Ionicons name={item.icon as any} size={20} color={CoachColors.textSecondary} />
+                <Ionicons name={item.icon as any} size={22} color={CoachColors.textSecondary} />
                 <Text style={s.iconTrayLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -706,7 +706,7 @@ export default function ClientDetailScreen() {
                     {notesText || 'Tap to add a private coaching note…'}
                   </Text>
                   <View style={s.notesEditRow}>
-                    <Ionicons name="pencil-outline" size={12} color={CoachColors.textFaint} />
+                    <Ionicons name="pencil-outline" size={13} color={CoachColors.textFaint} />
                     <Text style={s.notesEditLabel}>Private · Only you can see this</Text>
                   </View>
                 </TouchableOpacity>
@@ -722,7 +722,7 @@ export default function ClientDetailScreen() {
               return (
                 <TouchableOpacity style={s.block} onPress={openCqEditor} activeOpacity={0.7}>
                   <View style={s.blockRow}>
-                    <Ionicons name="chatbox-ellipses-outline" size={18} color={saved.length > 0 ? CoachColors.accent : CoachColors.textSecondary} />
+                    <Ionicons name="chatbox-ellipses-outline" size={20} color={saved.length > 0 ? CoachColors.accent : CoachColors.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.blockRowText}>
                         {saved.length > 0 ? `${saved.length} custom question${saved.length === 1 ? '' : 's'}` : 'Standard questions'}
@@ -749,14 +749,14 @@ export default function ClientDetailScreen() {
                   accessibilityLabel={`How training felt. ${feelSummary.line}.${feelSummary.heavy ? ' Heavy week — consider easing volume.' : ''}`}
                 >
                   <View style={s.blockRow}>
-                    <Ionicons name="pulse-outline" size={18} color={feelSummary.heavy ? CoachColors.warning : CoachColors.accent} />
+                    <Ionicons name="pulse-outline" size={20} color={feelSummary.heavy ? CoachColors.warning : CoachColors.accent} />
                     <Text style={s.blockRowText}>{feelSummary.line}</Text>
                   </View>
                   {feelSummary.heavy && (
                     <>
                       <View style={s.blockDivider} />
                       <View style={s.blockRow}>
-                        <Ionicons name="alert-circle-outline" size={18} color={CoachColors.warning} />
+                        <Ionicons name="alert-circle-outline" size={20} color={CoachColors.warning} />
                         <Text style={[s.blockRowText, { color: CoachColors.warning }]}>Heavy week — consider easing volume</Text>
                       </View>
                     </>
@@ -772,7 +772,7 @@ export default function ClientDetailScreen() {
                 {nutrition.daysLogged === 0 ? (
                   <View style={s.block}>
                     <View style={s.blockRow}>
-                      <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                      <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
                       <Text style={s.blockRowLabel}>
                         {activeDietPlan ? 'No meals logged this week' : 'No diet plan assigned, no meals logged'}
                       </Text>
@@ -781,7 +781,7 @@ export default function ClientDetailScreen() {
                 ) : (
                   <View style={s.block}>
                     <View style={s.blockRow}>
-                      <Ionicons name="nutrition-outline" size={18} color={CoachColors.accent} />
+                      <Ionicons name="nutrition-outline" size={20} color={CoachColors.accent} />
                       <Text style={s.blockRowLabel}>Days logged</Text>
                       <Text style={s.blockRowValue}>{nutrition.daysLogged} of 7</Text>
                     </View>
@@ -789,7 +789,7 @@ export default function ClientDetailScreen() {
                       <>
                         <View style={s.blockDivider} />
                         <View style={s.blockRow}>
-                          <Ionicons name="swap-horizontal-outline" size={18} color={CoachColors.textSecondary} />
+                          <Ionicons name="swap-horizontal-outline" size={20} color={CoachColors.textSecondary} />
                           <Text style={s.blockRowLabel}>Swaps used</Text>
                           <Text style={s.blockRowValue}>{nutrition.swapCount}</Text>
                         </View>
@@ -840,7 +840,7 @@ export default function ClientDetailScreen() {
                       {daysUntil===0 ? 'Today' : daysUntil===1 ? 'Tomorrow' : `In ${daysUntil} days`}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               );
             })() : (
@@ -872,7 +872,7 @@ export default function ClientDetailScreen() {
                   : <Text style={s.messageEmpty}>Start conversation →</Text>
                 }
               </View>
-              <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             {/* Contact */}
@@ -882,17 +882,17 @@ export default function ClientDetailScreen() {
                 <View style={s.block}>
                   {client.phone && (
                     <TouchableOpacity style={s.blockRow} onPress={() => Linking.openURL(`tel:${client.phone}`)} activeOpacity={0.7}>
-                      <Ionicons name="call-outline" size={18} color={CoachColors.textSecondary} />
+                      <Ionicons name="call-outline" size={20} color={CoachColors.textSecondary} />
                       <Text style={s.blockRowText}>{formatPhone(client.phone)}</Text>
-                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
+                      <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                   )}
                   {client.email && client.phone && <View style={s.blockDivider} />}
                   {client.email && (
                     <TouchableOpacity style={s.blockRow} onPress={() => Linking.openURL(`mailto:${client.email}`)} activeOpacity={0.7}>
-                      <Ionicons name="mail-outline" size={18} color={CoachColors.textSecondary} />
+                      <Ionicons name="mail-outline" size={20} color={CoachColors.textSecondary} />
                       <Text style={s.blockRowText} numberOfLines={1}>{client.email}</Text>
-                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
+                      <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -921,7 +921,7 @@ export default function ClientDetailScreen() {
                         ].filter(Boolean).map((row: any, i, arr) => (
                           <View key={row.label}>
                             <View style={s.blockRow}>
-                              <Ionicons name={row.icon} size={18} color={CoachColors.textSecondary} />
+                              <Ionicons name={row.icon} size={20} color={CoachColors.textSecondary} />
                               <Text style={s.blockRowLabel}>{row.label}</Text>
                               <Text style={s.blockRowValue}>{row.val}</Text>
                             </View>
@@ -1014,7 +1014,7 @@ export default function ClientDetailScreen() {
                   ].map((row, i, arr) => (
                     <View key={row.label}>
                       <View style={s.blockRow}>
-                        <Ionicons name={row.icon as any} size={18} color={CoachColors.textSecondary} />
+                        <Ionicons name={row.icon as any} size={20} color={CoachColors.textSecondary} />
                         <Text style={s.blockRowLabel}>{row.label}</Text>
                         <Text style={s.blockRowValue}>{row.value}</Text>
                       </View>
@@ -1066,7 +1066,7 @@ export default function ClientDetailScreen() {
               return (
                 <View style={s.block}>
                   <View style={s.blockRow}>
-                    <Ionicons name="ribbon-outline" size={18} color={CoachColors.accent} />
+                    <Ionicons name="ribbon-outline" size={20} color={CoachColors.accent} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.blockRowText}>{activePlan.name}</Text>
                       <Text style={s.blockRowSub}>{wCount} workouts · {dCount} diets · ${activePlan.price}/{activePlan.period==='monthly'?'mo':activePlan.period}</Text>
@@ -1077,7 +1077,7 @@ export default function ClientDetailScreen() {
                   </View>
                   <View style={s.blockDivider} />
                   <View style={s.blockRow}>
-                    <Ionicons name="card-outline" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="card-outline" size={20} color={CoachColors.textSecondary} />
                     <Text style={s.blockRowLabel}>Next billing</Text>
                     <Text style={s.blockRowValue}>{billing.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</Text>
                   </View>
@@ -1102,7 +1102,7 @@ export default function ClientDetailScreen() {
                       return (
                         <View key={i}>
                           <View style={s.blockRow}>
-                            <Ionicons name={icon as any} size={18} color={color} />
+                            <Ionicons name={icon as any} size={20} color={color} />
                             <View style={{ flex: 1 }}>
                               <Text style={s.blockRowText}>{name}</Text>
                               <Text style={s.blockRowSub}>Step {node.order+1}</Text>
@@ -1115,7 +1115,7 @@ export default function ClientDetailScreen() {
                     {activePlan.track.length > 6 && (
                       <TouchableOpacity style={s.viewAllRow} onPress={() => router.push(`/plan/${activePlan.id}` as any)}>
                         <Text style={s.viewAllText}>View all {activePlan.track.length} items</Text>
-                        <Ionicons name="chevron-forward" size={13} color={CoachColors.accent} />
+                        <Ionicons name="chevron-forward" size={15} color={CoachColors.accent} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1132,7 +1132,7 @@ export default function ClientDetailScreen() {
                     <View key={item.assignment.id}>
                       <TouchableOpacity style={s.blockRow} onPress={() => router.push(`/workout/${item.workout.id}` as any)} activeOpacity={0.7}>
                         <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="barbell-outline" size={16} color={CoachColors.textSecondary} />
+                          <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.blockRowText}>{item.workout.name}</Text>
@@ -1155,7 +1155,7 @@ export default function ClientDetailScreen() {
                   {assignedDiets.map((item, i) => (
                     <View key={item.assignment.id}>
                       <TouchableOpacity style={s.blockRow} onPress={() => router.push(`/diet/${item.diet.id}` as any)} activeOpacity={0.7}>
-                        <Ionicons name="nutrition-outline" size={18} color={CoachColors.textSecondary} />
+                        <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
                         <View style={{ flex: 1 }}>
                           <Text style={s.blockRowText}>{item.diet.name}</Text>
                           <Text style={s.blockRowSub}>{item.diet.diet_plan_meals?.length || 0} meals</Text>
@@ -1170,7 +1170,7 @@ export default function ClientDetailScreen() {
             )}
 
             <TouchableOpacity style={s.addBtn} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-              <Ionicons name="add" size={17} color={CoachColors.accent} />
+              <Ionicons name="add" size={19} color={CoachColors.accent} />
               <Text style={s.addBtnText}>Assign workout or diet plan</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -1221,7 +1221,7 @@ export default function ClientDetailScreen() {
                     hideYAxisText
                     xAxisColor={CoachColors.borderMuted}
                     yAxisColor="transparent"
-                    xAxisLabelTextStyle={{ color: CoachColors.textFaint, fontSize: 9, fontFamily: CoachFonts.body }}
+                    xAxisLabelTextStyle={{ color: CoachColors.textFaint, fontSize: 10, fontFamily: CoachFonts.body }}
                     startFillColor={CoachColors.accentSoft}
                     endFillColor="transparent"
                     areaChart
@@ -1235,7 +1235,7 @@ export default function ClientDetailScreen() {
                       pointerLabelHeight: 28,
                       pointerLabelComponent: (items: any[]) => (
                         <View style={{ backgroundColor: CoachColors.surface, padding: 5, borderRadius: 6 }}>
-                          <Text style={{ color: CoachColors.textPrimary, fontSize: 11, fontFamily: CoachFonts.bodySemiBold }}>{items[0]?.value} lbs</Text>
+                          <Text style={{ color: CoachColors.textPrimary, fontSize: 12.5, fontFamily: CoachFonts.bodySemiBold }}>{items[0]?.value} lbs</Text>
                         </View>
                       ),
                     }}
@@ -1303,8 +1303,8 @@ export default function ClientDetailScreen() {
                         <Text style={s.blockRowText}>{log.weight ? `${log.weight} lbs` : 'Check-in'}</Text>
                         <Text style={s.blockRowSub}>{new Date(log.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</Text>
                       </View>
-                      {(log as any).photos?.length > 0 && <Ionicons name="camera-outline" size={15} color={CoachColors.textMuted} />}
-                      <Ionicons name="chevron-forward" size={14} color={CoachColors.textFaint} />
+                      {(log as any).photos?.length > 0 && <Ionicons name="camera-outline" size={17} color={CoachColors.textMuted} />}
+                      <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
                     </TouchableOpacity>
                     {i < Math.min(progressLogs.length,6)-1 && <View style={s.blockDivider} />}
                   </View>
@@ -1312,7 +1312,7 @@ export default function ClientDetailScreen() {
                 {progressLogs.length > 6 && (
                   <TouchableOpacity style={s.viewAllRow} onPress={() => router.push(`/client/${client.id}/progress` as any)}>
                     <Text style={s.viewAllText}>View all {progressLogs.length} check-ins</Text>
-                    <Ionicons name="chevron-forward" size={13} color={CoachColors.accent} />
+                    <Ionicons name="chevron-forward" size={15} color={CoachColors.accent} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1358,7 +1358,7 @@ export default function ClientDetailScreen() {
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setViewerPhoto(null)} activeOpacity={1} />
           {viewerPhoto && <EImage source={{ uri: viewerPhoto }} style={s.photoViewerImg} contentFit="contain" />}
           <TouchableOpacity style={s.photoViewerClose} onPress={() => setViewerPhoto(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Close photo">
-            <Ionicons name="close" size={20} color={CoachColors.textPrimary} />
+            <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
       </Modal>
@@ -1368,7 +1368,7 @@ export default function ClientDetailScreen() {
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
             <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
-              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.modalNavTitle}>
               {assignMode==='enroll' ? 'Enroll in Program' : `Assign ${assignMode==='workout'?'Workout':'Diet Plan'}`}
@@ -1410,16 +1410,16 @@ export default function ClientDetailScreen() {
                 })}
                 <TouchableOpacity style={s.quickAddToggle} onPress={() => setShowQuickAdd(!showQuickAdd)} activeOpacity={0.7}>
                   <Text style={s.quickAddToggleText}>Quick-assign individual item</Text>
-                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={14} color={CoachColors.textMuted} />
+                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textMuted} />
                 </TouchableOpacity>
                 {showQuickAdd && (
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('workout')} activeOpacity={0.8}>
-                      <Ionicons name="barbell-outline" size={17} color={CoachColors.accent} />
+                      <Ionicons name="barbell-outline" size={19} color={CoachColors.accent} />
                       <Text style={s.quickAddBtnText}>Workout</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('diet')} activeOpacity={0.8}>
-                      <Ionicons name="nutrition-outline" size={17} color={CoachColors.textSecondary} />
+                      <Ionicons name="nutrition-outline" size={19} color={CoachColors.textSecondary} />
                       <Text style={s.quickAddBtnText}>Diet Plan</Text>
                     </TouchableOpacity>
                   </View>
@@ -1429,7 +1429,7 @@ export default function ClientDetailScreen() {
             {(assignMode === 'workout' || assignMode === 'diet') && (
               <>
                 <TouchableOpacity style={s.quickAddBtn} onPress={() => { const m=assignMode; setAssignMode(null); dismissThenGo(m==='workout'?'/create-workout':'/create-diet'); }} activeOpacity={0.8}>
-                  <Ionicons name="add" size={18} color={CoachColors.accent} />
+                  <Ionicons name="add" size={20} color={CoachColors.accent} />
                   <Text style={s.quickAddBtnText}>Create new {assignMode==='workout'?'workout':'diet plan'}</Text>
                 </TouchableOpacity>
                 {(assignMode==='workout'?workouts:diets).map((item: any) => {
@@ -1440,7 +1440,7 @@ export default function ClientDetailScreen() {
                   return (
                     <TouchableOpacity key={item.id} style={[s.modalPlanRow, { opacity: taken ? 0.45 : 1 }]}
                       onPress={() => !taken && handleAssign(item.id)} disabled={taken} activeOpacity={0.7}>
-                      <Ionicons name={isW ? 'barbell-outline' : 'nutrition-outline'} size={18} color={isW ? CoachColors.accent : CoachColors.textSecondary} />
+                      <Ionicons name={isW ? 'barbell-outline' : 'nutrition-outline'} size={20} color={isW ? CoachColors.accent : CoachColors.textSecondary} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.modalPlanName}>{item.name}</Text>
                         <Text style={s.modalPlanMeta}>{isW ? `${item.workout_exercises?.length||0} exercises` : `${item.diet_plan_meals?.length||0} meals`}</Text>
@@ -1450,8 +1450,8 @@ export default function ClientDetailScreen() {
                   );
                 })}
                 <TouchableOpacity style={{ flexDirection:'row', alignItems:'center', gap:6, paddingVertical:14, justifyContent:'center' }} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-                  <Ionicons name="arrow-back" size={14} color={CoachColors.textMuted} />
-                  <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted }}>Back to programs</Text>
+                  <Ionicons name="arrow-back" size={16} color={CoachColors.textMuted} />
+                  <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted }}>Back to programs</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1463,7 +1463,7 @@ export default function ClientDetailScreen() {
       <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowUpgradeModal(false)}>
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={22} color={CoachColors.textPrimary} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={25} color={CoachColors.textPrimary} /></TouchableOpacity>
             <Text style={s.modalNavTitle}>Choose a Plan</Text>
             <View style={{ width: 24 }} />
           </View>
@@ -1506,7 +1506,7 @@ export default function ClientDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={cqEditing !== null ? 'Back to question list' : 'Close'}
                 >
-                  <Ionicons name={cqEditing !== null ? 'chevron-back' : 'close'} size={24} color={CoachColors.textPrimary} />
+                  <Ionicons name={cqEditing !== null ? 'chevron-back' : 'close'} size={27} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
                 <Text style={s.cqTitle} numberOfLines={1}>
                   {cqEditing === null ? 'Check-in questions' : cqEditing === 'new' ? 'New question' : 'Edit question'}
@@ -1545,20 +1545,20 @@ export default function ClientDetailScreen() {
                         </TouchableOpacity>
                         <View style={s.cqRowActions}>
                           <TouchableOpacity onPress={() => moveQuestion(i, -1)} disabled={i === 0} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Move up">
-                            <Ionicons name="chevron-up" size={18} color={i === 0 ? CoachColors.borderMuted : CoachColors.textSecondary} />
+                            <Ionicons name="chevron-up" size={20} color={i === 0 ? CoachColors.borderMuted : CoachColors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => moveQuestion(i, 1)} disabled={i === cqList.length - 1} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Move down">
-                            <Ionicons name="chevron-down" size={18} color={i === cqList.length - 1 ? CoachColors.borderMuted : CoachColors.textSecondary} />
+                            <Ionicons name="chevron-down" size={20} color={i === cqList.length - 1 ? CoachColors.borderMuted : CoachColors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => removeQuestion(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="Remove question">
-                            <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
+                            <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
                           </TouchableOpacity>
                         </View>
                       </View>
                     ))}
 
                     <TouchableOpacity style={s.addBtn} onPress={() => openQForm('new')} activeOpacity={0.7}>
-                      <Ionicons name="add" size={17} color={CoachColors.accent} />
+                      <Ionicons name="add" size={19} color={CoachColors.accent} />
                       <Text style={s.addBtnText}>Add question</Text>
                     </TouchableOpacity>
                   </>
@@ -1668,60 +1668,60 @@ const s = StyleSheet.create({
 
   // NAV
   nav:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
-  navTitle:      { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, flex: 1, textAlign: 'center' },
+  navTitle:      { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary, flex: 1, textAlign: 'center' },
 
   // HERO
   hero:          { alignItems: 'center', paddingTop: 28, paddingBottom: 24, paddingHorizontal: 20, gap: 10 },
-  heroName:      { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary, letterSpacing: -0.5, marginTop: 8 },
+  heroName:      { fontFamily: CoachFonts.headingBold, fontSize: 33.5, color: CoachColors.textPrimary, letterSpacing: -0.5, marginTop: 8 },
   heroStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   statusDot:     { width: 7, height: 7, borderRadius: 3.5 },
-  heroStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
-  heroDivider:   { fontSize: 13, color: CoachColors.textFaint, fontFamily: CoachFonts.body },
+  heroStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
+  heroDivider:   { fontSize: 14.5, color: CoachColors.textFaint, fontFamily: CoachFonts.body },
 
   // STAT ROW (Strava-style)
   // Demoted: smaller and quieter than the attention banner above it.
   statRow:       { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 2, marginBottom: 2 },
   statBlock:     { flex: 1, alignItems: 'center', gap: 3 },
-  statNum:       { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textSecondary, letterSpacing: -0.5 },
-  statLabel:     { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint, textAlign: 'center' },
+  statNum:       { fontFamily: CoachFonts.headingSemiBold, fontSize: 21.5, color: CoachColors.textSecondary, letterSpacing: -0.5 },
+  statLabel:     { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, textAlign: 'center' },
   statDivider:   { width: 1, height: 36, backgroundColor: CoachColors.borderMuted },
 
   // Engagement ring (compact, inside stat block)
   engageWrap:    { width: 80, height: 80 },
-  engageNum:     { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.5 },
+  engageNum:     { fontFamily: CoachFonts.headingBold, fontSize: 22.5, letterSpacing: -0.5 },
 
   // PRIMARY ACTIONS
   heroActions:   { flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 },
   actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 14, paddingVertical: 14 },
-  actionPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  actionPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
   actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.borderMuted, borderRadius: 14, paddingVertical: 14 },
-  actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
   // minHeight so the unread count is not clipped at large Dynamic Type sizes.
   unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, minHeight: 18, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
   // onAccent (dark ink) on the solid danger fill: 5.75:1. textPrimary was 2.82:1.
-  unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.onAccent },
+  unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.onAccent },
 
   // ICON TRAY
   iconTray:      { flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 6 },
   iconTrayItem:  { alignItems: 'center', gap: 5, padding: 10 },
-  iconTrayLabel: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
+  iconTrayLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
 
   // TRIAL BANNER
   trialBanner:      { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 14, padding: 16 },
   trialLeft:         { flex: 1, gap: 8 },
-  trialTitle:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  quietSub:          { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  trialTitle:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  quietSub:          { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   quietNudgeBtn:     { backgroundColor: CoachColors.danger, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
-  quietNudgeText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  quietNudgeText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   trialTrack:        { height: 3, backgroundColor: CoachColors.borderMuted, borderRadius: 2, overflow: 'hidden' },
   trialFill:         { height: '100%', borderRadius: 2 },
   trialUpgradeBtn:   { backgroundColor: CoachColors.accent, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
-  trialUpgradeText:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
+  trialUpgradeText:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // TAB BAR
   tabRow:        { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted, position: 'relative' },
   tabItem:       { alignItems: 'center', paddingVertical: 12 },
-  tabLabel:      { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  tabLabel:      { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
   tabLabelActive: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
   tabUnderline:  { position: 'absolute', bottom: -1, height: 2, backgroundColor: CoachColors.accent, borderRadius: 1 },
 
@@ -1729,52 +1729,52 @@ const s = StyleSheet.create({
   tabBody:       { paddingHorizontal: 16, paddingTop: 20, gap: 6 },
 
   // SECTION LABELS — title case, subtle secondary colour
-  sectionLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, letterSpacing: 0.3, color: CoachColors.textMuted, marginTop: 14, marginBottom: 6 },
+  sectionLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, letterSpacing: 0.3, color: CoachColors.textMuted, marginTop: 14, marginBottom: 6 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  seeAll:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  seeAll:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   // BLOCK (main list container, like iOS Settings)
   block:         { backgroundColor: CoachColors.surface, borderRadius: 16, overflow: 'hidden' },
   blockRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   blockDivider:  { height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 46 },
-  blockRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textPrimary, flex: 1 },
-  blockRowLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary, flex: 1 },
-  blockRowValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  blockRowSub:   { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
-  changeLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  blockRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textPrimary, flex: 1 },
+  blockRowLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textSecondary, flex: 1 },
+  blockRowValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  blockRowSub:   { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
+  changeLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
   viewAllRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
-  viewAllText:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  viewAllText:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   addBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16 },
-  addBtnText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  addBtnText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
 
   // STATUS TAGS
-  statusTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', textTransform: 'capitalize' },
+  statusTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', textTransform: 'capitalize' },
   tagDone:       { backgroundColor: CoachColors.accentSoft, color: CoachColors.accent },
   tagPending:    { backgroundColor: 'rgba(155,160,149,0.14)', color: CoachColors.textSecondary },
   tagCancelled:  { backgroundColor: CoachColors.dangerSoft, color: CoachColors.danger },
 
   // NOTES
   notesWrap:        { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, gap: 10 },
-  notesInput:       { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, minHeight: 72, textAlignVertical: 'top', lineHeight: 22 },
-  notesText:        { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22 },
-  notesPlaceholder: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textFaint, lineHeight: 22, fontStyle: 'italic' },
+  notesInput:       { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, minHeight: 72, textAlignVertical: 'top', lineHeight: 24.5 },
+  notesText:        { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textSecondary, lineHeight: 24.5 },
+  notesPlaceholder: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textFaint, lineHeight: 24.5, fontStyle: 'italic' },
   notesEditRow:     { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  notesEditLabel:   { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
+  notesEditLabel:   { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
   notesActionsRow:  { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, paddingTop: 8 },
-  notesCancelText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  notesCancelText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
   notesSaveBtn:     { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10 },
-  notesSaveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  notesSaveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   // SESSION CARD (next session)
   sessionCard:    { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 18 },
   sessionDateCol: { alignItems: 'center', minWidth: 44 },
-  sessionDay:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5 },
-  sessionDayNum:  { fontFamily: CoachFonts.headingBold, fontSize: 32, color: CoachColors.textPrimary, lineHeight: 36 },
-  sessionMonth:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5 },
+  sessionDay:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 0.5 },
+  sessionDayNum:  { fontFamily: CoachFonts.headingBold, fontSize: 36, color: CoachColors.textPrimary, lineHeight: 40.5 },
+  sessionMonth:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 0.5 },
   sessionInfo:    { flex: 1, gap: 3 },
-  sessionType:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  sessionTime:    { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
-  sessionCountdown: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.warning, marginTop: 4 },
+  sessionType:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  sessionTime:    { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
+  sessionCountdown: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.warning, marginTop: 4 },
 
   // MESSAGE ROW
   messageRow:      { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
@@ -1782,55 +1782,55 @@ const s = StyleSheet.create({
   // minHeight so the unread count is not clipped at large Dynamic Type sizes.
   msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, minHeight: 17, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
   // onAccent on the solid danger fill — see unreadDotText.
-  msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.onAccent },
-  messageText:     { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textPrimary },
-  messageTime:     { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
-  messageEmpty:    { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textFaint, fontStyle: 'italic' },
+  msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.onAccent },
+  messageText:     { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textPrimary },
+  messageTime:     { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
+  messageEmpty:    { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textFaint, fontStyle: 'italic' },
 
   // CHIPS
   chipWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:        { backgroundColor: CoachColors.surface, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8 },
-  chipText:    { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  chipText:    { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   // COMMITMENT BARS
   commitRow:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
   commitBar:       { width: 26, height: 32, borderRadius: 6, backgroundColor: CoachColors.borderMuted },
   commitBarActive: { backgroundColor: CoachColors.accent },
-  commitText:      { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary, marginLeft: 8 },
+  commitText:      { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, marginLeft: 8 },
 
   // EMPTY STATES
   emptyRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: CoachColors.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18 },
-  emptyRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textFaint },
-  emptyRowCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
+  emptyRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textFaint },
+  emptyRowCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
   emptyBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 24, alignItems: 'center', gap: 8 },
-  emptyBlockTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center' },
-  emptyBlockSub:   { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 18 },
-  emptyBlockCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent, marginTop: 4 },
+  emptyBlockTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textSecondary, textAlign: 'center' },
+  emptyBlockSub:   { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 20 },
+  emptyBlockCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent, marginTop: 4 },
   emptyBlockBtn:   { backgroundColor: CoachColors.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 },
-  emptyBlockBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
-  emptyStateTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textSecondary },
+  emptyBlockBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
+  emptyStateTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 20, color: CoachColors.textSecondary },
   outlineBtn:    { borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // SYNC NOTE
-  syncNote:      { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, textAlign: 'right', marginTop: 4 },
+  syncNote:      { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, textAlign: 'right', marginTop: 4 },
 
   // CHART
   chartBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden' },
   chartTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  chartBigNum:   { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary, letterSpacing: -1 },
+  chartBigNum:   { fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.textPrimary, letterSpacing: -1 },
   deltaBadge:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  deltaBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13 },
+  deltaBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
 
   // PROGRESS PHOTOS
   photoThumb:    { width: 120, height: 170, borderRadius: 14, overflow: 'hidden', backgroundColor: CoachColors.surface },
   photoThumbImg: { width: '100%', height: '100%' },
   photoGrad:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 70 },
   photoFooter:   { position: 'absolute', bottom: 10, left: 10, right: 10 },
-  photoDate:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textPrimary },
-  photoWeight:   { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textSecondary, marginTop: 2 },
+  photoDate:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
+  photoWeight:   { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary, marginTop: 2 },
   photoLatest:   { position: 'absolute', top: 8, right: 8, backgroundColor: CoachColors.accent, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
-  photoLatestText: { fontFamily: CoachFonts.headingBold, fontSize: 7, color: CoachColors.onAccent, letterSpacing: 0.5 },
+  photoLatestText: { fontFamily: CoachFonts.headingBold, fontSize: 8, color: CoachColors.onAccent, letterSpacing: 0.5 },
 
   // LOG DOT
   logDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: CoachColors.accent },
@@ -1843,46 +1843,46 @@ const s = StyleSheet.create({
 
   // MODAL NAV
   modalNav:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  modalNavTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
-  modalHint:     { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, lineHeight: 20, marginBottom: 4 },
+  modalNavTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
+  modalHint:     { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 4 },
   modalPlanRow:  { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   modalPlanRowActive: { borderWidth: 1.5, borderColor: CoachColors.accent },
-  modalPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
-  modalPlanMeta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
-  activePlanTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
-  enrollTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  modalPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  modalPlanMeta: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 2 },
+  activePlanTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
+  enrollTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   quickAddToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4 },
-  quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textMuted },
+  quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
   quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // NUTRITION (last 7 days)
   nutriDayRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  nutriDayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
-  nutriDayVal:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  nutriDayLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
+  nutriDayVal:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
 
   // CHECK-IN QUESTION EDITOR (in-screen overlay)
   cqOverlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: CoachColors.bg, zIndex: 50 },
   cqHeader:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
-  cqTitle:       { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, textAlign: 'center' },
-  cqSaveLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  cqTitle:       { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary, textAlign: 'center' },
+  cqSaveLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   cqBody:        { padding: 16, paddingBottom: 48, gap: 10 },
-  cqHint:        { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 19, marginBottom: 4 },
+  cqHint:        { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 21.5, marginBottom: 4 },
   cqRow:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14 },
-  cqRowPrompt:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, lineHeight: 20 },
-  cqRowContext:  { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
-  cqRowMeta:     { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint, marginTop: 4 },
+  cqRowPrompt:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, lineHeight: 22.5 },
+  cqRowContext:  { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
+  cqRowMeta:     { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, marginTop: 4 },
   cqRowActions:  { alignItems: 'center', gap: 10 },
-  cqFieldLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted, marginTop: 8, marginBottom: 6 },
-  cqInput:       { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, padding: 13, fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary, textAlignVertical: 'top' },
+  cqFieldLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 8, marginBottom: 6 },
+  cqInput:       { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, padding: 13, fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary, textAlignVertical: 'top' },
   cqTypeRow:     { flexDirection: 'row', gap: 8 },
   cqTypeChip:    { flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, gap: 3 },
   cqTypeChipActive: { borderColor: CoachColors.accent, borderWidth: 1.5 },
-  cqTypeChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  cqTypeChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
   cqTypeChipTextActive: { color: CoachColors.accent },
-  cqTypeChipHint: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint, lineHeight: 14 },
+  cqTypeChipHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, lineHeight: 15.5 },
   cqScaleRow:    { flexDirection: 'row', gap: 8 },
   cqCommitBtn:   { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
-  cqCommitBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
-  cqFormHint:    { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint, textAlign: 'center', marginTop: 10 },
+  cqCommitBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },
+  cqFormHint:    { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', marginTop: 10 },
 });

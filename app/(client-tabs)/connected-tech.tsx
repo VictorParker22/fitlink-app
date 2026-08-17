@@ -187,7 +187,7 @@ export default function ConnectedTechScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Back button */}
       <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.backBtn} onPress={() => router.push(ClientRoute.myProfile)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Go back to profile">
-        <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-back" size={31} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
@@ -197,7 +197,7 @@ export default function ConnectedTechScreen() {
           <Text style={s.bannerText}>
             It all begins with a complimentary fitness assessment. Book your session.
           </Text>
-          <Ionicons name="chevron-forward" size={20} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-forward" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         {/* ── TITLE ── */}
@@ -211,7 +211,7 @@ export default function ConnectedTechScreen() {
         <View style={s.deviceCard}>
           <View style={s.deviceHeader}>
             <View style={[s.deviceIcon, { backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : '#E8F0FE' }]}>
-              <Ionicons name="heart" size={22} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
+              <Ionicons name="heart" size={25} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
             </View>
             <Text style={s.deviceName}>{HEALTH_PLATFORM}</Text>
             <View style={{ flex: 1 }} />
@@ -222,7 +222,7 @@ export default function ConnectedTechScreen() {
               </View>
             ) : !isHealthAvailable ? (
               <View style={s.unavailableBadge} accessibilityLabel={`${HEALTH_PLATFORM} requires the full app build`}>
-                <Ionicons name="construct-outline" size={16} color={CoachColors.textMuted} />
+                <Ionicons name="construct-outline" size={18} color={CoachColors.textMuted} />
                 <Text style={s.unavailableText}>Full build only</Text>
               </View>
             ) : isHealthConnected ? (
@@ -233,7 +233,7 @@ export default function ConnectedTechScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Disconnect ${HEALTH_PLATFORM}`}
               >
-                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+                <Ionicons name="checkmark-circle" size={22} color={CoachColors.accent} />
                 <Text style={s.connectedText}>Connected</Text>
               </TouchableOpacity>
             ) : (
@@ -244,7 +244,7 @@ export default function ConnectedTechScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Connect ${HEALTH_PLATFORM}`}
               >
-                <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="add-circle-outline" size={22} color={CoachColors.textPrimary} />
                 <Text style={s.connectText}>Connect</Text>
               </TouchableOpacity>
             )}
@@ -258,7 +258,7 @@ export default function ConnectedTechScreen() {
         <View style={s.deviceCard}>
           <View style={s.deviceHeader}>
             <View style={[s.deviceIcon, { backgroundColor: '#1DB954' }]}>
-              <Ionicons name="play-circle" size={22} color="#FFFFFF" />
+              <Ionicons name="play-circle" size={25} color="#FFFFFF" />
             </View>
             <Text style={s.deviceName}>Spotify</Text>
             <View style={{ flex: 1 }} />
@@ -275,7 +275,7 @@ export default function ConnectedTechScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Disconnect Spotify"
               >
-                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
+                <Ionicons name="checkmark-circle" size={22} color={CoachColors.accent} />
                 <Text style={s.connectedText}>Connected</Text>
               </TouchableOpacity>
             ) : (
@@ -286,7 +286,7 @@ export default function ConnectedTechScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Connect Spotify"
               >
-                <Ionicons name="add-circle-outline" size={20} color={CoachColors.textPrimary} />
+                <Ionicons name="add-circle-outline" size={22} color={CoachColors.textPrimary} />
                 <Text style={s.connectText}>Connect</Text>
               </TouchableOpacity>
             )}
@@ -314,13 +314,13 @@ export default function ConnectedTechScreen() {
             >
               <View style={s.deviceHeader}>
                 <View style={[s.deviceIcon, { backgroundColor: guide.iconBg }]}>
-                  <Ionicons name={guide.icon as any} size={22} color={guide.iconColor} />
+                  <Ionicons name={guide.icon as any} size={25} color={guide.iconColor} />
                 </View>
                 <Text style={s.deviceName}>{guide.name}</Text>
                 <View style={{ flex: 1 }} />
                 <View style={s.guideBtn}>
                   <Text style={s.connectText}>Sync guide</Text>
-                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
                 </View>
               </View>
               <Text style={s.deviceDesc}>
@@ -353,14 +353,14 @@ export default function ConnectedTechScreen() {
             <View style={s.modalIconsRow}>
               {activeGuide && (
                 <View style={[s.modalDeviceIcon, { backgroundColor: activeGuide.iconBg }]}>
-                  <Ionicons name={activeGuide.icon as any} size={26} color={activeGuide.iconColor} />
+                  <Ionicons name={activeGuide.icon as any} size={29} color={activeGuide.iconColor} />
                 </View>
               )}
-              <Ionicons name="arrow-forward" size={20} color={CoachColors.textMuted} />
+              <Ionicons name="arrow-forward" size={22} color={CoachColors.textMuted} />
               <View style={[s.modalDeviceIcon, { backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : '#E8F0FE' }]}>
-                <Ionicons name="heart" size={26} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
+                <Ionicons name="heart" size={29} color={Platform.OS === 'ios' ? '#FF2D55' : '#1A73E8'} />
               </View>
-              <Ionicons name="arrow-forward" size={20} color={CoachColors.textMuted} />
+              <Ionicons name="arrow-forward" size={22} color={CoachColors.textMuted} />
               <View style={s.modalAppIcon}>
                 <Text style={s.modalAppText}>FL+</Text>
               </View>
@@ -439,15 +439,15 @@ const s = StyleSheet.create({
   bannerText: {
     flex: 1,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
-    lineHeight: 22,
+    lineHeight: 24.5,
   },
 
   // Title
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,
+    fontSize: 31.5,
     color: CoachColors.textPrimary,
     paddingHorizontal: 24,
     marginBottom: 28,
@@ -456,7 +456,7 @@ const s = StyleSheet.create({
   // Section
   sectionLabel: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     paddingHorizontal: 24,
     marginBottom: 12,
@@ -472,9 +472,9 @@ const s = StyleSheet.create({
   },
   sectionHint: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 22.5,
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 4,
@@ -499,7 +499,7 @@ const s = StyleSheet.create({
   },
   deviceName: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   connectBtn: {
@@ -509,7 +509,7 @@ const s = StyleSheet.create({
   },
   connectText: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   connectedBtn: {
@@ -519,7 +519,7 @@ const s = StyleSheet.create({
   },
   connectedText: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.accent,
   },
   guideBtn: {
@@ -534,15 +534,15 @@ const s = StyleSheet.create({
   },
   unavailableText: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textMuted,
   },
   deviceDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     marginTop: 14,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   deviceDivider: {
     height: StyleSheet.hairlineWidth,
@@ -575,7 +575,7 @@ const s = StyleSheet.create({
   },
   modalHeaderText: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
@@ -606,7 +606,7 @@ const s = StyleSheet.create({
   },
   modalAppText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   modalDeviceIcon: {
@@ -620,17 +620,17 @@ const s = StyleSheet.create({
   // Modal content
   modalTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   modalSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22.5,
     marginBottom: 24,
   },
   modalDivider: {
@@ -660,30 +660,30 @@ const s = StyleSheet.create({
   },
   stepBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
   stepText: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   modalNote: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
-    lineHeight: 19,
+    lineHeight: 21.5,
     marginBottom: 16,
   },
 
   // Honesty note
   modalPrivacy: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
-    lineHeight: 19,
+    lineHeight: 21.5,
     marginBottom: 28,
   },
 
@@ -697,7 +697,7 @@ const s = StyleSheet.create({
   },
   continueBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.onAccent,
   },
 });

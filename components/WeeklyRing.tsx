@@ -96,12 +96,12 @@ const styles = StyleSheet.create({
   },
   centerValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
-    lineHeight: 40,
+    fontSize: 40.5,
+    lineHeight: 45,
   },
   centerLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     marginTop: 2,
   },
 });

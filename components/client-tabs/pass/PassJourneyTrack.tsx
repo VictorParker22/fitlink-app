@@ -163,14 +163,14 @@ export const PassJourneyTrack: React.FC<PassJourneyTrackProps> = ({
                   />
                   {isLocked && (
                     <View style={styles.lockOverlay}>
-                      <Ionicons name="lock-closed" size={10} color={CoachColors.textMuted} />
+                      <Ionicons name="lock-closed" size={11} color={CoachColors.textMuted} />
                     </View>
                   )}
                 </View>
 
                 {isUnlocked && (
                   <View style={styles.checkBadge}>
-                    <Ionicons name="checkmark" size={10} color={CoachColors.onAccent} />
+                    <Ionicons name="checkmark" size={11} color={CoachColors.onAccent} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -225,14 +225,14 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   summaryText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xl,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
   },
   nodeColumn: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   nodeName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   claimButtonText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
   },
   nextBadge: {
@@ -332,12 +332,12 @@ const styles = StyleSheet.create({
   },
   nextBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
   },
   levelLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
 });

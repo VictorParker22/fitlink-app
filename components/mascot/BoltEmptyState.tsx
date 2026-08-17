@@ -74,17 +74,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 21.5,
     maxWidth: 260,
   },
   actionBtn: {
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.onAccent,
   },
 });

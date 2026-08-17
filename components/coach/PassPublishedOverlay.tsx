@@ -60,7 +60,7 @@ export default function PassPublishedOverlay({
       {/* Card */}
       <Animated.View style={[s.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}>
         <View style={s.checkCircle}>
-          <Ionicons name="checkmark" size={30} color={CoachColors.onAccent} />
+          <Ionicons name="checkmark" size={34} color={CoachColors.onAccent} />
         </View>
         <Text style={s.eyebrow}>It's live</Text>
         <Text style={s.planName} numberOfLines={2}>{planName}</Text>
@@ -97,20 +97,20 @@ const s = StyleSheet.create({
     marginBottom: 22,
   },
   eyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent,
     letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
   },
   planName: {
-    fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary,
-    textAlign: 'center', lineHeight: 32,
+    fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary,
+    textAlign: 'center', lineHeight: 36,
   },
   sub: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
-    textAlign: 'center', lineHeight: 21, marginTop: 12,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary,
+    textAlign: 'center', lineHeight: 23.5, marginTop: 12,
   },
   doneBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 15, paddingHorizontal: 48, marginTop: 28,
   },
-  doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 });

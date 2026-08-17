@@ -349,7 +349,7 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
             accessibilityLabel={`${row.title}. ${row.sub}`}
           >
             <View style={st.iconCircle}>
-              <Ionicons name={row.icon} size={16} color={C.accent} />
+              <Ionicons name={row.icon} size={18} color={C.accent} />
             </View>
             <View style={st.rowTextCol}>
               <Text style={st.rowTitle} numberOfLines={1}>{row.title}</Text>
@@ -362,10 +362,10 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
               accessibilityRole="button"
               accessibilityLabel={`Dismiss for today: ${row.title}`}
             >
-              <Ionicons name="close" size={14} color={C.textFaint} />
+              <Ionicons name="close" size={16} color={C.textFaint} />
             </Pressable>
             {!!row.onPress && (
-              <Ionicons name="chevron-forward" size={15} color={C.textMuted} />
+              <Ionicons name="chevron-forward" size={17} color={C.textMuted} />
             )}
           </Pressable>
         </Animated.View>
@@ -389,7 +389,7 @@ const st = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: F.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: C.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -417,15 +417,15 @@ const st = StyleSheet.create({
   rowTextCol: { flex: 1 },
   rowTitle: {
     fontFamily: F.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: C.textPrimary,
   },
   rowSub: {
     fontFamily: F.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.textMuted,
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   dismissBtn: {
     width: 26,

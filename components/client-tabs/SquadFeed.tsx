@@ -160,19 +160,19 @@ const s = StyleSheet.create({
   },
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   label: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase',
   },
-  count: { fontFamily: F.bodyMedium, fontSize: 11.5, color: C.textMuted },
+  count: { fontFamily: F.bodyMedium, fontSize: 13, color: C.textMuted },
   divider: { height: 1, backgroundColor: '#21241F', marginBottom: 9 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent },
   rowText: {
-    flex: 1, fontFamily: F.bodyMedium, fontSize: 13, color: C.textPrimary, lineHeight: 18,
+    flex: 1, fontFamily: F.bodyMedium, fontSize: 14.5, color: C.textPrimary, lineHeight: 20,
   },
-  rowWhen: { fontFamily: F.body, fontSize: 11, color: C.textFaint },
+  rowWhen: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint },
   foot: {
-    fontFamily: F.body, fontSize: 11.5, color: C.textMuted, lineHeight: 16,
+    fontFamily: F.body, fontSize: 13, color: C.textMuted, lineHeight: 18,
     marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#21241F',
   },
 });

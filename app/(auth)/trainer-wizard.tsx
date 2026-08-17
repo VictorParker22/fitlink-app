@@ -276,7 +276,7 @@ export default function TrainerWizardScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.doneBody}>
           <View style={styles.doneCheckCircle}>
-            <Ionicons name="checkmark" size={32} color={CoachColors.onAccent} />
+            <Ionicons name="checkmark" size={36} color={CoachColors.onAccent} />
           </View>
           <Text style={styles.doneTitle}>{`You're set up${name.trim() ? `,\n${name.trim().split(' ')[0]}` : ''}`}</Text>
           <Text style={styles.doneSubtitle}>
@@ -320,7 +320,7 @@ export default function TrainerWizardScreen() {
       <View style={styles.header}>
         {step > 0 ? (
           <TouchableOpacity hitSlop={4} onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back to previous step">
-            <Ionicons name="arrow-back" size={18} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 36 }} />
@@ -362,11 +362,11 @@ export default function TrainerWizardScreen() {
                       <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
                     ) : (
                       <View style={styles.avatarPlaceholder}>
-                        <Ionicons name="person-outline" size={28} color={CoachColors.textFaint} />
+                        <Ionicons name="person-outline" size={31} color={CoachColors.textFaint} />
                       </View>
                     )}
                     <View style={styles.avatarBadge}>
-                      <Ionicons name="camera-outline" size={13} color={CoachColors.onAccent} />
+                      <Ionicons name="camera-outline" size={15} color={CoachColors.onAccent} />
                     </View>
                     {avatarUploading && (
                       <View style={styles.avatarOverlay}>
@@ -437,7 +437,7 @@ export default function TrainerWizardScreen() {
                       accessibilityLabel={`Toggle ${day} ${isActive ? 'off' : 'on'}`}
                     >
                       <View style={[styles.dayCheck, isActive && styles.dayCheckActive]}>
-                        {isActive && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                        {isActive && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                       </View>
                       <Text style={[styles.dayName, !isActive && styles.dayNameInactive]}>{day}</Text>
                       <Text style={[styles.dayHours, !isActive && styles.dayHoursInactive]}>
@@ -471,13 +471,13 @@ export default function TrainerWizardScreen() {
                 <View style={styles.payInfoList}>
                   <View style={styles.payInfoRow}>
                     <View style={styles.payInfoIcon}>
-                      <Ionicons name="lock-closed-outline" size={14} color={CoachColors.accent} />
+                      <Ionicons name="lock-closed-outline" size={16} color={CoachColors.accent} />
                     </View>
                     <Text style={styles.payInfoText}>Stripe holds your bank details, not FitLink</Text>
                   </View>
                   <View style={styles.payInfoRow}>
                     <View style={styles.payInfoIcon}>
-                      <Ionicons name="time-outline" size={14} color={CoachColors.accent} />
+                      <Ionicons name="time-outline" size={16} color={CoachColors.accent} />
                     </View>
                     <Text style={styles.payInfoText}>Takes about 4 minutes, needs your ID</Text>
                   </View>
@@ -534,15 +534,15 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted },
+  stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
 
   progressTrack: { height: 4, marginHorizontal: 20, marginTop: 14, borderRadius: 2, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
 
   stepContainer: { flex: 1, paddingHorizontal: 20 },
   titleBlock: { marginTop: 26 },
-  stepTitle: { fontFamily: CoachFonts.headingBold, fontSize: 26, letterSpacing: -0.7, lineHeight: 30, color: CoachColors.textPrimary },
-  stepSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, marginTop: 9, lineHeight: 19, color: CoachColors.textSecondary },
+  stepTitle: { fontFamily: CoachFonts.headingBold, fontSize: 29, letterSpacing: -0.7, lineHeight: 33.5, color: CoachColors.textPrimary },
+  stepSubtitle: { fontFamily: CoachFonts.body, fontSize: 15, marginTop: 9, lineHeight: 21.5, color: CoachColors.textSecondary },
 
   formContent: { paddingTop: 24, paddingBottom: 32, gap: 11 },
 
@@ -564,8 +564,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarCopy: { flex: 1 },
-  avatarCopyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  avatarCopySub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3, lineHeight: 17 },
+  avatarCopyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  avatarCopySub: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3, lineHeight: 19 },
 
   // Fields
   fieldRow: {
@@ -573,9 +573,9 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13,
   },
   fieldRowFilled: { borderColor: CoachColors.border },
-  fieldLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.textFaint },
+  fieldLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
   fieldInput: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary,
     marginTop: 2, padding: 0,
   },
   fieldTextArea: { minHeight: 44 },
@@ -592,23 +592,23 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   dayCheckActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  dayName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  dayName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
   dayNameInactive: { color: CoachColors.textFaint },
-  dayHours: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: '#C9CEC2' },
+  dayHours: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
   dayHoursInactive: { color: CoachColors.textFaint },
 
   // Payments
   payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
-  payEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
+  payEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
   payAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
-  payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 32, letterSpacing: -0.9, color: CoachColors.accent },
-  payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -0.9, color: CoachColors.accent },
+  payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
   paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
   paySplitFill: { width: '90%', height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999 },
   paySplitLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
-  paySplitYou: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textSecondary },
-  paySplitFee: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
-  payFootnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 12, lineHeight: 17 },
+  paySplitYou: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
+  paySplitFee: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
+  payFootnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 12, lineHeight: 19 },
 
   payInfoList: { marginTop: 9, gap: 11 },
   payInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     width: 26, height: 26, borderRadius: 13, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: '#C9CEC2' },
+  payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: '#C9CEC2' },
 
   // Footer
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, alignItems: 'center', gap: 9 },
@@ -624,10 +624,10 @@ const styles = StyleSheet.create({
     width: '100%', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15,
   },
-  nextBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.onAccent },
-  footerCaption: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
-  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
-  skipCaption: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+  nextBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.onAccent },
+  footerCaption: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
+  skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
+  skipCaption: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
 
   // Done screen
   doneBody: { flex: 1, paddingHorizontal: 26, paddingTop: 56 },
@@ -635,16 +635,16 @@ const styles = StyleSheet.create({
     width: 64, height: 64, borderRadius: 32, backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 30, letterSpacing: -0.9, lineHeight: 34, color: CoachColors.textPrimary, marginTop: 22 },
-  doneSubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 11, lineHeight: 20 },
+  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, letterSpacing: -0.9, lineHeight: 38, color: CoachColors.textPrimary, marginTop: 22 },
+  doneSubtitle: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, marginTop: 11, lineHeight: 22.5 },
 
   doneCard: { marginTop: 26, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
-  doneCardEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
-  doneCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, marginTop: 6 },
-  doneCardSubtitle: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginTop: 6, lineHeight: 18 },
+  doneCardEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
+  doneCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginTop: 6 },
+  doneCardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 6, lineHeight: 20 },
   doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
-  doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.onAccent },
+  doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   doneFooter: { paddingHorizontal: 26, paddingBottom: 30, alignItems: 'center' },
-  doneFooterLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
+  doneFooterLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 });

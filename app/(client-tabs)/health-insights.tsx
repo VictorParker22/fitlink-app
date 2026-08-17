@@ -167,7 +167,7 @@ export default function HealthInsightsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Back button */}
       <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
-        <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-back" size={31} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView
@@ -179,7 +179,7 @@ export default function HealthInsightsScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.headerTitleRow}>
-              <Ionicons name="heart" size={24} color={CoachColors.accent} />
+              <Ionicons name="heart" size={27} color={CoachColors.accent} />
               <Text style={styles.headerTitle}>Health insights</Text>
             </View>
             <Text style={styles.headerSubtitle}>
@@ -195,7 +195,7 @@ export default function HealthInsightsScreen() {
         {/* Demo mode banner */}
         {isUsingMock && (
           <View style={styles.demoBanner}>
-            <Ionicons name="information-circle-outline" size={14} color={CoachColors.textMuted} />
+            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textMuted} />
             <Text style={styles.demoBannerText}>Connect Apple Health or Health Connect to see your health data</Text>
           </View>
         )}
@@ -204,14 +204,14 @@ export default function HealthInsightsScreen() {
         {!isConnected && (
           <View style={styles.connectCard}>
             <View style={styles.connectIconWrap}>
-              <Ionicons name="fitness" size={28} color={CoachColors.accent} />
+              <Ionicons name="fitness" size={31} color={CoachColors.accent} />
             </View>
             <Text style={styles.connectTitle}>Connect your health app</Text>
             <Text style={styles.connectDesc}>
               Sync steps, heart rate, and vitals from your device for real-time insights.
             </Text>
             <TouchableOpacity style={styles.connectBtn} onPress={connectHealth} activeOpacity={0.8} accessibilityLabel="Connect to Apple Health" accessibilityRole="button">
-              <Ionicons name="link" size={18} color={CoachColors.onAccent} />
+              <Ionicons name="link" size={20} color={CoachColors.onAccent} />
               <Text style={styles.connectBtnText}>Connect health</Text>
             </TouchableOpacity>
           </View>
@@ -261,21 +261,21 @@ export default function HealthInsightsScreen() {
             <View style={styles.miniStatsRow}>
               <View style={styles.miniStatCard}>
                 <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="flame" size={16} color={CoachColors.accent} />
+                  <Ionicons name="flame" size={18} color={CoachColors.accent} />
                 </View>
                 <Text style={styles.miniStatValue}>{data.activeCaloriesToday}</Text>
                 <Text style={styles.miniStatLabel}>Active cal</Text>
               </View>
               <View style={styles.miniStatCard}>
                 <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="trending-up" size={16} color={CoachColors.accent} />
+                  <Ionicons name="trending-up" size={18} color={CoachColors.accent} />
                 </View>
                 <Text style={styles.miniStatValue}>{data.totalCaloriesToday.toLocaleString()}</Text>
                 <Text style={styles.miniStatLabel}>Total cal</Text>
               </View>
               <View style={styles.miniStatCard}>
                 <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="walk" size={16} color={CoachColors.accent} />
+                  <Ionicons name="walk" size={18} color={CoachColors.accent} />
                 </View>
                 <Text style={styles.miniStatValue}>{distanceKm}</Text>
                 <Text style={styles.miniStatLabel}>Est. km</Text>
@@ -299,7 +299,7 @@ export default function HealthInsightsScreen() {
             </View>
             <View style={styles.hrHeartWrap}>
               <Animated.View style={{ opacity: pulseAnim }}>
-                <Ionicons name="heart" size={44} color={CoachColors.accent} />
+                <Ionicons name="heart" size={49} color={CoachColors.accent} />
               </Animated.View>
             </View>
           </View>
@@ -385,7 +385,7 @@ export default function HealthInsightsScreen() {
           <View style={[styles.vitalCard, { flex: 1 }]}>
             <View style={styles.vitalHeader}>
               <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-                <Ionicons name="water" size={16} color={CoachColors.accent} />
+                <Ionicons name="water" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.vitalTitle}>SpO₂</Text>
             </View>
@@ -421,7 +421,7 @@ export default function HealthInsightsScreen() {
           <View style={[styles.vitalCard, { flex: 1 }]}>
             <View style={styles.vitalHeader}>
               <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-                <Ionicons name="pulse" size={16} color={CoachColors.accent} />
+                <Ionicons name="pulse" size={18} color={CoachColors.accent} />
               </View>
               <Text style={styles.vitalTitle}>BP</Text>
             </View>
@@ -440,7 +440,7 @@ export default function HealthInsightsScreen() {
         <View style={styles.weightCard}>
           <View style={styles.weightLeft}>
             <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-              <Ionicons name="scale" size={16} color={CoachColors.accent} />
+              <Ionicons name="scale" size={18} color={CoachColors.accent} />
             </View>
             <View style={styles.weightTextCol}>
               <Text style={styles.weightTitle}>Weight</Text>
@@ -460,7 +460,7 @@ export default function HealthInsightsScreen() {
             {insights.map((insight, i) => (
               <View key={i} style={styles.insightCard}>
                 <View style={styles.insightInner}>
-                  <Ionicons name={insight.icon as any} size={22} color={insight.color} />
+                  <Ionicons name={insight.icon as any} size={25} color={insight.color} />
                   <View style={styles.insightTextWrap}>
                     <Text style={styles.insightText}>{insight.text}</Text>
                   </View>
@@ -520,13 +520,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginTop: 4,
     marginLeft: 32,
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   },
   syncText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
 
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   demoBannerText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
 
@@ -589,16 +589,16 @@ const styles = StyleSheet.create({
   },
   connectTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.xs,
   },
   connectDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: Spacing.lg,
     paddingHorizontal: Spacing.base,
   },
@@ -613,14 +613,14 @@ const styles = StyleSheet.create({
   },
   connectBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.onAccent,
   },
 
   // ─── Section Title ────────────────────────
   sectionTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.md,
     marginTop: Spacing.sm,
@@ -655,19 +655,19 @@ const styles = StyleSheet.create({
   },
   ringStepCount: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
+    fontSize: 40.5,
     color: CoachColors.textPrimary,
     letterSpacing: -1,
   },
   ringStepLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textMuted,
     marginTop: -2,
   },
   ringGoalText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -696,12 +696,12 @@ const styles = StyleSheet.create({
   },
   miniStatValue: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   miniStatLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     // textSecondary, not textMuted: this label sits on an accentSofter tint,
     // where textMuted only reaches 4.46:1 (needs 4.5:1 at 13px).
     color: CoachColors.textSecondary,
@@ -735,19 +735,19 @@ const styles = StyleSheet.create({
   },
   hrBpmNumber: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 44,
+    fontSize: 49.5,
     color: CoachColors.textPrimary,
     letterSpacing: -1,
   },
   hrBpmUnit: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textMuted,
     marginTop: 12,
   },
   hrLatestLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -775,11 +775,11 @@ const styles = StyleSheet.create({
   },
   hrPillValue: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
+    fontSize: 19,
   },
   hrPillLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     // On accentSofter — see miniStatLabel.
     color: CoachColors.textSecondary,
     marginTop: 2,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   restingHrLeft: {},
   restingHrLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     // On accentSofter — see miniStatLabel.
     color: CoachColors.textSecondary,
     marginBottom: 2,
@@ -809,12 +809,12 @@ const styles = StyleSheet.create({
   },
   restingHrValue: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
   },
   restingHrUnit: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     // On accentSofter — see miniStatLabel.
     color: CoachColors.textSecondary,
   },
@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
   },
   restingHrBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
   },
 
   // ─── Weekly Chart ─────────────────────────
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   },
   chartAvgText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   chartBarsContainer: {
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
   },
   chartBarValue: {
     fontFamily: CoachFonts.body,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
   },
   chartBarTrack: {
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   },
   chartDayLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
 
@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
   },
   vitalTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
   },
   spo2Display: {
@@ -950,17 +950,17 @@ const styles = StyleSheet.create({
   },
   vitalBigValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
   },
   vitalBigUnit: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginLeft: 1,
   },
   vitalSubtext: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   bpDisplay: {
@@ -971,17 +971,17 @@ const styles = StyleSheet.create({
   },
   bpSystolic: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,
+    fontSize: 31.5,
   },
   bpSlash: {
     fontFamily: CoachFonts.body,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textMuted,
     marginHorizontal: 2,
   },
   bpDiastolic: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textSecondary,
   },
 
@@ -1005,12 +1005,12 @@ const styles = StyleSheet.create({
   weightTextCol: {},
   weightTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   weightSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -1021,12 +1021,12 @@ const styles = StyleSheet.create({
   },
   weightValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
   },
   weightUnit: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textMuted,
   },
 
@@ -1051,9 +1051,9 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   insightAccent: {
     width: 3,

@@ -156,7 +156,7 @@ export default function WorkoutDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back" accessibilityRole="button">
-            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyState}>
@@ -271,7 +271,7 @@ export default function WorkoutDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.assignHeader}>
           <TouchableOpacity hitSlop={4} onPress={() => { setShowAssign(false); setSearchQuery(''); }} style={styles.backBtnDark} accessibilityLabel="Go back" accessibilityRole="button">
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.assignHeaderTitle}>Assign to client</Text>
           <View style={{ width: 36 }} />
@@ -279,7 +279,7 @@ export default function WorkoutDetailScreen() {
 
         <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
+            <Ionicons name="search" size={22} color={CoachColors.textSecondary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search clients..."
@@ -290,7 +290,7 @@ export default function WorkoutDetailScreen() {
             />
             {searchQuery !== '' && (
               <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={CoachColors.textSecondary} />
+                <Ionicons name="close-circle" size={22} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -325,7 +325,7 @@ export default function WorkoutDetailScreen() {
                     </View>
                   ) : (
                     <View style={styles.assignAddBtn}>
-                      <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+                      <Ionicons name="add" size={18} color={CoachColors.onAccent} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -343,28 +343,28 @@ export default function WorkoutDetailScreen() {
         {/* Custom Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.navBtn} accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{workout.name}</Text>
           <View style={styles.headerRightActions}>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.push(`/create-workout?editId=${workout.id}` as any)} style={styles.navBtn} accessibilityLabel="Edit">
-              <Ionicons name="pencil" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="pencil" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDuplicate} style={styles.navBtn} accessibilityLabel="Duplicate" disabled={duplicating}>
-              <Ionicons name="copy-outline" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="copy-outline" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleShare} style={styles.navBtn} accessibilityLabel="Share">
-              <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="share-outline" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               onPress={() => { setIsFavorite(!isFavorite); }}
               style={styles.navBtn}
               accessibilityLabel="Favorite"
             >
-              <Ionicons name={isFavorite ? "star" : "star-outline"} size={22} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
+              <Ionicons name={isFavorite ? "star" : "star-outline"} size={25} color={isFavorite ? CoachColors.accent : CoachColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleDelete} style={[styles.navBtn, { marginLeft: 4 }]} accessibilityLabel="Delete" disabled={deleting}>
-              <Ionicons name="trash-outline" size={22} color={CoachColors.danger} />
+              <Ionicons name="trash-outline" size={25} color={CoachColors.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -374,7 +374,7 @@ export default function WorkoutDetailScreen() {
           <View style={styles.descSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
               <View style={styles.workoutIconCircle}>
-                <Ionicons name="barbell-outline" size={24} color={CoachColors.textSecondary} />
+                <Ionicons name="barbell-outline" size={27} color={CoachColors.textSecondary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.descText}>
@@ -480,7 +480,7 @@ export default function WorkoutDetailScreen() {
                           </Text>
                         </View>
 
-                        <Ionicons name={expandedExerciseId === we.id ? 'chevron-up' : 'chevron-down'} size={20} color={CoachColors.textMuted} />
+                        <Ionicons name={expandedExerciseId === we.id ? 'chevron-up' : 'chevron-down'} size={22} color={CoachColors.textMuted} />
                       </TouchableOpacity>
 
                       {expandedExerciseId === we.id && (
@@ -508,7 +508,7 @@ export default function WorkoutDetailScreen() {
                   return (
                     <View key={`group-${group.groupId || gIndex}`} style={styles.supersetContainer}>
                       <View style={styles.supersetHeader}>
-                        <Ionicons name="link" size={16} color={CoachColors.accent} />
+                        <Ionicons name="link" size={18} color={CoachColors.accent} />
                         <Text style={styles.supersetHeaderText}>Superset</Text>
                       </View>
                       {renderItems()}
@@ -554,10 +554,10 @@ export default function WorkoutDetailScreen() {
               style={styles.videoCloseBtn}
               onPress={() => { setShowVideoModal(false); setVideoUrl(null); }}
             >
-              <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.videoModalTitleWrap}>
-              <Ionicons name="videocam" size={18} color={CoachColors.accent} />
+              <Ionicons name="videocam" size={20} color={CoachColors.accent} />
               <Text style={styles.videoModalTitle} numberOfLines={1}>
                 {videoExerciseName}
               </Text>
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     marginHorizontal: 12,
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: CoachColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24.5,
     marginBottom: Spacing.md,
   },
   metaRow: {
@@ -684,12 +684,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   metaDot: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textFaint,
   },
 
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.lg,
   },
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   },
   equipmentText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
 
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   },
   targetRowText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     flex: 1,
   },
@@ -769,13 +769,13 @@ const styles = StyleSheet.create({
   },
   breakdownGroupTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
     letterSpacing: 1.8,
   },
   breakdownGroupSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
 
@@ -798,13 +798,13 @@ const styles = StyleSheet.create({
   },
   exerciseNameText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   exerciseStatsText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
   },
   expandedContent: {
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
   },
   supersetHeaderText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
 
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   },
   videoModalTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   videoModalContent: {
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   },
   videoModalHint: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
     paddingBottom: 40,
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
   assignHeaderTitle: {
     flex: 1,
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     textAlign: 'center',
   },
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
   },
   assignedBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 0.3,
   },
@@ -1035,17 +1035,17 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   loadingSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22.5,
     marginBottom: 20,
   },
   loadingCancel: {
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   loadingCancelText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
   },

@@ -435,7 +435,7 @@ export default function AthleteFoodScreen() {
         </View>
         <View style={[st.center, { flex: 1, paddingHorizontal: 32, paddingBottom: 120 }]}>
           <View style={st.emptyIcon}>
-            <Ionicons name="restaurant-outline" size={26} color={C.textFaint} />
+            <Ionicons name="restaurant-outline" size={29} color={C.textFaint} />
           </View>
           <Text style={st.emptyTitle}>No meal plan yet</Text>
           <Text style={st.emptyText}>
@@ -517,7 +517,7 @@ export default function AthleteFoodScreen() {
         {/* ── Free-meal day callout ── */}
         {isFreeMealDay && (
           <View style={st.freeCard}>
-            <Ionicons name="pizza-outline" size={16} color={C.warning} style={{ marginTop: 1 }} />
+            <Ionicons name="pizza-outline" size={18} color={C.warning} style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
               <Text style={st.freeTitle}>{DAY_NAMES[todayKey]} dinner is off the books</Text>
               <Text style={st.freeText}>
@@ -711,7 +711,7 @@ export default function AthleteFoodScreen() {
                     ) : (
                       <Pressable hitSlop={{ top: 1, bottom: 1 }} style={st.ownRow} onPress={() => setOwnLogOpen(true)} accessibilityRole="button">
                         <View style={st.ownPlus}>
-                          <Ionicons name="add" size={16} color={C.accent} />
+                          <Ionicons name="add" size={18} color={C.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={st.ownRowTitle}>Suggest something of my own</Text>
@@ -757,8 +757,8 @@ const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
 
-  title: { fontFamily: F.headingBold, fontSize: 25, color: C.textPrimary },
-  subtitle: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
+  title: { fontFamily: F.headingBold, fontSize: 28, color: C.textPrimary },
+  subtitle: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3 },
 
   // Room-left card
   roomCard: {
@@ -766,9 +766,9 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.borderMuted, padding: 17,
   },
   roomTopRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  roomBig: { fontFamily: F.headingBold, fontSize: 31, color: C.textPrimary },
-  roomBigLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted },
-  roomOf: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
+  roomBig: { fontFamily: F.headingBold, fontSize: 34.5, color: C.textPrimary },
+  roomBigLabel: { fontFamily: F.body, fontSize: 14.5, color: C.textMuted },
+  roomOf: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   roomBarTrack: { height: 7, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 13, overflow: 'hidden' },
   roomBarFill: { height: '100%', backgroundColor: C.accent },
 
@@ -780,15 +780,15 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.borderMuted,
   },
   stickyRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  stickyKcal: { fontFamily: F.headingBold, fontSize: 17, color: C.textPrimary },
-  stickyLabel: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
-  stickyOf: { fontFamily: F.body, fontSize: 11, color: C.textMuted },
+  stickyKcal: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
+  stickyLabel: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
+  stickyOf: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted },
   stickyTrack: { height: 5, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 7, overflow: 'hidden' },
   stickyFill: { height: '100%', backgroundColor: C.accent },
   macroRow: { flexDirection: 'row', gap: 9, marginTop: 15 },
   macroLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  macroLabel: { fontFamily: F.body, fontSize: 11, color: C.textMuted },
-  macroVal: { fontFamily: F.bodySemiBold, fontSize: 11.5, color: C.textPrimary },
+  macroLabel: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted },
+  macroVal: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
   macroValMuted: { fontFamily: F.body, color: C.textFaint },
   macroBarTrack: { height: 4, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 6, overflow: 'hidden' },
   macroBarFill: { height: '100%' },
@@ -799,8 +799,8 @@ const st = StyleSheet.create({
     backgroundColor: C.surface, borderWidth: 1, borderColor: '#3B3227',
     borderRadius: 16, padding: 14, marginTop: 15,
   },
-  freeTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  freeText: { fontFamily: F.body, fontSize: 12, color: C.textSecondary, marginTop: 3, lineHeight: 17 },
+  freeTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  freeText: { fontFamily: F.body, fontSize: 13.5, color: C.textSecondary, marginTop: 3, lineHeight: 19 },
 
   // Swap sheet
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,11,9,0.66)' },
@@ -810,8 +810,8 @@ const st = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 12, maxHeight: '82%',
   },
   grabber: { width: 38, height: 4, borderRadius: 999, backgroundColor: C.border, alignSelf: 'center', marginBottom: 15 },
-  sheetTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
-  sheetSub: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted, marginTop: 5, lineHeight: 18 },
+  sheetTitle: { fontFamily: F.headingBold, fontSize: 21.5, color: C.textPrimary },
+  sheetSub: { fontFamily: F.body, fontSize: 14, color: C.textMuted, marginTop: 5, lineHeight: 20 },
 
   altRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
@@ -819,13 +819,13 @@ const st = StyleSheet.create({
     borderRadius: 14, padding: 13,
   },
   altRowSelected: { borderWidth: 1.5, borderColor: C.accent },
-  altName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
-  altMacros: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 3 },
+  altName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
+  altMacros: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 3 },
   deltaPill: {
     borderRadius: 999, backgroundColor: C.accentSoft,
     paddingVertical: 5, paddingHorizontal: 10,
   },
-  deltaPillText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent },
+  deltaPillText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent },
 
   ownRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
@@ -836,28 +836,28 @@ const st = StyleSheet.create({
     width: 26, height: 26, borderRadius: 8, backgroundColor: C.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  ownRowTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  ownRowSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  ownRowTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  ownRowSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
   ownBox: {
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: C.border,
     borderRadius: 14, padding: 13,
   },
-  ownBoxLabel: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
+  ownBoxLabel: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
   ownInput: {
-    fontFamily: F.body, fontSize: 14, color: C.textPrimary,
+    fontFamily: F.body, fontSize: 15.5, color: C.textPrimary,
     marginTop: 8, minHeight: 44, textAlignVertical: 'top', padding: 0,
   },
-  ownFailed: { fontFamily: F.body, fontSize: 11.5, color: C.danger, marginTop: 6 },
+  ownFailed: { fontFamily: F.body, fontSize: 13, color: C.danger, marginTop: 6 },
   ownSendBtn: {
     backgroundColor: C.accent, borderRadius: 999, paddingVertical: 11,
     alignItems: 'center', marginTop: 11,
   },
-  ownSendBtnText: { fontFamily: F.bodyBold, fontSize: 13, color: C.onAccent },
+  ownSendBtnText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.onAccent },
   ownSent: {
     backgroundColor: C.accentSofter, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
     borderRadius: 14, padding: 13,
   },
-  ownSentText: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary, lineHeight: 18 },
+  ownSentText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary, lineHeight: 20 },
 
   sheetFooter: {
     flexDirection: 'row', gap: 9, marginTop: 14, paddingTop: 14,
@@ -867,27 +867,27 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, borderRadius: 999,
     paddingVertical: 14, paddingHorizontal: 22, alignItems: 'center',
   },
-  cancelBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
+  cancelBtnText: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textSecondary },
   useBtn: {
     flex: 1, backgroundColor: C.accent, borderRadius: 999,
     paddingVertical: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
   },
-  useBtnText: { fontFamily: F.bodyBold, fontSize: 14, color: C.onAccent },
-  sheetFootnote: { fontFamily: F.body, fontSize: 11, color: C.textFaint, textAlign: 'center', marginTop: 9 },
+  useBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
+  sheetFootnote: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, textAlign: 'center', marginTop: 9 },
 
   // Empty state
   emptyIcon: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
-  emptyTitle: { fontFamily: F.headingBold, fontSize: 18, color: C.textPrimary, marginTop: 16 },
+  emptyTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary, marginTop: 16 },
   emptyText: {
-    fontFamily: F.body, fontSize: 13, color: C.textSecondary,
-    textAlign: 'center', marginTop: 8, lineHeight: 19,
+    fontFamily: F.body, fontSize: 14.5, color: C.textSecondary,
+    textAlign: 'center', marginTop: 8, lineHeight: 21.5,
   },
   emptyBtn: {
     borderWidth: 1, borderColor: C.border, borderRadius: 999,
     paddingVertical: 12, paddingHorizontal: 24, marginTop: 18,
   },
-  emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textSecondary },
+  emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textSecondary },
 });

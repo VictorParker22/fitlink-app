@@ -149,11 +149,11 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
 
       <View style={styles.navRow}>
         <TouchableOpacity hitSlop={6} onPress={handlePrevMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-back" size={16} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{getMonthName(calMonth)}, {calYear}</Text>
         <TouchableOpacity hitSlop={6} onPress={handleNextMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-forward" size={16} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-forward" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
   },
   daysHeader: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     width: CELL_SIZE,
     textAlign: 'center',
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
   },
   grid: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   cellText: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
   },
   selectedCellText: {
@@ -348,13 +348,13 @@ const styles = StyleSheet.create({
   },
   tooltipDate: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
     marginBottom: 4,
   },
   tooltipWorkout: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
   },
   tooltipMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   tooltipEmpty: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   divider: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   pillNumber: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
   legendBar: {

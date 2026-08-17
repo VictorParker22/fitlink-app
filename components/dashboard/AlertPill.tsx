@@ -44,7 +44,7 @@ export default function AlertPill({
     >
       <View style={styles.left}>
         <View style={[styles.iconWrapper, { backgroundColor: colors.iconColor }]}>
-          <Ionicons name={icon} size={16} color={CoachColors.onAccent} />
+          <Ionicons name={icon} size={18} color={CoachColors.onAccent} />
         </View>
         <View style={styles.textGroup}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -55,7 +55,7 @@ export default function AlertPill({
       <View style={styles.right}>
         <View style={[styles.actionBtn, { backgroundColor: colors.iconColor }]}>
           <Text style={styles.actionText}>{actionText}</Text>
-          <Ionicons name="arrow-forward" size={10} color={CoachColors.onAccent} />
+          <Ionicons name="arrow-forward" size={11} color={CoachColors.onAccent} />
         </View>
       </View>
     </TouchableOpacity>
@@ -91,13 +91,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   subtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
     marginTop: 2,
   },
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
     letterSpacing: 0.8,
     textTransform: 'uppercase',

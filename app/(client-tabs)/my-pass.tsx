@@ -191,7 +191,7 @@ export default function MyPassScreen() {
   if (!clientData) {
     return (
       <View style={s.emptyContainer}>
-        <Ionicons name="ticket-outline" size={40} color={CoachColors.textFaint} />
+        <Ionicons name="ticket-outline" size={45} color={CoachColors.textFaint} />
         <Text style={s.emptyTitle}>No pass yet</Text>
       </View>
     );
@@ -263,7 +263,7 @@ export default function MyPassScreen() {
               accessibilityHint="Opens your season in the training tab"
             >
               <Text style={s.enrolledCtaText}>Go to training</Text>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+              <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
 
@@ -300,7 +300,7 @@ export default function MyPassScreen() {
           <Text style={s.headerTitle}>Pass</Text>
         </View>
         <View style={s.emptyContainer}>
-          <Ionicons name="ticket-outline" size={40} color={CoachColors.textFaint} />
+          <Ionicons name="ticket-outline" size={45} color={CoachColors.textFaint} />
           <Text style={s.emptyTitle}>Nothing on sale yet</Text>
           <Text style={s.emptyBody}>When your coach publishes a season, you'll see exactly what it contains here.</Text>
         </View>
@@ -450,7 +450,7 @@ export default function MyPassScreen() {
                 <Text style={s.weekComposition}>{composition(wk)}</Text>
                 {wk.markers.map(m => (
                   <View key={m} style={s.markerRow}>
-                    <Ionicons name="flag-outline" size={11} color={CoachColors.accent} />
+                    <Ionicons name="flag-outline" size={12} color={CoachColors.accent} />
                     <Text style={s.markerText}>{m}</Text>
                   </View>
                 ))}
@@ -535,7 +535,7 @@ export default function MyPassScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 140 },
 
   // Plan switcher
@@ -546,7 +546,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, maxWidth: 220,
   },
   switcherChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  switcherChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  switcherChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   switcherChipTextActive: { color: CoachColors.accent },
 
   // Hero (mirrors create-plan step-5 preview card)
@@ -558,11 +558,11 @@ const s = StyleSheet.create({
     borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
   },
   heroBadgeText: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.onAccent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent,
     letterSpacing: 0.9, textTransform: 'uppercase',
   },
-  heroName: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.onAccent, lineHeight: 31 },
-  heroPromise: { fontFamily: CoachFonts.body, fontSize: 13.5, color: 'rgba(16,18,16,0.75)', marginTop: 6, lineHeight: 20 },
+  heroName: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.onAccent, lineHeight: 34.5 },
+  heroPromise: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(16,18,16,0.75)', marginTop: 6, lineHeight: 22.5 },
   heroBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
 
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -571,20 +571,20 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.accent },
-  coachName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  coachSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 1 },
+  coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.accent },
+  coachName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  coachSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 1 },
 
   statRow: { flexDirection: 'row', gap: 8 },
   statCell: {
     flex: 1, alignItems: 'center', paddingVertical: 12,
     backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
-  statLabel: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted, marginTop: 2 },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
 
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 1, textTransform: 'uppercase', marginTop: 26, marginBottom: 12,
   },
   weekList: { gap: 8 },
@@ -594,25 +594,25 @@ const s = StyleSheet.create({
     borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14,
   },
   weekChip: {
-    fontFamily: CoachFonts.headingSemiBold, fontSize: 11.5, color: CoachColors.accent,
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 13, color: CoachColors.accent,
     width: 34, marginTop: 1,
   },
-  weekTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  weekComposition: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+  weekTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  weekComposition: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
   markerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
-  markerText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11.5, color: CoachColors.textSecondary },
+  markerText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
 
   footnote: {
-    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint,
-    lineHeight: 18, marginTop: 20, paddingHorizontal: 2,
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint,
+    lineHeight: 20, marginTop: 20, paddingHorizontal: 2,
   },
 
   // Cohort facts (the designed card itself lives in
   // components/client-tabs/cohort/CohortProgramCard.tsx)
   cohortEnrolledFacts: { marginTop: 14, gap: 10 },
   cohortNote: {
-    fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted,
-    lineHeight: 17, marginTop: 1,
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    lineHeight: 19, marginTop: 1,
   },
 
   // Sticky footer — price + CTA
@@ -623,24 +623,24 @@ const s = StyleSheet.create({
   blockedBar: {
     paddingHorizontal: 20, paddingTop: 12, gap: 4,
   },
-  blockedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  blockedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   blockedNote: {
-    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 17,
+    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, lineHeight: 19,
   },
   blockedActions: { gap: 4, marginTop: 4 },
-  blockedLink: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.accent },
+  blockedLink: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.accent },
   footer: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 14,
   },
   footerCtaDisabled: { backgroundColor: CoachColors.borderMuted },
-  footerPrice: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },
-  footerPeriod: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
+  footerPrice: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
+  footerPeriod: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
   footerCta: {
     flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 15, alignItems: 'center',
   },
-  footerCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  footerCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   footerCtaTextDisabled: { color: CoachColors.textMuted },
 
   // Enrolled summary
@@ -649,25 +649,25 @@ const s = StyleSheet.create({
     borderRadius: 18, padding: 18, marginBottom: 16,
   },
   enrolledEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint,
     letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8,
   },
-  enrolledPlanName: { fontFamily: CoachFonts.headingBold, fontSize: 21, color: CoachColors.textPrimary },
-  enrolledWeek: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, marginTop: 4 },
+  enrolledPlanName: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
+  enrolledWeek: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, marginTop: 4 },
   enrolledCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
     backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, marginTop: 16,
   },
-  enrolledCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  enrolledCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   // Empty states
   emptyContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: CoachColors.bg, paddingHorizontal: 40,
   },
-  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textSecondary },
+  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textSecondary },
   emptyBody: {
-    fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint,
-    textAlign: 'center', lineHeight: 18,
+    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint,
+    textAlign: 'center', lineHeight: 20,
   },
 });

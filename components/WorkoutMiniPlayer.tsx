@@ -190,7 +190,7 @@ function WorkoutMiniPlayer() {
             accessibilityLabel="End workout session"
             hitSlop={0}
           >
-            <Ionicons name="close" size={18} color={CoachColors.textMuted} />
+            <Ionicons name="close" size={20} color={CoachColors.textMuted} />
           </TouchableOpacity>
         </View>
       </View>
@@ -298,7 +298,7 @@ const s = StyleSheet.create({
   // 9px — decorative; the 13pt title is the primary info carrier. HIG §17 intentional.
   phaseBadge: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     flexShrink: 1,
   },
@@ -306,7 +306,7 @@ const s = StyleSheet.create({
   // 13pt — HIG minimum for interactive text (primary info carrier)
   title: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
@@ -314,7 +314,7 @@ const s = StyleSheet.create({
   // 11pt — HIG minimum; secondary info (instructor / phase metrics)
   subLine: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -330,13 +330,13 @@ const s = StyleSheet.create({
   // Elapsed — 13pt, tabular numbers would be ideal but FontFamily doesn't expose that
   timeDisplay: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
   },
   timeSeparator: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },

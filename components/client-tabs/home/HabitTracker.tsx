@@ -278,7 +278,7 @@ function HabitItem({
           ]}
         >
           <Animated.View style={{ transform: [{ scale: checkScale }], opacity: checkAnim }}>
-            <Ionicons name="checkmark" size={14} color={CoachColors.onAccent} />
+            <Ionicons name="checkmark" size={16} color={CoachColors.onAccent} />
           </Animated.View>
         </Animated.View>
       </TouchableOpacity>
@@ -633,7 +633,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       {/* ── Data source footnote ── */}
       {autoCount > 0 && (
         <View style={s.footer}>
-          <Ionicons name="sync-outline" size={10} color={CoachColors.textFaint} />
+          <Ionicons name="sync-outline" size={11} color={CoachColors.textFaint} />
           <Text style={s.footerText}>
             Synced from Apple Health · Hydration log · Meal tracker
           </Text>
@@ -666,7 +666,7 @@ const s = StyleSheet.create({
   },
   tagHeader: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -674,7 +674,7 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
@@ -692,14 +692,14 @@ const s = StyleSheet.create({
   },
   countText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     letterSpacing: 0.5,
   },
   countTextDone: { color: CoachColors.accent },
   autoSyncLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },
@@ -717,7 +717,7 @@ const s = StyleSheet.create({
   },
   allDoneText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     letterSpacing: 0.3,
     textAlign: 'center',
@@ -760,7 +760,7 @@ const s = StyleSheet.create({
   },
   habitLabel: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     letterSpacing: -0.2,
   },
   autoPill: {
@@ -771,13 +771,13 @@ const s = StyleSheet.create({
   },
   autoText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   habitDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
   streakBadge: {
@@ -788,7 +788,7 @@ const s = StyleSheet.create({
   },
   streakText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
     letterSpacing: 0.3,
   },
@@ -815,7 +815,7 @@ const s = StyleSheet.create({
   },
   footerText: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
 });

@@ -409,7 +409,7 @@ export default function FindCoachScreen() {
   const Header = ({ title, sub }: { title: string; sub?: string }) => (
     <View style={[s.header, { paddingTop: insets.top + 10 }]}>
       <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
-        <Ionicons name="chevron-back" size={19} color={C.textSecondary} />
+        <Ionicons name="chevron-back" size={21} color={C.textSecondary} />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>
         <Text style={s.headerTitle}>{title}</Text>
@@ -424,7 +424,7 @@ export default function FindCoachScreen() {
       <View style={s.container}>
         <Header title="Find a coach" />
         <View style={s.centerFill}>
-          <Ionicons name="people-outline" size={38} color={C.textFaint} />
+          <Ionicons name="people-outline" size={43} color={C.textFaint} />
           <Text style={s.emptyTitle}>You already have a coach</Text>
           <Text style={s.emptyBody}>This path is for athletes who arrived without one.</Text>
         </View>
@@ -496,7 +496,7 @@ export default function FindCoachScreen() {
           </View>
         ) : matches.length === 0 ? (
           <View style={s.centerFill}>
-            <Ionicons name="people-outline" size={38} color={C.textFaint} />
+            <Ionicons name="people-outline" size={43} color={C.textFaint} />
             <Text style={s.emptyTitle}>No coaches here yet</Text>
             <Text style={s.emptyBody}>When coaches join, they'll show up here matched against your answers.</Text>
           </View>
@@ -530,7 +530,7 @@ export default function FindCoachScreen() {
                         <Text style={s.matchSpec}>{m.trainer.specialization}</Text>
                       ) : null}
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={C.textFaint} />
+                    <Ionicons name="chevron-forward" size={18} color={C.textFaint} />
                   </View>
                   {m.trainer.bio ? (
                     <Text style={s.matchBio} numberOfLines={3}>{m.trainer.bio}</Text>
@@ -570,7 +570,7 @@ export default function FindCoachScreen() {
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
           <View style={[s.profileHero, { paddingTop: insets.top + 10 }]}>
             <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtnOnHero} accessibilityRole="button" accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={19} color={C.textPrimary} />
+              <Ionicons name="chevron-back" size={21} color={C.textPrimary} />
             </TouchableOpacity>
           </View>
           <View style={s.profileBody}>
@@ -730,7 +730,7 @@ export default function FindCoachScreen() {
 
           {sendError ? (
             <View style={s.errorRow}>
-              <Ionicons name="alert-circle" size={16} color={C.danger} />
+              <Ionicons name="alert-circle" size={18} color={C.danger} />
               <Text style={s.errorText}>{sendError}</Text>
             </View>
           ) : null}
@@ -762,7 +762,7 @@ export default function FindCoachScreen() {
     <View style={s.container}>
       <View style={[s.centerFill, { paddingHorizontal: 36 }]}>
         <View style={s.successRing}>
-          <Ionicons name="checkmark" size={30} color={C.accent} />
+          <Ionicons name="checkmark" size={34} color={C.accent} />
         </View>
         <Text style={s.sentTitle}>
           Sent to {firstName(selected?.trainer?.name) || 'the coach'}
@@ -798,8 +798,8 @@ const s = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: F.headingBold, fontSize: 18, color: C.textPrimary },
-  headerSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
+  headerTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary },
+  headerSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
 
   progressRow: {
     flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingBottom: 14,
@@ -814,8 +814,8 @@ const s = StyleSheet.create({
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
 
   // Intake
-  questionPrompt: { fontFamily: F.headingBold, fontSize: 24, lineHeight: 30, color: C.textPrimary, marginTop: 6 },
-  questionContext: { fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textMuted, marginTop: 9 },
+  questionPrompt: { fontFamily: F.headingBold, fontSize: 27, lineHeight: 33.5, color: C.textPrimary, marginTop: 6 },
+  questionContext: { fontFamily: F.body, fontSize: 14.5, lineHeight: 21.5, color: C.textMuted, marginTop: 9 },
   optionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
@@ -824,10 +824,10 @@ const s = StyleSheet.create({
   optionCardActive: { borderColor: C.accent, borderWidth: 1.5, backgroundColor: '#1E211D' },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#3E443A' },
   radioActive: { borderWidth: 5.5, borderColor: C.accent, backgroundColor: C.bg },
-  optionLabel: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
-  optionSub: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
+  optionLabel: { fontFamily: F.bodySemiBold, fontSize: 17, color: C.textPrimary },
+  optionSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3 },
   intakeFootnote: {
-    fontFamily: F.body, fontSize: 11.5, color: C.textFaint,
+    fontFamily: F.body, fontSize: 13, color: C.textFaint,
     textAlign: 'center', marginTop: 18,
   },
 
@@ -843,17 +843,17 @@ const s = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23, backgroundColor: '#2A3320',
     alignItems: 'center', justifyContent: 'center',
   },
-  matchAvatarText: { fontFamily: F.headingBold, fontSize: 15, color: C.accent },
-  matchName: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.textPrimary },
-  matchSpec: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  matchBio: { fontFamily: F.body, fontSize: 13, lineHeight: 20, color: C.textSecondary, marginTop: 12 },
+  matchAvatarText: { fontFamily: F.headingBold, fontSize: 17, color: C.accent },
+  matchName: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.textPrimary },
+  matchSpec: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
+  matchBio: { fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textSecondary, marginTop: 12 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   factChip: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  factChipText: { fontFamily: F.bodyBold, fontSize: 10.5, color: C.accent },
+  factChipText: { fontFamily: F.bodyBold, fontSize: 12, color: C.accent },
   gapChip: { borderWidth: 1, borderColor: '#3B3227', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  gapChipText: { fontFamily: F.bodyBold, fontSize: 10.5, color: C.warning },
+  gapChipText: { fontFamily: F.bodyBold, fontSize: 12, color: C.warning },
   honestNote: {
-    fontFamily: F.body, fontSize: 11.5, lineHeight: 17, color: C.textFaint,
+    fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textFaint,
     marginTop: 18, paddingHorizontal: 2,
   },
 
@@ -870,37 +870,37 @@ const s = StyleSheet.create({
     width: 66, height: 66, borderRadius: 33, backgroundColor: '#2A3320',
     borderWidth: 3, borderColor: C.bg, alignItems: 'center', justifyContent: 'center',
   },
-  profileAvatarText: { fontFamily: F.headingBold, fontSize: 21, color: C.accent },
-  profileName: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary },
-  profileSpec: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  profileBio: { fontFamily: F.body, fontSize: 14, lineHeight: 22, color: C.textSecondary, marginTop: 17 },
+  profileAvatarText: { fontFamily: F.headingBold, fontSize: 23.5, color: C.accent },
+  profileName: { fontFamily: F.headingBold, fontSize: 22.5, color: C.textPrimary },
+  profileSpec: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
+  profileBio: { fontFamily: F.body, fontSize: 15.5, lineHeight: 24.5, color: C.textSecondary, marginTop: 17 },
   sectionLabel: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase', marginTop: 26, marginBottom: 12,
   },
   certChip: {
     borderWidth: 1, borderColor: C.border, borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  certChipText: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary },
+  certChipText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
   hoursCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 18, padding: 16,
   },
   hoursRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
-  hoursDay: { fontFamily: F.body, fontSize: 13.5, color: C.textSecondary },
-  hoursTime: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textPrimary },
+  hoursDay: { fontFamily: F.body, fontSize: 15, color: C.textSecondary },
+  hoursTime: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
   hairline: { height: 1, backgroundColor: '#21241F' },
   passRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 16, paddingVertical: 14, paddingHorizontal: 15,
   },
-  passName: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
-  passMeta: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  passDesc: { fontFamily: F.body, fontSize: 11.5, color: C.textFaint, marginTop: 4, lineHeight: 16 },
-  passPrice: { fontFamily: F.headingBold, fontSize: 14, color: C.textPrimary },
-  passPeriod: { fontFamily: F.body, fontSize: 10.5, color: C.textMuted, marginTop: 1 },
+  passName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
+  passMeta: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
+  passDesc: { fontFamily: F.body, fontSize: 13, color: C.textFaint, marginTop: 4, lineHeight: 18 },
+  passPrice: { fontFamily: F.headingBold, fontSize: 15.5, color: C.textPrimary },
+  passPeriod: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 1 },
 
   // Request
   summaryCard: {
@@ -908,36 +908,36 @@ const s = StyleSheet.create({
     borderRadius: 20, padding: 17,
   },
   summaryEyebrow: {
-    fontFamily: F.bodyBold, fontSize: 11, color: C.textFaint,
+    fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
     letterSpacing: 1, textTransform: 'uppercase',
   },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  summaryKey: { flex: 1, fontFamily: F.body, fontSize: 13.5, color: C.textSecondary },
-  summaryVal: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textPrimary, maxWidth: '55%', textAlign: 'right' },
+  summaryKey: { flex: 1, fontFamily: F.body, fontSize: 15, color: C.textSecondary },
+  summaryVal: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary, maxWidth: '55%', textAlign: 'right' },
   editRow: { marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#21241F' },
-  editText: { fontFamily: F.body, fontSize: 11.5, color: C.textFaint },
+  editText: { fontFamily: F.body, fontSize: 13, color: C.textFaint },
   noteCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 20, padding: 17, marginTop: 12,
   },
-  noteLabel: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary },
+  noteLabel: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   noteInput: {
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: '#2E322B',
     borderRadius: 13, padding: 13, marginTop: 11, minHeight: 84,
-    textAlignVertical: 'top', fontFamily: F.body, fontSize: 13,
-    color: C.textPrimary, lineHeight: 19,
+    textAlignVertical: 'top', fontFamily: F.body, fontSize: 14.5,
+    color: C.textPrimary, lineHeight: 21.5,
   },
   promiseCard: {
     backgroundColor: '#141613', borderWidth: 1, borderColor: '#1E211D',
     borderRadius: 18, padding: 16, marginTop: 12,
   },
-  promiseTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  promiseBody: { fontFamily: F.body, fontSize: 12.5, lineHeight: 19, color: C.textMuted, marginTop: 5 },
+  promiseTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  promiseBody: { fontFamily: F.body, fontSize: 14, lineHeight: 21.5, color: C.textMuted, marginTop: 5 },
   errorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
     backgroundColor: C.dangerSoft, borderRadius: 12, padding: 12,
   },
-  errorText: { flex: 1, fontFamily: F.body, fontSize: 12.5, color: C.danger },
+  errorText: { flex: 1, fontFamily: F.body, fontSize: 14, color: C.danger },
 
   // Footer
   footer: {
@@ -947,9 +947,9 @@ const s = StyleSheet.create({
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center',
   },
-  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 15, color: C.onAccent },
+  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },
   footerHint: {
-    fontFamily: F.body, fontSize: 11, color: C.textFaint,
+    fontFamily: F.body, fontSize: 12.5, color: C.textFaint,
     textAlign: 'center', marginTop: 10,
   },
 
@@ -959,16 +959,16 @@ const s = StyleSheet.create({
     borderColor: 'rgba(198,242,78,0.4)', backgroundColor: C.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
-  sentTitle: { fontFamily: F.headingBold, fontSize: 21, color: C.textPrimary, marginTop: 6 },
+  sentTitle: { fontFamily: F.headingBold, fontSize: 23.5, color: C.textPrimary, marginTop: 6 },
   sentBody: {
-    fontFamily: F.body, fontSize: 13, lineHeight: 20, color: C.textMuted,
+    fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textMuted,
     textAlign: 'center', marginTop: 4,
   },
 
   // Empty / guard
-  emptyTitle: { fontFamily: F.headingSemiBold, fontSize: 16, color: C.textSecondary },
+  emptyTitle: { fontFamily: F.headingSemiBold, fontSize: 18, color: C.textSecondary },
   emptyBody: {
-    fontFamily: F.body, fontSize: 12.5, color: C.textFaint,
-    textAlign: 'center', lineHeight: 18, paddingHorizontal: 30,
+    fontFamily: F.body, fontSize: 14, color: C.textFaint,
+    textAlign: 'center', lineHeight: 20, paddingHorizontal: 30,
   },
 });

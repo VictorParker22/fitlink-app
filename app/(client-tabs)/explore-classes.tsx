@@ -373,7 +373,7 @@ export default function ExploreClassesScreen() {
               </View>
             ) : (
               <View style={s.passBadge}>
-                <Ionicons name="lock-closed" size={8} color={CoachColors.textSecondary} style={{ marginRight: 2 }} />
+                <Ionicons name="lock-closed" size={9} color={CoachColors.textSecondary} style={{ marginRight: 2 }} />
                 <Text style={s.passBadgeText}>PASS</Text>
               </View>
             )}
@@ -419,7 +419,7 @@ export default function ExploreClassesScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back to workouts"
         >
-          <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle} accessibilityRole="header">Explore classes</Text>
         <View style={{ width: 44 }} />
@@ -427,7 +427,7 @@ export default function ExploreClassesScreen() {
 
       {/* Search Input Box */}
       <View style={s.searchBarContainer}>
-        <Ionicons name="search" size={16} color={CoachColors.textMuted} style={s.searchIcon} />
+        <Ionicons name="search" size={18} color={CoachColors.textMuted} style={s.searchIcon} />
         <TextInput
           style={s.searchInputField}
           placeholder="Search classes, instructors..."
@@ -438,7 +438,7 @@ export default function ExploreClassesScreen() {
         />
         {searchQuery !== '' && (
           <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setSearchQuery('')} style={s.searchClearBtn}>
-            <Ionicons name="close-circle" size={16} color={CoachColors.textSecondary} />
+            <Ionicons name="close-circle" size={18} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -467,7 +467,7 @@ export default function ExploreClassesScreen() {
           accessibilityLabel="Sort classes"
         >
           <Text style={s.sortText}>SORT BY</Text>
-          <Ionicons name="chevron-down" size={14} color={CoachColors.textMuted} />
+          <Ionicons name="chevron-down" size={16} color={CoachColors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -610,7 +610,7 @@ export default function ExploreClassesScreen() {
         accessibilityRole="button"
         accessibilityLabel={`Filter classes${activeFilters.size > 0 ? `, ${activeFilters.size} active` : ''}`}
       >
-        <Ionicons name="options-outline" size={18} color={CoachColors.accent} />
+        <Ionicons name="options-outline" size={20} color={CoachColors.accent} />
         <Text style={s.filterFabText}>FILTER</Text>
         {activeFilters.size > 0 && (
           <View style={s.filterBadge}>
@@ -644,7 +644,7 @@ export default function ExploreClassesScreen() {
                 accessibilityLabel={`Sort by ${opt.label}${sortKey === opt.key ? ', selected' : ''}`}
               >
                 <Text style={[s.sortOptionText, sortKey === opt.key && s.sortOptionActive]}>{opt.label}</Text>
-                {sortKey === opt.key && <Ionicons name="checkmark" size={20} color={CoachColors.accent} />}
+                {sortKey === opt.key && <Ionicons name="checkmark" size={22} color={CoachColors.accent} />}
               </TouchableOpacity>
             ))}
           </TouchableOpacity>
@@ -750,7 +750,7 @@ const s = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
     letterSpacing: -0.5,
     color: CoachColors.textPrimary,
   },
@@ -772,7 +772,7 @@ const s = StyleSheet.create({
   searchInputField: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   searchClearBtn: { padding: 4 },
@@ -787,7 +787,7 @@ const s = StyleSheet.create({
   },
   classCount: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 2,
     color: CoachColors.textMuted,
@@ -799,7 +799,7 @@ const s = StyleSheet.create({
   },
   sortText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 2,
     color: CoachColors.textMuted,
@@ -825,7 +825,7 @@ const s = StyleSheet.create({
   },
   liveSectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     paddingHorizontal: 16,
@@ -875,7 +875,7 @@ const s = StyleSheet.create({
   },
   liveBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     // On the solid `danger` fill, textPrimary is only 2.82:1. onAccent (the
     // near-black ink) reaches 5.75:1 — the only tier that passes on danger.
     color: CoachColors.onAccent,
@@ -889,13 +889,13 @@ const s = StyleSheet.create({
   },
   liveTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   liveInstructor: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   classRow: {
@@ -928,7 +928,7 @@ const s = StyleSheet.create({
   },
   durationText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1,
     color: CoachColors.textPrimary,
   },
@@ -939,14 +939,14 @@ const s = StyleSheet.create({
   },
   classTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
-    lineHeight: 21,
+    lineHeight: 23.5,
   },
   classTags: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.5,
     color: CoachColors.textSecondary,
   },
@@ -955,7 +955,7 @@ const s = StyleSheet.create({
   },
   classInstructor: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
   freeBadge: {
@@ -969,7 +969,7 @@ const s = StyleSheet.create({
   freeBadgeText: {
     color: CoachColors.accent,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1,
   },
   passBadge: {
@@ -985,7 +985,7 @@ const s = StyleSheet.create({
   passBadgeText: {
     color: CoachColors.textSecondary,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1,
   },
   favBtn: {
@@ -1003,17 +1003,17 @@ const s = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,
+    fontSize: 31.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
     marginTop: 12,
   },
   emptySubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   emptyClearBtn: {
     marginTop: 8,
@@ -1022,7 +1022,7 @@ const s = StyleSheet.create({
   },
   emptyClearText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     letterSpacing: 1.5,
     textDecorationLine: 'underline',
@@ -1045,7 +1045,7 @@ const s = StyleSheet.create({
   },
   filterFabText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
@@ -1061,7 +1061,7 @@ const s = StyleSheet.create({
   },
   filterBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.onAccent,
   },
 
@@ -1082,7 +1082,7 @@ const s = StyleSheet.create({
   },
   sortSheetTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 12,
@@ -1100,7 +1100,7 @@ const s = StyleSheet.create({
   },
   sortOptionText: {
     fontFamily: CoachFonts.body,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textSecondary,
   },
   sortOptionActive: {
@@ -1146,13 +1146,13 @@ const s = StyleSheet.create({
   },
   filterClear: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     textDecorationLine: 'underline',
   },
   filterSectionTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -1175,7 +1175,7 @@ const s = StyleSheet.create({
   },
   filterChipText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -1189,7 +1189,7 @@ const s = StyleSheet.create({
   },
   filterApplyText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
     letterSpacing: 1.5,
   },

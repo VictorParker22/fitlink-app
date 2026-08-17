@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   // ── Micro-label (accessibility + glanceability) ──
   tabLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -363,8 +363,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.onAccent,
-    lineHeight: 14,
+    lineHeight: 15.5,
   },
 });

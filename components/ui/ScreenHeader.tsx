@@ -45,7 +45,7 @@ export default function ScreenHeader({
         accessibilityRole="button"
         accessibilityLabel="Go back"
       >
-        <Ionicons name="chevron-back" size={28} color={CoachColors.textPrimary} />
+        <Ionicons name="chevron-back" size={31} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
       {title ? <Text style={s.title} numberOfLines={1}>{title}</Text> : <View style={s.spacer} />}
@@ -77,7 +77,7 @@ export default function ScreenHeader({
             accessibilityRole="button"
             accessibilityLabel="Share"
           >
-            <Ionicons name="share-outline" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="share-outline" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
         )}
         {rightElement}
@@ -106,7 +106,7 @@ const s = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginHorizontal: 4,
   },

@@ -96,9 +96,9 @@ export default function ConsistencyRing({
                 ]}
               >
                 {isDone ? (
-                  <Ionicons name="checkmark" size={11} color={CoachColors.accent} />
+                  <Ionicons name="checkmark" size={12} color={CoachColors.accent} />
                 ) : isRest ? (
-                  <Ionicons name="moon" size={9} color={CoachColors.textMuted} />
+                  <Ionicons name="moon" size={10} color={CoachColors.textMuted} />
                 ) : isFuture ? null : (
                   <View style={st.emptyDot} />
                 )}
@@ -156,7 +156,7 @@ const st = StyleSheet.create({
   },
   micro: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -164,20 +164,20 @@ const st = StyleSheet.create({
   // §1 Hero number: 48px, tight tracked
   hero: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 48,
+    fontSize: 54,
     color: CoachColors.textPrimary,
     letterSpacing: -2,
-    lineHeight: 50,
+    lineHeight: 56,
   },
   heroUnit: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textMuted,
     letterSpacing: 0,
   },
   context: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginTop: 4,
   },
@@ -215,7 +215,7 @@ const st = StyleSheet.create({
   },
   dayLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
   },
   todayLabel: {

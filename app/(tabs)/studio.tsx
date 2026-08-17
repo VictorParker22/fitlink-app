@@ -109,7 +109,7 @@ function DeviceRow({
 
   const content = (
     <View style={[dr.row, !isLast && dr.rowBorder]}>
-      <Ionicons name={icon} size={17} color={iconColor} />
+      <Ionicons name={icon} size={19} color={iconColor} />
       <View style={dr.labelWrap}>
         <Text style={dr.label}>{label}</Text>
         <Text style={[dr.detail, status === 'denied' && { color: CoachColors.warning }]}>{detail}</Text>
@@ -117,9 +117,9 @@ function DeviceRow({
       {right !== undefined ? right : status === 'checking' ? (
         <ActivityIndicator size="small" color={CoachColors.textFaint} />
       ) : status === 'granted' ? (
-        <Ionicons name="checkmark-circle" size={16} color={CoachColors.accent} />
+        <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
       ) : status === 'denied' ? (
-        <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
+        <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} />
       ) : null}
     </View>
   );
@@ -158,18 +158,18 @@ function ConnectionRow({
 
   return (
     <View style={[dr.row, !isLast && dr.rowBorder]}>
-      <Ionicons name="wifi" size={17} color={iconColor} />
+      <Ionicons name="wifi" size={19} color={iconColor} />
       <View style={dr.labelWrap}>
         <Text style={dr.label}>Connection</Text>
         <Text style={[dr.detail, belowBitrate && { color: CoachColors.warning }]}>{detail}</Text>
       </View>
       {status === 'offline' ? (
-        <Ionicons name="alert-circle" size={16} color={CoachColors.warning} />
+        <Ionicons name="alert-circle" size={18} color={CoachColors.warning} />
       ) : testing ? (
         <ActivityIndicator size="small" color={CoachColors.textFaint} />
       ) : (
         <TouchableOpacity onPress={onRetest} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent }}>Retest</Text>
+          <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent }}>Retest</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -308,7 +308,7 @@ function DoNotDisturbRow({ isLast = false }: { isLast?: boolean }) {
   const [on, setOn] = useState(isBroadcastDndEnabled());
   return (
     <View style={[dr.row, !isLast && dr.rowBorder]}>
-      <Ionicons name="moon-outline" size={17} color={on ? CoachColors.accent : CoachColors.textFaint} />
+      <Ionicons name="moon-outline" size={19} color={on ? CoachColors.accent : CoachColors.textFaint} />
       <View style={dr.labelWrap}>
         <Text style={dr.label}>Do not disturb</Text>
         <Text style={dr.detail}>
@@ -361,7 +361,7 @@ function ScheduledRow({
         <Text style={sr.title} numberOfLines={1}>{item.title}</Text>
         <Text style={sr.meta}>{timeStr}{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} />
+      <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} />
     </TouchableOpacity>
   );
 }
@@ -709,14 +709,14 @@ export default function StudioScreen() {
             </Text>
           </View>
           <TouchableOpacity hitSlop={3} style={s.headerBtn} onPress={handleScheduleNew} activeOpacity={0.7}>
-            <Ionicons name="calendar-outline" size={17} color={CoachColors.textSecondary} />
+            <Ionicons name="calendar-outline" size={19} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* ── Platform limitation — stated up front, not after a tap ───── */}
         {!liveBroadcastSupported && (
           <View style={s.unsupportedCard} accessible accessibilityRole="summary">
-            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textSecondary} />
+            <Ionicons name="information-circle-outline" size={18} color={CoachColors.textSecondary} />
             <View style={{ flex: 1 }}>
               <Text style={s.unsupportedTitle}>{liveBroadcastUnsupportedTitle}</Text>
               <Text style={s.unsupportedSub}>{liveBroadcastUnsupportedMessage}</Text>
@@ -730,7 +730,7 @@ export default function StudioScreen() {
             <View style={s.alertCardLeft} />
             <View style={s.alertCardBody}>
               <View style={s.alertCardTitleRow}>
-                <Ionicons name="warning" size={14} color={CoachColors.warning} />
+                <Ionicons name="warning" size={16} color={CoachColors.warning} />
                 <Text style={s.alertCardTitle}>Stream ended abruptly</Text>
               </View>
               <Text style={s.alertCardSub} numberOfLines={1}>{abruptEndedClass.title}</Text>
@@ -759,15 +759,15 @@ export default function StudioScreen() {
               </View>
               <Text style={s.liveTimer}>{liveElapsed}</Text>
               <View style={s.liveViewers}>
-                <Ionicons name="eye-outline" size={13} color={CoachColors.textSecondary} />
+                <Ionicons name="eye-outline" size={15} color={CoachColors.textSecondary} />
                 <Text style={s.liveViewersText}>{activeStream.viewer_count ?? 0} watching</Text>
               </View>
             </View>
             <Text style={s.liveTitle} numberOfLines={2}>{activeStream.title}</Text>
             <TouchableOpacity style={s.liveReenterBtn} onPress={() => handleEnterStudio(activeStream)} activeOpacity={0.85}>
-              <Ionicons name="videocam" size={16} color="#FFFFFF" />
+              <Ionicons name="videocam" size={18} color="#FFFFFF" />
               <Text style={s.liveReenterBtnText}>Return to broadcast</Text>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" />
+              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>
         )}
@@ -1040,13 +1040,13 @@ const s = StyleSheet.create({
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -1080,13 +1080,13 @@ const s = StyleSheet.create({
   },
   unsupportedTitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   unsupportedSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13.5,
+    lineHeight: 19,
     color: CoachColors.textMuted,
     marginTop: 3,
   },
@@ -1105,14 +1105,14 @@ const s = StyleSheet.create({
   alertCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   alertCardTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   // textSecondary, not textMuted: this sits on the warningSoft alert tint,
   // where textMuted only reaches 3.96:1 (needs 4.5:1 at 12px).
   alertCardSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     marginBottom: 10,
   },
@@ -1125,7 +1125,7 @@ const s = StyleSheet.create({
   },
   alertSaveBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.onAccent,
     letterSpacing: 0.3,
   },
@@ -1138,7 +1138,7 @@ const s = StyleSheet.create({
   },
   alertDismissBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
 
@@ -1169,27 +1169,27 @@ const s = StyleSheet.create({
   liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.danger },
   liveBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.danger,
     letterSpacing: 0.8,
   },
   liveTimer: {
     fontFamily: CoachFonts.mono,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   liveViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
   liveViewersText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   liveTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21.5,
     color: CoachColors.textPrimary,
     marginBottom: 16,
-    lineHeight: 24,
+    lineHeight: 27,
   },
   liveReenterBtn: {
     flexDirection: 'row',
@@ -1202,7 +1202,7 @@ const s = StyleSheet.create({
   },
   liveReenterBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
     color: CoachColors.onAccent,
   },
@@ -1224,22 +1224,22 @@ const s = StyleSheet.create({
   },
   emptyPreviewLabel: {
     fontFamily: CoachFonts.mono,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.5,
   },
   emptyBody: { padding: Spacing.lg, backgroundColor: CoachColors.surface },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   emptySub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
     marginTop: 8,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
   scheduleInsteadBtn: {
     borderWidth: 1,
@@ -1251,12 +1251,12 @@ const s = StyleSheet.create({
   },
   scheduleInsteadBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textSecondary,
   },
   emptyFootnote: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
     textAlign: 'center',
     marginTop: 10,
@@ -1275,27 +1275,27 @@ const s = StyleSheet.create({
   nextBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.accent },
   nextBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.accent,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   nextTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 21,
+    fontSize: 23.5,
     color: CoachColors.textPrimary,
     marginTop: 10,
-    lineHeight: 26,
+    lineHeight: 29,
   },
   nextMetaRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8, marginBottom: 16 },
   nextCountdown: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.accent,
   },
   nextDate: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     flexShrink: 1,
   },
@@ -1321,7 +1321,7 @@ const s = StyleSheet.create({
   },
   editClassBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
 
@@ -1339,13 +1339,13 @@ const s = StyleSheet.create({
   statSep: { width: StyleSheet.hairlineWidth, backgroundColor: CoachColors.border, marginVertical: 6 },
   statNum: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 21,
+    fontSize: 23.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   statLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
 
@@ -1359,18 +1359,18 @@ const s = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     letterSpacing: -0.1,
   },
   sectionMuted: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   sectionAction: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
   readyBadgeRow: {
@@ -1384,7 +1384,7 @@ const s = StyleSheet.create({
   },
   readyBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
 
@@ -1398,10 +1398,10 @@ const s = StyleSheet.create({
   },
   healthFootnote: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
     marginTop: 8,
-    lineHeight: 16,
+    lineHeight: 18,
   },
 
   // ── Chart ───────────────────────────────────────────────────────────────────
@@ -1415,13 +1415,13 @@ const s = StyleSheet.create({
   chartCardTop: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
   chartBigNum: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   chartBigLabel: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   chartWrapper: { alignItems: 'center', overflow: 'hidden' },
@@ -1436,7 +1436,7 @@ const s = StyleSheet.create({
   },
   archiveStatusText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
   },
 
@@ -1466,7 +1466,7 @@ const s = StyleSheet.create({
   },
   goLiveBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.onAccent,
     letterSpacing: 0.2,
   },
@@ -1481,7 +1481,7 @@ const s = StyleSheet.create({
   },
   stickyLiveBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14.5,
+    fontSize: 16,
     // See liveReenterBtnText.
     color: CoachColors.onAccent,
     letterSpacing: 0.2,
@@ -1504,12 +1504,12 @@ const dr = StyleSheet.create({
   labelWrap: { flex: 1, gap: 1 },
   label: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   detail: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
   },
 });
@@ -1530,24 +1530,24 @@ const sr = StyleSheet.create({
   dateBox: { width: 44, alignItems: 'center' },
   dateWeekday: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   dateNum: {
     fontFamily: CoachFonts.body,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textFaint,
     marginTop: 1,
   },
   sep: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: CoachColors.borderMuted },
   title: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   meta: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },

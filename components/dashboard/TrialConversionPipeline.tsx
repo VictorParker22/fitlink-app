@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
@@ -79,13 +79,13 @@ const styles = StyleSheet.create({
   },
   statVal: {
     fontFamily: CoachFonts.mono,
-    fontSize: 28,
+    fontSize: 31.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   statLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',

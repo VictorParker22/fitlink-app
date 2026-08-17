@@ -49,7 +49,7 @@ export const PassSeasonBanner: React.FC<PassSeasonBannerProps> = ({
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.seasonBadge}>
-          <Ionicons name={season.icon} size={24} color={CoachColors.accent} />
+          <Ionicons name={season.icon} size={27} color={CoachColors.accent} />
           <Text style={styles.tagText}>Season pass</Text>
         </View>
         <Text style={styles.daysLeft}>
@@ -107,19 +107,19 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   daysLeft: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
   },
   seasonName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.xl,
   },
@@ -134,14 +134,14 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   progressText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
   },
   progressBarBg: {
@@ -169,12 +169,12 @@ const styles = StyleSheet.create({
   },
   levelPillText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
   },
   tierName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
 });

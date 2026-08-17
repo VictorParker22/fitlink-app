@@ -155,7 +155,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           {/* Search Header */}
           <View style={st.searchHeader}>
             <View style={st.searchInputRow}>
-              <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="search" size={22} color={CoachColors.textSecondary} />
               <TextInput
                 ref={searchInputRef}
                 style={st.searchInput}
@@ -170,7 +170,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={CoachColors.textMuted} />
+                  <Ionicons name="close-circle" size={22} color={CoachColors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -182,7 +182,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           {/* Results */}
           {searchQuery.trim() === '' ? (
             <View style={st.searchEmptyState}>
-              <Ionicons name="search" size={56} color={CoachColors.textFaint} />
+              <Ionicons name="search" size={63} color={CoachColors.textFaint} />
               <Text style={st.searchEmptyTitle}>Search FitLink</Text>
               <Text style={st.searchEmptySubtitle}>Find clients, sessions, plans, and more</Text>
               {/* Recent / Suggestions */}
@@ -194,7 +194,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
                   { label: 'Messages', icon: 'chatbubble', onPress: () => closeThenGo('/(tabs)/messages') },
                 ].map((s, i) => (
                   <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} key={i} style={st.searchSuggestionChip} onPress={s.onPress} activeOpacity={0.7}>
-                    <Ionicons name={s.icon as any} size={16} color={CoachColors.textSecondary} />
+                    <Ionicons name={s.icon as any} size={18} color={CoachColors.textSecondary} />
                     <Text style={st.searchSuggestionText}>{s.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -202,7 +202,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
             </View>
           ) : searchResults.length === 0 ? (
             <View style={st.searchEmptyState}>
-              <Ionicons name="search-outline" size={48} color={CoachColors.textFaint} />
+              <Ionicons name="search-outline" size={54} color={CoachColors.textFaint} />
               <Text style={st.searchEmptyTitle}>No results</Text>
               <Text style={st.searchEmptySubtitle}>Try a different search term</Text>
             </View>
@@ -215,7 +215,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               keyboardShouldPersistTaps="handled"
               renderSectionHeader={({ section }) => (
                 <View style={st.searchSectionHeader}>
-                  <Ionicons name={section.icon as any} size={14} color={CoachColors.textMuted} />
+                  <Ionicons name={section.icon as any} size={16} color={CoachColors.textMuted} />
                   <Text style={st.searchSectionTitle}>{section.title}</Text>
                   <Text style={st.searchSectionCount}>{section.data.length}</Text>
                 </View>
@@ -223,13 +223,13 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               renderItem={({ item }) => (
                 <TouchableOpacity style={st.searchResultItem} onPress={item.onPress} activeOpacity={0.7}>
                   <View style={st.searchResultIcon}>
-                    <Ionicons name={item.icon as any} size={18} color={CoachColors.accent} />
+                    <Ionicons name={item.icon as any} size={20} color={CoachColors.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={st.searchResultTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={st.searchResultSubtitle} numberOfLines={1}>{item.subtitle}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
                 </TouchableOpacity>
               )}
               ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 62 }} />}
@@ -257,15 +257,15 @@ const st = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     height: '100%',
   },
   searchCancel: { paddingVertical: 8 },
-  searchCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  searchCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   searchEmptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 80 },
-  searchEmptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textSecondary, marginTop: 8 },
-  searchEmptySubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint },
+  searchEmptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22.5, color: CoachColors.textSecondary, marginTop: 8 },
+  searchEmptySubtitle: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textFaint },
   searchSuggestions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 24, paddingHorizontal: 40 },
   searchSuggestionChip: {
     flexDirection: 'row',
@@ -278,7 +278,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
   },
-  searchSuggestionText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  searchSuggestionText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   searchSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -287,8 +287,8 @@ const st = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 8,
   },
-  searchSectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase', flex: 1 },
-  searchSectionCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  searchSectionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase', flex: 1 },
+  searchSectionCount: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint },
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,6 +304,6 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchResultTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  searchResultSubtitle: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  searchResultTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  searchResultSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
 });

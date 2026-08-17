@@ -131,14 +131,14 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
           accessibilityHint="Asks to confirm before the session timer starts"
         >
           <View style={st.gymCheckInIcon}>
-            <Ionicons name="flash" size={22} color={CoachColors.onAccent} />
+            <Ionicons name="flash" size={25} color={CoachColors.onAccent} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={st.gymCheckInTitle}>Start gym session</Text>
             <Text style={st.gymCheckInSub}>Check in · earn 50 XP · track your time</Text>
           </View>
           <View style={st.gymArrowCircle}>
-            <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -166,19 +166,19 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
 
         <View style={st.gymStatsRow}>
           <View style={st.gymStatBox}>
-            <Ionicons name="flame-outline" size={14} color={CoachColors.accent} />
+            <Ionicons name="flame-outline" size={16} color={CoachColors.accent} />
             <Text style={st.gymStatValue}>{displayCals}</Text>
             <Text style={st.gymStatLabel}>Cal</Text>
           </View>
           <View style={st.gymStatDivider} />
           <View style={st.gymStatBox}>
-            <Ionicons name="trophy-outline" size={14} color={CoachColors.accent} />
+            <Ionicons name="trophy-outline" size={16} color={CoachColors.accent} />
             <Text style={st.gymStatValue}>+50</Text>
             <Text style={st.gymStatLabel}>XP</Text>
           </View>
           <View style={st.gymStatDivider} />
           <View style={st.gymStatBox}>
-            <Ionicons name="time-outline" size={14} color={CoachColors.accent} />
+            <Ionicons name="time-outline" size={16} color={CoachColors.accent} />
             <Text style={st.gymStatValue}>{elapsedMinutes}</Text>
             <Text style={st.gymStatLabel}>Min</Text>
           </View>
@@ -192,7 +192,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
                 onPress={() => openMusic('spotify')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="play-circle" size={16} color={CoachColors.textSecondary} />
+                <Ionicons name="play-circle" size={18} color={CoachColors.textSecondary} />
                 <Text style={st.gymMusicBtnText}>Connect Spotify</Text>
               </TouchableOpacity>
               <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
@@ -200,7 +200,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
                 onPress={() => openMusic('apple')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="musical-notes" size={16} color={CoachColors.textSecondary} />
+                <Ionicons name="musical-notes" size={18} color={CoachColors.textSecondary} />
                 <Text style={st.gymMusicBtnText}>Apple Music</Text>
               </TouchableOpacity>
             </View>
@@ -211,7 +211,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
           style={st.gymCheckOutBtn}
           activeOpacity={0.85}
         >
-          <Ionicons name="stop-circle" size={18} color={CoachColors.accent} />
+          <Ionicons name="stop-circle" size={20} color={CoachColors.accent} />
           <Text style={st.gymCheckOutText}>End session</Text>
         </TouchableOpacity>
       </RNAnimated.View>
@@ -226,7 +226,7 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
       <View style={st.summaryOverlay}>
         <Animated.View entering={FadeInUp.duration(400)} style={st.summaryCard}>
           <View style={st.summaryIconCircle}>
-            <Ionicons name="checkmark-circle" size={48} color={CoachColors.accent} />
+            <Ionicons name="checkmark-circle" size={54} color={CoachColors.accent} />
           </View>
           <Text style={st.summaryTitle}>Session complete</Text>
           <Text style={st.summarySubtitle}>Great work! Here's your recap.</Text>
@@ -289,13 +289,13 @@ const st = StyleSheet.create({
   },
   gymCheckInTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
   },
   gymCheckInSub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -339,13 +339,13 @@ const st = StyleSheet.create({
   },
   gymLiveText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
     letterSpacing: 1,
   },
   gymTimerBig: {
     fontFamily: CoachFonts.mono,
-    fontSize: 32,
+    fontSize: 36,
     color: CoachColors.textPrimary,
     letterSpacing: -1,
   },
@@ -369,14 +369,14 @@ const st = StyleSheet.create({
   },
   gymStatValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     marginTop: 6,
     marginBottom: 2,
   },
   gymStatLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 0.5,
   },
@@ -385,7 +385,7 @@ const st = StyleSheet.create({
   },
   gymMusicLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 1,
     marginBottom: 8,
@@ -408,7 +408,7 @@ const st = StyleSheet.create({
   },
   gymMusicBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   nowPlayingContainer: {
@@ -438,13 +438,13 @@ const st = StyleSheet.create({
   },
   nowPlayingTrack: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   nowPlayingArtist: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   nowPlayingControls: {
@@ -474,7 +474,7 @@ const st = StyleSheet.create({
   },
   gymCheckOutText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.accent,
     letterSpacing: 0.5,
   },
@@ -505,14 +505,14 @@ const st = StyleSheet.create({
   },
   summaryTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   summarySubtitle: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
     marginBottom: 32,
   },
@@ -537,13 +537,13 @@ const st = StyleSheet.create({
   },
   summaryStatValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   summaryStatLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 1,
   },
@@ -556,7 +556,7 @@ const st = StyleSheet.create({
   },
   summaryDoneBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.onAccent,
     letterSpacing: 0.5,
   },

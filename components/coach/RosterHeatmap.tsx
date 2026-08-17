@@ -79,7 +79,7 @@ export const RosterHeatmap: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="grid-outline" size={14} color={CoachColors.textSecondary} />
+          <Ionicons name="grid-outline" size={16} color={CoachColors.textSecondary} />
           <Text style={styles.title}>Team adherence</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/(tabs)/clients' as any)}>
@@ -203,12 +203,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   seeAll: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
 
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
 
   dayLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
   dayLabelToday: {
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textSecondary,
   },
 
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
 
   scoreText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
 
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
   },
 });

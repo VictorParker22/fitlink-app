@@ -75,7 +75,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
   if (isLoggedToday) {
     return (
       <View style={st.loggedContainer}>
-        <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
+        <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
         <Text style={st.loggedText}>
           Weight logged today: <Text style={{ fontFamily: CoachFonts.headingBold, color: CoachColors.textPrimary }}>{weightVal} {unit}</Text>
         </Text>
@@ -99,7 +99,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           onPressOut={stopRepeat}
           delayLongPress={300}
         >
-          <Ionicons name="remove" size={18} color={CoachColors.textPrimary} />
+          <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={st.inputWrapper}>
@@ -122,7 +122,7 @@ export default function QuickWeightLog({ latestWeight = 165, unit = 'lbs', onLog
           onPressOut={stopRepeat}
           delayLongPress={300}
         >
-          <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
+          <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity hitSlop={2}
@@ -156,14 +156,14 @@ const st = StyleSheet.create({
   },
   sectionTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   unitLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -197,14 +197,14 @@ const st = StyleSheet.create({
   },
   input: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     textAlign: 'center',
     minWidth: 50,
   },
   inputUnit: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     marginLeft: 4,
     textTransform: 'uppercase',
@@ -219,7 +219,7 @@ const st = StyleSheet.create({
   },
   saveBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.onAccent,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -238,7 +238,7 @@ const st = StyleSheet.create({
   },
   loggedText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
   },

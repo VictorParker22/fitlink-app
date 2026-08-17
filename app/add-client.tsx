@@ -342,7 +342,7 @@ export default function AddClientScreen() {
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={st.successWrap}>
             <View style={st.successIcon}>
-              <Ionicons name="checkmark" size={30} color={CoachColors.onAccent} />
+              <Ionicons name="checkmark" size={34} color={CoachColors.onAccent} />
             </View>
             <Text style={st.successTitle}>{justSaved.name} is in</Text>
             <Text style={st.successDesc}>They're added to your roster. Finish their profile whenever you're ready.</Text>
@@ -367,7 +367,7 @@ export default function AddClientScreen() {
         {/* Header */}
         <View style={st.header}>
           <TouchableOpacity hitSlop={4} onPress={goBack} style={st.headerBack}>
-            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={st.headerTitle}>
@@ -396,7 +396,7 @@ export default function AddClientScreen() {
               <View style={st.quickAddRow}>
                 <TouchableOpacity style={st.quickAddCard} onPress={handleImportContact} activeOpacity={0.7}>
                   <View style={st.quickAddIcon}>
-                    <Ionicons name="people" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="people" size={20} color={CoachColors.textSecondary} />
                   </View>
                   <Text style={st.quickAddTitle}>Contacts</Text>
                   <Text style={st.quickAddDesc}>From your phone</Text>
@@ -404,7 +404,7 @@ export default function AddClientScreen() {
 
                 <TouchableOpacity style={st.quickAddCard} onPress={() => setShowFind(true)} activeOpacity={0.7}>
                   <View style={st.quickAddIcon}>
-                    <Ionicons name="search" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
                   </View>
                   <Text style={st.quickAddTitle}>Find user</Text>
                   <Text style={st.quickAddDesc}>Already on FitLink</Text>
@@ -422,12 +422,12 @@ export default function AddClientScreen() {
                       {name ? (
                         <Text style={st.avatarInitials}>{initials}</Text>
                       ) : (
-                        <Ionicons name="person" size={22} color={CoachColors.textFaint} />
+                        <Ionicons name="person" size={25} color={CoachColors.textFaint} />
                       )}
                     </View>
                   )}
                   <View style={st.avatarBadge}>
-                    <Ionicons name="camera" size={12} color={CoachColors.onAccent} />
+                    <Ionicons name="camera" size={13} color={CoachColors.onAccent} />
                   </View>
                 </TouchableOpacity>
 
@@ -449,7 +449,7 @@ export default function AddClientScreen() {
               {/* Contact fields */}
               <View style={st.contactRow}>
                 <View style={[st.inputRow, { flex: 1 }]}>
-                  <Ionicons name="mail-outline" size={17} color={CoachColors.textFaint} />
+                  <Ionicons name="mail-outline" size={19} color={CoachColors.textFaint} />
                   <TextInput
                     style={st.input}
                     placeholder="Email"
@@ -463,7 +463,7 @@ export default function AddClientScreen() {
               </View>
               <View style={st.contactRow}>
                 <View style={[st.inputRow, { flex: 1 }]}>
-                  <Ionicons name="call-outline" size={17} color={CoachColors.textFaint} />
+                  <Ionicons name="call-outline" size={19} color={CoachColors.textFaint} />
                   <TextInput
                     style={st.input}
                     placeholder="Phone — optional"
@@ -485,7 +485,7 @@ export default function AddClientScreen() {
               <Text style={st.findDesc}>Search for someone already on the app.</Text>
 
               <View style={st.inputRow}>
-                <Ionicons name="search" size={16} color={CoachColors.textFaint} />
+                <Ionicons name="search" size={18} color={CoachColors.textFaint} />
                 <TextInput
                   style={st.input}
                   placeholder="Name, email, or phone..."
@@ -499,7 +499,7 @@ export default function AddClientScreen() {
                 />
                 {findQuery !== '' && (
                   <TouchableOpacity hitSlop={12} onPress={() => { setFindQuery(''); setFindResults([]); }}>
-                    <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
+                    <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -512,7 +512,7 @@ export default function AddClientScreen() {
                 {findLoading ? (
                   <ActivityIndicator size="small" color={CoachColors.onAccent} />
                 ) : (
-                  <><Ionicons name="search" size={16} color={CoachColors.onAccent} /><Text style={st.searchBtnText}>Search</Text></>
+                  <><Ionicons name="search" size={18} color={CoachColors.onAccent} /><Text style={st.searchBtnText}>Search</Text></>
                 )}
               </TouchableOpacity>
 
@@ -525,7 +525,7 @@ export default function AddClientScreen() {
                         {client.avatar_url ? (
                           <Image source={{ uri: client.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                         ) : (
-                          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted }}>
+                          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted }}>
                             {(client.name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                           </Text>
                         )}
@@ -575,14 +575,14 @@ export default function AddClientScreen() {
                         </Text>
                       </View>
                       <View style={[st.radio, isActive && st.radioActive]}>
-                        {isActive && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                        {isActive && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                       </View>
                     </View>
                     {isActive && plan.features && plan.features.length > 0 && (
                       <View style={{ marginTop: 12, gap: 6 }}>
                         {plan.features.slice(0, 3).map((f, i) => (
                           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Ionicons name="checkmark" size={13} color={CoachColors.accent} />
+                            <Ionicons name="checkmark" size={15} color={CoachColors.accent} />
                             <Text style={st.planFeature}>{f}</Text>
                           </View>
                         ))}
@@ -604,7 +604,7 @@ export default function AddClientScreen() {
                     <Text style={st.planPrice}>Coach them 1-on-1 only</Text>
                   </View>
                   <View style={[st.radio, !selectedPlan && st.radioActive]}>
-                    {!selectedPlan && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                    {!selectedPlan && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                   </View>
                 </View>
               </TouchableOpacity>
@@ -663,7 +663,7 @@ export default function AddClientScreen() {
                 })}
               </View>
               <View style={st.inputRow}>
-                <Ionicons name="flag-outline" size={16} color={CoachColors.textFaint} />
+                <Ionicons name="flag-outline" size={18} color={CoachColors.textFaint} />
                 <TextInput
                   style={[st.input, { minHeight: 60 }]}
                   placeholder="Or type specific goals..."
@@ -678,7 +678,7 @@ export default function AddClientScreen() {
               {/* Notes */}
               <Text style={[st.sectionLabel, { marginTop: 22 }]}>Private note</Text>
               <View style={st.inputRow}>
-                <Ionicons name="document-text-outline" size={16} color={CoachColors.textFaint} />
+                <Ionicons name="document-text-outline" size={18} color={CoachColors.textFaint} />
                 <TextInput
                   style={[st.input, { minHeight: 60 }]}
                   placeholder="Only you can see this..."
@@ -695,14 +695,14 @@ export default function AddClientScreen() {
               <View style={st.nextCard}>
                 <View style={st.nextRow}>
                   <View style={st.nextDone}>
-                    <Ionicons name="checkmark" size={12} color={CoachColors.onAccent} />
+                    <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />
                   </View>
                   <Text style={st.nextText}>They get an invite by email</Text>
                 </View>
                 {selectedPlanData && (
                   <View style={st.nextRow}>
                     <View style={st.nextDone}>
-                      <Ionicons name="checkmark" size={12} color={CoachColors.onAccent} />
+                      <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />
                     </View>
                     <Text style={st.nextText}>They start at node 1 of {selectedPlanData.name}</Text>
                   </View>
@@ -723,7 +723,7 @@ export default function AddClientScreen() {
               <Text style={[st.sectionLabel, { marginTop: 22 }]}>Invite to app</Text>
               <TouchableOpacity style={st.inviteCard} onPress={handleInvite} activeOpacity={0.7}>
                 <View style={st.inviteIconWrap}>
-                  <Ionicons name="paper-plane" size={19} color={CoachColors.accent} />
+                  <Ionicons name="paper-plane" size={21} color={CoachColors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={st.inviteTitle}>
@@ -731,7 +731,7 @@ export default function AddClientScreen() {
                   </Text>
                   <Text style={st.inviteDesc}>Share a link to download FitLink and connect</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
+                <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
               </TouchableOpacity>
             </KeyboardAwareScrollView>
           )}
@@ -747,7 +747,7 @@ export default function AddClientScreen() {
                     <Text style={st.ctaBtnText}>
                       {step === 3 ? `Add ${name.trim().split(' ')[0] || 'client'}` : 'Continue'}
                     </Text>
-                    {step < 3 && <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />}
+                    {step < 3 && <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />}
                   </>
                 )}
               </TouchableOpacity>
@@ -786,10 +786,10 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
-  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 1 },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 21.5, color: CoachColors.textPrimary },
+  headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 1 },
   headerSkip: { paddingHorizontal: 12, paddingVertical: 6 },
-  headerSkipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
+  headerSkipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
 
   // Progress
   progressTrack: { height: 3, backgroundColor: TRACK_BG, marginHorizontal: 20, borderRadius: 2 },
@@ -799,7 +799,7 @@ const st = StyleSheet.create({
 
   // Section label — sentence case text, small eyebrow treatment
   sectionLabel: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 11,
   },
 
@@ -816,8 +816,8 @@ const st = StyleSheet.create({
     backgroundColor: RAISED_CIRCLE,
     alignItems: 'center', justifyContent: 'center',
   },
-  quickAddTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  quickAddDesc: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 1 },
+  quickAddTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  quickAddDesc: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 1 },
 
   // Identity card
   identityCard: {
@@ -832,7 +832,7 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textFaint },
+  avatarInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 21.5, color: CoachColors.textFaint },
   avatarBadge: {
     position: 'absolute', bottom: -2, right: -2,
     width: 24, height: 24, borderRadius: 12,
@@ -846,27 +846,27 @@ const st = StyleSheet.create({
     paddingHorizontal: 15, paddingVertical: 12,
     borderWidth: 1, borderColor: CoachColors.border,
   },
-  inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, color: CoachColors.textFaint },
+  inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: CoachColors.surface, borderRadius: 14,
     paddingHorizontal: 15, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   input: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
     paddingVertical: 14,
   },
   contactRow: { marginTop: 10 },
-  helperText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 12, lineHeight: 17 },
+  helperText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 12, lineHeight: 19 },
 
   // Find
-  findTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22, color: CoachColors.textPrimary, marginBottom: 4 },
-  findDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginBottom: 20 },
+  findTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 24.5, color: CoachColors.textPrimary, marginBottom: 4 },
+  findDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 20 },
   searchBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 14, marginTop: 12,
   },
-  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   findResultCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderRadius: 14,
@@ -876,10 +876,10 @@ const st = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: RAISED_CIRCLE, alignItems: 'center', justifyContent: 'center',
   },
-  findResultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  findResultContact: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  findResultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  findResultContact: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   linkBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999 },
-  linkBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
+  linkBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // Step 2 — Plans (one lime accent, no per-plan tinting, no popular badge)
   planCard: {
@@ -891,10 +891,10 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.accentSofter,
     borderColor: CoachColors.accent, borderWidth: 1.5,
   },
-  planName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textSecondary },
-  planNameActive: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
-  planPrice: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3 },
-  planFeature: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary },
+  planName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textSecondary },
+  planNameActive: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
+  planPrice: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3 },
+  planFeature: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
 
@@ -906,9 +906,9 @@ const st = StyleSheet.create({
     borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14,
   },
   startModeCardActive: { backgroundColor: CoachColors.accentSofter, borderColor: CoachColors.accent, borderWidth: 1.5 },
-  startModeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
+  startModeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
   startModeTitleActive: { color: CoachColors.textPrimary },
-  startModeDesc: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 2 },
+  startModeDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
 
   // Step 3 — Goals
   goalChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
@@ -918,7 +918,7 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   goalChipActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  goalChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  goalChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   goalChipTextActive: { color: CoachColors.onAccent },
 
   // Step 3 — What happens next
@@ -932,9 +932,9 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   nextTodo: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border },
-  nextText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary },
+  nextText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary },
   nextTextMuted: { color: CoachColors.textSecondary },
-  nextLater: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
+  nextLater: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
 
   // Step 3 — Invite
   inviteCard: {
@@ -947,8 +947,8 @@ const st = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: CoachColors.accentSofter, alignItems: 'center', justifyContent: 'center',
   },
-  inviteTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  inviteDesc: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  inviteTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  inviteDesc: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
 
   // CTA
   ctaWrap: {
@@ -961,9 +961,9 @@ const st = StyleSheet.create({
     paddingVertical: 15, borderRadius: 999,
     backgroundColor: CoachColors.accent,
   },
-  ctaBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.onAccent },
+  ctaBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.onAccent },
   ctaSubtext: {
-    fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint,
     textAlign: 'center', marginTop: 9,
   },
 
@@ -973,9 +973,9 @@ const st = StyleSheet.create({
     width: 64, height: 64, borderRadius: 32, backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  successTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 21, color: CoachColors.textPrimary, textAlign: 'center' },
-  successDesc: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 19 },
+  successTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 23.5, color: CoachColors.textPrimary, textAlign: 'center' },
+  successDesc: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 21.5 },
   successCtaWrap: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
   successSecondaryBtn: { alignItems: 'center', paddingVertical: 12 },
-  successSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
+  successSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 });

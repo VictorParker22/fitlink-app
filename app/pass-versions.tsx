@@ -189,7 +189,7 @@ export default function PassVersionsScreen() {
     <View style={[st.container, { paddingTop: insets.top }]}>
       <View style={st.header}>
         <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={st.headerTitle}>Versions</Text>
@@ -264,7 +264,7 @@ export default function PassVersionsScreen() {
         {/* ── Rollback ── */}
         {rollbackTarget && (
           <TouchableOpacity style={st.rollbackRow} onPress={rollBack} disabled={busy} activeOpacity={0.8}>
-            <Ionicons name="arrow-undo-outline" size={18} color={CoachColors.textSecondary} />
+            <Ionicons name="arrow-undo-outline" size={20} color={CoachColors.textSecondary} />
             <View style={{ flex: 1 }}>
               <Text style={st.rollbackTitle}>Roll back to v{rollbackTarget.version}</Text>
               <Text style={st.rollbackSub}>
@@ -297,8 +297,8 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
   backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.textPrimary },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
 
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -310,10 +310,10 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft, borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  liveTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.accent },
-  cardDate: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
-  oldTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
-  cardSummary: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginTop: 10, lineHeight: 19 },
+  liveTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
+  cardDate: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  oldTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  cardSummary: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 10, lineHeight: 21.5 },
 
   holderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   avatarStack: { flexDirection: 'row' },
@@ -322,36 +322,36 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: CoachColors.surface,
   },
-  avatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textSecondary },
-  holderCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, flex: 1 },
+  avatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textSecondary },
+  holderCount: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, flex: 1 },
 
   oldHolderBlock: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
   oldHolderTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  oldHolderName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, flex: 1 },
-  honestyLine: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 8, lineHeight: 18 },
+  oldHolderName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, flex: 1 },
+  honestyLine: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8, lineHeight: 20 },
   askBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 10, alignItems: 'center', marginTop: 12,
   },
-  askBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary },
+  askBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
 
-  emptyVersionRow: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, marginBottom: 10, paddingHorizontal: 2 },
+  emptyVersionRow: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, marginBottom: 10, paddingHorizontal: 2 },
 
   rollbackRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     borderRadius: 14, padding: 14, marginTop: 8,
   },
-  rollbackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  rollbackSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 3, lineHeight: 16 },
+  rollbackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  rollbackSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 3, lineHeight: 18 },
 
-  noHistoryText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, lineHeight: 18, marginTop: 4 },
+  noHistoryText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint, lineHeight: 20, marginTop: 4 },
 
   footerBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 15, alignItems: 'center', marginTop: 28,
   },
-  footerBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
+  footerBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },
 
-  notFoundText: { fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textMuted, textAlign: 'center', marginTop: 100 },
+  notFoundText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textMuted, textAlign: 'center', marginTop: 100 },
 });

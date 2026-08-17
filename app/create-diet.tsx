@@ -608,7 +608,7 @@ export default function CreateDietScreen() {
           onPress={() => step === 1 ? router.back() : setStep((step - 1) as 1 | 2)}
           style={s.backBtn}
         >
-          <Ionicons name={step === 1 ? 'close' : 'arrow-back'} size={22} color={CoachColors.textPrimary} />
+          <Ionicons name={step === 1 ? 'close' : 'arrow-back'} size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || (isEditing ? 'Edit meal plan' : 'New meal plan')}</Text>
@@ -647,7 +647,7 @@ export default function CreateDietScreen() {
                 style={s.stepBtn}
                 onPress={() => { setKcal(k => Math.max(1600, k - 50)); Haptics.selectionAsync(); }}
               >
-                <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="remove" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <View style={{ alignItems: 'center' }}>
                 <Text style={s.kcalValue}>{kcal.toLocaleString()} <Text style={s.kcalUnit}>kcal</Text></Text>
@@ -657,7 +657,7 @@ export default function CreateDietScreen() {
                 style={s.stepBtn}
                 onPress={() => { setKcal(k => Math.min(3200, k + 50)); Haptics.selectionAsync(); }}
               >
-                <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -736,7 +736,7 @@ export default function CreateDietScreen() {
           activeOpacity={0.85}
         >
           <Text style={s.ctaText}>Build the day</Text>
-          <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+          <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
         </TouchableOpacity>
       </View>
     </>
@@ -801,7 +801,7 @@ export default function CreateDietScreen() {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.scroll}>
           {dayVariant === 'rest' && restEmpty && trainingHasMeals && (
             <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.copyBtn} onPress={copyTrainingToRest} activeOpacity={0.8}>
-              <Ionicons name="copy-outline" size={16} color={CoachColors.accent} />
+              <Ionicons name="copy-outline" size={18} color={CoachColors.accent} />
               <Text style={s.copyBtnText}>Copy training day at reduced portions</Text>
             </TouchableOpacity>
           )}
@@ -825,7 +825,7 @@ export default function CreateDietScreen() {
                       </Text>
                       {dayVariant === 'training' && swapCount > 0 && (
                         <View style={s.swapTag}>
-                          <Ionicons name="swap-horizontal" size={11} color={CoachColors.accent} />
+                          <Ionicons name="swap-horizontal" size={12} color={CoachColors.accent} />
                           <Text style={s.swapTagText}>{swapCount} swap{swapCount === 1 ? '' : 's'} allowed</Text>
                         </View>
                       )}
@@ -838,7 +838,7 @@ export default function CreateDietScreen() {
                     activeOpacity={0.7}
                     onPress={() => setSearchSlotIndex(index)}
                   >
-                    <Ionicons name="add" size={16} color={CoachColors.textMuted} />
+                    <Ionicons name="add" size={18} color={CoachColors.textMuted} />
                     <Text style={s.slotEmptyText}>Pick a meal</Text>
                   </TouchableOpacity>
                 )}
@@ -847,7 +847,7 @@ export default function CreateDietScreen() {
           })}
 
           <TouchableOpacity style={s.addSlotRow} onPress={appendSlot} activeOpacity={0.7}>
-            <Ionicons name="add" size={16} color={CoachColors.textSecondary} />
+            <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
             <Text style={s.addSlotText}>Add a meal</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -860,7 +860,7 @@ export default function CreateDietScreen() {
             activeOpacity={0.85}
           >
             <Text style={s.ctaText}>Set the week</Text>
-            <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+            <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
       </>
@@ -944,13 +944,13 @@ export default function CreateDietScreen() {
             <>
               <Image source={{ uri: imageUrl }} style={s.uploadedImage} resizeMode="cover" />
               <View style={s.imageOverlay}>
-                <Ionicons name="camera" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="camera" size={25} color={CoachColors.textPrimary} />
                 <Text style={s.imageOverlayText}>Change image</Text>
               </View>
             </>
           ) : (
             <>
-              <Ionicons name="image-outline" size={24} color={CoachColors.textFaint} />
+              <Ionicons name="image-outline" size={27} color={CoachColors.textFaint} />
               <Text style={s.imageUploadText}>Tap to add cover image</Text>
             </>
           )}
@@ -970,7 +970,7 @@ export default function CreateDietScreen() {
         <TouchableOpacity style={[s.cta, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
           {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : (
             <>
-              <Ionicons name="checkmark" size={18} color={CoachColors.onAccent} />
+              <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
               <Text style={s.ctaText}>{isEditing ? 'Save changes' : 'Save meal plan'}</Text>
             </>
           )}
@@ -997,7 +997,7 @@ export default function CreateDietScreen() {
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>{slotSheetSlot?.label || 'Meal'}</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setSlotSheetIndex(null)}>
-                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -1009,11 +1009,11 @@ export default function CreateDietScreen() {
                   <Text style={s.servingLabel}>Servings</Text>
                   <View style={s.portionControls}>
                     <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setEditServings(v => Math.max(0.25, v - 0.25))}>
-                      <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
+                      <Ionicons name="remove" size={25} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={s.portionValue}>{editServings}</Text>
                     <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setEditServings(v => v + 0.25)}>
-                      <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
+                      <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1027,7 +1027,7 @@ export default function CreateDietScreen() {
                     style={s.sheetActionBtn}
                     onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSwapSheetIndex(i); }}
                   >
-                    <Ionicons name="swap-horizontal" size={18} color={CoachColors.accent} />
+                    <Ionicons name="swap-horizontal" size={20} color={CoachColors.accent} />
                     <Text style={s.sheetActionText}>
                       Manage swaps{slotSheetSlot.swaps.allowedMealIds.length > 0 ? ` (${slotSheetSlot.swaps.allowedMealIds.length})` : ''}
                     </Text>
@@ -1038,7 +1038,7 @@ export default function CreateDietScreen() {
                   style={s.sheetActionBtn}
                   onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSearchSlotIndex(i); }}
                 >
-                  <Ionicons name="repeat" size={18} color={CoachColors.textPrimary} />
+                  <Ionicons name="repeat" size={20} color={CoachColors.textPrimary} />
                   <Text style={s.sheetActionText}>Replace meal</Text>
                 </TouchableOpacity>
 
@@ -1046,7 +1046,7 @@ export default function CreateDietScreen() {
                   style={[s.sheetActionBtn, s.dangerBtn]}
                   onPress={() => isExtraSlot ? removeExtraSlot(slotSheetIndex) : clearSlot(slotSheetIndex)}
                 >
-                  <Ionicons name="trash" size={18} color={CoachColors.danger} />
+                  <Ionicons name="trash" size={20} color={CoachColors.danger} />
                   <Text style={[s.sheetActionText, { color: CoachColors.danger }]}>
                     {isExtraSlot ? 'Remove this meal slot' : 'Clear this slot'}
                   </Text>
@@ -1066,7 +1066,7 @@ export default function CreateDietScreen() {
                 If they can't have {swapSlot?.meal ? swapSlot.meal.name.split(',')[0].split(' with ')[0] : 'this'}
               </Text>
               <TouchableOpacity hitSlop={12} onPress={() => setSwapSheetIndex(null)}>
-                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={s.swapSubtext}>
@@ -1082,7 +1082,7 @@ export default function CreateDietScreen() {
                 return (
                   <TouchableOpacity key={m.id} hitSlop={{ top: 4, bottom: 4 }} style={s.swapRow} onPress={() => toggleSwapMeal(m.id)} activeOpacity={0.7}>
                     <View style={[s.checkbox, checked && s.checkboxOn]}>
-                      {checked && <Ionicons name="checkmark" size={13} color={CoachColors.onAccent} />}
+                      {checked && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.swapName} numberOfLines={1}>{m.name}</Text>
@@ -1130,12 +1130,12 @@ export default function CreateDietScreen() {
                 {searchSlotIndex !== null && slots[searchSlotIndex] ? slots[searchSlotIndex].label : 'Add a meal'}
               </Text>
               <TouchableOpacity hitSlop={12} onPress={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
-                <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
             <View style={s.searchWrap}>
-              <Ionicons name="search" size={18} color={CoachColors.textFaint} />
+              <Ionicons name="search" size={20} color={CoachColors.textFaint} />
               <TextInput
                 style={s.searchInput}
                 placeholder={searchMode === 'api' ? 'Search USDA database (e.g. Chicken)' : 'Search my saved meals'}
@@ -1191,10 +1191,10 @@ export default function CreateDietScreen() {
                           </Text>
                         </View>
                         {isExpanded ? (
-                          <Ionicons name="chevron-up" size={26} color={CoachColors.textFaint} />
+                          <Ionicons name="chevron-up" size={29} color={CoachColors.textFaint} />
                         ) : (
                           <View style={s.addCircle}>
-                            <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
+                            <Ionicons name="add" size={20} color={CoachColors.textSecondary} />
                           </View>
                         )}
                       </TouchableOpacity>
@@ -1204,11 +1204,11 @@ export default function CreateDietScreen() {
                           <Text style={s.portionLabel}>Servings:</Text>
                           <View style={s.portionControls}>
                             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setTempServings(v => Math.max(0.25, v - 0.25))}>
-                              <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
+                              <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                             <Text style={s.portionValue}>{tempServings}</Text>
                             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setTempServings(v => v + 0.25)}>
-                              <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+                              <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                           </View>
                           <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.portionAddBtn} onPress={() => {
@@ -1236,20 +1236,20 @@ const s = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
   backBtn: { width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, maxWidth: 240 },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted, marginTop: 2 },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, maxWidth: 240 },
+  headerSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 2 },
   progressRow: { flexDirection: 'row', gap: 6, marginHorizontal: 20, marginBottom: 8 },
   progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: CoachColors.borderMuted },
   progressSegActive: { backgroundColor: CoachColors.accent },
 
   scroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
-  eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase' },
-  h1: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary, marginBottom: 8 },
-  sub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, lineHeight: 19, marginBottom: 20 },
-  footnote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, lineHeight: 18, marginTop: 8 },
+  eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase' },
+  h1: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, marginBottom: 8 },
+  sub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 21.5, marginBottom: 20 },
+  footnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, lineHeight: 20, marginTop: 8 },
 
   nameInput: {
-    fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary,
     borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingVertical: 12, marginBottom: 24, marginTop: 8,
   },
 
@@ -1257,79 +1257,79 @@ const s = StyleSheet.create({
 
   kcalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
   stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-  kcalValue: { fontFamily: CoachFonts.headingBold, fontSize: 34, color: CoachColors.accent },
-  kcalUnit: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textMuted },
-  kcalRange: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 4 },
+  kcalValue: { fontFamily: CoachFonts.headingBold, fontSize: 38, color: CoachColors.accent },
+  kcalUnit: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textMuted },
+  kcalRange: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 4 },
 
   splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 14, gap: 2 },
   splitSeg: { height: '100%' },
   legendRow: { flexDirection: 'row', gap: 16, marginTop: 12, marginBottom: 14, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: Radius.full, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border },
   chipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   chipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
 
   customRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   customField: { flex: 1 },
-  customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted, marginBottom: 6 },
-  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 6 },
+  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, backgroundColor: CoachColors.bg },
   cta: { height: 52, borderRadius: Radius.full, backgroundColor: CoachColors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  ctaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  ctaText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
 
   // Step 2
   macroCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, marginHorizontal: 20, marginTop: 8, borderWidth: 1, borderColor: CoachColors.border },
   macroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  macroKcal: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
-  macroKcalTarget: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  macroKcal: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
+  macroKcalTarget: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
   statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.full, backgroundColor: CoachColors.borderMuted },
   statusChipOn: { backgroundColor: CoachColors.accentSoft },
-  statusChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary },
+  statusChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
   statusChipTextOn: { color: CoachColors.accent },
   macroStack: { flexDirection: 'row', gap: 3, height: 6 },
   macroSeg: { height: 6, borderRadius: 3, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
   macroSegFill: { height: '100%', borderRadius: 3 },
-  macroLine: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textSecondary, marginTop: 10 },
+  macroLine: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textSecondary, marginTop: 10 },
 
   segmented: { flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 4, marginHorizontal: 20, marginTop: 12, borderWidth: 1, borderColor: CoachColors.border },
   segment: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: Radius.sm },
   segmentActive: { backgroundColor: CoachColors.accent },
-  segmentText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  segmentText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   segmentTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
 
   copyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter, marginBottom: 16 },
-  copyBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  copyBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
-  slotLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  slotLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   slotCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 12 },
-  slotMealName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 3 },
-  slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted },
-  slotKcal: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  slotMealName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 3 },
+  slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted },
+  slotKcal: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   swapTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: CoachColors.accentSofter, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full, marginTop: 6 },
-  swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.accent },
+  swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.accent },
   slotEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed' },
-  slotEmptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted },
+  slotEmptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textMuted },
   addSlotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', marginTop: 4 },
-  addSlotText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
+  addSlotText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   // Step 3
   weekRow: { flexDirection: 'row', gap: 6, marginBottom: 24 },
   dayChip: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: Radius.sm, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
   dayChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  dayChipDay: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary },
+  dayChipDay: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
   dayChipDayActive: { color: CoachColors.accent },
-  dayChipKcal: { fontFamily: CoachFonts.mono, fontSize: 10, color: CoachColors.textFaint, marginTop: 4 },
+  dayChipKcal: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textFaint, marginTop: 4 },
   dayChipKcalActive: { color: CoachColors.accent },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 16, borderWidth: 1, borderColor: CoachColors.border, gap: 12 },
-  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
-  toggleSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  toggleTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
+  toggleSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   toggle: { width: 44, height: 26, borderRadius: 13, backgroundColor: CoachColors.borderMuted, padding: 3 },
   toggleOn: { backgroundColor: CoachColors.accent },
   toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: CoachColors.textSecondary },
@@ -1340,62 +1340,62 @@ const s = StyleSheet.create({
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { borderColor: CoachColors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CoachColors.accent },
-  radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
-  radioSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
+  radioSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
 
   imageUploadBtn: { height: 110, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   imageUploadBtnActive: { borderWidth: 0, borderStyle: 'solid' },
-  imageUploadText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted, marginTop: 8 },
+  imageUploadText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 8 },
   uploadedImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  imageOverlayText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary, marginTop: 4 },
-  descInput: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, padding: 14, marginTop: 12, minHeight: 80, textAlignVertical: 'top', fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary },
+  imageOverlayText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, marginTop: 4 },
+  descInput: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, padding: 14, marginTop: 12, minHeight: 80, textAlignVertical: 'top', fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: Spacing['3xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md, gap: 12 },
-  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
-  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted, marginBottom: 16 },
+  modalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, flex: 1 },
+  modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 16 },
 
   servingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  servingLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary },
+  servingLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textPrimary },
   sheetPrimaryBtn: { height: 48, borderRadius: Radius.full, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  sheetPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent },
+  sheetPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   sheetActionBtn: { flexDirection: 'row', height: 46, backgroundColor: CoachColors.surface, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: CoachColors.border, marginTop: 10 },
-  sheetActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  sheetActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   dangerBtn: { backgroundColor: CoachColors.dangerSoft, borderColor: 'transparent' },
 
-  swapSubtext: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 18, marginBottom: 16 },
-  swapEmpty: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, paddingVertical: 16, textAlign: 'center' },
+  swapSubtext: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, lineHeight: 20, marginBottom: 16 },
+  swapEmpty: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint, paddingVertical: 16, textAlign: 'center' },
   swapRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxOn: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  swapName: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary, marginBottom: 2 },
-  swapMacros: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  swapName: { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
+  swapMacros: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   ownLogRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 8 },
 
   // Search modal (unchanged pattern)
   searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: Radius.md, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: CoachColors.border },
-  searchInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 14, marginLeft: 10 },
+  searchInput: { flex: 1, color: CoachColors.textPrimary, fontFamily: CoachFonts.body, fontSize: 15.5, marginLeft: 10 },
   searchBtn: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: CoachColors.accent, borderRadius: Radius.full, marginLeft: 8 },
-  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
+  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
   searchTabs: { flexDirection: 'row', backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 4, marginTop: 16, borderWidth: 1, borderColor: CoachColors.border },
   searchTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.sm },
   searchTabActive: { backgroundColor: CoachColors.accent },
-  searchTabText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary },
+  searchTabText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
   searchTabTextActive: { color: CoachColors.onAccent, fontFamily: CoachFonts.bodySemiBold },
   resultCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border, overflow: 'hidden' },
   resultRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  resultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 4 },
-  resultMacros: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginBottom: 2 },
-  resultMacrosSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  resultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 4 },
+  resultMacros: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginBottom: 2 },
+  resultMacrosSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   addCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   portionEditor: { backgroundColor: CoachColors.surface, padding: 16, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  portionLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
+  portionLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted },
   portionControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.bg, borderRadius: Radius.md, borderWidth: 1, borderColor: CoachColors.border },
   portionBtn: { padding: 8 },
-  portionValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary, minWidth: 40, textAlign: 'center' },
+  portionValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, minWidth: 40, textAlign: 'center' },
   portionAddBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: Radius.full },
-  portionAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.onAccent },
+  portionAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
 });

@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
   tabLabelActive: {

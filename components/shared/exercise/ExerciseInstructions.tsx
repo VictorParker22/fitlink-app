@@ -125,7 +125,7 @@ export default function ExerciseInstructions({
           onPress={() => setShowText(!showText)}
           activeOpacity={0.7}
         >
-          <Ionicons name={showText ? 'eye-off-outline' : 'document-text-outline'} size={16} color={CoachColors.textSecondary} />
+          <Ionicons name={showText ? 'eye-off-outline' : 'document-text-outline'} size={18} color={CoachColors.textSecondary} />
           <Text style={styles.showTextBtnText}>
             {showText ? 'Hide text' : 'Read instructions'}
           </Text>
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   voiceBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
   voiceBtnTextActive: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   showTextBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   instructionTextWrap: {
@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
   },
   exerciseDescription: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   rowDivider: {
     height: 1,

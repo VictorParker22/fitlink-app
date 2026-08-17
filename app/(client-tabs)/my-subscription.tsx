@@ -116,7 +116,7 @@ export default function MySubscriptionScreen() {
           accessibilityLabel="Go back"
           activeOpacity={0.6}
         >
-          <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} accessibilityRole="header">Membership</Text>
         <View style={{ width: 44 }} />
@@ -136,7 +136,7 @@ export default function MySubscriptionScreen() {
             <View style={styles.heroContent}>
               <View style={styles.heroTop}>
                 <View style={styles.heroIconBadge}>
-                  <Ionicons name="star" size={18} color={CoachColors.accent} />
+                  <Ionicons name="star" size={20} color={CoachColors.accent} />
                 </View>
                 <View style={[styles.statusBadge, subscription.status === 'canceled' && styles.statusBadgeCanceled]}>
                   <Text style={[styles.statusText, subscription.status === 'canceled' && styles.statusTextCanceled]}>
@@ -184,7 +184,7 @@ export default function MySubscriptionScreen() {
             <View style={styles.paymentCard}>
               <View style={styles.paymentLeft}>
                 <View style={styles.paymentIconBox}>
-                  <Ionicons name="card" size={18} color={CoachColors.textSecondary} />
+                  <Ionicons name="card" size={20} color={CoachColors.textSecondary} />
                 </View>
                 <View>
                   <Text style={styles.paymentCardTitle}>Card on file</Text>
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18, color: CoachColors.textPrimary, letterSpacing: 0.5,
+    fontSize: 20, color: CoachColors.textPrimary, letterSpacing: 0.5,
   },
 
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100, paddingTop: 8 },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: 32 },
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9, color: CoachColors.textMuted,
+    fontSize: 10, color: CoachColors.textMuted,
     textTransform: 'uppercase', letterSpacing: 2,
     marginBottom: 10,
   },
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xs,
   },
   statusText: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 9,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 10,
     color: CoachColors.accent, letterSpacing: 1.5,
   },
   statusBadgeCanceled: { backgroundColor: CoachColors.dangerSoft },
@@ -387,19 +387,19 @@ const styles = StyleSheet.create({
 
   planName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24, color: CoachColors.textPrimary, marginBottom: 4,
+    fontSize: 27, color: CoachColors.textPrimary, marginBottom: 4,
   },
   planPrice: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28, color: CoachColors.textPrimary,
+    fontSize: 31.5, color: CoachColors.textPrimary,
   },
   planPriceAccent: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28, color: CoachColors.accent,
+    fontSize: 31.5, color: CoachColors.accent,
   },
   planInterval: {
     fontFamily: CoachFonts.body,
-    fontSize: 14, color: CoachColors.textMuted,
+    fontSize: 15.5, color: CoachColors.textMuted,
   },
 
   heroDivider: {
@@ -414,12 +414,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10, color: CoachColors.textMuted,
+    fontSize: 11, color: CoachColors.textMuted,
     letterSpacing: 1.5,
   },
   detailValue: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13, color: CoachColors.textPrimary,
+    fontSize: 14.5, color: CoachColors.textPrimary,
   },
 
   // ── Empty State
@@ -428,12 +428,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 14, color: CoachColors.textSecondary,
+    fontSize: 15.5, color: CoachColors.textSecondary,
     marginBottom: 4,
   },
   emptySubtext: {
     fontFamily: CoachFonts.body,
-    fontSize: 13, color: CoachColors.textFaint,
+    fontSize: 14.5, color: CoachColors.textFaint,
   },
 
   // ── Payment Method
@@ -454,16 +454,16 @@ const styles = StyleSheet.create({
   },
   paymentCardTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15, color: CoachColors.textPrimary,
+    fontSize: 17, color: CoachColors.textPrimary,
   },
   paymentCardSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11, color: CoachColors.textMuted,
+    fontSize: 12.5, color: CoachColors.textMuted,
     marginTop: 2,
   },
   updateCardText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12, color: CoachColors.accent,
+    fontSize: 13.5, color: CoachColors.accent,
     letterSpacing: 0.3,
     textDecorationLine: 'underline',
   },
@@ -486,17 +486,17 @@ const styles = StyleSheet.create({
   historyLeft: { flex: 1 },
   historyDate: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14, color: CoachColors.textPrimary,
+    fontSize: 15.5, color: CoachColors.textPrimary,
   },
   historyPlan: {
     fontFamily: CoachFonts.body,
-    fontSize: 12, color: CoachColors.textMuted,
+    fontSize: 13.5, color: CoachColors.textMuted,
     marginTop: 2,
   },
   historyRight: { alignItems: 'flex-end', gap: 4 },
   historyAmount: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15, color: CoachColors.textPrimary,
+    fontSize: 17, color: CoachColors.textPrimary,
   },
   historyStatusBadge: {
     backgroundColor: CoachColors.accentSoft,
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   },
   historyStatusText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9, color: CoachColors.accent,
+    fontSize: 10, color: CoachColors.accent,
     letterSpacing: 1,
   },
 
@@ -525,20 +525,20 @@ const styles = StyleSheet.create({
   },
   tierName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16, color: CoachColors.textPrimary,
+    fontSize: 18, color: CoachColors.textPrimary,
   },
   tierPrice: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.accent,
   },
   tierInterval: {
     fontFamily: CoachFonts.body,
-    fontSize: 12, color: CoachColors.textMuted,
+    fontSize: 13.5, color: CoachColors.textMuted,
   },
   tierDescription: {
     fontFamily: CoachFonts.body,
-    fontSize: 13, color: CoachColors.textSecondary,
+    fontSize: 14.5, color: CoachColors.textSecondary,
     marginBottom: 12,
   },
   tierFeatures: {
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   },
   tierFeatureText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13, color: CoachColors.textSecondary,
+    fontSize: 14.5, color: CoachColors.textSecondary,
   },
   subscribeBtn: {
     paddingVertical: 14,
@@ -567,15 +567,15 @@ const styles = StyleSheet.create({
   },
   subscribeBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14, color: CoachColors.onAccent,
+    fontSize: 15.5, color: CoachColors.onAccent,
   },
 
   // ── Danger Zone (Cancel)
   dangerText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13, color: CoachColors.textMuted,
+    fontSize: 14.5, color: CoachColors.textMuted,
     marginBottom: 16,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   cancelBtn: {
     paddingVertical: 14,
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 13, color: CoachColors.danger,
+    fontSize: 14.5, color: CoachColors.danger,
     letterSpacing: 0.3,
   },
 });

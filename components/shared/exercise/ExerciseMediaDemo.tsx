@@ -46,7 +46,7 @@ export default function ExerciseMediaDemo({
             style={styles.watchVideoBtn} 
             onPress={() => onPlayVideo(videoUrl, exerciseName)}
           >
-            <Ionicons name="play-circle" size={18} color={CoachColors.textPrimary} />
+            <Ionicons name="play-circle" size={20} color={CoachColors.textPrimary} />
             <Text style={styles.watchVideoText}>Watch demo video</Text>
           </TouchableOpacity>
         </View>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   watchVideoText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   gifWrapper: {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   gifOverlayText: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
   },
 });

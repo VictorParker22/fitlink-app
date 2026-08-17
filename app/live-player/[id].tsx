@@ -337,7 +337,7 @@ export default function LivePlayerScreen() {
       {/* Header Bar */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.closeBtn}>
-          <Ionicons name="chevron-down" size={28} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-down" size={31} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
@@ -349,7 +349,7 @@ export default function LivePlayerScreen() {
               </Text>
             </View>
             <View style={styles.viewersBadge}>
-              <Ionicons name="eye" size={12} color={CoachColors.textSecondary} style={{ marginRight: 4 }} />
+              <Ionicons name="eye" size={13} color={CoachColors.textSecondary} style={{ marginRight: 4 }} />
               <Text style={styles.viewersText}>{liveClass.viewer_count ?? '—'}</Text>
             </View>
           </View>
@@ -360,7 +360,7 @@ export default function LivePlayerScreen() {
       <View style={styles.videoContainer}>
         {isStreamEnded ? (
           <View style={styles.endedBanner}>
-            <Ionicons name="sparkles" size={32} color={CoachColors.accent} style={{ marginBottom: 8 }} />
+            <Ionicons name="sparkles" size={36} color={CoachColors.accent} style={{ marginBottom: 8 }} />
             <Text style={styles.endedTitle}>Broadcast has concluded</Text>
             <Text style={styles.endedSub}>Your coach has wrapped up this live class. Thanks for training live!</Text>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={styles.backToExploreBtn} onPress={() => router.back()}>
@@ -382,7 +382,7 @@ export default function LivePlayerScreen() {
           />
         ) : hasFakeMuxId ? (
           <View style={styles.endedBanner}>
-            <Ionicons name="warning-outline" size={32} color={CoachColors.warning} style={{ marginBottom: 8 }} />
+            <Ionicons name="warning-outline" size={36} color={CoachColors.warning} style={{ marginBottom: 8 }} />
             <Text style={styles.endedTitle}>Stream not configured</Text>
             <Text style={styles.endedSub}>Coach may still be setting up. Try again in a moment.</Text>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
@@ -467,7 +467,7 @@ export default function LivePlayerScreen() {
             onPress={handleSendChat}
             disabled={!authReady || !chatMessage.trim() || isStreamEnded}
           >
-            <Ionicons name="send" size={18} color={CoachColors.onAccent} />
+            <Ionicons name="send" size={20} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   liveBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     // White on the solid danger fill is 3.27:1 — fails body text. onAccent is 5.75:1.
     color: CoachColors.onAccent,
     letterSpacing: 1,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   viewersText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
   },
   videoContainer: {
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontFamily: CoachFonts.body,
     color: CoachColors.textSecondary,
-    fontSize: 14,
+    fontSize: 15.5,
   },
   endedBanner: {
     flex: 1,
@@ -559,14 +559,14 @@ const styles = StyleSheet.create({
   },
   endedTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   endedSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.md,
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   },
   backToExploreText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textPrimary,
     letterSpacing: 1,
   },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   systemMessage: {
     fontFamily: CoachFonts.body,
     fontStyle: 'italic',
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
     marginBottom: 8,
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   sendBtn: {
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontFamily: CoachFonts.body,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginBottom: 20,
   },
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   },
   backBtnAltText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textPrimary,
   },
   chatBubbleRow: {
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   },
   chatSender: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     marginBottom: 2,
     marginLeft: 4,
@@ -673,9 +673,9 @@ const styles = StyleSheet.create({
   },
   chatBubbleText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   chatBubbleTextMe: {
     color: CoachColors.onAccent,
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   reconnectText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.warning,
   },
 });

@@ -243,7 +243,7 @@ export default function CoachContextHeroCard() {
             }}
             activeOpacity={0.85}
           >
-            <Ionicons name={hero.ctaIcon as any} size={15} color={ctaContentColor} />
+            <Ionicons name={hero.ctaIcon as any} size={17} color={ctaContentColor} />
             <Text style={[s.ctaText, { color: ctaContentColor }]}>{hero.ctaLabel}</Text>
           </TouchableOpacity>
         </View>
@@ -304,18 +304,18 @@ const s = StyleSheet.create({
   avatarImg: { width: '100%', height: '100%' },
   avatarText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   topName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   topTagline: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.3,
   },
@@ -326,13 +326,13 @@ const s = StyleSheet.create({
   },
   revenueAmount: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   revenueSub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.2,
     marginTop: 1,
@@ -358,25 +358,25 @@ const s = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   headline: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 28,
+    fontSize: 31.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
-    lineHeight: 34,
+    lineHeight: 38,
     marginBottom: 6,
   },
   sub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
     marginBottom: 20,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   cta: {
     flexDirection: 'row',
@@ -389,7 +389,7 @@ const s = StyleSheet.create({
   },
   ctaText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     letterSpacing: 0.2,
   },
 });

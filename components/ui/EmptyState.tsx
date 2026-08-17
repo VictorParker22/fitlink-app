@@ -46,18 +46,18 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginTop: 16,
     textAlign: 'center',
   },
   subtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textMuted,
     marginTop: 8,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
   action: {
     marginTop: 24,

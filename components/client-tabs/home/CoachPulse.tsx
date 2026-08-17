@@ -64,7 +64,7 @@ export default function CoachPulse({
         {/* §14 44×44 touch target */}
         <View style={st.ctaBtn}>
           <Text style={st.ctaBtnText}>Pair</Text>
-          <Ionicons name="arrow-forward" size={14} color={CoachColors.onAccent} />
+          <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
         </View>
       </TouchableOpacity>
     );
@@ -104,7 +104,7 @@ export default function CoachPulse({
 
         {/* Chat button */}
         <View style={st.chatBtn}>
-          <Ionicons name="chatbubble-ellipses" size={18} color={CoachColors.accent} />
+          <Ionicons name="chatbubble-ellipses" size={20} color={CoachColors.accent} />
         </View>
       </View>
     </TouchableOpacity>
@@ -127,7 +127,7 @@ const st = StyleSheet.create({
 
   topTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -155,7 +155,7 @@ const st = StyleSheet.create({
   },
   avatarPlaceholderText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -171,10 +171,10 @@ const st = StyleSheet.create({
   },
   speechText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     fontStyle: 'italic',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // Chat button
@@ -209,7 +209,7 @@ const st = StyleSheet.create({
   // §1 "No coach" empty state: micro → punchy statement → sub
   micro: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -217,15 +217,15 @@ const st = StyleSheet.create({
   },
   noCoachHero: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   noCoachSub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
-    lineHeight: 17,
+    lineHeight: 19,
   },
   // §14 CTA button 44×44 minimum
   ctaBtn: {
@@ -239,7 +239,7 @@ const st = StyleSheet.create({
   },
   ctaBtnText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.onAccent,
   },
 });

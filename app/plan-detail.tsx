@@ -73,10 +73,10 @@ export default function PlanDetailScreen() {
     return (
       <View style={[st.container, { paddingTop: insets.top }]}>
         <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.navBtn}>
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={st.notFound}>
-          <Ionicons name="alert-circle-outline" size={48} color={CoachColors.textFaint} />
+          <Ionicons name="alert-circle-outline" size={54} color={CoachColors.textFaint} />
           <Text style={st.notFoundText}>Plan not found</Text>
         </View>
       </View>
@@ -149,12 +149,12 @@ export default function PlanDetailScreen() {
           {/* Nav */}
           <View style={st.heroNav}>
             <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.navBtn}>
-              <Ionicons name="chevron-back" size={20} color={CoachColors.textPrimary} />
+              <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={st.headerTitle}>Pass details</Text>
             <View style={st.navRight}>
               <TouchableOpacity hitSlop={4} style={st.navBtn} onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}>
-                <Ionicons name="create-outline" size={18} color={CoachColors.textPrimary} />
+                <Ionicons name="create-outline" size={20} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -163,7 +163,7 @@ export default function PlanDetailScreen() {
           <View style={st.vipCard}>
             <View style={st.vipCardTop}>
               <View style={st.tierIconWrap}>
-                <Ionicons name={tier.icon} size={22} color={CoachColors.textPrimary} />
+                <Ionicons name={tier.icon} size={25} color={CoachColors.textPrimary} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={st.tierRow}>
@@ -291,11 +291,11 @@ export default function PlanDetailScreen() {
                       nodeState === 'locked' && { borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface },
                     ]}>
                       {nodeState === 'active' ? (
-                        <Ionicons name={nodeIcon as any} size={18} color={CoachColors.accent} />
+                        <Ionicons name={nodeIcon as any} size={20} color={CoachColors.accent} />
                       ) : nodeState === 'locked' ? (
-                        <Ionicons name="lock-closed-outline" size={14} color={CoachColors.textFaint} />
+                        <Ionicons name="lock-closed-outline" size={16} color={CoachColors.textFaint} />
                       ) : (
-                        <Ionicons name={nodeIcon as any} size={18} color={CoachColors.textSecondary} />
+                        <Ionicons name={nodeIcon as any} size={20} color={CoachColors.textSecondary} />
                       )}
                     </View>
 
@@ -322,7 +322,7 @@ export default function PlanDetailScreen() {
               onPress={() => router.push({ pathname: '/pass-track-editor', params: { planId: plan.id } } as any)}
               activeOpacity={0.7}
             >
-              <Ionicons name="create-outline" size={14} color={CoachColors.textPrimary} />
+              <Ionicons name="create-outline" size={16} color={CoachColors.textPrimary} />
               <Text style={st.editTrackText}>Edit roadmap</Text>
             </TouchableOpacity>
           </View>
@@ -336,13 +336,13 @@ export default function PlanDetailScreen() {
             activeOpacity={0.8}
           >
             <View style={st.addTrackIcon}>
-              <Ionicons name="map-outline" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="map-outline" size={22} color={CoachColors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.addTrackTitle}>Add progression roadmap</Text>
               <Text style={st.addTrackSub}>Build a battle pass of workouts & milestones</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+            <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
           </TouchableOpacity>
         )}
 
@@ -356,7 +356,7 @@ export default function PlanDetailScreen() {
               {features.map((feat, i) => (
                 <View key={i} style={st.perkCard}>
                   <View style={st.perkIconBox}>
-                    <Ionicons name={getPerkIcon(feat) as any} size={16} color={CoachColors.textSecondary} />
+                    <Ionicons name={getPerkIcon(feat) as any} size={18} color={CoachColors.textSecondary} />
                   </View>
                   <Text style={st.perkCardText}>{feat}</Text>
                 </View>
@@ -375,7 +375,7 @@ export default function PlanDetailScreen() {
           </View>
           {subCount === 0 ? (
             <View style={st.emptyMembers}>
-              <Ionicons name="qr-code-outline" size={28} color={CoachColors.textFaint} />
+              <Ionicons name="qr-code-outline" size={31} color={CoachColors.textFaint} />
               <Text style={st.emptyMembersText}>No members subscribed</Text>
               <Text style={st.emptyMembersSub}>Share this pass link to onboard your first client</Text>
             </View>
@@ -410,18 +410,18 @@ export default function PlanDetailScreen() {
             activeOpacity={0.85}
           >
             <View style={st.primaryActionGradient}>
-              <Ionicons name="card" size={18} color={CoachColors.onAccent} />
+              <Ionicons name="card" size={20} color={CoachColors.onAccent} />
               <Text style={st.primaryActionText}>Collect payment</Text>
             </View>
           </TouchableOpacity>
 
           <View style={st.secondaryRow}>
             <TouchableOpacity style={st.secondaryAction} activeOpacity={0.7}>
-              <Ionicons name="share-social" size={16} color={CoachColors.textPrimary} />
+              <Ionicons name="share-social" size={18} color={CoachColors.textPrimary} />
               <Text style={st.secondaryText}>Share pass</Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.secondaryAction} activeOpacity={0.7}>
-              <Ionicons name="analytics" size={16} color={CoachColors.textPrimary} />
+              <Ionicons name="analytics" size={18} color={CoachColors.textPrimary} />
               <Text style={st.secondaryText}>Analytics</Text>
             </TouchableOpacity>
           </View>
@@ -442,7 +442,7 @@ const st = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 14, marginBottom: 8,
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary, letterSpacing: 0.2 },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, letterSpacing: 0.2 },
   navBtn: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -461,11 +461,11 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   tierLabel: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 11,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5,
     color: CoachColors.textSecondary, letterSpacing: 0.5, marginBottom: 2,
   },
   planNameHero: {
-    fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary,
     letterSpacing: -0.3,
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
@@ -474,21 +474,21 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
     backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
-  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.7 },
-  cohortRunLine: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 4 },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.accent, letterSpacing: 0.7 },
+  cohortRunLine: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 4 },
 
   popularTag: {
     backgroundColor: CoachColors.accent, paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 8,
   },
-  popularTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.onAccent, letterSpacing: 0.3 },
+  popularTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.onAccent, letterSpacing: 0.3 },
 
   priceDisplay: { flexDirection: 'row', alignItems: 'flex-start', gap: 2, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, paddingTop: 16 },
-  priceSign: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textSecondary, marginTop: 4 },
-  priceNum: { fontFamily: CoachFonts.headingBold, fontSize: 40, color: CoachColors.textPrimary, lineHeight: 44 },
+  priceSign: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textSecondary, marginTop: 4 },
+  priceNum: { fontFamily: CoachFonts.headingBold, fontSize: 45, color: CoachColors.textPrimary, lineHeight: 49.5 },
   pricePeriodCol: { justifyContent: 'center', marginTop: 8, marginLeft: 4 },
-  pricePer: { fontFamily: CoachFonts.bodyMedium, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.3 },
-  priceUnit: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary, letterSpacing: 0.3 },
+  pricePer: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 0.3 },
+  priceUnit: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary, letterSpacing: 0.3 },
 
   // Capacity Bar
   xpCard: {
@@ -502,9 +502,9 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
   },
-  xpLevelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textPrimary, letterSpacing: 0.3 },
-  xpLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.3, flex: 1 },
-  xpFraction: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  xpLevelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary, letterSpacing: 0.3 },
+  xpLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 0.3, flex: 1 },
+  xpFraction: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   xpTrack: {
     height: 6, backgroundColor: CoachColors.borderMuted, borderRadius: 3,
     overflow: 'hidden',
@@ -520,19 +520,19 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderRadius: 14,
     padding: 14, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  statLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 10, color: CoachColors.textSecondary, letterSpacing: 0.3 },
-  statValue: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
-  statSub: { fontFamily: CoachFonts.bodyMedium, fontSize: 9.5, color: CoachColors.textMuted, letterSpacing: 0.3 },
+  statLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.3 },
+  statValue: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
+  statSub: { fontFamily: CoachFonts.bodyMedium, fontSize: 10.5, color: CoachColors.textMuted, letterSpacing: 0.3 },
 
   // Sections
   section: { marginHorizontal: 20, marginBottom: 24 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 12,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5,
     color: CoachColors.textSecondary, letterSpacing: 0.3,
   },
   countBadge: { backgroundColor: CoachColors.surface, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: CoachColors.borderMuted },
-  countBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textPrimary, letterSpacing: 0.3 },
+  countBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary, letterSpacing: 0.3 },
 
   // Perks
   perksGrid: { gap: 6 },
@@ -545,12 +545,12 @@ const st = StyleSheet.create({
     width: 32, height: 32, borderRadius: 10,
     backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center',
   },
-  perkCardText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textPrimary, flex: 1 },
+  perkCardText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
 
   // Members
   emptyMembers: { alignItems: 'center', paddingVertical: 32, gap: 6, backgroundColor: CoachColors.surface, borderRadius: 14, borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed' },
-  emptyMembersText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary, letterSpacing: 0.3 },
-  emptyMembersSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
+  emptyMembersText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, letterSpacing: 0.3 },
+  emptyMembersSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
   membersList: { gap: 6 },
   memberCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -558,13 +558,13 @@ const st = StyleSheet.create({
     padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   memberInfo: { flex: 1, gap: 2 },
-  memberName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  memberEmail: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  memberName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  memberEmail: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   memberStatusBadge: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  memberStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 10, color: CoachColors.textSecondary, letterSpacing: 0.3 },
+  memberStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.3 },
 
   // Actions
   actionsSection: { paddingHorizontal: 20, gap: 10 },
@@ -572,14 +572,14 @@ const st = StyleSheet.create({
   primaryActionGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  primaryActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.onAccent, letterSpacing: 0.2 },
+  primaryActionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent, letterSpacing: 0.2 },
   secondaryRow: { flexDirection: 'row', gap: 10 },
   secondaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, height: 46, borderRadius: 14,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  secondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary, letterSpacing: 0.2 },
+  secondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, letterSpacing: 0.2 },
 
   // Progression Track
   trackSection: { marginBottom: 24 },
@@ -602,14 +602,14 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.accent, marginBottom: 4,
   },
   trackCurrentText: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 9, color: CoachColors.onAccent, letterSpacing: 0.3,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 10, color: CoachColors.onAccent, letterSpacing: 0.3,
   },
   trackNodeName: {
-    fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textPrimary,
-    textAlign: 'center', lineHeight: 14,
+    fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textPrimary,
+    textAlign: 'center', lineHeight: 15.5,
   },
   trackNodeSub: {
-    fontFamily: CoachFonts.body, fontSize: 9, color: CoachColors.textMuted,
+    fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textMuted,
     textAlign: 'center', marginTop: 2,
   },
   editTrackBtn: {
@@ -617,7 +617,7 @@ const st = StyleSheet.create({
     marginHorizontal: 20, marginTop: 12, height: 42, borderRadius: 14,
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface,
   },
-  editTrackText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textPrimary, letterSpacing: 0.2 },
+  editTrackText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, letterSpacing: 0.2 },
   addTrackCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     marginHorizontal: 20, marginBottom: 24, padding: 16,
@@ -628,10 +628,10 @@ const st = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center',
   },
-  addTrackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
-  addTrackSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
+  addTrackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  addTrackSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
 
   // Not Found
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  notFoundText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textSecondary, letterSpacing: 0.2 },
+  notFoundText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textSecondary, letterSpacing: 0.2 },
 });

@@ -88,7 +88,7 @@ const ActionCard: React.FC<{
 
         {/* Priority icon */}
         <View style={[styles.iconChip, { backgroundColor: `${p.color}20` }]}>
-          <Ionicons name={p.icon} size={14} color={p.color} />
+          <Ionicons name={p.icon} size={16} color={p.color} />
         </View>
 
         {/* Headline */}
@@ -104,7 +104,7 @@ const ActionCard: React.FC<{
 
         {/* Suggestion box */}
         <View style={styles.suggestionBox}>
-          <Ionicons name="bulb-outline" size={11} color={CoachColors.textSecondary} style={{ marginTop: 1 }} />
+          <Ionicons name="bulb-outline" size={12} color={CoachColors.textSecondary} style={{ marginTop: 1 }} />
           <Text style={styles.suggestionText} numberOfLines={2}>{action.suggestedAction}</Text>
         </View>
 
@@ -120,7 +120,7 @@ const ActionCard: React.FC<{
         {/* Dismiss button */}
         {action.dismissable && (
           <TouchableOpacity style={styles.dismissBtn} onPress={handleDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close" size={13} color={CoachColors.textMuted} />
+            <Ionicons name="close" size={15} color={CoachColors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   actionCountText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   scrollContent: {
@@ -241,21 +241,21 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 22.5,
     marginBottom: 3,
   },
   clientName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 6,
   },
   subtext: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
-    lineHeight: 17,
+    lineHeight: 19,
     marginBottom: 10,
   },
   suggestionBox: {
@@ -269,9 +269,9 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textSecondary,
-    lineHeight: 16,
+    lineHeight: 18,
     flex: 1,
   },
   ctaBtn: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
   },
   dismissBtn: {
     position: 'absolute',
@@ -314,13 +314,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   emptySub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
   },

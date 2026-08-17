@@ -68,7 +68,7 @@ export default function CertificationsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
           <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Certifications</Text>
           <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && s.saveBtnDisabled]} accessibilityRole="button" accessibilityLabel="Save certifications">
@@ -91,7 +91,7 @@ export default function CertificationsScreen() {
                   accessibilityLabel={`Remove ${cert}`}
                 >
                   <Text style={s.chipSelectedText}>{cert}</Text>
-                  <Ionicons name="close" size={13} color={CoachColors.accent} />
+                  <Ionicons name="close" size={15} color={CoachColors.accent} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -122,7 +122,7 @@ export default function CertificationsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Add certification"
             >
-              <Ionicons name="add" size={22} color={customCert.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
+              <Ionicons name="add" size={25} color={customCert.trim() ? CoachColors.onAccent : CoachColors.textFaint} />
             </TouchableOpacity>
           </View>
 
@@ -138,7 +138,7 @@ export default function CertificationsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Add ${cert}`}
               >
-                <Ionicons name="add-outline" size={14} color={CoachColors.textFaint} />
+                <Ionicons name="add-outline" size={16} color={CoachColors.textFaint} />
                 <Text style={s.chipText}>{cert}</Text>
               </TouchableOpacity>
             ))}
@@ -161,7 +161,7 @@ const s = StyleSheet.create({
     borderBottomColor: CoachColors.borderMuted,
   },
   headerBack: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
   saveBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -169,13 +169,13 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   scroll: { paddingHorizontal: 20, paddingBottom: 48 },
 
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -184,8 +184,8 @@ const s = StyleSheet.create({
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14.5,
+    lineHeight: 21.5,
     color: CoachColors.textSecondary,
   },
 
@@ -201,7 +201,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border,
     backgroundColor: 'transparent',
   },
-  chipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary },
+  chipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   chipSelected: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,7 +213,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.accent,
     backgroundColor: CoachColors.accentSofter,
   },
-  chipSelectedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
+  chipSelectedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
 
   addRow: { flexDirection: 'row', gap: 10 },
   addInput: {
@@ -225,7 +225,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontFamily: CoachFonts.body,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
   addBtn: {

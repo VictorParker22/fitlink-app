@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
@@ -107,14 +107,14 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   barAmount: {
     fontFamily: CoachFonts.mono,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     marginTop: 2,
   },

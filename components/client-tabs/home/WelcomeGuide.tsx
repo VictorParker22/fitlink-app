@@ -95,7 +95,7 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
       <View style={st.header}>
         <View style={st.titleRow}>
           <View style={st.badge}>
-            <Ionicons name="sparkles" size={12} color={CoachColors.accent} />
+            <Ionicons name="sparkles" size={13} color={CoachColors.accent} />
             <Text style={st.badgeText}>Get started</Text>
           </View>
           <TouchableOpacity onPress={handleDismiss} hitSlop={10}>
@@ -135,7 +135,7 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
                 </TouchableOpacity>
 
                 <View style={st.iconWrap}>
-                  <Ionicons name={step.icon} size={18} color={isDone ? CoachColors.textMuted : CoachColors.textPrimary} />
+                  <Ionicons name={step.icon} size={20} color={isDone ? CoachColors.textMuted : CoachColors.textPrimary} />
                 </View>
 
                 <View style={st.stepInfo}>
@@ -143,7 +143,7 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
                   <Text style={st.stepSubtitle} numberOfLines={1}>{step.subtitle}</Text>
                 </View>
 
-                <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+                <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
               </TouchableOpacity>
             );
           })}
@@ -199,29 +199,29 @@ const st = StyleSheet.create({
   },
   badgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   dismissText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   stepsList: {
     gap: 8,
@@ -257,7 +257,7 @@ const st = StyleSheet.create({
   },
   stepTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
   stepTextDone: {
@@ -266,7 +266,7 @@ const st = StyleSheet.create({
   },
   stepSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -293,7 +293,7 @@ const st = StyleSheet.create({
   },
   progressText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textSecondary,
   },
 });

@@ -163,19 +163,19 @@ function PassCard({
         <View style={passStyles.metaRow}>
           {workoutCount > 0 && (
             <View style={passStyles.metaItem}>
-              <Ionicons name="barbell-outline" size={13} color={CoachColors.textSecondary} />
+              <Ionicons name="barbell-outline" size={15} color={CoachColors.textSecondary} />
               <Text style={passStyles.metaText}>{workoutCount} workout{workoutCount === 1 ? '' : 's'}</Text>
             </View>
           )}
           {dietCount > 0 && (
             <View style={passStyles.metaItem}>
-              <Ionicons name="nutrition-outline" size={13} color={CoachColors.textSecondary} />
+              <Ionicons name="nutrition-outline" size={15} color={CoachColors.textSecondary} />
               <Text style={passStyles.metaText}>{dietCount} meal plan{dietCount === 1 ? '' : 's'}</Text>
             </View>
           )}
           {milestoneCount > 0 && (
             <View style={passStyles.metaItem}>
-              <Ionicons name="trophy-outline" size={13} color={CoachColors.textSecondary} />
+              <Ionicons name="trophy-outline" size={15} color={CoachColors.textSecondary} />
               <Text style={passStyles.metaText}>{milestoneCount} milestone{milestoneCount === 1 ? '' : 's'}</Text>
             </View>
           )}
@@ -253,21 +253,21 @@ function PassCard({
               {selectedWorkout ? (
                 <>
                   <View style={passStyles.autoflowPickerIcon}>
-                    <Ionicons name="barbell-outline" size={16} color={CoachColors.textSecondary} />
+                    <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={passStyles.autoflowPickerName} numberOfLines={1}>{selectedWorkout.name}</Text>
                     <Text style={passStyles.autoflowPickerSub}>{selectedWorkout.workout_exercises?.length || 0} exercises</Text>
                   </View>
-                  <Ionicons name="chevron-down" size={14} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-down" size={16} color={CoachColors.textFaint} />
                 </>
               ) : (
                 <>
                   <View style={passStyles.autoflowPickerIcon}>
-                    <Ionicons name="barbell-outline" size={16} color={CoachColors.textFaint} />
+                    <Ionicons name="barbell-outline" size={18} color={CoachColors.textFaint} />
                   </View>
                   <Text style={passStyles.autoflowPickerPlaceholder}>Pick a workout to assign</Text>
-                  <Ionicons name="chevron-down" size={14} color={CoachColors.textFaint} />
+                  <Ionicons name="chevron-down" size={16} color={CoachColors.textFaint} />
                 </>
               )}
             </TouchableOpacity>
@@ -318,7 +318,7 @@ function PassCard({
                 accessibilityRole="button"
                 accessibilityLabel="Close workout picker"
               >
-                <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
+                <Ionicons name="close" size={25} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -329,13 +329,13 @@ function PassCard({
                   onPress={() => { setSelectedWorkoutId(w.id); setShowWorkoutPicker(false); }}
                 >
                   <View style={[passStyles.autoflowPickerIcon, { width: 40, height: 40, borderRadius: 10 }]}>
-                    <Ionicons name="barbell-outline" size={18} color={CoachColors.textSecondary} />
+                    <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={passStyles.pickerRowName} numberOfLines={1}>{w.name}</Text>
                     <Text style={passStyles.pickerRowSub}>{w.workout_exercises?.length || 0} exercises</Text>
                   </View>
-                  {selectedWorkoutId === w.id && <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />}
+                  {selectedWorkoutId === w.id && <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />}
                 </TouchableOpacity>
               ))}
               {workouts.length === 0 && (
@@ -355,76 +355,76 @@ const passStyles = StyleSheet.create({
   card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, padding: 16 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, flexShrink: 1 },
-  cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 3 },
+  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, flexShrink: 1 },
+  cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3 },
   cohortTag: {
     paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
     backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
-  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 9.5, color: CoachColors.accent, letterSpacing: 0.7 },
+  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.accent, letterSpacing: 0.7 },
   badge: {
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 3,
   },
   badgeActive: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
-  badgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint, letterSpacing: 0.3 },
+  badgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.3 },
   badgeTextActive: { color: CoachColors.accent },
   badgeWarning: {
     borderWidth: 1, borderColor: 'rgba(224,184,78,0.4)', borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 3,
   },
-  badgeWarningText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.warning, letterSpacing: 0.3 },
-  holderCount: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  badgeWarningText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.warning, letterSpacing: 0.3 },
+  holderCount: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   progressTrack: { flex: 1, height: 5, borderRadius: 999, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999 },
-  progressLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: CoachColors.textSecondary },
+  progressLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
 
-  warningText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.warning, marginTop: 12, lineHeight: 18 },
+  warningText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.warning, marginTop: 12, lineHeight: 20 },
 
   metaRow: { flexDirection: 'row', gap: 14, marginTop: 14, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textSecondary },
+  metaText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
 
   buildTrackBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 10, alignItems: 'center', marginTop: 12,
   },
-  buildTrackBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
+  buildTrackBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.accent },
 
   footer: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 14, paddingTop: 4 },
   footerBtn: { flex: 1, paddingVertical: 11, alignItems: 'center' },
-  footerBtnAccent: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
-  footerBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  footerBtnAccent: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.accent },
+  footerBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary },
   footerDivider: { width: 1, backgroundColor: CoachColors.borderMuted, marginVertical: 8 },
 
   autoflowPanel: { borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 12, paddingTop: 14 },
-  autoflowEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 10, color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 2 },
-  autoflowHeading: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  autoflowStepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: CoachColors.textMuted },
+  autoflowEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 2 },
+  autoflowHeading: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  autoflowStepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
   autoflowPicker: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.border, padding: 12,
   },
   autoflowPickerFilled: { borderColor: 'rgba(198,242,78,0.3)' },
   autoflowPickerIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
-  autoflowPickerName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary },
-  autoflowPickerSub: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textMuted },
-  autoflowPickerPlaceholder: { flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textFaint },
+  autoflowPickerName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  autoflowPickerSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  autoflowPickerPlaceholder: { flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textFaint },
   autoflowInput: {
     backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.border,
-    padding: 12, minHeight: 74, fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textPrimary, lineHeight: 18,
+    padding: 12, minHeight: 74, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
   },
   autoflowSaveBtn: { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
-  autoflowSaveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
+  autoflowSaveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   pickerSheet: {
     backgroundColor: CoachColors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     borderTopWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 40, maxHeight: '70%',
   },
-  pickerSheetTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 16 },
+  pickerSheetTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 16 },
   pickerSheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
   pickerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -432,9 +432,9 @@ const passStyles = StyleSheet.create({
     borderRadius: 12, padding: 12, marginBottom: 10,
   },
   pickerRowActive: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
-  pickerRowName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  pickerRowSub: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textMuted },
-  pickerEmptyText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, textAlign: 'center', paddingVertical: 24 },
+  pickerRowName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  pickerRowSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  pickerEmptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', paddingVertical: 24 },
 });
 
 // ─── PassesEmpty — empty state when the coach has no passes yet ─────────────
@@ -481,14 +481,14 @@ function PassesEmpty({ onBuildFirst }: { onBuildFirst: () => void }) {
 const passEmptyStyles = StyleSheet.create({
   wrap: { paddingHorizontal: 20, paddingTop: 10 },
   card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
-  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, lineHeight: 24 },
-  cardBody: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, marginTop: 9, lineHeight: 19 },
+  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, lineHeight: 27 },
+  cardBody: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 9, lineHeight: 21.5 },
   cta: { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
-  ctaText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
-  ctaHint: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint, textAlign: 'center', marginTop: 9 },
+  ctaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
+  ctaHint: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', marginTop: 9 },
 
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 26, marginBottom: 10,
   },
   ghostTrack: { opacity: 0.55 },
@@ -498,10 +498,10 @@ const passEmptyStyles = StyleSheet.create({
     width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  ghostMarkerText: { fontFamily: CoachFonts.headingBold, fontSize: 12, color: CoachColors.textSecondary },
+  ghostMarkerText: { fontFamily: CoachFonts.headingBold, fontSize: 13.5, color: CoachColors.textSecondary },
   ghostLine: { width: 2, flex: 1, backgroundColor: CoachColors.borderMuted, marginVertical: 4 },
-  ghostTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
-  ghostSub: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted, marginTop: 1 },
+  ghostTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  ghostSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
 });
 
 
@@ -725,7 +725,7 @@ export default function ProgramsScreen() {
         onPress={() => router.push(`/workout/${item.id}` as any)}
       >
         <View style={styles.thumbnailContainer}>
-          <Ionicons name="barbell-outline" size={20} color={CoachColors.textSecondary} />
+          <Ionicons name="barbell-outline" size={22} color={CoachColors.textSecondary} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
@@ -733,7 +733,7 @@ export default function ProgramsScreen() {
           <Text style={styles.rowDescription} numberOfLines={1}>{statLine}</Text>
         </View>
         <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteWorkout(item.id, item.name)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
+          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -798,7 +798,7 @@ export default function ProgramsScreen() {
         onPress={() => router.push(`/diet/${item.id}` as any)}
       >
         <View style={styles.thumbnailContainer}>
-          <Ionicons name="nutrition-outline" size={20} color={CoachColors.textSecondary} />
+          <Ionicons name="nutrition-outline" size={22} color={CoachColors.textSecondary} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
@@ -806,7 +806,7 @@ export default function ProgramsScreen() {
           <Text style={styles.rowDescription} numberOfLines={2}>{desc}</Text>
         </View>
         <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteDiet(item.id, item.name)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
+          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -836,7 +836,7 @@ export default function ProgramsScreen() {
           {item.thumbnail_url ? (
             <RNImage source={{ uri: item.thumbnail_url }} style={{ width: 44, height: 44, borderRadius: Radius.xs }} />
           ) : (
-            <Ionicons name="videocam-outline" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="videocam-outline" size={25} color={CoachColors.textPrimary} />
           )}
         </View>
         <View style={styles.textContainer}>
@@ -859,21 +859,21 @@ export default function ProgramsScreen() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="play-outline" size={12} color={CoachColors.textMuted} />
+              <Ionicons name="play-outline" size={13} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{item.take_count || 0}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="star-outline" size={12} color={CoachColors.textMuted} />
+              <Ionicons name="star-outline" size={13} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{(item.avg_rating || 0).toFixed(1)}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="time-outline" size={12} color={CoachColors.textMuted} />
+              <Ionicons name="time-outline" size={13} color={CoachColors.textMuted} />
               <Text style={styles.rowDescription}>{item.total_watch_minutes || 0}M</Text>
             </View>
           </View>
         </View>
         <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteClass(item.id, item.title)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={16} color={CoachColors.danger} />
+          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -950,14 +950,14 @@ export default function ProgramsScreen() {
               'New class'
             }
           >
-            <Ionicons name="add" size={18} color={CoachColors.onAccent} />
+            <Ionicons name="add" size={20} color={CoachColors.onAccent} />
             <Text style={styles.headerAddText}>New</Text>
           </TouchableOpacity>
         </View>
 
         {/* Search */}
         <View style={styles.searchRow}>
-          <Ionicons name="search" size={18} color={CoachColors.textFaint} style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={CoachColors.textFaint} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder={`Search ${TAB_LABEL[activeTab].toLowerCase()}`}
@@ -968,7 +968,7 @@ export default function ProgramsScreen() {
           />
           {searchQuery !== '' && (
             <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }} onPress={() => setSearchQuery('')} style={styles.clearBtn}>
-              <Ionicons name="close-circle" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
           )}
         </View>
@@ -1054,14 +1054,14 @@ export default function ProgramsScreen() {
                 <PassesEmpty onBuildFirst={() => router.push('/create-plan' as any)} />
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="search-outline" size={40} color={CoachColors.textFaint} />
+                  <Ionicons name="search-outline" size={45} color={CoachColors.textFaint} />
                   <Text style={styles.emptyTitle}>No passes found</Text>
                   <Text style={styles.emptyText}>Try a different search.</Text>
                 </View>
               )
             ) : searchQuery ? (
               <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={40} color={CoachColors.textFaint} />
+                <Ionicons name="search-outline" size={45} color={CoachColors.textFaint} />
                 <Text style={styles.emptyTitle}>No {TAB_LABEL[activeTab].toLowerCase()} found</Text>
                 <Text style={styles.emptyText}>Try a different search.</Text>
               </View>
@@ -1099,13 +1099,13 @@ export default function ProgramsScreen() {
               onPress={() => handleActionSheetNavigate('/create-class')}
             >
               <View style={[styles.actionSheetIconWrap, { backgroundColor: CoachColors.accentSofter }]}>
-                <Ionicons name="videocam-outline" size={20} color={CoachColors.accent} />
+                <Ionicons name="videocam-outline" size={22} color={CoachColors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionSheetItemTitle}>On-demand class</Text>
                 <Text style={styles.actionSheetItemSubtitle}>Record and publish video classes</Text>
               </View>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1113,13 +1113,13 @@ export default function ProgramsScreen() {
               onPress={() => handleActionSheetNavigate('/create-live-class')}
             >
               <View style={[styles.actionSheetIconWrap, { backgroundColor: CoachColors.dangerSoft }]}>
-                <Ionicons name="radio-outline" size={20} color={CoachColors.danger} />
+                <Ionicons name="radio-outline" size={22} color={CoachColors.danger} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionSheetItemTitle}>Live virtual class</Text>
                 <Text style={styles.actionSheetItemSubtitle}>Broadcast real-time sessions to clients</Text>
               </View>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.textFaint} />
+              <Ionicons name="arrow-forward" size={18} color={CoachColors.textFaint} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1152,13 +1152,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
     letterSpacing: -0.4,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
   },
   headerAddText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.onAccent,
   },
 
@@ -1193,7 +1193,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   clearBtn: {
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   toggleTextActive: {
@@ -1250,7 +1250,7 @@ const styles = StyleSheet.create({
   },
   catTagText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textSecondary,
   },
   catTagTextActive: {
@@ -1265,7 +1265,7 @@ const styles = StyleSheet.create({
   },
   resultsText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
   },
 
@@ -1297,21 +1297,21 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     marginBottom: 3,
   },
   rowSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginBottom: 3,
   },
   rowDescription: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   actionBtn: {
     padding: 8,
@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
   },
   customBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 0.3,
   },
@@ -1346,7 +1346,7 @@ const styles = StyleSheet.create({
   },
   popularBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 8,
+    fontSize: 9,
     color: CoachColors.warning,
     letterSpacing: 0.5,
   },
@@ -1359,7 +1359,7 @@ const styles = StyleSheet.create({
   },
   pillBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 0.5,
   },
 
@@ -1371,17 +1371,17 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
     marginTop: 8,
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     textAlign: 'center',
     paddingHorizontal: 40,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // Action Sheet Modal
@@ -1409,7 +1409,7 @@ const styles = StyleSheet.create({
   },
   actionSheetTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginBottom: 16,
     textAlign: 'center',
@@ -1435,13 +1435,13 @@ const styles = StyleSheet.create({
   },
   actionSheetItemTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   actionSheetItemSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   closeSheetBtn: {
@@ -1456,7 +1456,7 @@ const styles = StyleSheet.create({
   },
   closeSheetText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
   },
 });

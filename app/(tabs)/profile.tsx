@@ -170,7 +170,7 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Ionicons name="settings-outline" size={22} color={CoachColors.textSecondary} />
+            <Ionicons name="settings-outline" size={25} color={CoachColors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -197,7 +197,7 @@ export default function ProfileScreen() {
               <View style={s.cameraBadge}>
                 {uploading
                   ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
-                  : <Ionicons name="camera" size={13} color={CoachColors.onAccent} />}
+                  : <Ionicons name="camera" size={15} color={CoachColors.onAccent} />}
               </View>
             </TouchableOpacity>
 
@@ -205,7 +205,7 @@ export default function ProfileScreen() {
 
             {isCoachElite ? (
               <View style={s.elitePill}>
-                <Ionicons name="checkmark-circle" size={13} color={CoachColors.onAccent} />
+                <Ionicons name="checkmark-circle" size={15} color={CoachColors.onAccent} />
                 <Text style={s.elitePillText}>Coach Elite</Text>
               </View>
             ) : (
@@ -214,14 +214,14 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/studio' as any); }}
               >
-                <Ionicons name="add" size={13} color={CoachColors.accent} />
+                <Ionicons name="add" size={15} color={CoachColors.accent} />
                 <Text style={s.eliteOutlinePillText}>Go Coach Elite</Text>
               </TouchableOpacity>
             )}
 
             {email && (
               <View style={s.heroEmailRow}>
-                <Ionicons name="mail-outline" size={13} color={CoachColors.textFaint} />
+                <Ionicons name="mail-outline" size={15} color={CoachColors.textFaint} />
                 <Text style={s.heroEmail}>{email}</Text>
               </View>
             )}
@@ -251,7 +251,7 @@ export default function ProfileScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings' as any); }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="create-outline" size={16} color={CoachColors.onAccent} />
+                <Ionicons name="create-outline" size={18} color={CoachColors.onAccent} />
                 <Text style={s.actionPrimaryText}>Edit profile</Text>
               </TouchableOpacity>
               <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
@@ -294,7 +294,7 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel="Sign out"
           >
-            <Ionicons name="log-out-outline" size={18} color={CoachColors.danger} />
+            <Ionicons name="log-out-outline" size={20} color={CoachColors.danger} />
             <Text style={s.signOutText}>Sign out</Text>
           </TouchableOpacity>
 
@@ -306,7 +306,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Delete account"
             accessibilityHint="Permanently deletes your account and all your data. This cannot be undone."
           >
-            <Ionicons name="trash-outline" size={12} color={CoachColors.textFaint} />
+            <Ionicons name="trash-outline" size={13} color={CoachColors.textFaint} />
             <Text style={s.deleteText}>Delete account</Text>
           </TouchableOpacity>
 
@@ -393,9 +393,9 @@ function MenuSection({ items, router }: { items: typeof ACCOUNT_ITEMS; router: R
             accessibilityRole="button"
             accessibilityLabel={item.label}
           >
-            <Ionicons name={item.icon as any} size={19} color={CoachColors.accent} />
+            <Ionicons name={item.icon as any} size={21} color={CoachColors.accent} />
             <Text style={s.blockRowText}>{item.label}</Text>
-            <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+            <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
           </TouchableOpacity>
           {i < items.length - 1 && <View style={s.blockDivider} />}
         </View>
@@ -413,7 +413,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
   },
-  navTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  navTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
 
   hero: { alignItems: 'center', paddingTop: 12, paddingBottom: 28, gap: 9 },
 
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: CoachColors.surface },
-  avatarInitials: { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary },
+  avatarInitials: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, color: CoachColors.textPrimary },
   cameraBadge: {
     position: 'absolute', bottom: -2, right: -2,
     width: 26, height: 26, borderRadius: 13,
@@ -433,7 +433,7 @@ const s = StyleSheet.create({
   },
 
   heroName: {
-    fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary,
     letterSpacing: -0.3, marginTop: 4,
   },
 
@@ -442,21 +442,21 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 5,
   },
-  elitePillText: { fontFamily: CoachFonts.bodyBold, fontSize: 11.5, color: CoachColors.onAccent, letterSpacing: 0.3 },
+  elitePillText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent, letterSpacing: 0.3 },
   eliteOutlinePill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 5,
   },
-  eliteOutlinePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11.5, color: CoachColors.accent },
+  eliteOutlinePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
 
   heroEmailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  heroEmail: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
+  heroEmail: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint },
 
   statRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 14, marginBottom: 2 },
   statBlock: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 24, color: CoachColors.textPrimary, letterSpacing: -0.5 },
-  statLabel: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary, letterSpacing: -0.5 },
+  statLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
   statDivider: { width: 1, height: 32, backgroundColor: CoachColors.borderMuted },
 
   heroActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 6 },
@@ -464,16 +464,16 @@ const s = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 7, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13,
   },
-  actionPrimaryText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  actionPrimaryText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
   actionSecondary: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     borderRadius: 999, paddingVertical: 13,
     borderWidth: 1, borderColor: CoachColors.border,
   },
-  actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5,
     color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase',
     marginTop: 22, marginBottom: 8,
   },
@@ -482,22 +482,22 @@ const s = StyleSheet.create({
   blockPad: { padding: 16 },
   blockRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16, paddingVertical: 15 },
   blockDivider: { height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 48 },
-  blockRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
+  blockRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
 
-  bioText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20 },
+  bioText: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5 },
 
   signOutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 9, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 14,
     paddingVertical: 15, marginTop: 28,
   },
-  signOutText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.danger },
+  signOutText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.danger },
 
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 16, marginTop: 4,
   },
-  deleteText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  deleteText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint },
 
   // Delete confirmation modal
   modalOverlay: {
@@ -508,14 +508,14 @@ const s = StyleSheet.create({
     width: '100%', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 18, padding: 22,
   },
-  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
   modalMessage: {
-    fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19,
+    fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5,
     color: CoachColors.textMuted, marginTop: 8, marginBottom: 18,
   },
   modalStrong: { fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
   modalInput: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: 12, paddingHorizontal: 15, paddingVertical: 13,
     letterSpacing: 2, marginBottom: 18,
@@ -523,7 +523,7 @@ const s = StyleSheet.create({
   modalButtons: { flexDirection: 'row', gap: 10 },
   modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 13 },
   modalBtnCancel: { borderWidth: 1, borderColor: CoachColors.border },
-  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   modalBtnConfirm: { backgroundColor: CoachColors.danger },
-  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.onAccent },
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 });

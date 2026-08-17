@@ -88,7 +88,7 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
 
       <View style={styles.header}>
         <View style={[styles.tierBadge, { backgroundColor: `${tier.color}26` }]}>
-          <Ionicons name="diamond" size={10} color={tier.color} />
+          <Ionicons name="diamond" size={11} color={tier.color} />
           <Text style={[styles.tierText, { color: tier.color }]}>
             {tier.name}
           </Text>
@@ -103,7 +103,7 @@ export const PassMembershipCard: React.FC<PassMembershipCardProps> = ({
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
           ) : (
-            <Ionicons name="person" size={32} color={CoachColors.textPrimary} />
+            <Ionicons name="person" size={36} color={CoachColors.textPrimary} />
           )}
         </View>
         <Text style={styles.clientName}>{clientName}</Text>
@@ -175,13 +175,13 @@ const styles = StyleSheet.create({
   },
   tierText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   watermark: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 3,
     textTransform: 'uppercase',
     opacity: 0.3,
@@ -207,19 +207,19 @@ const styles = StyleSheet.create({
   },
   clientName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     marginBottom: Spacing.xs,
   },
   planName: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     marginBottom: Spacing.xs,
   },
   memberSince: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
   },
   statsRow: {
     flexDirection: 'row',
@@ -240,13 +240,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
   statLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textFaint,
     letterSpacing: 1,
     textTransform: 'uppercase',

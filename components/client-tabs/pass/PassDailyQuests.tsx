@@ -77,7 +77,7 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
           return (
             <View key={quest.id} style={[styles.questCard, isDone && styles.questCardDone]}>
               <View style={styles.iconCircle}>
-                <Ionicons name={quest.icon as any} size={18} color={CoachColors.accent} />
+                <Ionicons name={quest.icon as any} size={20} color={CoachColors.accent} />
               </View>
 
               <View style={styles.questContent}>
@@ -90,7 +90,7 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
               <View style={styles.statusCol}>
                 {isDone ? (
                   <View style={styles.checkCircle}>
-                    <Ionicons name="checkmark-sharp" size={16} color={CoachColors.onAccent} />
+                    <Ionicons name="checkmark-sharp" size={18} color={CoachColors.onAccent} />
                   </View>
                 ) : (
                   <View style={styles.emptyCircle}>
@@ -108,7 +108,7 @@ export default function PassDailyQuests({ todayWorkout, mealLogsCount, hasGymVis
       <Animated.View style={[styles.vaultCard, isAllDone ? { borderColor, backgroundColor: CoachColors.accentSofter } : null]}>
         <View style={styles.vaultLeft}>
           <View style={[styles.vaultIconCircle, isAllDone && styles.vaultIconCircleDone]}>
-            <Ionicons name={isAllDone ? "gift-sharp" : "lock-closed-sharp"} size={20} color={isAllDone ? CoachColors.onAccent : CoachColors.textMuted} />
+            <Ionicons name={isAllDone ? "gift-sharp" : "lock-closed-sharp"} size={22} color={isAllDone ? CoachColors.onAccent : CoachColors.textMuted} />
           </View>
           <View>
             <Text style={styles.vaultTitle}>Daily vault</Text>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2,
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     marginBottom: Spacing.md,
   },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   questTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: Spacing['2xs'],
   },
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   xpText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
   },
   statusCol: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 8,
+    fontSize: 9,
     color: CoachColors.textMuted,
   },
   vaultCard: {
@@ -240,18 +240,18 @@ const styles = StyleSheet.create({
   },
   vaultTitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     marginBottom: 2,
   },
   vaultProgressText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   vaultClaimText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.accent,
   },
 });

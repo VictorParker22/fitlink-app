@@ -122,7 +122,7 @@ export default function LogProgressScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: CoachColors.surface }]} accessibilityRole="button" accessibilityLabel="Close">
-          <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: CoachColors.textPrimary }]}>Log progress</Text>
         <View style={{ width: 36 }} />
@@ -184,9 +184,9 @@ export default function LogProgressScreen() {
             onPress={() => setShowMeasurements(!showMeasurements)}
             activeOpacity={0.7}
           >
-            <Ionicons name="body-outline" size={20} color={ACCENT} />
+            <Ionicons name="body-outline" size={22} color={ACCENT} />
             <Text style={[styles.measurementsToggleText, { color: CoachColors.textPrimary }]}>Add body measurements</Text>
-            <Ionicons name={showMeasurements ? "chevron-up" : "chevron-down"} size={20} color={CoachColors.textMuted} />
+            <Ionicons name={showMeasurements ? "chevron-up" : "chevron-down"} size={22} color={CoachColors.textMuted} />
           </TouchableOpacity>
 
           {showMeasurements && (
@@ -240,7 +240,7 @@ export default function LogProgressScreen() {
             ) : (
               <View style={styles.photoPlaceholder}>
                 <View style={styles.photoIconRing}>
-                  <Ionicons name="camera" size={24} color={ACCENT} />
+                  <Ionicons name="camera" size={27} color={ACCENT} />
                 </View>
                 <Text style={[styles.photoTitle, { color: CoachColors.textPrimary }]}>Add photo</Text>
                 <Text style={[styles.photoSub, { color: CoachColors.textMuted }]}>Front, side, or back view</Text>
@@ -287,40 +287,40 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
   closeBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18 },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20 },
   
   scrollContent: { padding: 16 },
   
   clientBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20, alignSelf: 'center' },
   clientAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  clientAvatarText: { color: CoachColors.textPrimary, fontSize: 12, fontFamily: CoachFonts.bodyBold },
-  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
+  clientAvatarText: { color: CoachColors.textPrimary, fontSize: 13.5, fontFamily: CoachFonts.bodyBold },
+  clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
 
   inputGroup: { padding: 10, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
+  inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
   unitToggle: { flexDirection: 'row', backgroundColor: CoachColors.bg, borderRadius: 8, overflow: 'hidden' },
   unitBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  unitText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13 },
+  unitText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
   
-  input: { height: 48, borderRadius: 8, paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 17 },
-  textArea: { minHeight: 100, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 17 },
+  input: { height: 48, borderRadius: 8, paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 19 },
+  textArea: { minHeight: 100, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19 },
 
   measurementsToggle: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12, marginBottom: 10 },
-  measurementsToggleText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15, marginLeft: 6 },
+  measurementsToggleText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, marginLeft: 6 },
 
   measurementsContainer: { padding: 10, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
   measRow: { flexDirection: 'row', gap: 10 },
   measInputWrap: { flex: 1 },
-  measLabel: { fontFamily: CoachFonts.body, fontSize: 13, marginBottom: 4 },
+  measLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, marginBottom: 4 },
 
-  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, marginBottom: 6 },
+  sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 6 },
   photoContainer: { height: 200, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   photoIconRing: { width: 48, height: 48, borderRadius: 24, backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  photoTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15 },
-  photoSub: { fontFamily: CoachFonts.body, fontSize: 13, marginTop: 4, textAlign: 'center' },
+  photoTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
+  photoSub: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 4, textAlign: 'center' },
 
   footer: { padding: 16, paddingBottom: 20, borderTopWidth: 1 },
 
@@ -328,5 +328,5 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
   },
-  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },
 });

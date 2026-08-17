@@ -156,7 +156,7 @@ function SessionCard({ session }: { session: Session }) {
             />
           ) : (
             <View style={s.coachAvatarPlaceholder}>
-              <Ionicons name="person" size={14} color={CoachColors.textMuted} />
+              <Ionicons name="person" size={16} color={CoachColors.textMuted} />
             </View>
           )}
           <View style={s.coachInfo}>
@@ -324,7 +324,7 @@ export default function MySessionsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={s.headerText}>
           <Text style={s.headerTag}>COACHING</Text>
@@ -337,7 +337,7 @@ export default function MySessionsScreen() {
         {/* Week nav */}
         <View style={s.weekNav}>
           <TouchableOpacity hitSlop={6} onPress={() => shiftWeek(-1)} style={s.weekArrow}>
-            <Ionicons name="chevron-back" size={16} color={CoachColors.textMuted} />
+            <Ionicons name="chevron-back" size={18} color={CoachColors.textMuted} />
           </TouchableOpacity>
           <Text style={s.weekLabel}>
             {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -345,7 +345,7 @@ export default function MySessionsScreen() {
             {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </Text>
           <TouchableOpacity hitSlop={6} onPress={() => shiftWeek(1)} style={s.weekArrow}>
-            <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -567,14 +567,14 @@ const s = StyleSheet.create({
   headerText: { flex: 1 },
   headerTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2.5,
     marginBottom: 2,
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
     letterSpacing: -0.6,
   },
@@ -598,7 +598,7 @@ const s = StyleSheet.create({
   },
   weekLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
@@ -621,7 +621,7 @@ const s = StyleSheet.create({
   },
   dayName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
@@ -638,7 +638,7 @@ const s = StyleSheet.create({
   dayNumWrapToday: { borderWidth: 1, borderColor: CoachColors.accent },
   dayNum: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   dayNumActive: { color: CoachColors.onAccent },
@@ -653,7 +653,7 @@ const s = StyleSheet.create({
   dotActive: { backgroundColor: CoachColors.accent },
   daySessionCount: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -685,7 +685,7 @@ const s = StyleSheet.create({
   },
   tabText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
@@ -702,7 +702,7 @@ const s = StyleSheet.create({
   tabBadgeActive: { backgroundColor: CoachColors.accent },
   tabBadgeText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textSecondary,
   },
   tabBadgeTextActive: { color: CoachColors.onAccent },
@@ -715,7 +715,7 @@ const s = StyleSheet.create({
   sectionHeader: { marginBottom: 8, marginTop: 4 },
   sectionTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2.5,
   },
@@ -744,13 +744,13 @@ const s = StyleSheet.create({
   },
   timeStart: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.3,
   },
   timeEnd: {
     fontFamily: CoachFonts.body,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
   },
   timeDivider: {
@@ -776,7 +776,7 @@ const s = StyleSheet.create({
   },
   typeBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.2,
   },
   statusBadge: {
@@ -788,7 +788,7 @@ const s = StyleSheet.create({
   },
   statusBadgeText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.2,
   },
   coachRow: {
@@ -814,18 +814,18 @@ const s = StyleSheet.create({
   coachInfo: { flex: 1, gap: 2 },
   coachName: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
   sessionMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
   notesPreview: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     fontStyle: 'italic',
   },
@@ -849,16 +849,16 @@ const s = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 24,
+    fontSize: 27,
     color: CoachColors.textPrimary,
     letterSpacing: -0.5,
   },
   emptySub: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22.5,
     maxWidth: 260,
   },
   emptyBtn: {
@@ -876,7 +876,7 @@ const s = StyleSheet.create({
   },
   emptyBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.onAccent,
     letterSpacing: 0.2,
   },

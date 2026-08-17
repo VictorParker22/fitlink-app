@@ -126,7 +126,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
         <View style={styles.centerContent}>
           {isComplete ? (
             <View style={styles.completeBadge}>
-              <Ionicons name="checkmark" size={24} color={CoachColors.accent} />
+              <Ionicons name="checkmark" size={27} color={CoachColors.accent} />
             </View>
           ) : (
             <Text style={styles.centerText}>{Math.round(maxProgress * 100)}%</Text>
@@ -139,7 +139,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.iconContainer, { backgroundColor: CoachColors.accentSoft }]}>
-            <Ionicons name="flame" size={14} color={RING_WORKOUT} />
+            <Ionicons name="flame" size={16} color={RING_WORKOUT} />
           </View>
           <View>
             <Text style={styles.legendLabel}>Workout</Text>
@@ -150,7 +150,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
         {stepsToday !== null && (
           <View style={styles.legendItem}>
             <View style={[styles.iconContainer, { backgroundColor: CoachColors.borderMuted }]}>
-              <Ionicons name="footsteps" size={14} color={RING_STEPS} />
+              <Ionicons name="footsteps" size={16} color={RING_STEPS} />
             </View>
             <View>
               <Text style={styles.legendLabel}>Steps</Text>
@@ -161,7 +161,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
 
         <View style={styles.legendItem}>
           <View style={[styles.iconContainer, { backgroundColor: CoachColors.borderMuted }]}>
-            <Ionicons name="restaurant" size={14} color={RING_MEALS} />
+            <Ionicons name="restaurant" size={16} color={RING_MEALS} />
           </View>
           <View>
             <Text style={styles.legendLabel}>Meals</Text>

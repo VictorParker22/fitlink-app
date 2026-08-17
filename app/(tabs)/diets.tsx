@@ -99,7 +99,7 @@ export default function DietsScreen() {
             {!item.image_url && (
               <View style={styles.cardHeaderRow}>
                 <View style={styles.iconBox}>
-                  <Ionicons name="nutrition" size={20} color={CoachColors.textPrimary} />
+                  <Ionicons name="nutrition" size={22} color={CoachColors.textPrimary} />
                 </View>
                 <View style={styles.categoryPill}>
                   <Text style={styles.categoryPillText}>{cat}</Text>
@@ -158,14 +158,14 @@ export default function DietsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Create new diet plan"
         >
-          <Ionicons name="add" size={20} color={CoachColors.onAccent} />
+          <Ionicons name="add" size={22} color={CoachColors.onAccent} />
           <Text style={styles.addBtnText}>Create</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={CoachColors.textMuted} />
+          <Ionicons name="search" size={20} color={CoachColors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search nutrition plans..."
@@ -177,7 +177,7 @@ export default function DietsScreen() {
           />
           {searchQuery !== '' && (
             <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={CoachColors.textMuted} />
+              <Ionicons name="close-circle" size={20} color={CoachColors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -219,7 +219,7 @@ export default function DietsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textPrimary} colors={[CoachColors.textPrimary]} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="nutrition-outline" size={32} color={CoachColors.textFaint} />
+            <Ionicons name="nutrition-outline" size={36} color={CoachColors.textFaint} />
             <Text style={styles.emptyTitle}>No diet plans found</Text>
             <Text style={styles.emptyText}>Adjust your search query or filter to locate nutrition programs.</Text>
             <TouchableOpacity hitSlop={3}
@@ -228,7 +228,7 @@ export default function DietsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Create new diet plan"
             >
-              <Ionicons name="add" size={16} color={CoachColors.onAccent} />
+              <Ionicons name="add" size={18} color={CoachColors.onAccent} />
               <Text style={styles.emptyCTAText}>Build new diet</Text>
             </TouchableOpacity>
           </View>
@@ -245,14 +245,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
   },
-  headerSub: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textSecondary, letterSpacing: 1.5, marginBottom: 2, textTransform: 'uppercase' },
-  title: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, letterSpacing: -0.5 },
+  headerSub: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 1.5, marginBottom: 2, textTransform: 'uppercase' },
+  title: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, letterSpacing: -0.5 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     height: 38, paddingHorizontal: 14, borderRadius: 4,
     backgroundColor: CoachColors.accent, justifyContent: 'center',
   },
-  addBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
+  addBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
 
   searchContainer: { paddingHorizontal: 20, marginBottom: 12 },
   searchBox: {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderRadius: 4, paddingHorizontal: 14, height: 46,
   },
   searchInput: {
-    flex: 1, fontFamily: CoachFonts.headingBold, fontSize: 12,
+    flex: 1, fontFamily: CoachFonts.headingBold, fontSize: 13.5,
     color: CoachColors.textPrimary, paddingVertical: 0, letterSpacing: 0.5,
   },
 
@@ -272,13 +272,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   filterPillActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
-  filterPillText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  filterPillText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
   filterPillTextActive: { color: CoachColors.onAccent },
 
   resultsHeader: {
     paddingHorizontal: 20, marginBottom: 12,
   },
-  resultsText: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase' },
+  resultsText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase' },
 
   list: { paddingHorizontal: 20, paddingBottom: 120, gap: 12 },
 
@@ -308,11 +308,11 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.borderMuted, paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 4, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  categoryPillText: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textPrimary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  categoryPillText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textPrimary, letterSpacing: 0.5, textTransform: 'uppercase' },
   
   cardInfo: { marginBottom: 16 },
-  dietName: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 4, letterSpacing: -0.3 },
-  dietAuthor: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textSecondary, lineHeight: 18 },
+  dietName: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, marginBottom: 4, letterSpacing: -0.3 },
+  dietAuthor: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, lineHeight: 20 },
 
   metricGrid: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -321,21 +321,21 @@ const styles = StyleSheet.create({
   },
   metricBox: { flex: 1, alignItems: 'center' },
   metricDivider: { width: 1, height: 26, backgroundColor: CoachColors.surface },
-  metricLabel: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
-  metricValue: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary, marginVertical: 2 },
-  metricUnit: { fontFamily: CoachFonts.headingBold, fontSize: 9, color: CoachColors.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  metricLabel: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  metricValue: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, marginVertical: 2 },
+  metricUnit: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
 
   emptyState: {
     alignItems: 'center', paddingVertical: 40, gap: 8,
     backgroundColor: CoachColors.surface, borderRadius: 8,
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed',
   },
-  emptyTitle: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: CoachColors.textPrimary, letterSpacing: 1 },
-  emptyText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, textAlign: 'center', paddingHorizontal: 32 },
+  emptyTitle: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: CoachColors.textPrimary, letterSpacing: 1 },
+  emptyText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', paddingHorizontal: 32 },
   emptyCTA: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: CoachColors.accent, paddingHorizontal: 14, height: 38,
     borderRadius: 4, marginTop: 8,
   },
-  emptyCTAText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
+  emptyCTAText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
 });

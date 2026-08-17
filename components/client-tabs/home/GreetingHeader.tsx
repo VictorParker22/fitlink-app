@@ -51,7 +51,7 @@ export default function GreetingHeader({
           }}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-outline" size={20} color={CoachColors.textSecondary} />
+          <Ionicons name="chatbubble-outline" size={22} color={CoachColors.textSecondary} />
           {unreadCount > 0 ? (
              <View style={[st.dot, { backgroundColor: CoachColors.accent }]} />
           ) : (
@@ -79,17 +79,17 @@ const st = StyleSheet.create({
   },
   tagline: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
   },
   name: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 34,
+    fontSize: 38,
     color: CoachColors.textPrimary,
     letterSpacing: -1.5,
-    lineHeight: 38,
+    lineHeight: 42.5,
     textTransform: 'uppercase',
   },
   right: {

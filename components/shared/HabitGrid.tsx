@@ -222,7 +222,7 @@ export default function HabitGrid({ rows, days: daysProp, showTopBorder = true }
           >
             {/* Habit label */}
             <View style={s.habitLabelCol} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden={true}>
-              <Ionicons name={habit.icon} size={16} color={CoachColors.textSecondary} />
+              <Ionicons name={habit.icon} size={18} color={CoachColors.textSecondary} />
             </View>
 
             {/* Dots */}
@@ -295,7 +295,7 @@ const s = StyleSheet.create({
   },
   dayLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
   },
@@ -311,7 +311,7 @@ const s = StyleSheet.create({
   },
   pctText: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     letterSpacing: 0.3,
   },
 
@@ -349,7 +349,7 @@ const s = StyleSheet.create({
   },
   legendText: {
     fontFamily: CoachFonts.body,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textMuted,
   },
 });

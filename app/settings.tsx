@@ -132,7 +132,7 @@ export default function SettingsScreen() {
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Settings</Text>
           <View style={{ width: 40 }} />
@@ -202,7 +202,7 @@ export default function SettingsScreen() {
             {notifRows.map((item, i) => (
               <View key={item.key} style={[s.notifRow, i < notifRows.length - 1 && s.rowBorder]}>
                 <View style={s.notifIcon}>
-                  <Ionicons name={item.icon as any} size={16} color={CoachColors.textSecondary} />
+                  <Ionicons name={item.icon as any} size={18} color={CoachColors.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.notifLabel}>{item.label}</Text>
@@ -228,7 +228,7 @@ export default function SettingsScreen() {
           <View style={s.cardFlush}>
             <View style={s.notifRow}>
               <View style={s.notifIcon}>
-                <Ionicons name="volume-medium-outline" size={16} color={CoachColors.textSecondary} />
+                <Ionicons name="volume-medium-outline" size={18} color={CoachColors.textSecondary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.notifLabel}>Sounds</Text>
@@ -254,7 +254,7 @@ export default function SettingsScreen() {
           <View style={s.cardFlush}>
             <View style={s.notifRow}>
               <View style={s.notifIcon}>
-                <Ionicons name="card-outline" size={16} color={CoachColors.textSecondary} />
+                <Ionicons name="card-outline" size={18} color={CoachColors.textSecondary} />
               </View>
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={s.notifLabel}>Stripe payments</Text>
@@ -266,7 +266,7 @@ export default function SettingsScreen() {
               </View>
               {trainer?.stripe_onboarding_complete ? (
                 <View style={s.connectedPill}>
-                  <Ionicons name="checkmark-circle" size={13} color={CoachColors.accent} />
+                  <Ionicons name="checkmark-circle" size={15} color={CoachColors.accent} />
                   <Text style={s.connectedPillText}>Connected</Text>
                 </View>
               ) : (
@@ -322,12 +322,12 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
 
   scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
 
   sectionLabel: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5,
     color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase',
     marginTop: 24, marginBottom: 8,
   },
@@ -344,16 +344,16 @@ const s = StyleSheet.create({
   fieldGroup: { paddingVertical: 6 },
   fieldBorder: { borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, marginTop: 8, paddingTop: 12 },
   fieldLabel: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 10,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11,
     color: CoachColors.textFaint, letterSpacing: 0.8, marginBottom: 3,
   },
-  fieldInput: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textPrimary, paddingVertical: 4 },
+  fieldInput: { fontFamily: CoachFonts.bodyMedium, fontSize: 16, color: CoachColors.textPrimary, paddingVertical: 4 },
   textArea: { minHeight: 64 },
 
   dayRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
-  dayName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, width: 96 },
-  dayHours: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, flex: 1 },
+  dayName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, width: 96 },
+  dayHours: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, flex: 1 },
 
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   notifIcon: {
@@ -361,22 +361,22 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  notifLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, marginBottom: 2 },
-  notifDesc: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, lineHeight: 16 },
+  notifLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, marginBottom: 2 },
+  notifDesc: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, lineHeight: 18 },
 
   connectedPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: CoachColors.accentSofter, borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  connectedPillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.accent },
+  connectedPillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
 
   stripeBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  stripeBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent },
+  stripeBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
 
   saveBtn: {
     backgroundColor: CoachColors.accent, height: 50, borderRadius: 999,
     alignItems: 'center', justifyContent: 'center', marginTop: 28,
   },
-  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 });

@@ -239,7 +239,7 @@ export default function CreateExerciseScreen() {
           {/* Header */}
           <View style={s.header}>
             <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
+              <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
             <Text style={s.headerTitle}>{editId ? 'Edit exercise' : 'New exercise'}</Text>
             <View style={{ width: 36 }} />
@@ -277,7 +277,7 @@ export default function CreateExerciseScreen() {
             {/* Auto-fill confirmation banner */}
             {autoFilled && !generating && (
               <View style={s.confirmBanner}>
-                <Ionicons name="checkmark-circle" size={18} color={CoachColors.accent} />
+                <Ionicons name="checkmark-circle" size={20} color={CoachColors.accent} />
                 <Text style={s.confirmBannerText}>
                   Category, muscle group and instructions filled in from the name. Check them before saving.
                 </Text>
@@ -357,12 +357,12 @@ export default function CreateExerciseScreen() {
                 <View style={s.mediaThumb}>
                   <Image source={{ uri: imageUrl }} style={s.mediaThumbImage} />
                   <View style={s.mediaEditBadge}>
-                    <Ionicons name="pencil" size={11} color={CoachColors.onAccent} />
+                    <Ionicons name="pencil" size={12} color={CoachColors.onAccent} />
                   </View>
                 </View>
               ) : (
                 <View style={s.mediaThumb}>
-                  <Ionicons name="image-outline" size={20} color={CoachColors.textFaint} />
+                  <Ionicons name="image-outline" size={22} color={CoachColors.textFaint} />
                 </View>
               )}
               <Text style={s.mediaRowText}>Add a photo or demo clip</Text>
@@ -429,7 +429,7 @@ const s = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
   },
   scroll: {
@@ -443,7 +443,7 @@ const s = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -471,7 +471,7 @@ const s = StyleSheet.create({
   },
   autoFillBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.accent,
   },
 
@@ -490,8 +490,8 @@ const s = StyleSheet.create({
   confirmBannerText: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     color: CoachColors.textPrimary,
   },
 
@@ -503,7 +503,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 14,
     fontFamily: CoachFonts.body,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   textArea: {
@@ -529,7 +529,7 @@ const s = StyleSheet.create({
   },
   chipText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
   chipTextActive: {
@@ -576,12 +576,12 @@ const s = StyleSheet.create({
   mediaRowText: {
     flex: 1,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   mediaRowOptional: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
   },
 
@@ -601,7 +601,7 @@ const s = StyleSheet.create({
   },
   cancelBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
   },
   saveBtn: {
@@ -614,7 +614,7 @@ const s = StyleSheet.create({
   },
   saveBtnText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.onAccent,
   },
 });

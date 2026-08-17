@@ -339,7 +339,7 @@ export default function WeeklyCheckIn() {
           {/* Header */}
           <View style={s.modalHeader}>
             <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
-              <Ionicons name={step === 0 ? 'close' : 'chevron-back'} size={20} color={CoachColors.textSecondary} />
+              <Ionicons name={step === 0 ? 'close' : 'chevron-back'} size={22} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={s.modalTitle}>Weekly check-in</Text>
@@ -373,7 +373,7 @@ export default function WeeklyCheckIn() {
             {success ? (
               <View style={s.successState}>
                 <View style={s.successRing}>
-                  <Ionicons name="checkmark" size={30} color={CoachColors.accent} />
+                  <Ionicons name="checkmark" size={34} color={CoachColors.accent} />
                 </View>
                 <Text style={s.successTitle}>Sent to {coachFirst}</Text>
                 <Text style={s.successSub}>Replies usually come within a day.</Text>
@@ -441,14 +441,14 @@ export default function WeeklyCheckIn() {
                     <>
                       <View style={s.scaleRow}>
                         <TouchableOpacity style={s.scaleBtn} onPress={() => setVal(val - stepSize)} accessibilityRole="button" accessibilityLabel="Decrease">
-                          <Ionicons name="remove" size={18} color={CoachColors.textPrimary} />
+                          <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
                         </TouchableOpacity>
                         <View style={s.scaleValueWrap}>
                           <Text style={s.scaleValue}>{Number.isInteger(val) ? val : val.toFixed(1)}</Text>
                           {!!current.unit && <Text style={s.scaleUnit}>{current.unit}</Text>}
                         </View>
                         <TouchableOpacity style={s.scaleBtn} onPress={() => setVal(val + stepSize)} accessibilityRole="button" accessibilityLabel="Increase">
-                          <Ionicons name="add" size={18} color={CoachColors.textPrimary} />
+                          <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
                         </TouchableOpacity>
                       </View>
                       <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
@@ -601,17 +601,17 @@ const s = StyleSheet.create({
   },
   promptAvatarText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.accent,
   },
   promptTitle: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
   },
   promptSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -623,7 +623,7 @@ const s = StyleSheet.create({
   },
   promptCtaText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.onAccent,
   },
 
@@ -649,12 +649,12 @@ const s = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
   },
   modalSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -682,7 +682,7 @@ const s = StyleSheet.create({
   },
   askedBy: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10.5,
+    fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: CoachColors.accent,
@@ -690,16 +690,16 @@ const s = StyleSheet.create({
   },
   questionPrompt: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 19,
+    lineHeight: 27,
     color: CoachColors.textPrimary,
   },
   questionContext: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
     marginTop: 6,
-    lineHeight: 16,
+    lineHeight: 18,
   },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 16 },
@@ -711,7 +711,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  numChipText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textSecondary },
+  numChipText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textSecondary },
   optChip: {
     flexGrow: 1,
     borderWidth: 1,
@@ -721,7 +721,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
   },
-  optChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
+  optChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary },
   chipSelected: {
     borderColor: CoachColors.accent,
     backgroundColor: 'rgba(198,242,78,0.1)',
@@ -729,7 +729,7 @@ const s = StyleSheet.create({
   },
   chipTextSelected: { color: CoachColors.accent },
   anchorRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  anchorText: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint },
+  anchorText: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
 
   // Scale stepper
   scaleRow: {
@@ -748,8 +748,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   scaleValueWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  scaleValue: { fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary },
-  scaleUnit: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  scaleValue: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, color: CoachColors.textPrimary },
+  scaleUnit: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
 
   // Text input
   textInput: {
@@ -762,9 +762,9 @@ const s = StyleSheet.create({
     minHeight: 84,
     textAlignVertical: 'top',
     fontFamily: CoachFonts.body,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.textPrimary,
-    lineHeight: 19,
+    lineHeight: 21.5,
   },
   textActions: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
 
@@ -776,7 +776,7 @@ const s = StyleSheet.create({
     marginTop: 14,
   },
   nextBtnDisabled: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
-  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
+  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
   nextBtnTextDisabled: { color: CoachColors.textFaint },
   skipBtn: {
     borderWidth: 1,
@@ -786,14 +786,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 18,
     marginTop: 14,
   },
-  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textMuted },
+  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },
 
   // Summary
   summaryLead: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   summaryCard: {
     backgroundColor: CoachColors.surface,
@@ -804,8 +804,8 @@ const s = StyleSheet.create({
     gap: 14,
   },
   summaryRow: { gap: 3 },
-  summaryQ: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textFaint },
-  summaryA: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary, lineHeight: 19 },
+  summaryQ: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
+  summaryA: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 21.5 },
   weightCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
@@ -813,16 +813,16 @@ const s = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
   },
-  weightLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
+  weightLabel: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   weightRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
   weightInput: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 26,
+    fontSize: 29,
     color: CoachColors.textPrimary,
     minWidth: 80,
     padding: 0,
   },
-  weightUnit: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  weightUnit: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
 
   // Footer
   footer: {
@@ -839,11 +839,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   sendBtnDisabled: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
-  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   sendBtnTextDisabled: { color: CoachColors.textFaint },
   footerHint: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textAlign: 'center',
     marginTop: 9,
@@ -861,8 +861,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  successTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
-  successSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  successTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textPrimary },
+  successSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
 
   // Coach reply card
   replyCard: {
@@ -877,15 +877,15 @@ const s = StyleSheet.create({
   },
   replyTag: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10.5,
+    fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: CoachColors.accent,
   },
   replyBody: {
     fontFamily: CoachFonts.body,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
-    lineHeight: 20,
+    lineHeight: 22.5,
   },
 });

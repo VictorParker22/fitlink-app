@@ -74,11 +74,11 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
             {/* Header */}
             <View style={st.aiModalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="sparkles" size={22} color={CoachColors.accent} />
+                <Ionicons name="sparkles" size={25} color={CoachColors.accent} />
                 <Text style={st.aiModalTitle}>AI coach</Text>
               </View>
               <TouchableOpacity hitSlop={12} onPress={handleClose}>
-                <Ionicons name="close" size={22} color={CoachColors.textMuted} />
+                <Ionicons name="close" size={25} color={CoachColors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -107,7 +107,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                 {coachLoading ? (
                   <View style={{ alignItems: 'center', paddingVertical: 32, gap: 12 }}>
                     <ActivityIndicator size="small" color={CoachColors.accent} />
-                    <Text style={{ fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted }}>Thinking...</Text>
+                    <Text style={{ fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted }}>Thinking...</Text>
                   </View>
                 ) : (
                   <Text style={st.aiResponseText}>{coachResponse}</Text>
@@ -124,7 +124,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                   'What are the best exercises for hypertrophy?',
                 ].map(q => (
                   <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} key={q} style={st.aiQuickPrompt} onPress={() => setCoachPrompt(q)} activeOpacity={0.7}>
-                    <Ionicons name="chatbubble-outline" size={14} color={CoachColors.textFaint} />
+                    <Ionicons name="chatbubble-outline" size={16} color={CoachColors.textFaint} />
                     <Text style={st.aiQuickPromptText} numberOfLines={1}>{q}</Text>
                   </TouchableOpacity>
                 ))}
@@ -147,7 +147,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
                 onPress={() => { handleCoachAsk(); Keyboard.dismiss(); }}
                 disabled={!coachPrompt.trim() || coachLoading}
               >
-                <Ionicons name="send" size={18} color={CoachColors.onAccent} />
+                <Ionicons name="send" size={20} color={CoachColors.onAccent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -170,7 +170,7 @@ const st = StyleSheet.create({
   aiModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
   },
-  aiModalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
+  aiModalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22.5, color: CoachColors.textPrimary },
   aiClientChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: CoachColors.bg,
@@ -180,14 +180,14 @@ const st = StyleSheet.create({
   aiClientChipActive: {
     backgroundColor: CoachColors.accent, borderColor: CoachColors.accent,
   },
-  aiClientChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary },
+  aiClientChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
   aiResponseArea: {
     backgroundColor: CoachColors.bg, borderRadius: 14,
     padding: 16, marginBottom: 12, maxHeight: 280,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   aiResponseText: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 22,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, lineHeight: 24.5,
   },
   aiQuickPrompt: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -195,7 +195,7 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  aiQuickPromptText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, flex: 1 },
+  aiQuickPromptText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, flex: 1 },
   aiInputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     backgroundColor: CoachColors.bg, borderRadius: 16,
@@ -203,7 +203,7 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   aiInput: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary,
     paddingVertical: 10, maxHeight: 80,
   },
   aiSendBtn: {

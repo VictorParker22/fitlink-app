@@ -104,7 +104,7 @@ export default function NotificationsScreen() {
         {isNew && <View style={st.unreadDot} />}
 
         <View style={st.notifIcon}>
-          <Ionicons name={icon as any} size={18} color={isNew ? CoachColors.accent : CoachColors.textSecondary} />
+          <Ionicons name={icon as any} size={20} color={isNew ? CoachColors.accent : CoachColors.textSecondary} />
         </View>
 
         <View style={st.notifContent}>
@@ -128,7 +128,7 @@ export default function NotificationsScreen() {
 
           {item.type === 'file' && meta.fileName && (
             <View style={st.fileRow}>
-              <Ionicons name="document-attach-outline" size={13} color={CoachColors.textMuted} />
+              <Ionicons name="document-attach-outline" size={15} color={CoachColors.textMuted} />
               <Text style={st.fileName} numberOfLines={1}>{meta.fileName}</Text>
             </View>
           )}
@@ -140,7 +140,7 @@ export default function NotificationsScreen() {
           </View>
         )}
         {tappable && (
-          <Ionicons name="chevron-forward" size={15} color={CoachColors.textFaint} style={{ marginLeft: 6, alignSelf: 'center' }} />
+          <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} style={{ marginLeft: 6, alignSelf: 'center' }} />
         )}
       </TouchableOpacity>
     );
@@ -164,7 +164,7 @@ export default function NotificationsScreen() {
       {/* Header */}
       <View style={st.header}>
         <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
+          <Ionicons name="chevron-back" size={25} color={CoachColors.textSecondary} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>Notifications</Text>
         <View style={{ width: 40 }} />
@@ -206,7 +206,7 @@ const st = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 4 },
 
@@ -216,10 +216,10 @@ const st = StyleSheet.create({
     marginBottom: 8, paddingTop: 8,
   },
   sectionTitle: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5,
     color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase',
   },
-  sectionCount: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint },
+  sectionCount: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint },
 
   notifCard: {
     flexDirection: 'row', alignItems: 'flex-start',
@@ -246,9 +246,9 @@ const st = StyleSheet.create({
 
   notifContent: { flex: 1, marginLeft: 12, gap: 3 },
   notifTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  notifTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, flex: 1 },
-  notifTime: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
-  notifDesc: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary, lineHeight: 18 },
+  notifTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, flex: 1 },
+  notifTime: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
+  notifDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, lineHeight: 20 },
 
   fileRow: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
@@ -256,19 +256,19 @@ const st = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 7, marginTop: 7,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  fileName: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textSecondary, flex: 1 },
+  fileName: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary, flex: 1 },
 
   scorePill: {
     backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
     marginLeft: 8, alignSelf: 'center',
   },
-  scoreText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 12, color: CoachColors.accent },
+  scoreText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.accent },
 
   emptyState: { alignItems: 'center', paddingVertical: 100, paddingHorizontal: 32, gap: 8 },
-  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   emptySubtitle: {
-    fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted,
-    textAlign: 'center', lineHeight: 20,
+    fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textMuted,
+    textAlign: 'center', lineHeight: 22.5,
   },
 });

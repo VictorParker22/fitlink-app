@@ -124,9 +124,9 @@ export default function BroadcastSetupScreen() {
   if (!liveBroadcastSupported) {
     return (
       <SafeAreaView style={[s.container, { justifyContent: 'center', paddingHorizontal: 28 }]} edges={['top', 'bottom']}>
-        <Ionicons name="phone-portrait-outline" size={44} color={CoachColors.accent} style={{ alignSelf: 'center', marginBottom: 14 }} />
+        <Ionicons name="phone-portrait-outline" size={49} color={CoachColors.accent} style={{ alignSelf: 'center', marginBottom: 14 }} />
         <Text style={[s.headerTitle, { textAlign: 'center', marginBottom: 8 }]}>{liveBroadcastUnsupportedTitle}</Text>
-        <Text style={{ fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19, color: CoachColors.textMuted, textAlign: 'center' }}>
+        <Text style={{ fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5, color: CoachColors.textMuted, textAlign: 'center' }}>
           {liveBroadcastUnsupportedMessage}
         </Text>
         <TouchableOpacity
@@ -136,7 +136,7 @@ export default function BroadcastSetupScreen() {
           accessibilityRole="button"
           accessibilityLabel="Return to studio"
         >
-          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary }}>Return to studio</Text>
+          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary }}>Return to studio</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -157,7 +157,7 @@ export default function BroadcastSetupScreen() {
             accessibilityRole="button"
             accessibilityLabel="Close stream setup"
           >
-            <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
+            <Ionicons name="close" size={25} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Stream setup</Text>
           <View style={s.liveBadgePreview}>
@@ -298,7 +298,7 @@ export default function BroadcastSetupScreen() {
               >
                 <View style={s.settingsRowLeft}>
                   <View style={[s.settingsIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                    <Ionicons name="camera-reverse-outline" size={18} color={CoachColors.accent} />
+                    <Ionicons name="camera-reverse-outline" size={20} color={CoachColors.accent} />
                   </View>
                   <View>
                     <Text style={s.settingsRowTitle}>Camera</Text>
@@ -317,7 +317,7 @@ export default function BroadcastSetupScreen() {
 
           {/* Tips */}
           <View style={s.tipsCard}>
-            <Ionicons name="bulb-outline" size={14} color={CoachColors.warning} style={{ marginRight: 8, marginTop: 1 }} />
+            <Ionicons name="bulb-outline" size={16} color={CoachColors.warning} style={{ marginRight: 8, marginTop: 1 }} />
             <Text style={s.tipsText}>
               Turn off Silent Mode and enable Do Not Disturb before going live for the best streaming experience.
             </Text>
@@ -377,7 +377,7 @@ const s = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
     marginLeft: 12,
@@ -401,7 +401,7 @@ const s = StyleSheet.create({
   },
   liveBadgePreviewText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.danger,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -416,7 +416,7 @@ const s = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
@@ -435,14 +435,14 @@ const s = StyleSheet.create({
   },
   titleInput: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
     minHeight: 28,
   },
   charCounter: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textAlign: 'right',
     marginTop: 8,
@@ -452,7 +452,7 @@ const s = StyleSheet.create({
   },
   descInput: {
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
     minHeight: 60,
     textAlignVertical: 'top',
@@ -478,7 +478,7 @@ const s = StyleSheet.create({
   },
   categoryChipText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
   },
   categoryChipTextActive: {
@@ -512,12 +512,12 @@ const s = StyleSheet.create({
   },
   settingsRowTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   settingsRowSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
@@ -561,9 +561,9 @@ const s = StyleSheet.create({
   tipsText: {
     flex: 1,
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 20,
@@ -591,7 +591,7 @@ const s = StyleSheet.create({
   },
   goLiveBtnText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
 });

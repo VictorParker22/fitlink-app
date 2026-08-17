@@ -130,7 +130,7 @@ export default function CreateLiveClassScreen() {
         {/* ── Header ───────────────────────────────────────────────────── */}
         <View style={s.header}>
           <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color={CoachColors.textSecondary} />
+            <Ionicons name="chevron-back" size={25} color={CoachColors.textSecondary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{isEditMode ? 'Edit class' : 'Schedule a Class'}</Text>
           <View style={{ width: 40 }} />
@@ -180,11 +180,11 @@ export default function CreateLiveClassScreen() {
           <Section label="Date & time">
             <View style={s.dateRow}>
               <TouchableOpacity style={s.dateBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-                <Ionicons name="calendar-outline" size={18} color={CoachColors.accent} />
+                <Ionicons name="calendar-outline" size={20} color={CoachColors.accent} />
                 <Text style={s.dateBtnText}>{dateLabel}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.dateBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
-                <Ionicons name="time-outline" size={18} color={CoachColors.accent} />
+                <Ionicons name="time-outline" size={20} color={CoachColors.accent} />
                 <Text style={s.dateBtnText}>{timeLabel}</Text>
               </TouchableOpacity>
             </View>
@@ -238,9 +238,9 @@ export default function CreateLiveClassScreen() {
               <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="radio" size={18} color={CoachColors.onAccent} />
+                <Ionicons name="radio" size={20} color={CoachColors.onAccent} />
                 <Text style={s.ctaBtnText}>{isEditMode ? 'Save changes' : 'Schedule class'}</Text>
-                <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+                <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
               </>
             )}
           </TouchableOpacity>
@@ -331,7 +331,7 @@ const s = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 17,
+    fontSize: 19,
     color: CoachColors.textPrimary,
     letterSpacing: -0.2,
   },
@@ -350,7 +350,7 @@ const s = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -366,7 +366,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   inputFocused: {
@@ -398,7 +398,7 @@ const s = StyleSheet.create({
   },
   chipText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   chipTextActive: {
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
   },
   dateBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
 
@@ -448,7 +448,7 @@ const s = StyleSheet.create({
   },
   durationText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   durationTextActive: {
@@ -477,7 +477,7 @@ const s = StyleSheet.create({
   },
   ctaBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
 
@@ -505,12 +505,12 @@ const s = StyleSheet.create({
   },
   pickerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   pickerDone: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.accent,
   },
 });

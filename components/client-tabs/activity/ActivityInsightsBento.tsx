@@ -140,7 +140,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Ionicons name="scale-outline" size={16} color={CoachColors.textSecondary} />
+              <Ionicons name="scale-outline" size={18} color={CoachColors.textSecondary} />
             </View>
             {weightTrend !== 0 && (
               <View style={styles.trendRow}>
@@ -172,7 +172,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Ionicons name="heart" size={16} color={CoachColors.textSecondary} />
+              <Ionicons name="heart" size={18} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
@@ -197,7 +197,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Ionicons name="footsteps" size={16} color={CoachColors.textSecondary} />
+              <Ionicons name="footsteps" size={18} color={CoachColors.textSecondary} />
             </View>
             {healthSnapshot?.stepsToday ? renderStepsRing(healthSnapshot.stepsToday) : null}
           </View>
@@ -220,7 +220,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Ionicons name="flame" size={16} color={CoachColors.textSecondary} />
+              <Ionicons name="flame" size={18} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
@@ -245,7 +245,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconWrap}>
-              <Ionicons name="barbell" size={16} color={CoachColors.textSecondary} />
+              <Ionicons name="barbell" size={18} color={CoachColors.textSecondary} />
             </View>
           </View>
           <View style={styles.valueRow}>
@@ -258,7 +258,7 @@ export const ActivityInsightsBento: React.FC<ActivityInsightsBentoProps> = ({
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Animated.View style={[styles.iconWrap, { transform: [{ scale: streakAnim }] }]}>
-              <Ionicons name="flame" size={16} color={streak > 0 ? CoachColors.accent : CoachColors.textSecondary} />
+              <Ionicons name="flame" size={18} color={streak > 0 ? CoachColors.accent : CoachColors.textSecondary} />
             </Animated.View>
           </View>
           <View style={styles.valueRow}>

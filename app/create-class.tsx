@@ -320,7 +320,7 @@ export default function CreateClassScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleBack} style={styles.backBtn}>
-            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={24} color={CoachColors.textPrimary} />
+            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
             {[1, 2, 3].map(step => (
@@ -410,14 +410,14 @@ export default function CreateClassScreen() {
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.max(5, duration - 5)); }}
                     >
-                      <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
+                      <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{duration}</Text>
                     <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.min(120, duration + 5)); }}
                     >
-                      <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+                      <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -473,16 +473,16 @@ export default function CreateClassScreen() {
                   {videoUrl ? (
                     <View style={styles.videoPreview}>
                       <View style={styles.videoPlayIcon}>
-                        <Ionicons name="play" size={32} color={CoachColors.textPrimary} />
+                        <Ionicons name="play" size={36} color={CoachColors.textPrimary} />
                       </View>
                       <Text style={styles.mediaUrlText} numberOfLines={1}>{videoUrl}</Text>
                       <TouchableOpacity style={styles.mediaClearBtn} onPress={() => setVideoUrl('')}>
-                        <Ionicons name="close-circle" size={24} color={CoachColors.danger} />
+                        <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.addMediaBtn} onPress={() => setShowVideoModal(true)}>
-                      <Ionicons name="videocam-outline" size={32} color={CoachColors.textFaint} />
+                      <Ionicons name="videocam-outline" size={36} color={CoachColors.textFaint} />
                       <Text style={styles.addMediaText}>Add class video</Text>
                     </TouchableOpacity>
                   )}
@@ -496,7 +496,7 @@ export default function CreateClassScreen() {
                     <View style={styles.thumbPreview}>
                       <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                       <TouchableOpacity style={styles.mediaClearBtnAlt} onPress={() => setThumbnailUrl('')}>
-                        <Ionicons name="close-circle" size={24} color={CoachColors.danger} />
+                        <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -505,7 +505,7 @@ export default function CreateClassScreen() {
                         <ActivityIndicator color={CoachColors.accent} />
                       ) : (
                         <>
-                          <Ionicons name="image-outline" size={32} color={CoachColors.textFaint} />
+                          <Ionicons name="image-outline" size={36} color={CoachColors.textFaint} />
                           <Text style={styles.addMediaText}>Upload thumbnail</Text>
                         </>
                       )}
@@ -548,7 +548,7 @@ export default function CreateClassScreen() {
                     style={[styles.accessCard, !isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(false)}
                   >
-                    <Ionicons name="lock-closed" size={24} color={!isFree ? CoachColors.accent : CoachColors.textFaint} />
+                    <Ionicons name="lock-closed" size={27} color={!isFree ? CoachColors.accent : CoachColors.textFaint} />
                     <Text style={[styles.accessTitle, !isFree && styles.accessTitleActive]}>Subscribers only</Text>
                     <Text style={styles.accessSub}>Requires active pass</Text>
                   </TouchableOpacity>
@@ -559,7 +559,7 @@ export default function CreateClassScreen() {
                     style={[styles.accessCard, isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(true)}
                   >
-                    <Ionicons name="eye" size={24} color={isFree ? CoachColors.accent : CoachColors.textFaint} />
+                    <Ionicons name="eye" size={27} color={isFree ? CoachColors.accent : CoachColors.textFaint} />
                     <Text style={[styles.accessTitle, isFree && styles.accessTitleActive]}>Free preview</Text>
                     <Text style={styles.accessSub}>Open to everyone</Text>
                   </TouchableOpacity>
@@ -574,7 +574,7 @@ export default function CreateClassScreen() {
                     <Image source={{ uri: thumbnailUrl }} style={styles.previewImg} contentFit="cover" />
                   ) : (
                     <View style={styles.previewImgPlaceholder}>
-                      <Ionicons name="play" size={32} color={CoachColors.textFaint} />
+                      <Ionicons name="play" size={36} color={CoachColors.textFaint} />
                     </View>
                   )}
                   <View style={styles.previewContent}>
@@ -615,7 +615,7 @@ export default function CreateClassScreen() {
           <View style={[styles.footerRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
             <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
               <Text style={styles.nextBtnText}>Next step</Text>
-              <Ionicons name="arrow-forward" size={16} color={CoachColors.onAccent} />
+              <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
         )}
@@ -628,7 +628,7 @@ export default function CreateClassScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add class video</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowVideoModal(false)}>
-                <Ionicons name="close" size={24} color={CoachColors.textPrimary} />
+                <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -650,7 +650,7 @@ export default function CreateClassScreen() {
                   }
                 }}
               >
-                <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
+                <Ionicons name="checkmark" size={22} color={CoachColors.onAccent} />
               </TouchableOpacity>
             </View>
 
@@ -661,7 +661,7 @@ export default function CreateClassScreen() {
             </View>
 
             <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(false)}>
-              <Ionicons name="cloud-upload-outline" size={24} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
+              <Ionicons name="cloud-upload-outline" size={27} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.videoOptionTitle}>Upload video file</Text>
                 <Text style={styles.videoOptionSub}>MP4, MOV</Text>
@@ -669,7 +669,7 @@ export default function CreateClassScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(true)}>
-              <Ionicons name="camera-outline" size={24} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
+              <Ionicons name="camera-outline" size={27} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.videoOptionTitle}>Record video</Text>
                 <Text style={styles.videoOptionSub}>Use your camera</Text>
@@ -726,13 +726,13 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 22,
+    fontSize: 24.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   stepSubtitle: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginBottom: Spacing.xl,
   },
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     marginBottom: Spacing.sm,
   },
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     padding: Spacing.md,
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   textArea: {
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
     textAlign: 'right',
     marginTop: 4,
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   chipTextActive: {
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
   },
   diffChipText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textSecondary,
   },
   diffChipTextActive: {
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   },
   stepperValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     color: CoachColors.textPrimary,
   },
   footerRow: {
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
   },
   nextBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
   mediaContainer: {
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   },
   addMediaText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textSecondary,
   },
   videoPreview: {
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   },
   mediaUrlText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textSecondary,
     textAlign: 'center',
   },
@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
     marginBottom: 8,
   },
@@ -936,7 +936,7 @@ const styles = StyleSheet.create({
   },
   workoutCardTitle: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   workoutCardTitleActive: {
@@ -958,7 +958,7 @@ const styles = StyleSheet.create({
   },
   accessTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 14.5,
     color: CoachColors.textPrimary,
     marginTop: 12,
     marginBottom: 4,
@@ -969,13 +969,13 @@ const styles = StyleSheet.create({
   },
   accessSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     textAlign: 'center',
   },
   warningText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.warning,
     marginTop: 8,
     textAlign: 'center',
@@ -1011,18 +1011,18 @@ const styles = StyleSheet.create({
   },
   previewBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.accent,
   },
   previewTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
     marginBottom: 4,
   },
   previewMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
   },
   publishBtnContainer: {
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
   },
   publishBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.onAccent,
   },
   draftBtn: {
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
   },
   draftBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textSecondary,
   },
   modalOverlay: {
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
+    fontSize: 20,
     color: CoachColors.textPrimary,
   },
   urlInputRow: {
@@ -1092,7 +1092,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md,
     fontFamily: CoachFonts.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: CoachColors.textPrimary,
   },
   urlSaveBtn: {
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
     marginHorizontal: 12,
   },
@@ -1130,12 +1130,12 @@ const styles = StyleSheet.create({
   },
   videoOptionTitle: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   videoOptionSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textFaint,
   },
 });

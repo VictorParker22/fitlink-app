@@ -177,7 +177,7 @@ export default function CheckoutScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.errorState}>
-          <Ionicons name="alert-circle-outline" size={44} color={CoachColors.danger} />
+          <Ionicons name="alert-circle-outline" size={49} color={CoachColors.danger} />
           <Text style={styles.errorText}>Plan or client not found</Text>
           <TouchableOpacity
             style={styles.errorBtn}
@@ -203,7 +203,7 @@ export default function CheckoutScreen() {
           accessibilityLabel="Back"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="arrow-back" size={18} color={CoachColors.textPrimary} />
+          <Ionicons name="arrow-back" size={20} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 36 }} />
@@ -217,7 +217,7 @@ export default function CheckoutScreen() {
           accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${(plan as any).period || 'month'}. Coach receives $${(Number(plan.price) * 0.9).toFixed(2)} after the 10% platform fee. Billing ${client.name}.`}
         >
           <View style={styles.planBadge}>
-            <Ionicons name="card-outline" size={20} color={CoachColors.accent} />
+            <Ionicons name="card-outline" size={22} color={CoachColors.accent} />
           </View>
           <Text style={styles.planName}>{plan.name}</Text>
           <Text style={styles.planPrice}>
@@ -236,7 +236,7 @@ export default function CheckoutScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.clientRow}>
-            <Ionicons name="person-outline" size={15} color={CoachColors.textFaint} />
+            <Ionicons name="person-outline" size={17} color={CoachColors.textFaint} />
             <Text style={styles.clientName}>Billing: {client.name}</Text>
           </View>
         </View>
@@ -245,7 +245,7 @@ export default function CheckoutScreen() {
         {paymentStatus === 'success' && (
           <View style={styles.statusCard}>
             <View style={styles.statusIconSuccess}>
-              <Ionicons name="checkmark" size={30} color={CoachColors.onAccent} />
+              <Ionicons name="checkmark" size={34} color={CoachColors.onAccent} />
             </View>
             <Text style={styles.statusTitle}>Payment successful</Text>
             <Text style={styles.statusDesc}>
@@ -257,7 +257,7 @@ export default function CheckoutScreen() {
         {paymentStatus === 'error' && (
           <View style={styles.statusCard}>
             <View style={styles.statusIconError}>
-              <Ionicons name="close" size={30} color={CoachColors.danger} />
+              <Ionicons name="close" size={34} color={CoachColors.danger} />
             </View>
             <Text style={styles.statusTitle}>Payment failed</Text>
             <Text style={styles.statusDesc}>
@@ -268,7 +268,7 @@ export default function CheckoutScreen() {
 
         {/* Security notice */}
         <View style={styles.securityRow}>
-          <Ionicons name="lock-closed-outline" size={14} color={CoachColors.textFaint} />
+          <Ionicons name="lock-closed-outline" size={16} color={CoachColors.textFaint} />
           <Text style={styles.securityText}>
             Payments are securely processed by Stripe. FitLink never stores your card details.
           </Text>
@@ -289,7 +289,7 @@ export default function CheckoutScreen() {
               <ActivityIndicator size="small" color={CoachColors.onAccent} />
             ) : (
               <>
-                <Ionicons name="card-outline" size={18} color={CoachColors.onAccent} />
+                <Ionicons name="card-outline" size={20} color={CoachColors.onAccent} />
                 <Text style={styles.payBtnText}>
                   Subscribe — ${Number(plan.price).toFixed(2)}/mo
                 </Text>
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, letterSpacing: -0.3, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, letterSpacing: -0.3, color: CoachColors.textPrimary },
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
 
   summaryCard: {
@@ -324,20 +324,20 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  planName: { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.4, color: CoachColors.textPrimary, textAlign: 'center' },
-  planPrice: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -1, color: CoachColors.accent, marginTop: 4 },
-  planPeriod: { fontFamily: CoachFonts.body, fontSize: 16, letterSpacing: 0, color: CoachColors.textMuted },
+  planName: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, letterSpacing: -0.4, color: CoachColors.textPrimary, textAlign: 'center' },
+  planPrice: { fontFamily: CoachFonts.headingBold, fontSize: 40.5, letterSpacing: -1, color: CoachColors.accent, marginTop: 4 },
+  planPeriod: { fontFamily: CoachFonts.body, fontSize: 18, letterSpacing: 0, color: CoachColors.textMuted },
   feeBreakdown: {
     width: '100%', marginTop: 14, paddingTop: 14,
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, gap: 6,
   },
   feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8 },
-  feeLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
-  feeValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
-  feeValueHighlight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  feeLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
+  feeValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  feeValueHighlight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   divider: { height: 1, backgroundColor: CoachColors.borderMuted, width: '100%', marginVertical: 16 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  clientName: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
+  clientName: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary },
 
   statusCard: { alignItems: 'center', paddingVertical: 24, gap: 10 },
   statusIconSuccess: {
@@ -348,27 +348,27 @@ const styles = StyleSheet.create({
     width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.dangerSoft,
   },
-  statusTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, letterSpacing: -0.3, color: CoachColors.textPrimary },
-  statusDesc: { fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 19, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 12 },
+  statusTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.3, color: CoachColors.textPrimary },
+  statusDesc: { fontFamily: CoachFonts.body, fontSize: 15, lineHeight: 21.5, color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 12 },
 
   securityRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginVertical: 24, paddingHorizontal: 6,
   },
-  securityText: { fontFamily: CoachFonts.body, fontSize: 12, lineHeight: 16, color: CoachColors.textFaint, flex: 1 },
+  securityText: { fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 18, color: CoachColors.textFaint, flex: 1 },
 
   payBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     minHeight: 54, borderRadius: 27, backgroundColor: CoachColors.accent, paddingHorizontal: 20,
   },
   payBtnDisabled: { opacity: 0.7 },
-  payBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
+  payBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17.5, color: CoachColors.onAccent },
 
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
-  errorText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, textAlign: 'center' },
+  errorText: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, textAlign: 'center' },
   errorBtn: {
     minHeight: 44, borderRadius: 22, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  errorBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  errorBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 });

@@ -409,7 +409,7 @@ function ArcSliderPicker({ min, max, value, onChange, labels }: any) {
 
       {/* Hint */}
       <View style={styles.arcHint}>
-        <Ionicons name="help-circle" size={16} color={CoachColors.textMuted} />
+        <Ionicons name="help-circle" size={18} color={CoachColors.textMuted} />
         <Text style={styles.arcHintText}>Drag to adjust</Text>
       </View>
     </View>
@@ -454,7 +454,7 @@ function TagsPicker({ question, value, onChange }: any) {
           )}
         </View>
         <View style={styles.tagsFooterBox}>
-           <Ionicons name="document-text" size={14} color={CoachColors.textMuted} />
+           <Ionicons name="document-text" size={16} color={CoachColors.textMuted} />
            <Text style={styles.tagsCount}>{tags.length}/{question.maxTags || 10}</Text>
         </View>
       </View>
@@ -466,7 +466,7 @@ function TagsPicker({ question, value, onChange }: any) {
              {question.suggestions.filter((s: string) => !tags.includes(s)).map((s: string) => (
                <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} key={s} style={styles.suggestionItem} onPress={() => handleAddTag(s)}>
                  <Text style={styles.suggestionText}>{s}</Text>
-                 <Ionicons name="add" size={14} color={CoachColors.accent} />
+                 <Ionicons name="add" size={16} color={CoachColors.accent} />
                </TouchableOpacity>
              ))}
           </ScrollView>
@@ -610,7 +610,7 @@ export default function AssessmentScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity hitSlop={2} onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Assessment</Text>
         <View style={styles.progressBadge}>
@@ -788,7 +788,7 @@ export default function AssessmentScreen() {
                   disabled={currentAnswer.value <= cfg.min}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="remove" size={28} color={CoachColors.textSecondary} />
+                  <Ionicons name="remove" size={31} color={CoachColors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.counterBtn, styles.counterBtnPlus]}
@@ -799,7 +799,7 @@ export default function AssessmentScreen() {
                   disabled={currentAnswer.value >= cfg.max}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add" size={28} color={CoachColors.onAccent} />
+                  <Ionicons name="add" size={31} color={CoachColors.onAccent} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -829,7 +829,7 @@ export default function AssessmentScreen() {
                   {isGrid3 ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       {option.icon && (
-                        <Ionicons name={option.icon as any} size={32} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
+                        <Ionicons name={option.icon as any} size={36} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
                       )}
                       <Text style={[styles.gridOptionLabel3, isSelected && { color: CoachColors.onAccent }]}>{option.label}</Text>
                     </View>
@@ -841,7 +841,7 @@ export default function AssessmentScreen() {
                       )}
                       {option.icon && (
                         <View style={styles.gridOptionIconWrapper}>
-                          <Ionicons name={option.icon as any} size={24} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
+                          <Ionicons name={option.icon as any} size={27} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
                         </View>
                       )}
                     </>
@@ -869,7 +869,7 @@ export default function AssessmentScreen() {
                   <Text style={[styles.badgeListLabel, isSelected && { color: CoachColors.onAccent }]}>{option.label}</Text>
                   <View style={{ flex: 1 }} />
                   <View style={[styles.badgePill, isSelected && styles.badgePillActive]}>
-                    <Ionicons name="time-outline" size={14} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
+                    <Ionicons name="time-outline" size={16} color={isSelected ? CoachColors.onAccent : CoachColors.textMuted} />
                     <Text style={[styles.badgePillText, isSelected && { color: CoachColors.accent }]}>{(option as any).badge}</Text>
                   </View>
                 </TouchableOpacity>
@@ -913,7 +913,7 @@ export default function AssessmentScreen() {
                     return (
                       <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }} key={id} style={styles.cloudSelectedChip} onPress={() => handleSelect(id)}>
                         <Text style={styles.cloudSelectedChipText}>{opt?.label}</Text>
-                        <Ionicons name="close" size={14} color={CoachColors.accent} />
+                        <Ionicons name="close" size={16} color={CoachColors.accent} />
                       </TouchableOpacity>
                     );
                   })}
@@ -947,7 +947,7 @@ export default function AssessmentScreen() {
                     <Text style={[
                       styles.optionLabel,
                       isSelected && !isImageOption && styles.optionLabelActive,
-                      isImageOption && { fontSize: 22, color: CoachColors.onAccent }
+                      isImageOption && { fontSize: 24.5, color: CoachColors.onAccent }
                     ]}>
                       {option.label}
                     </Text>
@@ -1019,7 +1019,7 @@ export default function AssessmentScreen() {
               disabled={saving}
             >
               <Text style={[styles.yesNoBtnText, { color: CoachColors.textSecondary }]}>No</Text>
-              <Ionicons name="close" size={20} color={CoachColors.textSecondary} />
+              <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -1028,7 +1028,7 @@ export default function AssessmentScreen() {
               disabled={saving}
             >
               <Text style={[styles.yesNoBtnText, { color: CoachColors.onAccent }]}>Yes</Text>
-              <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
+              <Ionicons name="checkmark" size={22} color={CoachColors.onAccent} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -1036,7 +1036,7 @@ export default function AssessmentScreen() {
             {(question as any).skippable && (
               <TouchableOpacity style={styles.skipBtn} onPress={() => handleNext()} activeOpacity={0.7}>
                 <Text style={styles.skipBtnText}>Prefer to skip, thanks!</Text>
-                <Ionicons name="close" size={18} color={CoachColors.accent} />
+                <Ionicons name="close" size={20} color={CoachColors.accent} />
               </TouchableOpacity>
             )}
 
@@ -1051,7 +1051,7 @@ export default function AssessmentScreen() {
               <Text style={styles.continueBtnText}>
                 {isLastValidStep ? (saving ? 'Saving...' : 'Finish') : 'Continue'}
               </Text>
-              {!isLastValidStep && <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />}
+              {!isLastValidStep && <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} />}
             </TouchableOpacity>
           </>
         )}
@@ -1071,12 +1071,12 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 999,
     backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
   progressBadge: { backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
-  progressText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  progressText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   content: { padding: 20, paddingBottom: 100 },
-  questionTitle: { fontFamily: CoachFonts.headingBold, fontSize: 28, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 4 },
-  questionSubtitle: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 28 },
+  questionTitle: { fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 4 },
+  questionSubtitle: { fontFamily: CoachFonts.body, fontSize: 19, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 28 },
 
   optionsContainer: { gap: 10, marginTop: 20 },
   optionBtn: {
@@ -1107,7 +1107,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   iconContainerActive: { backgroundColor: CoachColors.onAccent },
-  optionLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  optionLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 19, color: CoachColors.textPrimary },
   optionLabelActive: { color: CoachColors.onAccent },
   radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioOuterActive: { borderColor: CoachColors.onAccent },
@@ -1127,24 +1127,24 @@ const styles = StyleSheet.create({
     borderColor: CoachColors.accent,
     borderWidth: 4,
   },
-  gridOptionLabel: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, marginBottom: 4 },
-  gridOptionLabel3: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary, textAlign: 'center' },
-  gridOptionDesc: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textMuted },
+  gridOptionLabel: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginBottom: 4 },
+  gridOptionLabel3: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textSecondary, textAlign: 'center' },
+  gridOptionDesc: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textMuted },
   gridOptionIconWrapper: { position: 'absolute', bottom: 20, right: 20 },
 
   // Pill Cloud Styles
   cloudHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 },
-  cloudHeaderTitle: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textPrimary },
-  cloudHeaderLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
+  cloudHeaderTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  cloudHeaderLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   pillCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 4 },
   cloudPill: { backgroundColor: CoachColors.surface, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
   cloudPillActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
-  cloudPillText: { fontFamily: CoachFonts.headingBold, fontSize: 15, color: CoachColors.textSecondary },
+  cloudPillText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textSecondary },
   cloudPillTextActive: { color: CoachColors.onAccent },
   cloudSelectedContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40 },
-  cloudSelectedLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textPrimary },
+  cloudSelectedLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textPrimary },
   cloudSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: CoachColors.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  cloudSelectedChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  cloudSelectedChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   // Ruler Styles
   unitToggle: {
@@ -1153,12 +1153,12 @@ const styles = StyleSheet.create({
   },
   unitBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 999 },
   unitBtnActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 },
-  unitText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textSecondary },
+  unitText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textSecondary },
   unitTextActive: { color: CoachColors.onAccent },
 
   valueDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: 40 },
-  valueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 80, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false },
-  valueUnit: { fontFamily: CoachFonts.bodySemiBold, fontSize: 32, color: CoachColors.textMuted, marginLeft: 8 },
+  valueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 89.5, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false },
+  valueUnit: { fontFamily: CoachFonts.bodySemiBold, fontSize: 36, color: CoachColors.textMuted, marginLeft: 8 },
 
   rulerContainer: { position: 'relative', height: 120, justifyContent: 'flex-end', marginTop: 20 },
   rulerPointer: {
@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
   tick: { backgroundColor: CoachColors.border, borderRadius: 2, transform: [{ translateX: -1 }] }, // -1 to center the 2px tick over the gap start
   tickTall: { width: 2, height: 40, backgroundColor: CoachColors.textMuted },
   tickShort: { width: 2, height: 20 },
-  tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
+  tickLabel: { position: 'absolute', bottom: -24, width: 40, textAlign: 'center', transform: [{ translateX: -20 }], fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textMuted },
 
   // Wheel Styles
   wheelContainer: { height: WHEEL_ITEM_HEIGHT * 5, overflow: 'hidden' },
@@ -1187,40 +1187,40 @@ const styles = StyleSheet.create({
   },
   arcThumbInner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: CoachColors.onAccent },
   arcValueDisplay: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 10 },
-  arcValueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 140, lineHeight: 150, letterSpacing: -8, color: CoachColors.textPrimary, includeFontPadding: false },
-  arcValueLabel: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textSecondary, textAlign: 'right', marginTop: -10 },
+  arcValueNumber: { fontFamily: CoachFonts.headingBold, fontSize: 157, lineHeight: 168, letterSpacing: -8, color: CoachColors.textPrimary, includeFontPadding: false },
+  arcValueLabel: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textSecondary, textAlign: 'right', marginTop: -10 },
   arcHint: { position: 'absolute', top: -40, left: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  arcHintText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
+  arcHintText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textMuted },
 
   // Tags Styles
   tagsContainer: { flex: 1 },
   tagsInputBox: { borderWidth: 2, borderColor: CoachColors.accent, borderRadius: 20, padding: 16, minHeight: 140 },
   tagsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tagItem: { backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-  tagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.accent },
-  tagInput: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, minWidth: 100, paddingVertical: 8 },
+  tagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
+  tagInput: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, minWidth: 100, paddingVertical: 8 },
   tagsFooterBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 'auto', paddingTop: 10 },
-  tagsCount: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
+  tagsCount: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
   suggestionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 10 },
-  suggestionsLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
+  suggestionsLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
   suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CoachColors.accentSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  suggestionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
+  suggestionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   // Segmented Number Styles
-  massiveSegmentedNumber: { fontFamily: CoachFonts.headingBold, fontSize: 160, lineHeight: 160, letterSpacing: -10, color: CoachColors.textPrimary, includeFontPadding: false },
+  massiveSegmentedNumber: { fontFamily: CoachFonts.headingBold, fontSize: 179, lineHeight: 179, letterSpacing: -10, color: CoachColors.textPrimary, includeFontPadding: false },
   segmentedContainer: { backgroundColor: CoachColors.surface, borderRadius: 100, marginTop: 40, marginBottom: 28 },
   segmentedScroll: { padding: 4, alignItems: 'center' },
   segmentedItemBox: { padding: 4, borderRadius: 100 },
   segmentedItemBoxActive: { backgroundColor: CoachColors.accentSoft },
   segmentedItem: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   segmentedItemActive: { backgroundColor: CoachColors.accent, shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 },
-  segmentedItemText: { fontFamily: CoachFonts.headingBold, fontSize: 22, color: CoachColors.textMuted },
+  segmentedItemText: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textMuted },
   segmentedItemTextActive: { color: CoachColors.onAccent },
-  segmentedFooterText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textSecondary },
+  segmentedFooterText: { fontFamily: CoachFonts.body, fontSize: 20, color: CoachColors.textSecondary },
 
   // Counter Styles
-  counterValue: { fontFamily: CoachFonts.headingBold, fontSize: 80, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false, marginTop: 40 },
-  counterLabel: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textSecondary, marginTop: 4 },
+  counterValue: { fontFamily: CoachFonts.headingBold, fontSize: 89.5, letterSpacing: -3, color: CoachColors.textPrimary, includeFontPadding: false, marginTop: 40 },
+  counterLabel: { fontFamily: CoachFonts.body, fontSize: 20, color: CoachColors.textSecondary, marginTop: 4 },
   counterBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 40 },
   counterBtn: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   counterBtnMinus: { backgroundColor: CoachColors.surface },
@@ -1236,10 +1236,10 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accent,
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  badgeListLabel: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  badgeListLabel: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
   badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CoachColors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgePillActive: { backgroundColor: CoachColors.onAccent },
-  badgePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
+  badgePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
 
   footer: {
     padding: 20, paddingBottom: 28,
@@ -1251,7 +1251,7 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
     paddingVertical: 18, borderRadius: 20,
   },
-  yesNoBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 22 },
+  yesNoBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 24.5 },
 
   skipBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1259,12 +1259,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16, borderRadius: 20,
     marginBottom: 10,
   },
-  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
+  skipBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 19, color: CoachColors.accent },
   continueBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: CoachColors.accent,
     borderRadius: 20,
     paddingVertical: 18,
   },
-  continueBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.onAccent }
+  continueBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.onAccent }
 });

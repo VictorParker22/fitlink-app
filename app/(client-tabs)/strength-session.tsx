@@ -678,7 +678,7 @@ export default function StrengthSessionScreen() {
                   {lastTop ? ` · last time ${fmtKg(lastTop.weight)} kg` : ''}
                 </Text>
               </View>
-              <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={CoachColors.textFaint} />
+              <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={19} color={CoachColors.textFaint} />
             </TouchableOpacity>
             {open && (
               <View style={s.exExpanded}>
@@ -714,10 +714,10 @@ export default function StrengthSessionScreen() {
       <View style={s.container}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
+            <Ionicons name="chevron-back" size={29} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={[s.center, { flex: 1, paddingBottom: 100 }]}>
-            <Ionicons name="fitness-outline" size={44} color={CoachColors.textFaint} />
+            <Ionicons name="fitness-outline" size={49} color={CoachColors.textFaint} />
             <Text style={s.notFoundTitle}>Session not found</Text>
             <Text style={s.notFoundSub}>This session may no longer be available.</Text>
           </View>
@@ -759,7 +759,7 @@ export default function StrengthSessionScreen() {
                 accessibilityLabel="All exercises"
                 accessibilityHint="Opens the full workout list"
               >
-                <Ionicons name="list-outline" size={14} color={CoachColors.textSecondary} />
+                <Ionicons name="list-outline" size={16} color={CoachColors.textSecondary} />
                 <Text style={s.allExBtnText}>All exercises</Text>
               </TouchableOpacity>
             </View>
@@ -864,7 +864,7 @@ export default function StrengthSessionScreen() {
                 {/* Last time — only when real history exists */}
                 {lastTop && (
                   <View style={s.lastTimeCard}>
-                    <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
+                    <Ionicons name="time-outline" size={18} color={CoachColors.textMuted} />
                     <Text style={s.lastTimeText}>
                       Last time:{' '}
                       <Text style={s.lastTimeStrong}>
@@ -1046,7 +1046,7 @@ export default function StrengthSessionScreen() {
                 accessibilityLabel="Previous exercise"
                 accessibilityState={{ disabled: exIdx === 0 }}
               >
-                <Ionicons name="chevron-back" size={16} color={exIdx === 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
+                <Ionicons name="chevron-back" size={18} color={exIdx === 0 ? CoachColors.textFaint : CoachColors.textPrimary} />
                 <Text style={[s.prevBtnText, exIdx === 0 && s.prevBtnTextDisabled]}>Prev</Text>
               </TouchableOpacity>
               {isLastExercise ? (
@@ -1069,7 +1069,7 @@ export default function StrengthSessionScreen() {
                   accessibilityLabel="Next exercise"
                 >
                   <Text style={s.nextBtnText}>Next</Text>
-                  <Ionicons name="chevron-forward" size={16} color={CoachColors.onAccent} />
+                  <Ionicons name="chevron-forward" size={18} color={CoachColors.onAccent} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1093,7 +1093,7 @@ export default function StrengthSessionScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Close all exercises"
                 >
-                  <Ionicons name="close" size={22} color={CoachColors.textPrimary} />
+                  <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
                 </TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled"
@@ -1156,7 +1156,7 @@ export default function StrengthSessionScreen() {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} onPress={() => router.push(ClientRoute.workouts)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back to workouts">
-          <Ionicons name="chevron-back" size={26} color={CoachColors.textPrimary} />
+          <Ionicons name="chevron-back" size={29} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
@@ -1220,29 +1220,29 @@ const s = StyleSheet.create({
   backBtn: { paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
 
   notFoundTitle: {
-    fontFamily: CoachFonts.headingSemiBold, fontSize: 18,
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 20,
     color: CoachColors.textPrimary, marginTop: 16,
   },
   notFoundSub: {
-    fontFamily: CoachFonts.body, fontSize: 14,
+    fontFamily: CoachFonts.body, fontSize: 15.5,
     color: CoachColors.textMuted, marginTop: 8,
   },
 
   // ── Overview ──
   overviewEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent,
     letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 8,
   },
   overviewTitle: {
-    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
-    lineHeight: 33, marginTop: 8,
+    fontFamily: CoachFonts.headingBold, fontSize: 30, color: CoachColors.textPrimary,
+    lineHeight: 37, marginTop: 8,
   },
   overviewMeta: {
-    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 8,
+    fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 8,
   },
   overviewDesc: {
-    fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary,
-    lineHeight: 21, marginTop: 14,
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary,
+    lineHeight: 23.5, marginTop: 14,
   },
   targetsCard: {
     flexDirection: 'row', alignItems: 'center', gap: 16,
@@ -1255,7 +1255,7 @@ const s = StyleSheet.create({
   targetDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: CoachColors.accent },
   targetDotSecondary: { backgroundColor: CoachColors.accentSoft },
   targetRowText: {
-    flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 12.5,
+    flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14,
     color: CoachColors.textSecondary,
   },
   exCard: {
@@ -1267,8 +1267,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14, paddingHorizontal: 15,
   },
-  exName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  exMeta: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 3 },
+  exName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  exMeta: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
   exExpanded: { paddingHorizontal: 15, paddingBottom: 15 },
   overviewFooter: {
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28,
@@ -1278,7 +1278,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16, alignItems: 'center',
   },
-  startBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  startBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 
   // ── Live header ──
   liveHeader: {
@@ -1287,7 +1287,7 @@ const s = StyleSheet.create({
   },
   liveHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   liveEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent,
     letterSpacing: 1.2, textTransform: 'uppercase',
   },
   allExBtn: {
@@ -1295,15 +1295,15 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
     paddingVertical: 6, paddingHorizontal: 11,
   },
-  allExBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textSecondary },
+  allExBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
   liveWorkoutName: {
-    fontFamily: CoachFonts.headingBold, fontSize: 24, lineHeight: 29,
+    fontFamily: CoachFonts.headingBold, fontSize: 27, lineHeight: 32.5,
     color: CoachColors.textPrimary, marginTop: 7,
   },
   liveMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 },
-  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 14, color: CoachColors.accent },
-  liveMetaDot: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
-  liveExCount: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
+  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: CoachColors.accent },
+  liveMetaDot: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint },
+  liveExCount: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   progressTrack: {
     height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
     marginTop: 12, overflow: 'hidden',
@@ -1317,11 +1317,11 @@ const s = StyleSheet.create({
     borderRadius: 18, padding: 16,
   },
   focusName: {
-    fontFamily: CoachFonts.headingBold, fontSize: 21, lineHeight: 26,
+    fontFamily: CoachFonts.headingBold, fontSize: 23.5, lineHeight: 29,
     color: CoachColors.textPrimary,
   },
   focusTarget: {
-    fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary,
+    fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary,
     marginTop: 5,
   },
   tagRow: { flexDirection: 'row', gap: 7, marginTop: 10, flexWrap: 'wrap' },
@@ -1329,7 +1329,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
     paddingVertical: 4, paddingHorizontal: 10,
   },
-  tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11.5, color: CoachColors.textSecondary },
+  tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
   focusImage: {
     width: '100%', height: 180, borderRadius: 14, marginTop: 14,
     backgroundColor: CoachColors.bg,
@@ -1341,11 +1341,11 @@ const s = StyleSheet.create({
     marginTop: 7,
   },
   instrText: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 13, lineHeight: 19,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5,
     color: CoachColors.textSecondary,
   },
   instrMore: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent,
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent,
     paddingVertical: 4,
   },
 
@@ -1358,8 +1358,8 @@ const s = StyleSheet.create({
     marginTop: 14,
   },
   lastTimeText: {
-    flex: 1, fontFamily: CoachFonts.body, fontSize: 12.5,
-    color: CoachColors.textSecondary, lineHeight: 18,
+    flex: 1, fontFamily: CoachFonts.body, fontSize: 14,
+    color: CoachColors.textSecondary, lineHeight: 20,
   },
   lastTimeStrong: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
 
@@ -1377,31 +1377,31 @@ const s = StyleSheet.create({
     borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12,
     marginBottom: 12,
   },
-  suggestChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.accent },
+  suggestChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
   activeBadge: {
     width: 26, height: 26, borderRadius: 8,
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  activeBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent },
+  activeBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
   numbersRow: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' },
   numberInput: {
-    fontFamily: CoachFonts.headingBold, fontSize: 23, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary,
     minWidth: 52, paddingVertical: 2, paddingHorizontal: 4, textAlign: 'center',
     borderBottomWidth: 1, borderBottomColor: '#33382F',
   },
-  numberUnit: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
-  numberTimes: { fontFamily: CoachFonts.body, fontSize: 13, color: '#4E5449', marginHorizontal: 4 },
+  numberUnit: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
+  numberTimes: { fontFamily: CoachFonts.body, fontSize: 14.5, color: '#4E5449', marginHorizontal: 4 },
   stepRow: { flexDirection: 'row', gap: 7, marginTop: 12 },
   stepBtn: {
     flex: 1, borderWidth: 1, borderColor: '#33382F', borderRadius: 10,
     paddingVertical: 11, alignItems: 'center',
   },
-  stepBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: '#C9CEC2' },
+  stepBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
   feelBlock: {
     borderTopWidth: 1, borderTopColor: '#2E322B', marginTop: 14, paddingTop: 13,
   },
-  feelPrompt: { fontFamily: CoachFonts.body, fontSize: 11.5, color: CoachColors.textMuted },
+  feelPrompt: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   feelRow: { flexDirection: 'row', gap: 7, marginTop: 10 },
   feelChip: {
     flex: 1, borderWidth: 1, borderColor: '#33382F', borderRadius: 12,
@@ -1411,7 +1411,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: CoachColors.accent,
     backgroundColor: 'rgba(198,242,78,0.1)',
   },
-  feelChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textFaint },
+  feelChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textFaint },
   feelChipTextActive: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
   logCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   restBubble: {
@@ -1419,13 +1419,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#2E322B',
     alignItems: 'center', justifyContent: 'center',
   },
-  restTime: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: '#C9CEC2' },
-  restLabel: { fontFamily: CoachFonts.body, fontSize: 8, color: CoachColors.textFaint, letterSpacing: 0.6 },
+  restTime: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: '#C9CEC2' },
+  restLabel: { fontFamily: CoachFonts.body, fontSize: 9, color: CoachColors.textFaint, letterSpacing: 0.6 },
   logBtn: {
     flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16, alignItems: 'center',
   },
-  logBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
+  logBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17.5, color: CoachColors.onAccent },
 
   // ── Done sets ──
   doneList: { gap: 8, marginTop: 14 },
@@ -1440,9 +1440,9 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  doneSetBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent },
-  doneSetText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  doneSetFeel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: CoachColors.textMuted },
+  doneSetBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.accent },
+  doneSetText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  doneSetFeel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted },
 
   // ── Exercise rail ──
   railWrap: {
@@ -1463,10 +1463,10 @@ const s = StyleSheet.create({
     borderColor: CoachColors.accent,
     backgroundColor: CoachColors.accent,
   },
-  railNum: { fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textSecondary },
+  railNum: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textSecondary },
   railNumDone: { color: CoachColors.accent },
   railNumCurrent: { color: CoachColors.onAccent },
-  railCount: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textFaint },
+  railCount: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textFaint },
   railCountCurrent: { color: CoachColors.onAccent },
 
   // ── Prev / Next ──
@@ -1481,20 +1481,20 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
   },
   prevBtnDisabled: { opacity: 0.45 },
-  prevBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textPrimary },
+  prevBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.textPrimary },
   prevBtnTextDisabled: { color: CoachColors.textFaint },
   nextBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
     backgroundColor: CoachColors.accent, borderRadius: 999,
     paddingVertical: 16,
   },
-  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.onAccent },
+  nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 
   // ── All exercises modal ──
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 12,
   },
-  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary },
   modalClose: { padding: 6 },
 });

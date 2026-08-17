@@ -156,6 +156,6 @@ const s = StyleSheet.create({
   },
   currentDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
   restDash: { width: 10, height: 2, borderRadius: 1, backgroundColor: C.border },
-  weekNum: { fontFamily: F.mono, fontSize: 10, color: C.textFaint },
+  weekNum: { fontFamily: F.mono, fontSize: 11, color: C.textFaint },
   weekNumCurrent: { color: C.accent },
 });

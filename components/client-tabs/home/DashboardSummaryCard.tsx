@@ -150,7 +150,7 @@ export default function DashboardSummaryCard({
                 ]}
               >
                 {isDone ? (
-                  <Ionicons name="checkmark" size={16} color={CoachColors.accent} />
+                  <Ionicons name="checkmark" size={18} color={CoachColors.accent} />
                 ) : (
                   <View style={st.dayDot} />
                 )}
@@ -196,7 +196,7 @@ const st = StyleSheet.create({
   },
   statLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -207,12 +207,12 @@ const st = StyleSheet.create({
   },
   statHero: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+    fontSize: 22.5,
     letterSpacing: -0.5,
   },
   statSub: {
     fontFamily: CoachFonts.bodyMedium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
   },
   weekTracker: {
@@ -249,7 +249,7 @@ const st = StyleSheet.create({
   },
   dayLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.textFaint,
   },
   dayLabelToday: {

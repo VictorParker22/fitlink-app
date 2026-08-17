@@ -25,7 +25,7 @@ export default function DaySummaryCard({
       <View style={st.topRow}>
         <Text style={st.sectionTag}>Evening recap // daily performance</Text>
         <View style={st.streakPill}>
-          <Ionicons name="flame" size={10} color={CoachColors.accent} />
+          <Ionicons name="flame" size={11} color={CoachColors.accent} />
           <Text style={st.streakText}>{streakDays} day rhythm</Text>
         </View>
       </View>
@@ -47,7 +47,7 @@ export default function DaySummaryCard({
         {/* Nutrition stat */}
         <View style={st.statItem}>
           <View style={[st.iconBox, { backgroundColor: CoachColors.bg, borderColor: CoachColors.border }]}>
-            <Ionicons name="restaurant-outline" size={18} color={CoachColors.textSecondary} />
+            <Ionicons name="restaurant-outline" size={20} color={CoachColors.textSecondary} />
           </View>
           <Text style={st.statLabel}>Nutrition</Text>
           <Text style={st.statValue}>{mealsLoggedCount}/{totalMealsGoal} meals</Text>
@@ -60,7 +60,7 @@ export default function DaySummaryCard({
         onPress={() => router.push(ClientRoute.myProgress as any)}
       >
         <Text style={st.viewDetailsText}>View full performance log</Text>
-        <Ionicons name="chevron-forward" size={14} color={CoachColors.accent} />
+        <Ionicons name="chevron-forward" size={16} color={CoachColors.accent} />
       </TouchableOpacity>
     </View>
   );
@@ -84,7 +84,7 @@ const st = StyleSheet.create({
   },
   sectionTag: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -102,7 +102,7 @@ const st = StyleSheet.create({
   },
   streakText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.accent,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -133,7 +133,7 @@ const st = StyleSheet.create({
   },
   statLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 9,
+    fontSize: 10,
     color: CoachColors.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -141,7 +141,7 @@ const st = StyleSheet.create({
   },
   statValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
   },
@@ -158,7 +158,7 @@ const st = StyleSheet.create({
   },
   viewDetailsText: {
     fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: CoachColors.accent,
     letterSpacing: 1.5,
     textTransform: 'uppercase',

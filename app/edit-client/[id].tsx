@@ -83,7 +83,7 @@ export default function EditClientScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={22} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit client</Text>
           <View style={{ width: 36 }} />
@@ -175,16 +175,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
+  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 40 },
-  notFound: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textSecondary, marginBottom: 16 },
+  notFound: { fontFamily: CoachFonts.bodySemiBold, fontSize: 20, color: CoachColors.textSecondary, marginBottom: 16 },
 
   inputGroup: { marginBottom: 16 },
-  label: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' },
+  label: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' },
   input: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
-    fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
+    fontFamily: CoachFonts.body, fontSize: 20, color: CoachColors.textPrimary,
   },
   textArea: { minHeight: 80, paddingTop: 12 },
 
@@ -195,23 +195,23 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
+  statusText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textSecondary },
 
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   planChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
-  planChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary },
+  planChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textSecondary },
   planChipTextActive: { color: CoachColors.accent },
 
   saveBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 8,
   },
-  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 16, color: CoachColors.onAccent },
+  saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },
 
   secondaryBtn: {
     paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
-  secondaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  secondaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
 });

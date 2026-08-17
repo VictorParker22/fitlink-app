@@ -161,9 +161,9 @@ export default function WeekSection({
           accessible={true}
           accessibilityLabel={`Week ${week}, marker: ${label}${done ? ', passed' : ''}`}
         >
-          <Ionicons name="flag-outline" size={13} color={done ? C.textFaint : C.accent} />
+          <Ionicons name="flag-outline" size={15} color={done ? C.textFaint : C.accent} />
           <Text style={s.markerText}>{label}</Text>
-          {done && <Ionicons name="checkmark" size={13} color={C.textFaint} />}
+          {done && <Ionicons name="checkmark" size={15} color={C.textFaint} />}
         </View>
       );
     }
@@ -195,7 +195,7 @@ export default function WeekSection({
                 .join(' · ')}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+          <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
         </Pressable>
       );
     }
@@ -284,7 +284,7 @@ export default function WeekSection({
               <Text style={s.nodeSub}>A class your coach put on the plan</Text>
             )}
           </View>
-          {canOpenClass && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
+          {canOpenClass && <Ionicons name="chevron-forward" size={17} color={C.textFaint} />}
         </Pressable>
       );
     }
@@ -436,7 +436,7 @@ export default function WeekSection({
         {info && (
           <MuscleMap primary={info.primary} secondary={info.secondary} view={info.view} height={64} />
         )}
-        {canOpen && <Ionicons name="chevron-forward" size={15} color={C.textFaint} />}
+        {canOpen && <Ionicons name="chevron-forward" size={17} color={C.textFaint} />}
       </Pressable>
     );
   };
@@ -459,11 +459,11 @@ export default function WeekSection({
           accessibilityRole="button"
           accessibilityLabel={`Week ${week}${title ? `, ${title}` : ''}, ${summary}. Double tap to open the week`}
         >
-          <Ionicons name="checkmark-circle" size={16} color={C.accent} style={{ opacity: 0.7 }} />
+          <Ionicons name="checkmark-circle" size={18} color={C.accent} style={{ opacity: 0.7 }} />
           <Text style={s.pastRowText}>
             {headerTitle} · {summary}
           </Text>
-          <Ionicons name="chevron-down" size={14} color={C.textFaint} />
+          <Ionicons name="chevron-down" size={16} color={C.textFaint} />
         </Pressable>
       </Wrap>
     );
@@ -494,7 +494,7 @@ export default function WeekSection({
             <Text style={s.thisWeekTagText}>This week</Text>
           </View>
         )}
-        {status === 'past' && <Ionicons name="chevron-up" size={14} color={C.textFaint} />}
+        {status === 'past' && <Ionicons name="chevron-up" size={16} color={C.textFaint} />}
       </Pressable>
 
       {isRestWeek && actionable.length === 0 ? (
@@ -504,7 +504,7 @@ export default function WeekSection({
           accessibilityLabel={`Week ${week}, rest week. Recovery is part of the plan`}
         >
           <View style={s.nodeIconWrap}>
-            <Ionicons name="moon-outline" size={15} color={C.textFaint} />
+            <Ionicons name="moon-outline" size={17} color={C.textFaint} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.nodeName}>Rest</Text>
@@ -527,11 +527,11 @@ const s = StyleSheet.create({
   },
   headerText: {
     fontFamily: F.headingSemiBold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: C.textSecondary,
     flexShrink: 1,
   },
-  headerTextCurrent: { color: C.textPrimary, fontFamily: F.headingBold, fontSize: 15 },
+  headerTextCurrent: { color: C.textPrimary, fontFamily: F.headingBold, fontSize: 17 },
   headerTextFuture: { color: C.textFaint },
   thisWeekTag: {
     backgroundColor: C.accentSoft,
@@ -539,7 +539,7 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 9,
   },
-  thisWeekTagText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent, letterSpacing: 0.6, textTransform: 'uppercase' },
+  thisWeekTagText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent, letterSpacing: 0.6, textTransform: 'uppercase' },
 
   futureSection: { opacity: 0.62 },
 
@@ -554,7 +554,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  pastRowText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textMuted },
+  pastRowText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 14, color: C.textMuted },
 
   nodeRow: {
     flexDirection: 'row',
@@ -582,7 +582,7 @@ const s = StyleSheet.create({
   whenRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   whenText: {
     fontFamily: F.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: C.textFaint,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -593,7 +593,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  doneChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.accent },
+  doneChipText: { fontFamily: F.bodyBold, fontSize: 11, color: C.accent },
   // Cohort-only schedule reads. Today is emphasis, not alarm; missed is a
   // warning token — a real day passed, not a failure state.
   whenTextToday: { color: C.accent },
@@ -604,8 +604,8 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
   },
-  missedChipText: { fontFamily: F.bodyBold, fontSize: 10, color: C.warning },
-  focusText: { fontFamily: F.body, fontSize: 11.5, color: C.textSecondary, marginTop: 3, lineHeight: 16 },
+  missedChipText: { fontFamily: F.bodyBold, fontSize: 11, color: C.warning },
+  focusText: { fontFamily: F.body, fontSize: 13, color: C.textSecondary, marginTop: 3, lineHeight: 18 },
   nodeRowDone: { opacity: 0.65 },
   nodeRowFuture: { backgroundColor: 'transparent' },
   nodeIconWrap: {
@@ -617,8 +617,8 @@ const s = StyleSheet.create({
     backgroundColor: C.borderMuted,
   },
   nodeIconWrapDone: { backgroundColor: C.accentSofter },
-  nodeName: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
-  nodeSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 16 },
+  nodeName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
+  nodeSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18 },
 
   markerRow: {
     flexDirection: 'row',
@@ -627,7 +627,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
   },
-  markerText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textSecondary },
+  markerText: { flex: 1, fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary },
 
   // The current node — the big treatment.
   currentCard: {
@@ -646,27 +646,27 @@ const s = StyleSheet.create({
   },
   upNextChipText: {
     fontFamily: F.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: C.onAccent,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   currentWhen: {
     fontFamily: F.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: C.textMuted,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   currentHeadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 9 },
-  currentTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
-  currentMeta: { fontFamily: F.bodyMedium, fontSize: 12, color: C.textMuted, marginTop: 4 },
-  currentFocus: { fontFamily: F.body, fontSize: 12, color: C.textSecondary, marginTop: 5, lineHeight: 17 },
+  currentTitle: { fontFamily: F.headingBold, fontSize: 21.5, color: C.textPrimary },
+  currentMeta: { fontFamily: F.bodyMedium, fontSize: 13.5, color: C.textMuted, marginTop: 4 },
+  currentFocus: { fontFamily: F.body, fontSize: 13.5, color: C.textSecondary, marginTop: 5, lineHeight: 19 },
   exerciseList: { gap: 7, marginTop: 13 },
   exerciseRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
-  exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
-  exerciseMeta: { fontFamily: F.body, fontSize: 12, color: C.textMuted },
-  exerciseMore: { fontFamily: F.body, fontSize: 11.5, color: C.textFaint },
+  exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
+  exerciseMeta: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
+  exerciseMore: { fontFamily: F.body, fontSize: 13, color: C.textFaint },
   previewBtn: {
     backgroundColor: C.accent,
     borderRadius: 999,
@@ -674,5 +674,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-  previewBtnText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.onAccent },
+  previewBtnText: { fontFamily: F.bodyBold, fontSize: 16, color: C.onAccent },
 });

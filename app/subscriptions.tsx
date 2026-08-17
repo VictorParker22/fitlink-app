@@ -67,7 +67,7 @@ export default function SubscriptionsScreen() {
         {/* ── Header ── */}
         <View style={st.header}>
           <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={17} color={CoachColors.textPrimary} />
+            <Ionicons name="arrow-back" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={st.headerTitle}>Passes</Text>
@@ -79,7 +79,7 @@ export default function SubscriptionsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Create a pass"
           >
-            <Ionicons name="add" size={20} color={CoachColors.onAccent} />
+            <Ionicons name="add" size={22} color={CoachColors.onAccent} />
           </TouchableOpacity>
         </View>
 
@@ -199,13 +199,13 @@ const st = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21.5,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
   },
   headerSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 12,
+    fontSize: 13.5,
     color: CoachColors.textMuted,
     marginTop: 1,
   },
@@ -228,37 +228,37 @@ const st = StyleSheet.create({
   },
   headlineLabel: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: CoachColors.textFaint,
     letterSpacing: 0.6,
   },
   headlineValue: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
+    fontSize: 40.5,
     letterSpacing: -0.5,
     color: CoachColors.accent,
     marginTop: 9,
   },
   headlineDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   sectionTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
     marginTop: 22,
     marginBottom: 4,
   },
   sectionDesc: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 12,
   },
 
@@ -277,23 +277,23 @@ const st = StyleSheet.create({
   },
   passName: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14.5,
+    fontSize: 16,
     color: CoachColors.textPrimary,
   },
   passMeta: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textMuted,
     marginTop: 2,
   },
   passNet: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 16,
+    fontSize: 18,
     color: CoachColors.textPrimary,
   },
   passNetSub: {
     fontFamily: CoachFonts.body,
-    fontSize: 10.5,
+    fontSize: 12,
     color: CoachColors.textFaint,
     marginTop: 1,
   },
@@ -321,20 +321,20 @@ const st = StyleSheet.create({
   footerDivider: { width: 1, height: 14, backgroundColor: CoachColors.borderMuted },
   footerBtnText: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textSecondary,
   },
   footerBtnAccent: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.accent,
   },
 
   footnote: {
     fontFamily: CoachFonts.body,
-    fontSize: 11.5,
+    fontSize: 13,
     color: CoachColors.textFaint,
-    lineHeight: 17,
+    lineHeight: 19,
     marginTop: 8,
   },
 
@@ -345,16 +345,16 @@ const st = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 15,
+    fontSize: 17,
     color: CoachColors.textPrimary,
   },
   emptyText: {
     fontFamily: CoachFonts.body,
-    fontSize: 12.5,
+    fontSize: 14,
     color: CoachColors.textMuted,
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 20,
     maxWidth: 260,
   },
   emptyCta: {
@@ -366,7 +366,7 @@ const st = StyleSheet.create({
   },
   emptyCtaText: {
     fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: CoachColors.onAccent,
   },
 });

@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   card: { alignItems: 'center', width: '100%' },
   eyebrow: {
     fontFamily: F.bodyBold,
-    fontSize: 12,
+    fontSize: 13.5,
     color: C.accent,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -128,17 +128,17 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: F.headingBold,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 29,
+    lineHeight: 36,
     color: C.textPrimary,
     textAlign: 'center',
   },
   sub: {
     fontFamily: F.body,
-    fontSize: 14,
+    fontSize: 15.5,
     color: C.textSecondary,
     textAlign: 'center',
-    lineHeight: 21,
+    lineHeight: 23.5,
     marginTop: 12,
   },
   cta: {
@@ -148,5 +148,5 @@ const s = StyleSheet.create({
     paddingHorizontal: 44,
     marginTop: 28,
   },
-  ctaText: { fontFamily: F.bodyBold, fontSize: 15, color: C.onAccent },
+  ctaText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },
 });
