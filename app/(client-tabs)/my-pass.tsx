@@ -119,6 +119,8 @@ export default function MyPassScreen() {
   const [seatCounts, setSeatCounts] = useState<Record<string, number | null>>({});
   const cohortPlan = isCohort(plan);
   const capacity = cohortPlan ? (plan as any)?.capacity ?? null : null;
+  // The pass's own photo first, the coach's cover second, nothing invented.
+  const heroCover: string | null = (plan as any)?.cover_url || trainer?.cover_url || null;
 
   useEffect(() => {
     const planId = plan?.id;
@@ -374,9 +376,18 @@ export default function MyPassScreen() {
           </ScrollView>
         ) : null}
 
-        {/* Hero — same visual language the coach previewed in create-plan step 5 */}
+        {/* Hero — same visual language the coach previewed in create-plan step 5.
+            When the pass (or failing that, the coach) has a real photo, it IS
+            the hero — the Ladder team-card move: photograph as ground, name
+            over it, scrim for contrast. No photo, and the lime block stays. */}
         <View style={s.heroCard}>
-          <View style={s.hero}>
+          <View style={[s.hero, !!heroCover && s.heroPhoto]}>
+            {heroCover ? (
+              <>
+                <Image source={{ uri: heroCover }} style={s.heroCoverImg} resizeMode="cover" />
+                <View style={s.heroScrim} />
+              </>
+            ) : null}
             <View style={s.heroBadgeRow}>
               <View style={s.heroBadge}>
                 <Text style={s.heroBadgeText}>{seasonWeeks}-week season</Text>
@@ -387,8 +398,12 @@ export default function MyPassScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={s.heroName}>{plan.name}</Text>
-            {plan.description ? <Text style={s.heroPromise}>{plan.description}</Text> : null}
+            <Text style={[s.heroName, !!heroCover && { color: CoachColors.textPrimary }]}>{plan.name}</Text>
+            {plan.description ? (
+              <Text style={[s.heroPromise, !!heroCover && { color: 'rgba(255,255,255,0.82)' }]}>
+                {plan.description}
+              </Text>
+            ) : null}
           </View>
 
           <View style={s.heroBody}>
@@ -552,6 +567,14 @@ const s = StyleSheet.create({
   // Hero (mirrors create-plan step-5 preview card)
   heroCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: CoachColors.borderMuted },
   hero: { backgroundColor: CoachColors.accent, padding: 20 },
+  // Photo variant: taller so the image can breathe, content pushed to the
+  // bottom edge where the scrim is strongest.
+  heroPhoto: { backgroundColor: CoachColors.surface, minHeight: 210, justifyContent: 'flex-end' },
+  heroCoverImg: { ...StyleSheet.absoluteFillObject },
+  heroScrim: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 130,
+    backgroundColor: 'rgba(16,18,16,0.62)',
+  },
   heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   heroBadge: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(16,18,16,0.14)',

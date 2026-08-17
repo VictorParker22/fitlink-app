@@ -108,6 +108,11 @@ function PassCard({
     <View style={passStyles.card}>
       {/* ── Main row ── */}
       <View style={passStyles.cardTop}>
+        {/* The cover the athlete-side cards wear — shown here so the coach
+            knows which passes still present as text. Absent = no thumb. */}
+        {item.cover_url ? (
+          <RNImage source={{ uri: item.cover_url }} style={passStyles.coverThumb} />
+        ) : null}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={passStyles.cardTitleRow}>
             <Text style={passStyles.cardTitle} numberOfLines={1}>{item.name}</Text>
@@ -355,6 +360,7 @@ function PassCard({
 
 const passStyles = StyleSheet.create({
   card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, padding: 16 },
+  coverThumb: { width: 64, height: 40, borderRadius: 8, marginRight: 12, backgroundColor: CoachColors.bg },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, flexShrink: 1 },

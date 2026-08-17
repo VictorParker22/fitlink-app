@@ -165,6 +165,8 @@ interface Plan {
 
 export interface PlanSeasonExtras {
   description?: string;
+  /** Pass card photo (coach-media bucket) — COACH_IDENTITY_PLAN.md Phase 2. */
+  cover_url?: string | null;
   duration_weeks?: number;
   season_settings?: Record<string, any>;
   starts_on?: string | null;
@@ -1625,7 +1627,11 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     if (error && extras && missingColumn(error)) {
       const withoutCohort: Record<string, any> = { ...extras };
+      // cover_url sheds with the cohort keys — it is the newest column
+      // (coach_identity_media.sql), so a DB predating either migration still
+      // keeps the promise line and duration.
       COHORT_EXTRA_KEYS.forEach(k => { delete withoutCohort[k]; });
+      delete withoutCohort.cover_url;
       if (Object.keys(withoutCohort).length > 0) {
         ({ data, error } = await supabase
           .from('plans')

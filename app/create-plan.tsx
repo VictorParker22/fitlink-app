@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -81,6 +82,46 @@ export default function CreatePassScreen() {
 
   // ── Flow state ──
   const [step, setStep] = useState(1);
+  // Pass cover (Phase 2, COACH_IDENTITY_PLAN.md). Uploaded on pick so the
+  // coach sees the real, already-hosted image before publishing — never a
+  // local preview that could silently fail to upload at save time.
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+
+  const pickCover = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      showAlert({ type: 'warning', title: 'Permission needed', message: 'Photo library access is needed to add a cover.' });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [16, 10], quality: 0.75, base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const b64 = asset.base64;
+    if (!b64) return;
+    setCoverUploading(true);
+    const ext = (asset.uri.split('.').pop() || 'jpg').toLowerCase();
+    // coach-media requires the first path segment to be the uploader's uid.
+    // Timestamped name: each pass gets its own object, so re-covering one
+    // pass never rewrites another's image.
+    const fileName = `${user!.id}/pass-${Date.now()}.${ext}`;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error } = await supabase.storage.from('coach-media').upload(fileName, bytes.buffer, {
+      contentType: ext === 'png' ? 'image/png' : 'image/jpeg',
+      upsert: true,
+    });
+    setCoverUploading(false);
+    if (error) {
+      showAlert({ type: 'error', title: 'Upload failed', message: error.message || 'Could not upload the cover.' });
+      return;
+    }
+    const { data } = supabase.storage.from('coach-media').getPublicUrl(fileName);
+    setCoverUrl(data.publicUrl);
+  };
   const [saving, setSaving] = useState(false);
 
   // ── Step 1 — Basics ──
@@ -466,6 +507,7 @@ export default function CreatePassScreen() {
         false,         // legacy popular badge — removed
         {
           description: promise.trim() || undefined,
+          cover_url: coverUrl,
           duration_weeks: weeks,
           season_settings: { start_at_week_one: startWeekOne, progressive_note: progressiveNote },
           // Cohort columns. createPlan sheds these first on a 42703 (the
@@ -616,6 +658,39 @@ export default function CreatePassScreen() {
         multiline
         selectionColor={CoachColors.accent}
       />
+
+      {/* The pass card photo — the Ladder team-card ground. Optional: the
+          athlete-side falls back to the coach's own cover, then to text. */}
+      <Text style={s.eyebrow}>Cover photo · optional</Text>
+      <TouchableOpacity
+        style={s.coverPick}
+        onPress={pickCover}
+        activeOpacity={0.85}
+        disabled={coverUploading}
+        accessibilityRole="button"
+        accessibilityLabel={coverUrl ? 'Change the pass cover photo' : 'Add a pass cover photo'}
+        accessibilityState={{ busy: coverUploading }}
+      >
+        {coverUrl ? (
+          <>
+            <Image source={{ uri: coverUrl }} style={s.coverPickImg} resizeMode="cover" />
+            <View style={s.coverPickBadge}>
+              <Ionicons name="camera" size={14} color={CoachColors.onAccent} />
+            </View>
+          </>
+        ) : (
+          <View style={s.coverPickEmpty}>
+            {coverUploading ? (
+              <ActivityIndicator size="small" color={CoachColors.textMuted} />
+            ) : (
+              <>
+                <Ionicons name="image-outline" size={19} color={CoachColors.textMuted} />
+                <Text style={s.coverPickText}>Add a photo — it becomes the pass card</Text>
+              </>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
 
       <View style={s.card}>
         <Text style={s.eyebrow}>How long is the season</Text>
@@ -1385,6 +1460,17 @@ const s = StyleSheet.create({
   footnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, lineHeight: 19, marginTop: 16, textAlign: 'center' },
 
   // Inputs
+  coverPick: { marginBottom: 18 },
+  coverPickImg: { width: '100%', aspectRatio: 16 / 10, borderRadius: 18, backgroundColor: CoachColors.surface },
+  coverPickBadge: {
+    position: 'absolute', right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15,
+    backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
+  },
+  coverPickEmpty: {
+    minHeight: 72, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', borderColor: CoachColors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16,
+  },
+  coverPickText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, flexShrink: 1 },
   nameInput: {
     fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 17,

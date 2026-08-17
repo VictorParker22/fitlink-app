@@ -516,6 +516,13 @@ export default function FindCoachScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`See ${m.trainer.name}'s profile`}
                 >
+                  {m.trainer.cover_url ? (
+                    <Image
+                      source={{ uri: m.trainer.cover_url }}
+                      style={s.matchCover}
+                      resizeMode="cover"
+                    />
+                  ) : null}
                   <View style={s.matchHead}>
                     {m.trainer.avatar_url ? (
                       <Image source={{ uri: m.trainer.avatar_url }} style={s.matchAvatar} />
@@ -845,6 +852,14 @@ const s = StyleSheet.create({
   matchCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 20, padding: 16,
+    // The cover banner needs to reach the card's rounded edge.
+    overflow: 'hidden',
+  },
+  // The Ladder team-card ground, marketplace edition: the coach's real photo
+  // as a banner. Bleeds to the card edges (negative margins undo the padding).
+  matchCover: {
+    marginTop: -16, marginHorizontal: -16, marginBottom: 12,
+    width: undefined, aspectRatio: 16 / 7, backgroundColor: C.bg,
   },
   matchCardTop: { borderColor: 'rgba(198,242,78,0.22)' },
   matchHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
