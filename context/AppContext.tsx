@@ -4,6 +4,7 @@ import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import { Colors } from '../constants/theme';
 import { isMissingSchemaError } from '../lib/schemaErrors';
+import { buildCompletedWorkoutCounts } from '../lib/workoutCounts';
 
 interface Trainer {
   id: string;
@@ -31,11 +32,21 @@ export interface Client {
   status: 'active' | 'trial' | 'inactive';
   plan_id?: string;
   notes?: string;
+  /**
+   * WRITE-ONLY. There is no `goals` column on public.clients; updateClient
+   * translates this into assessment_data.fitness_goals. Reading it back always
+   * yields undefined — use lib/clientGoals.ts instead.
+   */
   goals?: string;
   avatar_url?: string;
   assessment_data?: any;
   trial_end_date?: string;
-  completed_workouts?: number;
+  /**
+   * `completed_workouts` used to be declared here. It is GONE — public.clients
+   * has no such column, so it only ever arrived as undefined and every screen
+   * that read it showed 0 forever. Use `completedWorkoutCounts` from this
+   * context (lib/workoutCounts.ts) for the real number. Do not re-add it.
+   */
   progress?: { streak: number; workoutsThisMonth: number };
   xp?: number;
   created_at: string;
@@ -353,6 +364,14 @@ interface AppContextType {
   liveClasses: LiveClassItem[];
   clientWorkouts: ClientWorkout[];
   clientDiets: ClientDiet[];
+  /**
+   * clientId → workouts completed, per the single definition in
+   * lib/workoutCounts.ts. Built once from data already in memory, so the roster
+   * can render a real number for every row without a query per row.
+   * `null` until the underlying rows have loaded — surfaces must OMIT the stat
+   * while it is null rather than show a placeholder 0.
+   */
+  completedWorkoutCounts: Record<string, number> | null;
   progressLogs: ProgressLog[];
 
   // Computed
@@ -487,6 +506,13 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [clientWorkoutsList, setClientWorkoutsList] = useState<ClientWorkout[]>([]);
   const [clientDietsList, setClientDietsList] = useState<ClientDiet[]>([]);
+  /**
+   * Only the two columns needed to count sessions — never the exercises JSONB,
+   * which would be megabytes across a whole roster. null = not loaded yet.
+   */
+  const [workoutLogRows, setWorkoutLogRows] = useState<
+    { client_id: string; client_workout_id: string | null }[] | null
+  >(null);
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
   const [clientHealthSnapshots, setClientHealthSnapshots] = useState<any[]>([]);
   const [liveHabitRows, setLiveHabitRows] = useState<Record<string, any>>({});
@@ -504,6 +530,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       setSessions([]);
       setActivities([]);
       setLiveHabitRows({});
+      setWorkoutLogRows(null);
       setLoading(false);
       return;
     }
@@ -541,7 +568,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       // Only gate on the spinner when there is truly nothing to show yet.
       if (!hydrated) setLoading(true);
       try {
-        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes] = await Promise.all([
+        const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes, logsRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
           supabase.from('clients').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
           supabase.from('plans').select('*').eq('trainer_id', user!.id).order('price'),
@@ -559,6 +586,12 @@ export function AppProvider({ children }: PropsWithChildren) {
           supabase.from('client_health_snapshots').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user!.id).order('date', { ascending: false }),
           supabase.from('classes').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
           supabase.from('live_classes').select('*').eq('trainer_id', user!.id).order('scheduled_for', { ascending: true }),
+          // ONE query for the whole roster's session logs — two narrow columns,
+          // never the exercises JSONB. Counting happens in memory afterwards so
+          // no row on the athletes list fires a query of its own.
+          supabase.from('client_workout_logs')
+            .select('client_id, client_workout_id, clients!inner(trainer_id)')
+            .eq('clients.trainer_id', user!.id),
         ]);
 
         if (!mounted) return;
@@ -582,6 +615,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         if (healthSnapshotsRes && healthSnapshotsRes.data) setClientHealthSnapshots(healthSnapshotsRes.data);
         if (classesRes.data) setTrainerClasses(classesRes.data);
         if (liveClassesRes?.data) setLiveClassesList(liveClassesRes.data);
+        // Stays null on failure so the roster omits the stat instead of
+        // claiming everyone has completed zero workouts.
+        if (logsRes?.data) setWorkoutLogRows(logsRes.data as any);
 
         // Re-save the offline snapshot after every successful fetch.
         if (trainerRes.data) saveSnapshot(uid, 'trainer', trainerRes.data);
@@ -608,7 +644,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const refreshData = useCallback(async () => {
     if (!user) return;
-    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes] = await Promise.all([
+    const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, logsRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
       supabase.from('clients').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
       supabase.from('plans').select('*').eq('trainer_id', user.id).order('price'),
@@ -622,6 +658,9 @@ export function AppProvider({ children }: PropsWithChildren) {
       supabase.from('notifications').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
       supabase.from('client_workouts').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user.id).order('assigned_date', { ascending: false }),
       supabase.from('client_diets').select('*, clients!inner(trainer_id)').eq('clients.trainer_id', user.id).order('assigned_date', { ascending: false }),
+      supabase.from('client_workout_logs')
+        .select('client_id, client_workout_id, clients!inner(trainer_id)')
+        .eq('clients.trainer_id', user.id),
     ]);
 
     // Check if health snapshots table exists/returned data
@@ -641,6 +680,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (notifRes.data) setNotifications(notifRes.data);
     if (cwRes.data) setClientWorkoutsList(cwRes.data);
     if (cdRes.data) setClientDietsList(cdRes.data);
+    if (logsRes?.data) setWorkoutLogRows(logsRes.data as any);
 
     // Keep the offline snapshot fresh.
     if (trainerRes.data) saveSnapshot(user.id, 'trainer', trainerRes.data);
@@ -814,8 +854,18 @@ export function AppProvider({ children }: PropsWithChildren) {
    * public.clients has NO `goals` or `completed_workouts` column — writing
    * either fails the whole statement with 42703 and takes every other field
    * down with it (this is why editing a client with goals filled in never
-   * saved). Goals live inside assessment_data.fitness_goals, the same shape
-   * app/add-client.tsx writes; completed_workouts is derived, never stored.
+   * saved).
+   *
+   * `completed_workouts` is now GONE from the Client interface entirely, not
+   * merely stripped here, so it cannot be read or written anywhere. The real
+   * number comes from `completedWorkoutCounts` (lib/workoutCounts.ts). The
+   * destructure below stays purely as a runtime guard against an untyped
+   * caller reintroducing it via `as any`.
+   *
+   * `goals` remains on the interface as a WRITE-ONLY convenience: it is
+   * translated here into assessment_data.fitness_goals, the same shape
+   * app/add-client.tsx writes. Never read `client.goals` back — it is always
+   * undefined; read assessment_data instead (lib/clientGoals.ts).
    */
   const stripPhantomClientColumns = (updates: Partial<Client>, existingAssessment?: any) => {
     const { goals, completed_workouts, ...rest } = updates as any;
@@ -1793,6 +1843,18 @@ export function AppProvider({ children }: PropsWithChildren) {
     return data as Exercise;
   }, [user, exercises]);
 
+  /**
+   * clientId → workouts completed, computed ONCE from rows already in memory
+   * (see lib/workoutCounts.ts for the definition). The roster reads this map by
+   * key, so rendering 200 athletes still costs zero extra round trips.
+   * null while the log rows have not loaded — consumers omit the stat instead
+   * of rendering a fake 0.
+   */
+  const completedWorkoutCounts = useMemo(() => {
+    if (workoutLogRows === null) return null;
+    return buildCompletedWorkoutCounts(clientWorkoutsList, workoutLogRows);
+  }, [clientWorkoutsList, workoutLogRows]);
+
   // --- Client assignment lookups ---
   const getClientWorkouts = useCallback((clientId: string) => {
     return clientWorkoutsList
@@ -2119,6 +2181,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     liveClasses: liveClassesList,
     clientWorkouts: clientWorkoutsList,
     clientDiets: clientDietsList,
+    completedWorkoutCounts,
     activeClients,
     trialClients,
     inactiveClients,
@@ -2185,7 +2248,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   }), [
     loading, trainer, clients, sessions, activities, plans, referrals,
     workouts, exercises, autoAddExerciseId, diets, meals, notifications, liveHabitRows,
-    clientWorkoutsList, clientDietsList, activeClients, trialClients,
+    clientWorkoutsList, clientDietsList, completedWorkoutCounts, activeClients, trialClients,
     inactiveClients, todaySessions, upcomingSessions, totalReferrals,
     totalMonthlyRevenue, addClient, updateClient, upgradeClientToPlan,
     extendClientTrial, updateClientAssessment, getClientById, addSession,

@@ -24,6 +24,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ interface HydrationCellProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HydrationCell({ style }: HydrationCellProps) {
+  const reduced = useReducedMotion();
   const [oz, setOz] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -54,9 +56,10 @@ export default function HydrationCell({ style }: HydrationCellProps) {
 
   // Load today's intake on mount
   useEffect(() => {
-    AsyncStorage.getItem(getTodayKey()).then(val => {
-      if (val) setOz(parseInt(val, 10) || 0);
-    });
+    AsyncStorage.getItem(getTodayKey())
+      .then(val => { if (val) setOz(parseInt(val, 10) || 0); })
+      .catch(() => { /* nothing logged we can trust — stay at 0 */ });
+    return () => clearTimeout(toastTimer.current);
   }, []);
 
   const progress    = Math.min(oz / DAILY_GOAL_OZ, 1);
@@ -78,7 +81,18 @@ export default function HydrationCell({ style }: HydrationCellProps) {
 
     const next = oz + INCREMENT_OZ;
     setOz(next);
-    await AsyncStorage.setItem(getTodayKey(), String(next));
+
+    // The store write can reject. If it does, the number on screen would be a
+    // figure that survives nothing — roll it back and say so.
+    try {
+      await AsyncStorage.setItem(getTodayKey(), String(next));
+    } catch {
+      setOz(oz);
+      clearTimeout(toastTimer.current);
+      setToastMsg("Couldn't save that glass");
+      toastTimer.current = setTimeout(() => setToastMsg(''), 1800);
+      return;
+    }
 
     // Show inline feedback toast
     const remaining = Math.max(DAILY_GOAL_OZ - next, 0);
@@ -90,16 +104,18 @@ export default function HydrationCell({ style }: HydrationCellProps) {
     toastTimer.current = setTimeout(() => setToastMsg(''), 1800);
 
     // Hero number flash — confirms the log registered
-    Animated.sequence([
-      Animated.timing(flashAnim, { toValue: 0.5, duration: 70, useNativeDriver: true }),
-      Animated.timing(flashAnim, { toValue: 1,   duration: 200, useNativeDriver: true }),
-    ]).start();
+    if (!reduced) {
+      Animated.sequence([
+        Animated.timing(flashAnim, { toValue: 0.5, duration: 70, useNativeDriver: true }),
+        Animated.timing(flashAnim, { toValue: 1,   duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
 
     // Success haptic when goal is first reached
     if (!isGoalMet && next >= DAILY_GOAL_OZ) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [oz, flashAnim, isGoalMet]);
+  }, [oz, flashAnim, isGoalMet, reduced]);
 
   return (
     <TouchableOpacity
@@ -131,7 +147,7 @@ export default function HydrationCell({ style }: HydrationCellProps) {
 
       {/* Sub label — 11pt minimum (sole info carrier for remaining amount) */}
       {toastMsg ? (
-        <Text style={st.toast}>{toastMsg}</Text>
+        <Text style={st.toast} accessibilityLiveRegion="polite">{toastMsg}</Text>
       ) : (
         <Text style={st.sub}>
           {isGoalMet
@@ -149,14 +165,16 @@ export default function HydrationCell({ style }: HydrationCellProps) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const st = StyleSheet.create({
-  // Matches the other stat cells exactly — fits the 2×2 grid seamlessly
+  // Today card system: surface / borderMuted / radius 18 / marginTop 14.
+  // No flex — this is a full-width card in a column, not a grid cell. Pass a
+  // `style` override (flex: 1) if it is ever dropped back into a 2×2 grid.
   cell: {
-    flex: 1,
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 18,
+    marginTop: 14,
+    padding: 15,
     paddingBottom: 14,
     minHeight: 130,
     justifyContent: 'flex-end',

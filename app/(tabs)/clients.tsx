@@ -89,12 +89,18 @@ function getDaysLeft(iso: string): number {
   return Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
-// Engagement: based on completed_workouts instead of subscription status.
+// Engagement: based on workouts actually completed, not subscription status.
 // A coach needs to know who is actually showing up, not just who is paying.
 // Thresholds: ≥10 sessions = on track, ≥4 = check-in-soon, <4 = at risk (quiet).
-function getEngagementColor(client: Client): string {
+//
+// `count` is the real number from AppContext.completedWorkoutCounts (see
+// lib/workoutCounts.ts). It is null until those rows load — this used to read
+// the phantom `client.completed_workouts`, which was always undefined, so every
+// active athlete was permanently flagged "at risk". A null count now yields no
+// engagement judgement at all rather than a false one.
+function getEngagementColor(client: Client, count: number | null): string {
   if (client.status === 'inactive') return CoachColors.textFaint;
-  const count = client.completed_workouts ?? 0;
+  if (count === null) return CoachColors.textMuted;
   if (count >= 10) return CoachColors.accent;
   if (count >= 4)  return CoachColors.warning;
   return CoachColors.danger;
@@ -362,7 +368,7 @@ export default function ClientsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
-  const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows } = useApp();
+  const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows, completedWorkoutCounts } = useApp();
 
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -442,18 +448,25 @@ export default function ClientsScreen() {
           return;
         }
       }
-      if (client.status === 'active' && getEngagementColor(client) === CoachColors.danger) {
-        items.push({
-          client, kind: 'quiet', tag: 'Quiet',
-          meta: "Hasn't logged a session in a while",
-          cta: 'Nudge', color: CoachColors.danger,
-        });
+      // Only claim someone is quiet once the real counts are in — never on the
+      // strength of a not-yet-loaded map.
+      if (client.status === 'active' && completedWorkoutCounts !== null) {
+        const count = completedWorkoutCounts[client.id] ?? 0;
+        if (getEngagementColor(client, count) === CoachColors.danger) {
+          items.push({
+            client, kind: 'quiet', tag: 'Quiet',
+            meta: count === 0
+              ? "Hasn't completed a workout yet"
+              : `Only ${count} workout${count === 1 ? '' : 's'} completed`,
+            cta: 'Nudge', color: CoachColors.danger,
+          });
+        }
       }
     });
 
     const priority: Record<AttentionKind, number> = { quiet: 0, setup: 1, trial: 2 };
     return items.sort((a, b) => priority[a.kind] - priority[b.kind]).slice(0, 3);
-  }, [clients]);
+  }, [clients, completedWorkoutCounts]);
 
   // ── Swipe affordance bounce ──────────────────────────────────────────────────
   useEffect(() => {
@@ -697,6 +710,10 @@ export default function ClientsScreen() {
     // Real "active today" signal: a habit row for today arrived over realtime.
     const todayKey      = new Date().toISOString().split('T')[0];
     const activeToday   = !!liveHabitRows[`${item.id}:${todayKey}`];
+    // Real completed-workout count, read by key out of the map AppContext built
+    // once. No query fires per row. null (rows not loaded / fetch failed) means
+    // the stat is omitted entirely rather than rendered as a fake 0.
+    const doneCount     = completedWorkoutCounts ? (completedWorkoutCounts[item.id] ?? 0) : null;
 
     return (
       <ReanimatedSwipeable
@@ -727,7 +744,7 @@ export default function ClientsScreen() {
             STATUS_LABEL[item.status],
             activeToday ? 'active today' : null,
             meta.text,
-            (item.completed_workouts ?? 0) > 0 ? `${item.completed_workouts} workouts total` : null,
+            doneCount !== null && doneCount > 0 ? `${doneCount} workouts completed` : null,
             unread > 0 ? `${unread} unread message${unread === 1 ? '' : 's'}` : null,
           ].filter(Boolean).join(', ')}
           accessibilityHint="Double tap to open profile. Swipe left for quick actions. Long press to manage today's habits."
@@ -771,7 +788,7 @@ export default function ClientsScreen() {
           </View>
 
           <Text style={styles.freqText}>
-            {(item.completed_workouts ?? 0) > 0 ? `${item.completed_workouts}× total` : ''}
+            {doneCount !== null && doneCount > 0 ? `${doneCount}× done` : ''}
           </Text>
 
           <Ionicons

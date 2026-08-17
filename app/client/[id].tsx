@@ -158,6 +158,23 @@ export default function ClientDetailScreen() {
   const progressLogs    = getClientProgress(id || '');
   const healthSnapshot  = getClientHealthSnapshot(id || '');
 
+  /**
+   * The athlete's own onboarding goal (assessment_data.intake.goal). The block
+   * below used to read `client.goals`, which has no column and so was always
+   * undefined — it never rendered once. Omitted when the same text already
+   * appears in the assessment's fitness-goal chips, so nothing is shown twice.
+   */
+  const clientGoalsText = useMemo(() => {
+    const d: any = client?.assessment_data;
+    const intakeGoal = String(d?.intake?.goal ?? '').trim();
+    if (!intakeGoal) return null;
+    const alreadyShown: string[] = Array.isArray(d?.fitness_goals)
+      ? d.fitness_goals
+      : (d?.fitness_goal ? [d.fitness_goal] : []);
+    const dupe = alreadyShown.some(g => String(g ?? '').trim().toLowerCase() === intakeGoal.toLowerCase());
+    return dupe ? null : intakeGoal;
+  }, [client?.assessment_data]);
+
   const upcomingSessions  = sessions.filter(s => s.status === 'upcoming' && new Date(s.date) > new Date());
   const completedSessions = sessions.filter(s => s.status === 'completed');
   const planName          = plans.find(p => p.id === client?.plan_id)?.name;
@@ -986,10 +1003,12 @@ export default function ClientDetailScreen() {
               </View>
             )}
 
-            {client.goals && (
+            {/* `client.goals` is not a column — it was always undefined, so this
+                block never rendered. Goals live in assessment_data. */}
+            {clientGoalsText && (
               <>
-                <Text style={s.sectionLabel}>Client Goals</Text>
-                <View style={s.notesWrap}><Text style={s.notesText}>{client.goals}</Text></View>
+                <Text style={s.sectionLabel}>Goal From Onboarding</Text>
+                <View style={s.notesWrap}><Text style={s.notesText}>{clientGoalsText}</Text></View>
               </>
             )}
           </Animated.View>

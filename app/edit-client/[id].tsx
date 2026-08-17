@@ -9,6 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { readClientGoalsText } from '../../lib/clientGoals';
 
 export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +23,10 @@ export default function EditClientScreen() {
   const [name, setName] = useState(client?.name || '');
   const [email, setEmail] = useState(client?.email || '');
   const [phone, setPhone] = useState(client?.phone || '');
-  const [goals, setGoals] = useState(client?.goals || '');
+  // `client.goals` is not a column — it always read back empty, so the coach
+  // saw a blank field every time they reopened this screen and re-saving wiped
+  // what was there. Prefill from where the goals actually live.
+  const [goals, setGoals] = useState(readClientGoalsText(client) || '');
   const [notes, setNotes] = useState(client?.notes || '');
   const [status, setStatus] = useState(client?.status || 'active');
   const [selectedPlan, setSelectedPlan] = useState(client?.plan_id || null);

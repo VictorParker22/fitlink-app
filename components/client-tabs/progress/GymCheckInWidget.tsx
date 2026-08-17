@@ -1,24 +1,49 @@
-import React, { useEffect, useState } from 'react';
+/**
+ * GymCheckInWidget — the athlete's gym session timer on Today.
+ *
+ * Writes real rows to public.gym_visits through ClientContext
+ * (checkInGym / checkOutGym). Both of those throw on a Supabase error, so
+ * every call here is wrapped and the failure is stated on screen — a timer
+ * that starts against a row that was never inserted would be a lie.
+ *
+ * Calories come from HealthContext (active energy today) and are shown only
+ * when Health actually reported a number. No XP is displayed: the +50 XP
+ * checkOutGym writes to clients.xp has no surface anywhere in the app, so
+ * claiming it here would promise a number the athlete can never see.
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated as RNAnimated, Easing, Image, Modal, Linking, Alert
+  Animated as RNAnimated, Easing, Modal, Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
-import { Spacing } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
-export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activeCalories }: any) {
+interface GymCheckInWidgetProps {
+  activeVisit: { id: string; check_in_time: string } | null;
+  checkIn: () => Promise<void>;
+  checkOut: () => Promise<void>;
+  /** Active energy burned today, from HealthContext. 0 when unavailable. */
+  activeCalories?: number;
+}
+
+export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activeCalories }: GymCheckInWidgetProps) {
   const reduced = useReducedMotion();
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pulseAnim] = useState(new RNAnimated.Value(1));
   const [glowAnim] = useState(new RNAnimated.Value(0));
   const [showSummary, setShowSummary] = useState(false);
-  const [summaryData, setSummaryData] = useState<{ duration: string; mins: number; cals: number } | null>(null);
+  const [summaryData, setSummaryData] = useState<{ duration: string; mins: number; cals: number | null } | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const entering = reduced ? undefined : FadeInDown.delay(200).duration(320);
 
   const formatElapsed = (totalSecs: number) => {
     const hrs = Math.floor(totalSecs / 3600);
@@ -74,26 +99,54 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
     return () => clearInterval(id);
   }, [activeVisit]);
 
+  // checkIn / checkOut throw when the Supabase write errors. Nothing here may
+  // assume they succeeded.
+  const runCheckOut = useCallback(async (): Promise<boolean> => {
+    setBusy(true);
+    try {
+      await checkOut();
+      setFailure(null);
+      return true;
+    } catch {
+      setFailure("Couldn't end that session — it's still running. Try again.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [checkOut]);
+
   useEffect(() => {
     if (isStale && activeVisit) {
-      checkOut();
+      runCheckOut();
     }
-  }, [isStale, activeVisit, checkOut]);
+  }, [isStale, activeVisit, runCheckOut]);
 
-  const openMusic = (platform: 'spotify' | 'apple') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const url = platform === 'spotify'
-      ? 'spotify:playlist:37i9dQZF1DX76Wlfdnj7AP'
-      : 'music://';
-    Linking.openURL(url).catch(() => {
-      const webUrl = platform === 'spotify'
-        ? 'https://open.spotify.com/playlist/37i9dQZF1DX76Wlfdnj7AP'
-        : 'https://music.apple.com';
-      Linking.openURL(webUrl);
-    });
-  };
+  // Real number or omitted — Health reports 0 when it has nothing to report.
+  const displayCals = activeCalories && activeCalories > 0 ? activeCalories : null;
 
-  const displayCals = activeCalories;
+  const handleCheckIn = useCallback(() => {
+    Haptics.selectionAsync();
+    // Review before commit — checking in starts a running timer, so a bare tap
+    // only asks; the session starts on the explicit confirm.
+    Alert.alert('Start a gym session?', 'Checking in starts the session timer.', [
+      { text: 'Not now', style: 'cancel' },
+      {
+        text: 'Check in',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await checkIn();
+            setFailure(null);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {
+            setFailure("Couldn't start that session — nothing was saved. Try again.");
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }, [checkIn]);
 
   const handleEndSession = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -107,40 +160,29 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
 
   if (!activeVisit && !showSummary) {
     return (
-      <Animated.View entering={FadeInUp.delay(100)}>
+      <Animated.View entering={entering}>
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={() => {
-            Haptics.selectionAsync();
-            // Review before commit — checking in starts a running timer, so a
-            // bare tap only asks; the session starts on the explicit confirm.
-            Alert.alert('Start a gym session?', 'Checking in starts the session timer.', [
-              { text: 'Not now', style: 'cancel' },
-              {
-                text: 'Check in',
-                onPress: () => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  checkIn();
-                },
-              },
-            ]);
-          }}
+          disabled={busy}
+          onPress={handleCheckIn}
           style={st.gymCheckInBtn}
           accessibilityRole="button"
-          accessibilityLabel="Check in to gym"
-          accessibilityHint="Asks to confirm before the session timer starts"
+          accessibilityLabel="Start gym session"
+          accessibilityState={{ disabled: busy }}
+          accessibilityHint="Asks you to confirm before the session timer starts"
         >
           <View style={st.gymCheckInIcon}>
             <Ionicons name="flash" size={25} color={CoachColors.onAccent} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={st.gymCheckInTitle}>Start gym session</Text>
-            <Text style={st.gymCheckInSub}>Check in · earn 50 XP · track your time</Text>
+            <Text style={st.gymCheckInSub}>Check in and we'll time it for you</Text>
           </View>
           <View style={st.gymArrowCircle}>
             <Ionicons name="chevron-forward" size={18} color={CoachColors.textMuted} />
           </View>
         </TouchableOpacity>
+        {!!failure && <Text style={st.gymFailure} accessibilityLiveRegion="polite">{failure}</Text>}
       </Animated.View>
     );
   }
@@ -152,68 +194,57 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
 
   return (
     <>
-    <Animated.View entering={FadeInUp.delay(100)}>
-      <RNAnimated.View style={[st.gymActiveContainer, { borderColor: isStale ? CoachColors.danger : glowBorderColor }]}>
+    <Animated.View entering={entering}>
+      <RNAnimated.View
+        style={[st.gymActiveContainer, { borderColor: isStale ? CoachColors.danger : glowBorderColor }]}
+        accessible={true}
+        accessibilityLabel={
+          `Live gym session, ${elapsedMinutes} minute${elapsedMinutes === 1 ? '' : 's'} elapsed` +
+          (displayCals ? `, ${displayCals} active calories today` : '')
+        }
+      >
         <View style={st.gymActiveHeader}>
           <View style={st.gymLiveBadge}>
             <View style={st.gymLiveDot} />
             <Text style={st.gymLiveText}>Live session</Text>
           </View>
-          <RNAnimated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <RNAnimated.View style={reduced ? undefined : { transform: [{ scale: pulseAnim }] }}>
             <Text style={st.gymTimerBig}>{elapsed}</Text>
           </RNAnimated.View>
         </View>
 
         <View style={st.gymStatsRow}>
           <View style={st.gymStatBox}>
-            <Ionicons name="flame-outline" size={16} color={CoachColors.accent} />
-            <Text style={st.gymStatValue}>{displayCals}</Text>
-            <Text style={st.gymStatLabel}>Cal</Text>
-          </View>
-          <View style={st.gymStatDivider} />
-          <View style={st.gymStatBox}>
-            <Ionicons name="trophy-outline" size={16} color={CoachColors.accent} />
-            <Text style={st.gymStatValue}>+50</Text>
-            <Text style={st.gymStatLabel}>XP</Text>
-          </View>
-          <View style={st.gymStatDivider} />
-          <View style={st.gymStatBox}>
             <Ionicons name="time-outline" size={16} color={CoachColors.accent} />
             <Text style={st.gymStatValue}>{elapsedMinutes}</Text>
             <Text style={st.gymStatLabel}>Min</Text>
           </View>
+          {displayCals !== null && (
+            <>
+              <View style={st.gymStatDivider} />
+              <View style={st.gymStatBox}>
+                <Ionicons name="flame-outline" size={16} color={CoachColors.accent} />
+                <Text style={st.gymStatValue}>{displayCals}</Text>
+                <Text style={st.gymStatLabel}>Cal today</Text>
+              </View>
+            </>
+          )}
         </View>
-
-          <View style={st.gymMusicRow}>
-            <Text style={st.gymMusicLabel}>Connect music</Text>
-            <View style={st.gymMusicBtns}>
-              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
-                style={st.gymMusicBtn}
-                onPress={() => openMusic('spotify')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="play-circle" size={18} color={CoachColors.textSecondary} />
-                <Text style={st.gymMusicBtnText}>Connect Spotify</Text>
-              </TouchableOpacity>
-              <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
-                style={st.gymMusicBtn}
-                onPress={() => openMusic('apple')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="musical-notes" size={18} color={CoachColors.textSecondary} />
-                <Text style={st.gymMusicBtnText}>Apple Music</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
         <TouchableOpacity
           onPress={handleEndSession}
+          disabled={busy}
           style={st.gymCheckOutBtn}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="End gym session"
+          accessibilityState={{ disabled: busy }}
         >
           <Ionicons name="stop-circle" size={20} color={CoachColors.accent} />
           <Text style={st.gymCheckOutText}>End session</Text>
         </TouchableOpacity>
+
+        {!!failure && <Text style={st.gymFailure} accessibilityLiveRegion="polite">{failure}</Text>}
       </RNAnimated.View>
     </Animated.View>
 
@@ -224,40 +255,44 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
       onRequestClose={() => setShowSummary(false)}
     >
       <View style={st.summaryOverlay}>
-        <Animated.View entering={FadeInUp.duration(400)} style={st.summaryCard}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(300)} style={st.summaryCard}>
           <View style={st.summaryIconCircle}>
             <Ionicons name="checkmark-circle" size={54} color={CoachColors.accent} />
           </View>
-          <Text style={st.summaryTitle}>Session complete</Text>
-          <Text style={st.summarySubtitle}>Great work! Here's your recap.</Text>
+          <Text style={st.summaryTitle} accessibilityRole="header">Session complete</Text>
+          <Text style={st.summarySubtitle}>Here's what you logged.</Text>
 
           <View style={st.summaryStatsRow}>
             <View style={st.summaryStatItem}>
               <Text style={st.summaryStatValue}>{summaryData?.duration || '00:00'}</Text>
               <Text style={st.summaryStatLabel}>Duration</Text>
             </View>
-            <View style={st.summaryStatDivider} />
-            <View style={st.summaryStatItem}>
-              <Text style={st.summaryStatValue}>{summaryData?.cals || 0}</Text>
-              <Text style={st.summaryStatLabel}>Calories</Text>
-            </View>
-            <View style={st.summaryStatDivider} />
-            <View style={st.summaryStatItem}>
-              <Text style={[st.summaryStatValue, { color: CoachColors.accent }]}>+50</Text>
-              <Text style={st.summaryStatLabel}>XP earned</Text>
-            </View>
+            {summaryData?.cals != null && (
+              <>
+                <View style={st.summaryStatDivider} />
+                <View style={st.summaryStatItem}>
+                  <Text style={st.summaryStatValue}>{summaryData.cals}</Text>
+                  <Text style={st.summaryStatLabel}>Cal today</Text>
+                </View>
+              </>
+            )}
           </View>
 
           <TouchableOpacity
             style={st.summaryDoneBtn}
-            onPress={() => {
-              setShowSummary(false);
-              checkOut();
+            disabled={busy}
+            onPress={async () => {
+              const ok = await runCheckOut();
+              if (ok) setShowSummary(false);
             }}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Done"
+            accessibilityState={{ disabled: busy }}
           >
             <Text style={st.summaryDoneBtnText}>Done</Text>
           </TouchableOpacity>
+          {!!failure && <Text style={st.gymFailure} accessibilityLiveRegion="polite">{failure}</Text>}
         </Animated.View>
       </View>
     </Modal>
@@ -266,17 +301,24 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
 }
 
 const st = StyleSheet.create({
+  // Matches the Today card system: surface / borderMuted / radius 18 /
+  // padding 15 / marginTop 14. The screen owns the horizontal inset.
   gymCheckInBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CoachColors.surface,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.md,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: 14,
+    padding: 15,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: CoachColors.border,
+    borderColor: CoachColors.borderMuted,
+  },
+  gymFailure: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 12.5,
+    color: CoachColors.danger,
+    marginTop: 9,
+    lineHeight: 17,
   },
   gymCheckInIcon: {
     width: 44,
@@ -308,11 +350,9 @@ const st = StyleSheet.create({
     justifyContent: 'center',
   },
   gymActiveContainer: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.md,
-    padding: 20,
-    borderRadius: 20,
+    marginTop: 14,
+    padding: 18,
+    borderRadius: 18,
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
   },
@@ -379,87 +419,6 @@ const st = StyleSheet.create({
     fontSize: 11,
     color: CoachColors.textFaint,
     letterSpacing: 0.5,
-  },
-  gymMusicRow: {
-    marginBottom: 24,
-  },
-  gymMusicLabel: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 11,
-    color: CoachColors.textFaint,
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  gymMusicBtns: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  gymMusicBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 8,
-    backgroundColor: CoachColors.bg,
-    borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
-  },
-  gymMusicBtnText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 13.5,
-    color: CoachColors.textSecondary,
-  },
-  nowPlayingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CoachColors.bg,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 24,
-    gap: 12,
-  },
-  nowPlayingArt: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  nowPlayingPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
-  },
-  nowPlayingInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  nowPlayingTrack: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 15.5,
-    color: CoachColors.textPrimary,
-    marginBottom: 2,
-  },
-  nowPlayingArtist: {
-    fontFamily: CoachFonts.bodyMedium,
-    fontSize: 13.5,
-    color: CoachColors.textMuted,
-  },
-  nowPlayingControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingRight: 4,
-  },
-  playPauseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: CoachColors.borderMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   gymCheckOutBtn: {
     flexDirection: 'row',

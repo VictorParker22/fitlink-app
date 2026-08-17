@@ -52,6 +52,7 @@ import { isCohort } from '../../lib/cohort';
 import { isPreStart, hasCohortStarted } from '../../lib/cohortPreStart';
 import { isOverdue, parseLocalDay } from '../../lib/streak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { readClientGoals } from '../../lib/clientGoals';
 import type { TrackNode } from '../../context/AppContext';
 
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
@@ -650,14 +651,12 @@ export default function ClientWorkoutsScreen() {
 
     if (preStart) {
       // ── The waiting room — a bought cohort that has not begun ────────────
-      // Real intake check: the athlete answered the goal question in
-      // onboarding (clients.goals / assessment_data.intake.goal) or they
-      // genuinely did not. Nothing is nudged on a guess.
-      const intake = (clientData as any)?.assessment_data?.intake || null;
-      const goalMissing =
-        !!trainer &&
-        !String((clientData as any)?.goals || '').trim() &&
-        !String(intake?.goal || '').trim();
+      // Real intake check: the athlete answered the goal question in onboarding
+      // or they genuinely did not. Nothing is nudged on a guess. This used to
+      // also test `clientData.goals`, which has no column and was always
+      // undefined — dead weight in the condition, now read from the only place
+      // goals really live (assessment_data).
+      const goalMissing = !!trainer && readClientGoals(clientData).length === 0;
 
       body = (
         <>

@@ -4,8 +4,9 @@
  * Fixed dark/lime via CoachColors (no useTheme — rebuilt athlete screens do not
  * participate in the light/dark toggle, so the old theme picker is gone).
  *
- * Real numbers only: sessions from clients.completed_workouts, PRs from the
- * exercisePrs map, weeks from created_at. The "what your coach can see" block
+ * Real numbers only: workouts completed from ClientContext.completedWorkoutCount
+ * (lib/workoutCounts.ts — client_workouts marked completed plus standalone
+ * session logs), PRs from the exercisePrs map, weeks from created_at. The "what your coach can see" block
  * states truthfully what coach-side screens surface; the only live switch is
  * Apple Health sharing (clients.health_sharing_enabled), which really gates it.
  *
@@ -37,7 +38,7 @@ export default function ClientProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const {
-    clientData, trainer, exercisePrs, progressLogs,
+    clientData, trainer, exercisePrs, progressLogs, completedWorkoutCount,
     updateClientAvatar, healthSharingEnabled, toggleHealthSharing,
   } = useClient();
 
@@ -65,7 +66,11 @@ export default function ClientProfileScreen() {
     return Math.max(1, Math.floor((Date.now() - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
   }, [clientData?.created_at]);
 
-  const sessionsDone = clientData?.completed_workouts || 0;
+  // Real count from ClientContext (lib/workoutCounts.ts) — the same definition
+  // the coach's roster shows. This used to read clients.completed_workouts,
+  // which is not a column, so it displayed 0 no matter how much work was done.
+  // null means the log rows haven't landed: show an em-dash, never a fake 0.
+  const sessionsDone = completedWorkoutCount;
   const prCount = Object.keys(exercisePrs || {}).length;
 
   const latestWeight = useMemo(() => {
@@ -223,9 +228,17 @@ export default function ClientProfileScreen() {
 
         {/* What you've done — real totals */}
         <View style={s.statRow}>
-          <View style={s.statCard} accessible accessibilityLabel={`${sessionsDone} sessions`}>
-            <Text style={s.statNum}>{sessionsDone}</Text>
-            <Text style={s.statLabel}>sessions</Text>
+          <View
+            style={s.statCard}
+            accessible
+            accessibilityLabel={
+              sessionsDone === null
+                ? 'Workouts completed, not known yet'
+                : `${sessionsDone} workout${sessionsDone === 1 ? '' : 's'} completed`
+            }
+          >
+            <Text style={s.statNum}>{sessionsDone ?? '—'}</Text>
+            <Text style={s.statLabel}>{sessionsDone === 1 ? 'workout' : 'workouts'}</Text>
           </View>
           <View style={s.statCard} accessible accessibilityLabel={`${prCount} personal records`}>
             <Text style={s.statNum}>{prCount}</Text>

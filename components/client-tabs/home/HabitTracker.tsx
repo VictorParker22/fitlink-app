@@ -28,6 +28,7 @@ import { supabase } from '../../../lib/supabase';
 import { playPop } from '../../../lib/sounds';
 import { useHealth } from '../../../context/HealthContext';
 import { useClient } from '../../../context/ClientContext';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ function HabitItem({
   streak,
   isAuto,
   autoDesc,
+  reduced,
   onToggle,
 }: {
   habit: HabitConfig;
@@ -169,6 +171,7 @@ function HabitItem({
   streak: number;
   isAuto: boolean;
   autoDesc: string;
+  reduced: boolean;
   onToggle: () => void;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -180,22 +183,28 @@ function HabitItem({
   const uncheckedBorder = isMissed ? CoachColors.danger : CoachColors.border;
 
   useEffect(() => {
+    if (reduced) {
+      checkAnim.setValue(checked ? 1 : 0);
+      return;
+    }
     Animated.spring(checkAnim, {
       toValue: checked ? 1 : 0,
       friction: 6,
       tension: 100,
       useNativeDriver: true,
     }).start();
-  }, [checked]);
+  }, [checked, reduced]);
 
   const handlePress = () => {
     Haptics.impactAsync(
       checked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
     );
-    Animated.sequence([
-      Animated.spring(scaleAnim, { toValue: 0.95, friction: 8, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
-    ]).start();
+    if (!reduced) {
+      Animated.sequence([
+        Animated.spring(scaleAnim, { toValue: 0.95, friction: 8, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
+      ]).start();
+    }
     onToggle();
   };
 
@@ -257,8 +266,11 @@ function HabitItem({
               </View>
             )}
           </View>
+          {/* The auto sub-line only replaces the default when it carries a
+              real number. An empty auto string falls back — never a blank
+              line, and never a fabricated one. */}
           <Text style={s.habitDesc}>
-            {isAuto && checked ? autoDesc : habit.defaultDesc}
+            {isAuto && checked && autoDesc ? autoDesc : habit.defaultDesc}
           </Text>
         </View>
 
@@ -291,8 +303,12 @@ function HabitItem({
 export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerProps) {
   const { healthData, isConnected } = useHealth();
   const { diets, mealLogs } = useClient();
+  const reduced = useReducedMotion();
 
   const [habits, setHabits] = useState<DailyHabits>(DEFAULT_HABITS);
+  // The real oz read out of the hydration log, or null when nothing is logged.
+  // Only a real number is ever allowed into the water sub-line.
+  const [hydrationOz, setHydrationOz] = useState<number | null>(null);
   const [autoFlags, setAutoFlags] = useState<Record<HabitKey, boolean>>({
     water: false, steps: false, sleep: false, protein: false, mindfulness: false,
   });
@@ -300,6 +316,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
     water: 0, steps: 0, sleep: 0, protein: 0, mindfulness: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rowId, setRowId] = useState<string | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
   // Prevent auto-upsert from running more than once per mount
@@ -380,14 +397,20 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
     return { steps: stepsAutoCheck, protein: proteinAutoCheck };
   }, [healthData, diets, mealLogs]);
 
-  // Auto-description strings
-  const autoDescriptions: Record<HabitKey, string> = {
-    water: `${Math.round(0)}oz tracked · goal met`,
-    steps: `${(healthData?.stepsToday ?? 0).toLocaleString()} steps · Apple Health`,
+  // Auto-description strings. Every one of these is only ever shown next to an
+  // [AUTO] pill, so each must state a number the app actually holds — an empty
+  // string falls back to the habit's default line rather than inventing one.
+  const autoDescriptions: Record<HabitKey, string> = useMemo(() => ({
+    // Was hardcoded `${Math.round(0)}oz` — it always rendered "0oz tracked"
+    // under a ticked goal. Now the real logged amount, or nothing at all.
+    water: hydrationOz != null && hydrationOz > 0 ? `${hydrationOz}oz logged today` : '',
+    steps: (healthData?.stepsToday ?? 0) > 0
+      ? `${(healthData?.stepsToday ?? 0).toLocaleString()} steps tracked`
+      : '',
     sleep: '',
     protein: 'Protein goal met · from meal log',
     mindfulness: '',
-  };
+  }), [hydrationOz, healthData?.stepsToday]);
 
   // ── Fetch today's DB row + streak history ──
   const fetchHabits = useCallback(async () => {
@@ -397,12 +420,21 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('client_habits')
         .select('*')
         .eq('client_id', clientId)
         .gte('date', fromDate)
         .order('date', { ascending: false });
+
+      // Reads resolve with an error rather than throwing — an unread error
+      // here would silently present an empty checklist as "nothing done yet".
+      if (error) {
+        if (__DEV__) console.warn('[HabitTracker] fetch failed:', error.message);
+        setLoadFailed(true);
+        return;
+      }
+      setLoadFailed(false);
 
       if (data) {
         const todayRow = data.find((r) => r.date === TODAY);
@@ -423,6 +455,7 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
         setStreaks(newStreaks);
       }
     } catch (err) {
+      setLoadFailed(true);
       if (__DEV__) console.log('[HabitTracker] fetch error:', err);
     } finally {
       setLoading(false);
@@ -439,12 +472,14 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
     (async () => {
       // Read hydration from AsyncStorage
       let hydrationAutoCheck = false;
-      let hydrationOz = 0;
+      let loggedOz = 0;
       try {
         const val = await AsyncStorage.getItem(HYDRATION_KEY);
-        hydrationOz = parseInt(val || '0', 10);
-        hydrationAutoCheck = hydrationOz >= HYDRATION_GOAL_OZ;
+        loggedOz = parseInt(val || '0', 10);
+        if (Number.isNaN(loggedOz)) loggedOz = 0;
+        hydrationAutoCheck = loggedOz >= HYDRATION_GOAL_OZ;
       } catch {}
+      setHydrationOz(loggedOz);
 
       // Determine which habits should be auto-set
       const newAutoFlags: Record<HabitKey, boolean> = {
@@ -454,9 +489,6 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
         protein: autoValues.protein,
         mindfulness: false,
       };
-
-      // Update auto descriptions with real values
-      autoDescriptions.water = `${hydrationOz}oz tracked · goal met`;
 
       // Only auto-set habits that aren't already manually toggled in DB
       // (if a DB row exists, respect the user's choices)
@@ -512,13 +544,18 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
 
   // Animate progress bar
   useEffect(() => {
+    const target = completedCount / totalCount;
+    if (reduced) {
+      progressAnim.setValue(target);
+      return;
+    }
     Animated.spring(progressAnim, {
-      toValue: completedCount / totalCount,
+      toValue: target,
       friction: 8,
       tension: 60,
       useNativeDriver: false,
     }).start();
-  }, [completedCount]);
+  }, [completedCount, reduced]);
 
   // ── Manual toggle ──
   const handleToggle = useCallback(
@@ -562,16 +599,36 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
     [clientId, habits, rowId, autoFlags]
   );
 
+  // No athlete row means nothing can be persisted — a checklist that silently
+  // forgets every tap is worse than no checklist.
+  if (!clientId) return null;
+
+  // The read failed: say so rather than presenting an empty day as a real one.
+  if (loadFailed && !loading) {
+    return (
+      <View style={[s.container, s.messagePad]}>
+        <Text style={s.messageText}>
+          Couldn't load today's habits. Pull down to refresh.
+        </Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={[s.container, { alignItems: 'center', justifyContent: 'center', minHeight: 80 }]}>
-        <ActivityIndicator size="small" color={CoachColors.textMuted} />
+        <ActivityIndicator size="small" color={CoachColors.textMuted} accessibilityLabel="Loading today's habits" />
       </View>
     );
   }
 
   const allDone = completedCount === totalCount;
   const autoCount = Object.values(autoFlags).filter(Boolean).length;
+  const autoSources = [
+    autoFlags.steps ? 'your step count' : null,
+    autoFlags.water ? 'your hydration log' : null,
+    autoFlags.protein ? 'your meal log' : null,
+  ].filter(Boolean) as string[];
 
   return (
     <View style={s.container}>
@@ -579,10 +636,14 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
       <View style={s.header}>
         <View>
           <Text style={s.tagHeader}>Habits // today</Text>
-          <Text style={s.title}>Daily checklist</Text>
+          <Text style={s.title} accessibilityRole="header">Daily checklist</Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <View style={[s.countBadge, allDone && s.countBadgeDone]}>
+          <View
+            style={[s.countBadge, allDone && s.countBadgeDone]}
+            accessible={true}
+            accessibilityLabel={`${completedCount} of ${totalCount} habits done today`}
+          >
             <Text style={[s.countText, allDone && s.countTextDone]}>
               {completedCount}/{totalCount}
             </Text>
@@ -625,18 +686,17 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
             streak={streaks[habit.key]}
             isAuto={autoFlags[habit.key]}
             autoDesc={autoDescriptions[habit.key]}
+            reduced={reduced}
             onToggle={() => handleToggle(habit.key)}
           />
         ))}
       </View>
 
-      {/* ── Data source footnote ── */}
-      {autoCount > 0 && (
-        <View style={s.footer}>
+      {/* ── Data source footnote — names only the sources that actually fired ── */}
+      {autoSources.length > 0 && (
+        <View style={s.footer} accessible={true} accessibilityLabel={`Synced from ${autoSources.join(', ')}`}>
           <Ionicons name="sync-outline" size={11} color={CoachColors.textFaint} />
-          <Text style={s.footerText}>
-            Synced from Apple Health · Hydration log · Meal tracker
-          </Text>
+          <Text style={s.footerText}>Synced from {autoSources.join(' · ')}</Text>
         </View>
       )}
     </View>
@@ -646,15 +706,23 @@ export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerP
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  // Today card system: surface / borderMuted / radius 18 / marginTop 14.
+  // The screen owns the horizontal inset.
   container: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 10,
+    borderRadius: 18,
+    marginTop: 14,
     overflow: 'hidden',
     paddingBottom: 4,
+  },
+  messagePad: { padding: 15 },
+  messageText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 14,
+    color: CoachColors.textMuted,
+    lineHeight: 20,
   },
   header: {
     flexDirection: 'row',

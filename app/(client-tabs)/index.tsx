@@ -31,6 +31,10 @@ import SquadFeed from '../../components/client-tabs/SquadFeed';
 import ClientCopilot, { CoachMessagePreview } from '../../components/client-tabs/home/ClientCopilot';
 import SessionsCard from '../../components/client-tabs/home/SessionsCard';
 import SeasonPulseCard from '../../components/client-tabs/home/SeasonPulseCard';
+import GymCheckInWidget from '../../components/client-tabs/progress/GymCheckInWidget';
+import HydrationCell from '../../components/client-tabs/home/HydrationCell';
+import HabitTracker from '../../components/client-tabs/home/HabitTracker';
+import { useHealth } from '../../context/HealthContext';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -101,7 +105,11 @@ export default function AthleteTodayScreen() {
     conversation,
     loading,
     refreshData,
+    activeGymVisit,
+    checkInGym,
+    checkOutGym,
   } = useClient();
+  const { healthData } = useHealth();
 
   const [refreshing, setRefreshing] = useState(false);
   const [sentState, setSentState] = useState<SentState>(null);
@@ -726,6 +734,31 @@ export default function AthleteTodayScreen() {
 
         {/* ── Season pulse — season standing + continue/review fork ── */}
         <SeasonPulseCard />
+
+        {/* ── Your own day ──
+            Everything above is the coach's plan: what was set, where the season
+            stands. Everything here is what the athlete does with today under
+            their own steam, ordered by how live it is:
+              1. Gym session — a running timer, the only thing here that can be
+                 happening right now, so it sits closest to the plan it serves.
+              2. Hydration — the log. It writes the key the checklist below and
+                 the copilot above both read, so it must come before the tick.
+              3. Daily checklist — the day's summary, and the natural close
+                 before the squad feed turns outward to other people.
+            All three need a real client row to write anything, so none of them
+            appear until there is one. */}
+        {clientData && (
+          <>
+            <GymCheckInWidget
+              activeVisit={activeGymVisit}
+              checkIn={checkInGym}
+              checkOut={checkOutGym}
+              activeCalories={healthData?.activeCaloriesToday ?? 0}
+            />
+            <HydrationCell />
+            <HabitTracker clientId={clientData.id} />
+          </>
+        )}
 
         <SquadFeed />
 

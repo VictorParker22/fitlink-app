@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { supabase } from '../../lib/supabase';
+import { readClientGoalsText } from '../../lib/clientGoals';
 
 interface AICoachModalProps {
   visible: boolean;
@@ -43,7 +44,10 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
         const client = getClientById(selectedClientId);
         if (client) {
           context.clientName = client.name;
-          context.clientGoals = client.goals || 'Not specified';
+          // Read from assessment_data — `client.goals` has no column and always
+          // came back undefined, so the assistant was told "Not specified" for
+          // every athlete regardless of what they had actually recorded.
+          context.clientGoals = readClientGoalsText(client) || 'Not specified';
           context.clientStatus = client.status;
           // Get recent sessions for this client
           const clientSessions = sessions

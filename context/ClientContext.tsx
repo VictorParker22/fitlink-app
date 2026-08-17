@@ -6,6 +6,7 @@ import type { SetFeel } from './WorkoutContext';
 import * as Notifications from 'expo-notifications';
 import { decode } from 'base-64';
 import { isMissingSchemaError } from '../lib/schemaErrors';
+import { countCompletedWorkoutsForClient } from '../lib/workoutCounts';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -47,15 +48,19 @@ interface ClientData {
   auth_user_id?: string;
   avatar_url?: string;
   /**
-   * NOTE: `goals` and `completed_workouts` above/below have NO column on
-   * public.clients — they only ever arrive as undefined. Goals live inside
-   * `assessment_data`. Do not write either of them back to the table.
+   * NOTE: `goals` above has NO column on public.clients — it only ever arrives
+   * as undefined. Goals live inside `assessment_data` (read them with
+   * lib/clientGoals.ts). Do not write it back to the table.
+   *
+   * `completed_workouts` used to be declared here too. It is GONE, not merely
+   * stripped on write: there is no such column, so it was permanently
+   * undefined and every screen reading it showed 0. The real number is
+   * `completedWorkoutCount` on this context (see lib/workoutCounts.ts).
    */
   assessment_data?: any;
   trial_end_date?: string;
   health_sharing_enabled?: boolean;
   health_sharing_requested?: boolean;
-  completed_workouts?: number;
   xp?: number;
   progress?: { streak: number; workoutsThisMonth: number };
   created_at: string;
@@ -82,6 +87,13 @@ interface ClientContextType {
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
   exercisePrs: Record<string, number>; // exerciseId → max weight ever lifted (kg or lb, whichever client uses)
+  /**
+   * Workouts this athlete has actually completed, per the single app-wide
+   * definition in lib/workoutCounts.ts. Computed from rows already fetched for
+   * this screen — no extra query. `null` until they load (or if the fetch
+   * failed); surfaces must OMIT the stat while null, never render 0.
+   */
+  completedWorkoutCount: number | null;
   logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel) => void;
   checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
@@ -135,6 +147,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
   const [exercisePrs, setExercisePrs] = useState<Record<string, number>>({});
+  /** Session-log rows, narrowed to what the completed-workout count needs. null = not loaded. */
+  const [workoutLogRows, setWorkoutLogRows] = useState<
+    { client_id: string; client_workout_id: string | null }[] | null
+  >(null);
   const [healthSharingEnabled, setHealthSharingEnabled] = useState(false);
   const [activeGymVisit, setActiveGymVisit] = useState<any>(null);
   const [mealLogs, setMealLogs] = useState<Record<string, boolean>>({});
@@ -217,8 +233,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
         // states on Today/Train need the completed enrollment to survive a refresh.
         supabase.from('client_plan_enrollments').select('*').eq('client_id', client.id).in('status', ['active', 'completed']).order('started_at', { ascending: false }).limit(5),
         supabase.from('workouts').select('*, workout_exercises(*, exercises(*))').eq('trainer_id', client.trainer_id),
-        // Fetch only the exercises JSONB column — avoids pulling full log rows (notes, duration, etc)
-        supabase.from('client_workout_logs').select('exercises').eq('client_id', client.id)
+        // Fetch only the columns actually used — the exercises JSONB for the PR
+        // map, and client_workout_id so the completed-workout count can tell an
+        // assignment log apart from a standalone session (lib/workoutCounts.ts).
+        // Avoids pulling full log rows (notes, duration, etc).
+        supabase.from('client_workout_logs').select('exercises, client_workout_id').eq('client_id', client.id)
       ]);
 
       if (__DEV__) console.log('[ClientContext] Related data:', JSON.stringify({
@@ -299,6 +318,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
           });
         });
         setExercisePrs(prMap);
+      }
+      // Stays null when the fetch failed, so the profile omits the stat rather
+      // than telling the athlete they have completed zero workouts.
+      if (workoutLogsRes.data) {
+        setWorkoutLogRows(workoutLogsRes.data.map((row: any) => ({
+          client_id: client.id,
+          client_workout_id: row.client_workout_id ?? null,
+        })));
       }
       
       // Auto-expire stale gym visits (older than 4 hours)
@@ -934,10 +961,22 @@ export function ClientProvider({ children }: PropsWithChildren) {
     return false;
   }, [exercisePrs]);
 
+  /**
+   * The one app-wide definition of "workouts completed" (lib/workoutCounts.ts),
+   * applied to rows this provider has already fetched: `workouts` is the
+   * athlete's client_workouts, `workoutLogRows` their session logs. No extra
+   * query, and it matches exactly what the coach roster shows for them.
+   */
+  const completedWorkoutCount = useMemo(() => {
+    if (workoutLogRows === null) return null;
+    return countCompletedWorkoutsForClient(workouts as any, workoutLogRows);
+  }, [workouts, workoutLogRows]);
+
   return (
     <ClientContext.Provider value={{
       loading, clientData, trainer, sessions, workouts, diets, progressLogs,
       conversation, plans, upcomingSessions, todayWorkout, enrollment, exerciseLogs, exercisePrs,
+      completedWorkoutCount,
       subscription, paymentHistory, healthSharingEnabled, activeGymVisit,
         logExerciseSet,
         checkAndUpdatePr,
