@@ -70,6 +70,7 @@
     "react-native-health": "^1.19.0",
     "react-native-health-connect": "^3.5.3",
     "react-native-health-link": "^0.2.0",
+    "react-native-image-colors": "^2.6.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-purchases": "^10.6.0",
     "react-native-reanimated": "~4.1.1",

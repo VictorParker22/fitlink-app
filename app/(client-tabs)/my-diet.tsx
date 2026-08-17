@@ -32,13 +32,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
-import { useFoodImage } from '../../lib/foodImages';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import MealCard from '../../components/client-tabs/food/MealCard';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -52,34 +52,13 @@ const DAY_NAMES: Record<string, string> = {
   fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 };
 
-const TIME_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  breakfast: 'sunny-outline',
-  lunch: 'restaurant-outline',
-  dinner: 'moon-outline',
-  snack: 'cafe-outline',
-};
-const iconForTime = (t?: string | null): keyof typeof Ionicons.glyphMap =>
-  TIME_ICONS[(t || '').toLowerCase().trim()] || 'restaurant-outline';
-
 const MISSING_COLUMN = (code?: string) => code === '42703' || code === 'PGRST204';
 
-// ─── Meal thumbnail (photo → Spoonacular → time-of-day icon) ─────────────────
-
-function MealThumb({
-  name, imageUrl, mealId, mealTime, dimmed,
-}: {
-  name: string; imageUrl?: string | null; mealId?: string; mealTime?: string | null; dimmed?: boolean;
-}) {
-  const url = useFoodImage(name, imageUrl, mealId);
-  if (url) {
-    return <Image source={{ uri: url }} style={[st.thumb, dimmed && { opacity: 0.55 }]} contentFit="cover" transition={150} />;
-  }
-  return (
-    <View style={[st.thumbIcon, dimmed && { opacity: 0.55 }]}>
-      <Ionicons name={iconForTime(mealTime)} size={19} color={C.textSecondary} />
-    </View>
-  );
-}
+// The day-meal maths coerces missing macros to 0, so by the time a number
+// reaches the card there is no null left to detect. Treat a non-positive
+// macro as "not known" rather than printing "0 kcal" on the card.
+const realOrNull = (v: number | null | undefined): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
 
 // ─── Shapes ───────────────────────────────────────────────────────────────────
 
@@ -96,6 +75,7 @@ interface DayMeal {
   mealTime: string | null;
   slotLabel: string | null;
   imageUrl: string | null;
+  imageColor: string | null;   // meals.image_color — null until sampled
   swapEntry: { allowedMealIds: string[]; allowOwnLog: boolean } | null;
 }
 
@@ -106,6 +86,7 @@ interface LogEntry { swapMealId: string | null }
 export default function AthleteFoodScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const { clientData, trainer, diets, conversation, loading, refreshData } = useClient();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -157,6 +138,7 @@ export default function AthleteFoodScreen() {
             mealTime: dpm.meal_time || null,
             slotLabel: week?.slotLabels?.[dpm.order_index] || null,
             imageUrl: m.image_url || null,
+            imageColor: m.image_color || null,
             swapEntry: entry && ((entry.allowedMealIds || []).length > 0 || entry.allowOwnLog)
               ? { allowedMealIds: entry.allowedMealIds || [], allowOwnLog: !!entry.allowOwnLog }
               : null,
@@ -179,6 +161,7 @@ export default function AthleteFoodScreen() {
         mealTime: m.meal_time || null,
         slotLabel: m.slotLabel || null,
         imageUrl: null,
+        imageColor: null,
         swapEntry: null, // swaps are keyed to training-day slots only
       };
     });
@@ -500,8 +483,8 @@ export default function AthleteFoodScreen() {
           </View>
         )}
 
-        {/* ── Meals ── */}
-        <View style={{ gap: 9, marginTop: 15 }}>
+        {/* ── Meals (design turn 24: tinted recipe cards) ── */}
+        <View style={{ gap: 12, marginTop: 15 }}>
           {dayMeals.map((m) => {
             const logged = !!logs[m.key];
             const swapMeal = logs[m.key]?.swapMealId ? swapMealsById[logs[m.key].swapMealId!] : null;
@@ -510,71 +493,48 @@ export default function AthleteFoodScreen() {
             const canSwap = !!m.swapEntry && (resolvedSwaps.length > 0 || m.swapEntry.allowOwnLog);
             const slotName = m.slotLabel || m.mealTime || 'Meal';
 
-            if (isNext) {
-              return (
-                <View key={m.key} style={st.nextCard}>
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
-                    <MealThumb name={swapMeal?.name || m.name} imageUrl={swapMeal?.image_url || m.imageUrl} mealId={swapMeal?.id || m.mealId || undefined} mealTime={m.mealTime} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={st.nextEyebrow}>Next up · {slotName}</Text>
-                      <Text style={st.nextName}>{swapMeal?.name || m.name}</Text>
-                      <Text style={st.nextMacros}>
-                        {Math.round(swapMeal?.calories ?? m.calories)} kcal · {Math.round(swapMeal?.protein ?? m.protein)}P / {Math.round(swapMeal?.carbs ?? m.carbs)}C / {Math.round(swapMeal?.fat ?? m.fat)}F
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={st.nextBtnRow}>
-                    {canSwap && (
-                      <Pressable hitSlop={{ top: 4, bottom: 4 }}
-                        style={st.swapBtn}
-                        onPress={() => setSwapSheetKey(m.key)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Swap ${m.name}`}
-                      >
-                        <Text style={st.swapBtnText}>
-                          Swap it{resolvedSwaps.length > 0 ? ` · ${resolvedSwaps.length} option${resolvedSwaps.length === 1 ? '' : 's'}` : ''}
-                        </Text>
-                      </Pressable>
-                    )}
-                    <Pressable hitSlop={{ top: 4, bottom: 4 }}
-                      style={[st.ateBtn, !canSwap && { flex: 1 }]}
-                      onPress={() => logMeal(m, null)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Log ${m.name} as eaten`}
-                    >
-                      <Text style={st.ateBtnText}>Ate it</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            }
+            // A swapped log shows the meal actually eaten, with its own macros
+            // and its own photo — same values the room-left maths counted.
+            const shown = swapMeal
+              ? {
+                  id: swapMeal.id as string,
+                  name: swapMeal.name as string,
+                  calories: realOrNull(swapMeal.calories),
+                  protein: realOrNull(swapMeal.protein),
+                  image_url: swapMeal.image_url || null,
+                  image_color: swapMeal.image_color || null,
+                }
+              : {
+                  id: m.mealId,
+                  name: m.name,
+                  calories: realOrNull(m.calories),
+                  protein: realOrNull(m.protein),
+                  image_url: m.imageUrl,
+                  image_color: m.imageColor,
+                };
+
+            const slotLine = [
+              isNext ? `Next up · ${slotName}` : slotName,
+              swapMeal ? 'swapped' : null,
+            ].filter(Boolean).join(' · ');
 
             return (
-              <Pressable
+              <MealCard
                 key={m.key}
-                style={[st.mealCard, logged && { opacity: 0.62 }]}
+                meal={shown}
+                slot={slotLine}
+                logged={logged}
+                actionHint={logged ? 'unlog it' : 'log it as eaten'}
                 onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: logged }}
-                accessibilityLabel={`${slotName}, ${swapMeal ? `${swapMeal.name}, swapped` : m.name}, ${Math.round(swapMeal?.calories ?? m.calories)} calories, ${logged ? 'logged' : 'not logged'}. Double tap to ${logged ? 'unlog' : 'log'}`}
-              >
-                {logged ? (
-                  <Ionicons name="checkmark" size={17} color={C.accent} />
-                ) : (
-                  <View style={st.emptyCheck} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={st.mealSlot}>{slotName}</Text>
-                  <Text style={[st.mealName, logged && swapMeal && { color: C.textSecondary }]}>
-                    {swapMeal ? swapMeal.name : m.name}
-                    {swapMeal ? '  ·  swapped' : ''}
-                  </Text>
-                  <Text style={st.mealSub}>
-                    {Math.round(swapMeal?.calories ?? m.calories)} kcal · {Math.round(swapMeal?.protein ?? m.protein)}P / {Math.round(swapMeal?.carbs ?? m.carbs)}C / {Math.round(swapMeal?.fat ?? m.fat)}F
-                  </Text>
-                </View>
-                <MealThumb name={swapMeal?.name || m.name} imageUrl={swapMeal?.image_url || m.imageUrl} mealId={swapMeal?.id || m.mealId || undefined} mealTime={m.mealTime} dimmed={logged} />
-              </Pressable>
+                onSwap={canSwap ? () => setSwapSheetKey(m.key) : undefined}
+                swapLabel={
+                  `Swap ${m.name}` +
+                  (resolvedSwaps.length > 0
+                    ? `, ${resolvedSwaps.length} option${resolvedSwaps.length === 1 ? '' : 's'}`
+                    : '')
+                }
+                reduceMotion={reduceMotion}
+              />
             );
           })}
         </View>
@@ -756,42 +716,6 @@ const st = StyleSheet.create({
   },
   freeTitle: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
   freeText: { fontFamily: F.body, fontSize: 12, color: C.textSecondary, marginTop: 3, lineHeight: 17 },
-
-  // Meal rows
-  mealCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, padding: 14,
-  },
-  emptyCheck: { width: 17, height: 17, borderRadius: 5, borderWidth: 1.5, borderColor: C.border },
-  mealSlot: { fontFamily: F.bodyBold, fontSize: 10, color: C.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
-  mealName: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textPrimary, marginTop: 2 },
-  mealSub: { fontFamily: F.body, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  thumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: C.bg },
-  thumbIcon: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: C.bg,
-    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Next-up card
-  nextCard: {
-    backgroundColor: '#1A2213', borderWidth: 1.5, borderColor: 'rgba(198,242,78,0.5)',
-    borderRadius: 18, padding: 15,
-  },
-  nextEyebrow: { fontFamily: F.bodyBold, fontSize: 10.5, color: C.accent, letterSpacing: 1, textTransform: 'uppercase' },
-  nextName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary, marginTop: 5 },
-  nextMacros: { fontFamily: F.body, fontSize: 12, color: C.textMuted, marginTop: 3 },
-  nextBtnRow: { flexDirection: 'row', gap: 7, marginTop: 13 },
-  swapBtn: {
-    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 11,
-    paddingVertical: 10, alignItems: 'center',
-  },
-  swapBtnText: { fontFamily: F.bodySemiBold, fontSize: 12.5, color: C.textSecondary },
-  ateBtn: {
-    flex: 1, backgroundColor: C.accent, borderRadius: 11,
-    paddingVertical: 10, alignItems: 'center',
-  },
-  ateBtnText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.onAccent },
 
   // Swap sheet
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,11,9,0.66)' },
