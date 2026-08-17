@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { LineChart } from 'react-native-gifted-charts';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import PassPerformance from '../components/coach/PassPerformance';
 
 /**
  * Analytics — every figure on this screen traces to a real source:
@@ -240,6 +241,11 @@ export default function AnalyticsScreen() {
                 <Text style={st.statValue}>{referrals.length}</Text>
               </View>
             </View>
+
+            {/* ── Pass performance (attribution: acquired / retained per pass,
+                   recorded payments only — renders nothing when queries fail
+                   or there is no enrollment signal) ── */}
+            <PassPerformance />
           </>
         )}
 

@@ -33,7 +33,7 @@ Schema + storage so coach identity imagery has somewhere to live:
   class buckets: path must start with the uploader's uid).
 - Coach profile: "Edit cover photo" upload beside the existing avatar flow.
 
-## Phase 2 — The pass wears the coach
+## Phase 2 — The pass wears the coach (DONE)
 
 The Ladder team card, in our marketplace model. Where pass cards render
 (find-coach matches, my-pass hero, pass detail pre-purchase, coach's own passes
@@ -41,7 +41,7 @@ list): cover photo as the card ground with a dark scrim, pass name oversized ove
 it, coach name + avatar beneath. Fallback order: `plans.cover_url` →
 `trainers.cover_url` → today's text card. Never a placeholder image.
 
-## Phase 3 — Presence: the coach is visibly here
+## Phase 3 — Presence: the coach is visibly here (DONE — welcome video still optional/deferred)
 
 Ladder's daily-video loop, scaled to a marketplace coach's real time budget:
 - Coach profile (athlete-facing) gets the cover as a header backdrop; bio and
@@ -51,7 +51,7 @@ Ladder's daily-video loop, scaled to a marketplace coach's real time budget:
 - Optional, later: coach can pin a short welcome video to a pass (bucket already
   supports video); shows once on enrollment, never autoplays mid-session.
 
-## Phase 4 — Attribution analytics (the chosen Ladder finding)
+## Phase 4 — Attribution analytics (DONE — reactivated omitted: not derivable, see components/coach/PassPerformance.tsx)
 
 Of the two structural findings (attribution vs squad wall), **attribution is the
 one to build first**: it is coach-side revenue proof — acquired / retained /
