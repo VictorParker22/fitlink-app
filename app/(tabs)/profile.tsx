@@ -44,6 +44,7 @@ export default function ProfileScreen() {
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
   const { isCoachElite } = useRevenueCat();
   const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -53,16 +54,22 @@ export default function ProfileScreen() {
   const completedSessions = sessions.filter((s) => s.status === 'completed').length;
 
   // ── Image picker ──────────────────────────────────────────────────────────
-  const handlePickImage = () => {
+  const handlePickImage = (kind: 'avatar' | 'cover' = 'avatar') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Profile photo', 'Choose how to update your photo', [
-      { text: 'Take photo', onPress: () => launchPicker('camera') },
-      { text: 'Choose from library', onPress: () => launchPicker('library') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    Alert.alert(
+      kind === 'avatar' ? 'Profile photo' : 'Cover photo',
+      kind === 'avatar'
+        ? 'Choose how to update your photo'
+        : 'This is the photo athletes see first — you coaching, your space.',
+      [
+        { text: 'Take photo', onPress: () => launchPicker('camera', kind) },
+        { text: 'Choose from library', onPress: () => launchPicker('library', kind) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
-  const launchPicker = async (source: 'camera' | 'library') => {
+  const launchPicker = async (source: 'camera' | 'library', kind: 'avatar' | 'cover' = 'avatar') => {
     const perm = source === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -70,34 +77,41 @@ export default function ProfileScreen() {
       Alert.alert('Permission required', source === 'camera' ? 'Camera access is needed.' : 'Photo library access is needed.');
       return;
     }
+    // Avatars stay square; the cover crops 16:10 — the card shape it will
+    // actually be shown in, so what the coach approves is what athletes get.
+    const aspect: [number, number] = kind === 'avatar' ? [1, 1] : [16, 10];
     const result = await (source === 'camera'
-      ? ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true })
-      : ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true }));
+      ? ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect, quality: 0.7, base64: true })
+      : ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect, quality: 0.7, base64: true }));
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
     if (!asset.base64) { Alert.alert('Error', 'Could not read image data.'); return; }
-    await uploadAvatar(asset.base64, asset.uri);
+    await uploadImage(asset.base64, asset.uri, kind);
   };
 
-  const uploadAvatar = async (base64: string, uri: string) => {
+  const uploadImage = async (base64: string, uri: string, kind: 'avatar' | 'cover') => {
     if (!user) return;
-    setUploading(true);
+    const setBusy = kind === 'avatar' ? setUploading : setUploadingCover;
+    setBusy(true);
     try {
       const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `${user.id}/avatar.${fileExt}`;
+      // coach-media requires the path to start with the uploader's uid — the
+      // bucket policy rejects anything else, so no athlete can overwrite this.
+      const bucket = kind === 'avatar' ? 'avatars' : 'coach-media';
+      const fileName = `${user.id}/${kind}.${fileExt}`;
       const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
       const binaryStr = atob(base64);
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, bytes.buffer, { contentType, upsert: true });
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, bytes.buffer, { contentType, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      await updateTrainer({ avatar_url: `${urlData.publicUrl}?t=${Date.now()}` });
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      await updateTrainer({ [kind === 'avatar' ? 'avatar_url' : 'cover_url']: `${urlData.publicUrl}?t=${Date.now()}` });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       Alert.alert('Upload failed', err.message || 'Could not upload photo.');
     } finally {
-      setUploading(false);
+      setBusy(false);
     }
   };
 
@@ -177,9 +191,46 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
 
           {/* ── Hero ─────────────────────────────────────────────────────── */}
+          {/* The cover: the photo athletes meet first on marketplace cards and
+              pass covers (COACH_IDENTITY_PLAN.md). Shown here exactly as they
+              will see it. Without one, an honest dashed "add" well — visible
+              only to the coach; athlete surfaces render nothing instead. */}
+          <TouchableOpacity
+            onPress={() => handlePickImage('cover')}
+            activeOpacity={0.85}
+            style={s.coverWrap}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={trainer?.cover_url ? 'Change cover photo' : 'Add a cover photo'}
+            accessibilityHint="Athletes see this photo on your profile and passes"
+            accessibilityState={{ busy: uploadingCover }}
+          >
+            {trainer?.cover_url ? (
+              <>
+                <Image source={{ uri: trainer.cover_url }} style={s.coverImage} />
+                <View style={s.coverEditBadge}>
+                  {uploadingCover
+                    ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                    : <Ionicons name="camera" size={14} color={CoachColors.onAccent} />}
+                </View>
+              </>
+            ) : (
+              <View style={s.coverEmpty}>
+                {uploadingCover ? (
+                  <ActivityIndicator size="small" color={CoachColors.textMuted} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={19} color={CoachColors.textMuted} />
+                    <Text style={s.coverEmptyText}>Add a cover photo — athletes see it first</Text>
+                  </>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+
           <View style={s.hero}>
             <TouchableOpacity
-              onPress={handlePickImage}
+              onPress={() => handlePickImage('avatar')}
               activeOpacity={0.8}
               style={s.avatarWrap}
               accessible
@@ -416,6 +467,45 @@ const s = StyleSheet.create({
   navTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
 
   hero: { alignItems: 'center', paddingTop: 12, paddingBottom: 28, gap: 9 },
+
+  // 16:10 — the same crop the picker enforces and the pass cards render.
+  coverWrap: { marginBottom: 16 },
+  coverImage: {
+    width: '100%',
+    aspectRatio: 16 / 10,
+    borderRadius: 22,
+    backgroundColor: CoachColors.surface,
+  },
+  coverEditBadge: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverEmpty: {
+    width: '100%',
+    minHeight: 76,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: CoachColors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  coverEmptyText: {
+    fontFamily: CoachFonts.bodyMedium,
+    fontSize: 13.5,
+    color: CoachColors.textMuted,
+    flexShrink: 1,
+  },
 
   avatarWrap: { position: 'relative' },
   avatarCircle: {

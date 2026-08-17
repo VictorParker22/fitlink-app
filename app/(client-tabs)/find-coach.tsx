@@ -272,7 +272,7 @@ export default function FindCoachScreen() {
       const [{ data: trainers }, { data: allPlans }] = await Promise.all([
         supabase
           .from('trainers')
-          .select('id, name, specialization, bio, avatar_url, certifications, working_hours')
+          .select('id, name, specialization, bio, avatar_url, cover_url, certifications, working_hours')
           .order('name'),
         supabase.from('plans').select('*'),
       ]);
@@ -568,7 +568,17 @@ export default function FindCoachScreen() {
     return (
       <View style={s.container}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
-          <View style={[s.profileHero, { paddingTop: insets.top + 10 }]}>
+          {/* The coach's own photograph as the hero, when they have one —
+              the Ladder team-card move, with the coach's real image instead
+              of anything staged. No photo, and the flat block stays: an
+              honest colour, never a stock gym. */}
+          <View style={[s.profileHero, { paddingTop: insets.top + 10 }, !!t.cover_url && { height: 210 }]}>
+            {t.cover_url ? (
+              <>
+                <Image source={{ uri: t.cover_url }} style={s.profileHeroImg} resizeMode="cover" />
+                <View style={s.profileHeroScrim} />
+              </>
+            ) : null}
             <TouchableOpacity hitSlop={5} onPress={goBack} style={s.backBtnOnHero} accessibilityRole="button" accessibilityLabel="Back">
               <Ionicons name="chevron-back" size={21} color={C.textPrimary} />
             </TouchableOpacity>
@@ -858,7 +868,15 @@ const s = StyleSheet.create({
   },
 
   // Profile
-  profileHero: { height: 140, backgroundColor: '#1A2113' },
+  profileHero: { height: 140, backgroundColor: '#1A2113', overflow: 'hidden' },
+  // Taller when a real photo fills it — 140pt was sized for a colour block.
+  profileHeroImg: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  // Bottom scrim so the avatar that overlaps the hero edge keeps its contrast
+  // against any photograph.
+  profileHeroScrim: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 70,
+    backgroundColor: 'rgba(16,18,16,0.55)',
+  },
   backBtnOnHero: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(16,18,16,0.6)',
     alignItems: 'center', justifyContent: 'center', marginLeft: 20,

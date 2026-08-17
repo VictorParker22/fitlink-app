@@ -17,6 +17,8 @@ interface Trainer {
   working_hours?: any;
   notification_prefs?: any;
   avatar_url?: string;
+  /** Hero photo (coach-media bucket) — the athlete-facing card image. */
+  cover_url?: string;
   stripe_account_id?: string;
   stripe_onboarding_complete?: boolean;
   stripe_charges_enabled?: boolean;
