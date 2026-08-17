@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,7 @@ const TOPICS = ['Bug report', 'Feature request', 'Account issue', 'Billing & pay
 
 export default function ContactSupportScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [selectedTopic, setSelectedTopic] = useState('');
   const [message, setMessage] = useState('');
@@ -43,7 +44,7 @@ export default function ContactSupportScreen() {
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <Text style={s.heroTitle}>Get in touch</Text>
           <Text style={s.heroSubtitle}>
             Pick a topic and write your message below. It opens as an email to our support team, so you keep a copy in your outbox.
@@ -111,7 +112,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 16 },
 
   heroTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,

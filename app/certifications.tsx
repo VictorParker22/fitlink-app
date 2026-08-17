@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
@@ -23,6 +23,7 @@ function parseList(value: unknown): string[] {
 
 export default function CertificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { trainer, updateTrainer } = useApp();
 
   const [certs, setCerts] = useState<string[]>(() => parseList(trainer?.certifications));
@@ -76,7 +77,7 @@ export default function CertificationsScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Current */}
           <Text style={s.sectionLabel}>Your certifications{certs.length > 0 ? ` (${certs.length})` : ''}</Text>
           {certs.length > 0 ? (
@@ -171,7 +172,8 @@ const s = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
-  scroll: { paddingHorizontal: 20, paddingBottom: 48 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scroll: { paddingHorizontal: 20 },
 
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,

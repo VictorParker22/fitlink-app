@@ -580,7 +580,8 @@ export default function WorkoutDetailScreen() {
             )}
           </View>
 
-          <Text style={styles.videoModalHint}>Tap fullscreen for a better view</Text>
+          {/* A Modal inherits no safe area — the hint supplies its own bottom clearance. */}
+          <Text style={[styles.videoModalHint, { paddingBottom: insets.bottom + 16 }]}>Tap fullscreen for a better view</Text>
         </View>
       </Modal>
 
@@ -911,7 +912,6 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: CoachColors.textMuted,
     textAlign: 'center',
-    paddingBottom: 40,
   },
 
   // Assign UI

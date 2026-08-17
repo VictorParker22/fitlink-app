@@ -426,9 +426,8 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     alignSelf: 'flex-start',
   },
-  scroll: {
-    paddingBottom: 100,
-  },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  scroll: {},
 
   // Banner
   banner: {

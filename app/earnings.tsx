@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
@@ -31,6 +31,7 @@ const PLATFORM_FEE = 0.10;
 
 export default function EarningsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { trainer, plans, clients, refreshData, classes } = useApp();
   const [stripeLoading, setStripeLoading] = useState(false);
   const [classRevenue, setClassRevenue] = useState<any[]>([]);
@@ -253,7 +254,7 @@ export default function EarningsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── Header ──────────────────────────────────── */}
         <View style={styles.header}>
@@ -477,8 +478,6 @@ export default function EarningsScreen() {
           </>
         )}
 
-        {/* Bottom spacing */}
-        <View style={{ height: 48 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -591,7 +590,8 @@ function ClassPoolCard({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 20 },
 
   // Header
   header: {

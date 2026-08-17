@@ -280,7 +280,8 @@ const styles = StyleSheet.create({
   },
   resultsText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 1, textTransform: 'uppercase' },
 
-  list: { paddingHorizontal: 20, paddingBottom: 120, gap: 12 },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  list: { paddingHorizontal: 20, gap: 12 },
 
   cardContainer: {
     backgroundColor: CoachColors.surface, borderRadius: 8,

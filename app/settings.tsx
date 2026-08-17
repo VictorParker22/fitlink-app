@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -19,6 +19,7 @@ type DayHours = { start: string; end: string; enabled: boolean };
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { trainer, updateTrainer, createStripeConnectAccount } = useApp();
   const { showAlert } = useAlert();
   const haptic = useHaptic();
@@ -138,7 +139,7 @@ export default function SettingsScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* Profile */}
           <Text style={s.sectionLabel}>Profile</Text>
@@ -324,7 +325,8 @@ const s = StyleSheet.create({
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
 
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 16 },
 
   sectionLabel: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12.5,

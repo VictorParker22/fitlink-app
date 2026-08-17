@@ -197,7 +197,7 @@ export default function PassVersionsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
         {/* ── Current version ── */}
         <View style={[st.card, st.cardCurrent]}>
           <View style={st.cardTopRow}>

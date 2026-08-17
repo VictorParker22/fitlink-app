@@ -24,6 +24,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { PACKAGE_TYPE, PurchasesPackage } from 'react-native-purchases';
@@ -53,6 +54,8 @@ interface ClientPaywallProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps) {
+  // A Modal inherits no safe area — the scroll supplies its own bottom clearance.
+  const insets = useSafeAreaInsets();
   const { offerings, purchasePackage, restorePurchases, isLoading } = useRevenueCat();
   const [selectedType, setSelectedType] = useState<'annual' | 'monthly'>('annual');
   const [purchasing, setPurchasing] = useState(false);
@@ -119,7 +122,7 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
         </View>
 
         <ScrollView
-          contentContainerStyle={s.scroll}
+          contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
@@ -255,7 +258,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scroll: { paddingHorizontal: 24, paddingBottom: 48 },
+  // paddingBottom is applied inline from the real bottom inset (pageSheet Modal: no safe area inherited).
+  scroll: { paddingHorizontal: 24 },
 
   // Hero
   hero: { alignItems: 'center', paddingTop: 16, paddingBottom: 32 },

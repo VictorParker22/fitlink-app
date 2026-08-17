@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LineChart } from 'react-native-gifted-charts';
@@ -29,6 +29,7 @@ const PLATFORM_FEE = 0.10;
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { referrals, activeClients, totalMonthlyRevenue, refreshData, fetchAnalytics } = useApp();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -106,7 +107,7 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={st.container} edges={['top']}>
       <ScrollView
-        contentContainerStyle={st.scrollContent}
+        contentContainerStyle={[st.scrollContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
       >
@@ -242,7 +243,6 @@ export default function AnalyticsScreen() {
           </>
         )}
 
-        <View style={{ height: 48 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -250,7 +250,8 @@ export default function AnalyticsScreen() {
 
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 20 },
 
   header: {
     flexDirection: 'row',

@@ -24,7 +24,7 @@ import {
   Linking, Modal, Dimensions, Image as RNImage, Platform,
   KeyboardAvoidingView, Animated as RNAnimated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -98,6 +98,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function ClientDetailScreen() {
   const { id }      = useLocalSearchParams<{ id: string }>();
+  const insets     = useSafeAreaInsets();
   const router      = useRouter();
 
   /**
@@ -566,7 +567,7 @@ export default function ClientDetailScreen() {
         </View>
       </SafeAreaView>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
 
         {/* ══════════════ HERO ══════════════ */}
         <Animated.View entering={reduced ? undefined : FadeIn.duration(400)} style={s.hero}>
@@ -1664,7 +1665,8 @@ export default function ClientDetailScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:          { flex: 1, backgroundColor: CoachColors.bg },
-  scrollContent: { paddingBottom: 100 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar, no footer).
+  scrollContent: {},
 
   // NAV
   nav:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },

@@ -138,6 +138,8 @@ const EMPTY_HABIT_STATE: Record<HabitKey, boolean> = {
 
 function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }) {
   const haptic = useHaptic();
+  // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
+  const insets = useSafeAreaInsets();
   const { liveHabitRows } = useApp();
   const [state, setState]     = useState<Record<HabitKey, boolean>>(EMPTY_HABIT_STATE);
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
           accessibilityRole="button"
           accessibilityLabel="Close habits"
         />
-        <View style={styles.sheetCard}>
+        <View style={[styles.sheetCard, { paddingBottom: insets.bottom + 20 }]}>
           <View style={styles.sheetHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.sheetTitle}>Habits · {displayName}</Text>
@@ -1219,7 +1221,7 @@ const styles = StyleSheet.create({
   sheetCard: {
     backgroundColor: CoachColors.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     borderWidth: 1, borderColor: CoachColors.border,
-    paddingHorizontal: W * 0.05, paddingTop: 20, paddingBottom: 36,
+    paddingHorizontal: W * 0.05, paddingTop: 20, // paddingBottom applied inline from the real bottom inset (Modal).
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   sheetTitle: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.048), color: CoachColors.textPrimary },

@@ -1271,7 +1271,7 @@ const s = StyleSheet.create({
   exMeta: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
   exExpanded: { paddingHorizontal: 15, paddingBottom: 15 },
   overviewFooter: {
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28,
+    paddingHorizontal: 20, paddingTop: 12, // paddingBottom applied inline from the real bottom inset.
     borderTopWidth: 1, borderTopColor: '#1E211D',
   },
   startBtn: {
@@ -1472,7 +1472,7 @@ const s = StyleSheet.create({
   // ── Prev / Next ──
   navBar: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
-    paddingHorizontal: 20, paddingTop: 11, paddingBottom: 30,
+    paddingHorizontal: 20, paddingTop: 11, // paddingBottom applied inline from the real bottom inset.
   },
   prevBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,

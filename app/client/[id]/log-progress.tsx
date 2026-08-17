@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +15,7 @@ const ACCENT = CoachColors.accent;
 export default function LogProgressScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { addProgressLog, getClientById } = useApp();
 
   const client = getClientById(id || '');
@@ -263,10 +264,9 @@ export default function LogProgressScreen() {
             />
           </View>
 
-          <View style={{ height: 56 }} />
         </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: CoachColors.bg, borderTopColor: CoachColors.border }]}>
+        <View style={[styles.footer, { backgroundColor: CoachColors.bg, borderTopColor: CoachColors.border, paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity
             style={[styles.saveBtn, saving && { opacity: 0.6 }]}
             onPress={handleSave}
@@ -322,7 +322,8 @@ const styles = StyleSheet.create({
   photoTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
   photoSub: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 4, textAlign: 'center' },
 
-  footer: { padding: 16, paddingBottom: 20, borderTopWidth: 1 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  footer: { padding: 16, borderTopWidth: 1 },
 
   saveBtn: {
     backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,

@@ -60,6 +60,7 @@ function PassCard({
   stats?: { holders: number; avgNode: number };
 }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const [enabled, setEnabled] = useState<boolean>(item.autoflow_enabled !== false);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(item.autoflow_workout_id ?? null);
@@ -307,7 +308,8 @@ function PassCard({
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowWorkoutPicker(false)} />
-          <View style={passStyles.pickerSheet}>
+          {/* A Modal inherits no safe area — the sheet supplies its own bottom clearance. */}
+          <View style={[passStyles.pickerSheet, { paddingBottom: insets.bottom + 20 }]}>
             {/* A backdrop tap is not a discoverable dismiss on its own — HIG
                 wants a visible close control on every sheet. */}
             <View style={passStyles.pickerSheetHead}>
@@ -422,7 +424,7 @@ const passStyles = StyleSheet.create({
 
   pickerSheet: {
     backgroundColor: CoachColors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderTopWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 40, maxHeight: '70%',
+    borderTopWidth: 1, borderColor: CoachColors.border, padding: 20, maxHeight: '70%', // paddingBottom applied inline from the real bottom inset (Modal).
   },
   pickerSheetTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', marginBottom: 16 },
   pickerSheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
@@ -1094,7 +1096,8 @@ export default function ProgramsScreen() {
           activeOpacity={1}
           onPress={() => setShowAddActionSheet(false)}
         >
-          <View style={styles.actionSheetContent} onStartShouldSetResponder={() => true}>
+          {/* A Modal inherits no safe area — the sheet supplies its own bottom clearance. */}
+          <View style={[styles.actionSheetContent, { paddingBottom: insets.bottom + 20 }]} onStartShouldSetResponder={() => true}>
             <View style={styles.dragHandle} />
             <Text style={styles.actionSheetTitle}>New class</Text>
 
@@ -1274,9 +1277,9 @@ const styles = StyleSheet.create({
   },
 
   // List Rows
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
   row: {
     flexDirection: 'row',
@@ -1399,7 +1402,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius.sm,
     borderTopRightRadius: Radius.sm,
     padding: 20,
-    paddingBottom: 36,
+    // paddingBottom applied inline from the real bottom inset (Modal).
     borderTopWidth: 1,
     borderColor: CoachColors.border,
   },

@@ -406,7 +406,8 @@ function MenuSection({ items, router }: { items: typeof ACCOUNT_ITEMS; router: R
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CoachColors.bg },
-  scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  scroll: { paddingHorizontal: 16 },
 
   nav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

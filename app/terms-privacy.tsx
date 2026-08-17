@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
@@ -74,6 +74,7 @@ const PRIVACY_SECTIONS = [
 
 export default function TermsPrivacyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const openPrivacyEmail = () => {
     Linking.openURL(`mailto:${PRIVACY_EMAIL}`).catch(() =>
@@ -91,7 +92,7 @@ export default function TermsPrivacyScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
         <Text style={s.pageTitle}>Terms of service</Text>
         <Text style={s.lastUpdated}>LAST UPDATED: MAY 2026</Text>
 
@@ -138,7 +139,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 60, paddingTop: 16 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
   pageTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary,

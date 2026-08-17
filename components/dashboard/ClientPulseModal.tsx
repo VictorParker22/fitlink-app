@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Radius } from '../../constants/theme';
@@ -13,6 +14,8 @@ interface ClientPulseModalProps {
 }
 
 export default function ClientPulseModal({ visible, client, onClose }: ClientPulseModalProps) {
+  // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   if (!client) return null;
@@ -38,7 +41,7 @@ export default function ClientPulseModal({ visible, client, onClose }: ClientPul
       onRequestClose={onClose}
     >
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+        <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]} onStartShouldSetResponder={() => true}>
           {/* Drag handle */}
           <View style={styles.dragHandle} />
 
@@ -109,7 +112,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     padding: 20,
-    paddingBottom: 40,
+    // paddingBottom applied inline from the real bottom inset (Modal).
     borderTopWidth: 1,
     borderColor: CoachColors.border,
   },

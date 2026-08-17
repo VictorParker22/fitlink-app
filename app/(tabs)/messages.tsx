@@ -382,7 +382,8 @@ export default function MessagesScreen() {
       <Modal visible={showComposePicker} transparent animationType="slide" onRequestClose={() => setShowComposePicker(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowComposePicker(false)} />
-          <View style={styles.composeSheet}>
+          {/* A Modal inherits no safe area — the sheet supplies its own bottom clearance. */}
+          <View style={[styles.composeSheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>New message</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowComposePicker(false)} accessibilityRole="button" accessibilityLabel="Close">
@@ -454,7 +455,8 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, paddingVertical: 0 },
 
-  list: { paddingHorizontal: 20, paddingBottom: 40 },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  list: { paddingHorizontal: 20 },
   section: { marginTop: 20 },
   sectionLabel: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
@@ -504,7 +506,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
   composeSheet: {
     backgroundColor: CoachColors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 36,
+    borderWidth: 1, borderColor: CoachColors.border, padding: 20, // paddingBottom applied inline from the real bottom inset (Modal).
   },
   composeSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   composeSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
@@ -515,7 +517,8 @@ const styles = StyleSheet.create({
   composeRowName: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   composeRowHint: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },
 
-  emptyScroll: { paddingBottom: 40 },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  emptyScroll: {},
   emptyCard: {
     marginHorizontal: 20, marginTop: 24,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,

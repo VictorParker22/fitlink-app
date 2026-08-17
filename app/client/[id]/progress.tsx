@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../../context/AppContext';
@@ -15,6 +15,7 @@ type TimeRange = '7D' | '30D' | '90D';
 export default function ProgressDashboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getClientById, getClientProgress, getClientSessions } = useApp();
 
   const [timeRange, setTimeRange] = useState<TimeRange>('30D');
@@ -112,7 +113,7 @@ export default function ProgressDashboardScreen() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
         
         {/* B. Session Consistency */}
         <Card style={styles.card}>
@@ -226,7 +227,6 @@ export default function ProgressDashboardScreen() {
           </TouchableOpacity>
         </Card>
 
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
   filterPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   filterText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17 },
   
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scrollContent: { paddingHorizontal: 16, paddingTop: 6 },
 
   card: { padding: 16, marginBottom: 16 },

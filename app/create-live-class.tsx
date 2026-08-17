@@ -255,7 +255,7 @@ export default function CreateLiveClassScreen() {
       {showDatePicker && Platform.OS === 'ios' && (
         <Modal transparent animationType="slide" visible onRequestClose={() => setShowDatePicker(false)}>
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
-            <View style={s.pickerSheet}>
+            <View style={[s.pickerSheet, { paddingBottom: insets.bottom + 20 }]}>
               <PickerHeader title="Select Date" onDone={() => setShowDatePicker(false)} />
               <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} minimumDate={new Date()} textColor={CoachColors.textPrimary} themeVariant="dark" />
             </View>
@@ -272,7 +272,7 @@ export default function CreateLiveClassScreen() {
       {showTimePicker && Platform.OS === 'ios' && (
         <Modal transparent animationType="slide" visible onRequestClose={() => setShowTimePicker(false)}>
           <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
-            <View style={s.pickerSheet}>
+            <View style={[s.pickerSheet, { paddingBottom: insets.bottom + 20 }]}>
               <PickerHeader title="Select Time" onDone={() => setShowTimePicker(false)} />
               <DateTimePicker value={date} mode="time" display="spinner" onChange={handleTimeChange} textColor={CoachColors.textPrimary} themeVariant="dark" />
             </View>
@@ -494,7 +494,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
-    paddingBottom: 24,
+    // paddingBottom applied inline from the real bottom inset (Modal).
     borderWidth: 1,
     borderColor: CoachColors.border,
   },

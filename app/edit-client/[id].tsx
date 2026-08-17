@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
@@ -13,6 +13,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getClientById, updateClient, plans } = useApp();
   const { showAlert } = useAlert();
 
@@ -89,7 +90,7 @@ export default function EditClientScreen() {
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Name *</Text>
             <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Client name" placeholderTextColor={CoachColors.textFaint} />
@@ -176,7 +177,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 16 },
   notFound: { fontFamily: CoachFonts.bodySemiBold, fontSize: 20, color: CoachColors.textSecondary, marginBottom: 16 },
 
   inputGroup: { marginBottom: 16 },

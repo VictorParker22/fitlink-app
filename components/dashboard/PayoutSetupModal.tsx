@@ -351,7 +351,6 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             <Ionicons name="rocket-outline" size={20} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
 
-          <View style={{ height: 32 }} />
         </ScrollView>
       </View>
     </View>

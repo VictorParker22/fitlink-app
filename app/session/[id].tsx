@@ -593,6 +593,8 @@ function DetailView({
   onNotesSave, onStartTracking, onBookFollowUp, onBack,
   getClientSessions,
 }: DetailViewProps) {
+  // The SafeAreaView above is edges={['top']}, so the bottom inset is applied here.
+  const insets = useSafeAreaInsets();
   // Reduce Motion: the staggered slide-up entrance is decorative only —
   // drop it entirely and render the detail already in place.
   const reduceMotion = useReducedMotion();
@@ -630,7 +632,7 @@ function DetailView({
         >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 60 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >

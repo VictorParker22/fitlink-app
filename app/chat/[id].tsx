@@ -80,6 +80,8 @@ function FormReviewComposer({
   onClose: () => void;
   onSend: (seconds: number, comment: string) => void;
 }) {
+  // An absoluteFill overlay inherits no safe area — the card supplies its own.
+  const insets = useSafeAreaInsets();
   const [seconds, setSeconds] = useState(0);
   const [comment, setComment] = useState('');
   const player = useVideoPlayer(videoUrl, (p) => {
@@ -106,7 +108,7 @@ function FormReviewComposer({
           windowSoftInputMode=adjustResize, so padding stacks on top of the
           OS resize and shoves the card off screen. */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.reviewCard}>
+        <View style={[styles.reviewCard, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.modalHeaderRow}>
             <Text style={styles.modalSheetTitle}>Review form</Text>
             <TouchableOpacity hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
@@ -937,7 +939,7 @@ export default function ChatScreen() {
       <Modal visible={showWorkoutPickerModal} transparent animationType="slide" onRequestClose={() => setShowWorkoutPickerModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowWorkoutPickerModal(false)} />
-          <View style={styles.workoutPickerContent}>
+          <View style={[styles.workoutPickerContent, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a workout</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowWorkoutPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
@@ -984,7 +986,7 @@ export default function ChatScreen() {
       <Modal visible={showDietPickerModal} transparent animationType="slide" onRequestClose={() => setShowDietPickerModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowDietPickerModal(false)} />
-          <View style={styles.workoutPickerContent}>
+          <View style={[styles.workoutPickerContent, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalSheetTitle}>Select a meal plan</Text>
               <TouchableOpacity hitSlop={12} onPress={() => setShowDietPickerModal(false)} accessibilityRole="button" accessibilityLabel="Close">
@@ -1138,7 +1140,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
   workoutPickerContent: {
     backgroundColor: CoachColors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderWidth: 1, borderColor: CoachColors.border, padding: 20, paddingBottom: 36, gap: 12
+    borderWidth: 1, borderColor: CoachColors.border, padding: 20, gap: 12 // paddingBottom applied inline from the real bottom inset (Modal).
   },
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   modalSheetTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
@@ -1176,7 +1178,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     borderWidth: 1, borderColor: CoachColors.border,
-    padding: 20, paddingBottom: 30, gap: 14,
+    padding: 20, gap: 14, // paddingBottom applied inline from the real bottom inset.
   },
   reviewVideoWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.4)' },
   reviewVideo: { width: '100%', height: 210 },

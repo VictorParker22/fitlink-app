@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
@@ -23,6 +23,7 @@ const PLATFORM_FEE = 0.10;
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { plans, clients, refreshData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -60,7 +61,7 @@ export default function SubscriptionsScreen() {
   return (
     <SafeAreaView style={st.container} edges={['top']}>
       <ScrollView
-        contentContainerStyle={st.scrollContent}
+        contentContainerStyle={[st.scrollContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.textSecondary} />}
       >
@@ -170,7 +171,6 @@ export default function SubscriptionsScreen() {
           </>
         )}
 
-        <View style={{ height: 48 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -178,7 +178,8 @@ export default function SubscriptionsScreen() {
 
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 20 },
 
   header: {
     flexDirection: 'row',

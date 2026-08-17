@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -54,6 +54,7 @@ const FAQ_SECTIONS = [
 
 export default function HelpCenterScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const reduceMotion = useReducedMotion();
@@ -88,7 +89,7 @@ export default function HelpCenterScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={s.heroTitle}>How can we help?</Text>
 
         <View style={s.searchWrap}>
@@ -167,7 +168,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 60 },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: { paddingHorizontal: 16 },
 
   heroTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,

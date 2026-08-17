@@ -26,7 +26,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, Dimensions,
   StatusBar, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -219,6 +219,7 @@ function ExerciseBar({
 
 export default function SessionCompleteScreen() {
   const router                   = useRouter();
+  const insets                   = useSafeAreaInsets();
   const reduced                  = useReducedMotion();
   const { sessionId }            = useLocalSearchParams<{ sessionId: string }>();
   const { sessions, getClientById, getClientSessions, updateSession } = useApp();
@@ -388,7 +389,7 @@ export default function SessionCompleteScreen() {
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={st.scrollContent}
+            contentContainerStyle={[st.scrollContent, { paddingBottom: insets.bottom + 24 }]}
             keyboardShouldPersistTaps="handled"
           >
             {/* ── HERO HEADER ─────────────────────────────────────── */}
@@ -528,9 +529,8 @@ const st = StyleSheet.create({
     flex:            1,
     backgroundColor: CoachColors.bg,
   },
-  scrollContent: {
-    paddingBottom: 60,
-  },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
+  scrollContent: {},
   emptyText: {
     fontFamily: CoachFonts.headingSemiBold,
     fontSize:   W * 0.04,

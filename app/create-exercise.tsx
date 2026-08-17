@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,6 +19,7 @@ const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Machine', 'Cables', 'Kettlebe
 
 export default function CreateExerciseScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const editId = params.editId as string | undefined;
 
@@ -245,7 +246,7 @@ export default function CreateExerciseScreen() {
             <View style={{ width: 36 }} />
           </View>
 
-          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
             {/* Name */}
             <Section label="Name">
@@ -432,10 +433,10 @@ const s = StyleSheet.create({
     fontSize: 20,
     color: CoachColors.textPrimary,
   },
+  // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scroll: {
     paddingHorizontal: 20,
     paddingTop: 22,
-    paddingBottom: 48,
   },
 
   section: {

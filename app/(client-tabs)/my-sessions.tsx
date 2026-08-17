@@ -710,7 +710,8 @@ const s = StyleSheet.create({
 
   // Scroll
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 20 },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  scrollContent: { paddingHorizontal: 16 },
 
   // Section
   sectionHeader: { marginBottom: 8, marginTop: 4 },

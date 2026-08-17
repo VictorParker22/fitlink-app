@@ -394,9 +394,8 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: CoachColors.bg,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  // paddingBottom is applied inline from the real bottom inset + tab-bar height.
+  scrollContent: {},
 
   // Hero
   heroWrap: {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -11,6 +12,8 @@ interface AICoachModalProps {
 }
 
 export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
+  // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
+  const insets = useSafeAreaInsets();
   const { clients, activeClients, plans, sessions, getClientById } = useApp();
 
   const [coachPrompt, setCoachPrompt] = useState('');
@@ -68,7 +71,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => !coachLoading && handleClose()}>
       <View style={st.aiModalOverlay}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={st.aiModalContent}>
+          <View style={[st.aiModalContent, { paddingBottom: insets.bottom + 20 }]}>
             <View style={st.aiModalHandle} />
 
             {/* Header */}
@@ -161,7 +164,7 @@ const st = StyleSheet.create({
   aiModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' },
   aiModalContent: {
     backgroundColor: CoachColors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 36, maxHeight: '85%',
+    padding: 20, maxHeight: '85%', // paddingBottom applied inline from the real bottom inset (Modal).
   },
   aiModalHandle: {
     width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border,

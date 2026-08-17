@@ -19,7 +19,6 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Platform,
   Dimensions,
 } from 'react-native';
 import Animated, {
@@ -28,6 +27,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -95,6 +95,8 @@ export default function CancelSessionSheet({
   visible, session, onDismiss, onDone,
 }: CancelSessionSheetProps) {
   const { updateSession, addSession } = useApp();
+  // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
+  const insets = useSafeAreaInsets();
 
   const [selectedReason, setSelectedReason] = useState<ReasonId | null>(null);
   const [selectedDay,    setSelectedDay]    = useState<Date | null>(null);
@@ -236,7 +238,7 @@ export default function CancelSessionSheet({
       </Animated.View>
 
       {/* ── Sheet ── */}
-      <Animated.View style={[s.sheet, sheetStyle]}>
+      <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 12 }, sheetStyle]}>
         {/* Drag handle */}
         <View style={s.handle} />
 
@@ -435,7 +437,6 @@ const s = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth:          1,
     borderColor:          CoachColors.border,
-    paddingBottom:        Platform.OS === 'ios' ? 44 : 28,
     maxHeight:            H * 0.92,
     // Shadow
     shadowColor: '#000',
