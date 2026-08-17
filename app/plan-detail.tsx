@@ -1,5 +1,8 @@
 import { useMemo, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, RefreshControl, Image, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -61,6 +64,52 @@ export default function PlanDetailScreen() {
   const insets = useSafeAreaInsets();
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const { plans, clients, trainer, sessions, workouts, diets, refreshData } = useApp();
+  const { user } = useAuth();
+  // Phase 2 catch-up: passes created before covers existed can add one here.
+  // create-plan's editId param is not actually read by the builder (a
+  // pre-existing gap), so this screen is the only place an existing pass can
+  // gain its photo.
+  const [coverBusy, setCoverBusy] = useState(false);
+
+  const changeCover = async () => {
+    if (!plan || !user) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is needed to add a cover.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [16, 10], quality: 0.75, base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const b64 = result.assets[0].base64;
+    if (!b64) return;
+    setCoverBusy(true);
+    const ext = (result.assets[0].uri.split('.').pop() || 'jpg').toLowerCase();
+    const fileName = `${user.id}/pass-${plan.id}.${ext}`;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error: upErr } = await supabase.storage.from('coach-media').upload(fileName, bytes.buffer, {
+      contentType: ext === 'png' ? 'image/png' : 'image/jpeg', upsert: true,
+    });
+    if (upErr) {
+      setCoverBusy(false);
+      Alert.alert('Upload failed', upErr.message || 'Could not upload the cover.');
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('coach-media').getPublicUrl(fileName);
+    const cover_url = `${urlData.publicUrl}?t=${Date.now()}`;
+    // Resolves with { error } — it does not throw. A failed row update must
+    // not leave the coach believing the cover is live.
+    const { error } = await supabase.from('plans').update({ cover_url }).eq('id', plan.id);
+    setCoverBusy(false);
+    if (error) {
+      Alert.alert('Not saved', error.message || 'The photo uploaded but the pass was not updated.');
+      return;
+    }
+    refreshData();
+  };
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -161,6 +210,40 @@ export default function PlanDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Cover — what the athlete-side cards wear. Tap to set or change. */}
+          <TouchableOpacity
+            style={st.coverEdit}
+            onPress={changeCover}
+            activeOpacity={0.85}
+            disabled={coverBusy}
+            accessibilityRole="button"
+            accessibilityLabel={(plan as any).cover_url ? 'Change the pass cover photo' : 'Add a pass cover photo'}
+            accessibilityHint="Athletes see this photo on the pass card"
+            accessibilityState={{ busy: coverBusy }}
+          >
+            {(plan as any).cover_url ? (
+              <>
+                <Image source={{ uri: (plan as any).cover_url }} style={st.coverEditImg} resizeMode="cover" />
+                <View style={st.coverEditBadge}>
+                  {coverBusy
+                    ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                    : <Ionicons name="camera" size={14} color={CoachColors.onAccent} />}
+                </View>
+              </>
+            ) : (
+              <View style={st.coverEditEmpty}>
+                {coverBusy ? (
+                  <ActivityIndicator size="small" color={CoachColors.textMuted} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={18} color={CoachColors.textMuted} />
+                    <Text style={st.coverEditText}>Add a cover photo — athletes see it on the card</Text>
+                  </>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Pass Main Card */}
           <View style={st.vipCard}>
@@ -452,6 +535,17 @@ const st = StyleSheet.create({
   },
   navRight: { flexDirection: 'row', gap: 8 },
 
+  coverEdit: { marginBottom: 12 },
+  coverEditImg: { width: '100%', aspectRatio: 16 / 10, borderRadius: 16, backgroundColor: CoachColors.surface },
+  coverEditBadge: {
+    position: 'absolute', right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15,
+    backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
+  },
+  coverEditEmpty: {
+    minHeight: 64, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: CoachColors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16,
+  },
+  coverEditText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted, flexShrink: 1 },
   vipCard: {
     backgroundColor: CoachColors.surface, borderRadius: 16,
     padding: 20, borderWidth: 1, borderColor: CoachColors.border,
