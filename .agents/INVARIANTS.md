@@ -114,9 +114,20 @@ Entering a workout opens `WorkoutPreview`; only "Start session" starts the timer
 
 ## 11. Before you commit
 
+A husky `pre-commit` hook runs this automatically — it is versioned in `.husky/`, so a fresh clone gets it from `npm install`. To run it by hand:
+
 ```bash
-npx tsc --noEmit          # must be 0 errors
-node scripts/verify.js     # invariant checks (see below)
+npm run check             # tsc --noEmit && verify
+npm run verify            # invariant checks only
+npm run secrets           # secret scan across every tracked file
 ```
 
-`scripts/verify.js` greps for the failure patterns above: third-party brand names, phantom columns, `Alert.prompt`, RN-core `SafeAreaView`, unconditional `behavior="padding"`, and `try {` wrapped directly around a bare `await supabase`. It is a smoke alarm, not a proof — it catches the shapes that have shipped bugs before.
+The hook, in order:
+
+1. **`scripts/scan-secrets.js`** — the only unrecoverable mistake here. A credential is in the object store the moment it is committed and public the moment it is pushed; deleting it in a later commit does nothing. **Rotate at the source instead.** It also blocks files that must never be committed: `google-services.json`, `.env*`, signing material.
+2. **`scripts/verify.js --staged`** — reads the *index*, not the working tree, so it checks exactly what is about to land.
+3. **`npx tsc --noEmit`** — only when a `.ts`/`.tsx` is staged (~11s).
+
+`verify.js` greps for the failure patterns above: third-party brand names, phantom columns, `Alert.prompt`, RN-core `SafeAreaView`, unconditional `behavior="padding"`, and `try {` wrapped directly around a bare `await supabase`. It is a smoke alarm, not a proof — it catches the shapes that have shipped bugs before.
+
+Suppress a reviewed line with a trailing `// invariant-ok: <reason>` (or `// secret-ok: <reason>`). `git commit --no-verify` skips the lot, which is the right call for WIP on a branch and the wrong call on `master`.
