@@ -40,6 +40,13 @@ interface ExerciseState {
   muscleInfo: WorkoutMuscleInfo | null;
   /** Which face the expanded card shows: what it does to you, or how to do it. */
   mediaView: 'muscles' | 'demo';
+  /**
+   * The athlete asked to keep the media open past their first logged set.
+   * Only ever set by an explicit tap — the auto-collapse is a default, not a
+   * rule, and someone re-checking their form on set three must be able to
+   * overrule it.
+   */
+  mediaPinned: boolean;
   sets: SetLog[];
   expanded: boolean;
 }
@@ -149,6 +156,7 @@ export default function ActiveWorkoutPlayer({
           // demo media at all, so the panel is never empty.
           mediaView:
             ex.video_url || ex.exercises?.image_url ? ('demo' as const) : ('muscles' as const),
+          mediaPinned: false,
           sets: Array.from({ length: ex.sets || 3 }, () => ({
             weight: '',
             reps: String(ex.reps || 10),
@@ -252,6 +260,13 @@ export default function ActiveWorkoutPlayer({
     Haptics.selectionAsync();
     setExerciseStates((prev) =>
       prev.map((ex, i) => (i === index ? { ...ex, mediaView: view } : ex))
+    );
+  }, []);
+
+  const toggleMediaPinned = useCallback((index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExerciseStates((prev) =>
+      prev.map((ex, i) => (i === index ? { ...ex, mediaPinned: !ex.mediaPinned } : ex))
     );
   }, []);
 
@@ -629,6 +644,13 @@ export default function ActiveWorkoutPlayer({
           // on the demo face, whatever the stored preference says.
           const hasDemo = !!(exercise.videoUrl || exercise.imageUrl);
           const showMuscles = !!exercise.muscleInfo && (exercise.mediaView === 'muscles' || !hasDemo);
+          const hasMedia = hasDemo || !!exercise.muscleInfo;
+          // The media earns its space until you have used it. Before the first
+          // set it is the whole point of the card; after it, you have watched
+          // the movement and what you need is the next set, not a 303pt square
+          // of it standing between you and the rows. Pinning overrules this in
+          // both directions — form checks on set three are real.
+          const mediaOpen = hasMedia && (completedInEx === 0 || exercise.mediaPinned);
 
           return (
             <View key={exIdx} style={[s.exCard, allDone && s.exCardDone]}>
@@ -715,10 +737,32 @@ export default function ActiveWorkoutPlayer({
                         thumbnail beside a full-width GIF. One panel, two
                         faces: each gets the whole width, and the card gets no
                         taller. The switch only appears when both faces exist. */}
+                    {/* Collapsed: one slim row back to it. Named for the face
+                        it will open, so the label always matches what appears. */}
+                    {hasMedia && !mediaOpen && (
+                      <TouchableOpacity
+                        style={s.mediaReopen}
+                        onPress={() => toggleMediaPinned(exIdx)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={showMuscles ? 'Show muscles worked' : 'Show movement demo'}
+                        accessibilityHint="Reopens the media for this exercise"
+                      >
+                        <Ionicons
+                          name={showMuscles ? 'body-outline' : 'play-circle-outline'}
+                          size={16}
+                          color={CoachColors.textSecondary}
+                        />
+                        <Text style={s.mediaReopenText}>
+                          {showMuscles ? 'Show muscles' : 'Show demo'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
                     {/* Both faces, or no switch. A tab pair where one tab leads
                         nowhere is worse than no tabs — and "Demo" is first
                         because watching the movement is the first question. */}
-                    {hasDemo && exercise.muscleInfo && (
+                    {mediaOpen && hasDemo && exercise.muscleInfo && (
                       <View style={s.mediaTabs}>
                         {(['demo', 'muscles'] as const).map((view) => {
                           const on = showMuscles === (view === 'muscles');
@@ -743,10 +787,27 @@ export default function ActiveWorkoutPlayer({
                             </TouchableOpacity>
                           );
                         })}
+
+                        {/* Only offered once there is a set behind you — before
+                            that, hiding the media hides the reason the card is
+                            open. Pushed to the right so it never reads as a
+                            third tab. */}
+                        {completedInEx > 0 && (
+                          <TouchableOpacity
+                            style={s.mediaHide}
+                            onPress={() => toggleMediaPinned(exIdx)}
+                            activeOpacity={0.8}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Hide media for this exercise"
+                          >
+                            <Text style={s.mediaHideText}>Hide</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     )}
 
-                    {showMuscles && exercise.muscleInfo ? (
+                    {mediaOpen && (showMuscles && exercise.muscleInfo ? (
                       <View style={s.anatomyPanel}>
                         <MuscleMap
                           primary={exercise.muscleInfo.primary}
@@ -769,7 +830,7 @@ export default function ActiveWorkoutPlayer({
                         exerciseName={exercise.exerciseName}
                         onPlayVideo={handlePlayVideo}
                       />
-                    )}
+                    ))}
 
                     <ExerciseInstructions
                       exerciseId={exercise.exerciseId}
@@ -1018,8 +1079,36 @@ const s = StyleSheet.create({
   // ── The media panel ────────────────────────────────────────────────────
   mediaTabs: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 14,
+  },
+  mediaHide: {
+    marginLeft: 'auto',
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  mediaHideText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 13.5,
+    color: CoachColors.textMuted,
+  },
+  mediaReopen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    marginBottom: 16,
+  },
+  mediaReopenText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 14.5,
+    color: CoachColors.textSecondary,
   },
   mediaTab: {
     flexDirection: 'row',
