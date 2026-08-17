@@ -330,13 +330,10 @@ export default function AthleteFoodScreen() {
       setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
       return;
     }
-    // XP is a side reward, not the log itself — the meal is already saved, so a
-    // failure here never invalidates the tick. Surfaced in dev only.
-    const { error: xpError } = await supabase
-      .from('clients')
-      .update({ xp: (clientData.xp || 0) + 10 })
-      .eq('id', clientData.id);
-    if (xpError && __DEV__) console.warn('[Food] XP award failed:', xpError.message);
+    // XP retired: clients.xp was written on every meal tick and read by
+    // nothing anywhere in the app — a write-only number, the phantom-column
+    // shape one step earlier. Column stays; re-add the write only together
+    // with a surface that reads it.
   }, [clientData, plan]);
 
   const unlogMeal = useCallback(async (m: DayMeal) => {

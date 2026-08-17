@@ -8,7 +8,10 @@
     "scheme": "fitlink",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "fitlink.app",
@@ -84,7 +87,7 @@
       }
     },
     "android": {
-      "package": "fitlink.app",
+      "package": "com.fitlink.app",
       "adaptiveIcon": {
         "backgroundColor": "#111114",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

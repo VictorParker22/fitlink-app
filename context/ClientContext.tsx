@@ -88,7 +88,7 @@ interface ClientContextType {
   todayWorkout: any;
   enrollment: any;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
-  completeTrackWorkout: () => Promise<WriteResult>;
+  completeTrackWorkout: (sessionId?: string, durationSeconds?: number) => Promise<WriteResult>;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
   skipTrackWorkout: () => Promise<WriteResult>;
   subscription: any;
@@ -513,18 +513,22 @@ export function ClientProvider({ children }: PropsWithChildren) {
     }
   }, [workouts]);
 
-  // Complete workout with full exercise log data
-  const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number): Promise<WriteResult> => {
-    // Persist the log data alongside the workout completion
-    // Group exerciseLogs by exerciseId
+  /**
+   * exerciseLogs keys are `${sessionId}-${exerciseId}-${setIndex}` — this
+   * groups one session's entries into the exercises JSONB that
+   * client_workout_logs stores. Shared by BOTH completion paths: assigned
+   * workouts (sessionId = client_workouts.id) and season/track sessions
+   * (sessionId = `track-${workouts.id}`).
+   */
+  const buildExercisesJson = useCallback((sessionId: string) => {
     const exercisesData: Record<string, { id: string, sets: any[] }> = {};
     Object.entries(exerciseLogs)
-      .filter(([key]) => key.startsWith(clientWorkoutId))
+      .filter(([key]) => key.startsWith(`${sessionId}-`))
       .forEach(([key, entry]) => {
-        const parts = key.replace(`${clientWorkoutId}-`, '').split('-');
+        const parts = key.replace(`${sessionId}-`, '').split('-');
         const setIndex = parseInt(parts.pop()!, 10);
         const exerciseId = parts.join('-');
-        
+
         if (!exercisesData[exerciseId]) {
           exercisesData[exerciseId] = { id: exerciseId, sets: [] };
         }
@@ -536,8 +540,12 @@ export function ClientProvider({ children }: PropsWithChildren) {
            ...(entry.seconds ? { seconds: entry.seconds } : {})
         };
       });
+    return Object.values(exercisesData);
+  }, [exerciseLogs]);
 
-    const exercisesJson = Object.values(exercisesData);
+  // Complete workout with full exercise log data
+  const completeWorkoutWithLog = useCallback(async (clientWorkoutId: string, durationSeconds: number): Promise<WriteResult> => {
+    const exercisesJson = buildExercisesJson(clientWorkoutId);
 
     const logPayload = {
        client_id: clientData?.id,
@@ -570,16 +578,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
        return { ok: false, error: error.message };
     }
 
-    if (clientData) {
-      // XP is a real column; only credit it locally when the server took it.
-      const { error: xpError } = await supabase
-        .from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
-      if (xpError) {
-        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
-      } else {
-        setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 50 } as any : prev);
-      }
-    }
+    // XP retired: clients.xp was written here (+50 per workout) and read by
+    // NOTHING — no screen, no query, no coach view. A write-only number is the
+    // same shape as the phantom-column bugs, just one step earlier. The column
+    // stays in the DB; if gamification ever earns a surface, re-add the write
+    // WITH the surface in the same commit.
     setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
     // Tell the coach — real completed-set count only (0 sets → no count claim).
     const completedSets = exercisesJson.reduce(
@@ -596,7 +599,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
       return next;
     });
     return { ok: true };
-  }, [exerciseLogs, clientData, workouts, notifyCoachWorkoutDone]);
+  // todayWorkout is intentionally absent: it is declared later in this file
+  // (TDZ at render if referenced here) and only feeds the optional workout_id
+  // tag on the log row — pre-existing behavior, kept as-is.
+  }, [buildExercisesJson, clientData, workouts, notifyCoachWorkoutDone]);
 
   const markWorkoutComplete = useCallback(async (clientWorkoutId: string): Promise<WriteResult> => {
     const { error } = await supabase.from('client_workouts').update({ status: 'completed' }).eq('id', clientWorkoutId);
@@ -604,15 +610,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       console.error('[ClientContext] Failed to mark workout complete:', error.message);
       return { ok: false, error: error.message };
     }
-    if (clientData) {
-      const { error: xpError } = await supabase
-        .from('clients').update({ xp: (clientData.xp || 0) + 50 }).eq('id', clientData.id);
-      if (xpError) {
-        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
-      } else {
-        setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 50 } as any : prev);
-      }
-    }
+    // XP retired — written, read nowhere. See the note in completeWorkoutWithLog.
     setWorkouts((prev) => prev.map((w) => w.id === clientWorkoutId ? { ...w, status: 'completed' } : w));
     return { ok: true };
   }, [clientData]);
@@ -650,15 +648,8 @@ export function ClientProvider({ children }: PropsWithChildren) {
         delete next[dietPlanMealId];
         return next;
       });
-    } else {
-      const { error: xpError } = await supabase
-        .from('clients').update({ xp: (clientData.xp || 0) + 10 }).eq('id', clientData.id);
-      if (xpError) {
-        if (__DEV__) console.warn('[ClientContext] XP award failed:', xpError.message);
-      } else {
-        setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + 10 } as any : prev);
-      }
     }
+    // XP retired — written, read nowhere. See the note in completeWorkoutWithLog.
   }, [clientData]);
 
   const unlogMeal = useCallback(async (dietPlanId: string, dietPlanMealId: string) => {
@@ -777,21 +768,64 @@ export function ClientProvider({ children }: PropsWithChildren) {
     return { result: { ok: true }, node };
   }, [enrollment, clientData]);
 
-  const completeTrackWorkout = useCallback(async (): Promise<WriteResult> => {
+  /**
+   * @param sessionId  the player's activeWorkout.id (`track-${workouts.id}`) —
+   *                   the prefix its sets were logged under in exerciseLogs.
+   * @param durationSeconds  real elapsed time from the session timer.
+   *
+   * Season sessions used to advance the enrollment and DISCARD every logged
+   * set — pass athletes had no lift history, empty progress curves, and their
+   * coach saw a name with no numbers. The log write mirrors
+   * completeWorkoutWithLog: same exercises JSONB, but client_workout_id is
+   * null because no client_workouts row exists for a track session —
+   * lib/workoutCounts.ts already counts null-client_workout_id logs as
+   * sessions, so this is the shape the readers were built for.
+   */
+  const completeTrackWorkout = useCallback(async (
+    sessionId?: string,
+    durationSeconds?: number,
+  ): Promise<WriteResult> => {
     if (!enrollment || !todayWorkout?.enrollmentId) {
       return { ok: false, error: 'No active season workout' };
     }
     const { result, node } = await advanceEnrollment('completed');
     if (!result.ok) return result;
 
-    // Tell the coach. Track completions carry no per-set log here, so the
-    // summary names the workout without inventing a set count.
+    // Persist the sets AFTER the enrollment advanced: the advance is the
+    // thing the athlete cannot redo, so it must never be blocked by the log
+    // write — but a failed log write is still real data loss and logs loudly.
+    let completedSets = 0;
+    if (sessionId && node?.type === 'workout' && node?.id && clientData) {
+      const exercisesJson = buildExercisesJson(sessionId);
+      completedSets = exercisesJson.reduce(
+        (sum, ex: any) => sum + (ex.sets || []).filter((s: any) => s?.completed).length, 0);
+      if (exercisesJson.length > 0) {
+        const { error: logError } = await supabase.from('client_workout_logs').insert({
+          client_id: clientData.id,
+          client_workout_id: null,
+          workout_id: node.id,
+          exercises: exercisesJson,
+          ...(durationSeconds && durationSeconds > 0
+            ? { duration_minutes: Math.round(durationSeconds / 60) }
+            : {}),
+        });
+        if (logError && isMissingSchemaError(logError)) {
+          if (__DEV__) console.warn('[ClientContext] Season log skipped (migration pending):', logError.message);
+          completedSets = 0; // not stored — do not claim it to the coach
+        } else if (logError) {
+          console.error('[ClientContext] Season workout log NOT saved:', logError.message);
+          completedSets = 0;
+        }
+      }
+    }
+
+    // Tell the coach — with the real stored set count when there is one.
     if (node?.type === 'workout' && node?.id) {
       const trackWorkout = allTrainerWorkouts.find((w: any) => w.id === node.id);
-      notifyCoachWorkoutDone(trackWorkout?.name);
+      notifyCoachWorkoutDone(trackWorkout?.name, completedSets);
     }
     return result;
-  }, [enrollment, todayWorkout, advanceEnrollment, allTrainerWorkouts, notifyCoachWorkoutDone]);
+  }, [enrollment, todayWorkout, advanceEnrollment, allTrainerWorkouts, notifyCoachWorkoutDone, clientData, buildExercisesJson]);
 
   const skipTrackWorkout = useCallback(async (): Promise<WriteResult> => {
     if (!enrollment) return { ok: false, error: 'No active enrollment' };
@@ -939,30 +973,18 @@ export function ClientProvider({ children }: PropsWithChildren) {
     // Cancel all scheduled reminders
     await Notifications.cancelAllScheduledNotificationsAsync();
     
-    // Add XP and drop an activity for the coach.
-    // NOTE: this update used to also set `completed_workouts`, which is NOT a
-    // column on public.clients — the whole statement failed with 42703, so the
-    // XP has never actually been awarded for a gym check-out.
-    const xpReward = 50;
-    const { error: xpError } = await supabase.from('clients').update({
-      xp: (clientData.xp || 0) + xpReward,
-    }).eq('id', clientData.id);
-    if (xpError) {
-      if (__DEV__) console.warn('[ClientContext] XP award failed on check-out:', xpError.message);
-    } else {
-      setClientData(prev => prev ? { ...prev, xp: (prev.xp || 0) + xpReward } as any : prev);
-    }
-
+    // XP retired — written, read nowhere (see the note in
+    // completeWorkoutWithLog). The coach activity keeps the real facts and
+    // drops the XP claim, which described a number no screen ever showed.
     const { error: activityError } = await supabase.from('activities').insert({
       trainer_id: clientData.trainer_id,
       type: 'workout_completed',
-      message: `${clientData.name} checked out of the gym. Duration: ${durationMinutes} mins (+${xpReward} XP)`,
+      message: `${clientData.name} checked out of the gym. Duration: ${durationMinutes} mins`,
     });
     if (activityError && __DEV__) {
       console.warn('[ClientContext] Coach activity not recorded:', activityError.message);
     }
-    
-    // Refresh to get updated XP from backend just in case
+
     refreshData();
   }, [clientData, activeGymVisit, refreshData]);
 

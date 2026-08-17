@@ -410,8 +410,10 @@ export default function ClientWorkoutsScreen() {
         enrollment?.status === 'active' && trackLen > 0 && (enrollment.track_position || 0) + 1 >= trackLen;
       // Advances the enrollment position and writes the session log. These
       // return { ok } rather than throwing — a rejected write used to close
-      // the summary as if the session had been recorded.
-      const res = await completeTrackWorkout();
+      // the summary as if the session had been recorded. The session id and
+      // elapsed time ride along so the per-set log is actually persisted —
+      // season sessions used to silently discard every logged set.
+      const res = await completeTrackWorkout(activeWorkout.id, summaryElapsedSeconds);
       if (!res?.ok) {
         Alert.alert(
           'Session not saved',

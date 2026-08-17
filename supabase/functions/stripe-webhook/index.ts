@@ -254,7 +254,7 @@ serve(async (req) => {
           // Ensure client stays active
           const { data: subRecord } = await supabaseAdmin
             .from('client_subscriptions')
-            .select('client_id, plan_id')
+            .select('client_id, plan_id, trainer_id')
             .eq('stripe_subscription_id', subId)
             .single()
 
@@ -299,11 +299,16 @@ serve(async (req) => {
               .eq('stripe_subscription_id', subId)
           }
 
-          // Record the recurring payment
+          // Record the recurring payment. plan_id and trainer_id ride along
+          // from client_subscriptions — without them, renewal revenue was
+          // invisible to per-pass attribution (Pass performance undercounted
+          // every subscription renewal) and to the trainer's own payment RLS.
           if (invoice.payment_intent) {
             await supabaseAdmin.from('payments').upsert({
               stripe_payment_intent_id: invoice.payment_intent as string,
               client_id: subRecord?.client_id,
+              plan_id: subRecord?.plan_id ?? null,
+              trainer_id: subRecord?.trainer_id ?? null,
               amount: invoice.amount_paid,
               currency: invoice.currency,
               status: 'succeeded',
