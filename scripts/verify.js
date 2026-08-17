@@ -7,17 +7,20 @@
  * A clean run does not mean the code is correct; a dirty run means something
  * that has bitten us before is back.
  *
- *   node scripts/verify.js            # report, exit 1 on any error
+ *   node scripts/verify.js            # whole tree, exit 1 on any error
+ *   node scripts/verify.js --staged   # only what is about to be committed
  *   node scripts/verify.js --warn     # report, always exit 0
  *
  * Suppress a knowingly-fine line with a trailing:  // invariant-ok: <reason>
  */
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const ROOT = process.cwd();
 const DIRS = ['app', 'components', 'lib', 'hooks', 'context', 'utils'];
 const WARN_ONLY = process.argv.includes('--warn');
+const STAGED = process.argv.includes('--staged');
 
 /** @type {{id:string,level:'error'|'warn',what:string,why:string,test:(line:string,file:string)=>boolean}[]} */
 const RULES = [
@@ -89,13 +92,37 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = DIRS.flatMap((d) => walk(path.join(ROOT, d)));
+const git = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+
+/**
+ * In --staged mode, read the INDEX rather than the working tree: that is what
+ * is actually about to become a commit. Reading the file from disk would let a
+ * fix you have not staged mask a problem you have, and would flag unstaged
+ * work-in-progress that is none of this commit's business.
+ */
+function sources() {
+  if (!STAGED) {
+    return DIRS.flatMap((d) => walk(path.join(ROOT, d))).map((file) => ({
+      file,
+      text: fs.readFileSync(file, 'utf8'),
+    }));
+  }
+  const names = git(['diff', '--cached', '--name-only', '--diff-filter=ACM'])
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => /\.(ts|tsx)$/.test(s) && DIRS.some((d) => s === d || s.startsWith(d + '/')));
+  return names.map((name) => ({
+    file: path.join(ROOT, name),
+    text: git(['show', `:${name}`]),
+  }));
+}
+
 const hits = [];
 
-for (const file of files) {
+for (const { file, text } of sources()) {
   // The invariants doc and this script legitimately name the patterns.
   if (/scripts[\\/]verify\.js$/.test(file)) continue;
-  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  const lines = text.split('\n');
   lines.forEach((line, i) => {
     if (/invariant-ok:/.test(line)) return;
     // Comments legitimately NAME these patterns — most of them exist to warn
@@ -122,7 +149,7 @@ const errors = hits.filter((h) => h.rule.level === 'error');
 const warns = hits.filter((h) => h.rule.level === 'warn');
 
 if (!hits.length) {
-  console.log('verify: clean — no known-bad patterns found.');
+  console.log(`verify: clean — no known-bad patterns in ${STAGED ? 'the staged changes' : 'app/, components/, lib/, hooks/, context/, utils/'}.`);
   console.log('(A clean run is not a proof. See .agents/INVARIANTS.md for the rules a grep cannot check.)');
   process.exit(0);
 }
