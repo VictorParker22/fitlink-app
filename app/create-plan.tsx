@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
@@ -15,7 +15,7 @@ import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
-import { formatRun, formatDeadline } from '../lib/cohort';
+import { formatRun, formatDeadline, parseLocalDay } from '../lib/cohort';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,8 +77,20 @@ export default function CreatePassScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { createPlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients } = useApp();
+  const { createPlan, updatePlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients } = useApp();
   const { showAlert } = useAlert();
+
+  // ── Edit mode (plan-detail pushes /create-plan?editId=<plan.id>) ──────────
+  // The plan is the coach's own, already in context — no fetch. If editId
+  // points at nothing (stale link, plan deleted) we fall back to create mode
+  // rather than render a half-prefilled form.
+  const params = useLocalSearchParams<{ editId?: string }>();
+  const editId = typeof params.editId === 'string' ? params.editId : undefined;
+  const editingPlan = useMemo(
+    () => (editId ? plans.find(p => p.id === editId) ?? null : null),
+    [editId, plans]
+  );
+  const isEdit = !!editingPlan;
 
   // ── Flow state ──
   const [step, setStep] = useState(1);
@@ -164,6 +176,48 @@ export default function CreatePassScreen() {
   // Content picker (used by step 2 template and step 3 week editor)
   const [picker, setPicker] = useState<{ dayIndex: number; weekIndex: number | null; kind: 'workout' | 'diet' } | null>(null);
 
+  // ── Edit mode: prefill once from the existing plan ────────────────────────
+  // A ref, not mount-only: plans can still be loading on first render, so the
+  // prefill runs the first time the plan is actually available — and never
+  // again, so a re-render after save can't clobber in-progress typing.
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!editingPlan || prefilledRef.current) return;
+    prefilledRef.current = true;
+    setName(editingPlan.name);
+    setPromise(editingPlan.description || '');
+    if (editingPlan.duration_weeks) setWeeks(editingPlan.duration_weeks);
+    setPriceText(String(editingPlan.price));
+    setPeriod(editingPlan.period === 'year' ? 'year' : 'month');
+    const ss = editingPlan.season_settings;
+    if (ss && typeof ss.start_at_week_one === 'boolean') setStartWeekOne(ss.start_at_week_one);
+    if (ss && typeof ss.progressive_note === 'boolean') setProgressiveNote(ss.progressive_note);
+    // cover_url exists in the DB (coach_identity_media.sql) but not on the
+    // Plan interface yet — same access shape plan-detail.tsx already uses.
+    setCoverUrl((editingPlan as any).cover_url ?? null);
+    const start = parseLocalDay(editingPlan.starts_on);
+    if (start) {
+      setProductType('cohort');
+      setStartsOn(start);
+      const closes = parseLocalDay(editingPlan.enrollment_closes);
+      if (closes) { setEnrollmentCloses(closes); setDeadlineEdited(true); }
+      else setEnrollmentCloses(addDays(start, -1));
+      setCapacityText(editingPlan.capacity && editingPlan.capacity > 0 ? String(editingPlan.capacity) : '');
+    }
+  }, [editingPlan]);
+
+  // ── Edit mode skips the track steps ───────────────────────────────────────
+  // The pass-track-editor owns track editing (with its blast-radius flow), so
+  // an edit here never rebuilds or resaves the track. Rather than show steps
+  // 2–3 read-only — dead UI that implies editability — the wizard simply walks
+  // 1 → 4 → 5. This is the smallest change: every step keeps its number, only
+  // the walk order differs.
+  const stepSequence = useMemo(() => (isEdit ? [1, 4, 5] : [1, 2, 3, 4, 5]), [isEdit]);
+  const goNextStep = () => {
+    const i = stepSequence.indexOf(step);
+    if (i >= 0 && i < stepSequence.length - 1) { setEditingWeek(null); setStep(stepSequence[i + 1]); }
+  };
+
   // ── Real enrollment stats for the coach's existing passes ──
   const [planStats, setPlanStats] = useState<Record<string, { holders: number; completed: number }>>({});
   useEffect(() => {
@@ -208,14 +262,23 @@ export default function CreatePassScreen() {
     const today = atMidnight(new Date()).getTime();
     const start = atMidnight(startsOn).getTime();
     const deadline = atMidnight(enrollmentCloses).getTime();
-    const startErr = start <= today
+    // Editing a cohort that already started must not dead-end the whole save:
+    // an unchanged stored start date is allowed through; MOVING it into the
+    // past is still an error.
+    const startUnchanged = isEdit
+      && !!editingPlan?.starts_on
+      && toISODate(startsOn) === String(editingPlan.starts_on).slice(0, 10);
+    const startErr = start <= today && !startUnchanged
       ? 'A cohort has to start in the future — everyone begins on this day.'
       : null;
+    const deadlineUnchanged = isEdit
+      && !!editingPlan?.enrollment_closes
+      && toISODate(enrollmentCloses) === String(editingPlan.enrollment_closes).slice(0, 10);
     let deadlineErr: string | null = null;
     if (deadline > start) deadlineErr = 'Enrollment has to close on or before the start date.';
-    else if (deadline < today) deadlineErr = 'That deadline has already passed — nobody could join.';
+    else if (deadline < today && !deadlineUnchanged) deadlineErr = 'That deadline has already passed — nobody could join.';
     return { start: startErr, deadline: deadlineErr, any: !!(startErr || deadlineErr) };
-  }, [isCohort, startsOn, enrollmentCloses]);
+  }, [isCohort, startsOn, enrollmentCloses, isEdit, editingPlan]);
 
   // "Sep 8 – Sep 29 · Closes Aug 31 · 12 spots" — every part from real input.
   const cohortSummary = useMemo(() => {
@@ -319,7 +382,9 @@ export default function CreatePassScreen() {
   }, [seasonWeeks, finalMilestones]);
 
   const trackCounts = useMemo(() => {
-    const track = buildTrack();
+    // Edit mode never rebuilds the track — the preview counts what the pass
+    // already contains.
+    const track: TrackNode[] = editingPlan ? (editingPlan.track ?? []) : buildTrack();
     let w = 0, m = 0, c = 0, ms = 0;
     track.forEach(n => {
       if (n.type === 'workout') w += 1;
@@ -328,26 +393,28 @@ export default function CreatePassScreen() {
       else ms += 1;
     });
     return { workouts: w, meals: m, checkins: c, milestones: ms, total: track.length };
-  }, [buildTrack]);
+  }, [buildTrack, editingPlan]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Actions
   // ─────────────────────────────────────────────────────────────────────────
 
   const goBack = () => {
-    if (step === 1) { router.back(); return; }
+    const i = stepSequence.indexOf(step);
+    if (i <= 0) { router.back(); return; }
     setEditingWeek(null);
-    setStep(step - 1);
+    setStep(stepSequence[i - 1]);
   };
 
   // Android hardware back walks the wizard back a step instead of popping the
   // whole screen and discarding every step the coach has filled in.
   useAndroidBack(useCallback(() => {
-    if (step === 1) return false;
+    const i = stepSequence.indexOf(step);
+    if (i <= 0) return false;
     setEditingWeek(null);
-    setStep((s) => s - 1);
+    setStep(stepSequence[i - 1]);
     return true;
-  }, [step]));
+  }, [step, stepSequence]));
 
   const expandToSeason = () => {
     // week template × N — everything below is the coach's to edit.
@@ -500,6 +567,27 @@ export default function CreatePassScreen() {
     }
     setSaving(true);
     try {
+      if (isEdit && editingPlan) {
+        // An edit updates the plans row only. The track stays untouched (the
+        // pass-track-editor owns it, blast-radius flow included), no offers
+        // go out and no celebration shows — an edit is not a launch.
+        await updatePlan(editingPlan.id, {
+          name: name.trim(),
+          price,
+          period,
+          description: promise.trim() || null,
+          cover_url: coverUrl,
+          duration_weeks: weeks,
+          season_settings: { start_at_week_one: startWeekOne, progressive_note: progressiveNote },
+          // Always send the cohort trio so switching cohort ⇄ evergreen
+          // persists; updatePlan sheds them on 42703 like createPlan does.
+          starts_on: isCohort ? toISODate(startsOn) : null,
+          enrollment_closes: isCohort ? toISODate(enrollmentCloses) : null,
+          capacity: isCohort && capacity > 0 ? capacity : null,
+        });
+        router.back();
+        return;
+      }
       const plan = await createPlan(
         name.trim(), price, period,
         [],            // features replaced by the promise line
@@ -540,7 +628,7 @@ export default function CreatePassScreen() {
         router.back();
       }
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Could not save', message: err.message || 'Failed to create the pass' });
+      showAlert({ type: 'error', title: 'Could not save', message: err.message || (isEdit ? 'Failed to save the changes' : 'Failed to create the pass') });
     } finally {
       setSaving(false);
     }
@@ -1185,7 +1273,8 @@ export default function CreatePassScreen() {
           </View>
         </View>
 
-        {activeClients.length > 0 && (
+        {/* Offers are a launch move — an edit sends none, so the list hides. */}
+        {!isEdit && activeClients.length > 0 && (
           <View style={s.card}>
             <Text style={s.eyebrow}>Offer it to someone when it goes live</Text>
             <Text style={s.helperText}>They get a message from you, not a system notification.</Text>
@@ -1227,10 +1316,10 @@ export default function CreatePassScreen() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const ctaConfig: Record<number, { label: string; disabled: boolean; onPress: () => void }> = {
-    1: { label: 'Build the week', disabled: !name.trim(), onPress: () => setStep(2) },
+    1: { label: isEdit ? 'Set the price' : 'Build the week', disabled: !name.trim(), onPress: goNextStep },
     2: { label: `Expand to ${weeks} weeks`, disabled: templateNodes.length === 0, onPress: expandToSeason },
-    3: { label: 'Set the price', disabled: false, onPress: () => { setEditingWeek(null); setStep(4); } },
-    4: { label: 'See what athletes see', disabled: !price || price <= 0 || cohortErrors.any, onPress: () => setStep(5) },
+    3: { label: 'Set the price', disabled: false, onPress: goNextStep },
+    4: { label: 'See what athletes see', disabled: !price || price <= 0 || cohortErrors.any, onPress: goNextStep },
   };
 
   const cta = ctaConfig[step];
@@ -1245,16 +1334,18 @@ export default function CreatePassScreen() {
             <Ionicons name={step === 1 ? 'close' : 'chevron-back'} size={25} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={{ alignItems: 'center', flex: 1 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || 'New pass'}</Text>
-            <Text style={s.headerSub}>Step {step} of 5 · {STEP_LABELS[step - 1]}</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || (isEdit ? 'Edit pass' : 'New pass')}</Text>
+            <Text style={s.headerSub}>
+              {isEdit ? 'Edit pass · ' : ''}Step {stepSequence.indexOf(step) + 1} of {stepSequence.length} · {STEP_LABELS[step - 1]}
+            </Text>
           </View>
           <View style={{ width: 32 }} />
         </View>
 
-        {/* Real 5-segment progress bar — one segment per step, no fake urgency */}
+        {/* Real progress bar — one segment per step in this mode's walk, no fake urgency */}
         <View style={s.progressBar}>
-          {STEP_LABELS.map((_, i) => (
-            <View key={i} style={[s.progressSeg, i < step && s.progressSegDone]} />
+          {stepSequence.map(sv => (
+            <View key={sv} style={[s.progressSeg, sv <= step && s.progressSegDone]} />
           ))}
         </View>
 
@@ -1280,6 +1371,20 @@ export default function CreatePassScreen() {
               activeOpacity={0.85}
             >
               <Text style={s.primaryBtnText}>{cta.label}</Text>
+            </TouchableOpacity>
+          ) : isEdit ? (
+            // Edit mode: one plain save — no draft split, no publish language.
+            <TouchableOpacity
+              style={[s.primaryBtn, saving && { opacity: 0.5 }]}
+              onPress={() => handleSave(false)}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
+              ) : (
+                <Text style={s.primaryBtnText}>Save changes</Text>
+              )}
             </TouchableOpacity>
           ) : (
             <View style={s.footerRow}>

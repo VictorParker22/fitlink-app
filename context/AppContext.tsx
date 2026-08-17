@@ -406,6 +406,7 @@ interface AppContextType {
   getClientSessions: (clientId: string) => Session[];
   updateTrainer: (updates: Partial<Trainer>) => Promise<Trainer>;
   createPlan: (name: string, price: number, period: string, features?: string[], color?: string, isPopular?: boolean, extras?: PlanSeasonExtras) => Promise<Plan>;
+  updatePlan: (planId: string, updates: Partial<Pick<Plan, 'name' | 'price' | 'period' | 'description' | 'duration_weeks' | 'season_settings' | 'starts_on' | 'enrollment_closes' | 'capacity'>> & { cover_url?: string | null }) => Promise<Plan>;
   updatePlanTrack: (planId: string, track: TrackNode[]) => Promise<void>;
   createExercise: (name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
   updateExercise: (id: string, name: string, category: string, muscleGroup: string, equipment?: string, instructions?: string, imageUrl?: string) => Promise<Exercise>;
@@ -1660,6 +1661,68 @@ export function AppProvider({ children }: PropsWithChildren) {
     return data as Plan;
   }, [user]);
 
+  // Edit an existing pass's plans row (create-plan.tsx in edit mode). Sheds
+  // cohort + cover columns on 42703 exactly like createPlan above, so a DB
+  // predating those migrations still saves the rest of the edit.
+  const updatePlan = useCallback(async (
+    planId: string,
+    updates: Partial<Pick<Plan, 'name' | 'price' | 'period' | 'description' | 'duration_weeks' | 'season_settings' | 'starts_on' | 'enrollment_closes' | 'capacity'>> & { cover_url?: string | null }
+  ) => {
+    let { data, error } = await supabase
+      .from('plans')
+      .update(updates)
+      .eq('id', planId)
+      .select()
+      .single();
+
+    const missingColumn = (e: any) => !!e && (e.code === '42703' || /column/i.test(e.message || ''));
+
+    if (error && missingColumn(error)) {
+      // Mirror createPlan's shedding order: cohort keys + cover_url first
+      // (the newest columns), then fall back to the base columns only.
+      const withoutCohort: Record<string, any> = { ...updates };
+      COHORT_EXTRA_KEYS.forEach(k => { delete withoutCohort[k]; });
+      delete withoutCohort.cover_url;
+      if (Object.keys(withoutCohort).length > 0) {
+        ({ data, error } = await supabase
+          .from('plans')
+          .update(withoutCohort)
+          .eq('id', planId)
+          .select()
+          .single());
+      }
+      if (error && missingColumn(error)) {
+        const base: Record<string, any> = {};
+        (['name', 'price', 'period'] as const).forEach(k => {
+          if (updates[k] !== undefined) base[k] = updates[k];
+        });
+        if (Object.keys(base).length > 0) {
+          ({ data, error } = await supabase
+            .from('plans')
+            .update(base)
+            .eq('id', planId)
+            .select()
+            .single());
+        }
+      }
+    }
+
+    if (error) throw error;
+    if (data) {
+      setPlans(prev => prev
+        .map(p => (p.id === planId ? { ...p, ...data } : p))
+        .sort((a, b) => a.price - b.price));
+    }
+
+    await logActivity({
+      trainer_id: user!.id,
+      type: 'plan',
+      message: `Updated subscription plan "${data?.name ?? updates.name ?? ''}"`,
+    });
+
+    return data as Plan;
+  }, [user]);
+
   const updatePlanTrack = useCallback(async (planId: string, track: TrackNode[]) => {
     const { error } = await supabase
       .from('plans')
@@ -2209,6 +2272,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     getClientSessions,
     updateTrainer,
     createPlan,
+    updatePlan,
     updatePlanTrack,
     createExercise,
     updateExercise,
@@ -2261,7 +2325,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     totalMonthlyRevenue, addClient, updateClient, upgradeClientToPlan,
     extendClientTrial, updateClientAssessment, getClientById, addSession,
     updateSession, getSessionsForDate, getClientSessions, updateTrainer,
-    createPlan, updatePlanTrack, createExercise, updateExercise, importExercise,
+    createPlan, updatePlan, updatePlanTrack, createExercise, updateExercise, importExercise,
     createWorkout, updateWorkout, deleteWorkout, duplicateWorkout, assignWorkout,
     createMeal, createDietPlan, updateDietPlan, duplicateDietPlan, deleteDietPlan, assignDietPlan, getClientWorkouts,
     getClientDiets, progressLogs, getClientProgress, addProgressLog,
