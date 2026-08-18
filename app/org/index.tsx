@@ -271,8 +271,18 @@ export default function OrgOverviewScreen() {
         {phase.kind === 'ready' && totals !== null && (
           <>
             {/* ── Seats ── */}
-            <View style={st.seatCard}>
-              <Text style={st.tileLabel}>Seats</Text>
+            {/* Tappable through to billing. The seat count is the one figure
+                on this screen an owner can actually act on, so it is the one
+                that leads somewhere. */}
+            <TouchableOpacity
+              style={st.seatCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/org/billing')}
+            >
+              <View style={st.seatHead}>
+                <Text style={st.tileLabel}>Seats</Text>
+                <Ionicons name="chevron-forward" size={16} color={CoachColors.textMuted} />
+              </View>
               <Text style={st.seatValue}>
                 {seatsUsed}
                 {seatLimit !== null && <Text style={st.seatOf}> of {seatLimit}</Text>}
@@ -284,7 +294,7 @@ export default function OrgOverviewScreen() {
               ) : (
                 <Text style={st.tileSub}>Seats not provisioned yet</Text>
               )}
-            </View>
+            </TouchableOpacity>
 
             {/* ── Stat row ── */}
             <View style={st.tileGrid}>
@@ -404,6 +414,7 @@ export default function OrgOverviewScreen() {
 }
 
 const st = StyleSheet.create({
+  seatHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   container: { flex: 1, backgroundColor: CoachColors.bg },
   // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scrollContent: { paddingHorizontal: 20 },

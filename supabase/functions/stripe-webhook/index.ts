@@ -125,6 +125,120 @@ async function ensurePlanEnrollment(
   )
 }
 
+/**
+ * Seat billing for gyms — the org half of the subscription events.
+ *
+ * Gyms and athletes generate the SAME Stripe event types. Without a
+ * discriminator, `customer.subscription.updated` for a gym would be looked up
+ * in `client_subscriptions`, match nothing, and silently succeed — the gym's
+ * seats would never change and no error would ever be raised. So every org
+ * subscription is stamped `metadata.kind = 'org_seats'` at creation
+ * (create-org-subscription), and this runs first when it sees that stamp.
+ *
+ * SEATS ARE WRITTEN IN ONE PLACE ONLY: apply_org_seats(), here, after Stripe
+ * says money moved. Never in the app, never in the checkout endpoint.
+ *
+ * CANCELLATION DOES NOT EVICT. When a subscription ends we freeze the limit at
+ * the gym's CURRENT active headcount rather than dropping it to nothing. Every
+ * coach already working keeps working and keeps their athletes; the gym simply
+ * cannot activate anyone new. Cutting off a working coach mid-month because a
+ * card expired would take the gym's billing problem and hand it to the
+ * athletes who showed up for a session that day.
+ *
+ * Returns true if the event was an org event and has been fully handled.
+ */
+async function handleOrgSeatEvent(
+  supabaseAdmin: any,
+  event: Stripe.Event,
+): Promise<boolean> {
+  const obj = event.data.object as any
+  const meta = obj?.metadata ?? {}
+  if (meta.kind !== 'org_seats') return false
+
+  const orgId = meta.org_id
+  if (!orgId) {
+    // Stamped as ours but unusable. Loud, because it means a seat purchase is
+    // sitting in Stripe that will never be honoured in the product.
+    console.error(`[webhook][org] ${event.type} has kind=org_seats but no org_id`)
+    return true
+  }
+
+  // How many coaches are actually working right now. Needed for the freeze,
+  // and read fresh rather than trusted from metadata.
+  const activeCount = async (): Promise<number> => {
+    const { count } = await supabaseAdmin
+      .from('organization_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .eq('status', 'active')
+    return typeof count === 'number' ? count : 0
+  }
+
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      // The subscription itself arrives as its own event carrying the same
+      // metadata, and that one has the quantity and period on it. Recording
+      // seats from the session too would mean two writers for one fact.
+      console.log(`[webhook][org] checkout completed for org ${orgId}`)
+      return true
+    }
+
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated': {
+      const sub = obj as Stripe.Subscription
+      const item = sub.items?.data?.[0]
+      const qty = item?.quantity
+
+      if (typeof qty !== 'number') {
+        console.error(`[webhook][org] subscription ${sub.id} has no quantity; seats unchanged`)
+        return true
+      }
+
+      // past_due / unpaid / incomplete are NOT paid states. Freeze rather than
+      // grant: the gym keeps the coaches it has and cannot add more until the
+      // card is fixed.
+      const paid = sub.status === 'active' || sub.status === 'trialing'
+      const seats = paid ? qty : await activeCount()
+
+      const { error } = await supabaseAdmin.rpc('apply_org_seats', {
+        p_org_id: orgId,
+        p_seats: seats,
+        p_status: sub.status,
+        p_customer_id: typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null,
+        p_sub_id: sub.id,
+        p_price_cents: item?.price?.unit_amount ?? null,
+        p_renew_at: sub.current_period_end
+          ? new Date(sub.current_period_end * 1000).toISOString()
+          : null,
+      })
+      if (error) console.error(`[webhook][org] apply_org_seats failed: ${error.message}`)
+      else console.log(`[webhook][org] org ${orgId} -> ${seats} seats (${sub.status})`)
+      return true
+    }
+
+    case 'customer.subscription.deleted': {
+      const sub = obj as Stripe.Subscription
+      const frozen = await activeCount()
+      const { error } = await supabaseAdmin.rpc('apply_org_seats', {
+        p_org_id: orgId,
+        p_seats: frozen,
+        p_status: 'canceled',
+        p_customer_id: null,
+        p_sub_id: null,
+        p_price_cents: null,
+        p_renew_at: null,
+      })
+      if (error) console.error(`[webhook][org] cancel apply_org_seats failed: ${error.message}`)
+      else console.log(`[webhook][org] org ${orgId} cancelled, frozen at ${frozen} seats`)
+      return true
+    }
+
+    default:
+      // Invoices and other org-stamped events need no seat change.
+      return true
+  }
+}
+
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature')!
   const body = await req.text()
@@ -148,6 +262,17 @@ serve(async (req) => {
   )
 
   try {
+    // Gym seat billing shares Stripe's subscription event types with athlete
+    // billing, so it is dispatched FIRST on its metadata stamp. If this were
+    // below, an org subscription would fall into the client_subscriptions
+    // handlers, match no row, and quietly do nothing.
+    if (await handleOrgSeatEvent(supabaseAdmin, event)) {
+      return new Response(JSON.stringify({ received: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     switch (event.type) {
       // ---- Payment Intent Events ----
       case 'payment_intent.succeeded': {
