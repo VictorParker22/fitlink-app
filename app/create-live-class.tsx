@@ -8,7 +8,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import DateTimePicker from '@react-native-community/datetimepicker';
+// Platform-split: the package has no web entry and reaches RN internals,
+// which fails the web build outright. See ../lib/DateTimePicker.tsx.
+import DateTimePicker from '../lib/DateTimePicker';
 
 import { useApp } from '../context/AppContext';
 import { Spacing, Radius } from '../constants/theme';

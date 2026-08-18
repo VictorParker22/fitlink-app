@@ -5,7 +5,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
+// Platform-split: @stripe/stripe-react-native cannot be imported on web (it
+// pulls react-native internals the web bundler rejects), so the import itself
+// has to differ, not just the behaviour. See lib/stripe-checkout.web.tsx.
+import { useStripe } from '../lib/stripe-checkout';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';

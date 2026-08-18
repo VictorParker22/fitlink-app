@@ -67,3 +67,8 @@ index_diff.patch
 # sensitive documents
 *.pdf
 medical-record.pdf
+
+# Platform export artifacts
+dist-web/
+dist-ios-check/
+dist-web-test/

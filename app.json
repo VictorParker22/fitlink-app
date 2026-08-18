@@ -9,8 +9,9 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "platforms": [
+      "ios",
       "android",
-      "ios"
+      "web"
     ],
     "ios": {
       "supportsTablet": false,
@@ -119,8 +120,9 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",

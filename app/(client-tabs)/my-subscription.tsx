@@ -7,7 +7,10 @@ import { useClient } from '../../context/ClientContext';
 import { useAlert } from '../../context/AlertContext';
 import { Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
-import { useStripe } from '@stripe/stripe-react-native';
+// Platform-split — @stripe/stripe-react-native cannot be imported on web.
+// See lib/stripe-checkout.ts (base is the web-safe one, .native carries the
+// real hook, so a resolution miss degrades instead of breaking the build).
+import { useStripe } from '../../lib/stripe-checkout';
 import { ClientRoute, SharedRoute } from '../../types/routes';
 import * as Haptics from 'expo-haptics';
 

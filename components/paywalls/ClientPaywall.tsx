@@ -32,11 +32,15 @@ import {
   ScrollView,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { PACKAGE_TYPE, PurchasesPackage } from 'react-native-purchases';
+// PACKAGE_TYPE is a runtime enum; PurchasesPackage is a type. Both come from
+// the platform-split module — the real SDK cannot be imported on web.
+import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
+import type { PurchasesPackage } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -178,8 +182,18 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
             ))}
           </View>
 
-          {/* Plan toggle */}
-          {isLoading ? (
+          {/* Plan toggle.
+              On web there is no store: RevenueCat purchases are native-only,
+              so offerings are null and every price would be a placeholder.
+              Say so instead of rendering a dead button under empty prices. */}
+          {Platform.OS === 'web' ? (
+            <View style={s.webNote}>
+              <Text style={s.webNoteText}>
+                Subscriptions are managed in the FitLink app. Open it on your phone to start or
+                restore your pass.
+              </Text>
+            </View>
+          ) : isLoading ? (
             <ActivityIndicator color={CoachColors.textMuted} style={{ marginVertical: 24 }} />
           ) : (
             <>
@@ -288,6 +302,23 @@ const s = StyleSheet.create({
   },
   // paddingBottom is applied inline from the real bottom inset (pageSheet Modal: no safe area inherited).
   scroll: { paddingHorizontal: 24 },
+
+  // Web: no store, no prices, no purchase button — just the truth.
+  webNote: {
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+  },
+  webNoteText: {
+    fontFamily: CoachFonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: CoachColors.textSecondary,
+    textAlign: 'center',
+  },
 
   // Hero
   hero: { alignItems: 'center', paddingTop: 16, paddingBottom: 32 },

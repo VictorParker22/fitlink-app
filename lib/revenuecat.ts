@@ -22,7 +22,9 @@
  * offering exclusively, never these numbers.
  */
 
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+// Platform-split SDK: the base module is web-safe, `.native.ts` carries the
+// real package. react-native-purchases cannot be imported on web at all.
+import { Purchases, LOG_LEVEL } from './revenuecat-sdk';
 import { Platform, NativeModules } from 'react-native';
 
 // ─── API Keys ─────────────────────────────────────────────────────────────────

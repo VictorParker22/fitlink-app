@@ -28,7 +28,6 @@ import { isBroadcastDndEnabled, loadBroadcastDnd } from '../lib/broadcastFocus';
 import { ErrorBoundaryProps } from 'expo-router';
 import Button from '../components/Button';
 import SplashOverlay from '../components/SplashOverlay';
-import LottieView from 'lottie-react-native';
 
 // Platform-specific: .native.ts re-exports @stripe/stripe-react-native,
 // .web.tsx provides a passthrough wrapper

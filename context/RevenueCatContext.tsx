@@ -21,12 +21,15 @@ import React, {
   useCallback,
   type PropsWithChildren,
 } from 'react';
-import {
+// PURCHASES_ERROR_CODE is a runtime enum, so it comes from the platform-split
+// module (base = web-safe stub, `.native.ts` = the real SDK). The rest are
+// types and are erased at compile time.
+import { PURCHASES_ERROR_CODE } from '../lib/revenuecat-sdk';
+import type {
   PurchasesOffering,
   PurchasesPackage,
   CustomerInfo,
-  PURCHASES_ERROR_CODE,
-} from 'react-native-purchases';
+} from '../lib/revenuecat-sdk';
 import {
   Purchases,
   initRevenueCat,

@@ -31,11 +31,14 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { PACKAGE_TYPE } from 'react-native-purchases';
+// PACKAGE_TYPE is a runtime enum, so it comes from the platform-split module —
+// react-native-purchases cannot be imported on web at all.
+import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useApp } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -78,6 +81,12 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const { plans, activeClients } = useApp();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  // No store in a browser: RevenueCat purchases are native-only, so offerings
+  // are null and the fallback price below would be a number we made up. On web
+  // the screen states what Elite is and where to buy it — never a price we
+  // cannot source, and never a button that silently grants or does nothing.
+  const isWeb = Platform.OS === 'web';
 
   // ── Store packages ─────────────────────────────────────────────────────────
   const monthlyPkg =
@@ -132,7 +141,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   // Show the comparison only when it's honest and it argues FOR the price:
   // real revenue exists and Elite is a minority share of it.
   const pctOfTake = monthlyNet > 0 ? (elitePrice / monthlyNet) * 100 : null;
-  const showComparison = pctOfTake !== null && pctOfTake < 50;
+  const showComparison = !isWeb && pctOfTake !== null && pctOfTake < 50;
   const pctLabel =
     pctOfTake === null ? null : pctOfTake < 1 ? 'under 1%' : `about ${Math.round(pctOfTake)}%`;
 
@@ -142,8 +151,26 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const handlePurchase = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!pkg) {
-      // Expo Go — native purchases unavailable. Same bypass studio always had.
-      onSuccess();
+      // NO PACKAGE, NO GRANT.
+      //
+      // This used to call onSuccess() here, with a comment explaining it as an
+      // Expo Go convenience. But the condition is not "we are in Expo Go" — it
+      // is "there is no purchasable package", which is ALSO true in a shipped
+      // build whenever offerings fail to load, or the RevenueCat offering has
+      // not been configured yet. The caller's onSuccess navigates straight to
+      // /broadcast/setup, so a network blip handed a coach the Elite feature
+      // for free. Not web-specific: it fired on iOS and Android too.
+      //
+      // The dev convenience is kept, but gated on __DEV__ so it cannot ship.
+      if (__DEV__) {
+        console.warn('[CoachElitePaywall] No package — granting in dev only.');
+        onSuccess();
+        return;
+      }
+      Alert.alert(
+        'Not available right now',
+        "We couldn't load Elite pricing. Check your connection and try again — nothing has been charged.",
+      );
       return;
     }
     setPurchasing(true);
@@ -206,8 +233,9 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
             <>
               <Text style={s.title}>Going live is an Elite feature</Text>
               <Text style={s.sub}>
-                Elite is {priceString} a month. It adds live broadcasts, viewer chat and replays
-                on top of everything you already run for free.
+                {isWeb
+                  ? 'Elite adds live broadcasts, viewer chat and replays on top of everything you already run for free.'
+                  : `Elite is ${priceString} a month. It adds live broadcasts, viewer chat and replays on top of everything you already run for free.`}
               </Text>
             </>
           )}
@@ -238,11 +266,11 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
           <View style={s.eliteCard}>
             <View style={s.eliteTitleRow}>
               <Text style={s.eliteTitle}>Elite</Text>
-              {!annualPkg && <Text style={s.elitePrice}>{priceString} a month</Text>}
+              {!isWeb && !annualPkg && <Text style={s.elitePrice}>{priceString} a month</Text>}
             </View>
 
             {/* Term selector — only when the store actually offers both */}
-            {annualPkg && (
+            {!isWeb && annualPkg && (
               <View style={s.termGroup}>
                 <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }}
                   style={[s.termRow, term === 'monthly' && s.termRowActive]}
@@ -309,8 +337,16 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
           </View>
         </ScrollView>
 
-        {/* Pinned footer */}
+        {/* Pinned footer. On web there is nothing to press: purchases and
+            restores both require the native store. Say so plainly. */}
         <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+          {isWeb ? (
+            <Text style={s.webNoteText}>
+              Subscriptions are managed in the FitLink app. Open it on your phone to go Elite or
+              restore a purchase.
+            </Text>
+          ) : (
+          <>
           <TouchableOpacity
             style={[s.cta, purchasing && s.ctaDisabled]}
             onPress={handlePurchase}
@@ -345,6 +381,8 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
               <Text style={s.restoreText}>Restore purchases</Text>
             )}
           </TouchableOpacity>
+          </>
+          )}
         </View>
       </View>
     </Modal>
@@ -363,6 +401,12 @@ const s = StyleSheet.create({
     letterSpacing: 1, textTransform: 'uppercase',
   },
   closeText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+
+  // Web: no store, no price, no purchase button — just the truth.
+  webNoteText: {
+    fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5,
+    color: CoachColors.textSecondary, textAlign: 'center', paddingHorizontal: 8,
+  },
 
   title: {
     fontFamily: CoachFonts.headingBold, fontSize: 30, lineHeight: 37,
