@@ -161,6 +161,14 @@ export default function ProfileScreen() {
     setDeleting(true);
     // .rpc() RESOLVES with { error } — it does not throw, so a FAILED deletion
     // must not sign the coach out and leave them certain their data was gone.
+    // Remove the user's FILES before their rows. Row deletion is what makes
+    // the account gone; media cleanup is what makes it actually erased, and
+    // it has to happen while we still know who they are. Best effort: a
+    // storage failure must not trap someone in an account they asked to
+    // delete, but it is reported rather than hidden.
+    const { data: mediaResult } = await supabase.functions.invoke('delete-account-media');
+    const mediaIncomplete = mediaResult && mediaResult.success === false;
+
     const { error } = await supabase.rpc('delete_trainer_account');
     setDeleting(false);
     if (error) {
@@ -169,6 +177,15 @@ export default function ProfileScreen() {
       return;
     }
     setShowDeleteModal(false);
+    if (mediaIncomplete) {
+      // The account and its rows ARE gone. Saying "fully deleted" when some
+      // files survived would be exactly the false-success this codebase keeps
+      // deleting elsewhere.
+      Alert.alert(
+        'Account deleted',
+        'Your account and data have been removed. Some uploaded files could not be deleted automatically — contact support and they will be removed for you.'
+      );
+    }
     await signOut();
   };
 

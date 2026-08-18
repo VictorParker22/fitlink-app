@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { layers } from '../lib/layers';
 import { clearSnapshots } from '../lib/offlineCache';
 import { clearOutbox } from '../lib/outbox';
+import { clearMediaUrlCache } from '../lib/privateMedia';
 import type { User, Session } from '@supabase/supabase-js';
 
 Notifications.setNotificationHandler({
@@ -301,6 +302,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     //    session ends, so they are pure residue.
     try {
       await clearOutbox(signedOutUserId);
+      // Signed URLs for private-bucket media are short-lived but still live
+      // credentials — they must not survive into the next account's session.
+      clearMediaUrlCache();
     } catch (e) {
       if (__DEV__) console.warn('[AuthContext] clearOutbox threw during sign-out:', e);
     }
