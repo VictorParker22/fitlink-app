@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 // Deploy: supabase functions deploy food-image
 // Secret:  supabase secrets set spooncalc=<your key>   (already set by the user)
@@ -20,6 +21,10 @@ serve(async (req) => {
   }
 
   try {
+    // Was unauthenticated: anyone holding the anon key could burn the
+    // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
+    // but it is somebody else's invoice.
+    await requireCaller(req);
     const { query } = await req.json();
 
     if (!query || typeof query !== 'string' || query.trim() === '') {
@@ -68,6 +73,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

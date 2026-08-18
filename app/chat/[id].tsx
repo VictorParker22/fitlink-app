@@ -330,7 +330,7 @@ export default function ChatScreen() {
             body: previewText,
             data: { url: '/my-messages' }
           }
-        }).catch(err => console.log('Push error:', err));
+        }).catch(err => { if (__DEV__) console.log('[Chat] Push error:', err?.message); });
       }
       setReviewTarget(null);
     } catch (err) {
@@ -381,7 +381,7 @@ export default function ChatScreen() {
             body: previewText,
             data: { url: content === '[CHECKIN_REQUEST]' ? '/my-progress' : '/my-messages' }
           }
-        }).catch(err => console.log('Push error:', err));
+        }).catch(err => { if (__DEV__) console.log('[Chat] Push error:', err?.message); });
       }
     } catch (err) {
       console.error('Send custom failed:', err);
@@ -483,7 +483,10 @@ export default function ChatScreen() {
       if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
 
       if (clientPushToken) {
-        console.log('Sending push to client:', clientPushToken);
+        // Never log the token: it is a credential for reaching that device,
+        // console.log survives release builds, and on Android it lands in
+        // logcat where a USB cable is enough to harvest it.
+        if (__DEV__) console.log('[Chat] Sending push to client');
         const pushBody = content.startsWith('[WORKOUT_CARD:')
           ? 'Coach attached a workout'
           : content.startsWith('[QUICK_NOTE:')
@@ -497,9 +500,9 @@ export default function ChatScreen() {
             body: pushBody,
             data: { url: '/my-messages' }
           }
-        }).catch(err => console.log('Push error:', err));
+        }).catch(err => { if (__DEV__) console.log('[Chat] Push error:', err?.message); });
       } else {
-        console.log('Client has NO push token saved!');
+        if (__DEV__) console.log('[Chat] Client has no push token — push skipped');
       }
     } catch (err) {
       if (isNetworkError(err)) {

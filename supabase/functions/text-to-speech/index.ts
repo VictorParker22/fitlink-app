@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,10 @@ serve(async (req) => {
   }
 
   try {
+    // Was unauthenticated: anyone could burn the ElevenLabs quota and write
+    // into the exercise-audio bucket.
+    await requireCaller(req);
+
     const { exercise_id, text } = await req.json();
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -38,6 +43,15 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // exercise_id went straight into the object key with upsert:true, so an
+    // unauthenticated caller could OVERWRITE any existing exercise audio with
+    // speech of their choosing — and the path was never checked for slashes
+    // or traversal. Accept only a plain uuid/slug.
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(exercise_id))) {
+      return new Response(JSON.stringify({ error: 'Invalid exercise_id' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const audioPath = `${exercise_id}.mp3`;
 
     // Check if audio already exists in storage (cache hit)
@@ -115,6 +129,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
     console.error('TTS Error:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

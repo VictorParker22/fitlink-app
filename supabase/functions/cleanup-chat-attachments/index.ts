@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.14.0";
+import { requireServiceRole, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,13 @@ serve(async (req) => {
   }
 
   try {
+    // There was no signature or shared secret — the function trusted
+    // payload.type === 'DELETE' and payload.table === 'messages' as
+    // self-asserted JSON, then derived a storage path from the caller's own
+    // attachment_url and removed it. Anyone could wipe anyone's chat
+    // attachments. DB webhooks call this with the service role.
+    requireServiceRole(req)
+
     const payload = await req.json();
     console.log('Webhook payload received:', payload);
 
@@ -53,6 +61,7 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     console.error('Webhook error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireServiceRole, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -21,6 +22,14 @@ serve(async (req) => {
   }
 
   try {
+    // MOVES REAL MONEY. This was callable by anyone: each invocation
+    // recomputed the pool and issued FRESH stripe.transfers.create() calls
+    // to coach Connect accounts, and the class_revenue_shares upsert
+    // happened AFTER the transfer without gating it — so looping the
+    // endpoint paid the pool out again and again. Payouts are a cron/
+    // service-role job, never something the app can trigger.
+    requireServiceRole(req)
+
     const body = await req.json().catch(() => ({}))
     let { month } = body
 
@@ -95,7 +104,21 @@ serve(async (req) => {
               .eq('id', coach.trainer_id)
               .single()
 
-            if (trainerData?.stripe_account_id && payoutCents > 0) {
+            // IDEMPOTENCY. Without this, re-running a month re-pays it.
+            // class_revenue_shares is the ledger — if this (trainer, month)
+            // already completed, skip the transfer entirely.
+            const { data: priorShare } = await supabaseAdmin
+              .from('class_revenue_shares')
+              .select('stripe_transfer_id, status')
+              .eq('trainer_id', coach.trainer_id)
+              .eq('month', month)
+              .maybeSingle()
+
+            if (priorShare?.status === 'completed' && priorShare?.stripe_transfer_id) {
+              transferId = priorShare.stripe_transfer_id
+              transferStatus = 'completed'
+              console.log(`Skipping already-paid share for ${coach.trainer_id} ${month}`)
+            } else if (trainerData?.stripe_account_id && payoutCents > 0) {
               try {
                 const transfer = await stripe.transfers.create({
                   amount: payoutCents,
@@ -151,6 +174,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
     console.error('Error calculating class revenue:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

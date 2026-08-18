@@ -221,7 +221,7 @@ export default function ClientMessagesScreen() {
             body: pushBody,
             data: { url: '/messages' }
           }
-        }).catch(err => console.log('Push error:', err));
+        }).catch(err => { if (__DEV__) console.log('[Messages] Push error:', err?.message); });
       } else {
         if (__DEV__) console.log('[Messages] Trainer has no push token — push skipped');
       }

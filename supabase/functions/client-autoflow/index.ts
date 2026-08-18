@@ -5,6 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireServiceRole, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,13 @@ serve(async (req) => {
   }
 
   try {
+    // Webhook-internal only. The comment said "invoked by stripe-webhook",
+    // but nothing enforced it: any anon-key caller could assign workouts,
+    // create a conversation, and insert a message attributed to
+    // sender_type:'trainer' — forging coach messages and fake "X just
+    // subscribed!" notifications at will.
+    requireServiceRole(req)
+
     const { clientId, trainerId, planId } = await req.json()
 
     if (!clientId || !trainerId || !planId) {
@@ -198,6 +206,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     console.error('[autoflow] Fatal error:', err.message)
     return new Response(
       JSON.stringify({ error: err.message }),

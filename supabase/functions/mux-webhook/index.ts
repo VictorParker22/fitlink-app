@@ -7,7 +7,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Utility to verify Mux Signature using Web Crypto API
 async function verifyMuxSignature(rawBody: string, header: string | null, secret: string): Promise<boolean> {
-  if (!header || !secret) return true; // Fail open in dev if secret not configured yet
+  // FAIL CLOSED. This returned TRUE when the header or secret was missing,
+  // and the caller only verified `if (webhookSecret)` — so an unset
+  // MUX_WEBHOOK_SECRET disabled verification entirely. An unauthenticated
+  // caller could then drive payload.type/data: flip live_classes.status, or
+  // make the function fetch an attacker-chosen stream.mux.com playback id,
+  // write those bytes into the videos bucket at {trainer_id}/{class_id}.mp4
+  // and publish the class pointing at them.
+  if (!header || !secret) return false;
 
   try {
     const parts = header.split(',');
@@ -52,12 +59,12 @@ serve(async (req) => {
   const rawBody = await req.text();
   const webhookSecret = Deno.env.get('MUX_WEBHOOK_SECRET');
 
-  if (webhookSecret) {
-    const isValid = await verifyMuxSignature(rawBody, signatureHeader, webhookSecret);
-    if (!isValid) {
-      console.error('Invalid Mux Webhook Signature');
-      return new Response('Invalid Signature', { status: 401 });
-    }
+  // No `if (webhookSecret)` guard: a missing secret is a misconfiguration,
+  // not permission to skip the check.
+  const isValid = await verifyMuxSignature(rawBody, signatureHeader, webhookSecret ?? '');
+  if (!isValid) {
+    console.error('Invalid Mux webhook signature (or MUX_WEBHOOK_SECRET unset)');
+    return new Response('Invalid Signature', { status: 401 });
   }
 
   let payload: any;

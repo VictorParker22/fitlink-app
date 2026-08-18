@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
+import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,10 @@ serve(async (req) => {
   }
 
   try {
+    // Was unauthenticated: anyone holding the anon key could burn the
+    // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
+    // but it is somebody else's invoice.
+    await requireCaller(req);
     const { prompt, availableExercises } = await req.json();
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
@@ -86,6 +91,7 @@ Rules:
       status: 200,
     });
   } catch (error: any) {
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
     console.error('Error generating workout:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
