@@ -83,6 +83,16 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   const { updatePushToken } = useApp();
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
   const [hasClientOnboarded, setHasClientOnboarded] = useState<boolean | null>(null);
+  /**
+   * WHOSE flags the two states above currently hold. On sign-in there is a
+   * window where hasOnboarded still carries the signed-out value (false)
+   * while this account's SecureStore read is in flight — routing during that
+   * window shoved every returning user into the wizard, and the "let them
+   * stay on the wizard" rule then kept them there after the real flag (true)
+   * arrived. The router now refuses to route an authenticated user until
+   * flagsUserId matches the signed-in account.
+   */
+  const [flagsUserId, setFlagsUserId] = useState<string | null>(null);
   const hasNavigated = useRef(false);
 
   // Push notification listeners
@@ -104,14 +114,21 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
     if (!user) {
       setHasOnboarded(false);
       setHasClientOnboarded(false);
+      setFlagsUserId(null);
       return;
     }
+    // The read is async: mark the flags stale for this account until it lands.
+    setFlagsUserId((prev) => (prev === user.id ? prev : null));
+    const readForUserId = user.id;
     const trainerKey = onboardedKey(user.id);
     const clientKey = clientOnboardedKey(user.id);
     Promise.all([
       SecureStore.getItemAsync(trainerKey),
       SecureStore.getItemAsync(clientKey),
     ]).then(([onboarded, clientOnboarded]) => {
+      // Another account signed in while this read was in flight — its own
+      // effect run owns the flags now; writing here would cross accounts.
+      if (readForUserId !== user.id) return;
       const meta = (user.user_metadata ?? {}) as Record<string, any>;
       // Tolerate booleans and strings — metadata has been written both ways.
       const truthy = (v: any) => v === true || v === 'true';
@@ -120,6 +137,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       const clientDone = clientOnboarded === 'true' || truthy(meta.client_onboarded);
       setHasOnboarded(trainerDone);
       setHasClientOnboarded(clientDone);
+      setFlagsUserId(readForUserId);
       // Re-seed this account's device flag so offline cold starts stay correct.
       if (trainerDone && onboarded !== 'true') {
         SecureStore.setItemAsync(trainerKey, 'true').catch(() => {});
@@ -127,6 +145,16 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       if (clientDone && clientOnboarded !== 'true') {
         SecureStore.setItemAsync(clientKey, 'true').catch(() => {});
       }
+    }).catch(() => {
+      // SecureStore itself failed — without this, flagsUserId never lands and
+      // the router waits on the splash forever. Fall back to auth metadata,
+      // the same secondary source a brand-new device uses.
+      if (readForUserId !== user.id) return;
+      const meta = (user.user_metadata ?? {}) as Record<string, any>;
+      const truthy = (v: any) => v === true || v === 'true';
+      setHasOnboarded(truthy(meta.onboarded) || truthy(meta.wizard_complete));
+      setHasClientOnboarded(truthy(meta.client_onboarded));
+      setFlagsUserId(readForUserId);
     });
   }, [user, loading]);
 
@@ -159,6 +187,10 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
 
   useEffect(() => {
     if (loading || hasOnboarded === null) return;
+    // Signed in, but the flags still belong to nobody / a previous account:
+    // routing now would use the signed-out `false` and open the wizard for a
+    // user who finished it long ago. Wait for this account's own answer.
+    if (user && flagsUserId !== user.id) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
@@ -200,7 +232,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       // Fade out the native splash screen (no-op if running in Expo Go)
       setTimeout(() => BootSplash?.hide({ fade: true }), 150);
     }
-  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded, user, flagsUserId]);
 
 
 
