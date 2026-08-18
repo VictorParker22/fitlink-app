@@ -1,6 +1,11 @@
 /**
  * sessionCompletionCache.ts
  *
+ * NOTE ON LOCATION: this lives in lib/, not app/. Expo Router treats every
+ * file under app/ as a ROUTE, so sitting in app/session/ made the router try
+ * to render a helper as a screen — "missing the required default export" on
+ * every web launch. Non-route modules belong outside app/.
+ *
  * Module-level singleton that bridges exercise data from the active tracker
  * ([id].tsx in track mode) to the session complete screen (complete.tsx).
  *

@@ -36,7 +36,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
 import { useRestChime } from '../../hooks/useRestChime';
 import CancelSessionSheet from '../../components/sessions/CancelSessionSheet';
-import { setCompletionData } from './sessionCompletionCache';
+import { setCompletionData } from '../../lib/sessionCompletionCache';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width: W } = Dimensions.get('window');

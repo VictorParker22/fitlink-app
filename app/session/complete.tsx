@@ -47,7 +47,7 @@ import {
   getCompletionData,
   clearCompletionData,
   type CompletedExercise,
-} from './sessionCompletionCache';
+} from '../../lib/sessionCompletionCache';
 
 const { width: W } = Dimensions.get('window');
 
