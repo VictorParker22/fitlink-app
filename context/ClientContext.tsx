@@ -218,7 +218,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
       const [
         trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes
       ] = await Promise.all([
-        supabase.from('trainers').select('*').eq('id', client.trainer_id).single(),
+        // Explicit columns, not select('*'): the athlete's own coach row was
+        // handing over stripe_account_id (the coach's Stripe Connect account)
+        // and every other private field. expo_push_token stays because the
+        // athlete legitimately messages this coach, and the push function now
+        // authorises by relationship anyway.
+        supabase.from('trainers')
+          .select('id, name, email, phone, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, referral_code, expo_push_token, notification_prefs, onboarding_complete, created_at')
+          .eq('id', client.trainer_id).single(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')
           .select('*, workouts(*, workout_exercises(*, exercises(*)))')

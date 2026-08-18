@@ -21,7 +21,7 @@ this is hardening rather than incident response).
 
 ---
 
-## Phase A — Database (one migration, no app changes)
+## Phase A — Database (DONE, applied + verified)
 
 | # | Fix | Was |
 |---|---|---|
@@ -37,7 +37,7 @@ this is hardening rather than incident response).
 | A10 | `REVOKE EXECUTE ... FROM anon` on functions never meant to be public | Watch-minute leaderboard leak; anon-callable internals |
 | A11 | `create_client_and_notify()` writes `description`/`is_read` | Phantom columns → **no coach has ever received a new-client notification** |
 
-## Phase B — Edge functions
+## Phase B — Edge functions (DONE, deployed + attack-verified)
 
 - **B1** Shared `requireCaller()` helper: resolve the JWT to a real user, reject the
   bare anon key. `transfer-vod` already models this — it is the reference.
@@ -56,7 +56,7 @@ this is hardening rather than incident response).
   `mux-webhook` (fails open when the secret is unset), `stripe-redirect` (open
   redirect).
 
-## Phase C — Client app
+## Phase C — Client app (DONE)
 
 - **C1** `signOut` clears `clearSnapshots()` + outbox + `layers.reset()`. All three
   exist and none is called — athlete PII outlives the session on shared devices.
@@ -84,3 +84,62 @@ this is hardening rather than incident response).
    is not yet weaponizable, but history was never rewritten.
 3. **Restrict the Firebase Android API key** in the GCP console (package name +
    SHA-1), and rotate the Spotify secret and GitHub PAT as previously flagged.
+
+
+---
+
+# STILL OPEN after Phases A–D (2026-08-18)
+
+Ranked. Everything below is known, not forgotten.
+
+## Needs the account owner — cannot be fixed in code
+1. **Email confirmation ON in Supabase Auth.** A1 binds the client link to the
+   caller's JWT email. If unverified signups are allowed, an attacker can hold a
+   JWT carrying a victim's address and the comparison means nothing. A1 is
+   necessary; this setting makes it sufficient. **Highest remaining item.**
+2. **Rotate the iOS distribution certificate** — password is in git history
+   (`19bb80d`, `8adeef1`). The `.p12` was never committed, so not yet
+   weaponizable, but history was never rewritten.
+3. **Restrict the Firebase Android API key** (package + SHA-1) in GCP.
+4. Rotate the Spotify secret and GitHub PAT (long-standing).
+
+## Code, not yet done
+5. **`chat-attachments` / `progress-photos` are `public: true` buckets.** Phase A
+   stopped anon *enumeration*, but a public bucket is served by the CDN without
+   consulting RLS, so anyone with a URL still reads it. Real fix: flip both to
+   private and move every render to signed URLs. Touches every attachment and
+   progress-photo render path.
+6. **Account deletion leaves storage objects behind.** Phase D fixed the DB rows
+   (cascades now complete). The FILES — avatars, chat attachments, progress
+   photos — are never removed, so "delete my account" leaves body photos on a
+   public CDN. Needs a storage sweep in the delete path.
+7. **`class-videos` / `class-thumbnails` unscoped INSERT.** Any authenticated
+   user can write arbitrary object names into a public bucket (free
+   malware/phishing hosting on our CDN origin, plus path squatting). UPDATE and
+   DELETE are already owner-scoped, so existing coach media cannot be
+   overwritten. The fix needs uid-prefixed upload paths client-side first —
+   uploads currently use flat `Date.now()` filenames, so a path policy would
+   break them today.
+8. **`trainers` column exposure.** The athlete's own read is now narrowed to
+   explicit columns (no `stripe_account_id`), but the RLS policy still lets any
+   authenticated user `select('*')` on any coach row — email, phone, Stripe
+   Connect id, push token. Proper fix: a public-facing view plus column grants,
+   or move the private columns to a coach-only table.
+9. **`lookup_client_by_contact` remains a membership oracle.** It must stay
+   anon-callable (it runs pre-signup) and no longer returns email/phone, but a
+   caller who already knows an address still learns whether that person is a
+   FitLink client. Closing it fully means proving control of the contact
+   (email OTP) before answering — a signup redesign.
+10. **No rate limiting anywhere.** Supabase's built-in auth limits are the only
+    ones in play. The oracle above and the AI/vendor endpoints would both
+    benefit.
+11. **Wildcard CORS on every function.** Not the breach itself (these
+    authenticate on a bearer, not cookies), but it means any web page can reach
+    them, which is what turned "needs the anon key" into "any landing page".
+12. **Dependency vulnerabilities.** `npm audit --omit=dev` reports 43, but
+    almost all are build-toolchain (`@expo/cli`, metro, `shell-quote`, `tar`,
+    `xmldom`) and never ship. The one that ships is **`ws@8.20.0`** via
+    `@supabase/realtime-js` (memory-exhaustion DoS). Deliberately NOT bumped
+    here: dependency surgery on a pinned Expo SDK 54 project immediately before
+    an EAS rebuild is how you break a release. Do it as its own change, with a
+    build.

@@ -530,7 +530,9 @@ export default function AthleteTodayScreen() {
             <View style={st.avatar}>
               <Text style={st.avatarText}>{initials(clientData?.name) || '·'}</Text>
             </View>
-            {!!trainer?.is_online && <View style={st.onlineDot} />}
+            {/* `trainers.is_online` does not exist — this dot has never once
+                rendered. Removed rather than left as decoration that implies a
+                presence feature we do not have (INVARIANTS §3, §4). */}
           </Pressable>
         </View>
 
@@ -932,10 +934,6 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.textSecondary },
-  onlineDot: {
-    position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: 6,
-    backgroundColor: C.accent, borderWidth: 2.5, borderColor: C.bg,
-  },
 
   hero: {
     marginTop: 22, borderRadius: 20, backgroundColor: C.surface,
