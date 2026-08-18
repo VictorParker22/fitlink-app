@@ -88,7 +88,7 @@ this is hardening rather than incident response).
 
 ---
 
-# STILL OPEN after Phases A–F (2026-08-18)
+# STILL OPEN after Phases A–G (2026-08-18)
 
 ## Needs the account owner — cannot be fixed in code
 1. **Email confirmation ON in Supabase Auth.** A1 binds the client link to the
@@ -127,3 +127,25 @@ this is hardening rather than incident response).
    resolve to owner-only: the sender still sees them, the recipient does not.
    All pre-launch test data. If this is ever replayed against real history,
    migrate the objects and rewrite `messages.attachment_url` first.
+
+## Checked in the post-fix sweep — NOT findings, recorded so they are not re-checked
+- **Stripe webhook replay.** No `event.id` dedupe exists, but every write it
+  performs is idempotent by construction: `ensurePlanEnrollment` is explicitly
+  idempotent and the payments write upserts on `stripe_payment_intent_id`. A
+  replayed (validly signed) event is a no-op. Signature verification already
+  runs before any write.
+- **Deep-link scheme hijack.** `fitlink://` has no App Links / Universal Links
+  verification, so on Android another app can register the same scheme. What
+  actually travels over it is Stripe and checkout *returns* (no secrets) and the
+  Spotify OAuth redirect, which PKCE already protects — an interceptor without
+  the verifier cannot exchange the code. Real fix is verified App Links, which
+  needs `.well-known` hosting on a real domain.
+
+## Not yet examined at all — needs dashboard access I do not have
+- Supabase Auth settings beyond email confirmation: password minimum length and
+  strength, leaked-password protection, JWT expiry, refresh-token rotation, OTP
+  lifetime, and the auth rate limits. These are the controls that decide how
+  much a stolen token is worth and how cheap credential stuffing is.
+- Whether PITR / backups are enabled (availability, not confidentiality).
+- No audit logging or alerting anywhere: today nothing would tell you an attack
+  had happened.
