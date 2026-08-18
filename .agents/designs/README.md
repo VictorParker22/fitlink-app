@@ -21,6 +21,50 @@ rebuilt in the target platform against the real design system.
 | `29a.html` | **Org overview** — seats used vs paid, athletes across the org, athlete revenue, org share %, coach table sorted by revenue with role and last-active | Enterprise |
 | `29b.html` | **Billing** — $39 per seat per month, next invoice, proration explained in words, invoice history, card on file | Enterprise |
 
+## The design intent — turn-level, and it governs everything below
+
+I initially imported only the option screens and missed this. It is the more
+important half: the options show a layout, these state the PRINCIPLE the layout
+serves. Implementation follows these, not the pixels.
+
+### Turn 27 — internal ops
+> The room nobody outside the company sees: a status center for us. Two jobs only — is the product healthy (crashes, latency, downloads, payments) and is someone attacking it. Signals rank by blast radius, every automatic action is stated together with who it may have hurt, and the pager owner is named on screen.
+
+*What follows it:* The recommended action pairs mitigation with repair — block the attacker and free the three real people caught in it. Downloads and release health live on one screen because "is it growing" and "is it broken" get asked in the same breath.
+
+### Turn 28 — coach web app
+> The coach web app. Not a bigger phone — the browser earns its place with the two things a phone can't do: peripheral vision (queue, athlete and thread on one screen) and keyboard speed through twenty check-ins. No feature exists here that doesn't exist on native; parity is a promise, not a roadmap.
+
+*What follows it:* Same objects, same rules as native — 28a is the coach's morning at desk speed, 28b is the one job (program design) that genuinely wants a big screen.
+
+### Turn 29 — enterprise for gyms
+> Enterprise for gyms. A gym buys seats, not features — every coach on a seat runs the same app as an independent. The org sees rosters, revenue and seats; it never sees inside a coaching thread. Money is stated as a split the owner sets, not a fee buried in terms.
+
+*What follows it:* Seats bill flat; athlete money flows through the split above. The org's ceiling is deliberately low — rosters and money, never threads (the promise from 25d's visibility toggles extends here).
+
+### Why these three sentences matter more than the mockups
+
+- **"never sees inside a coaching thread"** (29) is the same privacy line the
+  shipped org model already enforces — business visibility, not surveillance.
+  The design and the schema agree independently, which is the strongest signal
+  either is right. `enterprise_02_org_visibility.sql` grants org admins the
+  roster, sessions, plans and payments and deliberately withholds messages,
+  health snapshots, progress photos and check-ins.
+- **"a split the owner sets, not a fee buried in terms"** (29) is a product
+  decision the current code cannot express: the platform fee is a hardcoded
+  10% in five places. A visible, owner-set split needs one server-side source
+  of truth first, and `organizations` needs a column to hold it.
+- **"No feature exists here that doesn't exist on native; parity is a promise,
+  not a roadmap"** (28) settles the web architecture argument: it must be the
+  same codebase, not a second app. Re-enable `web` in platforms and shim —
+  never a parallel React implementation, which is exactly what rotted into the
+  45 orphaned files in `C:\projectsitlink`.
+- **"every automatic action is stated together with who it may have hurt"**
+  (27) is the honesty rule applied to security tooling: an auto-mitigation
+  that blocks an attacker will also catch real people, and the screen must say
+  so. It pairs mitigation with repair — block the ASN AND free the three real
+  customers caught in it.
+
 ## How these line up with what exists
 
 They map onto the three initiatives in `.agents/PLATFORM_PLAN.md`, and two of

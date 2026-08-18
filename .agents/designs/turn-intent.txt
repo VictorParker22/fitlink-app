@@ -1,0 +1,38 @@
+### TURN 29
+Enterprise for gyms. A gym buys seats, not features — every coach on a seat runs the same app as an independent. The org sees rosters, revenue and seats; it never sees inside a coaching thread. Money is stated as a split the owner sets, not a fee buried in terms.
+NEXT: Seats bill flat; athlete money flows through the split above. The org's ceiling is deliberately low — rosters and money, never threads (the promise from 25d's visibility toggles extends here).
+
+### TURN 28
+The coach web app. Not a bigger phone — the browser earns its place with the two things a phone can't do: peripheral vision (queue, athlete and thread on one screen) and keyboard speed through twenty check-ins. No feature exists here that doesn't exist on native; parity is a promise, not a roadmap.
+NEXT: Same objects, same rules as native — 28a is the coach's morning at desk speed, 28b is the one job (program design) that genuinely wants a big screen.
+
+### TURN 27
+The room nobody outside the company sees: a status center for us. Two jobs only — is the product healthy (crashes, latency, downloads, payments) and is someone attacking it. Signals rank by blast radius, every automatic action is stated together with who it may have hurt, and the pager owner is named on screen.
+NEXT: The recommended action pairs mitigation with repair — block the attacker and free the three real people caught in it. Downloads and release health live on one screen because "is it growing" and "is it broken" get asked in the same breath.
+
+### TURN 26
+The other front door: no invite, no coach, just someone who downloaded the app. This path can't lead with a name they trust, so it leads with their own goal and earns the trust screen by screen. Matching is on the two things that actually break coaching relationships — schedule and communication style — not on a five-star average. Nobody pays before they've spoken to a human, and the coach's answer is not guaranteed.
+NEXT: Two entry paths now converge: invited (25a) and self-serve (26a). Both land on 25c waiting for the coach, then into the season.
+
+### TURN 25
+The front door and the back office. Most athletes arrive holding a coach's link, not browsing an app store, so the first screen answers "whose is this?" before it asks for anything. Sign-up asks for two fields and defers the rest into 23e. The empty state is the gap nobody designs — signed up, no pass yet. And the profile is where an athlete can see exactly what their coach can see, and leave.
+NEXT: Full athlete path now: welcome → sign up → intake (23e) → waiting (25c) → today → session → PR → check-in → week 8. Profile sits under Progress.
+
+### TURN 24
+The four screens still missing. Two of them are the hard ones nobody designs: what the app says when an athlete has quietly stopped, and what it says when they finish. The Train tab is the whole pass made browsable without exposing the season map. And the Elite paywall — the only screen on the coach side that asks for money, so it argues with numbers the coach already recognises rather than a feature grid.
+NEXT: Both sides are now complete: coach from home through pass creation, meal plans, live editing and billing; athlete from intake through the season to week 8 and out the other side. Next natural step is dev handoff.
+
+### TURN 23
+The rest of the client side: the two tabs an athlete lives in between sessions, and the two screens that happen before any of it exists. Food is the swap list from 20c seen from the other end — the athlete gets choice inside the coach's bounds, and the bounds are visible. Progress puts the numbers and the photos on one screen because neither one means much alone. Then the front door: a pass you can judge before paying, and an intake that reads like a conversation rather than a form.
+NEXT: The client side is now complete end to end: intake → pass detail → today → session → PR → check-in → thread → food → progress. Open: what an athlete sees when they finish week 8, and the Elite paywall on the coach side.
+
+### TURN 22
+The client side, built as a conversation rather than a delivery. Every screen here has a return path: today's session can be answered before it starts, a set can be logged with how it actually felt, a PR gets celebrated by name in front of the squad, and the weekly check-in is a set of questions the coach asked this person specifically. The athlete never sees the machinery — no nodes, no season map, no versions — just today, and someone paying attention.
+NEXT: Next: the food tab (swap list from 20c, from the athlete's side), and the progress tab where the check-in photos and lift curves live together.
+
+### TURN 21
+Editing a pass that people are already inside — the thing 19e promises and no screen delivers. A published pass is not a document, it's six people mid-season at six different weeks, so every edit has a blast radius and the app should state it before you save, not after. The rule: nobody's current week changes under them. Everything else is a choice you make with the names in front of you.
+NEXT: Try next: "the athlete's season screen" · "Leah hasn't logged in 9 days — the nudge" · "Elite paywall"
+
+### TURN 20
+Meal plans — the node type a pass keeps pointing at that has no way to be built yet. Same principle as the pass flow: you build one day, not twenty-eight. The macro bar is the only place a number moves as you work, so it carries the feedback; nothing auto-generates a diet, because a coach putting their name on food should have picked it. The last screen is the part athletes actually live in — swap lists, so "chicken and rice" doesn't become a support ticket every time someone eats out.
