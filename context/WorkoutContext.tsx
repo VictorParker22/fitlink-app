@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren } from 'react';
 import { AppState, Alert } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ../lib/secureStore.ts.
+import * as SecureStore from '../lib/secureStore';
 
 // ─── TYPES ───────────────────────────────────────────────
 export interface RunPhase {

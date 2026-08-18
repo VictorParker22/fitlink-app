@@ -11,7 +11,9 @@ import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ../../lib/secureStore.ts.
+import * as SecureStore from '../../lib/secureStore';
 import { onboardedKey } from '../../lib/onboardingFlags';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';

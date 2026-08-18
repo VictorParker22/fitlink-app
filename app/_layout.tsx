@@ -6,9 +6,11 @@ configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ../lib/secureStore.ts.
+import * as SecureStore from '../lib/secureStore';
 import { onboardedKey, clientOnboardedKey } from '../lib/onboardingFlags';
 import { ClientRoute, AuthRoute, SharedRoute } from '../types/routes';
 import { useFonts } from 'expo-font';
@@ -446,7 +448,13 @@ type SplashPathProps = { progress: number; onAnimationEnd: () => void };
 // Only picks a branch — the hooks live in the two leaf components so they stay
 // unconditional.
 function AnimatedBootSplash(props: SplashPathProps) {
-  return BootSplash?.useHideAnimation ? (
+  // Platform.OS check is NOT redundant with the null check. On web the
+  // require() succeeds and `useHideAnimation` exists — so this took the NATIVE
+  // path, whose hand-over `animate` callback never fires because there is no
+  // native splash underneath to hand over FROM. `handedOver` stayed false, the
+  // overlay never faded, and the app sat behind a splash it had already
+  // finished loading behind. The JS path's own timer is the correct one here.
+  return BootSplash?.useHideAnimation && Platform.OS !== 'web' ? (
     <NativeBootSplash {...props} />
   ) : (
     <JSBootSplash {...props} />

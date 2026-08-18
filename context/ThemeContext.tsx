@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type PropsWithChildren } from 'react';
 import { useColorScheme } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ../lib/secureStore.ts.
+import * as SecureStore from '../lib/secureStore';
 
 // ─── Color Palettes ──────────────────────────────────────────────
 

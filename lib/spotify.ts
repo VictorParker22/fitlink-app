@@ -8,7 +8,9 @@
  * (now playing) so risk is minimal either way.
  */
 import * as WebBrowser from 'expo-web-browser';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ./secureStore.ts.
+import * as SecureStore from './secureStore';
 import * as Crypto from 'expo-crypto';
 import { encode as base64Encode } from 'base64-arraybuffer';
 import { createURL } from 'expo-linking';

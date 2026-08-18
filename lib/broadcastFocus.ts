@@ -1,4 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ./secureStore.ts.
+import * as SecureStore from './secureStore';
 
 /**
  * "Do not disturb" for Studio — the app can only control its OWN

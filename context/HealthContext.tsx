@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type PropsWithChildren } from 'react';
 import { Platform, AppState, Alert, NativeModules } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+// Platform-aware wrapper: expo-secure-store has NO web implementation and
+// throws on first call. See ../lib/secureStore.ts.
+import * as SecureStore from '../lib/secureStore';
 import { supabase } from '../lib/supabase';
 import { isMissingSchemaError } from '../lib/schemaErrors';
 
