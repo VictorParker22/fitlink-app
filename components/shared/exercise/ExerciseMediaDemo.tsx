@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image as RNImage } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { proxyGifUrl } from '../../../lib/exercisedb';
+import { isKnownVideoHost, isSafeMediaUrl } from '../../../lib/safeUrl';
 import { Radius, Spacing } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
@@ -37,8 +38,13 @@ export default function ExerciseMediaDemo({
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
   if (videoUrl) {
-    const isExternal = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') || videoUrl.includes('instagram.com') || videoUrl.includes('tiktok.com');
-    
+    // videoUrl is coach-written content (workout_exercises.video_url). The old
+    // substring test matched `https://evil.tld/?ref=youtube.com`, and anything
+    // that failed it fell straight through to expo-video's NATIVE media
+    // loader - so a file: or content: URI reached a local-file reader. Parse
+    // the scheme and compare the exact hostname instead (lib/safeUrl.ts).
+    const isExternal = isKnownVideoHost(videoUrl);
+
     if (isExternal && onPlayVideo) {
       return (
         <View style={{ marginBottom: Spacing.xl }}>
@@ -53,7 +59,12 @@ export default function ExerciseMediaDemo({
       );
     }
     
-    return <ExerciseVideoPlayer url={videoUrl} />;
+    // Only an https media URL may reach the native player. Anything else
+    // falls through to the still image below rather than being loaded.
+    if (isSafeMediaUrl(videoUrl)) {
+      return <ExerciseVideoPlayer url={videoUrl} />;
+    }
+    if (__DEV__) console.warn('[ExerciseMediaDemo] Blocked unsafe video URL:', videoUrl);
   }
   
   if (imageUrl && failedUrl !== imageUrl) {

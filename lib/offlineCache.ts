@@ -41,14 +41,32 @@ export async function loadSnapshot<T>(userId: string | null | undefined, name: s
   }
 }
 
-/** Remove every snapshot belonging to a user (e.g. on account deletion). */
-export async function clearSnapshots(userId: string | null | undefined): Promise<void> {
-  if (!userId) return;
+/**
+ * Remove every snapshot belonging to a user.
+ *
+ * Called from `signOut` in context/AuthContext.tsx (and it must stay called
+ * there). AsyncStorage is PLAIN, unencrypted device storage, and these
+ * snapshots are not innocuous: they hold an athlete's `assessment_data`
+ * (health intake), emails and phone numbers, message previews, and a coach's
+ * entire client roster. Without this, all of it outlives the session and the
+ * next person to use a shared device can read it out.
+ *
+ * Never throws — a storage failure must not be able to abort a sign-out.
+ * Returns false when the clear did not complete, so the caller can say so
+ * honestly rather than assume it worked.
+ */
+export async function clearSnapshots(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return true;
   try {
     const keys = await AsyncStorage.getAllKeys();
     const mine = keys.filter((k) => k.startsWith(`${PREFIX}.${userId}.`));
     if (mine.length) await AsyncStorage.multiRemove(mine);
-  } catch {
-    // Best-effort.
+    return true;
+  } catch (e) {
+    // Not swallowed: PII is still on disk after this. Surface it in dev — in
+    // production there is no safe UI for it mid-sign-out, and failing the
+    // sign-out would be strictly worse.
+    if (__DEV__) console.warn('[offlineCache] clearSnapshots failed — cached PII may remain on device:', e);
+    return false;
   }
 }

@@ -86,6 +86,27 @@ export async function removeFromOutbox(userId: string | null | undefined, tempId
   }
 }
 
+/**
+ * Drop the entire queue for a user.
+ *
+ * Called from `signOut` in context/AuthContext.tsx. Queued entries carry the
+ * full message BODY in plain AsyncStorage; leaving them behind means unsent
+ * private messages survive the session on a shared device. There is also no
+ * one left to flush them — the session they were written under is gone.
+ *
+ * Never throws. Returns false when the clear did not complete.
+ */
+export async function clearOutbox(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return true;
+  try {
+    await AsyncStorage.removeItem(outboxKey(userId));
+    return true;
+  } catch (e) {
+    if (__DEV__) console.warn('[outbox] clearOutbox failed — unsent message bodies may remain on device:', e);
+    return false;
+  }
+}
+
 // One flush at a time per user — reconnect events can fire in bursts and the
 // queue must never be replayed twice.
 const flushing = new Set<string>();

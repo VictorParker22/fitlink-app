@@ -6,6 +6,8 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import { layers } from '../lib/layers';
+import { clearSnapshots } from '../lib/offlineCache';
+import { clearOutbox } from '../lib/outbox';
 import type { User, Session } from '@supabase/supabase-js';
 
 Notifications.setNotificationHandler({
@@ -83,7 +85,8 @@ async function registerForPushNotificationsAsync() {
         return token;
       }
     } catch (e) {
-      console.warn('Error fetching push token:', e);
+      // Gated: the push-registration error can echo the device/push token.
+      if (__DEV__) console.warn('Error fetching push token:', e);
       return null;
     }
   } else {
@@ -137,7 +140,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             }
           }
         } catch (e) {
-          console.warn('[AuthContext] Failed to register push token on DB:', e);
+          if (__DEV__) console.warn('[AuthContext] Failed to register push token on DB:', e);
         }
 
         // ── Layers: identify authenticated user ──────────────────────────────
@@ -161,7 +164,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // instead of crashing with AuthApiError: Refresh Token Not Found
     supabase.auth.getSession().then(({ data: { session: s }, error }) => {
       if (error) {
-        console.warn('[AuthContext] Session restore failed (stale token), signing out:', error.message);
+        // Gated: auth error text can quote the refresh token it rejected.
+        if (__DEV__) console.warn('[AuthContext] Session restore failed (stale token), signing out:', error.message);
         supabase.auth.signOut();
         setLoading(false);
         return;
@@ -271,6 +275,45 @@ export function AuthProvider({ children }: PropsWithChildren) {
   // automatically sets auth_user_id on matching client rows at signup time.
 
   const signOut = useCallback(async () => {
+    // The signed-out user id, captured before the session goes away — every
+    // local store below is keyed by it, so it has to be read first.
+    const signedOutUserId = user?.id ?? session?.user?.id ?? null;
+
+    // ORDER MATTERS: local data is cleared BEFORE supabase.auth.signOut().
+    // If the network call went first and then a clear failed, the PII would be
+    // sitting on disk with no session left to retry the clear from. Doing it
+    // this way, the worst case is data cleared from a still-valid session.
+    //
+    // None of these may abort the sign-out — the user asked to be signed out
+    // and must end up signed out regardless. But they are not swallowed
+    // either: each failure is warned about in __DEV__ (the helpers do their
+    // own logging; this catch covers a helper throwing unexpectedly).
+
+    // 1. Offline snapshots — health intake, emails, phones, message previews,
+    //    a coach's whole roster, all in plain AsyncStorage.
+    try {
+      await clearSnapshots(signedOutUserId);
+    } catch (e) {
+      if (__DEV__) console.warn('[AuthContext] clearSnapshots threw during sign-out:', e);
+    }
+
+    // 2. Chat outbox — unsent message bodies. Nobody can flush them after the
+    //    session ends, so they are pure residue.
+    try {
+      await clearOutbox(signedOutUserId);
+    } catch (e) {
+      if (__DEV__) console.warn('[AuthContext] clearOutbox threw during sign-out:', e);
+    }
+
+    // 3. Analytics identity. Without this the Layers client keeps the previous
+    //    user id and anonymous id, so the next account on a shared device has
+    //    its events attributed to the person who signed out.
+    try {
+      layers.reset();
+    } catch (e) {
+      if (__DEV__) console.warn('[AuthContext] layers.reset threw during sign-out:', e);
+    }
+
     try {
       // Onboarding flags are keyed per account now (lib/onboardingFlags.ts),
       // so signing out must NOT erase them — a different account on this
@@ -281,11 +324,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await SecureStore.deleteItemAsync('fitlink_onboarded');
       await SecureStore.deleteItemAsync('fitlink_client_onboarded');
     } catch (e) {
-      // Ignore SecureStore cleanup errors
+      if (__DEV__) console.warn('[AuthContext] Legacy SecureStore flag cleanup failed:', e);
     }
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  }, []);
+  }, [user?.id, session?.user?.id]);
 
   return (
     <AuthContext.Provider value={{

@@ -266,7 +266,7 @@ export default function WeeklyCheckIn() {
             pushToken: trainer.expo_push_token,
             title: `Check-in from ${clientData.name}`,
             body: `${clientData.name} answered this week's questions. Tap to review.`,
-            data: { url: '/index' },
+            data: { url: '/messages' },
           },
         }).catch((err: unknown) => {
           if (__DEV__) console.log('[WeeklyCheckIn] push error:', err);

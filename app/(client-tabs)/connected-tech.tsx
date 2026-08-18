@@ -153,7 +153,10 @@ export default function ConnectedTechScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (e) {
-      console.log('[ConnectedTech] Spotify login error:', e);
+      // Gated: a Spotify OAuth failure object can carry the authorization
+      // code, the redirect URI and token-endpoint response bodies. None of
+      // that belongs in a production log stream.
+      if (__DEV__) console.log('[ConnectedTech] Spotify login error:', e);
     } finally {
       setIsSpotifyLoading(false);
     }

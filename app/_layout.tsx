@@ -10,6 +10,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { onboardedKey, clientOnboardedKey } from '../lib/onboardingFlags';
+import { ClientRoute, AuthRoute, SharedRoute } from '../types/routes';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
@@ -75,6 +76,87 @@ try {
 }
 
 
+
+/**
+ * ── Push deep-link allowlist ────────────────────────────────────────────────
+ *
+ * `router.push(data.url)` used to run whatever string arrived in a push
+ * payload. Push is not a trusted channel: the send path is reachable by anyone
+ * who can call the notification edge function (see the open-relay finding in
+ * .agents/SECURITY_FIX_PLAN.md, B3), so an attacker who can send a push could
+ * route a victim straight to `/checkout` with attacker-chosen params — or into
+ * any other screen that acts on its query string. A payload URL is data, not a
+ * command, and gets validated like data.
+ *
+ * The in-app routes come from types/routes.ts so this list cannot drift from
+ * the real ones. (There is no `CoachRoute` export in that file; the coach-side
+ * paths below are the ones actually emitted in push payloads today — grep
+ * `data: { url` — and each maps to a real file under app/(tabs)/.)
+ */
+const PUSH_ROUTE_VALUES: string[] = [
+  ...Object.values(ClientRoute),
+  ...Object.values(AuthRoute),
+  ...Object.values(SharedRoute),
+];
+
+/** expo-router treats `(group)` segments as transparent, so both forms resolve. */
+const stripGroups = (path: string) => path.replace(/\/\([^)]*\)/g, '') || '/';
+
+const ALLOWED_PUSH_PATHS: Set<string> = new Set(
+  PUSH_ROUTE_VALUES.flatMap((r) => [r, stripGroups(r)]).map((r) =>
+    r.length > 1 && r.endsWith('/') ? r.slice(0, -1) : r
+  )
+);
+
+/**
+ * Coach-side paths pushed today that types/routes.ts does not declare.
+ * `/messages` → app/(tabs)/messages.tsx.
+ */
+const ALLOWED_PUSH_PATHS_EXTRA = ['/messages'];
+ALLOWED_PUSH_PATHS_EXTRA.forEach((p) => ALLOWED_PUSH_PATHS.add(p));
+
+/**
+ * Parameterised deep links actually emitted in push payloads. Prefix match,
+ * and only these — a prefix list is a hole, so it stays this short.
+ * `/client/<id>` → app/client/[id].tsx (ClientContext, strength-session,
+ * ActiveWorkoutPlayer all push it).
+ */
+const ALLOWED_PUSH_PREFIXES = ['/client/'];
+
+/**
+ * Routes that are legitimate in-app destinations but are never sent in a push
+ * payload (nothing in this repo emits them — grep `data: { url`). `/checkout`
+ * is the named exploit: it reads its own query params, so allowing it would
+ * let a push author choose what the victim is about to pay for. A route only
+ * earns a place on the allowlist by actually being pushed.
+ */
+const DENIED_PUSH_PATHS = new Set(['/checkout']);
+
+/**
+ * True only for an in-app path we are willing to navigate to from a push.
+ * Rejects anything with a scheme (http:, javascript:, file:, fitlink:, …),
+ * anything not starting with '/', protocol-relative '//host', and any '..'.
+ */
+function isAllowedPushRoute(raw: unknown): raw is string {
+  if (typeof raw !== 'string') return false;
+  const url = raw.trim();
+  if (!url.startsWith('/')) return false;      // needs to be an in-app path
+  if (url.startsWith('//')) return false;      // protocol-relative → external host
+  if (url.includes('..')) return false;        // no traversal
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) return false; // any scheme at all
+  // Only printable ASCII. Rejects whitespace, control characters, and
+  // non-ASCII that could normalise into a different path.
+  for (let i = 0; i < url.length; i++) {
+    const code = url.charCodeAt(i);
+    if (code <= 0x20 || code >= 0x7f) return false;
+  }
+
+  // Compare the PATH only; params are allowed to vary, the destination is not.
+  const path = url.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  if (DENIED_PUSH_PATHS.has(path) || DENIED_PUSH_PATHS.has(stripGroups(path))) return false;
+  if (ALLOWED_PUSH_PATHS.has(path)) return true;
+  return ALLOWED_PUSH_PREFIXES.some((prefix) => path.startsWith(prefix) && path.length > prefix.length);
+}
 
 function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   const { isAuthenticated, loading, userRole, user } = useAuth();
@@ -166,10 +248,16 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       });
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
-        // Handle interaction - navigate if URL is provided
+        // Handle interaction - navigate only to an allowlisted in-app route.
+        // The payload is attacker-controllable (see isAllowedPushRoute above);
+        // it is never passed straight to the router.
         const data = response.notification.request.content.data;
         if (data && data.url) {
-          router.push(data.url);
+          if (isAllowedPushRoute(data.url)) {
+            router.push(data.url as any);
+          } else if (__DEV__) {
+            console.warn('[Push] Rejected deep link from notification payload:', data.url);
+          }
         }
       });
     }

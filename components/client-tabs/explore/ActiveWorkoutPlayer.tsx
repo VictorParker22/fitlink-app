@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform, Linking, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform, Alert,
   KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import MuscleMap from '../../anatomy/MuscleMap';
 import SessionSetRow from '../workout/SessionSetRow';
 import { muscleInfoForExercise, targetsLine, type WorkoutMuscleInfo } from '../season/workoutMuscles';
 import { supabase } from '../../../lib/supabase';
+import { isKnownVideoHost, isSafeMediaUrl, openExternalUrl } from '../../../lib/safeUrl';
 
 interface SetLog {
   weight: string;
@@ -462,8 +463,16 @@ export default function ActiveWorkoutPlayer({
   };
 
   const handlePlayVideo = (url: string, exerciseName?: string) => {
-    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('instagram.com') || url.includes('tiktok.com')) {
-      Linking.openURL(url);
+    // video_url is coach-written content. The old substring test matched
+    // `https://evil.tld/?ref=youtube.com`, so anything could be handed to
+    // Linking.openURL. Scheme + exact hostname, via lib/safeUrl.ts.
+    if (isKnownVideoHost(url)) {
+      openExternalUrl(url);
+    } else if (!isSafeMediaUrl(url)) {
+      // Not https at all (file:, content:, javascript:, an app scheme…) —
+      // never hand it to the OS or to the native media loader.
+      if (__DEV__) console.warn('[ActiveWorkoutPlayer] Blocked unsafe video URL:', url);
+      Alert.alert('Video unavailable', "This exercise's video link can't be opened.");
     } else {
       setVideoExerciseName(exerciseName || 'Exercise demo');
       setVideoUrl(url);

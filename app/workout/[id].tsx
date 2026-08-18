@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, TextInput, Modal, Linking, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, TextInput, Modal, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -8,6 +8,7 @@ import RenderHtml from 'react-native-render-html';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Audio } from 'expo-av';
 import { supabase } from '../../lib/supabase';
+import { isKnownVideoHost, isSafeMediaUrl, openExternalUrl } from '../../lib/safeUrl';
 import { useApp } from '../../context/AppContext';
 import { proxyGifUrl, proxyGifStill } from '../../lib/exercisedb';
 import { useAlert } from '../../context/AlertContext';
@@ -101,7 +102,7 @@ export default function WorkoutDetailScreen() {
         }
       });
     } catch (err: any) {
-      console.error('TTS error:', err);
+      if (__DEV__) console.error('TTS error:', err);
       showAlert({ type: 'error', title: 'Voice Error', message: String(err?.message || 'Could not generate voice audio') });
       setSpeakingExerciseId(null);
     } finally {
@@ -232,8 +233,16 @@ export default function WorkoutDetailScreen() {
   };
 
   const handlePlayVideo = (url: string, exerciseName?: string) => {
-    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('instagram.com') || url.includes('tiktok.com')) {
-      Linking.openURL(url);
+    // video_url is coach-written content. The old substring test matched
+    // `https://evil.tld/?ref=youtube.com`, so anything could be handed to
+    // Linking.openURL. Scheme + exact hostname, via lib/safeUrl.ts.
+    if (isKnownVideoHost(url)) {
+      openExternalUrl(url);
+    } else if (!isSafeMediaUrl(url)) {
+      // Not https (file:, content:, javascript:, an app scheme...) - never
+      // hand it to the OS or to the native media loader.
+      if (__DEV__) console.warn('[workout] Blocked unsafe video URL:', url);
+      Alert.alert('Video unavailable', "This exercise's video link can't be opened.");
     } else {
       setVideoExerciseName(exerciseName || 'Exercise Demo');
       setVideoUrl(url);

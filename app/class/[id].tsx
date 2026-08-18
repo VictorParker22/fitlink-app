@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
+import { isKnownVideoHost, isVimeoHost, isSafeMediaUrl, openExternalUrl } from '../../lib/safeUrl';
 import { Spacing, Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -62,10 +63,22 @@ export default function TrainerClassDetailScreen() {
     );
   }
 
-  const isExternalVideo = classItem.video_url?.includes('youtube.com') ||
-                          classItem.video_url?.includes('youtu.be') ||
-                          classItem.video_url?.includes('vimeo.com') ||
-                          classItem.video_url?.includes('instagram.com');
+  // classes.video_url is coach-written content, so it is untrusted input.
+  // These were substring tests, which `https://evil.tld/?ref=youtube.com`
+  // passes, and the result was fed straight to Linking.openURL with no scheme
+  // check at all. Now: parsed scheme + exact hostname (lib/safeUrl.ts).
+  const isExternalVideo = isKnownVideoHost(classItem.video_url) || isVimeoHost(classItem.video_url);
+  // Only an https URL may reach the inline expo-video player - a file: or
+  // content: URI would otherwise hit a native media loader.
+  const canPlayInline = !isExternalVideo && isSafeMediaUrl(classItem.video_url);
+
+  const openExternalVideo = () => {
+    openExternalUrl(classItem.video_url).then((opened) => {
+      if (!opened) {
+        showAlert({ type: 'error', title: 'Video unavailable', message: "This class's video link can't be opened." });
+      }
+    });
+  };
 
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -157,15 +170,15 @@ export default function TrainerClassDetailScreen() {
 
           {/* Media Header (Video or Thumbnail) */}
           <View style={styles.mediaContainer}>
-            {classItem.video_url && !isExternalVideo ? (
-              <ClassVideoPlayer url={classItem.video_url} />
+            {canPlayInline ? (
+              <ClassVideoPlayer url={classItem.video_url!} />
             ) : classItem.thumbnail_url ? (
               <View style={styles.thumbWrapper}>
                 <Image source={{ uri: classItem.thumbnail_url }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                 {isExternalVideo && (
                   <TouchableOpacity
                     style={styles.playExternalOverlay}
-                    onPress={() => Linking.openURL(classItem.video_url!)}
+                    onPress={openExternalVideo}
                     activeOpacity={0.8}
                   >
                     <View style={styles.playExternalIcon}>
@@ -181,7 +194,7 @@ export default function TrainerClassDetailScreen() {
                 {isExternalVideo && (
                   <TouchableOpacity hitSlop={{ top: 8, bottom: 8 }}
                     style={styles.externalLinkBtn}
-                    onPress={() => Linking.openURL(classItem.video_url!)}
+                    onPress={openExternalVideo}
                   >
                     <Ionicons name="open-outline" size={18} color={CoachColors.textPrimary} />
                     <Text style={styles.externalLinkText}>Open video link</Text>

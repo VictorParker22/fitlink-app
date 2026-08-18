@@ -71,9 +71,22 @@ export default function MessagesScreen() {
   const [showComposePicker, setShowComposePicker] = useState(false);
 
   const fetchConversations = useCallback(async () => {
+    // No session yet — nothing to scope the query to, so don't run it. Clear
+    // the loading gate so the empty state shows rather than a spinner forever.
+    if (!user?.id) { setLoading(false); return; }
+    // DEFENCE IN DEPTH — do not delete this as redundant.
+    //
+    // RLS on `conversations` is still the real gate; this predicate cannot
+    // replace it and is not trying to. But this query had NO owner filter at
+    // all, so 100% of the ACL lived in one policy, and the result is written
+    // straight to plain-AsyncStorage disk cache below. A single policy
+    // regression would therefore not just leak another coach's inbox, it would
+    // persist it on this device. `trainers.id` IS `auth.uid()` (INVARIANTS §1),
+    // so the coach's own user id is the correct value for `trainer_id`.
     const { data } = await supabase
       .from('conversations')
       .select('*, clients(name, avatar_url)')
+      .eq('trainer_id', user.id)
       .order('last_message_at', { ascending: false });
     if (data) {
       setConversations(data);
