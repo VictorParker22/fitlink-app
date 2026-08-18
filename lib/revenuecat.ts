@@ -8,15 +8,18 @@
  * 3. Create two Entitlements in the RC dashboard:
  *      • "client_premium"  → client monthly/annual subscriptions
  *      • "coach_elite"     → coach Elite tier subscriptions
- * 4. Create an Offering called "default" with packages:
- *      • $monthly  → monthly product
- *      • $annual   → annual product
+ * 4. Offerings (one per audience — a single offering cannot carry two
+ *    different monthly products):
+ *      • "default" → athlete pass:  fitlink_athlete_monthly / fitlink_athlete_annual
+ *      • "coach"   → coach elite:   fitlink_coach_elite_monthly / fitlink_coach_elite_annual
  *
- * ── Product IDs (configure in App Store Connect / Google Play) ───────────────
- *   fitlink_client_monthly   — $19.99/mo
- *   fitlink_client_annual    — $149.99/yr  (save 37%)
- *   fitlink_coach_monthly    — $39.99/mo
- *   fitlink_coach_annual     — $299.99/yr  (save 37%)
+ * ── Live products (App Store Connect, created 2026-08-18) ────────────────────
+ *   fitlink_athlete_monthly      $19.99/mo   (7-day trial)   → client_premium
+ *   fitlink_athlete_annual       $149.99/yr  (7-day trial)   → client_premium
+ *   fitlink_coach_elite_monthly  $29.99/mo                   → coach_elite
+ *   fitlink_coach_elite_annual   $249/yr                     → coach_elite
+ * Prices are documentation only — the app renders priceString from the
+ * offering exclusively, never these numbers.
  */
 
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
@@ -24,7 +27,7 @@ import { Platform, NativeModules } from 'react-native';
 
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 // Replace these with your real keys from app.revenuecat.com → Project Settings → API Keys
-const RC_IOS_KEY     = 'appl_REPLACE_WITH_YOUR_IOS_KEY';
+const RC_IOS_KEY     = 'appl_uxVliITLpaYeSvYwsXSnkeGIkAg';
 const RC_ANDROID_KEY = 'goog_REPLACE_WITH_YOUR_ANDROID_KEY';
 
 // ─── Entitlement Identifiers ──────────────────────────────────────────────────
@@ -34,6 +37,7 @@ export const ENTITLEMENT_COACH_ELITE    = 'coach_elite';
 
 // ─── Offering Identifiers ─────────────────────────────────────────────────────
 export const OFFERING_DEFAULT = 'default';
+export const OFFERING_COACH   = 'coach';
 
 // ─── Native module guard ──────────────────────────────────────────────────────
 // react-native-purchases requires a custom dev build with native code compiled in.

@@ -72,7 +72,9 @@ interface CoachElitePaywallProps {
 
 export default function CoachElitePaywall({ visible, onClose, onSuccess }: CoachElitePaywallProps) {
   const insets = useSafeAreaInsets();
-  const { offerings, purchasePackage, restorePurchases } = useRevenueCat();
+  // The COACH offering, not the athlete default — the two audiences buy
+  // different products and the packages would otherwise collide.
+  const { coachOfferings: offerings, purchasePackage, restorePurchases } = useRevenueCat();
   const { plans, activeClients } = useApp();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);

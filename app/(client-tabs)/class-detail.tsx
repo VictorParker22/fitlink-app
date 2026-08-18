@@ -50,7 +50,6 @@ export default function ClassDetailScreen() {
   const { activeSession, startWorkout, getSavedProgress, resumeSavedWorkout, getClassHistory, getClassTakeCount } = useWorkout();
   const { isClientPremium } = useRevenueCat();
   const [isFavorite, setIsFavorite] = useState(false);
-  const [subscribing, setSubscribing] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
 
   const requiresPass = params.is_free === 'false';
@@ -174,28 +173,6 @@ export default function ClassDetailScreen() {
     Alert.alert('Added to Calendar', `"${params.title}" has been added to your calendar.`);
   };
 
-  const handleSubscribe = async () => {
-    if (!user) return;
-    setSubscribing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-class-subscription', {
-        body: { clientId: user.id },
-      });
-      if (error) throw error;
-      // In a real implementation, this would open Stripe PaymentSheet
-      // For now, show success alert
-      Alert.alert(
-        'On-Demand Pass',
-        'Subscription initiated! Complete payment to unlock all classes.',
-        [{ text: 'OK' }]
-      );
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to start subscription');
-    } finally {
-      setSubscribing(false);
-    }
-  };
-
   return (
     <>
     <View style={s.container}>
@@ -294,13 +271,25 @@ export default function ClassDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Premium gate placeholder */}
-          {requiresPass && (
+          {/* One billing rail only: this opens the same RevenueCat paywall
+              as the Begin-class gate. A Stripe path used to live here — wrong
+              rail (in-app digital content must use IAP) and it never actually
+              collected payment. Hidden once the pass is held. */}
+          {requiresPass && !isClientPremium && (
             <View style={s.premiumBanner}>
               <Ionicons name="lock-closed" size={18} color={CoachColors.warning} />
-              <Text style={s.premiumText}>Requires On-Demand Pass</Text>
-              <TouchableOpacity hitSlop={6} style={s.premiumBtn} onPress={handleSubscribe} disabled={subscribing}>
-                <Text style={s.premiumBtnText}>{subscribing ? 'Upgrading...' : 'Upgrade'}</Text>
+              <Text style={s.premiumText}>Requires the athlete pass</Text>
+              <TouchableOpacity
+                hitSlop={6}
+                style={s.premiumBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPaywallVisible(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Get the athlete pass"
+              >
+                <Text style={s.premiumBtnText}>Get the pass</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -379,10 +368,22 @@ export default function ClassDetailScreen() {
       </ScrollView>
     </View>
 
-    {/* FitLink Pass paywall — shown when non-premium taps a PASS-required class */}
+    {/* The athlete-pass paywall, carrying the class that triggered it. */}
     <ClientPaywall
       visible={paywallVisible}
       onDismiss={() => setPaywallVisible(false)}
+      blockedClass={{
+        title: String(params.title || 'This class'),
+        coachName: params.instructor ? String(params.instructor) : null,
+        thumbnailUrl: params.thumbnail ? String(params.thumbnail) : null,
+      }}
+      onPurchased={() => {
+        setPaywallVisible(false);
+        // Modal must fully dismiss before navigation (iOS freeze otherwise).
+        // The entitlement is already active, so handleBeginClass passes the
+        // gate and starts the class they just paid to watch.
+        setTimeout(() => handleBeginClass(), 350);
+      }}
     />
   </>
   );

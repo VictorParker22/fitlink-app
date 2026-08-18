@@ -1,16 +1,24 @@
 /**
- * ClientPaywall — Subscription screen for clients
+ * ClientPaywall — the athlete pass, sold honestly.
  *
- * Shown when a client tries to access a gated feature without an active
- * "client_premium" entitlement. Presents monthly and annual packages with
- * a clear value proposition, feature list, and restore link.
+ * client_premium gates exactly one thing: playback of paid on-demand
+ * classes. So that is exactly what this screen sells. The old version
+ * advertised messaging, analytics, habits and booking — all of which are
+ * free — which was an App Store 2.3.1 risk and a refund generator. If a
+ * feature is ever gated behind premium later, its line is added HERE in
+ * the same commit as the gate, never before.
  *
- * Styled with the shared CoachColors/CoachFonts tokens (dark, single lime
- * accent) so gated content matches the rebuilt athlete surface.
+ * The hero is the class the athlete just tried to open (when the caller
+ * passes it) — the strongest sales asset we own is the specific thing they
+ * wanted ten seconds ago, not an abstract promise. Real data or omitted:
+ * no class context, no fake montage — the copy carries the screen alone.
  *
- * Usage:
- *   const { isClientPremium } = useRevenueCat();
- *   if (!isClientPremium) return <ClientPaywall onDismiss={...} />;
+ * onPurchased exists apart from onDismiss so the caller can RESUME the
+ * blocked class immediately — the reward for paying is the thing they
+ * wanted, not a success screen.
+ *
+ * Prices render exclusively from the offering's priceString. No fallback
+ * numbers anywhere: a price we invented is a fabricated metric in a suit.
  */
 
 import React, { useState } from 'react';
@@ -23,6 +31,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,17 +40,12 @@ import { PACKAGE_TYPE, PurchasesPackage } from 'react-native-purchases';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
-// ─── Feature list ─────────────────────────────────────────────────────────────
+// ─── What client_premium actually unlocks — nothing else may be listed ───────
 
 const FEATURES = [
-  { icon: 'barbell-outline',    text: 'Unlimited workout access' },
-  { icon: 'nutrition-outline',  text: 'Personalised nutrition plans' },
-  { icon: 'heart-outline',      text: 'Apple Health and Google Fit sync' },
-  { icon: 'chatbubble-outline', text: 'Direct messaging with your coach' },
-  // Outline like the rest of the list — these two were the only filled glyphs.
-  { icon: 'trending-up-outline',      text: 'Progress tracking and analytics' },
-  { icon: 'checkmark-circle-outline', text: 'Daily habit tracker and streaks' },
-  { icon: 'calendar-outline',   text: 'Session booking and scheduling' },
+  { icon: 'play-circle-outline', text: 'Every paid class, from every coach on FitLink' },
+  { icon: 'sparkles-outline',    text: 'New classes the moment coaches publish them' },
+  { icon: 'settings-outline',    text: 'Cancel anytime in your device settings' },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -49,11 +53,15 @@ const FEATURES = [
 interface ClientPaywallProps {
   visible: boolean;
   onDismiss: () => void;
+  /** Fires after a confirmed purchase, so the caller can resume the class. */
+  onPurchased?: () => void;
+  /** The class that triggered this — its real thumbnail/title/coach. */
+  blockedClass?: { title: string; coachName?: string | null; thumbnailUrl?: string | null } | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps) {
+export default function ClientPaywall({ visible, onDismiss, onPurchased, blockedClass }: ClientPaywallProps) {
   // A Modal inherits no safe area — the scroll supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
   const { offerings, purchasePackage, restorePurchases, isLoading } = useRevenueCat();
@@ -89,8 +97,11 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
     setPurchasing(false);
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onDismiss();
+      // Purchased > dismissed: the caller resumes the blocked class.
+      if (onPurchased) onPurchased();
+      else onDismiss();
     } else if (error) {
+      // A cancelled purchase returns no error and lands here silently.
       Alert.alert('Purchase failed', error);
     }
   };
@@ -126,15 +137,32 @@ export default function ClientPaywall({ visible, onDismiss }: ClientPaywallProps
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Hero */}
+          {/* Hero — the class they were just denied, when we have it. */}
           <View style={s.hero}>
-            <View style={s.heroIconWrap}>
-              <Ionicons name="flash" size={36} color={CoachColors.accent} />
-            </View>
-            <Text style={s.heroTag}>FitLink premium</Text>
-            <Text style={s.heroTitle}>Train smarter.{'\n'}Every day.</Text>
+            {blockedClass?.thumbnailUrl ? (
+              <View style={s.classCard}>
+                <Image source={{ uri: blockedClass.thumbnailUrl }} style={s.classThumb} resizeMode="cover" />
+                <View style={s.classScrim} />
+                <View style={s.lockChip}>
+                  <Ionicons name="lock-closed" size={12} color={CoachColors.onAccent} />
+                </View>
+                <View style={s.classMeta}>
+                  <Text style={s.classTitle} numberOfLines={2}>{blockedClass.title}</Text>
+                  {blockedClass.coachName ? (
+                    <Text style={s.classCoach} numberOfLines={1}>with {blockedClass.coachName}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : (
+              <View style={s.heroIconWrap}>
+                <Ionicons name="play-circle" size={36} color={CoachColors.accent} />
+              </View>
+            )}
+            <Text style={s.heroTag}>Athlete pass</Text>
+            <Text style={s.heroTitle}>Every class,{'\n'}from every coach.</Text>
             <Text style={s.heroSub}>
-              Everything you need to hit your goals — on one platform with your coach.
+              One pass unlocks on-demand classes across FitLink
+              {blockedClass ? ' — starting with this one.' : '.'}
             </Text>
           </View>
 
@@ -263,6 +291,34 @@ const s = StyleSheet.create({
 
   // Hero
   hero: { alignItems: 'center', paddingTop: 16, paddingBottom: 32 },
+  classCard: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: CoachColors.surface,
+    marginBottom: 20,
+  },
+  classThumb: { ...StyleSheet.absoluteFillObject },
+  classScrim: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 84,
+    backgroundColor: 'rgba(16,18,16,0.72)',
+  },
+  lockChip: {
+    position: 'absolute', top: 10, right: 10,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  classMeta: { position: 'absolute', left: 14, right: 14, bottom: 12 },
+  classTitle: {
+    fontFamily: CoachFonts.headingBold, fontSize: 17,
+    color: CoachColors.textPrimary, lineHeight: 21,
+  },
+  classCoach: {
+    fontFamily: CoachFonts.bodyMedium, fontSize: 13,
+    color: 'rgba(255,255,255,0.78)', marginTop: 2,
+  },
   heroIconWrap: {
     width: 72,
     height: 72,

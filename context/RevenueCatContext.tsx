@@ -34,6 +34,7 @@ import {
   ENTITLEMENT_CLIENT_PREMIUM,
   ENTITLEMENT_COACH_ELITE,
   OFFERING_DEFAULT,
+  OFFERING_COACH,
 } from '../lib/revenuecat';
 import { useAuth } from './AuthContext';
 import { layers } from '../lib/layers';
@@ -44,6 +45,9 @@ interface RevenueCatContextType {
   isLoading: boolean;
   customerInfo: CustomerInfo | null;
   offerings: PurchasesOffering | null;
+  /** The "coach" offering — Coach Elite packages. Separate because one
+   *  offering cannot carry two audiences' monthly products at once. */
+  coachOfferings: PurchasesOffering | null;
   isClientPremium: boolean;
   isCoachElite: boolean;
   purchasePackage: (pkg: PurchasesPackage) => Promise<{ success: boolean; error?: string }>;
@@ -60,6 +64,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
+  const [coachOfferings, setCoachOfferings] = useState<PurchasesOffering | null>(null);
 
   // ── Computed entitlement flags ──
   const isClientPremium = !!customerInfo?.entitlements.active[ENTITLEMENT_CLIENT_PREMIUM];
@@ -90,6 +95,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
 
         const defaultOffering = offeringsResult.current ?? offeringsResult.all[OFFERING_DEFAULT] ?? null;
         setOfferings(defaultOffering);
+        setCoachOfferings(offeringsResult.all[OFFERING_COACH] ?? null);
       } catch (err) {
         if (__DEV__) console.warn('[RevenueCat] Init error:', err);
       } finally {
@@ -185,6 +191,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         isLoading,
         customerInfo,
         offerings,
+        coachOfferings,
         isClientPremium,
         isCoachElite,
         purchasePackage,
