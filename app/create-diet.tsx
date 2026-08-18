@@ -500,7 +500,9 @@ export default function CreateDietScreen() {
         setUploadingImage(true);
         const fileUri = result.assets[0].uri;
         const ext = fileUri.split('.').pop() || 'jpg';
-        const fileName = `${Date.now()}.${ext}`;
+        if (!user) throw new Error('You are signed out. Sign in and try again.');
+        // diet-images only accepts writes under `{auth uid}/…`.
+        const fileName = `${user.id}/${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from('diet-images')
           .upload(fileName, decode(result.assets[0].base64), { contentType: `image/${ext}`, upsert: true });

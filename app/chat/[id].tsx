@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import FormReviewMessage, { FORM_REVIEW_PREFIX, parseFormReview } from '../../components/chat/FormReviewMessage';
+import { useSignedMediaUrl } from '../../lib/privateMedia';
 
 interface Message {
   id: string;
@@ -39,6 +40,99 @@ function fmtClock(totalSeconds: number) {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+// ── Private-bucket attachments ──────────────────────────────────────────────
+// chat-attachments is a PRIVATE bucket, so the stored attachment_url is not
+// fetchable and has to be signed first. Signing is a hook and hooks cannot run
+// inside a .map(), so every attachment renders through its own component.
+// `ready` separates "still signing" from "cannot show it": we hold a
+// same-size placeholder rather than flashing a broken image, and say so
+// plainly when the signature genuinely fails.
+
+const ATTACHMENT_W = 220;
+const ATTACHMENT_H = 300;
+
+function AttachmentImage({ storedUrl, isMine }: { storedUrl: string; isMine: boolean }) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  const frame = {
+    width: ATTACHMENT_W,
+    height: ATTACHMENT_H,
+    borderRadius: 12,
+    backgroundColor: isMine ? 'rgba(16,18,16,0.2)' : 'rgba(255,255,255,0.06)',
+  } as const;
+
+  if (!ready) return <View style={frame} />;
+
+  if (failed || !url) {
+    return (
+      <View style={[frame, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }]}>
+        <Ionicons name="image-outline" size={22} color={CoachColors.textMuted} />
+        <Text style={styles.attachmentUnavailable}>Attachment unavailable</Text>
+      </View>
+    );
+  }
+
+  return <RNImage source={{ uri: url }} style={frame} resizeMode="cover" />;
+}
+
+// Signs first, then mounts the player — useVideoPlayer would otherwise be
+// handed a URL the CDN refuses.
+function SignedVideoBubble({ storedUrl, onReview }: { storedUrl: string; onReview?: () => void }) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+
+  if (!ready) {
+    return (
+      <View style={styles.videoBubbleWrap}>
+        <View style={styles.videoBubble} />
+      </View>
+    );
+  }
+
+  if (failed || !url) {
+    return (
+      <View style={styles.videoBubbleWrap}>
+        <View style={[styles.videoBubble, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }]}>
+          <Ionicons name="videocam-outline" size={22} color={CoachColors.textMuted} />
+          <Text style={styles.attachmentUnavailable}>Attachment unavailable</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return <VideoBubble url={url} onReview={onReview} />;
+}
+
+/**
+ * FormReviewMessage renders the pinned comment with or without a video, so
+ * while the signature is in flight (or if it fails) the comment still reads
+ * correctly — we withhold the video rather than hand the player a dead URL.
+ */
+function SignedFormReviewMessage({
+  storedUrl,
+  seconds,
+  comment,
+  isMine,
+}: {
+  storedUrl?: string;
+  seconds: number;
+  comment: string;
+  isMine: boolean;
+}) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  return (
+    <View>
+      <FormReviewMessage
+        seconds={seconds}
+        comment={comment}
+        videoUrl={ready && !failed && url ? url : undefined}
+        isMine={isMine}
+      />
+      {!!storedUrl && ready && (failed || !url) && (
+        <Text style={styles.attachmentUnavailable}>Attachment unavailable</Text>
+      )}
+    </View>
+  );
 }
 
 // Athlete video bubble — inline player plus the entry point into the form-review composer
@@ -66,6 +160,36 @@ function VideoBubble({ url, onReview }: { url: string; onReview?: () => void }) 
       )}
     </View>
   );
+}
+
+/**
+ * The composer's player needs a signed URL too. It mounts nothing until the
+ * signature resolves (it is an overlay, so there is no layout to disturb), and
+ * if signing fails it says so and closes rather than opening onto a dead
+ * player the coach could still type a review into.
+ */
+function SignedFormReviewComposer({
+  storedUrl,
+  sending,
+  onClose,
+  onSend,
+}: {
+  storedUrl: string;
+  sending: boolean;
+  onClose: () => void;
+  onSend: (seconds: number, comment: string) => void;
+}) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  const unusable = ready && (failed || !url);
+
+  useEffect(() => {
+    if (!unusable) return;
+    Alert.alert('Attachment unavailable', 'That video could not be opened. Please try again.');
+    onClose();
+  }, [unusable, onClose]);
+
+  if (!ready || !url || failed) return null;
+  return <FormReviewComposer videoUrl={url} sending={sending} onClose={onClose} onSend={onSend} />;
 }
 
 // In-screen composer overlay — pin a coaching comment to a second of the athlete's video
@@ -532,10 +656,13 @@ export default function ChatScreen() {
       });
 
       if (!result.canceled && result.assets[0].base64 && conversationId) {
+        if (!user) throw new Error('You are signed out. Sign in and try again.');
         setSending(true);
         const base64 = result.assets[0].base64;
         const ext = result.assets[0].uri.split('.').pop() || 'jpg';
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        // chat-attachments is private and only accepts writes under
+        // `{auth uid}/…`; the uid segment is also what scopes the read policy.
+        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
 
         const { error } = await supabase.storage
           .from('chat-attachments')
@@ -600,13 +727,7 @@ export default function ChatScreen() {
     const { content } = msg;
 
     if (content === '[IMAGE]' && msg.attachment_url) {
-      return (
-        <RNImage
-          source={{ uri: msg.attachment_url }}
-          style={{ width: 220, height: 300, borderRadius: 12, backgroundColor: isMine ? 'rgba(16,18,16,0.2)' : 'rgba(255,255,255,0.06)' }}
-          resizeMode="cover"
-        />
-      );
+      return <AttachmentImage storedUrl={msg.attachment_url} isMine={isMine} />;
     }
 
     // Form review — a comment pinned to a second of the video under review
@@ -614,10 +735,10 @@ export default function ChatScreen() {
       const parsed = parseFormReview(content);
       if (parsed) {
         return (
-          <FormReviewMessage
+          <SignedFormReviewMessage
             seconds={parsed.seconds}
             comment={parsed.comment}
-            videoUrl={msg.attachment_type === 'video' ? msg.attachment_url : undefined}
+            storedUrl={msg.attachment_type === 'video' ? msg.attachment_url : undefined}
             isMine={isMine}
           />
         );
@@ -627,8 +748,8 @@ export default function ChatScreen() {
     // Athlete video message — playable inline, with an entry point into form review
     if (msg.attachment_type === 'video' && msg.attachment_url) {
       return (
-        <VideoBubble
-          url={msg.attachment_url}
+        <SignedVideoBubble
+          storedUrl={msg.attachment_url}
           onReview={!isMine ? () => setReviewTarget(msg) : undefined}
         />
       );
@@ -1036,8 +1157,8 @@ export default function ChatScreen() {
 
       {/* Form review composer — in-screen overlay, pins a comment to a second of the athlete's video */}
       {reviewTarget?.attachment_url && (
-        <FormReviewComposer
-          videoUrl={reviewTarget.attachment_url}
+        <SignedFormReviewComposer
+          storedUrl={reviewTarget.attachment_url}
           sending={sending}
           onClose={() => setReviewTarget(null)}
           onSend={sendFormReview}
@@ -1162,6 +1283,10 @@ const styles = StyleSheet.create({
 
   videoBubbleWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
   videoBubble: { width: 220, height: 280 },
+  attachmentUnavailable: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    marginTop: 6, textAlign: 'center',
+  },
   reviewAffordance: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     alignSelf: 'flex-start',

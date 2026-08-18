@@ -271,7 +271,10 @@ export default function FindCoachScreen() {
     try {
       const [{ data: trainers }, { data: allPlans }] = await Promise.all([
         supabase
-          .from('trainers')
+          // The public view: marketplace columns only. Browsing the TABLE
+          // used to hand over every coach's email, phone, Stripe account id and
+          // push token to any signed-in user.
+          .from('trainers_public')
           .select('id, name, specialization, bio, avatar_url, cover_url, certifications, working_hours')
           .order('name'),
         supabase.from('plans').select('*'),

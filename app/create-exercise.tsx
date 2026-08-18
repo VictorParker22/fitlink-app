@@ -81,18 +81,21 @@ export default function CreateExerciseScreen() {
     try {
       const asset = result.assets[0];
       const ext = asset.uri.split('.').pop() || 'jpg';
-      const fileName = `exercise-img-${Date.now()}.${ext}`;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('You are signed out. Sign in and try again.');
+
+      const objectName = `exercise-img-${Date.now()}.${ext}`;
+      // exercise-videos only accepts writes under `{auth uid}/…`.
+      const fileName = `${session.user.id}/${objectName}`;
 
       const formData = new FormData();
       // Field name must be non-empty — '' is rejected by the storage API.
       formData.append('file', {
         uri: asset.uri,
-        name: fileName,
+        name: objectName,
         type: asset.mimeType || 'image/jpeg',
       } as any);
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('You are signed out. Sign in and try again.');
 
       // `(supabase as any).supabaseUrl` is not public API and can be
       // undefined, producing a request to "undefined/storage/v1/...".

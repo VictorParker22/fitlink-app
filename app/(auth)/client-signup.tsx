@@ -90,7 +90,7 @@ export default function ClientSignupScreen() {
     let alive = true;
     (async () => {
       const { data } = await supabase
-        .from('trainers')
+        .from('trainers_public')
         .select('id, name, specialization, avatar_url')
         .eq('id', refId)
         .maybeSingle();
@@ -207,7 +207,7 @@ export default function ClientSignupScreen() {
 
       setLoadingTrainers(true);
       const { data: trainerList } = await supabase
-        .from('trainers')
+        .from('trainers_public')
         .select('id, name, specialization, avatar_url')
         .order('name');
       setTrainers(trainerList || []);

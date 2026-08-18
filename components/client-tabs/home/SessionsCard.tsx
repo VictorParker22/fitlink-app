@@ -104,7 +104,7 @@ export default function SessionsCard() {
       try {
         const [{ data: trainers }, { data: allPlans }] = await Promise.all([
           supabase
-            .from('trainers')
+            .from('trainers_public')
             .select('id, name, specialization, bio, avatar_url')
             .order('name'),
           supabase.from('plans').select('id, trainer_id, name, description'),

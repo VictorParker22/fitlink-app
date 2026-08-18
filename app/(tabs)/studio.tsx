@@ -274,8 +274,13 @@ function useConnectionSpeed(active: boolean) {
 
   const runTest = useCallback(async () => {
     setTesting(true);
-    const path = `speed-test/${Date.now()}.bin`;
     try {
+      // chat-attachments only accepts writes under `{auth uid}/…` — a flat
+      // object name is rejected by the INSERT policy, so the test would
+      // measure nothing but a 403.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return; // signed out — no honest measurement to make
+      const path = `${user.id}/speed-test/${Date.now()}.bin`;
       const payload = new Uint8Array(SPEED_TEST_BYTES);
       const start = Date.now();
       const { error } = await supabase.storage

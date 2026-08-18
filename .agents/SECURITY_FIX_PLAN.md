@@ -88,9 +88,7 @@ this is hardening rather than incident response).
 
 ---
 
-# STILL OPEN after Phases A–D (2026-08-18)
-
-Ranked. Everything below is known, not forgotten.
+# STILL OPEN after Phases A–F (2026-08-18)
 
 ## Needs the account owner — cannot be fixed in code
 1. **Email confirmation ON in Supabase Auth.** A1 binds the client link to the
@@ -98,48 +96,34 @@ Ranked. Everything below is known, not forgotten.
    JWT carrying a victim's address and the comparison means nothing. A1 is
    necessary; this setting makes it sufficient. **Highest remaining item.**
 2. **Rotate the iOS distribution certificate** — password is in git history
-   (`19bb80d`, `8adeef1`). The `.p12` was never committed, so not yet
-   weaponizable, but history was never rewritten.
+   (`19bb80d`, `8adeef1`). The `.p12` was never committed.
 3. **Restrict the Firebase Android API key** (package + SHA-1) in GCP.
-4. Rotate the Spotify secret and GitHub PAT (long-standing).
+4. Rotate the Spotify secret and GitHub PAT.
 
-## Code, not yet done
-5. **`chat-attachments` / `progress-photos` are `public: true` buckets.** Phase A
-   stopped anon *enumeration*, but a public bucket is served by the CDN without
-   consulting RLS, so anyone with a URL still reads it. Real fix: flip both to
-   private and move every render to signed URLs. Touches every attachment and
-   progress-photo render path.
-6. **Account deletion leaves storage objects behind.** Phase D fixed the DB rows
-   (cascades now complete). The FILES — avatars, chat attachments, progress
-   photos — are never removed, so "delete my account" leaves body photos on a
-   public CDN. Needs a storage sweep in the delete path.
-7. **`class-videos` / `class-thumbnails` unscoped INSERT.** Any authenticated
-   user can write arbitrary object names into a public bucket (free
-   malware/phishing hosting on our CDN origin, plus path squatting). UPDATE and
-   DELETE are already owner-scoped, so existing coach media cannot be
-   overwritten. The fix needs uid-prefixed upload paths client-side first —
-   uploads currently use flat `Date.now()` filenames, so a path policy would
-   break them today.
-8. **`trainers` column exposure.** The athlete's own read is now narrowed to
-   explicit columns (no `stripe_account_id`), but the RLS policy still lets any
-   authenticated user `select('*')` on any coach row — email, phone, Stripe
-   Connect id, push token. Proper fix: a public-facing view plus column grants,
-   or move the private columns to a coach-only table.
-9. **`lookup_client_by_contact` remains a membership oracle.** It must stay
-   anon-callable (it runs pre-signup) and no longer returns email/phone, but a
-   caller who already knows an address still learns whether that person is a
-   FitLink client. Closing it fully means proving control of the contact
-   (email OTP) before answering — a signup redesign.
-10. **No rate limiting anywhere.** Supabase's built-in auth limits are the only
-    ones in play. The oracle above and the AI/vendor endpoints would both
-    benefit.
-11. **Wildcard CORS on every function.** Not the breach itself (these
-    authenticate on a bearer, not cookies), but it means any web page can reach
-    them, which is what turned "needs the anon key" into "any landing page".
-12. **Dependency vulnerabilities.** `npm audit --omit=dev` reports 43, but
-    almost all are build-toolchain (`@expo/cli`, metro, `shell-quote`, `tar`,
-    `xmldom`) and never ship. The one that ships is **`ws@8.20.0`** via
-    `@supabase/realtime-js` (memory-exhaustion DoS). Deliberately NOT bumped
-    here: dependency surgery on a pinned Expo SDK 54 project immediately before
-    an EAS rebuild is how you break a release. Do it as its own change, with a
-    build.
+## Accepted, with reasoning — deliberately NOT changed
+5. **Wildcard CORS on the edge functions.** Every function now requires a real
+   caller, and tokens live in SecureStore (native) or localStorage (web), which
+   a foreign origin cannot read. So a malicious page can reach the endpoints but
+   cannot authenticate to them. Tightening 26 functions to an origin allowlist
+   would break the web target for no meaningful gain — native apps send no
+   Origin header at all, so CORS never protected them either way.
+6. **`lookup_client_by_contact` is still a membership oracle.** It must stay
+   anon-callable (it answers "did a coach already add you?" before an account
+   exists) and it no longer returns email or phone. A caller who already knows
+   an address still learns whether that person is a FitLink client. Closing it
+   fully means proving control of the contact by OTP first — a signup redesign,
+   not a patch.
+7. **Build-toolchain dependency advisories.** `npm audit --omit=dev` still
+   reports 23 high/critical, and they are all build-time (`@expo/cli`, metro,
+   `shell-quote`, `tar`, `xmldom`, `@react-native/dev-middleware`). None ships
+   in the binary. The one that DID ship — `ws` via `@supabase/realtime-js` — is
+   pinned to `^8.21.3` by a scoped override and is patched. The override is
+   scoped rather than blanket on purpose: a global `ws` override would also hit
+   dev-middleware's `ws@6` and break the dev server.
+
+## Known behaviour change to watch
+8. **29 legacy chat attachments** were uploaded with flat filenames, before
+   uploads were uid-prefixed. Under the new participant-scoped read policy they
+   resolve to owner-only: the sender still sees them, the recipient does not.
+   All pre-launch test data. If this is ever replayed against real history,
+   migrate the objects and rewrite `messages.attachment_url` first.

@@ -33,6 +33,7 @@ import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import FormReviewMessage, { FORM_REVIEW_PREFIX, parseFormReview } from '../../components/chat/FormReviewMessage';
+import { useSignedMediaUrl } from '../../lib/privateMedia';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 
@@ -50,6 +51,73 @@ interface Message {
 
 function initials(name: string) {
   return name.split(' ').map((n) => n[0]).filter(Boolean).join('').toUpperCase().slice(0, 2);
+}
+
+// ── Private-bucket attachments ──────────────────────────────────────────────
+// chat-attachments is a PRIVATE bucket: the stored attachment_url is not a
+// fetchable URL any more, it has to be signed first. Signing is a hook, and
+// hooks cannot run inside a .map(), so each attachment renders through its own
+// component. `ready` separates "still signing" from "cannot show it" so we
+// hold a same-size placeholder instead of flashing a broken image, and say so
+// plainly when the signature genuinely fails.
+
+const ATTACHMENT_W = 220;
+const ATTACHMENT_H = 300;
+
+function AttachmentImage({ storedUrl, isMine }: { storedUrl: string; isMine: boolean }) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  const frame = {
+    width: ATTACHMENT_W,
+    height: ATTACHMENT_H,
+    borderRadius: 12,
+    backgroundColor: isMine ? 'rgba(16,18,16,0.2)' : 'rgba(255,255,255,0.06)',
+  } as const;
+
+  if (!ready) return <View style={frame} />;
+
+  if (failed || !url) {
+    return (
+      <View style={[frame, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }]}>
+        <Ionicons name="image-outline" size={22} color={CoachColors.textMuted} />
+        <Text style={styles.attachmentUnavailable}>Attachment unavailable</Text>
+      </View>
+    );
+  }
+
+  return <RNImage source={{ uri: url }} style={frame} resizeMode="cover" />;
+}
+
+/**
+ * FormReviewMessage renders the pinned comment with or without a video, so
+ * while the signature is in flight (or if it fails) the comment still reads
+ * correctly — we simply withhold the video rather than hand the player a URL
+ * that cannot load.
+ */
+function SignedFormReviewMessage({
+  storedUrl,
+  seconds,
+  comment,
+  isMine,
+}: {
+  storedUrl?: string;
+  seconds: number;
+  comment: string;
+  isMine: boolean;
+}) {
+  const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  return (
+    <View>
+      <FormReviewMessage
+        seconds={seconds}
+        comment={comment}
+        videoUrl={ready && !failed && url ? url : undefined}
+        isMine={isMine}
+      />
+      {!!storedUrl && ready && (failed || !url) && (
+        <Text style={styles.attachmentUnavailable}>Attachment unavailable</Text>
+      )}
+    </View>
+  );
 }
 
 export default function ClientMessagesScreen() {
@@ -246,10 +314,13 @@ export default function ClientMessagesScreen() {
       });
 
       if (!result.canceled && result.assets[0].base64 && conversation) {
+        if (!user) throw new Error('You are signed out. Sign in and try again.');
         setSending(true);
         const base64 = result.assets[0].base64;
         const ext = result.assets[0].uri.split('.').pop() || 'jpg';
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        // chat-attachments is private and only accepts writes under
+        // `{auth uid}/…`; the uid segment is also what scopes the read policy.
+        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
 
         const { error } = await supabase.storage
           .from('chat-attachments')
@@ -313,13 +384,7 @@ export default function ClientMessagesScreen() {
     const { content } = msg;
 
     if (content === '[IMAGE]' && msg.attachment_url) {
-      return (
-        <RNImage
-          source={{ uri: msg.attachment_url }}
-          style={{ width: 220, height: 300, borderRadius: 12, backgroundColor: isMine ? 'rgba(16,18,16,0.2)' : 'rgba(255,255,255,0.06)' }}
-          resizeMode="cover"
-        />
-      );
+      return <AttachmentImage storedUrl={msg.attachment_url} isMine={isMine} />;
     }
 
     // Form review — coach comment pinned to a second of a video
@@ -327,10 +392,10 @@ export default function ClientMessagesScreen() {
       const parsed = parseFormReview(content);
       if (parsed) {
         return (
-          <FormReviewMessage
+          <SignedFormReviewMessage
             seconds={parsed.seconds}
             comment={parsed.comment}
-            videoUrl={msg.attachment_type === 'video' ? msg.attachment_url : undefined}
+            storedUrl={msg.attachment_type === 'video' ? msg.attachment_url : undefined}
             isMine={isMine}
           />
         );
@@ -635,6 +700,10 @@ const styles = StyleSheet.create({
   bubbleTimeReceived: { color: CoachColors.textFaint },
 
   attachTag: { fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.8 },
+  attachmentUnavailable: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
+    marginTop: 6, textAlign: 'center',
+  },
   attachIcon: {
     width: 40, height: 40, borderRadius: 8,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,

@@ -130,7 +130,7 @@ export default function CreateClassScreen() {
 
   const uploadFile = async (asset: ImagePicker.ImagePickerAsset, bucket: 'class-thumbnails' | 'class-videos') => {
     const ext = (asset.uri.split('.').pop() || (bucket === 'class-videos' ? 'mp4' : 'jpg')).toLowerCase();
-    const fileName = `${bucket}-${Date.now()}.${ext}`;
+    const objectName = `${bucket}-${Date.now()}.${ext}`;
 
     // Refuse oversized files up front with a real number, rather than letting
     // the server reject them after a long upload.
@@ -152,12 +152,15 @@ export default function CreateClassScreen() {
     // API rejects.
     formData.append('file', {
       uri: asset.uri,
-      name: fileName,
+      name: objectName,
       type: asset.mimeType || (bucket === 'class-videos' ? 'video/mp4' : 'image/jpeg'),
     } as any);
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('You are signed out. Sign in and try again.');
+
+    // class-videos / class-thumbnails only accept writes under `{auth uid}/…`.
+    const fileName = `${session.user.id}/${objectName}`;
 
     // `(supabase as any).supabaseUrl` is not public API and can be undefined,
     // which produced a request to "undefined/storage/v1/...".

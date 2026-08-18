@@ -125,7 +125,7 @@ export default function ClientOnboardingScreen() {
           .maybeSingle();
         if (client?.trainer_id) {
           const { data: t } = await supabase
-            .from('trainers')
+            .from('trainers_public')
             .select('name')
             .eq('id', client.trainer_id)
             .maybeSingle();
