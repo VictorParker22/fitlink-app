@@ -292,17 +292,18 @@ export default function AddClientScreen() {
           });
         if (error) throw error;
       } else {
-        // Existing client record — claim via edge function (bypasses RLS)
+        // Existing client record — claim via the edge function, which is
+        // the ONLY path allowed to set trainer_id on a row this coach does
+        // not yet own. It refuses (409) when the client already has a coach.
+        //
+        // There used to be a direct-update fallback here for when the
+        // function errored. It is gone: a refusal is now a real answer, not
+        // an outage, and retrying it client-side would have been an attempt
+        // to take an athlete away from another coach.
         const { error } = await supabase.functions.invoke('search-unassigned-clients', {
           body: { action: 'link', clientId: client.id, trainerId: user.id }
         });
-        if (error) {
-          const { error: updateErr } = await supabase
-            .from('clients')
-            .update({ trainer_id: user.id })
-            .eq('id', client.id);
-          if (updateErr) throw updateErr;
-        }
+        if (error) throw new Error(error.message || 'Could not add that client');
       }
 
       // Navigate back FIRST

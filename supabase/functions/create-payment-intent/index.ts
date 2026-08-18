@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -30,6 +31,16 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // The caller must BE this athlete, or be their coach. Without this,
+    // any holder of the anon key — which ships in the app binary — could
+    // charge a stranger's saved card by posting their clientId.
+    // trainerId is deliberately NOT bound to the caller: an athlete
+    // legitimately pays a coach who is not themselves. The charge lands on
+    // the client we just authorised, so a forged trainerId only redirects
+    // the payout of a payment the caller is entitled to make.
+    const caller = await requireCaller(req)
+    await requireClientAccess(caller, clientId)
 
     // Create a Supabase admin client
     const supabaseAdmin = createClient(
@@ -149,6 +160,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
     console.error('Error creating payment intent:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

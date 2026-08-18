@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -29,6 +30,12 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // The caller must BE this athlete, or be their coach. Without this,
+    // any holder of the anon key — which ships in the app binary — could
+    // sign a stranger up for the $19.99/mo On-Demand Pass on their saved card.
+    const caller = await requireCaller(req)
+    await requireClientAccess(caller, clientId)
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -176,6 +183,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
     console.error('Error creating class subscription:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireCaller, requireTrainerSelf, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -25,6 +26,13 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // The caller must BE this coach. Without this, any holder of the anon
+    // key — which ships in the app binary — could create a Connect account
+    // they control against a coach who has none yet, and every future payout
+    // for that coach's athletes would land in the attacker's bank account.
+    const caller = await requireCaller(req)
+    requireTrainerSelf(caller, trainerId)
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -89,6 +97,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
     console.error('Error creating connect account:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

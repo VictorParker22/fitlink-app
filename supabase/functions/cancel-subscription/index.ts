@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -26,6 +27,12 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // The caller must BE this athlete, or be their coach. Without this,
+    // any holder of the anon key — which ships in the app binary — could
+    // cancel every paying athlete's subscription in a loop.
+    const caller = await requireCaller(req)
+    await requireClientAccess(caller, clientId)
 
     // Create a Supabase admin client
     const supabaseAdmin = createClient(
@@ -97,6 +104,8 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    // Auth failures are a 401/403 answer, not a server fault.
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
     console.error('Error canceling subscription:', err)
     return new Response(
       JSON.stringify({ error: err.message }),
