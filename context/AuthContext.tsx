@@ -127,40 +127,56 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUser(s?.user ?? null);
       const role = (s?.user?.user_metadata?.role as 'trainer' | 'client') || 'trainer';
       setUserRole(role);
-      
-      if (s?.user) {
-        try {
-          const token = await registerForPushNotificationsAsync();
-          if (token) {
-            // Supabase writes resolve with { error } — the surrounding catch
-            // only ever fires for the token fetch, so check it explicitly.
-            // Failure is non-fatal (no push until the next launch).
-            const { error: tokenError } = role === 'client'
-              ? await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id)
-              : await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
-            if (tokenError && __DEV__) {
-              console.warn('[AuthContext] Push token not stored:', tokenError.message);
-            }
-          }
-        } catch (e) {
-          if (__DEV__) console.warn('[AuthContext] Failed to register push token on DB:', e);
-        }
 
-        // ── Layers: identify authenticated user ──────────────────────────────
-        try {
-          layers.identify(s.user.id, {
-            email: s.user.email,
-            phone: s.user.phone,
-            role,
-            name: s.user.user_metadata?.name,
-            signup_date: s.user.created_at,
-          });
-        } catch (e) {
-          if (__DEV__) console.warn('[Layers] identify error:', e);
-        }
-      }
-      
+      // AUTH IS RESOLVED HERE, AND NOTHING BELOW MAY DELAY IT.
+      //
+      // setLoading(false) used to sit at the BOTTOM of this function, behind
+      // `await registerForPushNotificationsAsync()`. That made the entire app
+      // wait on a notification-permission decision to finish signing in —
+      // two things with nothing to do with each other. AuthGuard renders null
+      // while `loading` is true, so the Stack never mounted and the user sat
+      // on the splash screen forever, signed in, with no way forward and no
+      // error to explain it. Observed on web, where the permission promise can
+      // simply never settle; the same shape hangs on native if the OS dialog
+      // is never answered.
+      //
+      // Whether push works is not part of whether you are logged in.
       setLoading(false);
+
+      if (!s?.user) return;
+
+      // ── Everything past here is best-effort and deliberately not awaited ──
+      // Detached with .then/.catch rather than awaited, so a hanging permission
+      // prompt or a slow network can never again hold the app on the splash.
+      registerForPushNotificationsAsync()
+        .then(async (token) => {
+          if (!token) return;
+          // Supabase writes resolve with { error } — they do not throw, so the
+          // catch below would never see a failed write. Check it explicitly.
+          // Failure is non-fatal: no push until the next launch.
+          const { error: tokenError } = role === 'client'
+            ? await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', s.user.id)
+            : await supabase.from('trainers').update({ expo_push_token: token }).eq('id', s.user.id);
+          if (tokenError && __DEV__) {
+            console.warn('[AuthContext] Push token not stored:', tokenError.message);
+          }
+        })
+        .catch((e) => {
+          if (__DEV__) console.warn('[AuthContext] Failed to register push token:', e);
+        });
+
+      // ── Layers: identify authenticated user ──────────────────────────────
+      try {
+        layers.identify(s.user.id, {
+          email: s.user.email,
+          phone: s.user.phone,
+          role,
+          name: s.user.user_metadata?.name,
+          signup_date: s.user.created_at,
+        });
+      } catch (e) {
+        if (__DEV__) console.warn('[Layers] identify error:', e);
+      }
     };
 
     // Get initial session — catch stale/invalid refresh tokens and sign out cleanly

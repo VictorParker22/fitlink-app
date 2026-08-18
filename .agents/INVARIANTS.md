@@ -131,3 +131,29 @@ The hook, in order:
 `verify.js` greps for the failure patterns above: third-party brand names, phantom columns, `Alert.prompt`, RN-core `SafeAreaView`, unconditional `behavior="padding"`, and `try {` wrapped directly around a bare `await supabase`. It is a smoke alarm, not a proof — it catches the shapes that have shipped bugs before.
 
 Suppress a reviewed line with a trailing `// invariant-ok: <reason>` (or `// secret-ok: <reason>`). `git commit --no-verify` skips the lot, which is the right call for WIP on a branch and the wrong call on `master`.
+
+---
+
+## 12. A readiness flag must never sit behind an unrelated permission prompt
+
+**The bug.** `AuthContext.handleSession` ended with `setLoading(false)`, placed
+*after* `await registerForPushNotificationsAsync()`. `AuthGuard` renders `null`
+while `loading` is true, so the whole navigation Stack was gated on a
+notification-permission decision. When that promise did not settle, a fully
+signed-in coach sat on the splash screen forever — no error, no route, no way
+forward. It looked like a font problem, a routing problem, and a Metro problem
+before it turned out to be none of those.
+
+**The rule.** When a flag means "X is ready", resolve it the instant X is
+actually ready, and detach everything else with `.then/.catch`. Whether push
+notifications work is not part of whether you are logged in.
+
+**How to spot it.** In any `async` initialiser, look at what sits between the
+last piece of real state being set and the `setReady(false→true)` call. Every
+`await` in that gap is something that can hang your entire app. Permission
+prompts (`requestPermissionsAsync`, geolocation, camera) are the worst of them:
+on web they can simply never settle, and on native they wait on a human.
+
+**Why a grep cannot check this.** The order of statements in an async function
+is not a pattern — it is a dependency claim, and only reading the function
+tells you whether the claim is true.
