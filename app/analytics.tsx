@@ -7,6 +7,7 @@ import { LineChart } from 'react-native-gifted-charts';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import PassPerformance from '../components/coach/PassPerformance';
+import { usePaymentSplit, coachKeeps, bpsToPercentLabel } from '../lib/platformFee';
 
 /**
  * Analytics — every figure on this screen traces to a real source:
@@ -14,8 +15,11 @@ import PassPerformance from '../components/coach/PassPerformance';
  * - Session counts, completion rate, hours coached, session types and the
  *   client-growth series all come from the coach_* DB views via
  *   fetchAnalytics(). Months with no signups render as real zeros.
- * - Monthly recurring is holder count × pass price minus the 10% platform
- *   fee — the exact math earnings.tsx uses, so Business screens agree.
+ * - Monthly recurring is holder count × pass price minus this coach's real
+ *   deduction, read from payment_split_for_trainer() — the same function the
+ *   payment edge functions use, so the figure shown is the figure taken. A
+ *   coach on an org seat pays no marketplace fee and may owe their org a
+ *   share, so the rate is per-coach and never a constant.
  *   The old screen showed two revenue numbers from two different sources
  *   (client-side gross and the DB view's MRR) that could disagree; the DB
  *   figure was dropped in favor of the one consistent with Earnings.
@@ -26,12 +30,12 @@ import PassPerformance from '../components/coach/PassPerformance';
  */
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const PLATFORM_FEE = 0.10;
 
 export default function AnalyticsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { referrals, activeClients, totalMonthlyRevenue, refreshData, fetchAnalytics } = useApp();
+  const { referrals, activeClients, totalMonthlyRevenue, refreshData, fetchAnalytics, trainer } = useApp();
+  const { split } = usePaymentSplit(trainer?.id);
   const [refreshing, setRefreshing] = useState(false);
 
   const [analyticsData, setAnalyticsData] = useState<{
@@ -96,9 +100,16 @@ export default function AnalyticsScreen() {
   );
   const newClientsSixMonths = monthlyGrowth.reduce((s, m) => s + m.count, 0);
 
-  // ── Revenue: same math as earnings.tsx (net of 10% fee) ──
-  const netMonthly = totalMonthlyRevenue * (1 - PLATFORM_FEE);
-  const avgPerClient = activeClients.length > 0 ? netMonthly / activeClients.length : 0;
+  // ── Revenue, net of this coach's real deduction ──
+  // `split` is null while the RPC is in flight and stays null if it fails.
+  // Both stay null here rather than defaulting to 10%: a coach on a gym seat
+  // pays 0% plus whatever share their org takes, so a hardcoded rate would
+  // quote them money they will not receive. An absent figure is honest; a
+  // guessed one is not (INVARIANTS §4).
+  const netMonthly = split ? coachKeeps(totalMonthlyRevenue, split) : null;
+  const avgPerClient =
+    netMonthly !== null && activeClients.length > 0 ? netMonthly / activeClients.length : null;
+  const deductionLabel = split ? bpsToPercentLabel(split.platformFeeBps + split.orgShareBps) : null;
 
   const formatWhole = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
@@ -137,8 +148,11 @@ export default function AnalyticsScreen() {
               </View>
               <View style={st.tile}>
                 <Text style={st.tileLabel}>Monthly recurring</Text>
-                <Text style={st.tileValue}>{formatWhole(netMonthly)}</Text>
-                <Text style={st.tileSub}>after the 10% fee</Text>
+                {/* Neutral dash until the real split arrives — never a 10% guess. */}
+                <Text style={st.tileValue}>{netMonthly !== null ? formatWhole(netMonthly) : '—'}</Text>
+                {deductionLabel !== null && (
+                  <Text style={st.tileSub}>after the {deductionLabel} fee</Text>
+                )}
               </View>
               <View style={st.tile}>
                 <Text style={st.tileLabel}>Completion rate</Text>
@@ -226,15 +240,20 @@ export default function AnalyticsScreen() {
 
             {/* ── Revenue ── */}
             <Text style={st.sectionTitle}>Revenue</Text>
-            <Text style={st.sectionDesc}>Same math as Earnings: holders × pass price, minus the 10% fee.</Text>
+            {deductionLabel !== null && (
+              <Text style={st.sectionDesc}>
+                Same math as Earnings: holders × pass price, minus the {deductionLabel} fee.
+              </Text>
+            )}
             <View style={st.statsRow}>
               <View style={st.statTile}>
                 <Text style={st.tileLabel}>Recurring / month</Text>
-                <Text style={st.statValue}>{formatWhole(netMonthly)}</Text>
+                {/* Omitted, not defaulted: see netMonthly above. */}
+                <Text style={st.statValue}>{netMonthly !== null ? formatWhole(netMonthly) : '—'}</Text>
               </View>
               <View style={st.statTile}>
                 <Text style={st.tileLabel}>Avg per client</Text>
-                <Text style={st.statValue}>{formatWhole(avgPerClient)}</Text>
+                <Text style={st.statValue}>{avgPerClient !== null ? formatWhole(avgPerClient) : '—'}</Text>
               </View>
               <View style={st.statTile}>
                 <Text style={st.tileLabel}>Referrals</Text>

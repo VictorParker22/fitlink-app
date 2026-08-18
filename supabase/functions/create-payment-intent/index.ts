@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { getPaymentSplit, applicationFeeCents } from '../_shared/money.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -122,11 +123,15 @@ serve(async (req) => {
 
     // Create a PaymentIntent
     const amount = Math.round(Number(plan.price) * 100) // Convert dollars to cents
+    // The fee is resolved server-side, not hardcoded: a coach on a gym's seat
+    // pays no marketplace fee (the seat is the fee) and the gym's own share
+    // rides in the same application fee.
+    const split = await getPaymentSplit(supabaseAdmin, trainerId)
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'usd',
       customer: stripeCustomerId,
-      application_fee_amount: Math.round(amount * 0.10),
+      application_fee_amount: applicationFeeCents(amount, split),
       transfer_data: {
         destination: trainerStripeAccountId,
       },
@@ -134,6 +139,9 @@ serve(async (req) => {
         fitlink_plan_id: planId,
         fitlink_client_id: clientId,
         fitlink_trainer_id: trainerId,
+        fitlink_platform_fee_bps: String(split.platformFeeBps),
+        fitlink_org_share_bps: String(split.orgShareBps),
+        ...(split.orgId ? { fitlink_org_id: split.orgId } : {}),
       },
       automatic_payment_methods: {
         enabled: true,
@@ -160,7 +168,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'create-payment-intent' })
     console.error('Error creating payment intent:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

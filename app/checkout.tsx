@@ -214,7 +214,7 @@ export default function CheckoutScreen() {
         <View
           style={styles.summaryCard}
           accessible
-          accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${(plan as any).period || 'month'}. Coach receives $${(Number(plan.price) * 0.9).toFixed(2)} after the 10% platform fee. Billing ${client.name}.`}
+          accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${(plan as any).period || 'month'}. Billing ${client.name}.`}
         >
           <View style={styles.planBadge}>
             <Ionicons name="card-outline" size={22} color={CoachColors.accent} />
@@ -224,16 +224,18 @@ export default function CheckoutScreen() {
             ${Number(plan.price).toFixed(2)}
             <Text style={styles.planPeriod}> / {(plan as any).period || 'month'}</Text>
           </Text>
-          <View style={styles.feeBreakdown}>
-            <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>Platform fee (10%)</Text>
-              <Text style={styles.feeValue}>${(Number(plan.price) * 0.10).toFixed(2)}</Text>
-            </View>
-            <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>Coach receives</Text>
-              <Text style={styles.feeValueHighlight}>${(Number(plan.price) * 0.90).toFixed(2)}</Text>
-            </View>
-          </View>
+          {/*
+            The fee breakdown ("Platform fee (10%)" / "Coach receives") used to
+            sit here. It is gone rather than re-sourced. This is the athlete's
+            purchase screen: the athlete is charged the pass price whatever the
+            split is, so the split changes nothing they are agreeing to. It is
+            the coach's business terms — and now that a coach may sit on an org
+            seat, the row would disclose the org's revenue share to a consumer
+            who is not a party to it. The coach sees their own real split on
+            create-plan and analytics, sourced from payment_split_for_trainer().
+            Omitting beats defaulting to 10% here twice over: it would be wrong
+            for org coaches, and it was never the athlete's number to see.
+          */}
           <View style={styles.divider} />
           <View style={styles.clientRow}>
             <Ionicons name="person-outline" size={17} color={CoachColors.textFaint} />
@@ -327,14 +329,6 @@ const styles = StyleSheet.create({
   planName: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, letterSpacing: -0.4, color: CoachColors.textPrimary, textAlign: 'center' },
   planPrice: { fontFamily: CoachFonts.headingBold, fontSize: 40.5, letterSpacing: -1, color: CoachColors.accent, marginTop: 4 },
   planPeriod: { fontFamily: CoachFonts.body, fontSize: 18, letterSpacing: 0, color: CoachColors.textMuted },
-  feeBreakdown: {
-    width: '100%', marginTop: 14, paddingTop: 14,
-    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, gap: 6,
-  },
-  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8 },
-  feeLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
-  feeValue: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  feeValueHighlight: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   divider: { height: 1, backgroundColor: CoachColors.borderMuted, width: '100%', marginVertical: 16 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   clientName: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary },

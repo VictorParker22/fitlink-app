@@ -175,7 +175,7 @@ serve(async (req) => {
 
     return json({ data: results.slice(0, 10) });
   } catch (error: any) {
-    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'search-unassigned-clients' });
     console.error('search-unassigned-clients failed:', error?.message);
     return json({ error: 'Search failed', data: [] }, 500);
   }

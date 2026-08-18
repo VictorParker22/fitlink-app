@@ -111,8 +111,54 @@ export function requireServiceRole(req: Request) {
   }
 }
 
-/** Uniform error response so every function fails the same way. */
-export function authErrorResponse(err: unknown, corsHeaders: Record<string, string>) {
+/**
+ * Record a denial so the ops status centre has an auth-failure stream to show.
+ *
+ * Until now every guard in this codebase REJECTED silently: an attacker
+ * hammering the payment endpoints and a user with an expired token looked
+ * identical from the outside, because neither left a trace. Fire-and-forget by
+ * design — a logging failure must never turn into a request failure.
+ *
+ * Never logs the token, the body, or anything else that could carry a
+ * credential; the endpoint name and the status are what a signal needs.
+ */
+export function logDenial(err: unknown, opts?: { req?: Request; endpoint?: string }): void {
+  if (!(err instanceof AuthError)) return;
+  try {
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return;
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    void admin.from('audit_events').insert({
+      event_type: 'auth.denied',
+      severity: err.status === 403 ? 'warn' : 'info',
+      subject: opts?.endpoint ?? null,
+      detail: {
+        status: err.status,
+        reason: err.message,
+        // Caller-supplied and spoofable, but it is what groups a burst of
+        // denials into one signal. Treated as a hint, never as identity.
+        ip: opts?.req?.headers.get('x-forwarded-for') ?? null,
+      },
+    }).then(undefined, () => {});
+  } catch {
+    // Deliberately swallowed — see above.
+  }
+}
+
+/**
+ * Uniform error response so every function fails the same way — and, since
+ * every guarded function already routes its denials through here, the single
+ * place that can turn all of them into a stream without touching 15 files.
+ *
+ * Pass `opts` where the request is in scope to get the grouping hint too.
+ */
+export function authErrorResponse(
+  err: unknown,
+  corsHeaders: Record<string, string>,
+  opts?: { req?: Request; endpoint?: string },
+) {
+  logDenial(err, opts);
   const status = err instanceof AuthError ? err.status : 500;
   const message = err instanceof Error ? err.message : 'Unexpected error';
   return new Response(JSON.stringify({ error: message }), {

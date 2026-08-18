@@ -61,7 +61,7 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'cleanup-chat-attachments' });
     console.error('Webhook error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

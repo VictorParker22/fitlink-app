@@ -105,7 +105,7 @@ serve(async (req) => {
     )
   } catch (err: any) {
     // Auth failures are a 401/403 answer, not a server fault.
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'cancel-subscription' })
     console.error('Error canceling subscription:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

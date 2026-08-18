@@ -17,6 +17,7 @@ import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
 import { formatRun, formatDeadline, parseLocalDay } from '../lib/cohort';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../lib/platformFee';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Turn 19 — "Creating a pass": a 5-step season builder.
@@ -47,8 +48,6 @@ const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.get
 const toISODate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const PROMISE_MAX = 90;
-// Must match earnings.tsx: const PLATFORM_FEE = 0.10;
-const PLATFORM_FEE = 0.10;
 
 const NUM_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
 
@@ -79,6 +78,9 @@ export default function CreatePassScreen() {
   const { user } = useAuth();
   const { createPlan, updatePlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients } = useApp();
   const { showAlert } = useAlert();
+  // trainers.id IS auth.uid() (INVARIANTS §1), so either source resolves the
+  // same coach; `user` is available before the trainer row has loaded.
+  const { split } = usePaymentSplit(trainer?.id ?? user?.id);
 
   // ── Edit mode (plan-detail pushes /create-plan?editId=<plan.id>) ──────────
   // The plan is the coach's own, already in context — no fetch. If editId
@@ -1180,14 +1182,23 @@ export default function CreatePassScreen() {
           </View>
         )}
 
-        {price > 0 && (
+        {/*
+          The whole "You keep" card is gated on a resolved split. `split` is
+          null while payment_split_for_trainer() is in flight and stays null if
+          the read fails — and this is the number a coach prices their business
+          off. A coach on an org seat pays 0% platform fee and may owe their org
+          a share, so a hardcoded 10% would quote them takings they never get.
+          The card is omitted until the real split arrives; nothing is guessed
+          and nothing is defaulted (INVARIANTS §4).
+        */}
+        {price > 0 && split && (
           <View style={s.card}>
             <Text style={s.eyebrow}>You keep</Text>
-            <Text style={s.keepBig}>${(price * (1 - PLATFORM_FEE)).toFixed(2)}</Text>
-            <Text style={s.keepSub}>per athlete, {period === 'month' ? 'a month' : 'a year'} · ${(price * PLATFORM_FEE).toFixed(2)} platform fee</Text>
+            <Text style={s.keepBig}>${coachKeeps(price, split).toFixed(2)}</Text>
+            <Text style={s.keepSub}>per athlete, {period === 'month' ? 'a month' : 'a year'} · ${totalDeduction(price, split).toFixed(2)} deducted ({bpsToPercentLabel(split.platformFeeBps + split.orgShareBps)})</Text>
             {projection && (
               <Text style={s.contextLine}>
-                If {projection.holders} athlete{projection.holders === 1 ? '' : 's'} take it — as many as hold {projection.plan.name} today — that's ${(projection.holders * price * (1 - PLATFORM_FEE)).toFixed(0)} {period === 'month' ? 'a month' : 'a year'}.
+                If {projection.holders} athlete{projection.holders === 1 ? '' : 's'} take it — as many as hold {projection.plan.name} today — that's ${coachKeeps(projection.holders * price, split).toFixed(0)} {period === 'month' ? 'a month' : 'a year'}.
               </Text>
             )}
           </View>

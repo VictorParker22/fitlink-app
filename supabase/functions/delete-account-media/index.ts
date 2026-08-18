@@ -97,7 +97,7 @@ serve(async (req) => {
       failedBuckets: failed.map((f) => f.bucket),
     })
   } catch (err: any) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'delete-account-media' })
     console.error('delete-account-media failed:', err?.message)
     return json({ success: false, error: 'Media cleanup failed' }, 500)
   }

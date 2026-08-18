@@ -97,7 +97,7 @@ RESPONSE GUIDELINES:
       status: 200,
     });
   } catch (error: any) {
-    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'coach-assistant' });
     console.error('Error in coach assistant:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

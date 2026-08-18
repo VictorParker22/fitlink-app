@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { getPaymentSplit, applicationFeePercent } from '../_shared/money.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -155,6 +156,8 @@ serve(async (req) => {
         .eq('id', planId)
     }
 
+    const split = await getPaymentSplit(supabaseAdmin, trainerId)
+
     // Create a Stripe Subscription with a trial or first payment
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
@@ -164,7 +167,8 @@ serve(async (req) => {
         save_default_payment_method: 'on_subscription',
       },
       expand: ['latest_invoice.payment_intent'],
-      application_fee_percent: 10,
+      // Server-resolved, not a literal — see _shared/money.ts.
+      application_fee_percent: applicationFeePercent(split),
       transfer_data: {
         destination: trainerStripeAccountId,
       },
@@ -172,6 +176,9 @@ serve(async (req) => {
         fitlink_plan_id: planId,
         fitlink_client_id: clientId,
         fitlink_trainer_id: trainerId,
+        fitlink_platform_fee_bps: String(split.platformFeeBps),
+        fitlink_org_share_bps: String(split.orgShareBps),
+        ...(split.orgId ? { fitlink_org_id: split.orgId } : {}),
       },
     })
 
@@ -214,7 +221,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'create-subscription' })
     console.error('Error creating subscription:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

@@ -174,7 +174,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders)
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'calculate-class-revenue' })
     console.error('Error calculating class revenue:', err)
     return new Response(
       JSON.stringify({ error: err.message }),

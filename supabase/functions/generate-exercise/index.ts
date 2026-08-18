@@ -83,7 +83,7 @@ Rules:
       status: 200,
     });
   } catch (error: any) {
-    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'generate-exercise' });
     console.error('Error generating exercise details:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

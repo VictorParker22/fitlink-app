@@ -64,7 +64,7 @@ ${description}
       status: 200,
     });
   } catch (error: any) {
-    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'rewrite-exercise' });
     console.error('Error rewriting exercise:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

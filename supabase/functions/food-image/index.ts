@@ -73,7 +73,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (err) {
-    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'food-image' });
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
