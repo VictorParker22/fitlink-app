@@ -34,3 +34,25 @@ npm-debug.log*
 
 # Patches backup
 *.orig
+
+# ── Added for EAS_NO_VCS uploads ────────────────────────────────────
+# git's file:// transport is broken on this machine (early EOF from
+# upload-pack), so builds archive the working directory directly and THIS
+# file is the only thing standing between local junk/secrets and the
+# build servers. google-services.json is deliberately NOT listed: it is
+# gitignored but the Android build genuinely needs it.
+node_modules/
+dist/
+.expo/
+.husky/
+.claude/
+.agents/
+.env
+.env.*
+*.p12
+*.keystore
+*.jks
+check_*.py
+find_*.py
+search*.py
+*.py
