@@ -18,12 +18,15 @@ supabase/
 Thumbs.db
 .DS_Store
 
-# Build artifacts
-android/.gradle/
-android/build/
-android/app/build/
-ios/build/
-ios/Pods/
+# Build artifacts — and the native dirs THEMSELVES. android/ and ios/
+# are gitignored prebuild artifacts, not source: git-based uploads never
+# shipped them and EAS ran prebuild from app.json. The EAS_NO_VCS switch
+# started uploading the stale local android/ (applicationId still
+# 'fitlink.app', versionCode 1), which silently overrode app.json and
+# broke processReleaseGoogleServices. Excluding them restores the
+# managed-workflow behaviour every earlier build had.
+android/
+ios/
 
 # Gemini/Antigravity
 .gemini/
