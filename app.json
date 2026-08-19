@@ -164,7 +164,8 @@
         }
       ],
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withFfmpegBitcodeStrip"
     ],
     "experiments": {
       "typedRoutes": true,
