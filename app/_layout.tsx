@@ -318,8 +318,14 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       hasNavigated.current = true;
       // Route is settled — the splash bar is honestly full now.
       onProgress?.(1);
-      // Fade out the native splash screen (no-op if running in Expo Go)
-      setTimeout(() => BootSplash?.hide({ fade: true }), 150);
+      // Deliberately NOT calling BootSplash.hide() here. useHideAnimation
+      // owns the native splash: it hides it itself once its container lays
+      // out, THEN fires `animate` — the only thing that sets handedOver. A
+      // manual hide racing it from here won the race on a fast production
+      // launch, the hook found the splash already gone, `animate` never
+      // fired, and the overlay sat at zIndex 9999 over a fully working app.
+      // First observed on TestFlight build 10 — the native twin of the web
+      // hang documented in AnimatedBootSplash and INVARIANTS §12.
     }
   }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded, user, flagsUserId]);
 
@@ -380,6 +386,17 @@ export default function RootLayout() {
   // Real startup milestones, fed to the splash's determinate bar:
   // fonts .33 → session + onboarding flags .66 → route settled 1.
   const [startupProgress, setStartupProgress] = useState(0.15);
+
+  // FAIL OPEN (INVARIANTS §12). If any milestone wedges — an auth read that
+  // never settles, a future gate someone adds behind an await — the splash
+  // must not be the thing that turns a degraded launch into a dead one.
+  // Six seconds is longer than any healthy cold start; after it, the bar
+  // completes and the overlay leaves, revealing whatever state the app is
+  // truly in. A visible problem can be debugged; a lime splash cannot.
+  useEffect(() => {
+    const t = setTimeout(() => setStartupProgress(1), 6000);
+    return () => clearTimeout(t);
+  }, []);
   const [fontsLoaded] = useFonts({
     'Epilogue-Regular': require('../assets/fonts/Epilogue-Regular.ttf'),
     'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
@@ -469,6 +486,17 @@ function NativeBootSplash({ progress, onAnimationEnd }: SplashPathProps) {
   // The native splash sits underneath us until `animate` fires, so we can't
   // start fading before then or the old frame shows through.
   const [handedOver, setHandedOver] = useState(false);
+
+  // FAIL OPEN. `animate` is a callback from a native module, and TestFlight
+  // build 10 proved it can simply never arrive (a manual hide() elsewhere
+  // raced the hook and won — fixed in AuthGuard, but the lesson stands:
+  // no external callback gets to hold the whole app hostage). If the
+  // hand-over hasn't happened in 4s, proceed; worst case is a fade over an
+  // already-empty native layer, which nobody can see.
+  useEffect(() => {
+    const t = setTimeout(() => setHandedOver(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
 
   const { container } = BootSplash.useHideAnimation({
     manifest: require('../assets/bootsplash/manifest.json'),
