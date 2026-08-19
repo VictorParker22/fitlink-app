@@ -443,13 +443,16 @@ export default function RootLayout() {
     const t = setTimeout(() => setStartupProgress(1), 6000);
     return () => clearTimeout(t);
   }, []);
-  // Fonts gate fail-open: useFonts can end in ERROR (loaded stays false
-  // forever) and the 6s progress watchdog cannot help because this gate
-  // early-returns before the app tree exists. After 3s, or on a font
-  // error, proceed on system fonts — a wrong typeface beats a dead app.
+  // Fonts gate fail-open — and in release iOS, the fail-open IS the launch
+  // path. TestFlight builds 8/10/12 froze forever on the static logo; build
+  // 14 launched the moment this waiver existed. Conclusion: useFonts never
+  // resolves in release on device (fine in dev and web), so waiting on it is
+  // waiting on nothing. 900ms keeps a fighting chance for the brand fonts on
+  // launches where loading does work, without making every cold start feel
+  // slow; fonts that finish later still apply on the next render pass.
   const [fontsWaived, setFontsWaived] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setFontsWaived(true), 3000);
+    const t = setTimeout(() => setFontsWaived(true), 900);
     return () => clearTimeout(t);
   }, []);
 
@@ -549,14 +552,18 @@ function NativeBootSplash({ progress, onAnimationEnd }: SplashPathProps) {
   // start fading before then or the old frame shows through.
   const [handedOver, setHandedOver] = useState(false);
 
-  // FAIL OPEN. `animate` is a callback from a native module, and TestFlight
-  // build 10 proved it can simply never arrive (a manual hide() elsewhere
-  // raced the hook and won — fixed in AuthGuard, but the lesson stands:
-  // no external callback gets to hold the whole app hostage). If the
-  // hand-over hasn't happened in 4s, proceed; worst case is a fade over an
-  // already-empty native layer, which nobody can see.
+  // FAIL OPEN, promoted to the fast path. The hook's own hide/animate has
+  // yet to be observed working in a release build, and every extra ms of
+  // native splash is a ms the animated overlay (which renders the SAME
+  // composition underneath) stays invisible. 1.2s after this tree mounts,
+  // hide the native layer ourselves and take over — visually seamless
+  // because the overlay is pixel-identical, and it turns the doctor's 8s
+  // last resort into something no user should ever reach.
   useEffect(() => {
-    const t = setTimeout(() => setHandedOver(true), 4000);
+    const t = setTimeout(() => {
+      BootSplash?.hide?.({ fade: false })?.catch?.(() => {});
+      setHandedOver(true);
+    }, 1200);
     return () => clearTimeout(t);
   }, []);
 
