@@ -381,6 +381,52 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
   );
 }
 
+/**
+ * StartupDoctor — turns a silent startup death into a readable screen.
+ *
+ * TestFlight builds froze on the splash even AFTER the overlay gained
+ * fail-open watchdogs. If React mounts, those watchdogs make a stuck
+ * splash impossible past ~6s — so a persistent freeze means the JS
+ * runtime is dying BEFORE React mounts, behind the NATIVE storyboard
+ * splash, where release builds show nothing at all. This component is
+ * the flashlight:
+ *
+ *  · a global error hook captures the first fatal JS error and renders
+ *    its message full-screen, above everything, with the native splash
+ *    force-hidden — so the next freeze reports its own cause;
+ *  · an 8s last-resort BootSplash.hide() lifts the native layer even if
+ *    every JS-side mechanism wedged. hide() is idempotent, and by 8s
+ *    single-ownership etiquette matters less than sight.
+ */
+function StartupDoctor() {
+  const [fatal, setFatal] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => { try { BootSplash?.hide?.(); } catch {} }, 8000);
+
+    const eu: any = (global as any).ErrorUtils;
+    const prev = eu?.getGlobalHandler?.();
+    eu?.setGlobalHandler?.((e: any, isFatal?: boolean) => {
+      if (isFatal) {
+        try { BootSplash?.hide?.(); } catch {}
+        setFatal(`${e?.name ?? 'Error'}: ${e?.message ?? String(e)}`);
+      }
+      prev?.(e, isFatal);
+    });
+
+    return () => { clearTimeout(t); if (prev) eu?.setGlobalHandler?.(prev); };
+  }, []);
+
+  if (!fatal) return null;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, backgroundColor: '#101210', padding: 32, justifyContent: 'center' }}>
+      <Text style={{ color: '#EB6161', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>FitLink hit a startup error</Text>
+      <Text style={{ color: '#EDEFE8', fontSize: 13, lineHeight: 19 }}>{fatal}</Text>
+      <Text style={{ color: '#8A8F85', fontSize: 12, marginTop: 16 }}>Screenshot this and send it to us — it is exactly the missing clue.</Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
   // Real startup milestones, fed to the splash's determinate bar:
@@ -397,7 +443,17 @@ export default function RootLayout() {
     const t = setTimeout(() => setStartupProgress(1), 6000);
     return () => clearTimeout(t);
   }, []);
-  const [fontsLoaded] = useFonts({
+  // Fonts gate fail-open: useFonts can end in ERROR (loaded stays false
+  // forever) and the 6s progress watchdog cannot help because this gate
+  // early-returns before the app tree exists. After 3s, or on a font
+  // error, proceed on system fonts — a wrong typeface beats a dead app.
+  const [fontsWaived, setFontsWaived] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFontsWaived(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const [fontsLoaded, fontError] = useFonts({
     'Epilogue-Regular': require('../assets/fonts/Epilogue-Regular.ttf'),
     'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
     'Epilogue-SemiBold': require('../assets/fonts/Epilogue-SemiBold.ttf'),
@@ -411,8 +467,13 @@ export default function RootLayout() {
   // DON'T hide splash here — AuthGuard handles it after navigation.
   // Fonts aren't up yet: show the splash rather than a black frame.
   // fontsReady={false} keeps it off the missing font family.
-  if (!fontsLoaded) {
-    return <SplashOverlay progress={0.15} fontsReady={false} />;
+  if (!fontsLoaded && !fontError && !fontsWaived) {
+    return (
+      <>
+        <SplashOverlay progress={0.15} fontsReady={false} />
+        <StartupDoctor />
+      </>
+    );
   }
 
   const progress = Math.max(startupProgress, 0.33);
@@ -453,6 +514,7 @@ export default function RootLayout() {
           onAnimationEnd={() => setBootSplashVisible(false)}
         />
       )}
+      <StartupDoctor />
     </GestureHandlerRootView>
     </LayersAnalyticsProvider>
   );
