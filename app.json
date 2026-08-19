@@ -15,7 +15,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.fitlink.app",
+      "bundleIdentifier": "fitlink.app",
       "infoPlist": {
         "NSContactsUsageDescription": "FitLink needs access to your contacts to invite clients.",
         "NSCameraUsageDescription": "FitLink uses the camera so you can take a profile or client photo, film exercise demos, and broadcast live classes.",
