@@ -2,8 +2,8 @@
  * withFfmpegBitcodeStrip — App Store error 90482, fixed at the source.
  *
  * expo-camera-rtmp-publisher pulls in ffmpeg-kit-srt, whose eight
- * frameworks (ffmpegkit + libav*/libsw*) still ship with embedded
- * bitcode. Apple stopped ACCEPTING bitcode in uploads (Xcode 14+), so
+ * frameworks (ffmpegkit plus the libav and libsw families) still ship
+ * with embedded bitcode. Apple stopped ACCEPTING bitcode in uploads (Xcode 14+), so
  * App Store Connect rejects the otherwise-green .ipa at upload time:
  *
  *   "90482: Invalid Executable. The executable '...libavformat' contains
