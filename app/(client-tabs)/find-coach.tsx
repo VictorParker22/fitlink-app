@@ -5,7 +5,10 @@
  *      week, time of day, how they want to be talked to. Held in local state
  *      and written into clients.assessment_data.intake once a client row
  *      exists (it doesn't before the request — coachless athletes have no
- *      client row yet).
+ *      client row yet). Goal and days prefill from onboarding when they map
+ *      cleanly (auth user_metadata / legacy signup metadata / saved intake),
+ *      with a dismissible banner naming exactly what was carried; time and
+ *      style are always asked — onboarding never had them.
  * 26b  Matches — every public trainer, ranked on what is REAL: does their
  *      specialization/bio mention the goal, do their working_hours cover the
  *      athlete's days and time of day, do they have published passes and at
@@ -14,7 +17,11 @@
  *      is shown. Every chip on a card is a derivable fact.
  * 26c  Profile — the coach's real bio, specialization, certifications
  *      (comma string on trainers), working hours, and their published passes
- *      with true week/workout composition (lib/passWeeks).
+ *      with true week/workout composition (lib/passWeeks). Under the bio, a
+ *      fit panel of derived facts (full bar / empty amber bar / row omitted
+ *      when unknowable — never a score, INVARIANTS §4); each pass carries a
+ *      week strip and a sessions-per-week line, both plain arithmetic on
+ *      published data.
  * 26d  Request — a request, not a purchase. Sending it runs the same real
  *      mechanism the pick-a-coach signup path uses: create_client_and_notify
  *      (SECURITY DEFINER RPC → client row + trainer notification), then a
@@ -24,10 +31,10 @@
  * Fixed dark/lime system (constants/coachDesign.ts). No useTheme().
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Image, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +45,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { totalWeeks } from '../../lib/passWeeks';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import type { TrackNode } from '../../context/AppContext';
 
 // ─── Intake model (26a) ───────────────────────────────────────────────────────
@@ -100,6 +108,65 @@ const INTAKE_QUESTIONS: {
     ],
   },
 ];
+
+// ─── Prefill from onboarding — never re-ask what the athlete already said ────
+//
+// Sources, in priority order:
+//   1. auth user_metadata.intake_goal / intake_days   (onboarding contract)
+//   2. auth user_metadata.fitness_goal / commit_days  (legacy signup metadata)
+//   3. clientData.assessment_data.intake.goal / days_per_week
+// Only answers that map cleanly onto THIS screen's option labels are carried;
+// anything ambiguous is asked again — a wrong prefill is worse than a repeat.
+
+const GOAL_PREFILL_MAP: Record<string, string> = {
+  'Get stronger on the big lifts': 'Get strong in the gym',
+  'Lose fat, keep the strength I have': 'Lose fat and keep muscle',
+  'Train around something that hurts': 'Come back from an injury',
+  // 'Get back into it after a break' deliberately has NO mapping — the two
+  // option sets genuinely differ, so that athlete is asked, not guessed at.
+};
+
+function mapPrefillGoal(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined;
+  // Already one of this screen's own labels (e.g. a saved marketplace intake).
+  if (INTAKE_QUESTIONS[0].options.some((o) => o.label === raw)) return raw;
+  return GOAL_PREFILL_MAP[raw];
+}
+
+function mapPrefillDays(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && INTAKE_QUESTIONS[1].options.some((o) => o.label === raw)) return raw;
+  const n = typeof raw === 'number'
+    ? raw
+    : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? parseInt(raw.trim(), 10) : NaN;
+  if (!Number.isFinite(n) || n < 1 || n > 7) return undefined;
+  if (n <= 2) return '2 days';
+  if (n === 3) return '3 days';
+  if (n === 4) return '4 days';
+  return '5 or more';
+}
+
+function derivePrefill(user: any, clientData: any): {
+  answers: IntakeAnswers;
+  carried: string;  // human-readable list of what was carried, '' if nothing
+  qIndex: number;   // first unanswered question
+} {
+  const meta = (user?.user_metadata as any) || {};
+  const intake = clientData?.assessment_data?.intake || {};
+  const goal = mapPrefillGoal(meta.intake_goal)
+    ?? mapPrefillGoal(meta.fitness_goal)
+    ?? mapPrefillGoal(intake.goal);
+  const days = mapPrefillDays(meta.intake_days)
+    ?? mapPrefillDays(meta.commit_days)
+    ?? mapPrefillDays(intake.days_per_week);
+  const answers: IntakeAnswers = {};
+  if (goal) answers.goal = goal;
+  if (days) answers.days = days;
+  const carried = [goal ? 'Goal' : null, days ? `${days} a week` : null].filter(Boolean).join(' · ');
+  let qIndex = 0;
+  // Time and style are never asked at onboarding, so this always stops early.
+  while (qIndex < INTAKE_QUESTIONS.length && answers[INTAKE_QUESTIONS[qIndex].id] !== undefined) qIndex++;
+  return { answers, carried, qIndex };
+}
 
 // Keywords per goal, matched against specialization + bio. Purely textual —
 // if nothing matches we say nothing, we never invent a fit.
@@ -216,12 +283,20 @@ function buildMatch(trainer: any, plans: any[], answers: IntakeAnswers): CoachMa
 
 // ─── Pass composition (26c) — real track math, same as my-pass ───────────────
 
-function planSummary(plan: any): string {
+function planComposition(plan: any): { weeks: number; workouts: number; hasSeason: boolean } {
   const track: TrackNode[] = Array.isArray(plan.track)
     ? [...plan.track].sort((a: TrackNode, b: TrackNode) => a.order - b.order)
     : [];
   const weeks = totalWeeks(track, plan.duration_weeks);
   const workouts = track.filter((n) => n.type === 'workout').length;
+  // totalWeeks floors at 1 even for an empty pass — only call it a season
+  // when the plan actually published something (nodes or a declared length).
+  const hasSeason = weeks > 0 && (track.length > 0 || (Number(plan.duration_weeks) || 0) > 0);
+  return { weeks, workouts, hasSeason };
+}
+
+function planSummary(plan: any): string {
+  const { weeks, workouts } = planComposition(plan);
   const parts: string[] = [];
   if (weeks > 0) parts.push(`${weeks} week${weeks === 1 ? '' : 's'}`);
   if (workouts > 0) parts.push(`${workouts} workout${workouts === 1 ? '' : 's'}`);
@@ -241,6 +316,62 @@ function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
 }
 
+// ─── Fit panel (26c) — derived facts as bars, never a score ──────────────────
+//
+// INVARIANTS §4: no percentages, no stars, no invented "match" number. Each
+// row is a checkable fact rendered FULL (true) or EMPTY with an amber outline
+// (false); a fact we cannot derive is not passed in at all — the caller omits
+// the row rather than render a false one.
+
+type FitRow = { label: string; ok: boolean };
+
+function FitPanel({ rows }: { rows: FitRow[] }) {
+  const reducedMotion = useReducedMotion();
+  const anims = useRef(rows.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      // Reduce Motion: jump straight to final values, no stagger.
+      anims.forEach((a) => a.setValue(1));
+      return;
+    }
+    const seq = Animated.stagger(
+      80,
+      anims.map((a) => Animated.timing(a, { toValue: 1, duration: 450, useNativeDriver: false })),
+    );
+    seq.start();
+    return () => seq.stop();
+  }, [reducedMotion, anims]);
+
+  const lined = rows.filter((r) => r.ok).length;
+  return (
+    <View style={s.fitCard}>
+      {rows.map((row, i) => (
+        <View key={row.label}>
+          {i > 0 && <View style={s.hairline} />}
+          <View style={s.fitRow}>
+            <Text style={s.fitLabel}>{row.label}</Text>
+            <View style={[s.fitTrack, !row.ok && s.fitTrackGap]}>
+              {row.ok ? (
+                <Animated.View
+                  style={[
+                    s.fitFill,
+                    { width: anims[i].interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+                  ]}
+                />
+              ) : null}
+            </View>
+          </View>
+        </View>
+      ))}
+      <Text style={s.fitSentence}>
+        {lined} of {rows.length} things we can check {lined === 1 ? 'lines' : 'line'} up.
+        The rest is a conversation.
+      </Text>
+    </View>
+  );
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 type Step = 'intake' | 'matches' | 'profile' | 'request' | 'sent';
@@ -252,8 +383,12 @@ export default function FindCoachScreen() {
   const { clientData, refreshData } = useClient();
 
   const [step, setStep] = useState<Step>('intake');
-  const [qIndex, setQIndex] = useState(0);
-  const [answers, setAnswers] = useState<IntakeAnswers>({});
+  // Seed from onboarding once, at mount — the athlete already answered these.
+  const [prefill] = useState(() => derivePrefill(user, clientData));
+  const [qIndex, setQIndex] = useState(prefill.qIndex);
+  const [answers, setAnswers] = useState<IntakeAnswers>(prefill.answers);
+  // '' = nothing carried, or the banner was dismissed.
+  const [prefillNote, setPrefillNote] = useState(prefill.carried);
 
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [matches, setMatches] = useState<CoachMatch[]>([]);
@@ -454,6 +589,36 @@ export default function FindCoachScreen() {
           ))}
         </View>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.body, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
+          {prefillNote ? (
+            <View style={s.prefillBanner}>
+              <View style={s.prefillTopRow}>
+                <Ionicons name="checkmark-circle-outline" size={16} color={C.accent} />
+                <Text style={s.prefillText}>
+                  Using what you told us at signup — {prefillNote}
+                </Text>
+                <TouchableOpacity
+                  hitSlop={10}
+                  onPress={() => setPrefillNote('')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss"
+                >
+                  <Ionicons name="close" size={16} color={C.textFaint} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                hitSlop={8}
+                onPress={() => {
+                  setAnswers({});
+                  setQIndex(0);
+                  setPrefillNote('');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Change answers"
+              >
+                <Text style={s.prefillAction}>Change answers</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           <Text style={s.questionPrompt}>{q.prompt}</Text>
           <Text style={s.questionContext}>{q.context}</Text>
           <View style={{ gap: 9, marginTop: 22 }}>
@@ -575,6 +740,27 @@ export default function FindCoachScreen() {
       ? t.certifications.split(',').map((c: string) => c.trim()).filter(Boolean)
       : [];
     const days = enabledDays(t.working_hours);
+
+    // Fit panel rows — only what is derivable for THIS coach. A missing fact
+    // (no working hours set, time preference "It varies") omits the row
+    // entirely rather than rendering a false one.
+    const wantedDays = desiredDayCount(answers.days);
+    const timeFit = coversTime(t.working_hours, answers.time);
+    const fitRows: FitRow[] = [];
+    // A coach with NO bio and NO specialization cannot keyword-match any
+    // goal — but that is UNMEASURED, not a mismatch. An amber "doesn't
+    // train your goal" bar would be a false claim about missing data
+    // (INVARIANTS §4), so the row is omitted, exactly like the schedule
+    // rows when working_hours were never set.
+    const goalCheckable = !!`${t.specialization || ''}${t.bio || ''}`.trim();
+    if (answers.goal && goalCheckable) fitRows.push({ label: 'Trains your goal', ok: selected.goalMatch });
+    if (days.length > 0 && wantedDays !== null) {
+      fitRows.push({ label: `Your ${wantedDays} days covered`, ok: days.length >= wantedDays });
+    }
+    if (timeFit !== null && answers.time) {
+      fitRows.push({ label: `${answers.time} availability`, ok: timeFit });
+    }
+    fitRows.push({ label: 'Published programme', ok: selected.plans.length > 0 });
     return (
       <View style={s.container}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
@@ -609,6 +795,13 @@ export default function FindCoachScreen() {
             </View>
 
             {t.bio ? <Text style={s.profileBio}>{t.bio}</Text> : null}
+
+            {fitRows.length > 0 && (
+              <>
+                <Text style={s.sectionLabel}>How {firstName(t.name)} fits you</Text>
+                <FitPanel key={t.id} rows={fitRows} />
+              </>
+            )}
 
             {certs.length > 0 && (
               <>
@@ -646,21 +839,46 @@ export default function FindCoachScreen() {
                   Passes · {selected.plans.length} published
                 </Text>
                 <View style={{ gap: 9 }}>
-                  {selected.plans.map((p) => (
-                    <View key={p.id} style={s.passRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.passName}>{p.name}</Text>
-                        <Text style={s.passMeta}>{planSummary(p)}</Text>
-                        {p.description ? (
-                          <Text style={s.passDesc} numberOfLines={2}>{p.description}</Text>
-                        ) : null}
+                  {selected.plans.map((p) => {
+                    const { weeks, workouts, hasSeason } = planComposition(p);
+                    const shownWeeks = Math.min(weeks, 12);
+                    // Arithmetic on published data only — never a promise of
+                    // results. Omitted when weeks/workouts/days are missing.
+                    const perWeek = weeks > 0 && workouts > 0 ? Math.round(workouts / weeks) : 0;
+                    const showLoad = perWeek > 0 && wantedDays !== null && !!answers.days;
+                    return (
+                      <View key={p.id} style={s.passRow}>
+                        <View style={s.passTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.passName}>{p.name}</Text>
+                            <Text style={s.passMeta}>{planSummary(p)}</Text>
+                            {p.description ? (
+                              <Text style={s.passDesc} numberOfLines={2}>{p.description}</Text>
+                            ) : null}
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={s.passPrice}>${Number(p.price)}</Text>
+                            <Text style={s.passPeriod}>{p.period === 'year' ? 'a year' : 'a month'}</Text>
+                          </View>
+                        </View>
+                        {hasSeason && (
+                          <View style={s.weekStrip}>
+                            {Array.from({ length: shownWeeks }, (_, i) => (
+                              <View key={i} style={s.weekSeg} />
+                            ))}
+                            {weeks > 12 && <Text style={s.weekOverflow}>+{weeks - 12}</Text>}
+                          </View>
+                        )}
+                        {showLoad && (
+                          <Text style={s.loadLine}>
+                            {perWeek <= (wantedDays as number)
+                              ? `≈${perWeek} session${perWeek === 1 ? '' : 's'} a week — fits your ${answers.days}`
+                              : `≈${perWeek} sessions a week — more than your ${answers.days}, worth asking about`}
+                          </Text>
+                        )}
                       </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={s.passPrice}>${Number(p.price)}</Text>
-                        <Text style={s.passPeriod}>{p.period === 'year' ? 'a year' : 'a month'}</Text>
-                      </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </>
             )}
@@ -850,6 +1068,16 @@ const s = StyleSheet.create({
     fontFamily: F.body, fontSize: 13, color: C.textFaint,
     textAlign: 'center', marginTop: 18,
   },
+  prefillBanner: {
+    backgroundColor: C.accentSofter, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 12, borderCurve: 'continuous', padding: 12, marginBottom: 16,
+  },
+  prefillTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  prefillText: {
+    flex: 1, fontFamily: F.body, fontSize: 13, lineHeight: 19,
+    color: C.textSecondary, fontVariant: ['tabular-nums'],
+  },
+  prefillAction: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent, marginTop: 8 },
 
   // Matches
   matchCard: {
@@ -927,10 +1155,44 @@ const s = StyleSheet.create({
   hoursDay: { fontFamily: F.body, fontSize: 15, color: C.textSecondary },
   hoursTime: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
   hairline: { height: 1, backgroundColor: '#21241F' },
+
+  // Fit panel — facts as bars, no score anywhere.
+  fitCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
+  },
+  fitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  fitLabel: {
+    flex: 1, fontFamily: F.body, fontSize: 14, color: C.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  fitTrack: {
+    width: 96, height: 6, borderRadius: 2, borderCurve: 'continuous',
+    backgroundColor: C.borderMuted, overflow: 'hidden',
+  },
+  // A fact that is checkable and FALSE: empty bar, amber outline — honest,
+  // not hidden. (An uncheckable fact never gets a row at all.)
+  fitTrackGap: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.warning },
+  fitFill: { height: '100%', borderRadius: 2, borderCurve: 'continuous', backgroundColor: C.accent },
+  fitSentence: {
+    fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textMuted,
+    marginTop: 12, fontVariant: ['tabular-nums'],
+  },
   passRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 16, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 15,
+  },
+  passTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // One lime segment per week — the season's physical shape, capped at 12.
+  weekStrip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12 },
+  weekSeg: { width: 14, height: 5, borderRadius: 2, borderCurve: 'continuous', backgroundColor: C.accent },
+  weekOverflow: {
+    fontFamily: F.bodySemiBold, fontSize: 11, color: C.textMuted,
+    marginLeft: 4, fontVariant: ['tabular-nums'],
+  },
+  loadLine: {
+    fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textMuted,
+    marginTop: 8, fontVariant: ['tabular-nums'],
   },
   passName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   passMeta: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },

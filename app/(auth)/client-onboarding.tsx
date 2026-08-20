@@ -8,7 +8,11 @@
  * Persistence contract (unchanged from the old form):
  * - writes the clients row (goals, weekly_goal, weight_lbs, assessment_data)
  * - sets SecureStore 'fitlink_client_onboarded' = 'true' (AuthGuard depends on it)
- * - sets auth metadata client_onboarded, then replaces to /(client-tabs)
+ * - sets auth metadata client_onboarded plus the intake_* keys (find-coach
+ *   prefills from these — the key names are a cross-screen contract:
+ *   intake_goal, intake_days, intake_experience, intake_limitation,
+ *   intake_weight_lbs), then replaces to /(client-tabs), or to
+ *   /(client-tabs)/find-coach for athletes who signed up without a coach.
  * Extras with no dedicated column go into assessment_data.intake (JSONB).
  */
 
@@ -103,6 +107,9 @@ export default function ClientOnboardingScreen() {
 
   const [step, setStep] = useState(0);
   const [coachFirst, setCoachFirst] = useState<string | null>(null);
+  // null = lookup still in flight (or failed) — copy stays on the neutral
+  // fallback and nothing blocks on it. true/false only once we actually know.
+  const [hasCoach, setHasCoach] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -114,24 +121,36 @@ export default function ClientOnboardingScreen() {
 
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Who is asking — so the "why" lines can use the coach's actual name.
+  // Who is asking — so the "why" lines can use the coach's actual name, and
+  // so a coachless signup is never told their answers went to a coach.
   useEffect(() => {
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data: client } = await supabase
+        // The clients row is keyed by auth_user_id — there is no user_id
+        // column (clients.id is the row id, NOT an auth id; INVARIANTS §1).
+        // Filtering on user_id fails with 42703, and because postgrest
+        // resolves with { error } instead of throwing, the failure is
+        // invisible: the lookup "succeeds" empty and every athlete — coached
+        // or not — gets the generic "Your coach" copy.
+        const { data: client, error } = await supabase
           .from('clients')
           .select('trainer_id')
-          .eq('user_id', user.id)
+          .eq('auth_user_id', user.id)
           .maybeSingle();
+        if (error) return; // unknown — hasCoach stays null, copy stays neutral
         if (client?.trainer_id) {
+          setHasCoach(true);
           const { data: t } = await supabase
             .from('trainers_public')
             .select('name')
             .eq('id', client.trainer_id)
             .maybeSingle();
           if (t?.name) setCoachFirst(String(t.name).split(' ')[0]);
+        } else {
+          // No row, or a row with no trainer yet — signed up without a coach.
+          setHasCoach(false);
         }
       } catch {
         // Fine — copy falls back to "your coach".
@@ -139,13 +158,22 @@ export default function ClientOnboardingScreen() {
     })();
   }, []);
 
+  const coachless = hasCoach === false;
   const coachName = coachFirst || 'Your coach';
+  // Mid-sentence and sentence-start forms for the "why" lines and hints.
+  // While the lookup is unresolved (hasCoach null) the neutral fallback holds.
+  const coachRef = coachless ? 'your future coach' : coachName;
+  const coachRefCap = coachless ? 'Your future coach' : coachName;
 
   useEffect(() => {
     if (!done) return;
-    const timer = setTimeout(() => router.replace('/(client-tabs)'), 1800);
+    // Coachless athletes land on find-coach — their answers were just
+    // persisted for the matching prefill, so the next step is finding the
+    // coach, not an empty dashboard. Coached athletes keep the dashboard.
+    const dest = coachless ? '/(client-tabs)/find-coach' : '/(client-tabs)';
+    const timer = setTimeout(() => router.replace(dest), 1800);
     return () => clearTimeout(timer);
-  }, [done]);
+  }, [done, coachless]);
 
   const animateTo = (nextStep: number) => {
     Animated.timing(slideAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
@@ -198,11 +226,11 @@ export default function ClientOnboardingScreen() {
 
   const completeOnboarding = async () => {
     setSaving(true);
+    const parsedWeight = weightText.trim() ? Math.round(parseFloat(weightText)) : null;
+    const weightLbs = parsedWeight !== null && !Number.isNaN(parsedWeight) ? parsedWeight : null;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const weightLbs = weightText.trim() ? Math.round(parseFloat(weightText)) : null;
-
         // The whole intake lives in assessment_data.intake. The clients table
         // has no goals / weekly_goal / weight_lbs columns — writing to them
         // failed the entire update with 42703, and the filter below used
@@ -230,7 +258,7 @@ export default function ClientOnboardingScreen() {
               experience,
               days_per_week: days,
               limitation: limitation.trim() || null,
-              weight_lbs: weightLbs && !Number.isNaN(weightLbs) ? weightLbs : null,
+              weight_lbs: weightLbs,
               completed_at: new Date().toISOString(),
             },
           },
@@ -257,10 +285,20 @@ export default function ClientOnboardingScreen() {
       await SecureStore.setItemAsync(clientOnboardedKey(authUser.id), 'true').catch(() => {});
     }
     // updateUser resolves with { error } instead of throwing, so check it.
+    // The intake_* keys are a contract with find-coach, which prefills the
+    // matching flow from them so a coachless athlete never repeats intake.
+    const metadata = {
+      client_onboarded: true,
+      intake_goal: goal,
+      intake_days: days,
+      intake_experience: experience,
+      intake_limitation: limitation.trim() || null,
+      intake_weight_lbs: weightLbs,
+    };
     try {
-      const { error } = await supabase.auth.updateUser({ data: { client_onboarded: true } });
+      const { error } = await supabase.auth.updateUser({ data: metadata });
       if (error) {
-        const retry = await supabase.auth.updateUser({ data: { client_onboarded: true } });
+        const retry = await supabase.auth.updateUser({ data: metadata });
         if (retry.error && __DEV__) {
           console.warn('[ClientOnboarding] could not persist metadata:', retry.error.message);
         }
@@ -282,8 +320,12 @@ export default function ClientOnboardingScreen() {
         <View style={s.doneRing}>
           <Ionicons name="checkmark" size={34} color={CoachColors.accent} />
         </View>
-        <Text style={s.doneTitle}>Sent to {coachName}</Text>
-        <Text style={s.doneSub}>Your answers are on their way. Your plan gets built from them.</Text>
+        <Text style={s.doneTitle}>{coachless ? "You're in." : `Sent to ${coachName}`}</Text>
+        <Text style={s.doneSub}>
+          {coachless
+            ? "Now find the right coach — your answers do the matching, so you won't repeat them."
+            : 'Your answers are on their way. Your plan gets built from them.'}
+        </Text>
       </View>
     );
   }
@@ -335,7 +377,7 @@ export default function ClientOnboardingScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <Text style={s.title}>{question.title}</Text>
-            <Text style={s.why}>{question.why.replace('Your coach', coachName).replace('your coach', coachName)}</Text>
+            <Text style={s.why}>{question.why.replace('Your coach', coachRefCap).replace('your coach', coachRef)}</Text>
 
             {/* Choice questions */}
             {question.kind === 'choice' && (
@@ -421,12 +463,12 @@ export default function ClientOnboardingScreen() {
             {/* Coach hint — mirrors the mockup's attribution card */}
             <View style={s.hintCard}>
               <View style={s.hintAvatar}>
-                <Text style={s.hintAvatarText}>{coachName.slice(0, 1).toUpperCase()}</Text>
+                <Text style={s.hintAvatarText}>{coachRefCap.slice(0, 1).toUpperCase()}</Text>
               </View>
               <Text style={s.hintText}>
                 {question.optional
-                  ? `Not sure? Skip it — ${coachName} will ask when it matters.`
-                  : `Not sure? Pick the closest one — ${coachName} reads every answer and adjusts.`}
+                  ? `Not sure? Skip it — ${coachRef} will ask when it matters.`
+                  : `Not sure? Pick the closest one — ${coachRef} reads every answer and adjusts.`}
               </Text>
             </View>
           </ScrollView>
@@ -446,7 +488,7 @@ export default function ClientOnboardingScreen() {
             ) : (
               <Text style={[s.continueText, !currentAnswered && s.continueTextDisabled]}>
                 {isLast
-                  ? 'Send to ' + coachName
+                  ? coachless ? 'Finish' : 'Send to ' + coachName
                   : question.optional && !stepDone(question)
                     ? 'Skip this one'
                     : 'Continue'}
