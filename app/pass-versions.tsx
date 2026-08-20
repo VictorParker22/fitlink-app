@@ -302,12 +302,12 @@ const st = StyleSheet.create({
 
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 16, padding: 16, marginBottom: 12,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16, marginBottom: 12,
   },
   cardCurrent: { borderColor: 'rgba(198,242,78,0.35)' },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   liveTag: {
-    backgroundColor: CoachColors.accentSoft, borderRadius: 999,
+    backgroundColor: CoachColors.accentSoft, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 10, paddingVertical: 4,
   },
   liveTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
@@ -318,7 +318,7 @@ const st = StyleSheet.create({
   holderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   avatarStack: { flexDirection: 'row' },
   avatar: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.borderMuted,
+    width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: CoachColors.surface,
   },
@@ -330,7 +330,7 @@ const st = StyleSheet.create({
   oldHolderName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary, flex: 1 },
   honestyLine: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8, lineHeight: 20 },
   askBtn: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 10, alignItems: 'center', marginTop: 12,
   },
   askBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
@@ -340,7 +340,7 @@ const st = StyleSheet.create({
   rollbackRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 14, marginTop: 8,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14, marginTop: 8,
   },
   rollbackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
   rollbackSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 3, lineHeight: 18 },
@@ -348,7 +348,7 @@ const st = StyleSheet.create({
   noHistoryText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint, lineHeight: 20, marginTop: 4 },
 
   footerBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, alignItems: 'center', marginTop: 28,
   },
   footerBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },

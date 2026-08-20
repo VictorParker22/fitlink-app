@@ -1695,7 +1695,7 @@ const s = StyleSheet.create({
   hero:          { alignItems: 'center', paddingTop: 28, paddingBottom: 24, paddingHorizontal: 20, gap: 10 },
   heroName:      { fontFamily: CoachFonts.headingBold, fontSize: 33.5, color: CoachColors.textPrimary, letterSpacing: -0.5, marginTop: 8 },
   heroStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statusDot:     { width: 7, height: 7, borderRadius: 3.5 },
+  statusDot:     { width: 7, height: 7, borderRadius: 3.5, borderCurve: 'continuous' },
   heroStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   heroDivider:   { fontSize: 14.5, color: CoachColors.textFaint, fontFamily: CoachFonts.body },
 
@@ -1713,12 +1713,12 @@ const s = StyleSheet.create({
 
   // PRIMARY ACTIONS
   heroActions:   { flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 },
-  actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 14, paddingVertical: 14 },
+  actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 14, borderCurve: 'continuous', paddingVertical: 14 },
   actionPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
-  actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.borderMuted, borderRadius: 14, paddingVertical: 14 },
+  actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: CoachColors.borderMuted, borderRadius: 14, borderCurve: 'continuous', paddingVertical: 14 },
   actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
   // minHeight so the unread count is not clipped at large Dynamic Type sizes.
-  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, minHeight: 18, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
+  unreadDot:     { position: 'absolute', top: -4, right: -4, minWidth: 18, minHeight: 18, borderRadius: 9, borderCurve: 'continuous', backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: CoachColors.bg },
   // onAccent (dark ink) on the solid danger fill: 5.75:1. textPrimary was 2.82:1.
   unreadDotText: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.onAccent },
 
@@ -1728,15 +1728,15 @@ const s = StyleSheet.create({
   iconTrayLabel: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
 
   // TRIAL BANNER
-  trialBanner:      { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 14, padding: 16 },
+  trialBanner:      { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 14, borderCurve: 'continuous', padding: 16 },
   trialLeft:         { flex: 1, gap: 8 },
   trialTitle:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   quietSub:          { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
-  quietNudgeBtn:     { backgroundColor: CoachColors.danger, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
+  quietNudgeBtn:     { backgroundColor: CoachColors.danger, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderCurve: 'continuous' },
   quietNudgeText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
-  trialTrack:        { height: 3, backgroundColor: CoachColors.borderMuted, borderRadius: 2, overflow: 'hidden' },
-  trialFill:         { height: '100%', borderRadius: 2 },
-  trialUpgradeBtn:   { backgroundColor: CoachColors.accent, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10 },
+  trialTrack:        { height: 3, backgroundColor: CoachColors.borderMuted, borderRadius: 2, borderCurve: 'continuous', overflow: 'hidden' },
+  trialFill:         { height: '100%', borderRadius: 2, borderCurve: 'continuous' },
+  trialUpgradeBtn:   { backgroundColor: CoachColors.accent, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderCurve: 'continuous' },
   trialUpgradeText:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // TAB BAR
@@ -1744,7 +1744,7 @@ const s = StyleSheet.create({
   tabItem:       { alignItems: 'center', paddingVertical: 12 },
   tabLabel:      { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
   tabLabelActive: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
-  tabUnderline:  { position: 'absolute', bottom: -1, height: 2, backgroundColor: CoachColors.accent, borderRadius: 1 },
+  tabUnderline:  { position: 'absolute', bottom: -1, height: 2, backgroundColor: CoachColors.accent, borderRadius: 1, borderCurve: 'continuous' },
 
   // TAB CONTENT
   tabBody:       { paddingHorizontal: 16, paddingTop: 20, gap: 6 },
@@ -1755,7 +1755,7 @@ const s = StyleSheet.create({
   seeAll:        { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   // BLOCK (main list container, like iOS Settings)
-  block:         { backgroundColor: CoachColors.surface, borderRadius: 16, overflow: 'hidden' },
+  block:         { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden' },
   blockRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   blockDivider:  { height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 46 },
   blockRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textPrimary, flex: 1 },
@@ -1769,13 +1769,13 @@ const s = StyleSheet.create({
   addBtnText:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
 
   // STATUS TAGS
-  statusTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', textTransform: 'capitalize' },
+  statusTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderCurve: 'continuous', overflow: 'hidden', textTransform: 'capitalize' },
   tagDone:       { backgroundColor: CoachColors.accentSoft, color: CoachColors.accent },
   tagPending:    { backgroundColor: 'rgba(155,160,149,0.14)', color: CoachColors.textSecondary },
   tagCancelled:  { backgroundColor: CoachColors.dangerSoft, color: CoachColors.danger },
 
   // NOTES
-  notesWrap:        { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 16, gap: 10 },
+  notesWrap:        { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', padding: 16, gap: 10 },
   notesInput:       { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, minHeight: 86, textAlignVertical: 'top', lineHeight: 24.5 },
   notesText:        { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textSecondary, lineHeight: 24.5 },
   notesPlaceholder: { fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textFaint, lineHeight: 24.5, fontStyle: 'italic' },
@@ -1783,11 +1783,11 @@ const s = StyleSheet.create({
   notesEditLabel:   { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
   notesActionsRow:  { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, paddingTop: 8 },
   notesCancelText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
-  notesSaveBtn:     { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10 },
+  notesSaveBtn:     { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10, borderCurve: 'continuous' },
   notesSaveBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   // SESSION CARD (next session)
-  sessionCard:    { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 18 },
+  sessionCard:    { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 18 },
   sessionDateCol: { alignItems: 'center', minWidth: 44 },
   sessionDay:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted, letterSpacing: 0.5 },
   sessionDayNum:  { fontFamily: CoachFonts.headingBold, fontSize: 36, color: CoachColors.textPrimary, lineHeight: 40.5 },
@@ -1798,10 +1798,10 @@ const s = StyleSheet.create({
   sessionCountdown: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.warning, marginTop: 4 },
 
   // MESSAGE ROW
-  messageRow:      { backgroundColor: CoachColors.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
+  messageRow:      { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   messageAvatarWrap: { position: 'relative' },
   // minHeight so the unread count is not clipped at large Dynamic Type sizes.
-  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, minHeight: 17, borderRadius: 9, backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
+  msgBadge:        { position: 'absolute', top: -3, right: -3, minWidth: 17, minHeight: 17, borderRadius: 9, borderCurve: 'continuous', backgroundColor: CoachColors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: CoachColors.bg },
   // onAccent on the solid danger fill — see unreadDotText.
   msgBadgeText:    { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.onAccent },
   messageText:     { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textPrimary },
@@ -1810,63 +1810,63 @@ const s = StyleSheet.create({
 
   // CHIPS
   chipWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:        { backgroundColor: CoachColors.surface, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8 },
+  chip:        { backgroundColor: CoachColors.surface, borderRadius: 22, borderCurve: 'continuous', paddingHorizontal: 14, paddingVertical: 8 },
   chipText:    { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   // COMMITMENT BARS
   commitRow:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  commitBar:       { width: 26, height: 32, borderRadius: 6, backgroundColor: CoachColors.borderMuted },
+  commitBar:       { width: 26, height: 32, borderRadius: 6, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
   commitBarActive: { backgroundColor: CoachColors.accent },
   commitText:      { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, marginLeft: 8 },
 
   // EMPTY STATES
-  emptyRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: CoachColors.surface, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18 },
+  emptyRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 18 },
   emptyRowText:  { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textFaint },
   emptyRowCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
-  emptyBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, padding: 24, alignItems: 'center', gap: 8 },
+  emptyBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', padding: 24, alignItems: 'center', gap: 8 },
   emptyBlockTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textSecondary, textAlign: 'center' },
   emptyBlockSub:   { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint, textAlign: 'center', lineHeight: 20 },
   emptyBlockCta:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent, marginTop: 4 },
-  emptyBlockBtn:   { backgroundColor: CoachColors.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 },
+  emptyBlockBtn:   { backgroundColor: CoachColors.accent, borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 },
   emptyBlockBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   emptyStateTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 20, color: CoachColors.textSecondary },
-  outlineBtn:    { borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  outlineBtn:    { borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 20, paddingVertical: 10 },
   outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // SYNC NOTE
   syncNote:      { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, textAlign: 'right', marginTop: 4 },
 
   // CHART
-  chartBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden' },
+  chartBlock:    { backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden' },
   chartTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
   chartBigNum:   { fontFamily: CoachFonts.headingBold, fontSize: 31.5, color: CoachColors.textPrimary, letterSpacing: -1 },
-  deltaBadge:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  deltaBadge:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderCurve: 'continuous' },
   deltaBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
 
   // PROGRESS PHOTOS
-  photoThumb:    { width: 120, height: 170, borderRadius: 14, overflow: 'hidden', backgroundColor: CoachColors.surface },
+  photoThumb:    { width: 120, height: 170, borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: CoachColors.surface },
   photoThumbImg: { width: '100%', height: '100%' },
   photoGrad:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 70 },
   photoFooter:   { position: 'absolute', bottom: 10, left: 10, right: 10 },
   photoDate:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textPrimary },
   photoWeight:   { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textSecondary, marginTop: 2 },
-  photoLatest:   { position: 'absolute', top: 8, right: 8, backgroundColor: CoachColors.accent, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
+  photoLatest:   { position: 'absolute', top: 8, right: 8, backgroundColor: CoachColors.accent, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, borderCurve: 'continuous' },
   photoLatestText: { fontFamily: CoachFonts.headingBold, fontSize: 8, color: CoachColors.onAccent, letterSpacing: 0.5 },
 
   // LOG DOT
-  logDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: CoachColors.accent },
-  sessionDot:    { width: 8, height: 8, borderRadius: 4 },
+  logDot:        { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
+  sessionDot:    { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous' },
 
   // PHOTO VIEWER
   photoViewerBg:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
   photoViewerImg:   { width: W, height: W * 1.3 },
-  photoViewerClose: { position: 'absolute', top: 56, right: 20, width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  photoViewerClose: { position: 'absolute', top: 56, right: 20, width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
 
   // MODAL NAV
   modalNav:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   modalNavTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   modalHint:     { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 4 },
-  modalPlanRow:  { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  modalPlanRow:  { backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   modalPlanRowActive: { borderWidth: 1.5, borderColor: CoachColors.accent },
   modalPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textPrimary },
   modalPlanMeta: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 2 },
@@ -1874,7 +1874,7 @@ const s = StyleSheet.create({
   enrollTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   quickAddToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4 },
   quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
-  quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
   quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
 
   // NUTRITION (last 7 days)
@@ -1889,21 +1889,21 @@ const s = StyleSheet.create({
   cqSaveLink:    { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.accent },
   cqBody:        { padding: 16, paddingBottom: 48, gap: 10 },
   cqHint:        { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 21.5, marginBottom: 4 },
-  cqRow:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14 },
+  cqRow:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', padding: 14 },
   cqRowPrompt:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, lineHeight: 22.5 },
   cqRowContext:  { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   cqRowMeta:     { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, marginTop: 4 },
   cqRowActions:  { alignItems: 'center', gap: 10 },
   cqFieldLabel:  { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 8, marginBottom: 6 },
-  cqInput:       { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, padding: 13, fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary, textAlignVertical: 'top' },
+  cqInput:       { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, borderCurve: 'continuous', padding: 13, fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary, textAlignVertical: 'top' },
   cqTypeRow:     { flexDirection: 'row', gap: 8 },
-  cqTypeChip:    { flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, gap: 3 },
+  cqTypeChip:    { flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface, borderRadius: 12, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 10, gap: 3 },
   cqTypeChipActive: { borderColor: CoachColors.accent, borderWidth: 1.5 },
   cqTypeChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
   cqTypeChipTextActive: { color: CoachColors.accent },
   cqTypeChipHint: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, lineHeight: 15.5 },
   cqScaleRow:    { flexDirection: 'row', gap: 8 },
-  cqCommitBtn:   { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
+  cqCommitBtn:   { backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 14, alignItems: 'center', marginTop: 18 },
   cqCommitBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },
   cqFormHint:    { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', marginTop: 10 },
 });

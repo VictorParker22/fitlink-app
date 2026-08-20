@@ -166,6 +166,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
     marginTop: 8,
     overflow: 'hidden',
@@ -204,6 +205,7 @@ const st = StyleSheet.create({
     fontFamily: CoachFonts.headingBold,
     fontSize: 14.5,
     color: CoachColors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
 
   nameCol: { flex: 1, minWidth: 0 },

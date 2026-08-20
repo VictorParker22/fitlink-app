@@ -815,7 +815,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 14,
   },
   backBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary },
@@ -825,7 +825,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: C.borderMuted,
   },
-  progressSeg: { flex: 1, height: 3, borderRadius: 999, backgroundColor: C.borderMuted },
+  progressSeg: { flex: 1, height: 3, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted },
   progressSegDone: { backgroundColor: C.accent },
   progressSegActive: { backgroundColor: 'rgba(198,242,78,0.45)' },
 
@@ -839,10 +839,10 @@ const s = StyleSheet.create({
   optionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, padding: 16,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
   },
   optionCardActive: { borderColor: C.accent, borderWidth: 1.5, backgroundColor: '#1E211D' },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#3E443A' },
+  radio: { width: 20, height: 20, borderRadius: 10, borderCurve: 'continuous', borderWidth: 1.5, borderColor: '#3E443A' },
   radioActive: { borderWidth: 5.5, borderColor: C.accent, backgroundColor: C.bg },
   optionLabel: { fontFamily: F.bodySemiBold, fontSize: 17, color: C.textPrimary },
   optionSub: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 3 },
@@ -854,7 +854,7 @@ const s = StyleSheet.create({
   // Matches
   matchCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 20, padding: 16,
+    borderRadius: 20, borderCurve: 'continuous', padding: 16,
     // The cover banner needs to reach the card's rounded edge.
     overflow: 'hidden',
   },
@@ -866,9 +866,9 @@ const s = StyleSheet.create({
   },
   matchCardTop: { borderColor: 'rgba(198,242,78,0.22)' },
   matchHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  matchAvatar: { width: 46, height: 46, borderRadius: 23 },
+  matchAvatar: { width: 46, height: 46, borderRadius: 23, borderCurve: 'continuous' },
   matchAvatarFallback: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: '#2A3320',
+    width: 46, height: 46, borderRadius: 23, borderCurve: 'continuous', backgroundColor: '#2A3320',
     alignItems: 'center', justifyContent: 'center',
   },
   matchAvatarText: { fontFamily: F.headingBold, fontSize: 17, color: C.accent },
@@ -876,9 +876,9 @@ const s = StyleSheet.create({
   matchSpec: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
   matchBio: { fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textSecondary, marginTop: 12 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
-  factChip: { backgroundColor: C.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  factChip: { backgroundColor: C.accentSoft, borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 10, paddingVertical: 5 },
   factChipText: { fontFamily: F.bodyBold, fontSize: 12, color: C.accent },
-  gapChip: { borderWidth: 1, borderColor: '#3B3227', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  gapChip: { borderWidth: 1, borderColor: '#3B3227', borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 10, paddingVertical: 5 },
   gapChipText: { fontFamily: F.bodyBold, fontSize: 12, color: C.warning },
   honestNote: {
     fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textFaint,
@@ -896,14 +896,14 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(16,18,16,0.55)',
   },
   backBtnOnHero: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(16,18,16,0.6)',
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: 'rgba(16,18,16,0.6)',
     alignItems: 'center', justifyContent: 'center', marginLeft: 20,
   },
   profileBody: { paddingHorizontal: 20 },
   profileIdRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 13, marginTop: -26 },
-  profileAvatar: { width: 66, height: 66, borderRadius: 33, borderWidth: 3, borderColor: C.bg },
+  profileAvatar: { width: 66, height: 66, borderRadius: 33, borderCurve: 'continuous', borderWidth: 3, borderColor: C.bg },
   profileAvatarFallback: {
-    width: 66, height: 66, borderRadius: 33, backgroundColor: '#2A3320',
+    width: 66, height: 66, borderRadius: 33, borderCurve: 'continuous', backgroundColor: '#2A3320',
     borderWidth: 3, borderColor: C.bg, alignItems: 'center', justifyContent: 'center',
   },
   profileAvatarText: { fontFamily: F.headingBold, fontSize: 23.5, color: C.accent },
@@ -915,13 +915,13 @@ const s = StyleSheet.create({
     letterSpacing: 1, textTransform: 'uppercase', marginTop: 26, marginBottom: 12,
   },
   certChip: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 7,
   },
   certChipText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
   hoursCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 18, padding: 16,
+    borderRadius: 18, borderCurve: 'continuous', padding: 16,
   },
   hoursRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   hoursDay: { fontFamily: F.body, fontSize: 15, color: C.textSecondary },
@@ -930,7 +930,7 @@ const s = StyleSheet.create({
   passRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 15,
+    borderRadius: 16, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 15,
   },
   passName: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   passMeta: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
@@ -941,7 +941,7 @@ const s = StyleSheet.create({
   // Request
   summaryCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 20, padding: 17,
+    borderRadius: 20, borderCurve: 'continuous', padding: 17,
   },
   summaryEyebrow: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
@@ -954,24 +954,24 @@ const s = StyleSheet.create({
   editText: { fontFamily: F.body, fontSize: 13, color: C.textFaint },
   noteCard: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 20, padding: 17, marginTop: 12,
+    borderRadius: 20, borderCurve: 'continuous', padding: 17, marginTop: 12,
   },
   noteLabel: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   noteInput: {
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: '#2E322B',
-    borderRadius: 13, padding: 13, marginTop: 11, minHeight: 101,
+    borderRadius: 13, borderCurve: 'continuous', padding: 13, marginTop: 11, minHeight: 101,
     textAlignVertical: 'top', fontFamily: F.body, fontSize: 14.5,
     color: C.textPrimary, lineHeight: 21.5,
   },
   promiseCard: {
     backgroundColor: '#141613', borderWidth: 1, borderColor: '#1E211D',
-    borderRadius: 18, padding: 16, marginTop: 12,
+    borderRadius: 18, borderCurve: 'continuous', padding: 16, marginTop: 12,
   },
   promiseTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   promiseBody: { fontFamily: F.body, fontSize: 14, lineHeight: 21.5, color: C.textMuted, marginTop: 5 },
   errorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
-    backgroundColor: C.dangerSoft, borderRadius: 12, padding: 12,
+    backgroundColor: C.dangerSoft, borderRadius: 12, borderCurve: 'continuous', padding: 12,
   },
   errorText: { flex: 1, fontFamily: F.body, fontSize: 14, color: C.danger },
 
@@ -981,7 +981,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1E211D', backgroundColor: C.bg,
   },
   primaryBtn: {
-    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center',
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15, alignItems: 'center',
   },
   primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },
   footerHint: {
@@ -991,7 +991,7 @@ const s = StyleSheet.create({
 
   // Sent
   successRing: {
-    width: 62, height: 62, borderRadius: 31, borderWidth: 1.5,
+    width: 62, height: 62, borderRadius: 31, borderCurve: 'continuous', borderWidth: 1.5,
     borderColor: 'rgba(198,242,78,0.4)', backgroundColor: C.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },

@@ -890,7 +890,7 @@ const vs = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48,
   },
   playBtn: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 80, height: 80, borderRadius: 40, borderCurve: 'continuous',
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
   },
@@ -901,13 +901,13 @@ const vs = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 12,
   },
   categoryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  categoryDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  categoryDot: { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous', marginRight: 8 },
   categoryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
   levelText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: 'rgba(255,255,255,0.5)' },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2 },
-  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
-  timeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.6)', width: 42 },
+  progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, borderCurve: 'continuous' },
+  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
+  timeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.6)', width: 42, fontVariant: ['tabular-nums'] },
   errorContainer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: CoachColors.bg,
@@ -917,7 +917,7 @@ const vs = StyleSheet.create({
   },
   errorTitle: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textPrimary, marginTop: 16, marginBottom: 8, letterSpacing: 1 },
   errorMessage: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 32 },
-  retryBtn: { paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 2 },
+  retryBtn: { paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
   retryBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 14.5, color: CoachColors.accent, letterSpacing: 1 },
 });
 
@@ -927,7 +927,7 @@ const rs = StyleSheet.create({
   bgImage: { ...StyleSheet.absoluteFillObject, width: SCREEN_W, height: SCREEN_H, opacity: 0.3 },
   safeArea: { flex: 1 },
   glowOrb: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
+    position: 'absolute', width: 300, height: 300, borderRadius: 150, borderCurve: 'continuous',
     bottom: '20%', left: '10%', opacity: 0.8,
   },
 
@@ -947,7 +947,7 @@ const rs = StyleSheet.create({
   speedUnit: { fontFamily: CoachFonts.headingBold, fontSize: 54, color: CoachColors.textPrimary, marginTop: -12 },
   speedControls: { flexDirection: 'row', gap: 32, marginBottom: 40 },
   speedAdjustBtn: {
-    width: 52, height: 52, borderRadius: 26, borderWidth: 1.5,
+    width: 52, height: 52, borderRadius: 26, borderCurve: 'continuous', borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center',
   },
   continueBtn: { backgroundColor: CoachColors.accent, paddingVertical: 16, paddingHorizontal: 48 },
@@ -990,7 +990,7 @@ const rs = StyleSheet.create({
   arcContainer: { alignItems: 'center', marginTop: 8 },
   arcInfo: { position: 'absolute', top: 70, alignItems: 'center' },
   arcPhaseLabel: { fontFamily: CoachFonts.body, fontSize: 15.5, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
-  arcTime: { fontFamily: CoachFonts.headingBold, fontSize: 40.5, color: CoachColors.textPrimary },
+  arcTime: { fontFamily: CoachFonts.headingBold, fontSize: 40.5, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
 
   // Metrics — centered with divider
   metricsRow: {
@@ -1018,7 +1018,7 @@ const rs = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
   prBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -1030,7 +1030,7 @@ const rs = StyleSheet.create({
   // Pause
   pauseBtn: {
     alignSelf: 'center', marginTop: 20,
-    width: 52, height: 52, borderRadius: 26,
+    width: 52, height: 52, borderRadius: 26, borderCurve: 'continuous',
     backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
@@ -1041,16 +1041,16 @@ const rs = StyleSheet.create({
     left: 20, right: 20,
   },
   timelineTrack: {
-    height: 3, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2,
+    height: 3, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, borderCurve: 'continuous',
     marginBottom: 8,
   },
-  timelineFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
+  timelineFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
   timelineTick: {
     position: 'absolute', top: -2, width: 1, height: 7,
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   timelineLabels: { flexDirection: 'row', justifyContent: 'space-between' },
-  timelineTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.35)' },
+  timelineTime: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: 'rgba(255,255,255,0.35)', fontVariant: ['tabular-nums'] },
 });
 
 // ─── COMPLETION SCREEN STYLES ────────────────────────────
@@ -1061,7 +1061,7 @@ const cs = StyleSheet.create({
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
 
   checkCircle: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72, height: 72, borderRadius: 36, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
     marginBottom: 24,
   },
@@ -1090,9 +1090,9 @@ const cs = StyleSheet.create({
   completionRow: { width: '100%', alignItems: 'center' },
   completionTrack: {
     width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2, marginBottom: 8, overflow: 'hidden',
+    borderRadius: 2, borderCurve: 'continuous', marginBottom: 8, overflow: 'hidden',
   },
-  completionFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
+  completionFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
   completionText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: 'rgba(255,255,255,0.5)' },
 
   ratingContainer: {

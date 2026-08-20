@@ -163,7 +163,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -179,7 +179,7 @@ const s = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, paddingHorizontal: 14, height: 44,
+    borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 14, height: 44,
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 0 },
 
@@ -192,7 +192,7 @@ const s = StyleSheet.create({
 
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden',
   },
   faqItem: { paddingVertical: 14, paddingHorizontal: 16 },
   faqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
@@ -203,7 +203,7 @@ const s = StyleSheet.create({
   contactRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 15, marginTop: 28,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 15, marginTop: 28,
   },
   contactRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary, flex: 1 },
 });

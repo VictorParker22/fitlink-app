@@ -421,6 +421,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.border,
   },
   stepDotActive: {
@@ -438,6 +439,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
     borderColor: CoachColors.border,
@@ -480,6 +482,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 32,       // 8pt: trust → button
@@ -495,6 +498,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -516,6 +520,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignSelf: 'flex-start',
@@ -545,6 +550,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -560,6 +566,7 @@ const styles = StyleSheet.create({
   stripeConnectBtn: {
     backgroundColor: '#635BFF',
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -618,6 +625,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     padding: 20,            // 8pt: comfortable card padding
     marginBottom: 32,       // 8pt: card-to-section gap
   },
@@ -658,6 +666,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: CoachColors.bg,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
     paddingVertical: 8,
     alignSelf: 'flex-start',
@@ -683,6 +692,7 @@ const styles = StyleSheet.create({
   freePill: {
     backgroundColor: CoachColors.accent,
     borderRadius: 4,
+    borderCurve: 'continuous',
     paddingHorizontal: 10,
     paddingVertical: 4,
   },

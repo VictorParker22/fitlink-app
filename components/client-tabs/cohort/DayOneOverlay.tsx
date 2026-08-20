@@ -144,6 +144,7 @@ const s = StyleSheet.create({
   cta: {
     backgroundColor: C.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 15,
     paddingHorizontal: 44,
     marginTop: 28,

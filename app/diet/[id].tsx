@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   },
   topNavActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   glassBtn: {
-    width: 38, height: 38, borderRadius: Radius.xs,
+    width: 38, height: 38, borderRadius: Radius.xs, borderCurve: 'continuous',
     backgroundColor: 'rgba(16,18,16,0.65)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
@@ -593,6 +593,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSofter,
     borderWidth: 1, borderColor: CoachColors.accent,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   categoryChipText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5,
@@ -609,6 +610,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
@@ -626,11 +628,11 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.bodyMedium, fontSize: FontSize.sm,
     color: CoachColors.textSecondary, letterSpacing: 0,
   },
-  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 14, gap: 2 },
+  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, borderCurve: 'continuous', overflow: 'hidden', marginTop: 14, gap: 2 },
   splitSeg: { height: '100%' },
   legendRow: { flexDirection: 'row', gap: 16, marginTop: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous' },
   legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
   compareLine: {
     fontFamily: CoachFonts.body, fontSize: 14.5,
@@ -643,7 +645,7 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', gap: 6 },
   dayChip: {
     flex: 1, alignItems: 'center', paddingVertical: 8,
-    borderRadius: Radius.sm, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: Radius.sm, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted,
     backgroundColor: CoachColors.bg, gap: 2,
   },
   dayChipTraining: {
@@ -675,6 +677,7 @@ const styles = StyleSheet.create({
   mealGroupCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     overflow: 'hidden',
   },
@@ -683,11 +686,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg,
   },
   mealThumb: {
-    width: 46, height: 46, borderRadius: Radius.xs,
+    width: 46, height: 46, borderRadius: Radius.xs, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg,
   },
   mealIconCircle: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 46, height: 46, borderRadius: 23, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -715,13 +718,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', marginTop: 6,
     paddingHorizontal: 8, paddingVertical: 3,
     backgroundColor: CoachColors.accentSofter,
-    borderRadius: Radius.full, borderWidth: 1, borderColor: CoachColors.accentSoft,
+    borderRadius: Radius.full, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.accentSoft,
   },
   swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.accent },
   swapList: {
     marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
     padding: Spacing.md, gap: 8,
-    backgroundColor: CoachColors.bg, borderRadius: Radius.sm,
+    backgroundColor: CoachColors.bg, borderRadius: Radius.sm, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   swapRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -744,7 +747,7 @@ const styles = StyleSheet.create({
   bottomBtn: {
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.accent,
-    paddingVertical: 16, borderRadius: Radius.sm,
+    paddingVertical: 16, borderRadius: Radius.sm, borderCurve: 'continuous',
   },
   bottomBtnText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: FontSize.sm,
@@ -757,7 +760,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
   backBtnDark: {
-    width: 36, height: 36, borderRadius: Radius.xs,
+    width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -778,13 +781,14 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSofter,
     borderWidth: 1, borderColor: CoachColors.accent,
     borderRadius: 4,
+    borderCurve: 'continuous',
   },
   assignedBadgeText: {
     fontFamily: CoachFonts.bodyBold, fontSize: 11,
     color: CoachColors.accent, letterSpacing: 0.3,
   },
   assignAddBtn: {
-    width: 32, height: 32, borderRadius: Radius.xs,
+    width: 32, height: 32, borderRadius: Radius.xs, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },

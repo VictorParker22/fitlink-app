@@ -360,6 +360,7 @@ const s = StyleSheet.create({
     width: W * 0.82,
     backgroundColor: CoachColors.surface,
     borderRadius: 24,
+    borderCurve: 'continuous',
     alignItems: 'center',
     paddingHorizontal: 28,
     paddingBottom: 32,
@@ -386,6 +387,7 @@ const s = StyleSheet.create({
   badge: {
     backgroundColor: CoachColors.accent,
     borderRadius: 100,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 4,
     marginBottom: 20,
@@ -441,6 +443,7 @@ const s = StyleSheet.create({
     gap: 8,
     backgroundColor: CoachColors.accent,
     borderRadius: 100,
+    borderCurve: 'continuous',
     paddingHorizontal: 22,
     paddingVertical: 12,
     marginBottom: 18,
@@ -466,7 +469,7 @@ const s = StyleSheet.create({
   },
   shareCardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 34 },
   shareCardMark: {
-    width: 30, height: 30, borderRadius: 9,
+    width: 30, height: 30, borderRadius: 9, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -474,7 +477,7 @@ const s = StyleSheet.create({
   shareCardBrand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
   shareCardBadge: {
     alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 100,
+    borderWidth: 1, borderColor: CoachColors.accent, borderRadius: 100, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 5, marginBottom: 22,
   },
   shareCardBadgeText: {

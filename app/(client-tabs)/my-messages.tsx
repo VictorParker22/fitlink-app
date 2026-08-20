@@ -70,6 +70,7 @@ function AttachmentImage({ storedUrl, isMine }: { storedUrl: string; isMine: boo
     width: ATTACHMENT_W,
     height: ATTACHMENT_H,
     borderRadius: 12,
+    borderCurve: 'continuous',
     backgroundColor: isMine ? 'rgba(16,18,16,0.2)' : 'rgba(255,255,255,0.06)',
   } as const;
 
@@ -669,7 +670,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   emptyBackBtn: { paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
   headerAvatar: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -685,7 +686,7 @@ const styles = StyleSheet.create({
 
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   bubbleRowRight: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
+  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderCurve: 'continuous' },
   bubbleSent: { backgroundColor: CoachColors.accent, borderBottomRightRadius: 4 },
   bubbleReceived: { backgroundColor: 'rgba(255,255,255,0.07)', borderBottomLeftRadius: 4 },
   // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
@@ -705,11 +706,11 @@ const styles = StyleSheet.create({
     marginTop: 6, textAlign: 'center',
   },
   attachIcon: {
-    width: 40, height: 40, borderRadius: 8,
+    width: 40, height: 40, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  attachCta: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, alignItems: 'center', marginTop: 4 },
+  attachCta: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderCurve: 'continuous', alignItems: 'center', marginTop: 4 },
 
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
@@ -720,13 +721,13 @@ const styles = StyleSheet.create({
   attachBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   input: {
     flex: 1, backgroundColor: CoachColors.bg,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 16, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -737,9 +738,9 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 21.5 },
 
   typingRow: { flexDirection: 'row', marginBottom: 8 },
-  typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },
+  typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderCurve: 'continuous', borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },
   typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.textSecondary },
+  dot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.textSecondary },
   dot1: { opacity: 0.4 },
   dot2: { opacity: 0.6 },
   dot3: { opacity: 0.85 },

@@ -456,14 +456,14 @@ const styles = StyleSheet.create({
   title: { fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary, letterSpacing: -0.4 },
   subtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 2 },
   composeBadge: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
   },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, marginHorizontal: 20, marginTop: 18, marginBottom: 6,
+    borderRadius: 12, borderCurve: 'continuous', marginHorizontal: 20, marginTop: 18, marginBottom: 6,
     paddingHorizontal: 14, height: 50,
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, paddingVertical: 0 },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
 
   unreadBadge: {
     // minHeight so the unread count is not clipped at large Dynamic Type sizes.
-    minWidth: 20, minHeight: 20, borderRadius: 10,
+    minWidth: 20, minHeight: 20, borderRadius: 10, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,
   },
@@ -507,11 +507,11 @@ const styles = StyleSheet.create({
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 6, paddingRight: 13, paddingLeft: 6,
   },
   pillName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
-  pillMore: { justifyContent: 'center', borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  pillMore: { justifyContent: 'center', borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 14, paddingVertical: 9 },
   pillMoreText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textMuted },
 
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -535,12 +535,12 @@ const styles = StyleSheet.create({
   emptyCard: {
     marginHorizontal: 20, marginTop: 24,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 16, padding: 18,
+    borderRadius: 16, borderCurve: 'continuous', padding: 18,
   },
   emptyCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
   emptyCardBody: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 8, lineHeight: 21.5 },
   emptyCta: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 13, alignItems: 'center', marginTop: 16,
   },
   emptyCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
@@ -549,13 +549,13 @@ const styles = StyleSheet.create({
   previewThread: { gap: 8, opacity: 0.5 },
   previewBubbleRight: {
     alignSelf: 'flex-end', maxWidth: '74%',
-    backgroundColor: CoachColors.border, borderRadius: 16, borderBottomRightRadius: 4,
+    backgroundColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', borderBottomRightRadius: 4,
     paddingHorizontal: 14, paddingVertical: 10,
   },
   previewBubbleTextRight: { fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5, color: CoachColors.textSecondary },
   previewBubbleLeft: {
     alignSelf: 'flex-start', maxWidth: '74%',
-    backgroundColor: CoachColors.surface, borderRadius: 16, borderBottomLeftRadius: 4,
+    backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous', borderBottomLeftRadius: 4,
     paddingHorizontal: 14, paddingVertical: 10,
   },
   previewBubbleTextLeft: { fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5, color: CoachColors.textSecondary },
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   reminderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 15,
+    borderRadius: 14, borderCurve: 'continuous', padding: 15,
   },
   reminderTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
   reminderSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },

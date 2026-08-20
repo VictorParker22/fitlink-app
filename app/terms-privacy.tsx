@@ -134,7 +134,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -160,7 +160,7 @@ const s = StyleSheet.create({
   contactCard: {
     flexDirection: 'row', alignItems: 'center', gap: 13,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginTop: 6,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 14, marginTop: 6,
   },
   contactTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   contactEmail: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, marginTop: 1 },

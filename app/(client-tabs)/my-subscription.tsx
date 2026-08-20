@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 12,
   },
   backBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
@@ -357,6 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     marginBottom: 32,
   },
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heroIconBadge: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -380,6 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   statusText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: 10,
@@ -445,13 +447,14 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     padding: 16,
   },
   paymentLeft: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   paymentIconBox: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -476,6 +479,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   historyRow: {
@@ -505,6 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.accentSoft,
     paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   historyStatusText: {
     fontFamily: CoachFonts.bodySemiBold,
@@ -519,6 +524,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: CoachColors.border,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     padding: 20,
     marginBottom: 12,
   },
@@ -552,7 +558,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tierFeatureDot: {
-    width: 4, height: 4, borderRadius: 2,
+    width: 4, height: 4, borderRadius: 2, borderCurve: 'continuous',
     marginRight: 10,
     backgroundColor: CoachColors.textMuted,
   },
@@ -563,6 +569,7 @@ const styles = StyleSheet.create({
   subscribeBtn: {
     paddingVertical: 14,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -583,6 +590,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     paddingVertical: 14,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.danger,
     alignItems: 'center',
     justifyContent: 'center',

@@ -424,6 +424,7 @@ const styles = StyleSheet.create({
     // minHeight so the count is not clipped at large Dynamic Type sizes.
     minHeight: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
     paddingHorizontal: 6,
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
@@ -452,6 +453,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   row: {
@@ -467,6 +469,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
+    borderCurve: 'continuous',
   },
   dotSlipped: { backgroundColor: CoachColors.danger },
   dotQuiet: { backgroundColor: CoachColors.warning },

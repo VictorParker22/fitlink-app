@@ -1479,7 +1479,7 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
 
   iconBtn: {
-    width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.surface,
+    width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1506,7 +1506,7 @@ const s = StyleSheet.create({
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
   },
@@ -1520,23 +1520,23 @@ const s = StyleSheet.create({
   nameField: {
     fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 14,
+    borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: 14, paddingVertical: 14,
   },
 
   describeCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: Radius.md, padding: 14, marginTop: Spacing.xl,
+    borderRadius: Radius.md, borderCurve: 'continuous', padding: 14, marginTop: Spacing.xl,
   },
   describeCardIcon: {
-    width: 36, height: 36, borderRadius: Radius.xs, backgroundColor: CoachColors.accentSofter,
+    width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous', backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
   describeCardTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
   describeCardHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, fontStyle: 'italic' },
 
   describeInputWrap: {
-    backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
+    backgroundColor: CoachColors.surface, borderRadius: Radius.sm, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border,
     paddingHorizontal: 14, marginBottom: 16,
   },
@@ -1545,7 +1545,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, minHeight: 108, textAlignVertical: 'top',
   },
   exampleChip: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
   },
@@ -1555,7 +1555,7 @@ const s = StyleSheet.create({
   footer: { paddingHorizontal: Spacing.lg, paddingTop: 12 },
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: Radius.full, backgroundColor: CoachColors.accent, height: 52,
+    borderRadius: Radius.full, borderCurve: 'continuous', backgroundColor: CoachColors.accent, height: 52,
   },
   primaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.onAccent },
 
@@ -1565,7 +1565,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
   builderHeaderTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
-  createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, minWidth: 64, alignItems: 'center' },
+  createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, borderCurve: 'continuous', minWidth: 64, alignItems: 'center' },
   createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   // Bottom clearance is applied inline from insets — the builder has no sticky
@@ -1583,7 +1583,7 @@ const s = StyleSheet.create({
 
   addExerciseBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md, borderCurve: 'continuous',
     paddingVertical: 14,
   },
   addExerciseBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
@@ -1591,7 +1591,7 @@ const s = StyleSheet.create({
   accordionContainer: { backgroundColor: 'transparent' },
   accordionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   accordionThumb: {
-    width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.surface,
+    width: 44, height: 44, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
   },
   accordionInfo: { flex: 1 },
@@ -1602,17 +1602,17 @@ const s = StyleSheet.create({
 
   linkGroupBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md,
-    backgroundColor: CoachColors.accentSofter, borderRadius: Radius.sm, marginBottom: Spacing.lg,
+    backgroundColor: CoachColors.accentSofter, borderRadius: Radius.sm, borderCurve: 'continuous', marginBottom: Spacing.lg,
   },
   linkGroupText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.accent },
 
-  infoCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, padding: 14, marginBottom: Spacing.md, gap: 10 },
-  metaTag: { backgroundColor: CoachColors.borderMuted, paddingHorizontal: 9, paddingVertical: 3, borderRadius: Radius.full },
+  infoCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderCurve: 'continuous', padding: 14, marginBottom: Spacing.md, gap: 10 },
+  metaTag: { backgroundColor: CoachColors.borderMuted, paddingHorizontal: 9, paddingVertical: 3, borderRadius: Radius.full, borderCurve: 'continuous' },
   metaTagText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textSecondary },
   infoCardDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 20 },
 
   mediaPlaceholder: {
-    width: '100%', aspectRatio: 16 / 9, backgroundColor: CoachColors.surface, borderRadius: Radius.sm,
+    width: '100%', aspectRatio: 16 / 9, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md, overflow: 'hidden',
   },
   mediaEmpty: { alignItems: 'center' },
@@ -1626,23 +1626,23 @@ const s = StyleSheet.create({
 
   voiceBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9,
-    borderRadius: Radius.full, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: Radius.full, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
   voiceBtnText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
 
   notesInput: {
     fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, lineHeight: 21.5,
-    padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, minHeight: 96,
+    padding: Spacing.sm, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, borderCurve: 'continuous', minHeight: 96,
   },
 
   inlineControlsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  inlineControl: { flex: 1, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
+  inlineControl: { flex: 1, backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md, borderCurve: 'continuous', paddingVertical: Spacing.sm, alignItems: 'center' },
   inlineControlLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textFaint, marginBottom: 8 },
   inlineControlStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 4 },
   stepperBtn: { padding: 4 },
   inlineControlValue: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
 
-  removeBtn: { alignItems: 'center', paddingVertical: 12, marginTop: Spacing.sm, backgroundColor: CoachColors.dangerSoft, borderRadius: Radius.md },
+  removeBtn: { alignItems: 'center', paddingVertical: 12, marginTop: Spacing.sm, backgroundColor: CoachColors.dangerSoft, borderRadius: Radius.md, borderCurve: 'continuous' },
   removeBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.danger },
 
   separator: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: Spacing.lg },
@@ -1656,13 +1656,13 @@ const s = StyleSheet.create({
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderRadius: Radius.sm,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderRadius: Radius.sm, borderCurve: 'continuous',
     paddingHorizontal: 12, height: 53,
   },
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, height: '100%' },
 
   filterChip: {
-    flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full,
+    flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
   filterChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
@@ -1672,7 +1672,7 @@ const s = StyleSheet.create({
   bodyMapWrap: {
     alignItems: 'center', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm,
     paddingVertical: Spacing.md, backgroundColor: CoachColors.surface,
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: Radius.md, borderCurve: 'continuous',
   },
   bodyMapHint: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 8 },
 
@@ -1680,18 +1680,18 @@ const s = StyleSheet.create({
 
   exercisePickItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md },
   exercisePickIcon: {
-    width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.surface,
+    width: 44, height: 44, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
   },
   exercisePickName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
   exercisePickSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
 
   addCircle: {
-    width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: CoachColors.border,
+    width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   addCircleActive: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
+    width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1712,22 +1712,22 @@ const s = StyleSheet.create({
   modalLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, marginBottom: 8 },
   urlInputRow: { flexDirection: 'row', gap: 8 },
   urlInput: {
-    flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: 14,
+    flex: 1, backgroundColor: CoachColors.surface, borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: Spacing.md, paddingVertical: 14,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, borderWidth: 1, borderColor: CoachColors.border,
   },
-  urlPasteBtn: { width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
+  urlPasteBtn: { width: 44, height: 44, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.xl },
   dividerLine: { flex: 1, height: 1, backgroundColor: CoachColors.borderMuted },
   dividerText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
   videoOptionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
-  videoOptionIcon: { width: 38, height: 38, borderRadius: Radius.sm, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  videoOptionIcon: { width: 38, height: 38, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   videoOptionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   videoOptionSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   uploadingContainer: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.md },
   uploadingText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textSecondary },
 
   loadingCard: {
-    backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderWidth: 1, borderColor: CoachColors.border,
+    backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border,
     paddingVertical: 36, paddingHorizontal: 32, alignItems: 'center', width: '80%', maxWidth: 320, alignSelf: 'center', marginBottom: 'auto', marginTop: 'auto',
   },
   loadingTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 8, textAlign: 'center' },
@@ -1740,20 +1740,20 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.bg, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
     padding: Spacing.lg, paddingBottom: Spacing['2xl'], borderWidth: 1, borderColor: CoachColors.border, borderBottomWidth: 0,
   },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border, alignSelf: 'center', marginBottom: 18 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.border, alignSelf: 'center', marginBottom: 18 },
   assignTitle: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary, marginBottom: 6 },
   assignSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 20 },
   assignEmptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: Spacing.lg },
 
   clientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  clientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-  clientAvatarImg: { width: 40, height: 40, borderRadius: 20 },
+  clientAvatar: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  clientAvatarImg: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous' },
   clientAvatarText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
   clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   clientSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
-  radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  radioCircle: { width: 22, height: 22, borderRadius: 11, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioCircleActive: { borderColor: CoachColors.accent },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: CoachColors.accent },
+  radioDot: { width: 11, height: 11, borderRadius: 6, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   passTrackRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

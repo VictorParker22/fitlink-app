@@ -289,6 +289,7 @@ const st = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -317,6 +318,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 13,
   },
   tileLabel: {
@@ -357,6 +359,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
     marginTop: 8,
     overflow: 'hidden',
@@ -379,12 +382,14 @@ const st = StyleSheet.create({
     flex: 1,
     height: 5,
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
 
@@ -425,6 +430,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 13,
   },
   statValue: {

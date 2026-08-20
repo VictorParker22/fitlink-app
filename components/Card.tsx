@@ -11,7 +11,7 @@ export default function Card({ children, style, noPadding, ...rest }: CardProps)
   return (
     <View
       style={[
-        { backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderWidth: 1, borderColor: CoachColors.borderMuted, padding: Spacing.base },
+        { backgroundColor: CoachColors.surface, borderRadius: Radius.lg, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, padding: Spacing.base },
         noPadding && { padding: 0 },
         style,
       ]}

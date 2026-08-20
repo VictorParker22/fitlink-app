@@ -50,9 +50,9 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   const sizeStyles: Record<string, ViewStyle> = {
-    sm: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: Radius.sm },
+    sm: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: Radius.sm, borderCurve: 'continuous' },
     md: { paddingVertical: 10, paddingHorizontal: 20 },
-    lg: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: Radius.lg },
+    lg: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: Radius.lg, borderCurve: 'continuous' },
   };
 
   const textSizes: Record<string, number> = {
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
   },
   full: {
     width: '100%',

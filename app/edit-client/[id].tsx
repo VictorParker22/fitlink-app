@@ -179,7 +179,7 @@ export default function EditClientScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
   // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scrollContent: { paddingHorizontal: 16 },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' },
   input: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 14,
+    borderRadius: 12, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 14,
     fontFamily: CoachFonts.body, fontSize: 20, color: CoachColors.textPrimary,
   },
   textArea: { minHeight: 96, paddingTop: 12 },
@@ -197,26 +197,26 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', gap: 6 },
   statusChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: 12,
+    paddingVertical: 10, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous' },
   statusText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textSecondary },
 
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  planChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   planChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
   planChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, color: CoachColors.textSecondary },
   planChipTextActive: { color: CoachColors.accent },
 
   saveBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 8,
   },
   saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },
 
   secondaryBtn: {
-    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
   secondaryBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },

@@ -541,11 +541,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   syncDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+    borderCurve: 'continuous',
   },
   syncText: {
     fontFamily: CoachFonts.body,
@@ -562,6 +564,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     marginBottom: Spacing.lg,
   },
   demoBannerText: {
@@ -573,6 +576,7 @@ const styles = StyleSheet.create({
   // ─── Connection Banner ────────────────────
   connectCard: {
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     padding: Spacing.xl,
     alignItems: 'center',
     marginBottom: Spacing.xl,
@@ -584,6 +588,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -612,6 +617,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing['2xl'],
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
   },
   connectBtnText: {
     fontFamily: CoachFonts.bodyBold,
@@ -632,6 +638,7 @@ const styles = StyleSheet.create({
   activityCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     overflow: 'hidden',
@@ -685,6 +692,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: CoachColors.accentSofter,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xs,
   },
@@ -692,6 +700,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -714,6 +723,7 @@ const styles = StyleSheet.create({
   hrCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     padding: Spacing.xl,
@@ -734,6 +744,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    borderCurve: 'continuous',
   },
   hrBpmNumber: {
     fontFamily: CoachFonts.headingBold,
@@ -757,6 +768,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -773,6 +785,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: CoachColors.accentSofter,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     paddingVertical: Spacing.sm,
   },
   hrPillValue: {
@@ -794,6 +807,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: CoachColors.accentSofter,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     padding: Spacing.base,
   },
   restingHrLeft: {},
@@ -827,11 +841,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   restingHrBadgeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+    borderCurve: 'continuous',
   },
   restingHrBadgeText: {
     fontFamily: CoachFonts.bodySemiBold,
@@ -842,6 +858,7 @@ const styles = StyleSheet.create({
   chartCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     padding: Spacing.xl,
@@ -857,6 +874,7 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: CoachColors.textMuted,
     borderRadius: 1,
+    borderCurve: 'continuous',
     opacity: 0.5,
   },
   chartAvgText: {
@@ -895,10 +913,12 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.textMuted,
     opacity: 0.3,
     borderRadius: 1,
+    borderCurve: 'continuous',
   },
   chartBar: {
     width: '100%',
     borderRadius: 6,
+    borderCurve: 'continuous',
     minHeight: 6,
   },
   chartDayLabel: {
@@ -915,6 +935,7 @@ const styles = StyleSheet.create({
   vitalCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     padding: Spacing.base,
@@ -931,6 +952,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -991,6 +1013,7 @@ const styles = StyleSheet.create({
   weightCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     padding: Spacing.base,
@@ -1035,6 +1058,7 @@ const styles = StyleSheet.create({
   // ─── Insights ─────────────────────────────
   insightCard: {
     borderRadius: Radius.xl,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     marginBottom: Spacing.sm,
     backgroundColor: CoachColors.surface,
@@ -1062,6 +1086,7 @@ const styles = StyleSheet.create({
     height: '100%',
     minHeight: 32,
     borderRadius: 2,
+    borderCurve: 'continuous',
     position: 'absolute',
     left: 0,
     top: 0,

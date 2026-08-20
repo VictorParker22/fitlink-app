@@ -89,7 +89,7 @@ function RatingBar({ value }: { value: number }) {
 
 const rb = StyleSheet.create({
   track: { flexDirection: 'row', gap: 3, flex: 1 },
-  seg: { flex: 1, height: 5, borderRadius: 2.5 },
+  seg: { flex: 1, height: 5, borderRadius: 2.5, borderCurve: 'continuous' },
 });
 
 // ─── Single Check-In Card ─────────────────────────────────────────────────────
@@ -402,6 +402,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 16,
+    borderCurve: 'continuous',
     marginHorizontal: 16,
     marginBottom: 24,
     overflow: 'hidden',
@@ -436,6 +437,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
     borderColor: 'rgba(198,242,78,0.4)',
@@ -470,6 +472,7 @@ const c = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
     borderColor: 'rgba(198,242,78,0.4)',
@@ -497,6 +500,7 @@ const c = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
+    borderCurve: 'continuous',
     borderWidth: 1,
     backgroundColor: CoachColors.bg,
   },
@@ -544,6 +548,7 @@ const c = StyleSheet.create({
   textBlock: {
     backgroundColor: CoachColors.bg,
     borderRadius: 10,
+    borderCurve: 'continuous',
     padding: 12,
     gap: 4,
   },
@@ -578,6 +583,7 @@ const c = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 10,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontFamily: CoachFonts.body,
@@ -592,6 +598,7 @@ const c = StyleSheet.create({
     gap: 6,
     minHeight: 40,
     borderRadius: 10,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   replyBtnDisabled: {

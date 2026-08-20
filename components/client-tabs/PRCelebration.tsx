@@ -343,7 +343,7 @@ const s = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 18, padding: 16, marginTop: 24,
+    borderRadius: 18, borderCurve: 'continuous', padding: 16, marginTop: 24,
   },
   chartRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 76 },
   chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
@@ -360,7 +360,7 @@ const s = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 18, padding: 15, marginTop: 12,
+    borderRadius: 18, borderCurve: 'continuous', padding: 15, marginTop: 12,
   },
   tellEyebrow: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
@@ -373,12 +373,12 @@ const s = StyleSheet.create({
   tellInput: {
     backgroundColor: '#1E211D',
     borderWidth: 1, borderColor: '#2E322B',
-    borderRadius: 13, padding: 13, marginTop: 12,
+    borderRadius: 13, borderCurve: 'continuous', padding: 13, marginTop: 12,
     fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
     lineHeight: 22.5, minHeight: 74, textAlignVertical: 'top',
   },
   sendBtn: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 11, alignItems: 'center', marginTop: 11,
   },
   sendBtnDone: { borderColor: 'rgba(198,242,78,0.4)', backgroundColor: CoachColors.accentSofter },
@@ -394,12 +394,12 @@ const s = StyleSheet.create({
     marginTop: 12, paddingHorizontal: 4, paddingVertical: 2,
   },
   squadBox: {
-    width: 20, height: 20, borderRadius: 6, marginTop: 1,
+    width: 20, height: 20, borderRadius: 6, borderCurve: 'continuous', marginTop: 1,
     borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   squadBoxOn: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
-  squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: CoachColors.accent },
+  squadTick: { width: 10, height: 10, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
   squadLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   squadHint: {
     fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
@@ -408,7 +408,7 @@ const s = StyleSheet.create({
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
   doneBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16, alignItems: 'center',
   },
   doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },

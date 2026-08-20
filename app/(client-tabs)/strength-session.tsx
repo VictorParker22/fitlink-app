@@ -1248,11 +1248,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 16,
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 15, marginTop: 18,
+    borderRadius: 14, borderCurve: 'continuous', padding: 15, marginTop: 18,
   },
   targetsList: { flex: 1, gap: 8 },
   targetRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  targetDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: CoachColors.accent },
+  targetDot: { width: 7, height: 7, borderRadius: 4, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
   targetDotSecondary: { backgroundColor: CoachColors.accentSoft },
   targetRowText: {
     flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14,
@@ -1261,7 +1261,7 @@ const s = StyleSheet.create({
   exCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden',
   },
   exRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -1275,7 +1275,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1E211D',
   },
   startBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16, alignItems: 'center',
   },
   startBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
@@ -1292,7 +1292,7 @@ const s = StyleSheet.create({
   },
   allExBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 6, paddingHorizontal: 11,
   },
   allExBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
@@ -1301,20 +1301,20 @@ const s = StyleSheet.create({
     color: CoachColors.textPrimary, marginTop: 7,
   },
   liveMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 },
-  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: CoachColors.accent },
+  liveClock: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: CoachColors.accent, fontVariant: ['tabular-nums'] },
   liveMetaDot: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textFaint },
   liveExCount: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   progressTrack: {
-    height: 3, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
+    height: 3, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     marginTop: 12, overflow: 'hidden',
   },
-  progressFill: { height: 3, borderRadius: 999, backgroundColor: CoachColors.accent },
+  progressFill: { height: 3, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   // ── Focus card ──
   focusCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 18, padding: 16,
+    borderRadius: 18, borderCurve: 'continuous', padding: 16,
   },
   focusName: {
     fontFamily: CoachFonts.headingBold, fontSize: 23.5, lineHeight: 29,
@@ -1326,18 +1326,18 @@ const s = StyleSheet.create({
   },
   tagRow: { flexDirection: 'row', gap: 7, marginTop: 10, flexWrap: 'wrap' },
   tag: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 4, paddingHorizontal: 10,
   },
   tagText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary },
   focusImage: {
-    width: '100%', height: 180, borderRadius: 14, marginTop: 14,
+    width: '100%', height: 180, borderRadius: 14, borderCurve: 'continuous', marginTop: 14,
     backgroundColor: CoachColors.bg,
   },
   instrBlock: { marginTop: 14, gap: 7 },
   instrLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   instrDot: {
-    width: 5, height: 5, borderRadius: 3, backgroundColor: CoachColors.accent,
+    width: 5, height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     marginTop: 7,
   },
   instrText: {
@@ -1354,7 +1354,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 15,
     marginTop: 14,
   },
   lastTimeText: {
@@ -1367,19 +1367,19 @@ const s = StyleSheet.create({
   logBlock: {
     backgroundColor: '#1E211D',
     borderWidth: 1.5, borderColor: CoachColors.accent,
-    borderRadius: 16, padding: 15, marginTop: 14,
+    borderRadius: 16, borderCurve: 'continuous', padding: 15, marginTop: 14,
   },
   activeTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   suggestChip: {
     alignSelf: 'flex-start',
     backgroundColor: CoachColors.accentSofter,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
-    borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12,
+    borderRadius: 999, borderCurve: 'continuous', paddingVertical: 7, paddingHorizontal: 12,
     marginBottom: 12,
   },
   suggestChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
   activeBadge: {
-    width: 26, height: 26, borderRadius: 8,
+    width: 26, height: 26, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -1387,14 +1387,15 @@ const s = StyleSheet.create({
   numbersRow: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' },
   numberInput: {
     fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary,
+    fontVariant: ['tabular-nums'],
     minWidth: 52, paddingVertical: 2, paddingHorizontal: 4, textAlign: 'center',
-    borderBottomWidth: 1, borderBottomColor: '#33382F',
+    borderBottomWidth: 1, borderBottomColor: CoachColors.border,
   },
   numberUnit: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   numberTimes: { fontFamily: CoachFonts.body, fontSize: 14.5, color: '#4E5449', marginHorizontal: 4 },
   stepRow: { flexDirection: 'row', gap: 7, marginTop: 12 },
   stepBtn: {
-    flex: 1, borderWidth: 1, borderColor: '#33382F', borderRadius: 10,
+    flex: 1, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 10, borderCurve: 'continuous',
     paddingVertical: 11, alignItems: 'center',
   },
   stepBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
@@ -1404,7 +1405,7 @@ const s = StyleSheet.create({
   feelPrompt: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   feelRow: { flexDirection: 'row', gap: 7, marginTop: 10 },
   feelChip: {
-    flex: 1, borderWidth: 1, borderColor: '#33382F', borderRadius: 12,
+    flex: 1, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, borderCurve: 'continuous',
     paddingVertical: 12, alignItems: 'center',
   },
   feelChipActive: {
@@ -1415,14 +1416,14 @@ const s = StyleSheet.create({
   feelChipTextActive: { fontFamily: CoachFonts.bodyBold, color: CoachColors.accent },
   logCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   restBubble: {
-    minWidth: 52, minHeight: 52, borderRadius: 26,
+    minWidth: 52, minHeight: 52, borderRadius: 26, borderCurve: 'continuous',
     borderWidth: 1, borderColor: '#2E322B',
     alignItems: 'center', justifyContent: 'center',
   },
-  restTime: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: '#C9CEC2' },
+  restTime: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: '#C9CEC2', fontVariant: ['tabular-nums'] },
   restLabel: { fontFamily: CoachFonts.body, fontSize: 9, color: CoachColors.textFaint, letterSpacing: 0.6 },
   logBtn: {
-    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16, alignItems: 'center',
   },
   logBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17.5, color: CoachColors.onAccent },
@@ -1433,10 +1434,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 15,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 15,
   },
   doneSetBadge: {
-    width: 26, height: 26, borderRadius: 8,
+    width: 26, height: 26, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -1451,7 +1452,7 @@ const s = StyleSheet.create({
   railContent: { paddingHorizontal: 20, gap: 7 },
   railPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 7, paddingHorizontal: 12,
     backgroundColor: CoachColors.surface,
   },
@@ -1476,7 +1477,7 @@ const s = StyleSheet.create({
   },
   prevBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, paddingHorizontal: 22,
     backgroundColor: CoachColors.surface,
   },
@@ -1485,7 +1486,7 @@ const s = StyleSheet.create({
   prevBtnTextDisabled: { color: CoachColors.textFaint },
   nextBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16,
   },
   nextBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },

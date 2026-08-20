@@ -864,7 +864,7 @@ const s = StyleSheet.create({
   // Overlay chrome sitting on live camera footage keeps black scrims +
   // white-on-video text for legibility (media-player exception).
   iconBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
@@ -874,24 +874,25 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   liveBadgeActive: { backgroundColor: CoachColors.dangerSoft, borderColor: CoachColors.danger },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.4)' },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, borderCurve: 'continuous', backgroundColor: 'rgba(255,255,255,0.4)' },
   liveDotActive: { backgroundColor: CoachColors.danger },
   liveBadgeText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
   liveBadgeTextActive: { color: CoachColors.danger },
-  timerText: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: 'rgba(255,255,255,0.75)', letterSpacing: 0.5 },
+  timerText: { fontFamily: CoachFonts.headingBold, fontSize: 15.5, color: 'rgba(255,255,255,0.75)', letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
   viewerPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full,
+    borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderCurve: 'continuous',
   },
-  viewerPillText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: 'rgba(255,255,255,0.7)' },
+  viewerPillText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', fontVariant: ['tabular-nums'] },
 
   pinnedBanner: {
     flexDirection: 'row', alignItems: 'flex-start',
     backgroundColor: 'rgba(0,0,0,0.72)', borderLeftWidth: 3, borderLeftColor: CoachColors.accent,
-    borderRadius: Radius.xs, marginHorizontal: Spacing.md,
+    borderRadius: Radius.xs, borderCurve: 'continuous', marginHorizontal: Spacing.md,
     paddingHorizontal: 10, paddingVertical: 8, gap: 4,
   },
   pinnedSender: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.accent, marginBottom: 2 },
@@ -900,7 +901,7 @@ const s = StyleSheet.create({
   chatOverlay: { justifyContent: 'flex-end', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
   chatOverlayBubble: {
     flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: Radius.xs,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: Radius.xs, borderCurve: 'continuous',
     paddingHorizontal: 8, paddingVertical: 5, marginBottom: 4,
     alignSelf: 'flex-start', maxWidth: '75%',
   },
@@ -910,7 +911,7 @@ const s = StyleSheet.create({
   markerToast: {
     position: 'absolute', top: 80, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: Radius.full,
+    backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: Radius.full, borderCurve: 'continuous',
     paddingHorizontal: 16, paddingVertical: 8,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
@@ -927,7 +928,7 @@ const s = StyleSheet.create({
   panelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 2, textTransform: 'uppercase' },
   panelHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   panelSubtitle: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
-  liveDotSmall: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: CoachColors.textFaint },
+  liveDotSmall: { width: 5, height: 5, borderRadius: 2.5, borderCurve: 'continuous', backgroundColor: CoachColors.textFaint },
   liveDotSmallActive: { backgroundColor: CoachColors.danger },
   panelScroll: { flex: 1 },
 
@@ -940,7 +941,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted, gap: 10,
   },
-  activityDot: { width: 6, height: 6, borderRadius: 3 },
+  activityDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous' },
   activityLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   activityTime: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint, marginTop: 2 },
 
@@ -951,11 +952,11 @@ const s = StyleSheet.create({
 
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: Spacing.sm, gap: 8 },
   quickActionTile: {
-    width: '30%', flexGrow: 1, borderRadius: Radius.sm,
+    width: '30%', flexGrow: 1, borderRadius: Radius.sm, borderCurve: 'continuous',
     padding: Spacing.sm, alignItems: 'center', gap: 6, minHeight: 72,
     justifyContent: 'center', borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  quickActionIconBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  quickActionIconBg: { width: 36, height: 36, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   quickActionLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 10, letterSpacing: 0.5, textAlign: 'center' },
 
   dock: {
@@ -970,19 +971,20 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: CoachColors.accent, paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6,
   },
   goLiveDockBtnLive: { backgroundColor: CoachColors.danger, shadowColor: CoachColors.danger },
   goLiveDockBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent, letterSpacing: 0.8 },
 
   errorText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary, marginBottom: 20, marginTop: 12, textAlign: 'center' },
-  backBtnAlt: { backgroundColor: CoachColors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.xs },
+  backBtnAlt: { backgroundColor: CoachColors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.xs, borderCurve: 'continuous' },
   backBtnAltText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textPrimary },
 
   recapContainer: { flex: 1, backgroundColor: CoachColors.bg, justifyContent: 'center', paddingHorizontal: Spacing.lg },
   recapCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1,
-    borderColor: CoachColors.border, borderRadius: Radius.md,
+    borderColor: CoachColors.border, borderRadius: Radius.md, borderCurve: 'continuous',
     padding: Spacing.xl, alignItems: 'center',
   },
   recapTag: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 2, marginBottom: 4, textTransform: 'uppercase' },
@@ -990,7 +992,7 @@ const s = StyleSheet.create({
   recapSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl },
   recapStatsRow: {
     flexDirection: 'row', backgroundColor: CoachColors.bg,
-    borderRadius: Radius.sm, paddingVertical: 14, paddingHorizontal: 16,
+    borderRadius: Radius.sm, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 16,
     marginBottom: Spacing.xl, width: '100%', justifyContent: 'space-around', alignItems: 'center',
   },
   recapStatBox: { alignItems: 'center' },
@@ -999,7 +1001,7 @@ const s = StyleSheet.create({
   recapStatDivider: { width: 1, height: 28, backgroundColor: CoachColors.border },
   saveVodBtn: {
     backgroundColor: CoachColors.accent, width: '100%', paddingVertical: 16,
-    borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center',
+    borderRadius: Radius.md, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8, marginBottom: 12,
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },

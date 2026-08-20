@@ -25,7 +25,7 @@ export default function ExerciseThumbnail({
   const renderContent = () => {
     if (imageUrl && failedUrl !== imageUrl) {
       return (
-        <View style={{ width: '100%', height: '100%', borderRadius: 8, overflow: 'hidden' }}>
+        <View style={{ width: '100%', height: '100%', borderRadius: 8, borderCurve: 'continuous', overflow: 'hidden' }}>
           <Image
             source={proxyGifStill(imageUrl)}
             style={{ width: '100%', height: '100%' }}
@@ -66,6 +66,7 @@ export default function ExerciseThumbnail({
 const styles = StyleSheet.create({
   container: {
     borderRadius: 8,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -74,6 +75,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -85,6 +87,7 @@ const styles = StyleSheet.create({
     width: '36%',
     height: '36%',
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',

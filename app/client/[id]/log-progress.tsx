@@ -286,39 +286,39 @@ export default function LogProgressScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  closeBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 36, height: 36, borderRadius: 8, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20 },
   
   scrollContent: { padding: 16 },
   
   clientBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20, alignSelf: 'center' },
-  clientAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  clientAvatar: { width: 24, height: 24, borderRadius: 12, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   clientAvatarText: { color: CoachColors.textPrimary, fontSize: 13.5, fontFamily: CoachFonts.bodyBold },
   clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
 
-  inputGroup: { padding: 10, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
+  inputGroup: { padding: 10, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, marginBottom: 10 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
-  unitToggle: { flexDirection: 'row', backgroundColor: CoachColors.bg, borderRadius: 8, overflow: 'hidden' },
+  unitToggle: { flexDirection: 'row', backgroundColor: CoachColors.bg, borderRadius: 8, borderCurve: 'continuous', overflow: 'hidden' },
   unitBtn: { paddingHorizontal: 10, paddingVertical: 4 },
   unitText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5 },
   
-  input: { height: 58, borderRadius: 8, paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 19 },
-  textArea: { minHeight: 120, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19 },
+  input: { height: 58, borderRadius: 8, borderCurve: 'continuous', paddingHorizontal: 10, fontFamily: CoachFonts.body, fontSize: 19 },
+  textArea: { minHeight: 120, borderRadius: 8, borderCurve: 'continuous', padding: 10, fontFamily: CoachFonts.body, fontSize: 19 },
 
-  measurementsToggle: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12, marginBottom: 10 },
+  measurementsToggle: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12, borderCurve: 'continuous', marginBottom: 10 },
   measurementsToggleText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 17, marginLeft: 6 },
 
-  measurementsContainer: { padding: 10, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
+  measurementsContainer: { padding: 10, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, marginBottom: 10 },
   measRow: { flexDirection: 'row', gap: 10 },
   measInputWrap: { flex: 1 },
   measLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, marginBottom: 4 },
 
   sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 6 },
-  photoContainer: { height: 200, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  photoContainer: { height: 200, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, overflow: 'hidden' },
   photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  photoIconRing: { width: 48, height: 48, borderRadius: 24, backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  photoIconRing: { width: 48, height: 48, borderRadius: 24, borderCurve: 'continuous', backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   photoTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17 },
   photoSub: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 4, textAlign: 'center' },
 
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   footer: { padding: 16, borderTopWidth: 1 },
 
   saveBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
   },
   saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },

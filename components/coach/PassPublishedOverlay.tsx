@@ -91,7 +91,7 @@ const s = StyleSheet.create({
     width: '100%',
   },
   checkCircle: {
-    width: 68, height: 68, borderRadius: 34,
+    width: 68, height: 68, borderRadius: 34, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 22,
@@ -109,7 +109,7 @@ const s = StyleSheet.create({
     textAlign: 'center', lineHeight: 23.5, marginTop: 12,
   },
   doneBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, paddingHorizontal: 48, marginTop: 28,
   },
   doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },

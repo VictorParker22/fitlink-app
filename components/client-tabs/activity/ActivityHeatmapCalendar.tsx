@@ -255,6 +255,7 @@ const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
     borderRadius: Radius['2xl'],
+    borderCurve: 'continuous',
     padding: CALENDAR_PADDING,
     width: '100%',
     backgroundColor: CoachColors.surface,
@@ -278,6 +279,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -308,6 +310,7 @@ const styles = StyleSheet.create({
     width: CELL_SIZE,
     height: CELL_SIZE,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -327,6 +330,7 @@ const styles = StyleSheet.create({
   todayGlow: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
   },
   cellText: {
@@ -342,6 +346,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 12,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 1,
     backgroundColor: CoachColors.bg,
     borderColor: CoachColors.borderMuted,
@@ -386,6 +391,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     paddingHorizontal: 8,
     paddingVertical: 10,
     flex: 1,
@@ -421,5 +427,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 6,
     borderRadius: 3,
+    borderCurve: 'continuous',
   }
 });

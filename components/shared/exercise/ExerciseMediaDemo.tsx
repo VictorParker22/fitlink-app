@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.bg,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -105,6 +106,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     alignSelf: 'flex-start',
   },
   watchVideoText: {
@@ -120,6 +122,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     marginBottom: Spacing.xl,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: CoachColors.bg,

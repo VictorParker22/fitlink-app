@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginBottom: 14,
     borderRadius: 8,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -283,6 +284,7 @@ const styles = StyleSheet.create({
   cardButton: {
     backgroundColor: CoachColors.accent,
     borderRadius: 4,
+    borderCurve: 'continuous',
     paddingVertical: 14,
     paddingHorizontal: 48,
     alignItems: 'center',

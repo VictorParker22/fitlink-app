@@ -107,7 +107,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -128,7 +128,7 @@ const s = StyleSheet.create({
 
   topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   topicChip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   topicChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
@@ -137,7 +137,7 @@ const s = StyleSheet.create({
 
   textArea: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 16, minHeight: 168,
+    borderRadius: 14, borderCurve: 'continuous', padding: 16, minHeight: 168,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, lineHeight: 22.5,
   },
 
@@ -145,7 +145,7 @@ const s = StyleSheet.create({
 
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15, marginTop: 24,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15, marginTop: 24,
   },
   sendBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
 

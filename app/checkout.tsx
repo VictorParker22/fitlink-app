@@ -314,18 +314,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, letterSpacing: -0.3, color: CoachColors.textPrimary },
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 },
 
   summaryCard: {
-    alignItems: 'center', paddingVertical: 28, paddingHorizontal: 18, borderRadius: 16,
+    alignItems: 'center', paddingVertical: 28, paddingHorizontal: 18, borderRadius: 16, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   planBadge: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 48, height: 48, borderRadius: 14, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
@@ -338,11 +338,11 @@ const styles = StyleSheet.create({
 
   statusCard: { alignItems: 'center', paddingVertical: 24, gap: 10 },
   statusIconSuccess: {
-    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    width: 60, height: 60, borderRadius: 30, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.accent,
   },
   statusIconError: {
-    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    width: 60, height: 60, borderRadius: 30, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.dangerSoft,
   },
   statusTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, letterSpacing: -0.3, color: CoachColors.textPrimary },
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
 
   payBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    minHeight: 54, borderRadius: 27, backgroundColor: CoachColors.accent, paddingHorizontal: 20,
+    minHeight: 54, borderRadius: 27, borderCurve: 'continuous', backgroundColor: CoachColors.accent, paddingHorizontal: 20,
   },
   payBtnDisabled: { opacity: 0.7 },
   payBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17.5, color: CoachColors.onAccent },
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
   errorText: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, textAlign: 'center' },
   errorBtn: {
-    minHeight: 44, borderRadius: 22, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
+    minHeight: 44, borderRadius: 22, borderCurve: 'continuous', paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   errorBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },

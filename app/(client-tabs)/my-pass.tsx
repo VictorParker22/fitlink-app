@@ -557,7 +557,7 @@ const s = StyleSheet.create({
   switcher: { marginBottom: 14, marginHorizontal: -20 },
   switcherContent: { paddingHorizontal: 20, gap: 8 },
   switcherChip: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 8, maxWidth: 220,
   },
   switcherChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
@@ -565,7 +565,7 @@ const s = StyleSheet.create({
   switcherChipTextActive: { color: CoachColors.accent },
 
   // Hero (mirrors create-plan step-5 preview card)
-  heroCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: CoachColors.borderMuted },
+  heroCard: { borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 1, borderColor: CoachColors.borderMuted },
   hero: { backgroundColor: CoachColors.accent, padding: 20 },
   // Photo variant: taller so the image can breathe, content pushed to the
   // bottom edge where the scrim is strongest.
@@ -578,7 +578,7 @@ const s = StyleSheet.create({
   heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   heroBadge: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(16,18,16,0.14)',
-    borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
+    borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 11, paddingVertical: 5,
   },
   heroBadgeText: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent,
@@ -589,9 +589,9 @@ const s = StyleSheet.create({
   heroBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
 
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  coachAvatar: { width: 40, height: 40, borderRadius: 20 },
+  coachAvatar: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous' },
   coachAvatarFallback: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: CoachColors.borderMuted,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   coachInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.accent },
@@ -601,7 +601,7 @@ const s = StyleSheet.create({
   statRow: { flexDirection: 'row', gap: 8 },
   statCell: {
     flex: 1, alignItems: 'center', paddingVertical: 12,
-    backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   statNum: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary },
   statLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
@@ -614,7 +614,7 @@ const s = StyleSheet.create({
   weekRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 13, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 14,
   },
   weekChip: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: 13, color: CoachColors.accent,
@@ -660,7 +660,7 @@ const s = StyleSheet.create({
   footerPrice: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
   footerPeriod: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted },
   footerCta: {
-    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, alignItems: 'center',
   },
   footerCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
@@ -669,7 +669,7 @@ const s = StyleSheet.create({
   // Enrolled summary
   enrolledCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 18, padding: 18, marginBottom: 16,
+    borderRadius: 18, borderCurve: 'continuous', padding: 18, marginBottom: 16,
   },
   enrolledEyebrow: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint,
@@ -679,7 +679,7 @@ const s = StyleSheet.create({
   enrolledWeek: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, marginTop: 4 },
   enrolledCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, marginTop: 16,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, marginTop: 16,
   },
   enrolledCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 

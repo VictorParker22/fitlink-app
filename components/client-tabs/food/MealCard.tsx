@@ -150,13 +150,13 @@ export default function MealCard({
 }
 
 const st = StyleSheet.create({
-  card: { borderRadius: 30, padding: 20, backgroundColor: CoachColors.surface },
+  card: { borderRadius: 30, borderCurve: 'continuous', padding: 20, backgroundColor: CoachColors.surface },
   topRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  plate: { width: 92, height: 92, borderRadius: 46, backgroundColor: 'rgba(0,0,0,0.06)' },
+  plate: { width: 92, height: 92, borderRadius: 46, borderCurve: 'continuous', backgroundColor: 'rgba(0,0,0,0.06)' },
   plateEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, backgroundColor: 'transparent' },
   swapBtn: {
     position: 'absolute', top: 20, right: 20,
-    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
   },
   title: {
     fontFamily: F.headingBold, fontSize: 30, lineHeight: 33.5,
@@ -164,5 +164,5 @@ const st = StyleSheet.create({
   },
   bottomRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 10 },
   meta: { fontFamily: F.bodyMedium, fontSize: 14.5, marginBottom: 6 },
-  arrowBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  arrowBtn: { width: 52, height: 52, borderRadius: 26, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 });

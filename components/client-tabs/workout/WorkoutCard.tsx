@@ -360,6 +360,7 @@ export default function WorkoutCard({
 const st = StyleSheet.create({
   card: {
     borderRadius: 30,
+    borderCurve: 'continuous',
     padding: 20,
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -387,7 +388,7 @@ const st = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  chip: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9 },
+  chip: { borderRadius: 999, borderCurve: 'continuous', paddingVertical: 3, paddingHorizontal: 9 },
   chipText: { fontFamily: F.bodyBold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' },
 
   title: {
@@ -410,12 +411,13 @@ const st = StyleSheet.create({
 
   bottomRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 12 },
   meta: { fontFamily: F.bodyMedium, fontSize: 14.5, color: C.textMuted, marginBottom: 6 },
-  actionBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  actionBtnHero: { width: 58, height: 58, borderRadius: 29 },
+  actionBtn: { width: 52, height: 52, borderRadius: 26, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  actionBtnHero: { width: 58, height: 58, borderRadius: 29, borderCurve: 'continuous' },
 
   cta: {
     backgroundColor: C.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 14,
@@ -429,6 +431,7 @@ const st = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.accentSoft,

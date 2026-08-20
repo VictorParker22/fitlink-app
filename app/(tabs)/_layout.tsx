@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
     height: BAR_H,
     backgroundColor: CoachColors.surface,
     borderRadius: BAR_H / 2,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     ...Platform.select({
@@ -291,6 +292,7 @@ const styles = StyleSheet.create({
     width: ACTIVE_SIZE,
     height: ACTIVE_SIZE,
     borderRadius: ACTIVE_SIZE / 2,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(255,255,255,0.11)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
@@ -330,6 +332,7 @@ const styles = StyleSheet.create({
     width: WELL_SIZE,
     height: WELL_SIZE,
     borderRadius: WELL_SIZE / 2,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
@@ -354,6 +357,7 @@ const styles = StyleSheet.create({
     // minHeight so the unread count is not clipped at large Dynamic Type sizes.
     minHeight: 16,
     borderRadius: 8,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',

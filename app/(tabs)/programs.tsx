@@ -359,35 +359,35 @@ function PassCard({
 }
 
 const passStyles = StyleSheet.create({
-  card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, padding: 16 },
-  coverThumb: { width: 64, height: 40, borderRadius: 8, marginRight: 12, backgroundColor: CoachColors.bg },
+  card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, borderCurve: 'continuous', padding: 16 },
+  coverThumb: { width: 64, height: 40, borderRadius: 8, borderCurve: 'continuous', marginRight: 12, backgroundColor: CoachColors.bg },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, flexShrink: 1 },
   cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3 },
   cohortTag: {
-    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderCurve: 'continuous',
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
     backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
   cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.accent, letterSpacing: 0.7 },
   badge: {
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 8, paddingVertical: 3,
   },
   badgeActive: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
   badgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.3 },
   badgeTextActive: { color: CoachColors.accent },
   badgeWarning: {
-    borderWidth: 1, borderColor: 'rgba(224,184,78,0.4)', borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(224,184,78,0.4)', borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 8, paddingVertical: 3,
   },
   badgeWarningText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.warning, letterSpacing: 0.3 },
   holderCount: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
 
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
-  progressTrack: { flex: 1, height: 5, borderRadius: 999, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999 },
+  progressTrack: { flex: 1, height: 5, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous' },
   progressLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
 
   warningText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.warning, marginTop: 12, lineHeight: 20 },
@@ -397,7 +397,7 @@ const passStyles = StyleSheet.create({
   metaText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
 
   buildTrackBtn: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 10, alignItems: 'center', marginTop: 12,
   },
   buildTrackBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.accent },
@@ -414,18 +414,18 @@ const passStyles = StyleSheet.create({
   autoflowStepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textMuted },
   autoflowPicker: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.border, padding: 12,
+    backgroundColor: CoachColors.bg, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border, padding: 12,
   },
   autoflowPickerFilled: { borderColor: 'rgba(198,242,78,0.3)' },
-  autoflowPickerIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  autoflowPickerIcon: { width: 32, height: 32, borderRadius: 8, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
   autoflowPickerName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
   autoflowPickerSub: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted },
   autoflowPickerPlaceholder: { flex: 1, fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textFaint },
   autoflowInput: {
-    backgroundColor: CoachColors.bg, borderRadius: 12, borderWidth: 1, borderColor: CoachColors.border,
+    backgroundColor: CoachColors.bg, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border,
     padding: 12, minHeight: 89, fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textPrimary, lineHeight: 20,
   },
-  autoflowSaveBtn: { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
+  autoflowSaveBtn: { backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, alignItems: 'center', marginTop: 16 },
   autoflowSaveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   pickerSheet: {
@@ -437,7 +437,7 @@ const passStyles = StyleSheet.create({
   pickerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, padding: 12, marginBottom: 10,
+    borderRadius: 12, borderCurve: 'continuous', padding: 12, marginBottom: 10,
   },
   pickerRowActive: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
   pickerRowName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
@@ -488,10 +488,10 @@ function PassesEmpty({ onBuildFirst }: { onBuildFirst: () => void }) {
 
 const passEmptyStyles = StyleSheet.create({
   wrap: { paddingHorizontal: 20, paddingTop: 10 },
-  card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
+  card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
   cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, lineHeight: 27 },
   cardBody: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 9, lineHeight: 21.5 },
-  cta: { backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
+  cta: { backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, alignItems: 'center', marginTop: 16 },
   ctaText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
   ctaHint: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, textAlign: 'center', marginTop: 9 },
 
@@ -503,7 +503,7 @@ const passEmptyStyles = StyleSheet.create({
   ghostRow: { flexDirection: 'row', gap: 14 },
   ghostRail: { alignItems: 'center' },
   ghostMarker: {
-    width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: CoachColors.border,
+    width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   ghostMarkerText: { fontFamily: CoachFonts.headingBold, fontSize: 13.5, color: CoachColors.textSecondary },
@@ -1183,6 +1183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
+    borderCurve: 'continuous',
     marginTop: 2,
   },
   headerAddText: {
@@ -1225,6 +1226,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 999,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
   },
@@ -1253,6 +1255,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     backgroundColor: CoachColors.surface,
@@ -1296,6 +1299,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1340,6 +1344,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(198,242,78,0.35)',
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     marginLeft: 8,
   },
   customBadgeText: {
@@ -1355,6 +1360,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.warning,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     marginLeft: 8,
   },
   popularBadgeText: {
@@ -1368,6 +1374,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderWidth: 1,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   pillBadgeText: {
@@ -1416,6 +1423,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 3,
     borderRadius: 2,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.border,
     alignSelf: 'center',
     marginBottom: 16,
@@ -1434,6 +1442,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.bg,
     padding: 14,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     marginBottom: 10,
@@ -1442,6 +1451,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1464,6 +1474,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: CoachColors.bg,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
   },

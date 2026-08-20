@@ -904,14 +904,14 @@ const s = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   todayBtn: {
     paddingHorizontal: 14, paddingVertical: 9,
-    borderRadius: 10, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 10, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border,
     minHeight: 44, justifyContent: 'center',
   },
   todayBtnText: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.textPrimary,
   },
   addBtn: {
-    width: 44, height: 44, borderRadius: 12,
+    width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
   },
 
@@ -919,7 +919,7 @@ const s = StyleSheet.create({
   calendarSection: {
     marginHorizontal: W * 0.05,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 16, marginBottom: 12, overflow: 'hidden',
+    borderRadius: 16, borderCurve: 'continuous', marginBottom: 12, overflow: 'hidden',
   },
 
   // Month toggle
@@ -949,7 +949,7 @@ const s = StyleSheet.create({
   },
   dayCell: {
     flex: 1, alignItems: 'center', paddingVertical: 6,
-    borderRadius: 10, gap: 3,
+    borderRadius: 10, borderCurve: 'continuous', gap: 3,
   },
   dayCellSelected: {
     backgroundColor: CoachColors.accentSoft,
@@ -965,6 +965,7 @@ const s = StyleSheet.create({
   dayNum: {
     width: Math.round(W * 0.082), height: Math.round(W * 0.082),
     borderRadius: Math.round(W * 0.041),
+    borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center',
   },
   dayNumSel:   { backgroundColor: CoachColors.accent },
@@ -979,7 +980,7 @@ const s = StyleSheet.create({
   dotRow: { flexDirection: 'row', gap: 2, height: 5, alignItems: 'center' },
   dot: {
     width: Math.round(W * 0.011), height: Math.round(W * 0.011),
-    borderRadius: 99, backgroundColor: CoachColors.border,
+    borderRadius: 99, borderCurve: 'continuous', backgroundColor: CoachColors.border,
   },
   dotSel: { backgroundColor: CoachColors.accent },
 
@@ -993,7 +994,7 @@ const s = StyleSheet.create({
   },
   sessionCountPill: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderCurve: 'continuous',
   },
   sessionCountText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.028),
@@ -1022,7 +1023,7 @@ const s = StyleSheet.create({
     color: CoachColors.textFaint, marginTop: 1,
   },
   timeLine: {
-    width: 2, borderRadius: 1, backgroundColor: CoachColors.borderMuted,
+    width: 2, borderRadius: 1, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     marginTop: 4, marginBottom: 14,
   },
   timeLineNext: { backgroundColor: CoachColors.accent },
@@ -1030,14 +1031,14 @@ const s = StyleSheet.create({
   cardWrap: { flex: 1, paddingBottom: 14 },
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 14,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14,
   },
   cardCompleted: { backgroundColor: 'transparent', borderStyle: 'solid' },
   cardNext: { borderColor: CoachColors.border },
 
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   groupAvatar: {
-    width: 32, height: 32, borderRadius: 8, backgroundColor: CoachColors.borderMuted,
+    width: 32, height: 32, borderRadius: 8, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   cardInfo: { flex: 1 },
@@ -1052,7 +1053,7 @@ const s = StyleSheet.create({
   },
   cardMetaCancelled: { color: CoachColors.danger },
   statusBadge: {
-    width: 28, height: 28, borderRadius: 8,
+    width: 28, height: 28, borderRadius: 8, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.borderMuted,
   },
 
@@ -1060,7 +1061,7 @@ const s = StyleSheet.create({
   gapRow: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
   gapTimeCol: { width: W * 0.14 },
   gapLine: {
-    width: 2, borderRadius: 1, backgroundColor: CoachColors.borderMuted,
+    width: 2, borderRadius: 1, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
   },
   gapLabelWrap: { flex: 1, justifyContent: 'center', alignItems: 'flex-start' },
   gapLabel: {
@@ -1076,7 +1077,7 @@ const s = StyleSheet.create({
   },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 11, borderRadius: 10,
+    gap: 5, paddingVertical: 11, borderRadius: 10, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border, minHeight: 44,
   },
   actionText: {
@@ -1090,7 +1091,7 @@ const s = StyleSheet.create({
   },
   statTile: {
     flex: 1, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, paddingVertical: 12, paddingHorizontal: 12,
+    borderRadius: 12, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 12,
   },
   statTileLabel: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.026), color: CoachColors.textMuted,
@@ -1109,7 +1110,7 @@ const s = StyleSheet.create({
   // Free day / nothing booked yet card (shared shape, turns 5b + 10c)
   freeDayCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 16, padding: 18,
+    borderRadius: 16, borderCurve: 'continuous', padding: 18,
   },
   freeDayTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.045), color: CoachColors.textPrimary,
@@ -1135,14 +1136,14 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.03), color: CoachColors.accent,
   },
   freeDayCta: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 13, alignItems: 'center', marginTop: 16, minHeight: 44, justifyContent: 'center',
   },
   freeDayCtaText: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: Math.round(W * 0.035), color: CoachColors.onAccent,
   },
   freeDaySecondaryCta: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 11, alignItems: 'center', marginTop: 9, minHeight: 44, justifyContent: 'center',
   },
   freeDaySecondaryCtaText: {

@@ -90,7 +90,7 @@ const s = StyleSheet.create({
     width: '100%',
   },
   mascotWrap: {
-    width: 104, height: 104, borderRadius: 52,
+    width: 104, height: 104, borderRadius: 52, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSofter,
     borderWidth: 1, borderColor: CoachColors.accentSoft,
     alignItems: 'center', justifyContent: 'center',
@@ -109,7 +109,7 @@ const s = StyleSheet.create({
     textAlign: 'center', lineHeight: 23.5, marginTop: 12, maxWidth: 300,
   },
   doneBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, paddingHorizontal: 48, marginTop: 28,
   },
   doneBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },

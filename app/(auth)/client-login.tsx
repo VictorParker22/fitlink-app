@@ -215,7 +215,7 @@ const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20 },
   backBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   title: {
@@ -226,7 +226,7 @@ const st = StyleSheet.create({
 
   messageBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12,
+    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   errorText: { fontFamily: F.body, fontSize: 14.5, color: C.danger, flex: 1 },
@@ -236,12 +236,12 @@ const st = StyleSheet.create({
   fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
   input: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 14, paddingVertical: 18, paddingHorizontal: 15,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 18, paddingHorizontal: 15,
     fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
   },
   passwordWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14, borderCurve: 'continuous',
   },
   showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
   showText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
@@ -250,7 +250,7 @@ const st = StyleSheet.create({
   forgotText: { fontFamily: F.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
 
   primaryBtn: {
-    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 16, alignItems: 'center',
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 16, alignItems: 'center',
   },
   primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.onAccent },
   btnDisabled: { opacity: 0.5 },

@@ -135,6 +135,7 @@ const s = StyleSheet.create({
   barTrack: {
     height: 3,
     borderRadius: 2,
+    borderCurve: 'continuous',
     backgroundColor: C.borderMuted,
     marginTop: 16,
     overflow: 'hidden',
@@ -142,6 +143,7 @@ const s = StyleSheet.create({
   barFill: {
     height: 3,
     borderRadius: 2,
+    borderCurve: 'continuous',
     backgroundColor: C.accent,
   },
   barCaption: {

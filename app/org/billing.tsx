@@ -369,7 +369,7 @@ const st = StyleSheet.create({
   orgName: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary, marginBottom: 2 },
 
   card: {
-    backgroundColor: CoachColors.surface, borderRadius: 24, padding: 20,
+    backgroundColor: CoachColors.surface, borderRadius: 24, borderCurve: 'continuous', padding: 20,
     borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 6,
   },
   cardWarn: { borderColor: CoachColors.warning },
@@ -395,12 +395,12 @@ const st = StyleSheet.create({
 
   actions: { gap: 10, marginTop: 4 },
   primary: {
-    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 16,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center', minHeight: 54,
   },
   primaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
   secondary: {
-    borderRadius: 999, paddingVertical: 15, alignItems: 'center',
+    borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15, alignItems: 'center',
     borderWidth: 1, borderColor: CoachColors.border,
   },
   secondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textSecondary },
@@ -411,7 +411,7 @@ const st = StyleSheet.create({
   emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, textAlign: 'center' },
   emptyBody: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center', lineHeight: 20 },
   retry: {
-    marginTop: 8, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 24,
+    marginTop: 8, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 24,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   retryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary },

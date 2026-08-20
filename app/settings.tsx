@@ -319,7 +319,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -336,11 +336,11 @@ const s = StyleSheet.create({
 
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 16,
+    borderRadius: 14, borderCurve: 'continuous', padding: 16,
   },
   cardFlush: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden',
   },
 
   fieldGroup: { paddingVertical: 7 },
@@ -359,7 +359,7 @@ const s = StyleSheet.create({
 
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   notifIcon: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 10, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -368,16 +368,16 @@ const s = StyleSheet.create({
 
   connectedPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: CoachColors.accentSofter, borderRadius: 999,
+    backgroundColor: CoachColors.accentSofter, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 10, paddingVertical: 5,
   },
   connectedPillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
 
-  stripeBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  stripeBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderCurve: 'continuous' },
   stripeBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
 
   saveBtn: {
-    backgroundColor: CoachColors.accent, height: 50, borderRadius: 999,
+    backgroundColor: CoachColors.accent, height: 50, borderRadius: 999, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center', marginTop: 28,
   },
   saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },

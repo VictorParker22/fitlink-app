@@ -491,6 +491,7 @@ const s = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 10,
     borderRadius: 22,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   coverEditBadge: {
@@ -500,6 +501,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -508,6 +510,7 @@ const s = StyleSheet.create({
     width: '100%',
     minHeight: 76,
     borderRadius: 22,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: CoachColors.border,
@@ -526,15 +529,15 @@ const s = StyleSheet.create({
 
   avatarWrap: { position: 'relative' },
   avatarCircle: {
-    width: 96, height: 96, borderRadius: 48,
+    width: 96, height: 96, borderRadius: 48, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: CoachColors.surface },
+  avatarImage: { width: 96, height: 96, borderRadius: 48, borderCurve: 'continuous', backgroundColor: CoachColors.surface },
   avatarInitials: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, color: CoachColors.textPrimary },
   cameraBadge: {
     position: 'absolute', bottom: -2, right: -2,
-    width: 26, height: 26, borderRadius: 13,
+    width: 26, height: 26, borderRadius: 13, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: CoachColors.bg,
   },
@@ -546,13 +549,13 @@ const s = StyleSheet.create({
 
   elitePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 5,
   },
   elitePillText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent, letterSpacing: 0.3 },
   eliteOutlinePill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 5,
   },
   eliteOutlinePillText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.accent },
@@ -569,12 +572,12 @@ const s = StyleSheet.create({
   heroActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 6 },
   actionPrimary: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 7, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13,
+    gap: 7, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13,
   },
   actionPrimaryText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
   actionSecondary: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    borderRadius: 999, paddingVertical: 13,
+    borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   actionSecondaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
@@ -585,7 +588,7 @@ const s = StyleSheet.create({
     marginTop: 22, marginBottom: 8,
   },
 
-  block: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 14, overflow: 'hidden' },
+  block: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden' },
   blockPad: { padding: 16 },
   blockRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16, paddingVertical: 15 },
   blockDivider: { height: 1, backgroundColor: CoachColors.borderMuted, marginLeft: 48 },
@@ -595,7 +598,7 @@ const s = StyleSheet.create({
 
   signOutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 9, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 14,
+    gap: 9, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 14, borderCurve: 'continuous',
     paddingVertical: 15, marginTop: 28,
   },
   signOutText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.danger },
@@ -613,7 +616,7 @@ const s = StyleSheet.create({
   },
   modalContent: {
     width: '100%', backgroundColor: CoachColors.surface,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 18, padding: 22,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 18, borderCurve: 'continuous', padding: 22,
   },
   modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
   modalMessage: {
@@ -624,11 +627,11 @@ const s = StyleSheet.create({
   modalInput: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 16,
+    borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 16,
     letterSpacing: 2, marginBottom: 18,
   },
   modalButtons: { flexDirection: 'row', gap: 10 },
-  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 13 },
+  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13 },
   modalBtnCancel: { borderWidth: 1, borderColor: CoachColors.border },
   modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   modalBtnConfirm: { backgroundColor: CoachColors.danger },

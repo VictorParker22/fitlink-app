@@ -430,6 +430,7 @@ const st = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -456,6 +457,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 18,
   },
   stateTitle: {
@@ -476,6 +478,7 @@ const st = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
   },
@@ -491,6 +494,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 14,
   },
   seatValue: {
@@ -507,11 +511,12 @@ const st = StyleSheet.create({
   barTrack: {
     height: 5,
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     overflow: 'hidden',
     marginTop: 10,
   },
-  barFill: { height: '100%', borderRadius: 999, backgroundColor: CoachColors.accent },
+  barFill: { height: '100%', borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
   tile: {
@@ -521,6 +526,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 13,
   },
   tileWide: { flexBasis: '100%' },
@@ -554,6 +560,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     marginTop: 18,
     paddingHorizontal: 14,
     paddingBottom: 4,
@@ -580,7 +587,7 @@ const st = StyleSheet.create({
 
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12 },
   coachRowDivided: { borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: CoachColors.borderMuted },
+  avatar: { width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInitials: {
     fontFamily: CoachFonts.bodyBold,
@@ -599,6 +606,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 5,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
   },
   roleChipOwner: { backgroundColor: CoachColors.accentSoft },

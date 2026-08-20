@@ -392,7 +392,7 @@ const st = StyleSheet.create({
   headerMid: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
   internal: {
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 8, paddingVertical: 2,
   },
   internalText: {
@@ -406,14 +406,14 @@ const st = StyleSheet.create({
   tabText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15, color: CoachColors.textMuted },
   tabTextOn: { color: CoachColors.textPrimary },
   badge: {
-    backgroundColor: CoachColors.danger, borderRadius: 999,
+    backgroundColor: CoachColors.danger, borderRadius: 999, borderCurve: 'continuous',
     minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
   },
   badgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: '#fff' },
 
   windowRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 12 },
   chip: {
-    borderRadius: 999, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 999, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted,
     paddingHorizontal: 12, paddingVertical: 6,
   },
   chipOn: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
@@ -424,10 +424,10 @@ const st = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   tile: {
     flexGrow: 1, flexBasis: '46%', backgroundColor: CoachColors.surface,
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 4,
+    borderRadius: 20, borderCurve: 'continuous', padding: 16, borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 4,
   },
   card: {
-    backgroundColor: CoachColors.surface, borderRadius: 20, padding: 18,
+    backgroundColor: CoachColors.surface, borderRadius: 20, borderCurve: 'continuous', padding: 18,
     borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 5,
   },
   cardAlert: { borderColor: CoachColors.danger },
@@ -447,7 +447,7 @@ const st = StyleSheet.create({
 
   rankNote: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginBottom: 2 },
   sigHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sev: { width: 8, height: 8, borderRadius: 4 },
+  sev: { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous' },
   sigTitle: { flex: 1, fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textPrimary },
   sigAgo: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
   sigSubject: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted },
@@ -458,7 +458,7 @@ const st = StyleSheet.create({
   emptyTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, textAlign: 'center' },
   emptyBody: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary, textAlign: 'center', lineHeight: 20 },
   retry: {
-    marginTop: 8, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 24,
+    marginTop: 8, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 24,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   retryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14, color: CoachColors.textPrimary },

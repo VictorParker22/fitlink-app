@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   iconBtn: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.border,
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     top: -3, right: -3,
     // minHeight, not height: the count inside scales with Dynamic Type and
     // would be clipped by a hard 16pt box at large text sizes.
-    minWidth: 16, minHeight: 16, borderRadius: 8,
+    minWidth: 16, minHeight: 16, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     color: CoachColors.onAccent,
   },
   avatarCircle: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -626,6 +626,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 18,
   },
   nextHeaderRow: {
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   liveDot: {
-    width: 7, height: 7, borderRadius: 3.5,
+    width: 7, height: 7, borderRadius: 3.5, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   nextLabel: {
@@ -663,6 +664,7 @@ const styles = StyleSheet.create({
   joinBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 11,
     paddingHorizontal: 20,
   },
@@ -675,6 +677,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
@@ -709,7 +712,7 @@ const styles = StyleSheet.create({
     width: 10,
   },
   timelineDot: {
-    width: 8, height: 8, borderRadius: 4,
+    width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: CoachColors.textFaint,
     marginTop: 5,
@@ -796,6 +799,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
@@ -846,7 +850,7 @@ const emptyStyles = StyleSheet.create({
     marginTop: 2,
   },
   avatarCircle: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -862,6 +866,7 @@ const emptyStyles = StyleSheet.create({
   primaryCta: {
     backgroundColor: CoachColors.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -884,6 +889,7 @@ const emptyStyles = StyleSheet.create({
     borderColor: CoachColors.borderMuted,
     borderStyle: 'dashed',
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 18,
   },
   placeholderTitle: {

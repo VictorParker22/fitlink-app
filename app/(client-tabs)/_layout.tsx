@@ -198,6 +198,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     borderWidth: 1.5,
     borderColor: CoachColors.bg,

@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
   },
   libraryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    height: 44, borderRadius: 22,
+    height: 44, borderRadius: 22, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border,
     paddingHorizontal: 14,
   },
@@ -1058,7 +1058,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: CoachColors.accent,
     paddingHorizontal: W * 0.04, paddingVertical: 11,
-    borderRadius: 999, minHeight: 44,
+    borderRadius: 999, borderCurve: 'continuous', minHeight: 44,
   },
   addBtnText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.onAccent,
@@ -1068,7 +1068,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, paddingHorizontal: W * 0.037, paddingVertical: 14,
+    borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: W * 0.037, paddingVertical: 14,
     gap: 10, minHeight: 53, marginHorizontal: W * 0.05, marginBottom: 12,
   },
   searchInput: {
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     paddingHorizontal: W * 0.036, paddingVertical: 8,
-    borderRadius: 999, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     minHeight: 32, justifyContent: 'center',
   },
   filterPillActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -1103,10 +1103,10 @@ const styles = StyleSheet.create({
   attnRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, gap: 12, minHeight: 44,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 13, gap: 12, minHeight: 44,
   },
   attnAvatar: {
-    width: 42, height: 42, borderRadius: 21, borderWidth: 1.5,
+    width: 42, height: 42, borderRadius: 21, borderCurve: 'continuous', borderWidth: 1.5,
     backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
   },
   attnAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 17 },
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
   attnNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   attnName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037), color: CoachColors.textPrimary, flexShrink: 1 },
   attnTag: {
-    borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2,
+    borderWidth: 1, borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 7, paddingVertical: 2,
   },
   attnTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10, letterSpacing: 0.3 },
   attnMeta: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted },
@@ -1138,10 +1138,12 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: Math.round(W * 0.108), height: Math.round(W * 0.108),
     borderRadius: Math.round(W * 0.054),
+    borderCurve: 'continuous',
   },
   avatarPlaceholder: {
     width: Math.round(W * 0.108), height: Math.round(W * 0.108),
     borderRadius: Math.round(W * 0.054),
+    borderCurve: 'continuous',
     backgroundColor: '#1E211D',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -1149,7 +1151,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     position: 'absolute', top: -2, right: -2,
     // minHeight so the unread count is not clipped at large Dynamic Type sizes.
-    minWidth: 15, minHeight: 15, borderRadius: 8,
+    minWidth: 15, minHeight: 15, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.danger,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
     borderWidth: 1.5, borderColor: CoachColors.bg,
@@ -1165,14 +1167,14 @@ const styles = StyleSheet.create({
     color: CoachColors.textPrimary, flexShrink: 1,
   },
   setupBadge: {
-    borderWidth: 1, borderColor: CoachColors.warning, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.warning, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 6, paddingVertical: 2,
   },
   setupBadgeText: {
     fontFamily: CoachFonts.bodyBold, fontSize: 9, color: CoachColors.warning, letterSpacing: 0.3,
   },
   activeTodayDot: {
-    width: 7, height: 7, borderRadius: 3.5,
+    width: 7, height: 7, borderRadius: 3.5, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   metaText: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03) },
@@ -1188,7 +1190,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 12, borderCurve: 'continuous', paddingVertical: 12, paddingHorizontal: 14,
   },
   statCardLabel: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   statCardValue: { fontFamily: CoachFonts.bodyBold, fontSize: 19, color: CoachColors.textPrimary, marginTop: 2 },
@@ -1203,7 +1205,7 @@ const styles = StyleSheet.create({
     width: BTN_W,          // responsive: W * 0.19
     minHeight: 66,         // matches card minHeight — Apple HIG ≥ 44pt
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 14, gap: 5, paddingVertical: 10,
+    borderRadius: 14, borderCurve: 'continuous', gap: 5, paddingVertical: 10,
   },
   swipeBtnLabel: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.023),
@@ -1213,22 +1215,22 @@ const styles = StyleSheet.create({
   // Requested to join (marketplace)
   requestRow: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, gap: 12,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 13, gap: 12,
   },
   requestBody: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
   requestAvatar: {
-    width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: CoachColors.accent,
+    width: 42, height: 42, borderRadius: 21, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.accent,
     backgroundColor: '#1E211D', alignItems: 'center', justifyContent: 'center',
   },
   requestAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.accent },
   requestActions: { flexDirection: 'row', gap: 8 },
   requestAcceptBtn: {
-    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
   requestAcceptText: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.034), color: CoachColors.onAccent },
   requestDeclineBtn: {
-    flex: 1, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    flex: 1, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
   requestDeclineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.textSecondary },
@@ -1251,13 +1253,13 @@ const styles = StyleSheet.create({
   habitRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, minHeight: 56,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 13, minHeight: 56,
   },
   habitRowDone: { borderColor: CoachColors.accent + '55' },
   habitLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.037), color: CoachColors.textPrimary },
   habitDesc: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.029), color: CoachColors.textMuted, marginTop: 2 },
   habitCheck: {
-    width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: CoachColors.border,
+    width: 26, height: 26, borderRadius: 13, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   habitCheckDone: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -1266,7 +1268,7 @@ const styles = StyleSheet.create({
   emptyRootWrap: { flex: 1, paddingHorizontal: W * 0.05, paddingTop: 4 },
   emptyHeroCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 16, padding: 20,
+    borderRadius: 16, borderCurve: 'continuous', padding: 20,
   },
   emptyHeroTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.046),
@@ -1277,16 +1279,16 @@ const styles = StyleSheet.create({
     color: CoachColors.textSecondary, marginTop: 8, lineHeight: 22.5,
   },
   emptyHeroBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 14, alignItems: 'center', marginTop: 16, minHeight: 44, justifyContent: 'center',
   },
   emptyHeroBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: Math.round(W * 0.035), color: CoachColors.onAccent },
 
   emptyPreviewSection: { marginTop: 24 },
   emptyPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  emptyPreviewAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1E211D' },
-  emptyPreviewLine: { height: 11, borderRadius: 3, backgroundColor: CoachColors.borderMuted },
-  emptyPreviewLineSub: { height: 9, borderRadius: 3, backgroundColor: '#1E211D' },
+  emptyPreviewAvatar: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', backgroundColor: '#1E211D' },
+  emptyPreviewLine: { height: 11, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
+  emptyPreviewLineSub: { height: 9, borderRadius: 3, borderCurve: 'continuous', backgroundColor: '#1E211D' },
   emptyPreviewCaption: {
     fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted,
     marginTop: 14, lineHeight: 21.5,

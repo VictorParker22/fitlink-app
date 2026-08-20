@@ -612,7 +612,7 @@ const st = StyleSheet.create({
 
   card: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 15,
+    borderRadius: 14, borderCurve: 'continuous', padding: 15,
   },
   launchLine: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: 21.5, lineHeight: 28,
@@ -628,15 +628,15 @@ const st = StyleSheet.create({
   seatsLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   pipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 },
   pip: {
-    width: 13, height: 13, borderRadius: 4,
+    width: 13, height: 13, borderRadius: 4, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: 'transparent',
   },
   pipTaken: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
   seatTrack: {
-    height: 6, borderRadius: 999, backgroundColor: CoachColors.borderMuted,
+    height: 6, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     overflow: 'hidden', marginTop: 10,
   },
-  seatFill: { height: '100%', borderRadius: 999, backgroundColor: CoachColors.accent },
+  seatFill: { height: '100%', borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   rosterEmpty: {
     fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted,
@@ -647,8 +647,8 @@ const st = StyleSheet.create({
   histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 14, height: 88 },
   histCol: { flex: 1, alignItems: 'center', height: '100%' },
   histBarWell: { flex: 1, width: '100%', justifyContent: 'flex-end' },
-  histBar: { width: '100%', borderRadius: 4, backgroundColor: CoachColors.accent },
-  histStub: { width: '100%', height: 3, borderRadius: 2, backgroundColor: CoachColors.borderMuted },
+  histBar: { width: '100%', borderRadius: 4, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
+  histStub: { width: '100%', height: 3, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
   histWeekNum: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint, marginTop: 6 },
   histContext: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 14, lineHeight: 20 },
 
@@ -670,7 +670,7 @@ const st = StyleSheet.create({
     borderLeftWidth: 2, borderLeftColor: CoachColors.warning, paddingLeft: 10, marginLeft: -12,
   },
   avatar: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: CoachColors.borderMuted,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.textSecondary },
@@ -679,17 +679,17 @@ const st = StyleSheet.create({
   holderMeta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
   holderWarn: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.warning, marginTop: 2 },
   finishedTag: {
-    borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1.5,
+    borderRadius: 5, borderCurve: 'continuous', paddingHorizontal: 6, paddingVertical: 1.5,
     backgroundColor: CoachColors.borderMuted,
   },
   finishedTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textSecondary, letterSpacing: 0.4 },
   versionTag: {
-    borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1.5,
+    borderRadius: 5, borderCurve: 'continuous', paddingHorizontal: 6, paddingVertical: 1.5,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   versionTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.textFaint, letterSpacing: 0.4 },
-  holderBarTrack: { width: 52, height: 4, borderRadius: 999, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
-  holderBarFill: { height: '100%', borderRadius: 999, backgroundColor: CoachColors.accent },
+  holderBarTrack: { width: 52, height: 4, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
+  holderBarFill: { height: '100%', borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
@@ -698,12 +698,12 @@ const st = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
   },
   outlineBtn: {
-    flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    flex: 1, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, borderCurve: 'continuous',
     paddingVertical: 13, alignItems: 'center', justifyContent: 'center',
   },
   outlineBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.textPrimary },
   limeBtn: {
-    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 12,
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 12, borderCurve: 'continuous',
     paddingVertical: 13, alignItems: 'center', justifyContent: 'center',
   },
   limeBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.bg },
@@ -717,7 +717,7 @@ const st = StyleSheet.create({
   },
   sheetHint: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 8, lineHeight: 20 },
   sheetInput: {
-    marginTop: 12, minHeight: 108, maxHeight: 160, borderRadius: 12,
+    marginTop: 12, minHeight: 108, maxHeight: 160, borderRadius: 12, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg,
     padding: 12, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     textAlignVertical: 'top',

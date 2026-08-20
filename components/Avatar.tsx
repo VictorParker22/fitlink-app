@@ -35,13 +35,13 @@ export default function Avatar({ name, size = 'md', imageUrl, shape = 'circle', 
         source={{ uri: imageUrl }}
         cachePolicy="memory-disk"
         transition={200}
-        style={[styles.image, { width: container, height: container, borderRadius, backgroundColor: CoachColors.surface }, style]}
+        style={[styles.image, { width: container, height: container, borderRadius, borderCurve: 'continuous', backgroundColor: CoachColors.surface }, style]}
       />
     );
   }
 
   return (
-    <View style={[styles.container, { width: container, height: container, borderRadius }, style]}>
+    <View style={[styles.container, { width: container, height: container, borderRadius, borderCurve: 'continuous' }, style]}>
       <Text style={[styles.text, { fontSize: font }]}>{initials}</Text>
     </View>
   );
@@ -50,6 +50,7 @@ export default function Avatar({ name, size = 'md', imageUrl, shape = 'circle', 
 const styles = StyleSheet.create({
   container: {
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: CoachColors.accentSoft,

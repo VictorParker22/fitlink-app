@@ -164,6 +164,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.borderMuted,
     borderRadius: 16,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   thumb: { width: '100%', height: 84, backgroundColor: C.borderMuted },

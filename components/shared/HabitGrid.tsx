@@ -148,11 +148,13 @@ const dot = StyleSheet.create({
   todayWrapper: {
     backgroundColor: CoachColors.accentSofter,
     borderRadius: 8,
+    borderCurve: 'continuous',
   },
   circle: {
     width: 14,
     height: 14,
     borderRadius: 7,
+    borderCurve: 'continuous',
   },
 });
 
@@ -303,6 +305,7 @@ const s = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   pctCol: {
@@ -313,6 +316,7 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.headingBold,
     fontSize: 12.5,
     letterSpacing: 0.3,
+    fontVariant: ['tabular-nums'],
   },
 
   // Habit rows
@@ -346,6 +350,7 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
   },
   legendText: {
     fontFamily: CoachFonts.body,

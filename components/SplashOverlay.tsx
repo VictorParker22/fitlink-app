@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { CoachColors } from '../constants/coachDesign';
 
 /**
  * FitLink splash.
@@ -17,8 +18,8 @@ import Svg, { Path } from 'react-native-svg';
  *      wordmark falls back to the system face until Space Grotesk is up.
  */
 
-export const SPLASH_BG = '#101210';
-export const SPLASH_ACCENT = '#C6F24E';
+export const SPLASH_BG = CoachColors.bg;
+export const SPLASH_ACCENT = CoachColors.accent;
 
 type Props = {
   /** 0…1. Feed it real milestones: fonts .33 → session .66 → route ready 1. */
@@ -179,12 +180,14 @@ const styles = StyleSheet.create({
     width: 420,
     height: 420,
     borderRadius: 210,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(198,242,78,0.07)',
   },
   mark: {
     width: 96,
     height: 96,
     borderRadius: 26,
+    borderCurve: 'continuous',
     backgroundColor: SPLASH_ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
@@ -192,7 +195,7 @@ const styles = StyleSheet.create({
   wordmark: {
     fontSize: 29,
     letterSpacing: 5.2,
-    color: '#EDEFE8',
+    color: CoachColors.textPrimary,
   },
   audience: {
     fontSize: 14,
@@ -206,12 +209,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 3,
     borderRadius: 999,
-    backgroundColor: '#262A24',
+    borderCurve: 'continuous',
+    backgroundColor: CoachColors.borderMuted,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: SPLASH_ACCENT,
   },
 });

@@ -529,30 +529,30 @@ const st = StyleSheet.create({
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, letterSpacing: 0.2 },
   navBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36, height: 36, borderRadius: 10, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   navRight: { flexDirection: 'row', gap: 8 },
 
   coverEdit: { marginBottom: 12 },
-  coverEditImg: { width: '100%', aspectRatio: 16 / 10, borderRadius: 16, backgroundColor: CoachColors.surface },
+  coverEditImg: { width: '100%', aspectRatio: 16 / 10, borderRadius: 16, borderCurve: 'continuous', backgroundColor: CoachColors.surface },
   coverEditBadge: {
-    position: 'absolute', right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15,
+    position: 'absolute', right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center',
   },
   coverEditEmpty: {
-    minHeight: 64, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: CoachColors.border,
+    minHeight: 64, borderRadius: 16, borderCurve: 'continuous', borderWidth: 1, borderStyle: 'dashed', borderColor: CoachColors.border,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16,
   },
   coverEditText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textMuted, flexShrink: 1 },
   vipCard: {
-    backgroundColor: CoachColors.surface, borderRadius: 16,
+    backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous',
     padding: 20, borderWidth: 1, borderColor: CoachColors.border,
   },
   vipCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   tierIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
+    width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -566,7 +566,7 @@ const st = StyleSheet.create({
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   cohortTag: {
-    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderCurve: 'continuous',
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
     backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
   },
@@ -576,6 +576,7 @@ const st = StyleSheet.create({
   popularTag: {
     backgroundColor: CoachColors.accent, paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 8,
+    borderCurve: 'continuous',
   },
   popularTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.onAccent, letterSpacing: 0.3 },
 
@@ -589,23 +590,23 @@ const st = StyleSheet.create({
   // Capacity Bar
   xpCard: {
     marginHorizontal: 20, backgroundColor: CoachColors.surface,
-    borderRadius: 16, padding: 16,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     marginBottom: 16,
   },
   xpHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   xpLevelBadge: {
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderCurve: 'continuous',
   },
   xpLevelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary, letterSpacing: 0.3 },
   xpLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 0.3, flex: 1 },
   xpFraction: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   xpTrack: {
-    height: 6, backgroundColor: CoachColors.borderMuted, borderRadius: 3,
+    height: 6, backgroundColor: CoachColors.borderMuted, borderRadius: 3, borderCurve: 'continuous',
     overflow: 'hidden',
   },
-  xpFill: { height: '100%', borderRadius: 3, backgroundColor: CoachColors.accent },
+  xpFill: { height: '100%', borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
 
   // Stats
   statsGrid: {
@@ -613,7 +614,7 @@ const st = StyleSheet.create({
   },
   statBox: {
     flex: 1, gap: 4,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 14, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   statLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.3 },
@@ -627,44 +628,44 @@ const st = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5,
     color: CoachColors.textSecondary, letterSpacing: 0.3,
   },
-  countBadge: { backgroundColor: CoachColors.surface, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  countBadge: { backgroundColor: CoachColors.surface, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted },
   countBadgeText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textPrimary, letterSpacing: 0.3 },
 
   // Perks
   perksGrid: { gap: 6 },
   perkCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   perkIconBox: {
-    width: 32, height: 32, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 10, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center',
   },
   perkCardText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textPrimary, flex: 1 },
 
   // Members
-  emptyMembers: { alignItems: 'center', paddingVertical: 32, gap: 6, backgroundColor: CoachColors.surface, borderRadius: 14, borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed' },
+  emptyMembers: { alignItems: 'center', paddingVertical: 32, gap: 6, backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed' },
   emptyMembersText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, letterSpacing: 0.3 },
   emptyMembersSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, textAlign: 'center', paddingHorizontal: 24 },
   membersList: { gap: 6 },
   memberCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   memberInfo: { flex: 1, gap: 2 },
   memberName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   memberEmail: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
   memberStatusBadge: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   memberStatusText: { fontFamily: CoachFonts.bodyMedium, fontSize: 11, color: CoachColors.textSecondary, letterSpacing: 0.3 },
 
   // Actions
   actionsSection: { paddingHorizontal: 20, gap: 10 },
-  primaryAction: { height: 52, borderRadius: 14, backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
+  primaryAction: { height: 52, borderRadius: 14, borderCurve: 'continuous', backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryActionGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
@@ -672,7 +673,7 @@ const st = StyleSheet.create({
   secondaryRow: { flexDirection: 'row', gap: 10 },
   secondaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, height: 46, borderRadius: 14,
+    gap: 8, height: 46, borderRadius: 14, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   secondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, letterSpacing: 0.2 },
@@ -688,13 +689,13 @@ const st = StyleSheet.create({
     position: 'absolute', top: 22, left: -20, width: 20, height: 2,
   },
   trackNode: {
-    width: 44, height: 44, borderRadius: 12,
+    width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8, position: 'relative',
     overflow: 'hidden',
   },
   trackCurrentBadge: {
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, marginBottom: 4,
   },
   trackCurrentText: {
@@ -710,18 +711,18 @@ const st = StyleSheet.create({
   },
   editTrackBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginHorizontal: 20, marginTop: 12, height: 42, borderRadius: 14,
+    marginHorizontal: 20, marginTop: 12, height: 42, borderRadius: 14, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface,
   },
   editTrackText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, letterSpacing: 0.2 },
   addTrackCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     marginHorizontal: 20, marginBottom: 24, padding: 16,
-    borderRadius: 14, backgroundColor: CoachColors.surface,
+    borderRadius: 14, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed',
   },
   addTrackIcon: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center',
   },
   addTrackTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },

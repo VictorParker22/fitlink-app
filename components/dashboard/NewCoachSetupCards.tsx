@@ -213,6 +213,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 18,
   },
 
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 2,
     borderRadius: 10,
+    borderCurve: 'continuous',
   },
   checkItemHighlight: {
     backgroundColor: CoachColors.accentSofter,
@@ -283,6 +285,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: CoachColors.border,
     alignItems: 'center',

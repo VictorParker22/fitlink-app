@@ -69,6 +69,7 @@ export function Skeleton({
           width: width as any,
           height,
           borderRadius,
+          borderCurve: 'continuous',
           backgroundColor: '#FFFFFF',
           opacity,
         },

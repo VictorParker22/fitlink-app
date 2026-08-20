@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, letterSpacing: -0.5 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    height: 38, paddingHorizontal: 14, borderRadius: 4,
+    height: 38, paddingHorizontal: 14, borderRadius: 4, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, justifyContent: 'center',
   },
   addBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 4, paddingHorizontal: 14, height: 55,
+    borderRadius: 4, borderCurve: 'continuous', paddingHorizontal: 14, height: 55,
   },
   searchInput: {
     flex: 1, fontFamily: CoachFonts.headingBold, fontSize: 13.5,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   filterScroll: { paddingHorizontal: 20, gap: 6, paddingBottom: 12 },
   filterPill: {
     paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 4, backgroundColor: CoachColors.surface,
+    borderRadius: 4, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   filterPillActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 20, gap: 12 },
 
   cardContainer: {
-    backgroundColor: CoachColors.surface, borderRadius: 8,
+    backgroundColor: CoachColors.surface, borderRadius: 8, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     overflow: 'hidden',
   },
@@ -301,13 +301,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
   iconBox: {
-    width: 36, height: 36, borderRadius: 4,
+    width: 36, height: 36, borderRadius: 4, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   categoryPill: {
     backgroundColor: CoachColors.borderMuted, paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 4, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 4, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   categoryPillText: { fontFamily: CoachFonts.headingBold, fontSize: 11, color: CoachColors.textPrimary, letterSpacing: 0.5, textTransform: 'uppercase' },
   
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
 
   metricGrid: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: CoachColors.borderMuted, borderRadius: 4, padding: 12,
+    backgroundColor: CoachColors.borderMuted, borderRadius: 4, borderCurve: 'continuous', padding: 12,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   metricBox: { flex: 1, alignItems: 'center' },
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
 
   emptyState: {
     alignItems: 'center', paddingVertical: 40, gap: 8,
-    backgroundColor: CoachColors.surface, borderRadius: 8,
+    backgroundColor: CoachColors.surface, borderRadius: 8, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.borderMuted, borderStyle: 'dashed',
   },
   emptyTitle: { fontFamily: CoachFonts.headingBold, fontSize: 14.5, color: CoachColors.textPrimary, letterSpacing: 1 },
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   emptyCTA: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: CoachColors.accent, paddingHorizontal: 14, height: 38,
-    borderRadius: 4, marginTop: 8,
+    borderRadius: 4, borderCurve: 'continuous', marginTop: 8,
   },
   emptyCTAText: { fontFamily: CoachFonts.headingBold, fontSize: 12.5, color: CoachColors.onAccent, letterSpacing: 1, textTransform: 'uppercase' },
 });

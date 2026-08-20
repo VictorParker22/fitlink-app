@@ -221,6 +221,7 @@ const s = StyleSheet.create({
     width: BAR_WIDTH,
     backgroundColor: CoachColors.surfaceRaised,   // semi-transparent surface for blur
     borderRadius: 22,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     marginBottom: 10,
@@ -240,6 +241,7 @@ const s = StyleSheet.create({
   innerBorder: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 22,
+    borderCurve: 'continuous',
     borderWidth: 0.5,
     borderColor: CoachColors.borderMuted,
     pointerEvents: 'none',
@@ -259,6 +261,7 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -292,6 +295,7 @@ const s = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
+    borderCurve: 'continuous',
     flexShrink: 0,
   },
 
@@ -333,12 +337,14 @@ const s = StyleSheet.create({
     fontSize: 14.5,
     color: CoachColors.textPrimary,
     letterSpacing: 0.5,
+    fontVariant: ['tabular-nums'],
   },
   timeSeparator: {
     fontFamily: CoachFonts.body,
     fontSize: 12.5,
     color: CoachColors.textMuted,
     letterSpacing: 0.3,
+    fontVariant: ['tabular-nums'],
   },
 
   // Close button — 44×44 HIG minimum (was bare padding)

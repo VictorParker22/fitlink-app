@@ -180,6 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
     borderColor: CoachColors.border,
@@ -203,6 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   showTextBtnText: {
@@ -214,6 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     padding: 14,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     marginTop: Spacing.xs,
     marginBottom: Spacing.md,
   },

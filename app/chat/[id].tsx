@@ -1179,12 +1179,12 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   headerAvatar: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   headerAvatarText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.textSecondary },
   inviteBtn: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center'
   },
   headerName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary },
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
 
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   bubbleRowRight: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
+  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderCurve: 'continuous' },
   bubbleSent: { backgroundColor: CoachColors.accent, borderBottomRightRadius: 4 },
   bubbleReceived: { backgroundColor: 'rgba(255,255,255,0.07)', borderBottomLeftRadius: 4 },
   // Queued offline — deliberately NOT the lime sent style, so it never reads as delivered.
@@ -1220,7 +1220,7 @@ const styles = StyleSheet.create({
   },
   quickActionBtn: {
     flex: 1,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 9, alignItems: 'center',
   },
   quickActionText: {
@@ -1233,13 +1233,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1, backgroundColor: CoachColors.bg,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 16, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     maxHeight: 100,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -1254,9 +1254,9 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center', lineHeight: 21.5 },
 
   typingRow: { flexDirection: 'row', marginBottom: 8 },
-  typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },
+  typingBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderCurve: 'continuous', borderBottomLeftRadius: 4, backgroundColor: 'rgba(255,255,255,0.07)' },
   typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.textSecondary },
+  dot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.textSecondary },
   dot1: { opacity: 0.4 },
   dot2: { opacity: 0.6 },
   dot3: { opacity: 0.85 },
@@ -1272,16 +1272,16 @@ const styles = StyleSheet.create({
   workoutPickerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 13,
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 12, padding: 14, marginBottom: 10
+    borderRadius: 12, borderCurve: 'continuous', padding: 14, marginBottom: 10
   },
   workoutPickerTitle: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.textPrimary },
   workoutPickerSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
   attachBadge: {
-    backgroundColor: CoachColors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999
+    backgroundColor: CoachColors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderCurve: 'continuous'
   },
   attachBadgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.onAccent },
 
-  videoBubbleWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
+  videoBubbleWrap: { borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
   videoBubble: { width: 220, height: 280 },
   attachmentUnavailable: {
     fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted,
@@ -1290,7 +1290,7 @@ const styles = StyleSheet.create({
   reviewAffordance: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)', borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)', borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 6,
     backgroundColor: 'rgba(16,18,16,0.55)',
   },
@@ -1308,11 +1308,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border,
     padding: 20, gap: 14, // paddingBottom applied inline from the real bottom inset.
   },
-  reviewVideoWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.4)' },
+  reviewVideoWrap: { borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.4)' },
   reviewVideo: { width: '100%', height: 210 },
   timestampRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepBtn: {
-    width: 48, height: 38, borderRadius: 10,
+    width: 48, height: 38, borderRadius: 10, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.bg,
@@ -1322,7 +1322,7 @@ const styles = StyleSheet.create({
   timestampText: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.accent },
   timestampLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textMuted, marginTop: 1 },
   playheadBtn: {
-    height: 38, borderRadius: 10, paddingHorizontal: 12,
+    height: 38, borderRadius: 10, borderCurve: 'continuous', paddingHorizontal: 12,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.4)',
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(16,18,16,0.55)',
@@ -1330,13 +1330,13 @@ const styles = StyleSheet.create({
   playheadBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.accent },
   reviewInput: {
     backgroundColor: CoachColors.bg,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: 12, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 13,
     fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
     minHeight: 86, maxHeight: 140, textAlignVertical: 'top',
   },
   reviewSendBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 12,
+    backgroundColor: CoachColors.accent, borderRadius: 12, borderCurve: 'continuous',
     paddingVertical: 13, alignItems: 'center',
   },
   reviewSendText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },

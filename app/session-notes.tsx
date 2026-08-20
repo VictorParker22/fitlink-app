@@ -109,12 +109,12 @@ export default function SessionNotesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary },
 
   content: { flex: 1, padding: 16 },
 
-  sessionInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
+  sessionInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, borderCurve: 'continuous', marginBottom: 20, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted },
   sessionInfoText: { flex: 1 },
   sessionTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 19, color: CoachColors.textPrimary },
   sessionDate: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 2, color: CoachColors.textSecondary },
@@ -122,14 +122,14 @@ const styles = StyleSheet.create({
   label: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 4, color: CoachColors.textPrimary },
   subLabel: { fontFamily: CoachFonts.body, fontSize: 17, marginBottom: 10, color: CoachColors.textMuted },
 
-  inputContainer: { borderRadius: 12, borderWidth: 1, flex: 1, marginBottom: 10, backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
-  textArea: { flex: 1, borderRadius: 8, padding: 10, fontFamily: CoachFonts.body, fontSize: 19, color: CoachColors.textPrimary },
+  inputContainer: { borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, flex: 1, marginBottom: 10, backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
+  textArea: { flex: 1, borderRadius: 8, borderCurve: 'continuous', padding: 10, fontFamily: CoachFonts.body, fontSize: 19, color: CoachColors.textPrimary },
 
   // SafeAreaView edges={['top','bottom']} already applies the home-indicator inset.
   footer: { padding: 16, paddingBottom: 10, borderTopWidth: 1, backgroundColor: CoachColors.bg, borderTopColor: CoachColors.borderMuted },
 
   saveBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999, minHeight: 52,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
   },
   saveBtnText: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.onAccent },

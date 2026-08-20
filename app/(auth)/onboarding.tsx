@@ -236,6 +236,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
+    borderCurve: 'continuous',
   },
   logoTextBlock: {
     gap: 2,
@@ -268,6 +269,7 @@ const styles = StyleSheet.create({
   photoCard: {
     width: CARD_W,
     borderRadius: 4,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -345,6 +347,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 4,
+    borderCurve: 'continuous',
     borderWidth: 1,
     backgroundColor: CoachColors.surface,
     alignItems: 'center',
@@ -383,6 +386,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   signInText: {

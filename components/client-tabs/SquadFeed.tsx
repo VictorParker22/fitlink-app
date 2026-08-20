@@ -156,7 +156,7 @@ const s = StyleSheet.create({
   card: {
     backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 18, padding: 15, marginTop: 12,
+    borderRadius: 18, borderCurve: 'continuous', padding: 15, marginTop: 12,
   },
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   label: {
@@ -166,7 +166,7 @@ const s = StyleSheet.create({
   count: { fontFamily: F.bodyMedium, fontSize: 13, color: C.textMuted },
   divider: { height: 1, backgroundColor: '#21241F', marginBottom: 9 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent },
+  dot: { width: 5, height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   rowText: {
     flex: 1, fontFamily: F.bodyMedium, fontSize: 14.5, color: C.textPrimary, lineHeight: 20,
   },

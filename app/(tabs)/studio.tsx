@@ -198,7 +198,7 @@ function MicLevelBars({ level }: { level: number }) {
         <View
           key={i}
           style={{
-            width: 3, height: 5 + i * 3, borderRadius: 1.5,
+            width: 3, height: 5 + i * 3, borderRadius: 1.5, borderCurve: 'continuous',
             backgroundColor: level >= threshold ? CoachColors.accent : CoachColors.borderMuted,
           }}
         />
@@ -1063,6 +1063,7 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     alignItems: 'center',
@@ -1072,6 +1073,7 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.danger,
   },
 
@@ -1084,6 +1086,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     padding: 14,
     marginBottom: Spacing.lg,
   },
@@ -1106,6 +1109,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(224,184,78,0.3)',
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     marginBottom: Spacing.lg,
     overflow: 'hidden',
   },
@@ -1129,6 +1133,7 @@ const s = StyleSheet.create({
   alertSaveBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
@@ -1140,6 +1145,7 @@ const s = StyleSheet.create({
   },
   alertDismissBtn: {
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderWidth: 1,
@@ -1157,6 +1163,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(224,92,92,0.4)',
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
     shadowColor: CoachColors.danger,
@@ -1174,8 +1181,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
-  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.danger },
+  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.danger },
   liveBadgeText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 12,
@@ -1186,6 +1194,7 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.mono,
     fontSize: 14.5,
     color: CoachColors.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
   liveViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
   liveViewersText: {
@@ -1208,6 +1217,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.danger,
     paddingVertical: 15,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   liveReenterBtnText: {
     fontFamily: CoachFonts.headingBold,
@@ -1221,6 +1231,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     marginBottom: Spacing.lg,
   },
@@ -1254,6 +1265,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 9,
@@ -1277,11 +1289,12 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
   nextBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  nextBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.accent },
+  nextBadgeDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
   nextBadgeText: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 12,
@@ -1301,6 +1314,7 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.headingBold,
     fontSize: 16,
     color: CoachColors.accent,
+    fontVariant: ['tabular-nums'],
   },
   nextDate: {
     fontFamily: CoachFonts.body,
@@ -1318,6 +1332,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent,
     paddingVertical: 14,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   editClassBtn: {
     flex: 1,
@@ -1327,6 +1342,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border,
     paddingVertical: 14,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   editClassBtnText: {
     fontFamily: CoachFonts.bodyBold,
@@ -1341,6 +1357,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     marginBottom: Spacing.xl,
     paddingVertical: 12,
   },
@@ -1388,7 +1405,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   readyDot: {
-    width: 6, height: 6, borderRadius: 3,
+    width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   readyBadgeText: {
@@ -1403,6 +1420,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   healthFootnote: {
@@ -1419,6 +1437,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     padding: Spacing.md,
   },
   chartCardTop: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
@@ -1441,6 +1460,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: Radius.sm,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   archiveStatusText: {
@@ -1465,12 +1485,14 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.accent,
     paddingVertical: 16,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     marginTop: 14,
   },
   goLiveDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(16,18,16,0.55)',
   },
   goLiveBtnText: {
@@ -1487,6 +1509,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.danger,
     paddingVertical: 16,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
   },
   stickyLiveBtnText: {
     fontFamily: CoachFonts.headingBold,

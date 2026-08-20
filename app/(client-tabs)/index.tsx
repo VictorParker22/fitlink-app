@@ -930,18 +930,18 @@ const st = StyleSheet.create({
   dateLine: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   greeting: { fontFamily: F.headingBold, fontSize: 28, color: C.textPrimary, marginTop: 3, lineHeight: 32.5 },
   avatar: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: C.borderMuted,
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous', backgroundColor: C.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.textSecondary },
 
   hero: {
-    marginTop: 22, borderRadius: 20, backgroundColor: C.surface,
+    marginTop: 22, borderRadius: 20, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, padding: 20,
   },
   heroActive: { backgroundColor: '#1A2213', borderColor: 'rgba(198,242,78,0.22)' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
+  eyebrowDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   eyebrow: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent,
     letterSpacing: 1, textTransform: 'uppercase',
@@ -960,6 +960,7 @@ const st = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 18,
+    borderCurve: 'continuous',
     // The stills are drawings on white — the tile keeps that paper white so
     // `contain` letterboxing is invisible instead of a white box on dark.
     backgroundColor: '#FFFFFF',
@@ -968,6 +969,7 @@ const st = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: C.bg,
     borderWidth: 1,
     borderColor: C.borderMuted,
@@ -996,17 +998,17 @@ const st = StyleSheet.create({
 
 
   primaryBtn: {
-    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 15,
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15,
     alignItems: 'center', marginTop: 17,
   },
   primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },
   secondaryRow: { flexDirection: 'row', gap: 7, marginTop: 9 },
   secondaryBtn: {
-    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 10, alignItems: 'center', justifyContent: 'center', minHeight: 40,
   },
   secondaryBtnWide: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 12, alignItems: 'center', marginTop: 15,
   },
   secondaryBtnText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
@@ -1016,39 +1018,39 @@ const st = StyleSheet.create({
   },
   reasonGroup: { gap: 8, marginTop: 14 },
   reasonChip: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 12,
+    borderWidth: 1, borderColor: C.border, borderRadius: 12, borderCurve: 'continuous',
     paddingVertical: 12, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center',
   },
   reasonChipText: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: '#C9CEC2' },
   sentRow: {
-    marginTop: 12, borderRadius: 13, backgroundColor: C.accentSofter,
+    marginTop: 12, borderRadius: 13, borderCurve: 'continuous', backgroundColor: C.accentSofter,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)', padding: 12,
   },
   sentText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary, lineHeight: 20 },
 
   card: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 18, padding: 15, marginTop: 14,
+    borderRadius: 18, borderCurve: 'continuous', padding: 15, marginTop: 14,
   },
   checkinChip: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
     backgroundColor: C.surface, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
-    borderRadius: 13, paddingVertical: 11, paddingHorizontal: 13, marginTop: 14,
+    borderRadius: 13, borderCurve: 'continuous', paddingVertical: 11, paddingHorizontal: 13, marginTop: 14,
   },
-  checkinDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent },
+  checkinDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   checkinChipText: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 14, color: C.textPrimary },
   checkinChipCta: { fontFamily: F.bodyBold, fontSize: 13.5, color: C.accent },
   coachRow: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   coachAvatar: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#2A3320',
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: '#2A3320',
     alignItems: 'center', justifyContent: 'center',
   },
   coachAvatarText: { fontFamily: F.bodyBold, fontSize: 14, color: C.accent },
-  coachAvatarImg: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2A3320' },
+  coachAvatarImg: { width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: '#2A3320' },
   coachName: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   coachMsg: { fontFamily: F.body, fontSize: 14.5, color: C.textSecondary, marginTop: 3, lineHeight: 21.5 },
   replyPill: {
-    alignSelf: 'flex-start', borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    alignSelf: 'flex-start', borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 7, paddingHorizontal: 14, marginTop: 12,
   },
   replyPillText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
@@ -1056,7 +1058,7 @@ const st = StyleSheet.create({
   statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   statCard: {
     flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, padding: 14,
+    borderRadius: 16, borderCurve: 'continuous', padding: 14,
   },
   statLabel: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
@@ -1064,10 +1066,10 @@ const st = StyleSheet.create({
   },
   statValue: { fontFamily: F.headingBold, fontSize: 17, color: C.textPrimary, marginTop: 7 },
   statValueMuted: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
-  statBarTrack: { height: 4, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 9, overflow: 'hidden' },
+  statBarTrack: { height: 4, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted, marginTop: 9, overflow: 'hidden' },
   statBarFill: { height: '100%', backgroundColor: C.accent },
   weekRow: { flexDirection: 'row', gap: 3, marginTop: 10 },
-  weekBar: { flex: 1, height: 4, borderRadius: 999, backgroundColor: C.borderMuted },
+  weekBar: { flex: 1, height: 4, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted },
 
   sectionLabel: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
@@ -1076,7 +1078,7 @@ const st = StyleSheet.create({
   upcomingRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 12, paddingHorizontal: 14,
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 13,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 13, borderCurve: 'continuous',
   },
   upcomingDay: { width: 30, textAlign: 'center', fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint },
   upcomingName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },

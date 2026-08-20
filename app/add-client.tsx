@@ -782,7 +782,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
   },
   headerBack: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -793,8 +793,8 @@ const st = StyleSheet.create({
   headerSkipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
 
   // Progress
-  progressTrack: { height: 3, backgroundColor: TRACK_BG, marginHorizontal: 20, borderRadius: 2 },
-  progressFill: { height: 3, backgroundColor: CoachColors.accent, borderRadius: 2 },
+  progressTrack: { height: 3, backgroundColor: TRACK_BG, marginHorizontal: 20, borderRadius: 2, borderCurve: 'continuous' },
+  progressFill: { height: 3, backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
 
   scrollContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 130 },
 
@@ -810,10 +810,10 @@ const st = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 15, paddingHorizontal: 14,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 15, paddingHorizontal: 14,
   },
   quickAddIcon: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
     backgroundColor: RAISED_CIRCLE,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -826,9 +826,9 @@ const st = StyleSheet.create({
     marginBottom: 10,
   },
   avatarPicker: { position: 'relative' },
-  avatarImage: { width: 62, height: 62, borderRadius: 31 },
+  avatarImage: { width: 62, height: 62, borderRadius: 31, borderCurve: 'continuous' },
   avatarPlaceholder: {
-    width: 62, height: 62, borderRadius: 31,
+    width: 62, height: 62, borderRadius: 31, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1.5, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
@@ -836,21 +836,21 @@ const st = StyleSheet.create({
   avatarInitials: { fontFamily: CoachFonts.headingSemiBold, fontSize: 21.5, color: CoachColors.textFaint },
   avatarBadge: {
     position: 'absolute', bottom: -2, right: -2,
-    width: 24, height: 24, borderRadius: 12,
+    width: 24, height: 24, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, borderWidth: 2, borderColor: CoachColors.bg,
     alignItems: 'center', justifyContent: 'center',
   },
 
   // Inputs
   inputWrap: {
-    flex: 1, backgroundColor: CoachColors.surface, borderRadius: 14,
+    flex: 1, backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     paddingHorizontal: 15, paddingVertical: 14,
     borderWidth: 1, borderColor: CoachColors.border,
   },
   inputLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     paddingHorizontal: 15, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   input: {
@@ -865,28 +865,28 @@ const st = StyleSheet.create({
   findDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 20 },
   searchBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 14, marginTop: 12,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 14, marginTop: 12,
   },
   searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   findResultCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 14, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   findResultInitials: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: RAISED_CIRCLE, alignItems: 'center', justifyContent: 'center',
   },
   findResultName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   findResultContact: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
-  linkBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999 },
+  linkBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, borderCurve: 'continuous' },
   linkBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // Step 2 — Plans (one lime accent, no per-plan tinting, no popular badge)
   planCard: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 16, padding: 16, marginBottom: 10,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16, marginBottom: 10,
   },
   planCardActive: {
     backgroundColor: CoachColors.accentSofter,
@@ -896,7 +896,7 @@ const st = StyleSheet.create({
   planNameActive: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   planPrice: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3 },
   planFeature: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textSecondary },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  radio: { width: 22, height: 22, borderRadius: 11, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
 
   // Step 2 — How they start (folded-in status)
@@ -904,7 +904,7 @@ const st = StyleSheet.create({
   startModeCard: {
     flex: 1, backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 13, paddingHorizontal: 14,
   },
   startModeCardActive: { backgroundColor: CoachColors.accentSofter, borderColor: CoachColors.accent, borderWidth: 1.5 },
   startModeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textSecondary },
@@ -914,7 +914,7 @@ const st = StyleSheet.create({
   // Step 3 — Goals
   goalChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   goalChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderCurve: 'continuous',
     backgroundColor: 'transparent',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -925,14 +925,14 @@ const st = StyleSheet.create({
   // Step 3 — What happens next
   nextCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 16, gap: 11,
+    borderRadius: 14, borderCurve: 'continuous', padding: 16, gap: 11,
   },
   nextRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   nextDone: {
-    width: 22, height: 22, borderRadius: 11, backgroundColor: CoachColors.accent,
+    width: 22, height: 22, borderRadius: 11, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  nextTodo: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: CoachColors.border },
+  nextTodo: { width: 22, height: 22, borderRadius: 11, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border },
   nextText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary },
   nextTextMuted: { color: CoachColors.textSecondary },
   nextLater: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent },
@@ -942,10 +942,10 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 16, padding: 16,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
   },
   inviteIconWrap: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSofter, alignItems: 'center', justifyContent: 'center',
   },
   inviteTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
@@ -962,7 +962,7 @@ const st = StyleSheet.create({
   },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 15, borderRadius: 999,
+    paddingVertical: 15, borderRadius: 999, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   ctaBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.onAccent },
@@ -974,7 +974,7 @@ const st = StyleSheet.create({
   // Success state (step 3 completion)
   successWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   successIcon: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: CoachColors.accent,
+    width: 64, height: 64, borderRadius: 32, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
   successTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 23.5, color: CoachColors.textPrimary, textAlign: 'center' },

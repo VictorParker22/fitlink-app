@@ -46,6 +46,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     padding: Spacing.lg,
@@ -82,6 +83,7 @@ const styles = StyleSheet.create({
     fontSize: 31.5,
     color: CoachColors.textPrimary,
     marginBottom: 4,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontFamily: CoachFonts.bodySemiBold,

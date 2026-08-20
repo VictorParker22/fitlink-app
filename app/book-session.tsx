@@ -617,7 +617,7 @@ const st = StyleSheet.create({
 
   // Header
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: W * 0.05, paddingVertical: 10 },
-  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, borderCurve: 'continuous', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.047), color: CoachColors.textPrimary },
   headerSubtitle: { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.03), color: CoachColors.textMuted, marginTop: 2 },
@@ -630,12 +630,12 @@ const st = StyleSheet.create({
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   typeCard: {
     flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.045),
-    borderRadius: 16, backgroundColor: CoachColors.surface,
+    borderRadius: 16, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 8,
   },
-  typeIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  typeIconCircle: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   typeLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.032), color: CoachColors.textMuted },
-  typeCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  typeCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 
   // Section label row (for label + required star)
   sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -644,7 +644,7 @@ const st = StyleSheet.create({
   // Inputs
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 5,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -661,7 +661,7 @@ const st = StyleSheet.create({
   // Selected client
   selectedClient: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: CoachColors.accentSofter, borderRadius: 14,
+    backgroundColor: CoachColors.accentSofter, borderRadius: 14, borderCurve: 'continuous',
     padding: 14, borderWidth: 1, borderColor: CoachColors.accentSoft,
   },
   selectedClientError: {
@@ -670,8 +670,8 @@ const st = StyleSheet.create({
   },
   selectedName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.038), color: CoachColors.textPrimary },
   selectedSub:  { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.028), color: CoachColors.textFaint, marginTop: 1 },
-  removeClient: { width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
-  clientList: { marginTop: 8, borderRadius: 14, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden' },
+  removeClient: { width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  clientList: { marginTop: 8, borderRadius: 14, borderCurve: 'continuous', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden' },
   clientOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, minHeight: 52 },
   clientBorder: { borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted },
   clientName: { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.036), color: CoachColors.textPrimary },
@@ -682,7 +682,7 @@ const st = StyleSheet.create({
   // Day strip
   dayCell: {
     width: Math.round(W * 0.163), alignItems: 'center', paddingVertical: 12,
-    borderRadius: 16, backgroundColor: CoachColors.surface,
+    borderRadius: 16, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 4, minHeight: 88,
   },
   dayCellActive:   { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -692,22 +692,22 @@ const st = StyleSheet.create({
   dayNumActive:    { color: CoachColors.bg },
   dayMonth:        { fontFamily: CoachFonts.body, fontSize: Math.round(W * 0.025), color: CoachColors.textFaint },
   dayMonthActive:  { color: CoachColors.onAccent },
-  todayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: CoachColors.accent, marginTop: 2 },
+  todayDot: { width: 5, height: 5, borderRadius: 2.5, borderCurve: 'continuous', backgroundColor: CoachColors.accent, marginTop: 2 },
 
   // Time
   timeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: CoachColors.surface, borderRadius: 14, padding: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', padding: 14,
     borderWidth: 1, borderColor: CoachColors.borderMuted, minHeight: 56,
   },
-  dateTimeIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  dateTimeIcon: { width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, alignItems: 'center', justifyContent: 'center' },
   timeValue: { flex: 1, fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.textPrimary },
 
   // Duration chips
   durationRow: { flexDirection: 'row', gap: 10 },
   durationCard: {
     flex: 1, alignItems: 'center', paddingVertical: Math.round(W * 0.04),
-    borderRadius: 14, backgroundColor: CoachColors.surface,
+    borderRadius: 14, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 2, minHeight: 70,
   },
   durationCardActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -718,7 +718,7 @@ const st = StyleSheet.create({
 
   // Repeat chips
   repeatChip: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     minHeight: 44, justifyContent: 'center',
@@ -731,7 +731,7 @@ const st = StyleSheet.create({
   // Submit button — full-width lime CTA
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16, marginBottom: 20, minHeight: 54,
   },
   submitText: { fontFamily: CoachFonts.headingBold, fontSize: Math.round(W * 0.042), color: CoachColors.bg },
@@ -739,7 +739,7 @@ const st = StyleSheet.create({
   // Session preview card
   preview: {
     flexDirection: 'row', backgroundColor: CoachColors.surface,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 14, borderCurve: 'continuous', overflow: 'hidden',
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   previewAccent: { width: 3 },
@@ -764,7 +764,7 @@ const st = StyleSheet.create({
   timeGroupLabel:   { fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.03), color: CoachColors.textFaint, marginBottom: 6, letterSpacing: 0.5 },
   timeSlotRow:      { flexDirection: 'row', gap: 8 },
   timeSlot: {
-    flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12,
+    flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.borderMuted, minHeight: 44,
   },

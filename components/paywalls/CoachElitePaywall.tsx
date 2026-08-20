@@ -419,7 +419,7 @@ const s = StyleSheet.create({
 
   numbersCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 20, padding: 17, marginTop: 20,
+    borderRadius: 20, borderCurve: 'continuous', padding: 17, marginTop: 20,
   },
   numbersEyebrow: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
@@ -433,39 +433,39 @@ const s = StyleSheet.create({
   numbersHolders: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   numbersNet: {
     fontFamily: CoachFonts.mono, fontSize: 14, color: CoachColors.textSecondary,
-    minWidth: 64, textAlign: 'right',
+    minWidth: 64, textAlign: 'right', fontVariant: ['tabular-nums'],
   },
   numbersTotalRow: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     marginTop: 14, paddingTop: 13, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
   },
   numbersTotalLabel: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
-  numbersTotalValue: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary },
+  numbersTotalValue: { fontFamily: CoachFonts.headingBold, fontSize: 21.5, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
 
   eliteCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
-    borderRadius: 20, padding: 18, marginTop: 12,
+    borderRadius: 20, borderCurve: 'continuous', padding: 18, marginTop: 12,
   },
   eliteTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   eliteTitle: { fontFamily: CoachFonts.headingBold, fontSize: 26, color: CoachColors.textPrimary },
-  elitePrice: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
+  elitePrice: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, fontVariant: ['tabular-nums'] },
   termGroup: { gap: 8, marginBottom: 14 },
   termRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, borderCurve: 'continuous',
     paddingHorizontal: 12, paddingVertical: 12, backgroundColor: CoachColors.bg,
   },
   termRowActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSoft },
   termRadio: {
-    width: 18, height: 18, borderRadius: 9, borderWidth: 1.5,
+    width: 18, height: 18, borderRadius: 9, borderCurve: 'continuous', borderWidth: 1.5,
     borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
   },
   termRadioActive: { borderColor: CoachColors.accent },
-  termRadioDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: CoachColors.accent },
+  termRadioDot: { width: 9, height: 9, borderRadius: 4.5, borderCurve: 'continuous', backgroundColor: CoachColors.accent },
   termLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
-  termPrice: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary },
+  termPrice: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary, fontVariant: ['tabular-nums'] },
   termSaveChip: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 8, paddingVertical: 3,
   },
   termSaveText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.onAccent },
@@ -482,7 +482,7 @@ const s = StyleSheet.create({
 
   freeCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 16, padding: 15, marginTop: 12,
+    borderRadius: 16, borderCurve: 'continuous', padding: 15, marginTop: 12,
   },
   freeTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textPrimary },
   freeBody: {
@@ -495,7 +495,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1E211D', backgroundColor: CoachColors.bg,
   },
   cta: {
-    backgroundColor: CoachColors.accent, borderRadius: 999, height: 52,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', height: 52,
     alignItems: 'center', justifyContent: 'center',
   },
   ctaDisabled: { opacity: 0.7 },

@@ -368,6 +368,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -392,11 +393,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
+    borderCurve: 'continuous',
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.danger,
   },
   liveBadgePreviewText: {
@@ -431,6 +434,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 14,
   },
   titleInput: {
@@ -471,6 +475,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
+    borderCurve: 'continuous',
   },
   categoryChipActive: {
     backgroundColor: CoachColors.accent,
@@ -489,6 +494,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   settingsRow: {
@@ -507,6 +513,7 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -530,6 +537,7 @@ const s = StyleSheet.create({
     width: 46,
     height: 26,
     borderRadius: 13,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     justifyContent: 'center',
     paddingHorizontal: 3,
@@ -541,6 +549,7 @@ const s = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.textFaint,
     alignSelf: 'flex-start',
   },
@@ -555,6 +564,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(224,184,78,0.2)',
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 14,
     marginBottom: 14,
   },
@@ -574,6 +584,7 @@ const s = StyleSheet.create({
   goLiveBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: 27,
+    borderCurve: 'continuous',
     minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
@@ -587,6 +598,7 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.onAccent,
   },
   goLiveBtnText: {

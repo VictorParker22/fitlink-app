@@ -214,8 +214,9 @@ const styles = StyleSheet.create({
     marginTop: 26,
     backgroundColor: 'rgba(24,27,23,0.9)',
     borderWidth: 1,
-    borderColor: '#33382F',
+    borderColor: CoachColors.border,
     borderRadius: 18,
+    borderCurve: 'continuous',
     padding: 15,
   },
   cardRow: {
@@ -229,12 +230,13 @@ const styles = StyleSheet.create({
   },
   cardDivider: {
     height: 1,
-    backgroundColor: '#33382F',
+    backgroundColor: CoachColors.border,
     marginVertical: 13,
   },
   timePill: {
     backgroundColor: 'rgba(198,242,78,0.14)',
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 8,
     paddingHorizontal: 11,
   },
@@ -262,6 +264,7 @@ const styles = StyleSheet.create({
   joinPill: {
     backgroundColor: ACCENT,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 8,
     paddingHorizontal: 15,
   },
@@ -274,6 +277,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: '#E05C5C',
     marginLeft: 12,
   },
@@ -294,6 +298,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: ACCENT,
     borderRadius: 999,
+    borderCurve: 'continuous',
     marginTop: 26,
   },
   primaryBtnPressable: {

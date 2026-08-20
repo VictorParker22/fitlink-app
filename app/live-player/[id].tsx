@@ -510,6 +510,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   liveBadgeText: {
     fontFamily: CoachFonts.bodyBold,
@@ -525,11 +526,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   viewersText: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
     color: CoachColors.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
   videoContainer: {
     aspectRatio: 16 / 9,
@@ -578,6 +581,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   backToExploreText: {
     fontFamily: CoachFonts.bodyBold,
@@ -613,6 +617,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.full,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontFamily: CoachFonts.body,
@@ -623,6 +628,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
@@ -639,6 +645,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   backBtnAltText: {
     fontFamily: CoachFonts.bodyBold,
@@ -662,6 +669,7 @@ const styles = StyleSheet.create({
   chatBubble: {
     backgroundColor: CoachColors.surface,
     borderRadius: 14,
+    borderCurve: 'continuous',
     borderBottomLeftRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,

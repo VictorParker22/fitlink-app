@@ -461,7 +461,9 @@ export default function RootLayout() {
     'Epilogue-Medium': require('../assets/fonts/Epilogue-Medium.ttf'),
     'Epilogue-SemiBold': require('../assets/fonts/Epilogue-SemiBold.ttf'),
     'Epilogue-Bold': require('../assets/fonts/Epilogue-Bold.ttf'),
-    'Epilogue-ExtraBold': require('../assets/fonts/Epilogue-ExtraBold.ttf'),
+    // Epilogue-ExtraBold removed: the 2026-08-20 design audit found ZERO
+    // usages. On a platform where font loading has already hung release
+    // builds once, every unused weight is pure startup risk (DESIGN.md).
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
     JetBrainsMono_500Medium,

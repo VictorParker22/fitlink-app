@@ -177,6 +177,7 @@ const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
     borderRadius: Radius['2xl'],
+    borderCurve: 'continuous',
     padding: Spacing.xl,
     width: '100%',
     backgroundColor: CoachColors.surface,
@@ -214,6 +215,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     borderWidth: 1,
     borderColor: 'rgba(198,242,78,0.3)',
@@ -240,6 +242,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

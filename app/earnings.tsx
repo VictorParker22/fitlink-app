@@ -605,6 +605,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -663,6 +664,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.warningSoft,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 18,
   },
   pendingBadgeRow: {
@@ -674,12 +676,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.warning,
   },
   pendingDotAccent: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   pendingBadge: {
@@ -705,6 +709,7 @@ const styles = StyleSheet.create({
   connectBtn: {
     backgroundColor: CoachColors.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -730,6 +735,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 18,
   },
   headlineLabel: {
@@ -749,6 +755,7 @@ const styles = StyleSheet.create({
     fontSize: 40.5,
     letterSpacing: -0.5,
     color: CoachColors.accent,
+    fontVariant: ['tabular-nums'],
   },
   headlineDesc: {
     fontFamily: CoachFonts.body,
@@ -784,6 +791,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 13,
   },
   statLabel: {
@@ -796,6 +804,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: CoachColors.textPrimary,
     marginTop: 4,
+    fontVariant: ['tabular-nums'],
   },
 
   // ── Stripe Dashboard Button ──
@@ -807,6 +816,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
     marginTop: 20,
   },
@@ -828,6 +838,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
   },
   breakdownItem: {
@@ -867,6 +878,7 @@ const styles = StyleSheet.create({
   breakdownBarTrack: {
     height: 5,
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     marginTop: 12,
     overflow: 'hidden',
@@ -874,6 +886,7 @@ const styles = StyleSheet.create({
   breakdownBarFill: {
     height: '100%',
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
 
@@ -883,6 +896,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     overflow: 'hidden',
   },
@@ -911,6 +925,7 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.headingBold,
     fontSize: 15.5,
     color: CoachColors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   txRow: {
     flexDirection: 'row',
@@ -922,6 +937,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1040,6 +1056,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
   },
   payoutInfoTitle: {
@@ -1059,6 +1076,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.textFaint,
     marginTop: 7,
   },

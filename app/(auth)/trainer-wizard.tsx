@@ -533,13 +533,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 0,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
 
-  progressTrack: { height: 4, marginHorizontal: 20, marginTop: 14, borderRadius: 2, backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2 },
+  progressTrack: { height: 4, marginHorizontal: 20, marginTop: 14, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
 
   stepContainer: { flex: 1, paddingHorizontal: 20 },
   titleBlock: { marginTop: 26 },
@@ -551,18 +551,18 @@ const styles = StyleSheet.create({
   // Avatar
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 13 },
   avatarPickerContainer: { width: 76, height: 76, position: 'relative' },
-  avatarPreview: { width: 76, height: 76, borderRadius: 38 },
+  avatarPreview: { width: 76, height: 76, borderRadius: 38, borderCurve: 'continuous' },
   avatarPlaceholder: {
-    width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center',
+    width: 76, height: 76, borderRadius: 38, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   avatarBadge: {
-    position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13,
+    position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent, borderWidth: 2, borderColor: CoachColors.bg,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject, borderRadius: 38, backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject, borderRadius: 38, borderCurve: 'continuous', backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center', justifyContent: 'center',
   },
   avatarCopy: { flex: 1 },
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   // Fields
   fieldRow: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 16,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 16,
   },
   fieldRowFilled: { borderColor: CoachColors.border },
   fieldLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
@@ -585,12 +585,12 @@ const styles = StyleSheet.create({
   // Availability
   dayRow: {
     flexDirection: 'row', alignItems: 'center', gap: 13,
-    borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, borderWidth: 1,
+    borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 13, borderWidth: 1,
   },
   dayRowActive: { backgroundColor: CoachColors.surface, borderColor: CoachColors.border },
   dayRowInactive: { backgroundColor: 'transparent', borderColor: CoachColors.borderMuted },
   dayCheck: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: CoachColors.border,
+    width: 22, height: 22, borderRadius: 6, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   dayCheckActive: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
@@ -600,13 +600,13 @@ const styles = StyleSheet.create({
   dayHoursInactive: { color: CoachColors.textFaint },
 
   // Payments
-  payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
+  payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
   payEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
   payAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
   payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -0.9, color: CoachColors.accent },
   payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
-  paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
-  paySplitFill: { width: '90%', height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999 },
+  paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
+  paySplitFill: { width: '90%', height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous' },
   paySplitLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
   paySplitYou: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
   paySplitFee: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   payInfoList: { marginTop: 9, gap: 11 },
   payInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   payInfoIcon: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: CoachColors.borderMuted,
+    width: 26, height: 26, borderRadius: 13, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: '#C9CEC2' },
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, alignItems: 'center', gap: 9 },
   nextBtn: {
     width: '100%', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 15,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15,
   },
   nextBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.onAccent },
   footerCaption: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
@@ -636,17 +636,17 @@ const styles = StyleSheet.create({
   // Done screen
   doneBody: { flex: 1, paddingHorizontal: 26, paddingTop: 56 },
   doneCheckCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: CoachColors.accent,
+    width: 64, height: 64, borderRadius: 32, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
   doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, letterSpacing: -0.9, lineHeight: 38, color: CoachColors.textPrimary, marginTop: 22 },
   doneSubtitle: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, marginTop: 11, lineHeight: 22.5 },
 
-  doneCard: { marginTop: 26, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, padding: 18 },
+  doneCard: { marginTop: 26, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
   doneCardEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
   doneCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginTop: 6 },
   doneCardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 6, lineHeight: 20 },
-  doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
+  doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, alignItems: 'center' },
   doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
   doneFooter: { paddingHorizontal: 26, paddingBottom: 12, alignItems: 'center' },

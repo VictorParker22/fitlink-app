@@ -173,6 +173,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 18,
+    borderCurve: 'continuous',
     marginTop: 14,
     padding: 15,
     paddingBottom: 14,
@@ -197,6 +198,7 @@ const st = StyleSheet.create({
     fontSize: 58,
     letterSpacing: -2,
     lineHeight: 60.5,
+    fontVariant: ['tabular-nums'],
   },
   unit: {
     fontFamily: CoachFonts.headingBold,
@@ -210,6 +212,7 @@ const st = StyleSheet.create({
     height: 3,
     backgroundColor: CoachColors.borderMuted,
     borderRadius: 1.5,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     marginTop: 8,
     marginBottom: 6,
@@ -217,6 +220,7 @@ const st = StyleSheet.create({
   barFill: {
     height: '100%',
     borderRadius: 1.5,
+    borderCurve: 'continuous',
   },
 
   // 11pt — HIG minimum. Shows remaining oz — this IS the info carrier.

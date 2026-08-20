@@ -439,6 +439,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderCurve: 'continuous',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -463,6 +464,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   externalLinkText: {
@@ -488,6 +490,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   categoryBadgeText: {
@@ -501,6 +504,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     borderWidth: 1,
   },
   statusBadgeText: {
@@ -514,6 +518,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   freeBadgeText: {
     fontFamily: CoachFonts.bodyBold,
@@ -530,6 +535,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   passBadgeText: {
     fontFamily: CoachFonts.bodyBold,
@@ -562,6 +568,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     marginTop: Spacing.xs,
@@ -616,6 +623,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     padding: Spacing.md,
     gap: 12,
   },
@@ -623,6 +631,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -652,6 +661,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   chipText: {
     fontFamily: CoachFonts.bodySemiBold,
@@ -663,6 +673,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
   },
   tagChipText: {
     fontFamily: CoachFonts.bodyBold,
@@ -676,6 +687,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     padding: Spacing.md,
   },
   statRow: {
@@ -715,6 +727,7 @@ const styles = StyleSheet.create({
   publishBtn: {
     height: 48,
     borderRadius: Radius.xs,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: CoachColors.accent,

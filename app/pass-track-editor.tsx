@@ -894,12 +894,12 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: CoachColors.borderMuted,
   },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32, height: 32, borderRadius: 16, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 18, color: CoachColors.textPrimary, textAlign: 'center' },
   headerSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
-  saveBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
+  saveBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, borderCurve: 'continuous' },
   saveBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 14.5, color: CoachColors.onAccent },
 
   // Preview
@@ -910,18 +910,18 @@ const st = StyleSheet.create({
   },
   previewEmpty: {
     alignItems: 'center', paddingVertical: 26, gap: 8,
-    backgroundColor: CoachColors.surface, borderRadius: 16,
+    backgroundColor: CoachColors.surface, borderRadius: 16, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
   },
   previewEmptyText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted },
   previewTrack: { paddingVertical: 6, gap: 0 },
   previewNodeWrap: { alignItems: 'center', width: 72, position: 'relative' },
   previewConnector: {
-    position: 'absolute', top: 20, left: -12, width: 12, height: 2, borderRadius: 1,
+    position: 'absolute', top: 20, left: -12, width: 12, height: 2, borderRadius: 1, borderCurve: 'continuous',
     backgroundColor: CoachColors.border,
   },
   previewNode: {
-    width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: CoachColors.border,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border,
     backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
     overflow: 'hidden',
@@ -942,7 +942,7 @@ const st = StyleSheet.create({
   railLineTop: { position: 'absolute', top: -12, width: 2, height: 12, backgroundColor: CoachColors.border },
   railLineBottom: { width: 2, flex: 1, minHeight: 8, backgroundColor: CoachColors.border, marginTop: 4 },
   marker: {
-    width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: CoachColors.border,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   markerMilestone: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter },
@@ -952,7 +952,7 @@ const st = StyleSheet.create({
   trackCard: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 12, marginBottom: 12,
+    borderRadius: 14, borderCurve: 'continuous', padding: 12, marginBottom: 12,
   },
   trackCardMilestone: { borderColor: 'rgba(198,242,78,0.3)', backgroundColor: CoachColors.accentSofter },
   trackCardActive: {
@@ -962,7 +962,7 @@ const st = StyleSheet.create({
     elevation: 8,
   },
   trackCardIcon: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
+    width: 40, height: 40, borderRadius: 10, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   trackCardInfo: { flex: 1, gap: 2 },
@@ -975,7 +975,7 @@ const st = StyleSheet.create({
   quickAdd: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, marginBottom: 18 },
   quickAddPill: {
     borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
-    borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9,
+    borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 9,
   },
   quickAddPillAccent: { borderColor: 'rgba(198,242,78,0.4)' },
   quickAddText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
@@ -984,14 +984,14 @@ const st = StyleSheet.create({
   milestoneInput: { paddingHorizontal: 20, marginBottom: 18, gap: 8 },
   milestoneInputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(198,242,78,0.25)',
   },
   milestoneTextInput: {
     flex: 1, fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary, paddingVertical: 17,
   },
   milestoneAddBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: CoachColors.accent,
+    width: 30, height: 30, borderRadius: 15, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
   cancelText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, textAlign: 'center' },
@@ -999,12 +999,12 @@ const st = StyleSheet.create({
   // Tabs
   tabs: {
     flexDirection: 'row', backgroundColor: CoachColors.surface,
-    borderRadius: 14, padding: 4, marginBottom: 14,
+    borderRadius: 14, borderCurve: 'continuous', padding: 4, marginBottom: 14,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 11,
+    gap: 6, paddingVertical: 10, borderRadius: 11, borderCurve: 'continuous',
   },
   tabActive: { backgroundColor: CoachColors.borderMuted },
   tabText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textFaint },
@@ -1014,22 +1014,22 @@ const st = StyleSheet.create({
   contentList: { gap: 8 },
   contentCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: CoachColors.surface, borderRadius: 14,
+    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 12, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   contentIcon: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: CoachColors.borderMuted,
+    width: 40, height: 40, borderRadius: 10, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   contentInfo: { flex: 1, gap: 2 },
   contentName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   contentSub: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
   addContentBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: CoachColors.accentSofter,
+    width: 32, height: 32, borderRadius: 16, borderCurve: 'continuous', backgroundColor: CoachColors.accentSofter,
     alignItems: 'center', justifyContent: 'center',
   },
   everyWeekBtn: {
-    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 10, paddingVertical: 6, marginRight: 2,
   },
   everyWeekText: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.accent },
@@ -1049,9 +1049,9 @@ const st = StyleSheet.create({
   changeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 12,
+    borderRadius: 14, borderCurve: 'continuous', padding: 12,
   },
-  changeIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  changeIcon: { width: 34, height: 34, borderRadius: 9, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   changeIconAdded: { backgroundColor: CoachColors.accentSoft },
   changeIconRemoved: { backgroundColor: CoachColors.warningSoft },
   changeIconText: { fontFamily: CoachFonts.headingBold, fontSize: 19 },
@@ -1065,11 +1065,11 @@ const st = StyleSheet.create({
   radioCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: CoachColors.surface, borderWidth: 1.5, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 14, marginBottom: 10,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14, marginBottom: 10,
   },
   radioCardSelected: { borderColor: CoachColors.accent },
   radioDot: {
-    width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: CoachColors.border, marginTop: 1,
+    width: 18, height: 18, borderRadius: 9, borderCurve: 'continuous', borderWidth: 1.5, borderColor: CoachColors.border, marginTop: 1,
   },
   radioDotSelected: { borderColor: CoachColors.accent, backgroundColor: CoachColors.accent },
   radioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 16, color: CoachColors.textPrimary },
@@ -1078,7 +1078,7 @@ const st = StyleSheet.create({
   notifyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, padding: 14,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14,
   },
   notifyTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
   notifySub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
@@ -1086,18 +1086,18 @@ const st = StyleSheet.create({
   messageInput: {
     fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary,
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 14, padding: 14, marginTop: 10, minHeight: 106, textAlignVertical: 'top', lineHeight: 21.5,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14, marginTop: 10, minHeight: 106, textAlignVertical: 'top', lineHeight: 21.5,
   },
   noNotifyNote: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textFaint, marginTop: 14 },
 
   reviewFooter: { flexDirection: 'row', gap: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
   backOutlineBtn: {
-    paddingHorizontal: 22, paddingVertical: 14, borderRadius: 999,
+    paddingHorizontal: 22, paddingVertical: 14, borderRadius: 999, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
   },
   backOutlineText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textSecondary },
   publishBtn: {
-    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999,
+    flex: 1, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
   },
   publishBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 16, color: CoachColors.onAccent },

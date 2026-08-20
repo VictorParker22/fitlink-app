@@ -91,6 +91,7 @@ export default function ConfettiBurst({ count = 30 }: { count?: number }) {
               width: p.size,
               height: p.size * 1.6,
               borderRadius: 2,
+              borderCurve: 'continuous',
               backgroundColor: p.color,
               opacity,
               transform: [{ translateY }, { translateX }, { rotate }],

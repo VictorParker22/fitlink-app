@@ -615,7 +615,7 @@ const st = StyleSheet.create({
     color: C.textFaint, textTransform: 'uppercase',
   },
   coachAvatarWrap: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: '#2A3320',
+    width: 72, height: 72, borderRadius: 36, borderCurve: 'continuous', backgroundColor: '#2A3320',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   coachAvatarText: { fontFamily: F.headingBold, fontSize: 27, color: C.accent },
@@ -627,7 +627,7 @@ const st = StyleSheet.create({
   stepsCol: { gap: 11, marginTop: 26 },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   stepNum: {
-    width: 24, height: 24, borderRadius: 8, backgroundColor: '#1E211D',
+    width: 24, height: 24, borderRadius: 8, borderCurve: 'continuous', backgroundColor: '#1E211D',
     borderWidth: 1, borderColor: '#2E322B', alignItems: 'center', justifyContent: 'center',
   },
   stepNumText: { fontFamily: F.bodyBold, fontSize: 13, color: C.accent },
@@ -637,7 +637,7 @@ const st = StyleSheet.create({
   // Form steps
   scrollContent: { flexGrow: 1, paddingHorizontal: 20 },
   backBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface,
+    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   title: {
@@ -648,7 +648,7 @@ const st = StyleSheet.create({
 
   messageBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12,
+    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   errorText: { fontFamily: F.body, fontSize: 14.5, color: C.danger, flex: 1 },
@@ -658,19 +658,19 @@ const st = StyleSheet.create({
   fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
   input: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 14, paddingVertical: 18, paddingHorizontal: 15,
+    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 18, paddingHorizontal: 15,
     fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
   },
   fieldHint: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, marginTop: 7 },
   passwordWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14, borderCurve: 'continuous',
   },
   showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
   showText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 
   primaryBtn: {
-    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 16, alignItems: 'center',
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 16, alignItems: 'center',
   },
   primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.onAccent },
   btnDisabled: { opacity: 0.5 },
@@ -684,12 +684,12 @@ const st = StyleSheet.create({
   trainerCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, padding: 15, marginBottom: 10,
+    borderRadius: 16, borderCurve: 'continuous', padding: 15, marginBottom: 10,
   },
   trainerName: { fontFamily: F.bodySemiBold, fontSize: 16, color: C.textPrimary },
   trainerSpec: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 2 },
   selectBadge: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 7,
   },
   selectText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },

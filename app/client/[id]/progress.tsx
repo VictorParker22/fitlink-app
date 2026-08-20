@@ -235,16 +235,16 @@ export default function ProgressDashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  backBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 8, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   headerCenter: { alignItems: 'center' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  avatarMini: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.borderMuted },
+  avatarMini: { width: 20, height: 20, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.borderMuted },
   avatarText: { fontSize: 11, fontFamily: CoachFonts.bodyBold, color: CoachColors.textPrimary },
   headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20 },
   headerSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, marginTop: 2 },
   
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, paddingBottom: 10 },
-  filterPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderCurve: 'continuous' },
   filterText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17 },
   
   // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   dayLabels: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginBottom: 5 },
   dayLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, width: 24, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
-  gridCell: { width: 24, height: 24, borderRadius: 4 },
+  gridCell: { width: 24, height: 24, borderRadius: 4, borderCurve: 'continuous' },
   streakText: { fontFamily: CoachFonts.bodyMedium, fontSize: 17, textAlign: 'center', marginTop: 6 },
 
   trendText: { fontFamily: CoachFonts.bodyBold, fontSize: 17 },
@@ -268,12 +268,12 @@ const styles = StyleSheet.create({
   latestDate: { fontFamily: CoachFonts.bodyMedium, fontSize: 17 },
   barsArea: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 120, paddingTop: 20 },
   barColumn: { alignItems: 'center', flex: 1 },
-  bar: { width: 12, borderRadius: 6, minHeight: 4 },
+  bar: { width: 12, borderRadius: 6, borderCurve: 'continuous', minHeight: 4 },
   barLabel: { fontFamily: CoachFonts.body, fontSize: 11, marginTop: 8 },
 
   emptyState: { padding: 20, alignItems: 'center', gap: 10 },
   emptyText: { fontFamily: CoachFonts.body, fontSize: 17 },
-  logBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999 },
+  logBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, borderCurve: 'continuous' },
   logBtnText: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.onAccent, fontSize: 17 },
 
   metricsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 20, marginBottom: 6 },
   historyCard: { marginBottom: 20 },
   historyRow: { flexDirection: 'row', padding: 10 },
-  historyIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
+  historyIndicator: { width: 4, borderRadius: 2, borderCurve: 'continuous', marginRight: 10 },
   historyInfo: { flex: 1, justifyContent: 'center' },
   historyType: { fontFamily: CoachFonts.bodySemiBold, fontSize: 19 },
   historyDate: { fontFamily: CoachFonts.body, fontSize: 17, marginTop: 2 },

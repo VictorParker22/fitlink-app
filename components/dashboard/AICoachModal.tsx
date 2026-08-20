@@ -171,7 +171,7 @@ const st = StyleSheet.create({
     padding: 20, maxHeight: '85%', // paddingBottom applied inline from the real bottom inset (Modal).
   },
   aiModalHandle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: CoachColors.border,
+    width: 36, height: 4, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.border,
     alignSelf: 'center', marginBottom: 16,
   },
   aiModalHeader: {
@@ -179,7 +179,7 @@ const st = StyleSheet.create({
   },
   aiModalTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 22.5, color: CoachColors.textPrimary },
   aiClientChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     marginRight: 8,
@@ -189,7 +189,7 @@ const st = StyleSheet.create({
   },
   aiClientChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textSecondary },
   aiResponseArea: {
-    backgroundColor: CoachColors.bg, borderRadius: 14,
+    backgroundColor: CoachColors.bg, borderRadius: 14, borderCurve: 'continuous',
     padding: 16, marginBottom: 12, maxHeight: 280,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -198,14 +198,14 @@ const st = StyleSheet.create({
   },
   aiQuickPrompt: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
   aiQuickPromptText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, flex: 1 },
   aiInputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    backgroundColor: CoachColors.bg, borderRadius: 16,
+    backgroundColor: CoachColors.bg, borderRadius: 16, borderCurve: 'continuous',
     paddingHorizontal: 14, paddingVertical: 7,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -214,7 +214,7 @@ const st = StyleSheet.create({
     paddingVertical: 12, maxHeight: 80,
   },
   aiSendBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: CoachColors.accent,
+    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
     alignItems: 'center', justifyContent: 'center', marginBottom: 2,
   },
 });

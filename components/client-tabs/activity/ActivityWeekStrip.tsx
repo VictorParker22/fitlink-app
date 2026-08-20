@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
     borderRadius: Radius['2xl'],
+    borderCurve: 'continuous',
     padding: Spacing.xl,
     width: '100%',
     backgroundColor: CoachColors.surface,
@@ -159,6 +160,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
   },
   todayColumn: {
     backgroundColor: CoachColors.accentSofter,
@@ -191,6 +193,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     backgroundColor: CoachColors.borderMuted,
@@ -199,6 +202,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderStyle: 'dashed',
@@ -207,6 +211,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   multiDotContainer: {
@@ -219,6 +224,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   divider: {
@@ -248,11 +254,13 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: CoachColors.borderMuted,
     borderRadius: 2,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   progressBarFill: {
     height: 4,
     borderRadius: 2,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
 });

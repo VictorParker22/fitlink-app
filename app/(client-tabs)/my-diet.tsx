@@ -763,14 +763,14 @@ const st = StyleSheet.create({
 
   // Room-left card
   roomCard: {
-    marginTop: 18, backgroundColor: C.surface, borderRadius: 20,
+    marginTop: 18, backgroundColor: C.surface, borderRadius: 20, borderCurve: 'continuous',
     borderWidth: 1, borderColor: C.borderMuted, padding: 17,
   },
   roomTopRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   roomBig: { fontFamily: F.headingBold, fontSize: 34.5, color: C.textPrimary },
   roomBigLabel: { fontFamily: F.body, fontSize: 14.5, color: C.textMuted },
   roomOf: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
-  roomBarTrack: { height: 7, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 13, overflow: 'hidden' },
+  roomBarTrack: { height: 7, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted, marginTop: 13, overflow: 'hidden' },
   roomBarFill: { height: '100%', backgroundColor: C.accent },
 
   // Pinned meter (compact mirror of the room card, shares its animated fill)
@@ -784,21 +784,21 @@ const st = StyleSheet.create({
   stickyKcal: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
   stickyLabel: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   stickyOf: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted },
-  stickyTrack: { height: 5, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 7, overflow: 'hidden' },
+  stickyTrack: { height: 5, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted, marginTop: 7, overflow: 'hidden' },
   stickyFill: { height: '100%', backgroundColor: C.accent },
   macroRow: { flexDirection: 'row', gap: 9, marginTop: 15 },
   macroLabelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   macroLabel: { fontFamily: F.body, fontSize: 12.5, color: C.textMuted },
   macroVal: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.textPrimary },
   macroValMuted: { fontFamily: F.body, color: C.textFaint },
-  macroBarTrack: { height: 4, borderRadius: 999, backgroundColor: C.borderMuted, marginTop: 6, overflow: 'hidden' },
+  macroBarTrack: { height: 4, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.borderMuted, marginTop: 6, overflow: 'hidden' },
   macroBarFill: { height: '100%' },
 
   // Free-meal callout
   freeCard: {
     flexDirection: 'row', gap: 11, alignItems: 'flex-start',
     backgroundColor: C.surface, borderWidth: 1, borderColor: '#3B3227',
-    borderRadius: 16, padding: 14, marginTop: 15,
+    borderRadius: 16, borderCurve: 'continuous', padding: 14, marginTop: 15,
   },
   freeTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   freeText: { fontFamily: F.body, fontSize: 13.5, color: C.textSecondary, marginTop: 3, lineHeight: 19 },
@@ -810,20 +810,20 @@ const st = StyleSheet.create({
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 20, paddingTop: 12, maxHeight: '82%',
   },
-  grabber: { width: 38, height: 4, borderRadius: 999, backgroundColor: C.border, alignSelf: 'center', marginBottom: 15 },
+  grabber: { width: 38, height: 4, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.border, alignSelf: 'center', marginBottom: 15 },
   sheetTitle: { fontFamily: F.headingBold, fontSize: 21.5, color: C.textPrimary },
   sheetSub: { fontFamily: F.body, fontSize: 14, color: C.textMuted, marginTop: 5, lineHeight: 20 },
 
   altRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: '#2E322B',
-    borderRadius: 14, padding: 13,
+    borderRadius: 14, borderCurve: 'continuous', padding: 13,
   },
   altRowSelected: { borderWidth: 1.5, borderColor: C.accent },
   altName: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textPrimary },
   altMacros: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 3 },
   deltaPill: {
-    borderRadius: 999, backgroundColor: C.accentSoft,
+    borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.accentSoft,
     paddingVertical: 5, paddingHorizontal: 10,
   },
   deltaPillText: { fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent },
@@ -831,17 +831,17 @@ const st = StyleSheet.create({
   ownRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
-    borderRadius: 14, padding: 13,
+    borderRadius: 14, borderCurve: 'continuous', padding: 13,
   },
   ownPlus: {
-    width: 26, height: 26, borderRadius: 8, backgroundColor: C.borderMuted,
+    width: 26, height: 26, borderRadius: 8, borderCurve: 'continuous', backgroundColor: C.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   ownRowTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   ownRowSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
   ownBox: {
     backgroundColor: '#1E211D', borderWidth: 1, borderColor: C.border,
-    borderRadius: 14, padding: 13,
+    borderRadius: 14, borderCurve: 'continuous', padding: 13,
   },
   ownBoxLabel: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
   ownInput: {
@@ -850,13 +850,13 @@ const st = StyleSheet.create({
   },
   ownFailed: { fontFamily: F.body, fontSize: 13, color: C.danger, marginTop: 6 },
   ownSendBtn: {
-    backgroundColor: C.accent, borderRadius: 999, paddingVertical: 11,
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 11,
     alignItems: 'center', marginTop: 11,
   },
   ownSendBtnText: { fontFamily: F.bodyBold, fontSize: 14.5, color: C.onAccent },
   ownSent: {
     backgroundColor: C.accentSofter, borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)',
-    borderRadius: 14, padding: 13,
+    borderRadius: 14, borderCurve: 'continuous', padding: 13,
   },
   ownSentText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary, lineHeight: 20 },
 
@@ -865,12 +865,12 @@ const st = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#2E322B',
   },
   cancelBtn: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 14, paddingHorizontal: 22, alignItems: 'center',
   },
   cancelBtnText: { fontFamily: F.bodySemiBold, fontSize: 15.5, color: C.textSecondary },
   useBtn: {
-    flex: 1, backgroundColor: C.accent, borderRadius: 999,
+    flex: 1, backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
   },
   useBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
@@ -878,7 +878,7 @@ const st = StyleSheet.create({
 
   // Empty state
   emptyIcon: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: C.surface,
+    width: 64, height: 64, borderRadius: 32, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
   },
   emptyTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary, marginTop: 16 },
@@ -887,7 +887,7 @@ const st = StyleSheet.create({
     textAlign: 'center', marginTop: 8, lineHeight: 21.5,
   },
   emptyBtn: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 12, paddingHorizontal: 24, marginTop: 18,
   },
   emptyBtnText: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textSecondary },

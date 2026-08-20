@@ -351,7 +351,7 @@ const s = StyleSheet.create({
 
   card: {
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 18, padding: 16, marginTop: 12,
+    borderRadius: 18, borderCurve: 'continuous', padding: 16, marginTop: 12,
   },
   cardLabel: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint,
@@ -381,13 +381,13 @@ const s = StyleSheet.create({
   breakCard: { backgroundColor: '#141613', borderColor: '#1E211D' },
 
   askBtn: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 11, alignItems: 'center', marginTop: 12, minHeight: 40,
     justifyContent: 'center',
   },
   askBtnText: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.accent },
   sentRow: {
-    marginTop: 12, borderRadius: 12, backgroundColor: C.accentSofter,
+    marginTop: 12, borderRadius: 12, borderCurve: 'continuous', backgroundColor: C.accentSofter,
     borderWidth: 1, borderColor: 'rgba(198,242,78,0.22)', padding: 11,
   },
   sentText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textSecondary, lineHeight: 20 },
@@ -400,12 +400,12 @@ const s = StyleSheet.create({
     marginTop: 14, paddingHorizontal: 4,
   },
   squadBox: {
-    width: 20, height: 20, borderRadius: 6, marginTop: 1,
+    width: 20, height: 20, borderRadius: 6, borderCurve: 'continuous', marginTop: 1,
     borderWidth: 1.5, borderColor: C.border,
     alignItems: 'center', justifyContent: 'center',
   },
   squadBoxOn: { borderColor: C.accent, backgroundColor: C.accentSofter },
-  squadTick: { width: 10, height: 10, borderRadius: 3, backgroundColor: C.accent },
+  squadTick: { width: 10, height: 10, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   squadLabel: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   squadHint: {
     fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2, lineHeight: 18,
@@ -413,7 +413,7 @@ const s = StyleSheet.create({
 
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
   doneBtn: {
-    backgroundColor: C.accent, borderRadius: 999,
+    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 16, alignItems: 'center',
   },
   doneBtnText: { fontFamily: F.bodyBold, fontSize: 17, color: C.onAccent },

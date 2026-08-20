@@ -455,6 +455,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
   },
@@ -486,6 +487,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
   },
   instructorName: {
@@ -530,6 +532,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.accent,
     backgroundColor: CoachColors.accent,
     borderRadius: 14,
+    borderCurve: 'continuous',
   },
   beginBtnText: {
     fontFamily: CoachFonts.headingBold,
@@ -545,6 +548,7 @@ const s = StyleSheet.create({
     borderColor: CoachColors.border,
     backgroundColor: CoachColors.surface,
     borderRadius: 14,
+    borderCurve: 'continuous',
   },
   calBtnText: {
     fontFamily: CoachFonts.headingBold,
@@ -559,6 +563,7 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     padding: 12,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderLeftWidth: 3,
     borderLeftColor: CoachColors.warning,
@@ -580,6 +585,7 @@ const s = StyleSheet.create({
     paddingVertical: 0,
     justifyContent: 'center',
     borderRadius: 8,
+    borderCurve: 'continuous',
   },
   premiumBtnText: {
     fontFamily: CoachFonts.headingSemiBold,
@@ -625,12 +631,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 14,
   },
   instructorAvatarLg: {
     width: 52,
     height: 52,
     borderRadius: 26,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
   },
   instructorCardName: {
@@ -658,6 +666,7 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   inProgressText: {
@@ -670,6 +679,7 @@ const s = StyleSheet.create({
   historyCard: {
     backgroundColor: CoachColors.surface,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.border,
     paddingVertical: 14,

@@ -200,7 +200,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -222,7 +222,7 @@ const st = StyleSheet.create({
   notifCard: {
     flexDirection: 'row', alignItems: 'flex-start',
     backgroundColor: CoachColors.surface,
-    borderRadius: 14, padding: 14, marginBottom: 8,
+    borderRadius: 14, borderCurve: 'continuous', padding: 14, marginBottom: 8,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
     position: 'relative',
   },
@@ -232,12 +232,12 @@ const st = StyleSheet.create({
   },
   unreadDot: {
     position: 'absolute', top: 14, left: 5,
-    width: 5, height: 5, borderRadius: 2.5,
+    width: 5, height: 5, borderRadius: 2.5, borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
 
   notifIcon: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous',
     backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -250,7 +250,7 @@ const st = StyleSheet.create({
 
   fileRow: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: CoachColors.bg, borderRadius: 10,
+    backgroundColor: CoachColors.bg, borderRadius: 10, borderCurve: 'continuous',
     paddingHorizontal: 10, paddingVertical: 7, marginTop: 7,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
@@ -258,7 +258,7 @@ const st = StyleSheet.create({
 
   scorePill: {
     backgroundColor: CoachColors.accentSoft,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderCurve: 'continuous',
     marginLeft: 8, alignSelf: 'center',
   },
   scoreText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 13.5, color: CoachColors.accent },

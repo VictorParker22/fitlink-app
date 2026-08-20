@@ -220,6 +220,7 @@ const s = StyleSheet.create({
   card: {
     backgroundColor: C.bg,
     borderRadius: 14,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: C.borderMuted,
     padding: 14,
@@ -232,6 +233,7 @@ const s = StyleSheet.create({
     width: 58,
     paddingVertical: 9,
     borderRadius: 13,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.accentSoft,
@@ -262,11 +264,11 @@ const s = StyleSheet.create({
 
   // Seats
   pipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  pip: { width: 11, height: 11, borderRadius: 6 },
+  pip: { width: 11, height: 11, borderRadius: 6, borderCurve: 'continuous' },
   pipTaken: { backgroundColor: C.accent },
   pipOpen: { borderWidth: 1, borderColor: C.border },
-  barTrack: { height: 5, borderRadius: 3, backgroundColor: C.borderMuted, overflow: 'hidden' },
-  barFill: { height: 5, borderRadius: 3, backgroundColor: C.accent },
+  barTrack: { height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.borderMuted, overflow: 'hidden' },
+  barFill: { height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   seatsLabel: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary, marginTop: 7 },
 
   // How a cohort works

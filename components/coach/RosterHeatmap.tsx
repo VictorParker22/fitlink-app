@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     backgroundColor: CoachColors.surface,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     padding: Spacing.md,
@@ -250,6 +251,7 @@ const styles = StyleSheet.create({
     minWidth: 26,
     minHeight: 26,
     borderRadius: 8,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -264,6 +266,7 @@ const styles = StyleSheet.create({
     width: CELL_SIZE,
     height: CELL_SIZE,
     borderRadius: 7,
+    borderCurve: 'continuous',
   },
   cellToday: {
     borderWidth: 1.5,
@@ -296,6 +299,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 3,
+    borderCurve: 'continuous',
   },
   legendText: {
     fontFamily: CoachFonts.body,

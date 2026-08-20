@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   fieldLabel: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginBottom: 7 },
   fieldBox: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: 12, paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 13 : 4,
+    borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 13 : 4,
   },
   fieldHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, marginTop: 7 },
   input: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17.5, color: CoachColors.textPrimary, padding: 0 },
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   otpRow: { flexDirection: 'row', gap: 9, marginTop: 30, position: 'relative' },
   otpBox: {
     flex: 1, aspectRatio: 1 / 1.25, backgroundColor: CoachColors.surface,
-    borderWidth: 1.5, borderColor: CoachColors.borderMuted, borderRadius: 12,
+    borderWidth: 1.5, borderColor: CoachColors.borderMuted, borderRadius: 12, borderCurve: 'continuous',
     alignItems: 'center', justifyContent: 'center',
   },
   otpBoxFilled: { borderColor: CoachColors.border },
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: 24, paddingTop: 18 },
 
   primaryBtn: {
-    backgroundColor: CoachColors.accent, borderRadius: 999,
+    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous',
     paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
   },
   primaryBtnDisabled: { backgroundColor: CoachColors.borderMuted },

@@ -288,9 +288,9 @@ export default function ClientProfileScreen() {
               accessibilityLabel="Share your Apple Health data with your coach"
               accessibilityState={{ checked: healthSharingEnabled, disabled: healthBusy, busy: healthBusy }}
               accessibilityHint={healthBusy ? 'Updating, please wait' : undefined}
-              trackColor={{ false: '#33382F', true: CoachColors.accent }}
+              trackColor={{ false: CoachColors.border, true: CoachColors.accent }}
               thumbColor={healthSharingEnabled ? CoachColors.bg : CoachColors.textMuted}
-              ios_backgroundColor="#33382F"
+              ios_backgroundColor={CoachColors.border}
             />
           </View>
           <Text style={s.visFootnote}>
@@ -425,14 +425,14 @@ const s = StyleSheet.create({
 
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarLoading: {
-    width: 60, height: 60, borderRadius: 30,
+    width: 60, height: 60, borderRadius: 30, borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
   name: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
   nameSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 3 },
   editBtn: {
-    borderWidth: 1, borderColor: '#2E322B', borderRadius: 999,
+    borderWidth: 1, borderColor: '#2E322B', borderRadius: 999, borderCurve: 'continuous',
     paddingHorizontal: 13, paddingVertical: 8,
   },
   editBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },
@@ -444,6 +444,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 14,
   },
   statNum: { fontFamily: CoachFonts.headingBold, fontSize: 22.5, color: CoachColors.textPrimary },
@@ -462,6 +463,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 18,
+    borderCurve: 'continuous',
     padding: 16,
     marginTop: 12,
   },
@@ -489,6 +491,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     paddingHorizontal: 15,
     paddingVertical: 14,
   },
@@ -522,6 +525,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 18,
+    borderCurve: 'continuous',
     padding: 22,
   },
   modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
@@ -542,6 +546,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 12,
+    borderCurve: 'continuous',
     paddingHorizontal: 15,
     paddingVertical: 16,
     letterSpacing: 2,
@@ -552,6 +557,7 @@ const s = StyleSheet.create({
     flex: 1,
     paddingVertical: 13,
     borderRadius: 999,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

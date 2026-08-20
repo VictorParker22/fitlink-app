@@ -192,6 +192,7 @@ const st = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
@@ -214,6 +215,7 @@ const st = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -225,6 +227,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 18,
   },
   headlineLabel: {
@@ -268,6 +271,7 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 16,
     marginBottom: 10,
   },
@@ -301,6 +305,7 @@ const st = StyleSheet.create({
   barTrack: {
     height: 5,
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.borderMuted,
     marginTop: 12,
     overflow: 'hidden',
@@ -308,6 +313,7 @@ const st = StyleSheet.create({
   barFill: {
     height: '100%',
     borderRadius: 999,
+    borderCurve: 'continuous',
     backgroundColor: CoachColors.accent,
   },
   passFooter: {
@@ -361,6 +367,7 @@ const st = StyleSheet.create({
   emptyCta: {
     backgroundColor: CoachColors.accent,
     borderRadius: 999,
+    borderCurve: 'continuous',
     paddingVertical: 13,
     paddingHorizontal: 28,
     marginTop: 18,
