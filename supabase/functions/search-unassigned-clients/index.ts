@@ -155,10 +155,23 @@ serve(async (req) => {
         avatar_url: user.user_metadata?.avatar_url || null,
         status: 'new',
         hasTrainer: false,
-        // Intake the athlete themselves completed at signup. Shown to
-        // the coach only at the moment they add them.
-        assessment_data: user.user_metadata?.onboarding_complete
+        // Intake the athlete themselves completed. Shown to the coach only
+        // at the moment they add them. TWO generations of keys exist:
+        // signup-era metadata gated on `onboarding_complete`, and the
+        // client-onboarding flow's `intake_*` keys gated on
+        // `client_onboarded` (added 2026-08-20 with the coachless-athlete
+        // path). Gating on only the old flag made every new coachless
+        // athlete look like they had no intake at all — a false "No intake
+        // yet" in the coach's search results about data that exists.
+        assessment_data: (user.user_metadata?.onboarding_complete || user.user_metadata?.client_onboarded)
           ? {
+              // New-generation intake (client-onboarding). Nulls when absent;
+              // the app omits absent fields rather than rendering them.
+              intake_goal: user.user_metadata.intake_goal || null,
+              intake_days: user.user_metadata.intake_days ?? null,
+              intake_experience: user.user_metadata.intake_experience || null,
+              intake_limitation: user.user_metadata.intake_limitation || null,
+              // Signup-era intake.
               fitness_goals: user.user_metadata.fitness_goals || [],
               fitness_goal: user.user_metadata.fitness_goal || null,
               training_styles: user.user_metadata.training_styles || [],

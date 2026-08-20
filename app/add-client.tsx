@@ -23,6 +23,80 @@ const GOAL_SUGGESTIONS = ['Lose weight', 'Build muscle', 'Improve strength', 'Ge
 const RAISED_CIRCLE = '#1E211D';
 const TRACK_BG = '#1E211D';
 
+// ── Find-result intake display ──
+// The search-unassigned-clients function returns each athlete's own intake in
+// `assessment_data`, in either (or both) of two shapes. Display precedence is
+// intake_* first, legacy second, and ANY field may be absent — absent fields
+// are omitted entirely, never placeholdered (INVARIANTS §4).
+//   New:    { intake_goal, intake_days, intake_experience, intake_limitation }
+//   Legacy: { fitness_goal, fitness_goals[], commit_days, age, gender,
+//             weight, height, training_styles[], activities[] }
+const present = (v: any): boolean => v !== null && v !== undefined && String(v).trim() !== '';
+
+function intakeGoal(ad: any, joinLegacyList: boolean): string | null {
+  if (!ad) return null;
+  if (present(ad.intake_goal)) return String(ad.intake_goal).trim();
+  if (present(ad.fitness_goal)) return String(ad.fitness_goal).trim();
+  const list = Array.isArray(ad.fitness_goals) ? ad.fitness_goals.filter(present) : [];
+  if (list.length === 0) return null;
+  return joinLegacyList ? list.map((g: any) => String(g).trim()).join(', ') : String(list[0]).trim();
+}
+
+function intakeDaysPerWeek(ad: any): number | null {
+  if (!ad) return null;
+  const raw = present(ad.intake_days) ? ad.intake_days : ad.commit_days;
+  if (!present(raw)) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// The lime chips under a result's name — goal, days, experience only.
+function intakeChips(ad: any): string[] {
+  const chips: string[] = [];
+  const goal = intakeGoal(ad, false);
+  if (goal) chips.push(goal);
+  const days = intakeDaysPerWeek(ad);
+  if (days !== null) chips.push(`${days} days a week`);
+  if (ad && present(ad.intake_experience)) chips.push(String(ad.intake_experience).trim());
+  return chips;
+}
+
+// Every present intake field as a label+value row for the expanded block.
+function intakeDetails(ad: any): { label: string; value: string }[] {
+  if (!ad) return [];
+  const rows: { label: string; value: string }[] = [];
+  const goal = intakeGoal(ad, true);
+  if (goal) rows.push({ label: 'Goal', value: goal });
+  const days = intakeDaysPerWeek(ad);
+  if (days !== null) rows.push({ label: 'Days a week', value: String(days) });
+  if (present(ad.intake_experience)) rows.push({ label: 'Experience', value: String(ad.intake_experience).trim() });
+  // The one a coach needs most before committing: injuries and limitations.
+  if (present(ad.intake_limitation)) rows.push({ label: 'Working around', value: String(ad.intake_limitation).trim() });
+  if (present(ad.age)) rows.push({ label: 'Age', value: String(ad.age) });
+  if (present(ad.weight) && present(ad.height)) {
+    rows.push({ label: 'Weight & height', value: `${String(ad.weight)} · ${String(ad.height)}` });
+  } else if (present(ad.weight)) {
+    rows.push({ label: 'Weight', value: String(ad.weight) });
+  } else if (present(ad.height)) {
+    rows.push({ label: 'Height', value: String(ad.height) });
+  }
+  const styles = Array.isArray(ad.training_styles) ? ad.training_styles.filter(present) : [];
+  if (styles.length > 0) rows.push({ label: 'Training styles', value: styles.map((s: any) => String(s).trim()).join(', ') });
+  const acts = Array.isArray(ad.activities) ? ad.activities.filter(present) : [];
+  if (acts.length > 0) rows.push({ label: 'Activities', value: acts.map((a: any) => String(a).trim()).join(', ') });
+  return rows;
+}
+
+// Expansion is only offered when it would show something the chips don't.
+function intakeHasDetailBeyondChips(ad: any): boolean {
+  if (!ad) return false;
+  if (present(ad.intake_limitation) || present(ad.age) || present(ad.weight) || present(ad.height)) return true;
+  if (Array.isArray(ad.training_styles) && ad.training_styles.filter(present).length > 0) return true;
+  if (Array.isArray(ad.activities) && ad.activities.filter(present).length > 0) return true;
+  // A legacy multi-goal list is truncated to its first entry in the chip row.
+  return intakeGoal(ad, true) !== intakeGoal(ad, false);
+}
+
 function formatTrialEndDate(): string {
   const d = new Date();
   d.setDate(d.getDate() + 14);
@@ -64,6 +138,7 @@ export default function AddClientScreen() {
   const [findResults, setFindResults] = useState<any[]>([]);
   const [findLoading, setFindLoading] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
+  const [expandedResult, setExpandedResult] = useState<string | null>(null);
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
   // Derived DB status: a plan + "paying now" makes the client active;
@@ -306,8 +381,16 @@ export default function AddClientScreen() {
         if (error) throw new Error(error.message || 'Could not add that client');
       }
 
-      // Navigate back FIRST
-      showAlert({ type: 'success', title: 'Client added', message: `${client.name} is now your client.` });
+      // Navigate back FIRST. When the athlete arrived with their own intake,
+      // the confirm says so — the coach is not starting from a blank profile.
+      const hasIntake = intakeDetails(client.assessment_data).length > 0;
+      showAlert({
+        type: 'success',
+        title: 'Client added',
+        message: hasIntake
+          ? `${client.name} is now your athlete — their intake is already on their profile.`
+          : `${client.name} is now your client.`,
+      });
       setLinking(null);
       router.back();
 
@@ -520,34 +603,76 @@ export default function AddClientScreen() {
               {findResults.length > 0 && (
                 <View style={{ gap: 8, marginTop: 8 }}>
                   <Text style={st.sectionLabel}>{findResults.length} user{findResults.length !== 1 ? 's' : ''} found</Text>
-                  {findResults.map(client => (
+                  {findResults.map(client => {
+                    const chips = intakeChips(client.assessment_data);
+                    const canExpand = intakeHasDetailBeyondChips(client.assessment_data);
+                    const isExpanded = canExpand && expandedResult === client.id;
+                    return (
                     <View key={client.id} style={st.findResultCard}>
-                      <View style={st.findResultInitials}>
-                        {client.avatar_url ? (
-                          <Image source={{ uri: client.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-                        ) : (
-                          <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted }}>
-                            {(client.name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </Text>
-                        )}
+                      <View style={st.findResultTopRow}>
+                        <TouchableOpacity
+                          style={st.findResultBody}
+                          activeOpacity={0.7}
+                          disabled={!canExpand}
+                          onPress={() => setExpandedResult(prev => (prev === client.id ? null : client.id))}
+                        >
+                          <View style={st.findResultInitials}>
+                            {client.avatar_url ? (
+                              <Image source={{ uri: client.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                            ) : (
+                              <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted }}>
+                                {(client.name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={st.findResultName}>{client.name}</Text>
+                            <Text style={st.findResultContact}>{client.email || client.phone || 'No contact'}</Text>
+                          </View>
+                          {canExpand && (
+                            <Ionicons
+                              name="chevron-down" size={17} color={CoachColors.textFaint}
+                              style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
+                            />
+                          )}
+                        </TouchableOpacity>
+                        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
+                          style={[st.linkBtn, linking === client.id && { opacity: 0.5 }]}
+                          onPress={() => handleLinkClient(client)}
+                          disabled={linking === client.id}
+                        >
+                          {linking === client.id ? (
+                            <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                          ) : (
+                            <Text style={st.linkBtnText}>Add</Text>
+                          )}
+                        </TouchableOpacity>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={st.findResultName}>{client.name}</Text>
-                        <Text style={st.findResultContact}>{client.email || client.phone || 'No contact'}</Text>
-                      </View>
-                      <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
-                        style={[st.linkBtn, linking === client.id && { opacity: 0.5 }]}
-                        onPress={() => handleLinkClient(client)}
-                        disabled={linking === client.id}
-                      >
-                        {linking === client.id ? (
-                          <ActivityIndicator size="small" color={CoachColors.onAccent} />
-                        ) : (
-                          <Text style={st.linkBtnText}>Add</Text>
-                        )}
-                      </TouchableOpacity>
+                      {chips.length > 0 ? (
+                        <View style={st.findChipRow}>
+                          {chips.map((c, i) => (
+                            <View key={`${i}-${c}`} style={st.findChip}><Text style={st.findChipText}>{c}</Text></View>
+                          ))}
+                        </View>
+                      ) : !canExpand ? (
+                        // A true statement about a real absence — allowed by §4.
+                        <View style={st.findChipRow}>
+                          <View style={st.findChipMuted}><Text style={st.findChipMutedText}>No intake yet</Text></View>
+                        </View>
+                      ) : null}
+                      {isExpanded && (
+                        <View style={st.findExpand}>
+                          {intakeDetails(client.assessment_data).map(d => (
+                            <View key={d.label} style={st.findExpandRow}>
+                              <Text style={st.findExpandLabel}>{d.label}</Text>
+                              <Text style={st.findExpandValue}>{d.value}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
             </KeyboardAwareScrollView>
@@ -869,10 +994,11 @@ const st = StyleSheet.create({
   },
   searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   findResultCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 14, borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
+  findResultTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  findResultBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   findResultInitials: {
     width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous',
     backgroundColor: RAISED_CIRCLE, alignItems: 'center', justifyContent: 'center',
@@ -881,6 +1007,27 @@ const st = StyleSheet.create({
   findResultContact: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },
   linkBtn: { backgroundColor: CoachColors.accent, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, borderCurve: 'continuous' },
   linkBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.onAccent },
+
+  // Find — intake chips + expandable detail. Every line is the athlete's own
+  // intake from search-unassigned-clients; absent fields are omitted (§4).
+  findChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  findChip: {
+    backgroundColor: CoachColors.accentSoft, borderRadius: 999, borderCurve: 'continuous',
+    paddingHorizontal: 12, paddingVertical: 4,
+  },
+  findChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.accent },
+  findChipMuted: {
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
+    paddingHorizontal: 12, paddingVertical: 4,
+  },
+  findChipMutedText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12, color: CoachColors.textFaint },
+  findExpand: {
+    marginTop: 12, paddingTop: 12, gap: 8,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted,
+  },
+  findExpandRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  findExpandLabel: { width: 112, fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textFaint },
+  findExpandValue: { flex: 1, fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
 
   // Step 2 — Plans (one lime accent, no per-plan tinting, no popular badge)
   planCard: {

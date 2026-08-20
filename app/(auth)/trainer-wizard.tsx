@@ -35,6 +35,15 @@ const STEPS = [
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+// Same derivation the athlete-side match card uses (find-coach.tsx) — the
+// preview below must show exactly what an athlete with no avatar would see.
+function initials(name?: string): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts.slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
+}
+
 export default function TrainerWizardScreen() {
   const router = useRouter();
   const { trainer, updateTrainer } = useApp();
@@ -63,6 +72,7 @@ export default function TrainerWizardScreen() {
   const [name, setName] = useState(trainer?.name || '');
   const [bio, setBio] = useState(trainer?.bio || '');
   const [specialization, setSpecialization] = useState(trainer?.specialization || '');
+  const [certifications, setCertifications] = useState(trainer?.certifications || '');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -148,6 +158,7 @@ export default function TrainerWizardScreen() {
           name: name.trim(),
           bio: bio.trim() || undefined,
           specialization: specialization.trim() || undefined,
+          certifications: certifications.trim() || undefined,
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         });
       } catch (err: any) {
@@ -401,11 +412,14 @@ export default function TrainerWizardScreen() {
                     style={styles.fieldInput}
                     value={specialization}
                     onChangeText={setSpecialization}
-                    placeholder="Strength & conditioning, HIIT…"
+                    placeholder="Strength · fat loss · beginners"
                     placeholderTextColor={CoachColors.textFaint}
                     accessibilityLabel="What you coach"
                   />
                 </View>
+                <Text style={styles.fieldHint}>
+                  Athletes searching for a coach are matched against these exact words — 'strength', 'fat loss', 'marathon' get found; slogans don't.
+                </Text>
 
                 <View style={[styles.fieldRow, bio.trim() && styles.fieldRowFilled, { minHeight: 76 }]}>
                   <Text style={styles.fieldLabel}>Short bio</Text>
@@ -413,13 +427,71 @@ export default function TrainerWizardScreen() {
                     style={[styles.fieldInput, styles.fieldTextArea]}
                     value={bio}
                     onChangeText={setBio}
-                    placeholder="A sentence or two about how you work…"
+                    placeholder="I keep busy people strong on three honest sessions a week."
                     placeholderTextColor={CoachColors.textFaint}
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
                     accessibilityLabel="Short bio"
                   />
+                </View>
+                <Text style={styles.fieldHint}>
+                  Write it to one athlete, not a resume. This text is searched too.
+                </Text>
+
+                <View style={[styles.fieldRow, certifications.trim() && styles.fieldRowFilled]}>
+                  <Text style={styles.fieldLabel}>Certifications — optional</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={certifications}
+                    onChangeText={setCertifications}
+                    placeholder="NASM CPT, Precision Nutrition L1"
+                    placeholderTextColor={CoachColors.textFaint}
+                    accessibilityLabel="Certifications, optional"
+                  />
+                </View>
+                <Text style={styles.fieldHint}>
+                  Shown on your public profile exactly as written. Leave empty and the section simply doesn't appear.
+                </Text>
+
+                {/* Live preview — the same anatomy as the athlete-side match
+                    card in find-coach.tsx, fed from this form's state, so a
+                    coach sees what "HOMETOWN: New York" would actually look
+                    like before it ships. */}
+                <View style={styles.previewBlock}>
+                  <Text style={styles.previewEyebrow}>How athletes will see you</Text>
+                  <View style={styles.previewCard}>
+                    <View style={styles.previewHeadRow}>
+                      {avatarUri ? (
+                        <Image source={{ uri: avatarUri }} style={styles.previewAvatar} />
+                      ) : (
+                        <View style={styles.previewAvatarFallback}>
+                          <Text style={styles.previewAvatarText}>{initials(name)}</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.previewName} numberOfLines={1}>
+                          {name.trim() || 'Your name'}
+                        </Text>
+                        {!!specialization.trim() && (
+                          <Text style={styles.previewSpec} numberOfLines={1}>
+                            {specialization.trim()}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    {bio.trim() || specialization.trim() ? (
+                      !!bio.trim() && (
+                        <Text style={styles.previewBio} numberOfLines={3}>
+                          {bio.trim()}
+                        </Text>
+                      )
+                    ) : (
+                      <Text style={styles.previewEmpty}>
+                        Your card is blank — athletes scrolling past see just a name
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </>
             )}
@@ -448,6 +520,9 @@ export default function TrainerWizardScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                <Text style={styles.hoursHint}>
+                  Athletes filter by when they can train — hours you set here are checked against their answer.
+                </Text>
               </View>
             )}
 
@@ -581,6 +656,30 @@ const styles = StyleSheet.create({
     marginTop: 2, padding: 0,
   },
   fieldTextArea: { minHeight: 53 },
+  // Sits directly under its field; the negative top pulls it inside the
+  // ScrollView's `gap: 11` so hint and field read as one unit.
+  fieldHint: { fontFamily: CoachFonts.body, fontSize: 12.5, lineHeight: 17.5, color: CoachColors.textFaint, marginTop: -5, paddingHorizontal: 4 },
+
+  // Live "how athletes will see you" preview — mirrors the match-card anatomy
+  // in app/(client-tabs)/find-coach.tsx (surface card, radius 16, avatar or
+  // initials circle, name, specialization line, bio capped at 3 lines).
+  previewBlock: { marginTop: 8 },
+  previewEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 9 },
+  previewCard: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
+  },
+  previewHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  previewAvatar: { width: 48, height: 48, borderRadius: 999, borderCurve: 'continuous' },
+  previewAvatarFallback: {
+    width: 48, height: 48, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: CoachColors.accentSoft, alignItems: 'center', justifyContent: 'center',
+  },
+  previewAvatarText: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.accent },
+  previewName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  previewSpec: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary, marginTop: 2 },
+  previewBio: { fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 20, color: CoachColors.textSecondary, marginTop: 12 },
+  previewEmpty: { fontFamily: CoachFonts.body, fontSize: 13.5, lineHeight: 19, color: CoachColors.textFaint, fontStyle: 'italic', marginTop: 12 },
 
   // Availability
   dayRow: {
@@ -598,6 +697,7 @@ const styles = StyleSheet.create({
   dayNameInactive: { color: CoachColors.textFaint },
   dayHours: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: '#C9CEC2' },
   dayHoursInactive: { color: CoachColors.textFaint },
+  hoursHint: { fontFamily: CoachFonts.body, fontSize: 12.5, lineHeight: 17.5, color: CoachColors.textFaint, marginTop: 4, paddingHorizontal: 4 },
 
   // Payments
   payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
