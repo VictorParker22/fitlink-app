@@ -224,7 +224,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
         // athlete legitimately messages this coach, and the push function now
         // authorises by relationship anyway.
         supabase.from('trainers')
-          .select('id, name, email, phone, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, referral_code, expo_push_token, notification_prefs, onboarding_complete, created_at')
+          // stripe_onboarding_complete is deliberately included: checkout
+          // gates on it, and an athlete paying their own coach legitimately
+          // needs the boolean "can this coach take payments". The Stripe
+          // ACCOUNT ID stays excluded — the flag is not the key.
+          .select('id, name, email, phone, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, referral_code, expo_push_token, notification_prefs, onboarding_complete, stripe_onboarding_complete, created_at')
           .eq('id', client.trainer_id).single(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')

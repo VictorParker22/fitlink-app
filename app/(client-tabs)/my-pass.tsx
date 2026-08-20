@@ -15,7 +15,7 @@
  * existing post-payment flow, not here.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,7 +94,12 @@ function composition(wk: WeekSummary): string {
 export default function MyPassScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { clientData, plans, trainer, enrollment } = useClient();
+  const { clientData, plans, trainer, enrollment, conversation } = useClient();
+  // 'hidden' | 'open' | 'sent' — the not-yet-approved sheet (see
+  // handleStartSeason). 'sent' survives reopening so the athlete is not
+  // nudged into messaging the coach twice about the same pass.
+  const [queueSheet, setQueueSheet] = useState<'hidden' | 'open' | 'sent'>('hidden');
+  const [queueSending, setQueueSending] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
 
@@ -182,11 +187,41 @@ export default function MyPassScreen() {
     if (!plan || !clientData) return;
     // Cohorts that are full or past their deadline never open checkout.
     if (cohortPlan && !canJoin(plan as any, seatsKnown ? (seatCount as number) : 0)) return;
+    // A request-to-join creates the client row with status 'new' — the coach
+    // has NOT accepted yet. Opening checkout from here used to be a dead
+    // end; worse, taking money from an athlete the coach might decline
+    // would be its own incident. The tap still lands somewhere: a sheet
+    // that says exactly where they stand and turns the intent into a
+    // message the coach sees. Real queue, real FOMO — no invented
+    // "3 spots left".
+    if (clientData.status === 'new') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setQueueSheet((prev) => (prev === 'sent' ? 'sent' : 'open'));
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: SharedRoute.checkout as any,
       params: { planId: plan.id, clientId: clientData.id },
     });
+  };
+
+  // Turn the blocked tap into the thing the coach actually sees: a message
+  // in the existing thread (created with the join request). Insert resolves
+  // with { error }, never throws (INVARIANTS §2).
+  const flagReadyToStart = async () => {
+    if (!plan || !conversation?.id || queueSending) return;
+    setQueueSending(true);
+    const { error } = await supabase.from('messages').insert({
+      conversation_id: conversation.id,
+      sender_type: 'client',
+      content: `I'm ready to start "${plan.name}" as soon as you approve me.`,
+    });
+    setQueueSending(false);
+    if (!error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setQueueSheet('sent');
+    }
   };
 
   // ── No profile yet ─────────────────────────────────────────────────────
@@ -543,11 +578,105 @@ export default function MyPassScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Not-yet-approved sheet. The athlete pressed the money button while
+          their request is still in the coach's queue — the one moment we
+          know they are genuinely interested. Everything here is true: the
+          queue is real, the message goes into the real thread, and there is
+          no invented scarcity. */}
+      <Modal
+        visible={queueSheet !== 'hidden'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQueueSheet('hidden')}
+      >
+        <TouchableOpacity style={s.sheetBackdrop} activeOpacity={1} onPress={() => setQueueSheet('hidden')}>
+          <TouchableOpacity activeOpacity={1} style={s.sheetCard} onPress={() => {}}>
+            <View style={s.sheetBadge}>
+              <Ionicons name="hourglass-outline" size={26} color={CoachColors.accent} />
+            </View>
+            {queueSheet === 'sent' ? (
+              <>
+                <Text style={s.sheetTitle}>{trainer?.name ? `${String(trainer.name).split(' ')[0]} knows` : 'Your coach knows'}</Text>
+                <Text style={s.sheetBody}>
+                  Your message is in the thread{plan ? ` — "${plan.name}" is flagged as your first season` : ''}. The moment
+                  they approve you, this button takes your payment and the season starts.
+                </Text>
+                <TouchableOpacity style={s.sheetPrimary} activeOpacity={0.85} onPress={() => setQueueSheet('hidden')}>
+                  <Text style={s.sheetPrimaryText}>Keep browsing the season</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={s.sheetTitle}>You're in {trainer?.name ? `${String(trainer.name).split(' ')[0]}'s` : 'the'} queue</Text>
+                <Text style={s.sheetBody}>
+                  Your request to join hasn't been approved yet — payment unlocks the moment it is.
+                  {plan ? ` Want ${trainer?.name ? String(trainer.name).split(' ')[0] : 'them'} to know "${plan.name}" is the one you're waiting on?` : ''}
+                </Text>
+                {conversation?.id ? (
+                  <TouchableOpacity
+                    style={[s.sheetPrimary, queueSending && { opacity: 0.6 }]}
+                    activeOpacity={0.85}
+                    disabled={queueSending}
+                    onPress={flagReadyToStart}
+                    accessibilityRole="button"
+                    accessibilityLabel="Tell your coach you're ready to start"
+                  >
+                    <Text style={s.sheetPrimaryText}>{queueSending ? 'Sending…' : "Tell them I'm ready"}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={s.sheetNote}>You'll get a notification the moment they approve you.</Text>
+                )}
+                <TouchableOpacity style={s.sheetSecondary} activeOpacity={0.7} onPress={() => setQueueSheet('hidden')}>
+                  <Text style={s.sheetSecondaryText}>Keep browsing the season</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  sheetBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  sheetCard: {
+    width: '100%', maxWidth: 400,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    padding: 24, alignItems: 'center', gap: 12,
+  },
+  sheetBadge: {
+    width: 56, height: 56, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: CoachColors.accentSoft,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  sheetTitle: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 19,
+    color: CoachColors.textPrimary, textAlign: 'center',
+  },
+  sheetBody: {
+    fontFamily: CoachFonts.body, fontSize: 14, lineHeight: 20.5,
+    color: CoachColors.textSecondary, textAlign: 'center',
+  },
+  sheetPrimary: {
+    alignSelf: 'stretch', backgroundColor: CoachColors.accent,
+    borderRadius: 999, borderCurve: 'continuous',
+    paddingVertical: 14, alignItems: 'center', marginTop: 8,
+  },
+  sheetPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
+  sheetSecondary: { paddingVertical: 10 },
+  sheetSecondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted },
+  sheetNote: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint,
+    textAlign: 'center', marginTop: 4,
+  },
   container: { flex: 1, backgroundColor: CoachColors.bg },
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary },

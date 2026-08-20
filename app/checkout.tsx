@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStripe } from '../lib/stripe-checkout';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { useClient } from '../context/ClientContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { isCohort, enrollmentState, formatDay, parseLocalDay } from '../lib/cohort';
 
@@ -20,14 +21,32 @@ const EDGE_FUNCTION_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1
 export default function CheckoutScreen() {
   const { planId, clientId } = useLocalSearchParams<{ planId: string; clientId: string }>();
   const router = useRouter();
-  const { plans, clients, trainer, refreshData } = useApp();
+  // TWO callers share this screen and they live in DIFFERENT contexts.
+  // A coach charging a client arrives with useApp() populated; an ATHLETE
+  // buying their own pass has an empty useApp() — their plan, their coach
+  // and their own row live in useClient(). Reading only useApp() meant
+  // every athlete who ever pressed "Start the season" landed on "Plan or
+  // client not found": the purchase path was structurally dead for the
+  // entire athlete side, not an edge case (TestFlight, 2026-08-20).
+  const { plans, clients, trainer: coachSideTrainer, refreshData } = useApp();
+  const {
+    plans: athletePlans,
+    clientData,
+    trainer: athleteSideTrainer,
+    refreshData: refreshClientData,
+  } = useClient();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const [loading, setLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
-  const plan = plans.find((p) => p.id === planId);
-  const client = clients.find((c) => c.id === clientId);
+  const plan =
+    plans.find((p) => p.id === planId) ||
+    (athletePlans || []).find((p: any) => p.id === planId);
+  const client =
+    clients.find((c) => c.id === clientId) ||
+    (clientData?.id === clientId ? clientData : undefined);
+  const trainer = coachSideTrainer || athleteSideTrainer;
 
   const handlePayment = useCallback(async () => {
     if (!trainer?.stripe_onboarding_complete) {
@@ -161,6 +180,7 @@ export default function CheckoutScreen() {
       }
 
       await refreshData();
+      await refreshClientData?.();
 
       // Show success and navigate back after delay
       setTimeout(() => {
