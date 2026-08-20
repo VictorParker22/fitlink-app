@@ -98,8 +98,9 @@ export default function MyPassScreen() {
   // 'hidden' | 'open' | 'sent' — the not-yet-approved sheet (see
   // handleStartSeason). 'sent' survives reopening so the athlete is not
   // nudged into messaging the coach twice about the same pass.
-  const [queueSheet, setQueueSheet] = useState<'hidden' | 'open' | 'sent'>('hidden');
+  const [queueSheet, setQueueSheet] = useState<'hidden' | 'open' | 'sent' | 'locked'>('hidden');
   const [queueSending, setQueueSending] = useState(false);
+  const [queueError, setQueueError] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
 
@@ -209,9 +210,17 @@ export default function MyPassScreen() {
   // Turn the blocked tap into the thing the coach actually sees: a message
   // in the existing thread (created with the join request). Insert resolves
   // with { error }, never throws (INVARIANTS §2).
+  //
+  // EVERY exit of this function changes the screen. The first shipped
+  // version handled only success — on an RLS refusal the button spun,
+  // reverted, and the athlete stared at "Tell them I'm ready" wondering if
+  // anything happened (TestFlight, same day it shipped). A denial here is
+  // not an outage: messaging before approval may simply not be allowed for
+  // a 'new' client, and that is an ANSWER the athlete deserves in words.
   const flagReadyToStart = async () => {
     if (!plan || !conversation?.id || queueSending) return;
     setQueueSending(true);
+    setQueueError(null);
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversation.id,
       sender_type: 'client',
@@ -221,7 +230,18 @@ export default function MyPassScreen() {
     if (!error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setQueueSheet('sent');
+      return;
     }
+    if (__DEV__) console.warn('[my-pass] ready-flag insert failed:', error.code, error.message);
+    // 42501 = row-level security refusal. The thread is closed to them
+    // until approval — say so as a state, not a failure.
+    if (error.code === '42501') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setQueueSheet('locked');
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    setQueueError("That didn't send — our side, not yours. Try again in a moment.");
   };
 
   // ── No profile yet ─────────────────────────────────────────────────────
@@ -595,7 +615,19 @@ export default function MyPassScreen() {
             <View style={s.sheetBadge}>
               <Ionicons name="hourglass-outline" size={26} color={CoachColors.accent} />
             </View>
-            {queueSheet === 'sent' ? (
+            {queueSheet === 'locked' ? (
+              <>
+                <Text style={s.sheetTitle}>Your place is held</Text>
+                <Text style={s.sheetBody}>
+                  Messaging opens once {trainer?.name ? String(trainer.name).split(' ')[0] : 'your coach'} approves
+                  your request — until then the thread is theirs to open. You'll get a notification the moment
+                  it happens, and this button takes your payment right after.
+                </Text>
+                <TouchableOpacity style={s.sheetPrimary} activeOpacity={0.85} onPress={() => setQueueSheet('hidden')}>
+                  <Text style={s.sheetPrimaryText}>Keep browsing the season</Text>
+                </TouchableOpacity>
+              </>
+            ) : queueSheet === 'sent' ? (
               <>
                 <Text style={s.sheetTitle}>{trainer?.name ? `${String(trainer.name).split(' ')[0]} knows` : 'Your coach knows'}</Text>
                 <Text style={s.sheetBody}>
@@ -613,6 +645,7 @@ export default function MyPassScreen() {
                   Your request to join hasn't been approved yet — payment unlocks the moment it is.
                   {plan ? ` Want ${trainer?.name ? String(trainer.name).split(' ')[0] : 'them'} to know "${plan.name}" is the one you're waiting on?` : ''}
                 </Text>
+                {queueError ? <Text style={s.sheetError}>{queueError}</Text> : null}
                 {conversation?.id ? (
                   <TouchableOpacity
                     style={[s.sheetPrimary, queueSending && { opacity: 0.6 }]}
@@ -673,6 +706,10 @@ const s = StyleSheet.create({
   sheetPrimaryText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.onAccent },
   sheetSecondary: { paddingVertical: 10 },
   sheetSecondaryText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted },
+  sheetError: {
+    fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.danger,
+    textAlign: 'center',
+  },
   sheetNote: {
     fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint,
     textAlign: 'center', marginTop: 4,
