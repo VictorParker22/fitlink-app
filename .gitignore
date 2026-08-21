@@ -52,6 +52,8 @@ google-services.json
 # scratch / debug scripts
 *.py
 *.patch
+# patch-package patches are source, not scratch — postinstall needs them
+!patches/*.patch
 *.cjs
 refactor.js
 fix_ts.js
