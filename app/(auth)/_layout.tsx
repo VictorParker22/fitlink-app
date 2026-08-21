@@ -14,6 +14,7 @@ export default function AuthLayout() {
       <Stack.Screen name="client-signup" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#000' } }} />
       <Stack.Screen name="trainer-wizard" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
       <Stack.Screen name="client-onboarding" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#000' }, gestureEnabled: false }} />
+      <Stack.Screen name="athlete-permissions" options={{ animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="client-login" options={{ contentStyle: { backgroundColor: '#000' } }} />
     </Stack>
   );

@@ -170,8 +170,13 @@ export default function ClientOnboardingScreen() {
     // Coachless athletes land on find-coach — their answers were just
     // persisted for the matching prefill, so the next step is finding the
     // coach, not an empty dashboard. Coached athletes keep the dashboard.
+    // Both pass through the permissions primer first: one explained moment
+    // for the OS asks, instead of ambushes mid-session later.
     const dest = coachless ? '/(client-tabs)/find-coach' : '/(client-tabs)';
-    const timer = setTimeout(() => router.replace(dest), 1800);
+    const timer = setTimeout(
+      () => router.replace(`/(auth)/athlete-permissions?next=${encodeURIComponent(dest)}` as any),
+      1800,
+    );
     return () => clearTimeout(timer);
   }, [done, coachless]);
 

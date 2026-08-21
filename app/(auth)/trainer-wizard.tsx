@@ -20,6 +20,8 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
+import PermissionCards from '../../components/onboarding/PermissionCards';
+import { getNotificationState, requestNotifications, getCameraMicState, requestCameraMic } from '../../lib/permissions';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -30,6 +32,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STEPS = [
   { title: 'Who are your\nathletes training with?', subtitle: 'This is what they see when they open your profile.' },
   { title: 'When do athletes\nbook you?', subtitle: 'Rough hours are fine — you can change any day later.' },
+  { title: 'Turn on the tools\nyou’ll coach with', subtitle: 'Each ask has one job. Say yes here and the app never has to interrupt a session to ask.' },
   { title: 'Where should the\nmoney go?', subtitle: 'Athletes pay in the app. Stripe pays out to your bank.' },
 ];
 
@@ -188,8 +191,12 @@ export default function TrainerWizardScreen() {
       }
       setSaving(false);
       animateToStep(2);
+    } else if (step === 2) {
+      // Permissions are primed via the cards themselves — Continue moves on
+      // whether the coach allowed everything, something, or nothing.
+      animateToStep(3);
     } else {
-      // Step 3 (payments) — connect bank, then finish
+      // Step 4 (payments) — connect bank, then finish
       await handleConnectBank();
     }
   };
@@ -526,8 +533,32 @@ export default function TrainerWizardScreen() {
               </View>
             )}
 
-            {/* ============ STEP 3: Payments ============ */}
+            {/* ============ STEP 3: Permissions ============ */}
             {step === 2 && (
+              <PermissionCards
+                items={[
+                  {
+                    key: 'notifications',
+                    icon: 'notifications-outline',
+                    title: 'Notifications',
+                    why: 'A check-in arrives, an athlete messages, a session is about to start. The things you’d want a nudge for — nothing else.',
+                    getState: getNotificationState,
+                    request: requestNotifications,
+                  },
+                  {
+                    key: 'camera-mic',
+                    icon: 'videocam-outline',
+                    title: 'Camera & microphone',
+                    why: 'Film exercise demos and go live from Studio without the OS stopping you mid-recording to ask.',
+                    getState: getCameraMicState,
+                    request: requestCameraMic,
+                  },
+                ]}
+              />
+            )}
+
+            {/* ============ STEP 4: Payments ============ */}
+            {step === 3 && (
               <>
                 <View style={styles.payCard}>
                   <Text style={styles.payEyebrow}>On a $180 pass</Text>
@@ -572,12 +603,12 @@ export default function TrainerWizardScreen() {
             activeOpacity={0.85}
             disabled={saving || stripeLoading}
             accessibilityRole="button"
-            accessibilityLabel={step === 2 ? 'Connect my bank' : 'Continue to next step'}
+            accessibilityLabel={step === 3 ? 'Connect my bank' : 'Continue to next step'}
           >
             {(saving || stripeLoading) ? (
               <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
-              <Text style={styles.nextBtnText}>{step === 2 ? 'Connect my bank' : 'Continue'}</Text>
+              <Text style={styles.nextBtnText}>{step === 3 ? 'Connect my bank' : 'Continue'}</Text>
             )}
           </TouchableOpacity>
 
@@ -585,12 +616,12 @@ export default function TrainerWizardScreen() {
             <Text style={styles.footerCaption}>{activeDayCount} days a week, {bookableHours} bookable hours</Text>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <TouchableOpacity onPress={handleSkipPayments} disabled={saving || stripeLoading} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
               <Text style={styles.skipText}>I'll do this later</Text>
             </TouchableOpacity>
           )}
-          {step === 2 && (
+          {step === 3 && (
             <Text style={styles.skipCaption}>You can add athletes now, but not charge them</Text>
           )}
         </View>

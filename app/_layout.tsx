@@ -288,8 +288,10 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/welcome');
     } else if (isAuthenticated && inAuthGroup) {
-      // Allow clients to re-enter onboarding to update their profile
-      const isOnboardingScreen = segments[1] === 'client-onboarding';
+      // Allow clients to re-enter onboarding to update their profile.
+      // athlete-permissions is the priming step onboarding routes to, so it
+      // counts as onboarding — bouncing off it would skip the primer.
+      const isOnboardingScreen = segments[1] === 'client-onboarding' || segments[1] === 'athlete-permissions';
       const isWizardScreen = segments[1] === 'trainer-wizard';
       if (userRole === 'client') {
         if (!hasClientOnboarded && !isOnboardingScreen) {

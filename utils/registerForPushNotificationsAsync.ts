@@ -16,16 +16,12 @@ export async function registerForPushNotificationsAsync() {
   }
 
   if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
+    // Silent by contract: this only REGISTERS when permission already exists.
+    // The system prompt is owned by the onboarding primer (lib/permissions.ts,
+    // requestNotifications) — firing it cold at launch burned iOS's one-shot
+    // prompt before the user had seen anything notifications are about.
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
       return undefined;
     }
     
