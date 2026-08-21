@@ -210,19 +210,22 @@ function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, reduce
         {/* Unread badge */}
         {badge > 0 && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+            <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>{badge > 99 ? '99+' : badge}</Text>
           </View>
         )}
       </Animated.View>
 
       {/* Micro-label — fades out when active (icon lifts to show it is selected) */}
-      {/* Dynamic Type: the pill bar is a fixed height, so the micro-label
-          shrinks to fit rather than wrapping and blowing the bar out. */}
+      {/* Dynamic Type: the pill bar is a fixed height. adjustsFontSizeToFit
+          only guards width, so cap the scale multiplier too — otherwise large
+          accessibility text grows the label past the bar's bottom edge and
+          shoves the icons off-centre. */}
       <Animated.Text
         style={[styles.tabLabel, labelStyle]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
+        maxFontSizeMultiplier={1.2}
       >
         {config.label}
       </Animated.Text>
@@ -342,6 +345,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 10,
+    lineHeight: 12,
     color: CoachColors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
