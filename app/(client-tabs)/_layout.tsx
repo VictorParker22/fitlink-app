@@ -110,12 +110,16 @@ function AthleteTabBar({ state, navigation }: any) {
                 {showDot && <View style={styles.dot} />}
               </View>
               {/* Dynamic Type: tab labels share a fixed-width fifth of the bar,
-                  so they shrink to fit rather than wrap the whole bar taller. */}
+                  so they shrink to fit rather than wrap the whole bar taller.
+                  Cap the multiplier too — otherwise each label shrinks by a
+                  different amount (long words hit the width limit, short ones
+                  don't) and the bar reads as five different font sizes. */}
               <Text
                 style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.2}
               >
                 {tab.label}
               </Text>
