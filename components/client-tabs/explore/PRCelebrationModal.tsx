@@ -10,6 +10,7 @@ import {
   Easing,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -318,7 +319,7 @@ export default function PRCelebrationModal({
             pointerEvents="none"
           >
             <View style={s.shareCardHead}>
-              <View style={s.shareCardMark}><Text style={s.shareCardMarkText}>FL</Text></View>
+              <Image source={require('../../../assets/images/logo.png')} style={s.shareCardMark} />
               <Text style={s.shareCardBrand}>FitLink</Text>
             </View>
             <View style={s.shareCardBadge}><Text style={s.shareCardBadgeText}>New personal record</Text></View>
@@ -468,12 +469,9 @@ const s = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   shareCardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 34 },
-  shareCardMark: {
-    width: 30, height: 30, borderRadius: 9, borderCurve: 'continuous',
-    backgroundColor: CoachColors.accent,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  shareCardMarkText: { fontFamily: CoachFonts.headingBold, fontSize: 13, color: CoachColors.onAccent },
+  // The real app icon (rounded corners baked into the asset) — the share
+  // card wears the same mark the home screen does.
+  shareCardMark: { width: 30, height: 30 },
   shareCardBrand: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
   shareCardBadge: {
     alignSelf: 'flex-start',

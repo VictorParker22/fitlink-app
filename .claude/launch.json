@@ -7,6 +7,12 @@
       "runtimeArgs": ["expo", "start", "--web", "--port", "8090"],
       "autoPort": false,
       "port": 8090
+    },
+    {
+      "name": "fitlink-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/projects/fitlink", "run", "dev", "--", "--port", "5178", "--strictPort"],
+      "port": 5178
     }
   ]
 }
