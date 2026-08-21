@@ -1,25 +1,28 @@
+/**
+ * (tabs)/_layout.tsx — Coach tab bar.
+ *
+ * Same flat pattern as the athlete bar (design turn 22 / mockup 22a):
+ * a bar on the app background with a hairline top border — no glass, no
+ * floating pill. One lime accent for the active tab; a numeric badge on
+ * Messages for unread client threads.
+ *
+ * The old floating-pill bar died of geometry: five labelled tabs inside a
+ * fixed-height pill whose fully-rounded ends curved into the outer labels
+ * ("Messages" poked past the corner at any text size). The flat bar has
+ * no fixed height and no rounded ends, so Dynamic Type just grows it.
+ */
+
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  interpolate,
-  Extrapolation,
-  type SharedValue,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { useReducedMotion } from '../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ── Unread Messages Hook ──
+// ─── Unread Messages Hook ─────────────────────────────────────────────────────
 function useUnreadMessageCount() {
   const { user } = useAuth();
   const [count, setCount] = useState(0);
@@ -58,7 +61,7 @@ function useUnreadMessageCount() {
   return count;
 }
 
-// ── Tab config — Research-backed order ──
+// ─── Tab config — Research-backed order ───────────────────────────────────────
 // Order rationale:
 //  1. Home     — command centre / business overview (always first)
 //  2. Clients  — CRM, high daily frequency (who needs attention?)
@@ -67,182 +70,96 @@ function useUnreadMessageCount() {
 //  5. Messages — client comms (persistent, rightmost by convention)
 // Removed: Library/programs — medium freq, accessed via Home quick actions
 const VISIBLE_TABS = [
-  { name: 'index',    label: 'Home',     icon: 'home-outline',        iconFocused: 'home'        },
-  { name: 'clients',  label: 'Clients',  icon: 'people-outline',      iconFocused: 'people'      },
-  { name: 'schedule', label: 'Schedule', icon: 'calendar-outline',    iconFocused: 'calendar'    },
-  { name: 'studio',   label: 'Studio',   icon: 'radio-outline',       iconFocused: 'radio'       },
-  { name: 'messages', label: 'Messages', icon: 'chatbubble-outline',  iconFocused: 'chatbubble'  },
+  { name: 'index',    label: 'Home',     icon: 'home-outline',       iconFocused: 'home',       hint: 'Business overview' },
+  { name: 'clients',  label: 'Clients',  icon: 'people-outline',     iconFocused: 'people',     hint: 'Your athletes' },
+  { name: 'schedule', label: 'Schedule', icon: 'calendar-outline',   iconFocused: 'calendar',   hint: 'Your calendar' },
+  { name: 'studio',   label: 'Studio',   icon: 'radio-outline',      iconFocused: 'radio',      hint: 'Live and content' },
+  { name: 'messages', label: 'Messages', icon: 'chatbubble-outline', iconFocused: 'chatbubble', hint: 'Client messages' },
 ] as const;
 
-const TAB_COUNT    = VISIBLE_TABS.length;
-const BAR_H        = 80;                               // Slightly taller to fit label
-const BAR_MARGIN   = 20;
-const BAR_WIDTH    = SCREEN_WIDTH - BAR_MARGIN * 2;
-const TAB_WIDTH    = BAR_WIDTH / TAB_COUNT;
-
-const ACTIVE_SIZE  = 58;
-const WELL_SIZE    = 46;
-
-// Spring config — water-like flow
-const FLOW_SPRING    = { damping: 24, stiffness: 130, mass: 0.8, overshootClamping: false };
-const ICON_SPRING    = { damping: 18, stiffness: 200 };
-
-// ════════════════════════════════════
-//  Custom Tab Bar
-// ════════════════════════════════════
-function AnimatedTabBar({ state, descriptors, navigation }: any) {
-  const insets         = useSafeAreaInsets();
-  const bottomPad      = Math.max(insets.bottom, 12);
-  const activeIndex    = useSharedValue(state.index);
+// ─── Tab bar ──────────────────────────────────────────────────────────────────
+function CoachTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 14);
   const unreadMessages = useUnreadMessageCount();
-  const reduced        = useReducedMotion();
 
-  const circleStyle = useAnimatedStyle(() => {
-    const targetX = activeIndex.value * TAB_WIDTH + (TAB_WIDTH - ACTIVE_SIZE) / 2;
-    return {
-      transform: [{ translateX: reduced ? targetX : withSpring(targetX, FLOW_SPRING) }],
-    };
-  }, [reduced]);
-
-  const visibleRoutes = state.routes.filter((r: any) =>
-    VISIBLE_TABS.some(t => t.name === r.name)
+  const handlePress = useCallback(
+    (routeName: string, routeKey: string) => {
+      Haptics.selectionAsync();
+      const event = navigation.emit({ type: 'tabPress', target: routeKey, canPreventDefault: true });
+      if (!event.defaultPrevented) navigation.navigate(routeName);
+    },
+    [navigation]
   );
 
-  const handlePress = useCallback((routeName: string, routeKey: string, tabIndex: number) => {
-    setTimeout(() => { activeIndex.value = tabIndex; }, 30);
-    Haptics.selectionAsync();
-    const event = navigation.emit({ type: 'tabPress', target: routeKey, canPreventDefault: true });
-    if (!event.defaultPrevented) navigation.navigate(routeName);
-  }, [navigation, activeIndex]);
-
   return (
-    <View style={[styles.outerContainer, { paddingBottom: bottomPad }]}>
-      <Animated.View style={styles.bar}>
-        {/* Floating active circle */}
-        <Animated.View style={[styles.activeCircle, circleStyle]} />
-
-        {visibleRoutes.map((route: any) => {
-          const tabConfig   = VISIBLE_TABS.find(t => t.name === route.name);
-          if (!tabConfig) return null;
-          const globalIndex = state.routes.findIndex((r: any) => r.name === route.name);
-          const isFocused   = state.index === globalIndex;
-          const tabIndex    = VISIBLE_TABS.findIndex(t => t.name === route.name);
-          const badge = tabConfig.name === 'messages' && unreadMessages > 0 ? unreadMessages : 0;
+    <View style={[styles.barWrap, { paddingBottom: bottomPad }]}>
+      <View style={styles.bar}>
+        {VISIBLE_TABS.map((tab) => {
+          const route = state.routes.find((r: any) => r.name === tab.name);
+          if (!route) return null;
+          const globalIndex = state.routes.findIndex((r: any) => r.name === tab.name);
+          const isFocused = state.index === globalIndex;
+          const badge = tab.name === 'messages' && unreadMessages > 0 ? unreadMessages : 0;
 
           return (
-            <TabButton
+            <Pressable hitSlop={{ top: 9, bottom: 9 }}
               key={route.key}
-              config={tabConfig}
-              isFocused={isFocused}
-              tabIndex={tabIndex}
-              activeIndex={activeIndex}
-              badge={badge}
-              reduced={reduced}
-              onPress={() => handlePress(route.name, route.key, tabIndex)}
-            />
+              onPress={() => handlePress(route.name, route.key)}
+              style={styles.tabButton}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isFocused }}
+              accessibilityLabel={
+                badge > 0
+                  ? `${tab.label} tab, ${badge > 99 ? 'more than 99' : badge} unread`
+                  : `${tab.label} tab`
+              }
+              accessibilityHint={tab.hint}
+            >
+              <View>
+                <Ionicons
+                  name={isFocused ? (tab.iconFocused as any) : (tab.icon as any)}
+                  size={21}
+                  color={isFocused ? CoachColors.accent : CoachColors.textFaint}
+                />
+                {badge > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+                      {badge > 99 ? '99+' : badge}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {/* Dynamic Type: tab labels share a fixed-width fifth of the bar,
+                  so they shrink to fit rather than wrap the whole bar taller.
+                  Cap the multiplier too — otherwise each label shrinks by a
+                  different amount (long words hit the width limit, short ones
+                  don't) and the bar reads as five different font sizes. */}
+              <Text
+                style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.2}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
           );
         })}
-      </Animated.View>
+      </View>
     </View>
   );
 }
 
-// ════════════════════════════════════
-//  Tab Button
-// ════════════════════════════════════
-interface TabButtonProps {
-  config: typeof VISIBLE_TABS[number];
-  isFocused: boolean;
-  tabIndex: number;
-  activeIndex: SharedValue<number>;
-  badge?: number;
-  reduced?: boolean;
-  onPress: () => void;
-}
-
-function TabButton({ config, isFocused, tabIndex, activeIndex, badge = 0, reduced = false, onPress }: TabButtonProps) {
-
-  const animatedContainer = useAnimatedStyle(() => {
-    // No vertical lift — flat design.
-    // Active state is communicated via the circle background + white icon.
-    // Subtle scale-up on active gives just enough "alive" feeling without the pop.
-    const distance = Math.abs(activeIndex.value - tabIndex);
-    const scale    = interpolate(distance, [0, 1], [1.07, 1], Extrapolation.CLAMP);
-    return {
-      transform: [{ scale: reduced ? scale : withSpring(scale, ICON_SPRING) }],
-    };
-  }, [reduced]);
-
-  const wellStyle = useAnimatedStyle(() => {
-    const distance = Math.abs(activeIndex.value - tabIndex);
-    const opacity  = interpolate(distance, [0, 0.8, 1], [0, 0.6, 1], Extrapolation.CLAMP);
-    return { opacity: reduced ? opacity : withSpring(opacity, ICON_SPRING) };
-  }, [reduced]);
-
-  // Label fades out when active (replaced by lifted icon on circle)
-  const labelStyle = useAnimatedStyle(() => {
-    const distance = Math.abs(activeIndex.value - tabIndex);
-    const opacity  = interpolate(distance, [0, 0.6, 1], [0, 0.5, 1], Extrapolation.CLAMP);
-    return { opacity: reduced ? opacity : withSpring(opacity, ICON_SPRING) };
-  }, [reduced]);
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.tabButton}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: isFocused }}
-      accessibilityLabel={
-        badge > 0
-          ? `${config.label} tab, ${badge > 99 ? 'more than 99' : badge} unread`
-          : `${config.label} tab`
-      }
-    >
-      <Animated.View style={[styles.iconOuter, animatedContainer]}>
-        {/* Inactive well */}
-        <Animated.View style={[styles.well, wellStyle]} />
-        {/* Icon */}
-        <Ionicons
-          name={isFocused ? config.iconFocused : config.icon}
-          size={24}
-          color={isFocused ? CoachColors.textPrimary : CoachColors.textMuted}
-        />
-        {/* Unread badge */}
-        {badge > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>{badge > 99 ? '99+' : badge}</Text>
-          </View>
-        )}
-      </Animated.View>
-
-      {/* Micro-label — fades out when active (icon lifts to show it is selected) */}
-      {/* Dynamic Type: the pill bar is a fixed height. adjustsFontSizeToFit
-          only guards width, so cap the scale multiplier too — otherwise large
-          accessibility text grows the label past the bar's bottom edge and
-          shoves the icons off-centre. */}
-      <Animated.Text
-        style={[styles.tabLabel, labelStyle]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-        maxFontSizeMultiplier={1.2}
-      >
-        {config.label}
-      </Animated.Text>
-    </Pressable>
-  );
-}
-
-// ════════════════════════════════════
-//  Tab Layout
-// ════════════════════════════════════
+// ─── Layout ───────────────────────────────────────────────────────────────────
 export default function TabLayout() {
   return (
     <Tabs
-      tabBar={(props) => <AnimatedTabBar {...props} />}
+      tabBar={(props) => <CoachTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="index" />    {/* 1. Home */}
+      <Tabs.Screen name="index" />     {/* 1. Home */}
       <Tabs.Screen name="clients" />   {/* 2. Clients — CRM */}
       <Tabs.Screen name="schedule" />  {/* 3. Schedule — centre prime spot */}
       <Tabs.Screen name="studio" />    {/* 4. Studio — flagship */}
@@ -255,108 +172,41 @@ export default function TabLayout() {
   );
 }
 
-// ════════════════════════════════════
-//  Styles
-// ════════════════════════════════════
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  outerContainer: {
+  barWrap: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: CoachColors.bg,
+    borderTopWidth: 1,
+    borderTopColor: CoachColors.borderMuted,
   },
   bar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    width: BAR_WIDTH,
-    height: BAR_H,
-    backgroundColor: CoachColors.surface,
-    borderRadius: BAR_H / 2,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: -6 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-      },
-      android: { elevation: 16 },
-    }),
+    paddingTop: 11,
+    paddingHorizontal: 8,
   },
-
-  // ── Floating active circle — glass chip ──
-  // top is centred inside the bar; no ACTIVE_LIFT offset since we removed the icon float.
-  activeCircle: {
-    position: 'absolute',
-    width: ACTIVE_SIZE,
-    height: ACTIVE_SIZE,
-    borderRadius: ACTIVE_SIZE / 2,
-    borderCurve: 'continuous',
-    backgroundColor: 'rgba(255,255,255,0.11)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    top: (BAR_H - ACTIVE_SIZE) / 2,  // centred — no float offset
-    left: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: CoachColors.textPrimary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-      },
-      android: { elevation: 3 },
-    }),
-  },
-
-  // ── Tab button ──
   tabButton: {
-    width: TAB_WIDTH,
-    height: BAR_H,
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
+    gap: 5,
+    paddingVertical: 2,
   },
-
-  // ── Icon outer ──
-  iconOuter: {
-    width: ACTIVE_SIZE,
-    height: ACTIVE_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // ── Inactive well ──
-  well: {
-    position: 'absolute',
-    width: WELL_SIZE,
-    height: WELL_SIZE,
-    borderRadius: WELL_SIZE / 2,
-    borderCurve: 'continuous',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-  },
-
-  // ── Micro-label (accessibility + glanceability) ──
   tabLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 10,
-    lineHeight: 12,
-    color: CoachColors.textMuted,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginTop: -4,
+    fontSize: 11,
+    color: CoachColors.textFaint,
   },
-
-  // ── Unread badge ──
+  tabLabelActive: {
+    fontFamily: CoachFonts.bodyBold,
+    color: CoachColors.accent,
+  },
   badge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: -6,
+    right: -10,
     minWidth: 16,
     // minHeight so the unread count is not clipped at large Dynamic Type sizes.
     minHeight: 16,
@@ -367,7 +217,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: CoachColors.surface,
+    borderColor: CoachColors.bg,
   },
   badgeText: {
     fontFamily: CoachFonts.bodySemiBold,

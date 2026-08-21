@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: CoachColors.bg,
     borderTopWidth: 1,
-    borderTopColor: '#1E211D',
+    borderTopColor: CoachColors.borderMuted,
   },
   bar: {
     flexDirection: 'row',
