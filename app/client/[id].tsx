@@ -1133,7 +1133,7 @@ export default function ClientDetailScreen() {
                       );
                     })}
                     {activePlan.track.length > 6 && (
-                      <TouchableOpacity style={s.viewAllRow} onPress={() => router.push(`/plan/${activePlan.id}` as any)}>
+                      <TouchableOpacity style={s.viewAllRow} onPress={() => router.push({ pathname: '/plan-detail', params: { planId: activePlan.id } } as any)}>
                         <Text style={s.viewAllText}>View all {activePlan.track.length} items</Text>
                         <Ionicons name="chevron-forward" size={15} color={CoachColors.accent} />
                       </TouchableOpacity>

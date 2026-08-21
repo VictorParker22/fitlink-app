@@ -196,7 +196,7 @@ export default function ConnectedTechScreen() {
       <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── BANNER ── */}
-        <TouchableOpacity style={s.banner} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Book a fitness assessment">
+        <TouchableOpacity style={s.banner} activeOpacity={0.7} onPress={() => router.push(ClientRoute.mySessions)} accessibilityRole="button" accessibilityLabel="Book a fitness assessment">
           <Text style={s.bannerText}>
             It all begins with a complimentary fitness assessment. Book your session.
           </Text>
