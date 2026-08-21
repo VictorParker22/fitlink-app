@@ -41,6 +41,8 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import CardImage from '../../components/ui/CardImage';
+import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 import WeeklyCheckIn from '../../components/client-tabs/home/WeeklyCheckIn';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
@@ -65,10 +67,13 @@ interface LiftSeries {
 }
 
 interface PrMoment {
+  exerciseId: string;
   name: string;
   weight: number;
   date: string;
 }
+
+const MILESTONE_BG = require('../../assets/images/milestone-bg.png');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -227,7 +232,7 @@ export default function AthleteProgressScreen() {
         const prev = maxSoFar[p.id] ?? 0;
         if (p.weight > prev) {
           maxSoFar[p.id] = p.weight;
-          if (prev > 0) events.push({ name: p.name, weight: p.weight, date: p.date }); // first log isn't a PR
+          if (prev > 0) events.push({ exerciseId: p.id, name: p.name, weight: p.weight, date: p.date }); // first log isn't a PR
         }
       });
     return events.slice(-3).reverse();
@@ -404,6 +409,7 @@ export default function AthleteProgressScreen() {
         {/* ── Four-week summary (only when there is something to summarise) ── */}
         {fourWeekSessions > 0 && (
           <View style={s.summaryCard}>
+            <CardImage source={MILESTONE_BG} scrim="veil" extraShade={0.2} />
             <Text style={s.summaryKicker}>Last four weeks</Text>
             <Text style={s.summaryBody}>
               {`You've trained ${fourWeekSessions} session${fourWeekSessions === 1 ? '' : 's'}`}
@@ -526,7 +532,30 @@ export default function AthleteProgressScreen() {
         {prMoments.length > 0 && (
           <>
             <Text style={s.sectionTitle}>PR moments</Text>
-            {prMoments.map((pr, i) => (
+            {/* Latest PR is the trophy moment — milestone backdrop, gradient
+                scrim toward the text edge (DESIGN.md § Imagery). Older PRs
+                stay compact rows with their muscle-group emblem. */}
+            <View
+              style={s.prHero}
+              accessible={true}
+              accessibilityLabel={`${prMoments[0].name}, new best ${prMoments[0].weight}, ${shortDate(prMoments[0].date)}`}
+            >
+              <CardImage source={MILESTONE_BG} scrim="gradient" />
+              <Image
+                source={getWorkoutEmblem(prMoments[0].exerciseId, prMoments[0].name)}
+                style={s.prHeroEmblem}
+                contentFit="contain"
+                accessible={false}
+              />
+              <View style={s.prHeroBody}>
+                <Text style={s.prHeroKicker}>New best · {shortDate(prMoments[0].date)}</Text>
+                <View style={s.prHeroRow}>
+                  <Text style={s.prHeroName} numberOfLines={1}>{prMoments[0].name}</Text>
+                  <Text style={s.prHeroWeight}>{prMoments[0].weight}</Text>
+                </View>
+              </View>
+            </View>
+            {prMoments.slice(1).map((pr, i) => (
               <View
                 key={`${pr.name}-${pr.date}-${i}`}
                 style={s.prRow}
@@ -534,7 +563,12 @@ export default function AthleteProgressScreen() {
                 accessibilityLabel={`${pr.name}, new best ${pr.weight}, ${shortDate(pr.date)}`}
               >
                 <View style={s.prBadge}>
-                  <Ionicons name="trending-up" size={16} color={C.accent} />
+                  <Image
+                    source={getWorkoutEmblem(pr.exerciseId, pr.name)}
+                    style={s.prBadgeEmblem}
+                    contentFit="contain"
+                    accessible={false}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.prName}>{pr.name}</Text>
@@ -893,7 +927,8 @@ const s = StyleSheet.create({
     color: C.accent,
   },
 
-  // Summary card
+  // Summary card — milestone backdrop under a veil scrim; the card clips it
+  // (same radius stop, continuous curve, overflow hidden per DESIGN.md).
   summaryCard: {
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -902,6 +937,7 @@ const s = StyleSheet.create({
     borderCurve: 'continuous',
     padding: 17,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   summaryKicker: {
     fontFamily: F.bodyBold,
@@ -1037,6 +1073,54 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
 
+  // PR hero — the latest PR gets the milestone backdrop; text sits on the
+  // gradient scrim at the bottom edge (CardImage owns the scrim colors).
+  prHero: {
+    borderRadius: 18,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderMuted,
+    minHeight: 132,
+    justifyContent: 'flex-end',
+    marginBottom: 9,
+  },
+  prHeroEmblem: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 44,
+    height: 44,
+  },
+  prHeroBody: {
+    padding: 16,
+  },
+  prHeroKicker: {
+    fontFamily: F.bodyBold,
+    fontSize: 12,
+    color: C.accent,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  prHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 12,
+    marginTop: 5,
+  },
+  prHeroName: {
+    flex: 1,
+    fontFamily: F.bodySemiBold,
+    fontSize: 17,
+    color: C.textPrimary,
+  },
+  prHeroWeight: {
+    fontFamily: F.headingBold,
+    fontSize: 26,
+    color: C.accent,
+  },
+
   // PR rows
   prRow: {
     flexDirection: 'row',
@@ -1058,6 +1142,11 @@ const s = StyleSheet.create({
     backgroundColor: C.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  prBadgeEmblem: {
+    width: 24,
+    height: 24,
   },
   prName: {
     fontFamily: F.bodySemiBold,

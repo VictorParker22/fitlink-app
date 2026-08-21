@@ -47,8 +47,10 @@
 import React, { useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import MuscleMap from '../../anatomy/MuscleMap';
+import { getWorkoutEmblem } from '../../../utils/workoutEmblems';
 import {
   aggregateWorkoutMuscles,
   focusLineForWorkout,
@@ -185,6 +187,23 @@ export default function WorkoutCard({
   );
 
   const title = workout?.name || name || 'Session';
+
+  // THE EMBLEM IS THE WORKOUT'S BADGE (DESIGN.md § Imagery). Deterministic per
+  // workout id + real muscle groups, so the same session always wears the same
+  // badge and "leg day" is recognisable before the title is read. It rides as
+  // a soft oversized backdrop in the corner — the muscle-map portrait stays
+  // the face; when there is no muscle data, the emblem steps into the well so
+  // the card is never a bare block of text. Only a resolved row gets one: an
+  // unresolved node has no stable id, and a badge that changes on load would
+  // break the same-workout-same-badge promise.
+  const emblem = useMemo(() => {
+    if (!workout?.id) return null;
+    const groups: string[] = (workout?.workout_exercises || [])
+      .map((ex: any) => ex?.exercises?.muscle_group || ex?.exercises?.category)
+      .filter(Boolean);
+    return getWorkoutEmblem(String(workout.id), workout?.name || name || undefined, groups);
+  }, [workout, name]);
+
   const metaParts = workout ? workoutMetaParts(workout) : [];
   const meta = metaParts.length > 0 ? metaParts.join(' · ') : null;
   const focus = workout ? focusLineForWorkout(workout, info) : null;
@@ -214,8 +233,23 @@ export default function WorkoutCard({
 
   const head = (
     <>
-      {/* The portrait — this session's real regions, or nothing at all. */}
-      {info && (
+      {/* The badge as backdrop — oversized, soft, bleeding off the corner.
+          Clipped by the card (overflow hidden, same 30-radius continuous
+          curve), purely decorative, never under the text column. */}
+      {emblem && info && (
+        <Image
+          source={emblem}
+          style={st.emblemBackdrop}
+          contentFit="contain"
+          accessible={false}
+          pointerEvents="none"
+        />
+      )}
+
+      {/* The portrait — this session's real regions when it has them, its
+          muscle-group emblem when it does not. Both are real identity; a
+          blank silhouette placeholder remains banned. */}
+      {(info || emblem) && (
         <View style={st.topRow}>
           <View
             style={[
@@ -223,18 +257,27 @@ export default function WorkoutCard({
               { width: portraitSize, height: portraitSize, borderRadius: portraitSize / 2 },
             ]}
           >
-            <MuscleMap
-              primary={info.primary}
-              secondary={info.secondary}
-              view={info.view}
-              height={mapHeight}
-            />
+            {info ? (
+              <MuscleMap
+                primary={info.primary}
+                secondary={info.secondary}
+                view={info.view}
+                height={mapHeight}
+              />
+            ) : (
+              <Image
+                source={emblem!}
+                style={{ width: mapHeight, height: mapHeight }}
+                contentFit="contain"
+                accessible={false}
+              />
+            )}
           </View>
         </View>
       )}
 
       {(eyebrow || statusChip) && (
-        <View style={[st.eyebrowRow, info ? { marginTop: 16 } : null]}>
+        <View style={[st.eyebrowRow, info || emblem ? { marginTop: 16 } : null]}>
           {statusChip && (
             <View style={[st.chip, { backgroundColor: CHIP[statusChip].bg }]}>
               <Text style={[st.chipText, { color: CHIP[statusChip].ink }]}>
@@ -251,7 +294,7 @@ export default function WorkoutCard({
       )}
 
       <Text
-        style={[st.title, hero && st.titleHero, !info && !eyebrow && !statusChip && { marginTop: 0 }]}
+        style={[st.title, hero && st.titleHero, !info && !emblem && !eyebrow && !statusChip && { marginTop: 0 }]}
         numberOfLines={2}
       >
         {title}
@@ -361,10 +404,24 @@ const st = StyleSheet.create({
   card: {
     borderRadius: 30,
     borderCurve: 'continuous',
+    // Clips the backdrop emblem to the card's own curve (DESIGN.md § Imagery:
+    // card imagery obeys the shape system).
+    overflow: 'hidden',
     padding: 20,
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.borderMuted,
+  },
+  // The muscle-group badge, oversized and soft, bleeding off the top-right
+  // corner behind the content. Identity, not decoration — same workout, same
+  // badge, always.
+  emblemBackdrop: {
+    position: 'absolute',
+    top: -26,
+    right: -26,
+    width: 128,
+    height: 128,
+    opacity: 0.12,
   },
   cardHero: { borderWidth: 1.5, borderColor: C.accent, backgroundColor: '#1E211D' },
   cardTransparent: { backgroundColor: 'transparent' },

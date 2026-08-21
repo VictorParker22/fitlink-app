@@ -25,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { FontSize, Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Bolt } from '../../components/mascot/Bolt';
+import CardImage from '../../components/ui/CardImage';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -49,6 +50,20 @@ interface FitnessClass {
 }
 
 type SortKey = 'newest' | 'duration' | 'level' | 'a-z';
+
+// Purpose-shot fallbacks for classes the coach published without a cover.
+// Deterministic per class id, so a card never swaps its photo between renders
+// or sessions (DESIGN.md § Imagery — same identity, same picture).
+const CLASS_COVER_FALLBACKS = [
+  require('../../assets/images/card-book-session.jpg'),
+  require('../../assets/images/session-bg.jpg'),
+];
+
+function fallbackCover(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return CLASS_COVER_FALLBACKS[h % CLASS_COVER_FALLBACKS.length];
+}
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'newest', label: 'Newest' },
@@ -339,23 +354,34 @@ export default function ExploreClassesScreen() {
           });
         }}
       >
-        {/* Thumbnail */}
-        <View style={s.thumbWrap}>
-          <Image
-            source={{ uri: item.thumbnail }}
-            style={s.thumb}
-            cachePolicy="memory-disk"
-            transition={200}
-            accessibilityLabel={`${item.title} class thumbnail`}
-          />
+        {/* Cover — the class's own thumbnail when the coach shot one, else a
+            deterministic purpose-shot fallback. CardImage owns the scrim, so
+            every word below stays legible on any photo. */}
+        <CardImage
+          source={item.thumbnail ? { uri: item.thumbnail } : fallbackCover(item.id)}
+          scrim="gradient"
+          recyclingKey={item.id}
+        />
+
+        {/* Top edge: duration, price */}
+        <View style={s.cardTopRow}>
           <View style={s.durationBadge}>
             <Text style={s.durationText}>{formatDuration(item.durationMin)}</Text>
           </View>
+          {(item as any).isFree ? (
+            <View style={s.freeBadge}>
+              <Text style={s.freeBadgeText}>FREE</Text>
+            </View>
+          ) : (
+            <View style={s.passBadge}>
+              <Ionicons name="lock-closed" size={9} color={CoachColors.textSecondary} style={{ marginRight: 2 }} />
+              <Text style={s.passBadgeText}>PASS</Text>
+            </View>
+          )}
         </View>
 
-        {/* Info */}
+        {/* Bottom edge: the sell, over the strongest part of the scrim */}
         <View style={s.classInfo}>
-          <Text style={s.classTitle} numberOfLines={2}>{item.title}</Text>
           <Text style={s.classTags} numberOfLines={1}>
             <Text style={{ color: catColor }}>{item.category}</Text>
             {item.tags.length > 0 && (
@@ -363,20 +389,21 @@ export default function ExploreClassesScreen() {
             )}
             <Text style={s.classTagDot}>  •  {item.level}</Text>
           </Text>
-          <Text style={s.classInstructor} numberOfLines={1}>
-            {item.brand ? `${item.instructor}  •  ${item.brand}` : item.instructor}
-          </Text>
-          <View style={{ flexDirection: 'row', marginTop: 4 }}>
-            {(item as any).isFree ? (
-              <View style={s.freeBadge}>
-                <Text style={s.freeBadgeText}>FREE</Text>
-              </View>
-            ) : (
-              <View style={s.passBadge}>
-                <Ionicons name="lock-closed" size={9} color={CoachColors.textSecondary} style={{ marginRight: 2 }} />
-                <Text style={s.passBadgeText}>PASS</Text>
-              </View>
-            )}
+          <Text style={s.classTitle} numberOfLines={2}>{item.title}</Text>
+          <View style={s.instructorRow}>
+            {item.instructorAvatar ? (
+              <Image
+                source={{ uri: item.instructorAvatar }}
+                style={s.instructorAvatar}
+                cachePolicy="memory-disk"
+                transition={150}
+                recyclingKey={item.id}
+                accessible={false}
+              />
+            ) : null}
+            <Text style={s.classInstructor} numberOfLines={1}>
+              {item.brand ? `${item.instructor}  •  ${item.brand}` : item.instructor}
+            </Text>
           </View>
           {/* Phase 3: star rating display placeholder */}
           {/* <View style={s.ratingPlaceholder} /> */}
@@ -401,7 +428,9 @@ export default function ExploreClassesScreen() {
           <Ionicons
             name={favoriteIds.has(item.id) ? 'heart' : 'heart-outline'}
             size={20}
-            color={favoriteIds.has(item.id) ? CoachColors.accent : CoachColors.textMuted}
+            // On the photo's scrim the muted grey vanished — primary ink is
+            // the resting state, accent stays the saved state.
+            color={favoriteIds.has(item.id) ? CoachColors.accent : CoachColors.textPrimary}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -491,6 +520,13 @@ export default function ExploreClassesScreen() {
               const body = (
                 <>
                   <View style={s.liveThumb}>
+                    {/* Session photography as ground; the veil keeps the
+                        avatar and badge readable on top. */}
+                    <CardImage
+                      source={require('../../assets/images/session-bg.jpg')}
+                      scrim="veil"
+                      recyclingKey={stream.id}
+                    />
                     {stream.trainers?.avatar_url ? (
                       <Image source={{ uri: stream.trainers.avatar_url }} style={s.liveAvatar} />
                     ) : null}
@@ -818,11 +854,11 @@ const s = StyleSheet.create({
   },
 
   // List — paddingBottom is applied inline from the safe-area inset.
-  listContent: {},
+  listContent: { paddingTop: 14 },
+  // Cards breathe with space, not hairlines (rows got the hairline; covers
+  // get the gap).
   separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: CoachColors.borderMuted,
-    marginLeft: 20,
+    height: 14,
   },
 
   // Class row
@@ -909,28 +945,25 @@ const s = StyleSheet.create({
     fontSize: 12.5,
     color: CoachColors.textMuted,
   },
+  // Storefront cover card — CardImage fills it, content sits on the scrim.
   classRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    gap: 14,
-  },
-  thumbWrap: {
-    width: 110,
-    height: 90,
-    borderRadius: 12,
+    height: 200,
+    marginHorizontal: 16,
+    borderRadius: 16,
     borderCurve: 'continuous',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     backgroundColor: CoachColors.surface,
+    justifyContent: 'space-between',
+    padding: 14,
   },
-  thumb: {
-    width: '100%',
-    height: '100%',
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   durationBadge: {
-    position: 'absolute',
-    bottom: 6,
-    left: 6,
     backgroundColor: CoachColors.bg,
     borderRadius: 6,
     borderCurve: 'continuous',
@@ -946,30 +979,44 @@ const s = StyleSheet.create({
     color: CoachColors.textPrimary,
   },
   classInfo: {
-    flex: 1,
-    justifyContent: 'center',
     gap: 4,
+    // Clearance for the floating heart in the bottom-right corner.
+    paddingRight: 40,
   },
   classTitle: {
     fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
+    fontSize: 21,
     letterSpacing: -0.3,
     color: CoachColors.textPrimary,
-    lineHeight: 23.5,
+    lineHeight: 25.5,
   },
   classTags: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 11,
     letterSpacing: 0.5,
-    color: CoachColors.textSecondary,
+    color: CoachColors.textPrimary,
   },
   classTagDot: {
-    color: CoachColors.textMuted,
+    color: CoachColors.textSecondary,
+  },
+  instructorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 2,
+  },
+  instructorAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: CoachColors.borderMuted,
   },
   classInstructor: {
+    flex: 1,
     fontFamily: CoachFonts.body,
     fontSize: 12.5,
-    color: CoachColors.textMuted,
+    color: CoachColors.textSecondary,
   },
   freeBadge: {
     backgroundColor: CoachColors.accentSoft,
@@ -1004,8 +1051,10 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
   favBtn: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
     padding: 8,
-    alignSelf: 'center',
   },
 
   // Empty state

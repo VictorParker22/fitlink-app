@@ -37,6 +37,8 @@ import HydrationCell from '../../components/client-tabs/home/HydrationCell';
 import HabitTracker from '../../components/client-tabs/home/HabitTracker';
 import { useHealth } from '../../context/HealthContext';
 import { proxyGifStill } from '../../lib/exercisedb';
+import CardImage from '../../components/ui/CardImage';
+import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 import MuscleMap from '../../components/anatomy/MuscleMap';
 import { muscleInfoForExercise } from '../../components/client-tabs/season/workoutMuscles';
 
@@ -240,6 +242,16 @@ export default function AthleteTodayScreen() {
   const startWorkoutId = todayWorkout
     ? (todayWorkout.workout_id || todayWorkout.workouts?.id || todayWorkout.id)
     : null;
+
+  // Today's badge — deterministic from the workout id and its real muscle
+  // groups (DESIGN.md § Imagery: emblems are the identity of a workout).
+  const heroEmblem = useMemo(() => {
+    if (!startWorkoutId) return null;
+    const groups: string[] = exercises
+      .map((ex: any) => ex?.exercises?.muscle_group || ex?.exercises?.category)
+      .filter(Boolean);
+    return getWorkoutEmblem(String(startWorkoutId), workoutRow?.name || workoutRow?.title, groups);
+  }, [startWorkoutId, exercises, workoutRow]);
 
   const instruction = useMemo(() => {
     if (!clientData || !trainer) {
@@ -486,6 +498,16 @@ export default function AthleteTodayScreen() {
         day: new Date(w.assigned_date).toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase(),
         name: w.workouts?.name || 'Session',
         mins: w.workouts?.duration || w.workouts?.duration_minutes || null,
+        // The row's badge — keyed to the workout itself (not the assignment
+        // row), so the same session wears the same badge here, in Train and
+        // on the hero.
+        emblem: getWorkoutEmblem(
+          String(w.workout_id || w.workouts?.id || w.id),
+          w.workouts?.name,
+          (w.workouts?.workout_exercises || [])
+            .map((ex: any) => ex?.exercises?.muscle_group || ex?.exercises?.category)
+            .filter(Boolean)
+        ),
       }));
   }, [workouts]);
 
@@ -538,6 +560,18 @@ export default function AthleteTodayScreen() {
 
         {/* ── The instruction ── */}
         <View style={[st.hero, instruction.kind === 'workout' && st.heroActive]}>
+          {/* The emotional peak of the athlete's day goes image-backed:
+              session-bg behind a veil scrim (the sanctioned flat wash, plus
+              extra shade so secondary text keeps ≥4.5:1). Only the "there is
+              a session today" state earns the photograph — waiting, rest and
+              lapsed states stay quiet on purpose. */}
+          {instruction.kind === 'workout' && (
+            <CardImage
+              source={require('../../assets/images/session-bg.jpg')}
+              scrim="veil"
+              extraShade={0.3}
+            />
+          )}
           <View style={st.eyebrowRow}>
             <View
               style={[
@@ -553,6 +587,13 @@ export default function AthleteTodayScreen() {
             >
               {instruction.eyebrow}
             </Text>
+            {/* The session's muscle-group badge — deterministic, so the same
+                workout always wears the same badge (leg day is recognisable
+                before the title is read). Trails the eyebrow, clear of the
+                text column. */}
+            {(instruction.kind === 'workout' || instruction.kind === 'lapsed') && heroEmblem && (
+              <Image source={heroEmblem} style={st.heroEmblem} resizeMode="contain" accessible={false} />
+            )}
           </View>
           <Text style={st.heroTitle}>{instruction.title}</Text>
           <Text style={st.heroSub}>{instruction.sub}</Text>
@@ -908,6 +949,7 @@ export default function AthleteTodayScreen() {
                   accessible={true}
                   accessibilityLabel={`${u.day}, ${u.name}${u.mins ? `, ${u.mins} minutes` : ''}`}
                 >
+                  <Image source={u.emblem} style={st.upcomingEmblem} resizeMode="contain" accessible={false} />
                   <Text style={st.upcomingDay}>{u.day}</Text>
                   <Text style={st.upcomingName}>{u.name}</Text>
                   {u.mins ? <Text style={st.upcomingMins}>{u.mins} min</Text> : null}
@@ -938,9 +980,13 @@ const st = StyleSheet.create({
   hero: {
     marginTop: 22, borderRadius: 20, borderCurve: 'continuous', backgroundColor: C.surface,
     borderWidth: 1, borderColor: C.borderMuted, padding: 20,
+    // Clips the session-bg CardImage to the card's own curve (DESIGN.md
+    // § Imagery: card imagery obeys the shape system).
+    overflow: 'hidden',
   },
   heroActive: { backgroundColor: '#1A2213', borderColor: 'rgba(198,242,78,0.22)' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroEmblem: { width: 48, height: 48, marginLeft: 'auto', marginBottom: -10 },
   eyebrowDot: { width: 6, height: 6, borderRadius: 3, borderCurve: 'continuous', backgroundColor: C.accent },
   eyebrow: {
     fontFamily: F.bodyBold, fontSize: 12.5, color: C.accent,
@@ -1080,6 +1126,7 @@ const st = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 13, borderCurve: 'continuous',
   },
+  upcomingEmblem: { width: 40, height: 40 },
   upcomingDay: { width: 30, textAlign: 'center', fontFamily: F.bodyBold, fontSize: 12.5, color: C.textFaint },
   upcomingName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
   upcomingMins: { fontFamily: F.body, fontSize: 13, color: C.textMuted },

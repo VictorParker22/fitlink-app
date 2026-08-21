@@ -11,6 +11,7 @@ import CheckInInbox from '../../components/dashboard/CheckInInbox';
 import AccountabilityQueue from '../../components/dashboard/AccountabilityQueue';
 import NewCoachSetupCards from '../../components/dashboard/NewCoachSetupCards';
 import ExampleAtRiskCard from '../../components/dashboard/ExampleAtRiskCard';
+import CardImage from '../../components/ui/CardImage';
 import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
 import RollingNumber from '../../components/RollingNumber';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -202,7 +203,10 @@ export default function CoachHomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Add your first client"
             >
-              <Text style={emptyStyles.primaryCtaText}>Add your first client</Text>
+              <CardImage source={require('../../assets/images/card-add-client.jpg')} />
+              <View style={emptyStyles.primaryCtaPill}>
+                <Text style={emptyStyles.primaryCtaText}>Add your first client</Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -237,12 +241,13 @@ export default function CoachHomeScreen() {
           </View>
 
           <TouchableOpacity
-            style={emptyStyles.libraryLink}
-            activeOpacity={0.7}
+            style={emptyStyles.libraryCard}
+            activeOpacity={0.85}
             onPress={() => router.push('/(tabs)/programs?tab=workouts' as any)}
             accessibilityRole="button"
             accessibilityLabel="Browse your workout and pass library"
           >
+            <CardImage source={require('../../assets/images/card-new-workout.jpg')} />
             <Text style={emptyStyles.libraryLinkText}>Browse your workout and pass library →</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -386,6 +391,10 @@ export default function CoachHomeScreen() {
           </View>
         ) : (
           <View style={styles.noSessionCard}>
+            <CardImage
+              source={require('../../assets/images/card-book-session.jpg')}
+              extraShade={0.15}
+            />
             <Text style={styles.noSessionText}>Nothing on the books today.</Text>
           </View>
         )}
@@ -479,11 +488,19 @@ export default function CoachHomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={`${plans.length} pass${plans.length === 1 ? '' : 'es'}, ${activeClients.filter(c => c.plan_id).length} athlete${activeClients.filter(c => c.plan_id).length === 1 ? '' : 's'} holding one. Double tap to manage passes`}
           >
-            <View>
-              <Text style={styles.revenueMonth}>{plans.length} pass{plans.length === 1 ? '' : 'es'}</Text>
-              <Text style={styles.revenueValue}>
-                {activeClients.filter(c => c.plan_id).length} athlete{activeClients.filter(c => c.plan_id).length === 1 ? '' : 's'} holding one
-              </Text>
+            <View style={styles.footerLeft}>
+              <View style={styles.footerThumb}>
+                <CardImage
+                  source={require('../../assets/images/card-season-pass.jpg')}
+                  scrim="none"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.revenueMonth}>{plans.length} pass{plans.length === 1 ? '' : 'es'}</Text>
+                <Text style={styles.revenueValue}>
+                  {activeClients.filter(c => c.plan_id).length} athlete{activeClients.filter(c => c.plan_id).length === 1 ? '' : 's'} holding one
+                </Text>
+              </View>
             </View>
             <Text style={styles.revenueLink}>Manage →</Text>
           </TouchableOpacity>
@@ -496,11 +513,19 @@ export default function CoachHomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Library, ${workouts.length} workout${workouts.length === 1 ? '' : 's'} on file. Double tap to browse`}
           >
-            <View>
-              <Text style={styles.revenueMonth}>Library</Text>
-              <Text style={styles.revenueValue}>
-                {workouts.length} workout{workouts.length === 1 ? '' : 's'} on file
-              </Text>
+            <View style={styles.footerLeft}>
+              <View style={styles.footerThumb}>
+                <CardImage
+                  source={require('../../assets/images/card-new-workout.jpg')}
+                  scrim="none"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.revenueMonth}>Library</Text>
+                <Text style={styles.revenueValue}>
+                  {workouts.length} workout{workouts.length === 1 ? '' : 's'} on file
+                </Text>
+              </View>
             </View>
             <Text style={styles.revenueLink}>Browse →</Text>
           </TouchableOpacity>
@@ -687,15 +712,22 @@ const styles = StyleSheet.create({
     color: CoachColors.textPrimary,
   },
 
+  // Image-backed quiet state (CardImage fills; text sits on the bottom scrim).
   noSessionCard: {
     marginHorizontal: 20,
     marginTop: 24,
-    paddingVertical: 20,
+    height: 120,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    padding: 16,
   },
   noSessionText: {
     fontFamily: CoachFonts.body,
     fontSize: 15.5,
-    color: CoachColors.textMuted,
+    // Primary (not muted) because it sits over imagery — keeps ≥4.5:1 on the scrim.
+    color: CoachColors.textPrimary,
   },
 
   // Timeline
@@ -798,10 +830,25 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.borderMuted,
-    borderRadius: 14,
+    // 14 was off the radius scale — migrated to the 16 card stop while touching.
+    borderRadius: 16,
     borderCurve: 'continuous',
     paddingVertical: 14,
     paddingHorizontal: 16,
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 12,
+  },
+  footerThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
   },
   revenueMonth: {
     fontFamily: CoachFonts.body,
@@ -863,14 +910,26 @@ const emptyStyles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 22,
   },
+  // Image-backed hero CTA: CardImage fills the rounded clip; the lime pill
+  // rides on top so the call to action keeps its accent punch.
   primaryCta: {
+    height: 150,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: 16,
+  },
+  primaryCtaPill: {
     backgroundColor: CoachColors.accent,
     borderRadius: 999,
     borderCurve: 'continuous',
-    paddingVertical: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
   },
   primaryCtaText: {
     fontFamily: CoachFonts.bodyBold,
@@ -904,9 +963,16 @@ const emptyStyles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 20,
   },
-  libraryLink: {
-    paddingHorizontal: 20,
+  // Image-backed library shortcut; label sits on the bottom scrim.
+  libraryCard: {
+    marginHorizontal: 20,
     marginTop: 22,
+    height: 96,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    padding: 16,
   },
   libraryLinkText: {
     fontFamily: CoachFonts.bodySemiBold,

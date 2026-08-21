@@ -41,7 +41,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { proxyGifStill } from '../../../lib/exercisedb';
 import { ClientRoute } from '../../../types/routes';
 import { formatNodeDay } from '../../../lib/cohort';
 import type { TrackNode } from '../../../context/AppContext';
@@ -347,14 +349,30 @@ export default function WeekSection({
                 {[...exercises]
                   .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
                   .slice(0, 5)
-                  .map((ex: any, i: number) => (
-                    <View key={ex.id || i} style={s.exerciseRow}>
-                      <Text style={s.exerciseName} numberOfLines={1}>
-                        {ex.exercises?.name || 'Exercise'}
-                      </Text>
-                      {ex.sets && ex.reps ? <Text style={s.exerciseMeta}>{ex.sets}×{ex.reps}</Text> : null}
-                    </View>
-                  ))}
+                  .map((ex: any, i: number) => {
+                    // First-frame still, never the animated GIF — lists get
+                    // thumbnails (DESIGN.md § Imagery). Rows without a demo
+                    // image stay text-only rather than showing a placeholder.
+                    const still = proxyGifStill(ex.exercises?.image_url);
+                    return (
+                      <View key={ex.id || i} style={s.exerciseRow}>
+                        {still ? (
+                          <Image
+                            source={{ uri: still }}
+                            style={s.exerciseThumb}
+                            contentFit="cover"
+                            transition={150}
+                            recyclingKey={String(ex.id || i)}
+                            accessible={false}
+                          />
+                        ) : null}
+                        <Text style={s.exerciseName} numberOfLines={1}>
+                          {ex.exercises?.name || 'Exercise'}
+                        </Text>
+                        {ex.sets && ex.reps ? <Text style={s.exerciseMeta}>{ex.sets}×{ex.reps}</Text> : null}
+                      </View>
+                    );
+                  })}
                 {exercises.length > 5 && <Text style={s.exerciseMore}>+{exercises.length - 5} more</Text>}
               </View>
             )}
@@ -589,7 +607,17 @@ const s = StyleSheet.create({
 
   // The current node's exercise list — the one extra the hero card carries.
   exerciseList: { gap: 7, marginTop: 13 },
-  exerciseRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9 },
+  exerciseRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  // The stills are line drawings on white — the thumb keeps that paper white
+  // so `cover` never letterboxes a white box against the dark card.
+  exerciseThumb: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
   exerciseName: { flex: 1, fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   exerciseMeta: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   exerciseMore: { fontFamily: F.body, fontSize: 13, color: C.textFaint },

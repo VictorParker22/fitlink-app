@@ -61,6 +61,41 @@ below are the baseline to improve on, not guesses.
 - Reduce Motion is law: every loop/burst checks useReducedMotion (the
   PR modal and splash are the references).
 
+## Imagery (added 2026-08-21 — the "speak with visuals" pass)
+
+The app was functionality-first and text-dense; the visual layer was
+built and left on the shelf. The shelf: six purpose-shot card images
+(`assets/images/card-*.jpg`), `session-bg`/`milestone-bg`/`auth-bg`,
+muscle-group emblems (`utils/workoutEmblems.ts` + `assets/emblems/`),
+ExerciseDB gif/thumb helpers (`lib/exercisedb.ts`), food imagery
+(`lib/foodImages.ts`), muscle maps (`lib/muscles.ts`). USE THESE FIRST
+— never add a new stock photo when a purpose-shot asset exists.
+
+Rules:
+- **Text over an image always sits on a scrim.** Standard treatment:
+  `expo-linear-gradient` from `rgba(16,18,16,0)` → `rgba(16,18,16,0.88)`
+  toward the text edge, or a flat `rgba(16,18,16,0.55)` veil for
+  full-card labels. These two rgba forms are the ONLY sanctioned raw
+  colors (they are `CoachColors.bg` with alpha). Body text on image
+  keeps ≥4.5:1 — when in doubt, darken the scrim, never shrink the text.
+- **Images are content-shaped, not wallpaper.** A card slit shows the
+  thing the card does (create workout → barbell shot); a workout row
+  shows its muscle-group emblem or the exercise's first-frame thumb; a
+  meal shows its food. Decorative-only full-screen backgrounds are the
+  exception (auth, milestone moments), never behind dense UI.
+- **Lists get thumbnails, never GIFs** (`getStaticThumbUrl`); detail
+  views may animate. `expo-image` with `contentFit="cover"`, a
+  `transition`, and `recyclingKey` inside FlashList/FlatList.
+- **Card imagery obeys the shape system**: same radius stop as the card
+  it lives in, `borderCurve: 'continuous'`, `overflow: 'hidden'` on the
+  clipping container.
+- **No fabricated social proof in imagery** — no stock "clients", no
+  fake coach headshots. People appear only as real avatars users
+  uploaded, or in clearly aspirational training photography.
+- **Emblems are the identity of a workout.** `getWorkoutEmblem(id,
+  muscleGroups)` is deterministic — the same workout always wears the
+  same badge, so athletes recognise "leg day" at a glance.
+
 ## Funnel-order polish priority (where design effort goes)
 
 1. **App icon + store screenshots** — convert before the app is ever

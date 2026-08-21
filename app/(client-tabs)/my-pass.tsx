@@ -31,7 +31,13 @@ import {
   formatDay, parseLocalDay,
 } from '../../lib/cohort';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import CardImage from '../../components/ui/CardImage';
 import CohortProgramCard from '../../components/client-tabs/cohort/CohortProgramCard';
+
+// The purpose-shot season-pass photograph — the ticket this screen sells,
+// and the membership card once it's bought. Used whenever the pass (or the
+// coach) hasn't uploaded a real cover of their own.
+const SEASON_PASS_IMG = require('../../assets/images/card-season-pass.jpg');
 
 const WEEK_LABEL_RE = /^Week (\d+):\s*/;
 
@@ -287,13 +293,27 @@ export default function MyPassScreen() {
         </View>
         <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 130 }]} showsVerticalScrollIndicator={false}>
           <View style={s.enrolledCard}>
-            <Text style={s.enrolledEyebrow}>Your season</Text>
-            <Text style={s.enrolledPlanName}>{enrolledPlan?.name || 'Your pass'}</Text>
-            <Text style={s.enrolledWeek}>
-              {enrolledState === 'open'
-                ? "Your spot is booked"
-                : `You're in week ${currentWeek} of ${total}`}
-            </Text>
+            {/* The membership card itself — the pass's own photo when the
+                coach shot one, else the purpose-shot season-pass image.
+                Owned, not for sale: name and week over the scrim. */}
+            <View style={s.enrolledHero}>
+              <CardImage
+                source={
+                  (enrolledPlan as any)?.cover_url
+                    ? { uri: (enrolledPlan as any).cover_url }
+                    : SEASON_PASS_IMG
+                }
+                scrim="gradient"
+              />
+              <Text style={s.enrolledEyebrow}>Your season</Text>
+              <Text style={s.enrolledPlanName}>{enrolledPlan?.name || 'Your pass'}</Text>
+              <Text style={s.enrolledWeek}>
+                {enrolledState === 'open'
+                  ? "Your spot is booked"
+                  : `You're in week ${currentWeek} of ${total}`}
+              </Text>
+            </View>
+            <View style={s.enrolledBody}>
             {enrolledIsCohort ? (
               <View style={s.cohortEnrolledFacts}>
                 <CohortProgramCard
@@ -322,6 +342,7 @@ export default function MyPassScreen() {
               <Text style={s.enrolledCtaText}>Go to training</Text>
               <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
             </TouchableOpacity>
+            </View>
           </View>
 
           {trainer ? (
@@ -431,18 +452,16 @@ export default function MyPassScreen() {
           </ScrollView>
         ) : null}
 
-        {/* Hero — same visual language the coach previewed in create-plan step 5.
-            When the pass (or failing that, the coach) has a real photo, it IS
-            the hero — the Ladder team-card move: photograph as ground, name
-            over it, scrim for contrast. No photo, and the lime block stays. */}
+        {/* Hero — the Ladder team-card move: photograph as ground, name over
+            it, scrim for contrast. The pass's own photo first, the coach's
+            cover second, and failing both the purpose-shot season-pass image
+            — the hero is always a photograph, never a flat color block. */}
         <View style={s.heroCard}>
-          <View style={[s.hero, !!heroCover && s.heroPhoto]}>
-            {heroCover ? (
-              <>
-                <Image source={{ uri: heroCover }} style={s.heroCoverImg} resizeMode="cover" />
-                <View style={s.heroScrim} />
-              </>
-            ) : null}
+          <View style={s.hero}>
+            <CardImage
+              source={heroCover ? { uri: heroCover } : SEASON_PASS_IMG}
+              scrim="gradient"
+            />
             <View style={s.heroBadgeRow}>
               <View style={s.heroBadge}>
                 <Text style={s.heroBadgeText}>{seasonWeeks}-week season</Text>
@@ -453,9 +472,9 @@ export default function MyPassScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={[s.heroName, !!heroCover && { color: CoachColors.textPrimary }]}>{plan.name}</Text>
+            <Text style={s.heroName}>{plan.name}</Text>
             {plan.description ? (
-              <Text style={[s.heroPromise, !!heroCover && { color: 'rgba(255,255,255,0.82)' }]}>
+              <Text style={s.heroPromise}>
                 {plan.description}
               </Text>
             ) : null}
@@ -730,28 +749,23 @@ const s = StyleSheet.create({
   switcherChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   switcherChipTextActive: { color: CoachColors.accent },
 
-  // Hero (mirrors create-plan step-5 preview card)
+  // Hero — always a photograph now; tall so the image can breathe, content
+  // pushed to the bottom edge where CardImage's gradient scrim is strongest.
   heroCard: { borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 1, borderColor: CoachColors.borderMuted },
-  hero: { backgroundColor: CoachColors.accent, padding: 20 },
-  // Photo variant: taller so the image can breathe, content pushed to the
-  // bottom edge where the scrim is strongest.
-  heroPhoto: { backgroundColor: CoachColors.surface, minHeight: 210, justifyContent: 'flex-end' },
-  heroCoverImg: { ...StyleSheet.absoluteFillObject },
-  heroScrim: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, height: 130,
-    backgroundColor: 'rgba(16,18,16,0.62)',
-  },
+  hero: { backgroundColor: CoachColors.surface, minHeight: 210, padding: 20, justifyContent: 'flex-end' },
   heroBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   heroBadge: {
-    alignSelf: 'flex-start', backgroundColor: 'rgba(16,18,16,0.14)',
+    // The sanctioned veil wash (CoachColors.bg at 0.55) — chips must hold
+    // their own against whatever photo sits behind them.
+    alignSelf: 'flex-start', backgroundColor: 'rgba(16,18,16,0.55)',
     borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 11, paddingVertical: 5,
   },
   heroBadgeText: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.onAccent,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textPrimary,
     letterSpacing: 0.9, textTransform: 'uppercase',
   },
-  heroName: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.onAccent, lineHeight: 34.5 },
-  heroPromise: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(16,18,16,0.75)', marginTop: 6, lineHeight: 22.5 },
+  heroName: { fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, lineHeight: 34.5 },
+  heroPromise: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 6, lineHeight: 22.5 },
   heroBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
 
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -832,17 +846,20 @@ const s = StyleSheet.create({
   footerCtaText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   footerCtaTextDisabled: { color: CoachColors.textMuted },
 
-  // Enrolled summary
+  // Enrolled summary — the membership card. Photo on top (CardImage owns the
+  // scrim), facts and CTA on solid surface below.
   enrolledCard: {
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 18, borderCurve: 'continuous', padding: 18, marginBottom: 16,
+    borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden', marginBottom: 16,
   },
+  enrolledHero: { minHeight: 170, padding: 18, justifyContent: 'flex-end' },
+  enrolledBody: { padding: 18, paddingTop: 4 },
   enrolledEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.textFaint,
+    fontFamily: CoachFonts.bodyBold, fontSize: 12, color: CoachColors.accent,
     letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8,
   },
   enrolledPlanName: { fontFamily: CoachFonts.headingBold, fontSize: 23.5, color: CoachColors.textPrimary },
-  enrolledWeek: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, marginTop: 4 },
+  enrolledWeek: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 4 },
   enrolledCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
     backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, marginTop: 16,
