@@ -634,6 +634,7 @@ export default function ClientWorkoutsScreen() {
         <View onLayout={(e) => { seasonTrackTopRef.current = e.nativeEvent.layout.y; }}>
           <SeasonTrack
             track={programme.track}
+            enrollmentId={enrollment?.id}
             plan={programme.plan}
             durationWeeks={programme.durationWeeks}
             position={programme.position}

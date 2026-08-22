@@ -13,6 +13,9 @@ import NewCoachSetupCards from '../../components/dashboard/NewCoachSetupCards';
 import ExampleAtRiskCard from '../../components/dashboard/ExampleAtRiskCard';
 import CardImage from '../../components/ui/CardImage';
 import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
+import GlobalSearchModal from '../../components/dashboard/GlobalSearchModal';
+import AICoachModal from '../../components/dashboard/AICoachModal';
+import { RosterHeatmap } from '../../components/coach/RosterHeatmap';
 import RollingNumber from '../../components/RollingNumber';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -37,6 +40,8 @@ export default function CoachHomeScreen() {
   const { trainer, clients, sessions, notifications, plans, workouts, loading } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const checkInsY = useRef(0);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showAICoach, setShowAICoach] = useState(false);
 
   const activeClients = clients.filter(c => c.status !== 'inactive');
   const firstName = trainer?.name?.split(' ')[0] || 'Coach';
@@ -320,6 +325,24 @@ export default function CoachHomeScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.iconBtn}
+              onPress={() => setShowSearch(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+            >
+              <Ionicons name="search-outline" size={21} color={CoachColors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setShowAICoach(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Coach assistant"
+            >
+              <Ionicons name="sparkles-outline" size={21} color={CoachColors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
               onPress={() => router.push('/notifications')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
@@ -434,6 +457,9 @@ export default function CoachHomeScreen() {
         {/* ── ACCOUNTABILITY QUEUE — today's slips, silences, wins ── */}
         <AccountabilityQueue />
 
+        {/* ── ROSTER HEATMAP — week-at-a-glance activity per athlete ── */}
+        <RosterHeatmap />
+
         {/* ── BETWEEN SESSIONS ────────────────────────────────────── */}
         <Text style={styles.betweenLabel}>Between sessions</Text>
         {betweenItems.length > 0 ? (
@@ -539,6 +565,9 @@ export default function CoachHomeScreen() {
         )}
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <GlobalSearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
+      <AICoachModal visible={showAICoach} onClose={() => setShowAICoach(false)} />
 
       {/* One-time first-client celebration (flag set before this renders). */}
       {celebratedName !== null && (

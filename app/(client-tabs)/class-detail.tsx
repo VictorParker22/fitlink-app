@@ -44,6 +44,10 @@ export default function ClassDetailScreen() {
     is_free?: string;
     video_url?: string;
     videoUrl?: string;
+    // Season-track context — present only when opened from a track class
+    // node (WeekSection). Route params arrive as strings.
+    enrollmentId?: string;
+    trackIndex?: string;
   }>();
 
   const { user } = useAuth();
@@ -120,6 +124,13 @@ export default function ClassDetailScreen() {
     instructorAvatar: params.instructorAvatar,
     videoUrl: params.videoUrl || params.video_url,
     video_url: params.video_url || params.videoUrl,
+    // Season-track context: carried in the session (survives resume via
+    // SecureStore) so the player's completion screen can advance the track.
+    enrollmentId: params.enrollmentId || undefined,
+    trackIndex:
+      params.trackIndex != null && params.trackIndex !== '' && Number.isFinite(Number(params.trackIndex))
+        ? Number(params.trackIndex)
+        : undefined,
   };
 
   const handleShare = async () => {

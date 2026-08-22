@@ -40,6 +40,12 @@ type WeekGroup = {
 
 type Props = {
   track: TrackNode[];
+  /**
+   * The enrollment's id — threaded down to WeekSection so a class node's
+   * detail push can carry the track context that lets finishing the class
+   * advance the season (see WeekSection's class-node push).
+   */
+  enrollmentId?: string;
   /** The enrolled plan — read only for its cohort fields (starts_on et al). */
   plan?: CohortFields | null;
   durationWeeks: number | null;
@@ -60,6 +66,7 @@ type Props = {
 
 export default function SeasonTrack({
   track,
+  enrollmentId,
   plan,
   durationWeeks,
   position,
@@ -145,6 +152,7 @@ export default function SeasonTrack({
             title={g.title}
             isRestWeek={g.isRestWeek}
             nodes={g.nodes}
+            enrollmentId={enrollmentId}
             cohort={cohort}
             position={position}
             status={

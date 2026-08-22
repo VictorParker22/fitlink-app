@@ -420,6 +420,18 @@ export default function AthleteProgressScreen() {
           </View>
         )}
 
+        {/* ── Activity hub — compact row ── */}
+        <Pressable
+          style={s.activityRow}
+          onPress={() => router.push(ClientRoute.activity as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Open your activity"
+        >
+          <Ionicons name="pulse" size={18} color={C.accent} />
+          <Text style={s.activityRowText}>Activity — rings, calendar & logged sessions</Text>
+          <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+        </Pressable>
+
         {/* ── Weekly check-in (Sunday rhythm — lives at the top) ── */}
         <WeeklyCheckIn />
 
@@ -880,6 +892,13 @@ export default function AthleteProgressScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  activityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 12, borderCurve: 'continuous',
+    paddingHorizontal: 16, paddingVertical: 12, marginBottom: 20,
+  },
+  activityRowText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: C.textPrimary },
   container: {
     flex: 1,
     backgroundColor: C.bg,

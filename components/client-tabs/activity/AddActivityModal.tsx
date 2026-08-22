@@ -91,7 +91,9 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
 
   const handleSubmit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    // Local date parts, not toISOString — UTC-derived keys shift the date for
+    // anyone east of UTC logging in the evening (lib/streak.ts hazard).
+    const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
     const durStr = durationHr > 0 ? `${durationHr}h ${durationMn}min` : `${durationMn}min`;
     onSave({
       type: selectedType.name,

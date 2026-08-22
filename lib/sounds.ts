@@ -3,7 +3,6 @@
  *
  *   playPop()    — habit checked off
  *   playChime()  — PR detected / season complete / pass published
- *   playWhoosh() — affirmative swipe-dismiss (currently unwired)
  *
  * Design rules:
  *   - Respects the iOS silent switch (playsInSilentModeIOS: false).
@@ -26,12 +25,11 @@ const loading: Partial<Record<SoundName, Promise<Audio.Sound | null>>> = {};
 
 let audioModeSet = false;
 
-type SoundName = 'pop' | 'chime' | 'whoosh';
+type SoundName = 'pop' | 'chime';
 
 const SOURCES: Record<SoundName, AVPlaybackSource> = {
   pop: require('../assets/sounds/pop.wav'),
   chime: require('../assets/sounds/chime.wav'),
-  whoosh: require('../assets/sounds/whoosh.wav'),
 };
 
 async function ensureEnabledLoaded(): Promise<boolean> {
@@ -105,11 +103,6 @@ export function playPop(): void {
 /** Bright chime — PR detected, season complete, pass published. */
 export function playChime(): void {
   void play('chime');
-}
-
-/** Airy whoosh — affirmative swipe-dismiss. */
-export function playWhoosh(): void {
-  void play('whoosh');
 }
 
 /** Global kill switch — persisted, defaults to true. */

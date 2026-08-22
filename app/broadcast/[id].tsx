@@ -12,6 +12,9 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Dimensions,
+  Share,
+  Modal,
+  TextInput,
 } from 'react-native';
 // The camera preview is deliberately full-bleed and runs under the status bar /
 // home indicator. Only the *controls* overlay is inset — and react-native's own
@@ -114,6 +117,11 @@ export default function BroadcastStudioScreen() {
 
   // Viewer count
   const [viewerCount, setViewerCount] = useState(0);
+
+  // Edit title modal
+  const [showEditTitle, setShowEditTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
 
   // Marker toast
   const [markerToast, setMarkerToast] = useState<string | null>(null);
@@ -289,6 +297,48 @@ export default function BroadcastStudioScreen() {
     ]).start(() => setMarkerToast(null));
   }, [markerToastAnim]);
 
+  // ── Share stream ──────────────────────────────────────────────────────────
+  const handleShareStream = useCallback(async () => {
+    if (!liveClass) return;
+    // A placeholder playback id (seeded as 'playback_…') means Mux has never
+    // issued a real stream for this class — there is nothing anyone could watch.
+    const hasPublicFeed =
+      !!liveClass.mux_playback_id && !liveClass.mux_playback_id.startsWith('playback_');
+    if (!hasPublicFeed) {
+      showAlert({
+        type: 'info',
+        title: 'Share stream',
+        message: 'This stream has no public feed yet. Go live once so the stream gets a playback feed, then share it.',
+      });
+      return;
+    }
+    try {
+      await Share.share({
+        message: `Join my live class "${liveClass.title}" on FitLink: fitlink://live-player/${liveClass.id}`,
+      });
+    } catch {
+      // User dismissed the share sheet or it failed to open — nothing to do.
+    }
+  }, [liveClass, showAlert]);
+
+  // ── Edit title ────────────────────────────────────────────────────────────
+  const handleSaveTitle = useCallback(async () => {
+    if (!liveClass) return;
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === liveClass.title) { setShowEditTitle(false); return; }
+    setIsSavingTitle(true);
+    try {
+      await updateLiveClass(liveClass.id, { title: trimmed });
+      setLiveClass(prev => (prev ? { ...prev, title: trimmed } : prev));
+      setShowEditTitle(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      showAlert({ type: 'error', title: 'Title not saved', message: e?.message || 'Could not update the stream title.' });
+    } finally {
+      setIsSavingTitle(false);
+    }
+  }, [liveClass, titleDraft, updateLiveClass, showAlert]);
+
   // ── Quick actions ─────────────────────────────────────────────────────────
   const handleQuickAction = useCallback((actionId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -304,16 +354,17 @@ export default function BroadcastStudioScreen() {
         setCameraPosition(v => v === 'front' ? 'back' : 'front');
         break;
       case 'share':
-        showAlert({ type: 'info', title: 'Share stream', message: 'Stream sharing is coming soon.' });
+        handleShareStream();
         break;
       case 'edit':
-        showAlert({ type: 'info', title: 'Edit title', message: 'Title editing coming soon.' });
+        setTitleDraft(liveClass?.title ?? '');
+        setShowEditTitle(true);
         break;
       case 'end':
         handleStopBroadcast();
         break;
     }
-  }, [elapsedSeconds, showMarkerToast, addActivity]);
+  }, [elapsedSeconds, showMarkerToast, addActivity, handleShareStream, liveClass?.title]);
 
   // ── Start broadcast ───────────────────────────────────────────────────────
   const handleStartBroadcast = async () => {
@@ -849,6 +900,63 @@ export default function BroadcastStudioScreen() {
         </View>
 
       </SafeAreaView>
+
+      {/* Edit title — cross-platform replacement for Alert.prompt (iOS-only) */}
+      <Modal
+        visible={showEditTitle}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!isSavingTitle) setShowEditTitle(false); }}
+      >
+        <KeyboardAvoidingView
+          style={s.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={s.modalContent} accessibilityViewIsModal>
+            <Text style={s.modalTitle} accessibilityRole="header">Edit title</Text>
+            <Text style={s.modalMessage}>Rename this live class. Viewers see the new title right away.</Text>
+            <TextInput
+              style={s.modalInput}
+              value={titleDraft}
+              onChangeText={setTitleDraft}
+              placeholder="Stream title"
+              placeholderTextColor={CoachColors.textFaint}
+              autoCorrect={false}
+              returnKeyType="done"
+              autoFocus
+              maxLength={80}
+              editable={!isSavingTitle}
+              onSubmitEditing={handleSaveTitle}
+              accessibilityLabel="Stream title"
+            />
+            <View style={s.modalButtons}>
+              <TouchableOpacity
+                style={[s.modalBtn, s.modalBtnCancel]}
+                onPress={() => setShowEditTitle(false)}
+                disabled={isSavingTitle}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.modalBtn, s.modalBtnConfirm, (!titleDraft.trim() || isSavingTitle) && { opacity: 0.35 }]}
+                onPress={handleSaveTitle}
+                disabled={!titleDraft.trim() || isSavingTitle}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Save title"
+                accessibilityState={{ disabled: !titleDraft.trim() || isSavingTitle, busy: isSavingTitle }}
+              >
+                {isSavingTitle
+                  ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                  : <Text style={s.modalBtnConfirmText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1008,4 +1116,30 @@ const s = StyleSheet.create({
   saveVodBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent, letterSpacing: 1 },
   discardBtn: { paddingVertical: 10 },
   discardBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted, letterSpacing: 1 },
+
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(10,11,9,0.8)',
+    justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+  },
+  modalContent: {
+    width: '100%', backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md, borderCurve: 'continuous', padding: Spacing.lg,
+  },
+  modalTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary },
+  modalMessage: {
+    fontFamily: CoachFonts.body, fontSize: 14.5, lineHeight: 21.5,
+    color: CoachColors.textMuted, marginTop: 8, marginBottom: 18,
+  },
+  modalInput: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary,
+    backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 16,
+    marginBottom: 18,
+  },
+  modalButtons: { flexDirection: 'row', gap: 10 },
+  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.full, borderCurve: 'continuous', paddingVertical: 13 },
+  modalBtnCancel: { borderWidth: 1, borderColor: CoachColors.border },
+  modalBtnCancelText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  modalBtnConfirm: { backgroundColor: CoachColors.accent },
+  modalBtnConfirmText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
 });

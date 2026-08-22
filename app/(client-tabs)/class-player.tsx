@@ -16,6 +16,7 @@ import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { useWorkout, RUN_PHASES, TOTAL_RUN_DURATION } from '../../context/WorkoutContext';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useClient } from '../../context/ClientContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -69,6 +70,41 @@ function CompletionScreen({ entry, params }: { entry: any; params: any }) {
   const [ratingFailed, setRatingFailed] = useState(false);
   const completionIdRef = useRef<string | null>(null);
   const syncedRef = useRef(false);
+  const { enrollment, advanceEnrollment } = useClient();
+  const advancedRef = useRef(false);
+
+  // ── Season-track advancement ──
+  // Separate effect from the class_completions sync above, keyed on
+  // [enrollment, entry]: enrollment can load AFTER the completion screen
+  // mounts, and the advance must still fire then. Also deliberately
+  // independent of the insert's outcome — a failed analytics sync must not
+  // hold the athlete's season hostage.
+  useEffect(() => {
+    if (advancedRef.current) return;
+    // Only entries that were started from the season track carry these.
+    if (!entry?.completed || !entry.enrollmentId || entry.trackIndex == null) return;
+    if (!enrollment || enrollment.id !== entry.enrollmentId) return;
+    // Position must still point at this node — a replayed old class (or a
+    // node advanced elsewhere) fails here and nothing moves.
+    if (enrollment.track_position !== entry.trackIndex) return;
+    // Node-id equality backstop: the node at that index, in the same
+    // order-sorted snapshot advanceEnrollment resolves against, must be THIS
+    // class.
+    const track = Array.isArray(enrollment.track_snapshot)
+      ? [...enrollment.track_snapshot].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+      : [];
+    const node = track[entry.trackIndex];
+    if (!node || node.type !== 'class' || node.id !== entry.classId) return;
+
+    // Set before awaiting so a re-render mid-flight can't double-advance.
+    advancedRef.current = true;
+    advanceEnrollment('completed').then(({ result }) => {
+      // Resolves { ok:false, error } — never throws (INVARIANTS §2).
+      if (!result.ok && __DEV__) {
+        console.warn('[class-player] season advance failed:', result.error);
+      }
+    });
+  }, [enrollment, entry]);
 
   useEffect(() => {
     if (syncedRef.current) return;
@@ -458,7 +494,20 @@ function VideoClassPlayer({ params }: { params: any }) {
 
           {/* Center controls */}
           <View style={vs.centerControls}>
-            <TouchableOpacity style={vs.skipBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Rewind 15 seconds">
+            <TouchableOpacity
+              style={vs.skipBtn}
+              activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel="Rewind 15 seconds"
+              onPress={() => {
+                if (!videoUrl || !player) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                // Seeks the VIDEO only. The on-screen clock is the
+                // WorkoutContext wall-clock (effort time), intentionally
+                // untouched by seeking.
+                player.seekBy(-15);
+              }}
+            >
               <Ionicons name="play-back" size={31} color={CoachColors.textPrimary} />
               <Text style={vs.skipLabel}>15s</Text>
             </TouchableOpacity>
@@ -473,7 +522,17 @@ function VideoClassPlayer({ params }: { params: any }) {
               <Ionicons name={isPlaying ? 'pause' : 'play'} size={45} color={CoachColors.textPrimary} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={vs.skipBtn} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Skip forward 15 seconds">
+            <TouchableOpacity
+              style={vs.skipBtn}
+              activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel="Skip forward 15 seconds"
+              onPress={() => {
+                if (!videoUrl || !player) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                player.seekBy(15);
+              }}
+            >
               <Ionicons name="play-forward" size={31} color={CoachColors.textPrimary} />
               <Text style={vs.skipLabel}>15s</Text>
             </TouchableOpacity>

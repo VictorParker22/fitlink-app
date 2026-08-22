@@ -31,6 +31,9 @@ import {
   formatDay, parseLocalDay,
 } from '../../lib/cohort';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useWorkout } from '../../context/WorkoutContext';
+import { computeStreak } from '../../lib/streak';
+import PassStreakCalendar from '../../components/client-tabs/pass/PassStreakCalendar';
 import CardImage from '../../components/ui/CardImage';
 import CohortProgramCard from '../../components/client-tabs/cohort/CohortProgramCard';
 
@@ -100,7 +103,14 @@ function composition(wk: WeekSummary): string {
 export default function MyPassScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { clientData, plans, trainer, enrollment, conversation } = useClient();
+  const { clientData, plans, trainer, enrollment, conversation, workouts, mealLogs } = useClient();
+  const { workoutHistory } = useWorkout();
+  // Same streak number every other athlete surface shows — device-logged
+  // sessions plus completed coach assignments (lib/streak.ts).
+  const currentStreak = useMemo(
+    () => computeStreak(workoutHistory, workouts).days,
+    [workoutHistory, workouts]
+  );
   // 'hidden' | 'open' | 'sent' — the not-yet-approved sheet (see
   // handleStartSeason). 'sent' survives reopening so the athlete is not
   // nudged into messaging the coach twice about the same pass.
@@ -344,6 +354,14 @@ export default function MyPassScreen() {
             </TouchableOpacity>
             </View>
           </View>
+
+          {/* Streak strip + month grid — same real completion data the Train
+              tab reads; streak number matches every other athlete surface. */}
+          <PassStreakCalendar
+            currentStreak={currentStreak}
+            workouts={workouts}
+            mealLogs={mealLogs}
+          />
 
           {trainer ? (
             <View style={s.coachRow}>

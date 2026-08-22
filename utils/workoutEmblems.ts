@@ -73,46 +73,5 @@ export function getWorkoutEmblem(
   return EMBLEM_IMAGES[EMBLEM_KEYS[index]];
 }
 
-/**
- * Get the glow color associated with a workout's emblem.
- */
-export function getWorkoutEmblemGlow(
-  workoutId: string,
-  workoutName?: string,
-  muscleGroups?: string[],
-): string {
-  const GLOW_COLORS: Record<EmblemKey, string> = {
-    chest: '#EF4444',
-    back: '#06B6D4',
-    legs: '#A855F7',
-    arms: '#3B82F6',
-    shoulders: '#F59E0B',
-    core: '#22C55E',
-    cardio: '#EC4899',
-    fullbody: '#94A3B8',
-  };
-
-  // Same matching logic
-  if (muscleGroups && muscleGroups.length > 0) {
-    const combined = muscleGroups.join(' ').toLowerCase();
-    for (const [keywords, key] of KEYWORD_MAP) {
-      if (keywords.some(kw => combined.includes(kw))) {
-        return GLOW_COLORS[key];
-      }
-    }
-  }
-
-  if (workoutName) {
-    const lower = workoutName.toLowerCase();
-    for (const [keywords, key] of KEYWORD_MAP) {
-      if (keywords.some(kw => lower.includes(kw))) {
-        return GLOW_COLORS[key];
-      }
-    }
-  }
-
-  const index = hashString(workoutId) % EMBLEM_KEYS.length;
-  return GLOW_COLORS[EMBLEM_KEYS[index]];
-}
 
 export { EMBLEM_IMAGES };

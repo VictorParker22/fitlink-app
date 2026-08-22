@@ -37,6 +37,15 @@ export interface ClassInfo {
   instructorAvatar?: string;
   videoUrl?: string;
   video_url?: string;
+  // ── Season-track context (optional) ──
+  // Present only when the class was opened from the athlete's season track.
+  // Carried inside the session (not route params) so it survives resume /
+  // background via SecureStore, and copied onto the completion entry so the
+  // player's completion screen can advance the enrollment. Old persisted
+  // sessions lack these fields → no advance, which is safe.
+  enrollmentId?: string;
+  /** Index of this node in the order-sorted full track_snapshot. */
+  trackIndex?: number;
 }
 
 export interface WorkoutSession {
@@ -97,6 +106,11 @@ export interface WorkoutHistoryEntry {
   // Strength-specific — per-set logs including how each set felt.
   // Absent on older entries and on class/running workouts.
   sets?: StrengthSetLog[];
+  // Season-track context — present only when the class was started from the
+  // athlete's season track (see ClassInfo). The completion screen uses these
+  // to advance the enrollment.
+  enrollmentId?: string;
+  trackIndex?: number;
 }
 
 interface WorkoutContextType {
@@ -129,6 +143,8 @@ interface WorkoutContextType {
     startedAt: number;
     durationSec: number;
     sets: StrengthSetLog[];
+    enrollmentId?: string;
+    trackIndex?: number;
   }) => WorkoutHistoryEntry;
 
   // History
@@ -285,6 +301,8 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
       completed,
       pr: isRunningClass ? session.pr : null,
       caloriesEstimate,
+      enrollmentId: session.classInfo.enrollmentId,
+      trackIndex: session.classInfo.trackIndex,
     };
 
     setWorkoutHistory(prev => {
@@ -434,6 +452,8 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     startedAt: number;
     durationSec: number;
     sets: StrengthSetLog[];
+    enrollmentId?: string;
+    trackIndex?: number;
   }): WorkoutHistoryEntry => {
     const entry: WorkoutHistoryEntry = {
       id: `wh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
@@ -451,6 +471,8 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
       pr: null,
       caloriesEstimate: Math.round((info.durationSec / 60) * 6),
       sets: info.sets,
+      enrollmentId: info.enrollmentId,
+      trackIndex: info.trackIndex,
     };
     setWorkoutHistory(prev => {
       const updated = [entry, ...prev].slice(0, 200);

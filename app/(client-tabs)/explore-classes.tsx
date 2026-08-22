@@ -44,6 +44,10 @@ interface FitnessClass {
   durationMin: number;
   thumbnail: string;
   isFree?: boolean;
+  /** DB-maintained aggregates (classes.avg_rating / rating_count trigger). */
+  rating: number;
+  ratingCount: number;
+  takeCount: number;
   description?: string;
   equipment?: string[];
   videoUrl?: string;
@@ -144,6 +148,7 @@ export default function ExploreClassesScreen() {
         equipment: c.equipment || [],
         tags: c.tags || [],
         rating: c.avg_rating || 0,
+        ratingCount: c.rating_count || 0,
         takeCount: c.take_count || 0,
         isFree: c.is_free || false,
         videoUrl: c.video_url,
@@ -405,8 +410,14 @@ export default function ExploreClassesScreen() {
               {item.brand ? `${item.instructor}  •  ${item.brand}` : item.instructor}
             </Text>
           </View>
-          {/* Phase 3: star rating display placeholder */}
-          {/* <View style={s.ratingPlaceholder} /> */}
+          {/* Real ratings only — the line exists solely when athletes have
+              actually rated this class (rating_count > 0); no invented stars. */}
+          {item.ratingCount > 0 && (
+            <Text style={s.classRating} numberOfLines={1}>
+              <Text style={{ color: CoachColors.accent }}>★</Text>
+              {`  ${item.rating.toFixed(1)} (${item.ratingCount})`}
+            </Text>
+          )}
         </View>
 
         {/* Favourite — its own touchable, so the tap saves the class and does
@@ -1017,6 +1028,14 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.body,
     fontSize: 12.5,
     color: CoachColors.textSecondary,
+  },
+  classRating: {
+    marginTop: 3,
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 12,
+    // Primary ink, not muted — this sits over the photo scrim where the
+    // secondary grey loses contrast (same fix as the favourite icon above).
+    color: CoachColors.textPrimary,
   },
   freeBadge: {
     backgroundColor: CoachColors.accentSoft,

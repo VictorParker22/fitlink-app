@@ -27,8 +27,10 @@ import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
+import { Ionicons } from '@expo/vector-icons';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import SquadFeed from '../../components/client-tabs/SquadFeed';
+import WelcomeGuide from '../../components/client-tabs/home/WelcomeGuide';
 import ClientCopilot, { CoachMessagePreview } from '../../components/client-tabs/home/ClientCopilot';
 import SessionsCard from '../../components/client-tabs/home/SessionsCard';
 import SeasonPulseCard from '../../components/client-tabs/home/SeasonPulseCard';
@@ -558,6 +560,12 @@ export default function AthleteTodayScreen() {
           </Pressable>
         </View>
 
+        {/* First-run checklist — only for brand-new athletes (no enrollment,
+            no assigned work yet). The component persists its own dismissal. */}
+        <WelcomeGuide
+          visible={!loading && !enrollment && (!workouts || workouts.length === 0)}
+        />
+
         {/* ── The instruction ── */}
         <View style={[st.hero, instruction.kind === 'workout' && st.heroActive]}>
           {/* The emotional peak of the athlete's day goes image-backed:
@@ -809,6 +817,23 @@ export default function AthleteTodayScreen() {
         {/* ── Client copilot — up to 4 real "what's next" rows ── */}
         <ClientCopilot latestCoachMessage={latestCoachMsg} />
 
+        {/* ── Activity hub teaser — rings, calendar, manual logging ── */}
+        <Pressable
+          style={st.activityCard}
+          onPress={() => router.push(ClientRoute.activity as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Open your activity"
+        >
+          <View style={st.activityIconWrap}>
+            <Ionicons name="pulse" size={20} color={C.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={st.activityTitle}>Your activity</Text>
+            <Text style={st.activitySub}>Rings, calendar and every session you log</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
+        </Pressable>
+
         {/* ── Sessions — the dedicated surface (next booked / nudge / find) ── */}
         <SessionsCard />
 
@@ -965,6 +990,18 @@ export default function AthleteTodayScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
+  activityCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginTop: 22,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 16, borderCurve: 'continuous', padding: 16,
+  },
+  activityIconWrap: {
+    width: 40, height: 40, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: C.accentSofter, alignItems: 'center', justifyContent: 'center',
+  },
+  activityTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: C.textPrimary },
+  activitySub: { fontFamily: CoachFonts.bodyMedium, fontSize: 12, color: C.textMuted, marginTop: 2 },
   container: { flex: 1, backgroundColor: C.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
 

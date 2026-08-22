@@ -1,3 +1,6 @@
+// UNMOUNTED — `conversions`/`conversionRate` have no data source: a trial's
+// status row is overwritten in place on conversion, leaving no audit/event row
+// to count. Mount this once a trial-conversion event exists in the schema.
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCountUp } from '../../hooks/useCountUp';

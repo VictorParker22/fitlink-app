@@ -395,8 +395,6 @@ interface AppContextType {
   updateClientAssessment: (clientId: string, assessmentData: any) => Promise<void>;
   getClientById: (id: string) => Client | undefined;
   enrollClientInPlan: (clientId: string, planId: string) => Promise<PlanEnrollment>;
-  advanceTrackPosition: (enrollmentId: string, nodeType: string, nodeId?: string, durationSec?: number) => Promise<void>;
-  skipTrackNode: (enrollmentId: string) => Promise<void>;
   pauseEnrollment: (enrollmentId: string) => Promise<void>;
   resumeEnrollment: (enrollmentId: string) => Promise<void>;
   getClientEnrollment: (clientId: string) => Promise<PlanEnrollment | null>;
@@ -467,7 +465,7 @@ async function logActivity(row: { trainer_id: string; type: string; message: str
   if (error && __DEV__) console.warn('[AppContext] Activity not recorded:', error.message);
 }
 
-export const sanitizeEquipment = (eq?: string): string | null => {
+const sanitizeEquipment = (eq?: string): string | null => {
   if (!eq || eq.toLowerCase() === 'none') return null;
   const e = eq.toLowerCase();
   if (e.includes('barbell')) return 'barbell';
@@ -980,77 +978,6 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
     return data as PlanEnrollment;
   }, [plans, clients, trainer]);
-
-  const advanceTrackPosition = useCallback(async (enrollmentId: string, nodeType: string, nodeId?: string, durationSec?: number) => {
-    const { data: enrollment } = await supabase
-      .from('client_plan_enrollments')
-      .select('*')
-      .eq('id', enrollmentId)
-      .single();
-    
-    if (!enrollment) return;
-    
-    const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
-    const newPos = enrollment.track_position + 1;
-
-    const { error: eventError } = await supabase.from('track_events').insert({
-      enrollment_id: enrollmentId,
-      client_id: enrollment.client_id,
-      track_position: enrollment.track_position,
-      node_type: nodeType,
-      node_id: nodeId || null,
-      event_type: 'completed',
-      duration_sec: durationSec || null,
-    });
-    // History row — never blocks the advance, but must not vanish silently.
-    if (eventError && __DEV__) console.warn('[AppContext] track_event not recorded:', eventError.message);
-
-    const { error } = newPos >= track.length
-      ? await supabase
-          .from('client_plan_enrollments')
-          .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          .eq('id', enrollmentId)
-      : await supabase
-          .from('client_plan_enrollments')
-          .update({ track_position: newPos, updated_at: new Date().toISOString() })
-          .eq('id', enrollmentId);
-    if (error) throw error;
-  }, []);
-
-  const skipTrackNode = useCallback(async (enrollmentId: string) => {
-    const { data: enrollment } = await supabase
-      .from('client_plan_enrollments')
-      .select('*')
-      .eq('id', enrollmentId)
-      .single();
-    
-    if (!enrollment) return;
-    
-    const track = (enrollment.track_snapshot as TrackNode[]).sort((a: TrackNode, b: TrackNode) => a.order - b.order);
-    const node = track[enrollment.track_position];
-    
-    const { error: eventError } = await supabase.from('track_events').insert({
-      enrollment_id: enrollmentId,
-      client_id: enrollment.client_id,
-      track_position: enrollment.track_position,
-      node_type: node?.type || 'unknown',
-      node_id: node?.id || null,
-      event_type: 'skipped',
-    });
-    if (eventError && __DEV__) console.warn('[AppContext] track_event not recorded:', eventError.message);
-
-    const newPos = enrollment.track_position + 1;
-    const { error } = newPos >= track.length
-      ? await supabase
-          .from('client_plan_enrollments')
-          .update({ track_position: newPos, status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          .eq('id', enrollmentId)
-      : await supabase
-          .from('client_plan_enrollments')
-          .update({ track_position: newPos, updated_at: new Date().toISOString() })
-          .eq('id', enrollmentId);
-    if (error) throw error;
-  }, []);
 
   const pauseEnrollment = useCallback(async (enrollmentId: string) => {
     const { error } = await supabase.from('client_plan_enrollments')
@@ -2312,8 +2239,6 @@ export function AppProvider({ children }: PropsWithChildren) {
     createStripeConnectAccount,
     fetchAnalytics,
     enrollClientInPlan,
-    advanceTrackPosition,
-    skipTrackNode,
     pauseEnrollment,
     resumeEnrollment,
     getClientEnrollment,
@@ -2334,7 +2259,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     createClass, updateClass, deleteClass, publishClass,
     refreshData, refreshClients, refreshSessions,
     createStripeConnectAccount, fetchAnalytics, trainerClasses,
-    enrollClientInPlan, advanceTrackPosition, skipTrackNode,
+    enrollClientInPlan,
     pauseEnrollment, resumeEnrollment, getClientEnrollment,
   ]);
 

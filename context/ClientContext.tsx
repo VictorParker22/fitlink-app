@@ -91,6 +91,13 @@ interface ClientContextType {
   completeTrackWorkout: (sessionId?: string, durationSeconds?: number) => Promise<WriteResult>;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
   skipTrackWorkout: () => Promise<WriteResult>;
+  /**
+   * Advance the enrollment by one node — the raw primitive the two wrappers
+   * above use. Exposed for the class player's completion screen, which
+   * advances a CLASS node (completeTrackWorkout only handles workout nodes).
+   * Resolves { result: { ok:false, error } } on rejection — never throws.
+   */
+  advanceEnrollment: (eventType: 'completed' | 'skipped') => Promise<{ result: WriteResult; node?: any }>;
   subscription: any;
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
@@ -1037,6 +1044,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
         rescheduleWorkoutToToday,
         completeTrackWorkout,
         skipTrackWorkout,
+        advanceEnrollment,
         mealLogs,
         logMealEaten,
         unlogMeal,

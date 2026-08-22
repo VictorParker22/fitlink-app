@@ -166,7 +166,6 @@ export default function TabLayout() {
       <Tabs.Screen name="messages" />  {/* 5. Messages */}
       {/* Hidden from tab bar — accessible via navigation */}
       <Tabs.Screen name="programs" options={{ href: null }} />
-      <Tabs.Screen name="diets"    options={{ href: null }} />
       <Tabs.Screen name="profile"  options={{ href: null }} />
     </Tabs>
   );

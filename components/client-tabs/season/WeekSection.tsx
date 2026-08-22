@@ -33,7 +33,9 @@
  * CLASS NODES: a class the coach placed in the week opens the athlete class
  * detail — ClientRoute.classDetail, never the coach screen at /class/[id].
  * Same preview-before-commit contract as a workout node: opening it shows the
- * class, it never auto-plays and never advances track_position.
+ * class and never auto-plays. The push carries enrollmentId + trackIndex so
+ * that FINISHING the class (in the player's completion screen) advances
+ * track_position — opening/previewing alone still never advances anything.
  */
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
@@ -78,6 +80,11 @@ type Props = {
   isRestWeek: boolean;
   /** Week nodes, week-start milestone already stripped. */
   nodes: SeasonNode[];
+  /**
+   * The enrollment's id — carried on a class node's detail push (with the
+   * node's track index) so completing the class can advance the season.
+   */
+  enrollmentId?: string;
   /** True when the enrolled plan is a cohort — the only case with real dates. */
   cohort?: boolean;
   /** Nodes completed on the enrollment. */
@@ -103,6 +110,7 @@ export default function WeekSection({
   title,
   isRestWeek,
   nodes,
+  enrollmentId,
   cohort = false,
   position,
   status,
@@ -220,8 +228,13 @@ export default function WeekSection({
       const classWhen = [`Week ${week}`, 'Class', dayLabel].filter(Boolean).join(' · ');
       const classSpoken = [`Week ${week}`, 'class', dayLabel].filter(Boolean).join(', ');
 
-      // View-only, always: opening the detail never starts playback and never
-      // advances track_position. Class completion is not wired to the track.
+      // Opening the detail never starts playback and never advances
+      // track_position by itself. The push carries enrollmentId + trackIndex
+      // (this node's index in the ORDER-SORTED full track_snapshot — the same
+      // `(a.order||0)-(b.order||0)` ordering advanceEnrollment resolves the
+      // current node with) so the player's completion screen can advance the
+      // season when the class is actually finished. The completion guards
+      // (position + node-id equality) make a stale/ahead push a no-op.
       const canOpenClass = !!cls;
       return (
         <Pressable hitSlop={{ top: 1, bottom: 1 }}
@@ -245,6 +258,11 @@ export default function WeekSection({
                 // class-detail gates its paywall on this exact string.
                 is_free: cls.is_free ? 'true' : 'false',
                 instructor: coachFirst,
+                // Season-track context — lets finishing the class advance the
+                // enrollment. Route params are strings; class-detail parses.
+                ...(enrollmentId
+                  ? { enrollmentId, trackIndex: String(index) }
+                  : {}),
               },
             });
           }}
