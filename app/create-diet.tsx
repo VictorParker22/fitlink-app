@@ -9,7 +9,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { decode } from 'base64-arraybuffer';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
 import { useApp, DietWeekStructure, DietSwapsMap, DietPlanExtras } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +21,9 @@ import { searchNutrition, nutritionToMeal } from '../lib/nutritionApi';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useReducedMotion } from '../lib/useReducedMotion';
+import { useFoodImage } from '../lib/foodImages';
+import { WizardTopBar, WizardHeading, GhostSlot } from '../components/wizard/WizardChrome';
 
 type MealTimeKey = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -108,6 +113,85 @@ const slotTotals = (slots: Slot[]) =>
 
 const fmtK = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
 
+// The one macro palette this screen speaks: protein wears the accent, carbs
+// and fat step down the grey text ramp (tokens only, no bespoke greys).
+const MACRO_COLORS = {
+  p: CoachColors.accent,
+  c: CoachColors.textSecondary,
+  f: CoachColors.textFaint,
+};
+
+const MEAL_TIME_ICONS: Record<MealTimeKey, keyof typeof Ionicons.glyphMap> = {
+  breakfast: 'sunny-outline',
+  lunch: 'restaurant-outline',
+  dinner: 'moon-outline',
+  snack: 'cafe-outline',
+};
+
+/**
+ * The signature's living bar: three proportional segments that grow in from
+ * zero on mount (skipped under Reduce Motion), gram values in mono beneath.
+ */
+function MacroBar({ shares, grams }: {
+  shares: { p: number; c: number; f: number };
+  grams: { p: number; c: number; f: number };
+}) {
+  const reduced = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced) { progress.value = 1; return; }
+    progress.value = withTiming(1, { duration: 900, easing: Easing.bezier(0.22, 1, 0.36, 1) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduced]);
+
+  const fill = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+
+  const segs: { key: 'p' | 'c' | 'f'; label: string }[] = [
+    { key: 'p', label: 'P' }, { key: 'c', label: 'C' }, { key: 'f', label: 'F' },
+  ];
+  return (
+    <View>
+      <View style={s.macroBarRow}>
+        {segs.map(({ key }) => (
+          <View key={key} style={[s.macroBarSeg, { flex: shares[key] || 0.0001 }]}>
+            <Animated.View style={[s.macroBarFill, { backgroundColor: MACRO_COLORS[key] }, fill]} />
+          </View>
+        ))}
+      </View>
+      <View style={s.macroBarLegend}>
+        {segs.map(({ key, label }) => (
+          <View key={key} style={{ flex: shares[key] || 0.0001 }}>
+            <Text style={[s.macroBarGrams, { color: MACRO_COLORS[key] }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+              {label} {grams[key]}g
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Meal-row slit: the coach's own photo for the meal when the library has one,
+ * otherwise a Spoonacular dish photo resolved (and persisted) by useFoodImage
+ * — same path the diet detail screen takes — falling back to the slot's
+ * time-of-day icon while resolving or on a miss.
+ */
+function SlotThumb({ name, existingUrl, mealId, mealTime }: {
+  name: string; existingUrl?: string | null; mealId?: string; mealTime: MealTimeKey;
+}) {
+  const url = useFoodImage(name, existingUrl, mealId);
+  if (url) {
+    return <ExpoImage source={{ uri: url }} style={s.slotThumb} contentFit="cover" transition={150} recyclingKey={mealId} />;
+  }
+  return (
+    <View style={[s.slotThumb, s.slotThumbFallback]}>
+      <Ionicons name={MEAL_TIME_ICONS[mealTime]} size={20} color={CoachColors.textSecondary} />
+    </View>
+  );
+}
+
 export default function CreateDietScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string }>();
@@ -130,6 +214,9 @@ export default function CreateDietScreen() {
   const [customF, setCustomF] = useState('80');
   const [mealsPerDay, setMealsPerDay] = useState(4);
   const [category, setCategory] = useState<string>('balanced');
+  // Which text field currently has the caret — drives the lime active-input
+  // treatment (accent border + lime micro-label). Purely visual.
+  const [focusField, setFocusField] = useState<'name' | 'p' | 'c' | 'f' | null>(null);
 
   // ── Step 2: day variants ──
   const [dayVariant, setDayVariant] = useState<DayVariant>('training');
@@ -593,7 +680,6 @@ export default function CreateDietScreen() {
   };
 
   // ── Shared chrome ──
-  const stepSubtitles = { 1: 'Targets', 2: 'Training day', 3: 'Week and assignment' };
   // Android hardware back steps the wizard back rather than discarding the
   // whole meal plan. The sheets above own their own onRequestClose, so back
   // closes an open sheet first and only then walks the steps.
@@ -603,27 +689,16 @@ export default function CreateDietScreen() {
     return true;
   }, [step]));
 
+  const kickerBase = isEditing ? 'Edit meal plan' : 'New meal plan';
+
   const renderHeader = () => (
-    <>
-      <View style={s.header}>
-        <TouchableOpacity hitSlop={4}
-          onPress={() => step === 1 ? router.back() : setStep((step - 1) as 1 | 2)}
-          style={s.backBtn}
-        >
-          <Ionicons name={step === 1 ? 'close' : 'arrow-back'} size={25} color={CoachColors.textPrimary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || (isEditing ? 'Edit meal plan' : 'New meal plan')}</Text>
-          <Text style={s.headerSub}>Step {step} of 3 · {stepSubtitles[step]}</Text>
-        </View>
-        <View style={{ width: 36 }} />
-      </View>
-      <View style={s.progressRow}>
-        {[1, 2, 3].map(n => (
-          <View key={n} style={[s.progressSeg, n <= step && s.progressSegActive]} />
-        ))}
-      </View>
-    </>
+    <View style={s.topBarWrap}>
+      <WizardTopBar
+        step={step}
+        totalSteps={3}
+        onBack={() => step === 1 ? router.back() : setStep((step - 1) as 1 | 2)}
+      />
+    </View>
   );
 
   // ────────────────────────────── STEP 1 ──────────────────────────────
@@ -631,19 +706,25 @@ export default function CreateDietScreen() {
     <>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={s.eyebrow}>Plan name</Text>
-          <TextInput
-            style={s.nameInput}
-            placeholder="e.g. Marcus off-season"
-            placeholderTextColor={CoachColors.textFaint}
-            value={name}
-            onChangeText={setName}
-            selectionColor={CoachColors.accent}
-          />
+          <WizardHeading kicker={`${kickerBase} · Targets`} title={'Set the day’s numbers.'} />
 
-          {/* Daily calories */}
-          <View style={s.card}>
-            <Text style={s.eyebrow}>Daily calories</Text>
+          <View style={[s.fieldWrap, focusField === 'name' && s.fieldWrapActive]}>
+            <Text style={[s.microLabel, focusField === 'name' && s.microLabelActive]}>Plan name</Text>
+            <TextInput
+              style={s.nameInput}
+              placeholder="e.g. Marcus off-season"
+              placeholderTextColor={CoachColors.textFaint}
+              value={name}
+              onChangeText={setName}
+              onFocus={() => setFocusField('name')}
+              onBlur={() => setFocusField(null)}
+              selectionColor={CoachColors.accent}
+            />
+          </View>
+
+          {/* The signature: calories as the hero, macros as a living bar */}
+          <View style={s.heroCard}>
+            <Text style={s.eyebrow}>Daily target</Text>
             <View style={s.kcalRow}>
               <TouchableOpacity
                 style={s.stepBtn}
@@ -652,8 +733,8 @@ export default function CreateDietScreen() {
                 <Ionicons name="remove" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
               <View style={{ alignItems: 'center' }}>
-                <Text style={s.kcalValue}>{kcal.toLocaleString()} <Text style={s.kcalUnit}>kcal</Text></Text>
-                <Text style={s.kcalRange}>1,600 – 3,200 in steps of 50</Text>
+                <Text style={s.kcalValue} maxFontSizeMultiplier={1.2}>{kcal.toLocaleString()}</Text>
+                <Text style={s.kcalUnit}>kcal a day · 1,600 – 3,200</Text>
               </View>
               <TouchableOpacity
                 style={s.stepBtn}
@@ -662,21 +743,9 @@ export default function CreateDietScreen() {
                 <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Split it */}
-          <View style={s.card}>
-            <Text style={s.eyebrow}>Split it</Text>
-            <View style={s.splitBar}>
-              <View style={[s.splitSeg, { flex: splitShares.p, backgroundColor: CoachColors.accent }]} />
-              <View style={[s.splitSeg, { flex: splitShares.c, backgroundColor: '#7A8072' }]} />
-              <View style={[s.splitSeg, { flex: splitShares.f, backgroundColor: '#4A4F45' }]} />
-            </View>
-            <View style={s.legendRow}>
-              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: CoachColors.accent }]} /><Text style={s.legendText}>Protein {grams.p}g</Text></View>
-              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: '#7A8072' }]} /><Text style={s.legendText}>Carbs {grams.c}g</Text></View>
-              <View style={s.legendItem}><View style={[s.legendDot, { backgroundColor: '#4A4F45' }]} /><Text style={s.legendText}>Fat {grams.f}g</Text></View>
-            </View>
+            <MacroBar shares={splitShares} grams={grams} />
+
             <View style={s.chipRow}>
               {(['building', 'cutting', 'holding', 'custom'] as PresetKey[]).map(k => (
                 <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
@@ -692,14 +761,16 @@ export default function CreateDietScreen() {
             </View>
             {preset === 'custom' && (
               <View style={s.customRow}>
-                {([['Protein g', customP, setCustomP], ['Carbs g', customC, setCustomC], ['Fat g', customF, setCustomF]] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
+                {([['Protein g', 'p', customP, setCustomP], ['Carbs g', 'c', customC, setCustomC], ['Fat g', 'f', customF, setCustomF]] as [string, 'p' | 'c' | 'f', string, (v: string) => void][]).map(([label, fieldKey, val, setter]) => (
                   <View key={label} style={s.customField}>
-                    <Text style={s.customLabel}>{label}</Text>
+                    <Text style={[s.microLabel, focusField === fieldKey && s.microLabelActive]}>{label}</Text>
                     <TextInput
-                      style={s.customInput}
+                      style={[s.customInput, focusField === fieldKey && s.customInputActive]}
                       keyboardType="number-pad"
                       value={val}
                       onChangeText={setter}
+                      onFocus={() => setFocusField(fieldKey)}
+                      onBlur={() => setFocusField(null)}
                       selectionColor={CoachColors.accent}
                     />
                   </View>
@@ -770,9 +841,9 @@ export default function CreateDietScreen() {
           </View>
         </View>
         <View style={s.macroStack}>
-          {seg(pShare, activeTotals.protein, grams.p, CoachColors.accent)}
-          {seg(cShare, activeTotals.carbs, grams.c, '#7A8072')}
-          {seg(fShare, activeTotals.fat, grams.f, '#4A4F45')}
+          {seg(pShare, activeTotals.protein, grams.p, MACRO_COLORS.p)}
+          {seg(cShare, activeTotals.carbs, grams.c, MACRO_COLORS.c)}
+          {seg(fShare, activeTotals.fat, grams.f, MACRO_COLORS.f)}
         </View>
         <Text style={s.macroLine}>{macroLine(activeTotals)}</Text>
       </View>
@@ -784,6 +855,9 @@ export default function CreateDietScreen() {
     const trainingHasMeals = trainingSlots.some(sl => sl.meal);
     return (
       <>
+        <View style={s.headingWrap}>
+          <WizardHeading kicker={`${kickerBase} · The day`} title={'Fill the day’s plates.'} />
+        </View>
         {renderMacroHeader()}
 
         <View style={s.segmented}>
@@ -819,11 +893,17 @@ export default function CreateDietScreen() {
                     activeOpacity={0.8}
                     onPress={() => { setSlotSheetIndex(index); setEditServings(slot.meal!.servings); }}
                   >
-                    <View style={{ flex: 1 }}>
+                    <SlotThumb
+                      name={slot.meal.name}
+                      existingUrl={meals.find(m => m.id === slot.meal!.id)?.image_url}
+                      mealId={slot.meal.id}
+                      mealTime={slot.meal_time}
+                    />
+                    <View style={s.slotBody}>
                       <Text style={s.slotMealName} numberOfLines={1}>{slot.meal.name}</Text>
-                      <Text style={s.slotMealMacros}>
-                        P {Math.round(slot.meal.protein * slot.meal.servings)}  C {Math.round(slot.meal.carbs * slot.meal.servings)}  F {Math.round(slot.meal.fat * slot.meal.servings)}
-                        {slot.meal.servings !== 1 ? `  ·  ${slot.meal.servings}x` : ''}
+                      <Text style={s.slotMealMacros} maxFontSizeMultiplier={1.3}>
+                        {Math.round(slot.meal.calories * slot.meal.servings)} kcal · P {Math.round(slot.meal.protein * slot.meal.servings)} C {Math.round(slot.meal.carbs * slot.meal.servings)} F {Math.round(slot.meal.fat * slot.meal.servings)}
+                        {slot.meal.servings !== 1 ? ` · ${slot.meal.servings}x` : ''}
                       </Text>
                       {dayVariant === 'training' && swapCount > 0 && (
                         <View style={s.swapTag}>
@@ -832,7 +912,7 @@ export default function CreateDietScreen() {
                         </View>
                       )}
                     </View>
-                    <Text style={s.slotKcal}>{Math.round(slot.meal.calories * slot.meal.servings)} kcal</Text>
+                    <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} style={s.slotChevron} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -848,10 +928,7 @@ export default function CreateDietScreen() {
             );
           })}
 
-          <TouchableOpacity style={s.addSlotRow} onPress={appendSlot} activeOpacity={0.7}>
-            <Ionicons name="add" size={18} color={CoachColors.textSecondary} />
-            <Text style={s.addSlotText}>Add a meal</Text>
-          </TouchableOpacity>
+          <GhostSlot label="Add a meal" onPress={appendSlot} />
         </ScrollView>
 
         <View style={s.footer}>
@@ -873,8 +950,8 @@ export default function CreateDietScreen() {
   const renderStep3 = () => (
     <>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.scroll}>
-        <Text style={s.h1}>Training days eat more</Text>
-        <Text style={s.sub}>
+        <WizardHeading kicker={`${kickerBase} · The week`} title={'Training days eat more.'} />
+        <Text style={[s.sub, { marginTop: 12 }]}>
           Tap the days this athlete trains. Training days get the {fmtK(trainingTotals.calories)} kcal day, the rest get the {fmtK(restTotals.calories)} kcal one.
         </Text>
 
@@ -1236,39 +1313,50 @@ export default function CreateDietScreen() {
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: CoachColors.bg },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous', backgroundColor: CoachColors.surface, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, maxWidth: 240 },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 2 },
-  progressRow: { flexDirection: 'row', gap: 6, marginHorizontal: 20, marginBottom: 8 },
-  progressSeg: { flex: 1, height: 3, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
-  progressSegActive: { backgroundColor: CoachColors.accent },
+  topBarWrap: { paddingHorizontal: 20, paddingTop: 8 },
+  headingWrap: { paddingHorizontal: 20 },
 
   scroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
   eyebrow: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase' },
-  h1: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, marginBottom: 8 },
   sub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, lineHeight: 21.5, marginBottom: 20 },
   footnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textFaint, lineHeight: 20, marginTop: 8 },
 
+  // Lime active-input treatment (add-client precedent): surface field,
+  // accent border + lime micro-label while the caret is in it.
+  fieldWrap: {
+    backgroundColor: CoachColors.surface, borderRadius: 12, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4,
+    marginTop: 24, marginBottom: 16,
+  },
+  fieldWrapActive: { borderColor: CoachColors.accent },
+  microLabel: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, letterSpacing: 1,
+    textTransform: 'uppercase', color: CoachColors.textFaint, marginBottom: 2,
+  },
+  microLabelActive: { color: CoachColors.accent },
   nameInput: {
     fontFamily: CoachFonts.headingSemiBold, fontSize: 20, color: CoachColors.textPrimary,
-    borderBottomWidth: 1, borderBottomColor: CoachColors.border, paddingVertical: 14, marginBottom: 24, marginTop: 8,
+    paddingVertical: 8,
   },
 
   card: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderCurve: 'continuous', padding: 18, marginBottom: 16, borderWidth: 1, borderColor: CoachColors.border },
 
-  kcalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
-  stepBtn: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
-  kcalValue: { fontFamily: CoachFonts.headingBold, fontSize: 38, color: CoachColors.accent },
-  kcalUnit: { fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textMuted },
-  kcalRange: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 4 },
+  // The signature card: hero calorie numeral over the living macro bar.
+  heroCard: {
+    backgroundColor: CoachColors.surface, borderRadius: 20, borderCurve: 'continuous',
+    padding: 20, marginBottom: 16, borderWidth: 1, borderColor: CoachColors.border,
+  },
+  kcalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 20 },
+  stepBtn: { width: 44, height: 44, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center' },
+  kcalValue: { fontFamily: CoachFonts.mono, fontSize: 44, lineHeight: 50, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
+  kcalUnit: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginTop: 2 },
 
-  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, borderCurve: 'continuous', overflow: 'hidden', marginTop: 14, gap: 2 },
-  splitSeg: { height: '100%' },
-  legendRow: { flexDirection: 'row', gap: 16, marginTop: 12, marginBottom: 14, flexWrap: 'wrap' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4, borderCurve: 'continuous' },
-  legendText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
+  macroBarRow: { flexDirection: 'row', height: 10, gap: 2 },
+  macroBarSeg: { height: 10, borderRadius: 2, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: CoachColors.borderMuted },
+  macroBarFill: { height: '100%', borderRadius: 2, borderCurve: 'continuous' },
+  macroBarLegend: { flexDirection: 'row', gap: 2, marginTop: 8 },
+  macroBarGrams: { fontFamily: CoachFonts.mono, fontSize: 11.5, fontVariant: ['tabular-nums'] },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: Radius.full, borderCurve: 'continuous', backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border },
@@ -1278,8 +1366,8 @@ const s = StyleSheet.create({
 
   customRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   customField: { flex: 1 },
-  customLabel: { fontFamily: CoachFonts.bodyMedium, fontSize: 12.5, color: CoachColors.textMuted, marginBottom: 6 },
-  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 12, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary },
+  customInput: { backgroundColor: CoachColors.bg, borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 12, fontFamily: CoachFonts.headingSemiBold, fontSize: 17, color: CoachColors.textPrimary, marginTop: 4 },
+  customInputActive: { borderColor: CoachColors.accent, backgroundColor: CoachColors.surface },
 
   // Inside SafeAreaView edges={['top','bottom']} — the inset is already applied,
   // so this is breathing room only (was 28, stacking to ~62pt of dead space).
@@ -1290,7 +1378,7 @@ const s = StyleSheet.create({
   // Step 2
   macroCard: { backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderCurve: 'continuous', padding: 16, marginHorizontal: 20, marginTop: 8, borderWidth: 1, borderColor: CoachColors.border },
   macroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  macroKcal: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary },
+  macroKcal: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
   macroKcalTarget: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
   statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.full, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
   statusChipOn: { backgroundColor: CoachColors.accentSoft },
@@ -1311,16 +1399,18 @@ const s = StyleSheet.create({
   copyBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
   slotLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  slotCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, padding: 14, borderRadius: Radius.md, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, gap: 12 },
+  // Filled slot: food-image slit leads, radius 14 continuous clips it.
+  slotCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden', minHeight: 62 },
+  slotThumb: { width: 62, alignSelf: 'stretch' },
+  slotThumbFallback: { backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center' },
+  slotBody: { flex: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  slotChevron: { marginRight: 12 },
   slotMealName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 3 },
-  slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted },
-  slotKcal: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+  slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted, fontVariant: ['tabular-nums'] },
   swapTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: CoachColors.accentSofter, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full, borderCurve: 'continuous', marginTop: 6 },
   swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.accent },
   slotEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed' },
   slotEmptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textMuted },
-  addSlotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 14, borderRadius: Radius.md, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', marginTop: 4 },
-  addSlotText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   // Step 3
   weekRow: { flexDirection: 'row', gap: 6, marginBottom: 24 },

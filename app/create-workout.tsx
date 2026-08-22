@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, Image as RNImage } from 'react-native';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, Image as RNImage, ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,10 @@ import MuscleMap from '../components/anatomy/MuscleMap';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Audio } from 'expo-av';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import { useReducedMotion } from '../lib/useReducedMotion';
+import { getWorkoutEmblem } from '../utils/workoutEmblems';
+import { WizardTopBar, WizardHeading, GhostSlot } from '../components/wizard/WizardChrome';
 
 interface SelectedExercise {
   exercise_id: string;
@@ -42,6 +46,41 @@ const stripHtml = (html?: string) => {
 const cap = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
 type Mode = 'setup' | 'describe' | 'builder';
+
+// One quiet materialization — cubic-bezier(0.22,1,0.36,1), no bounce.
+const EMBLEM_EASING = Easing.bezier(0.22, 1, 0.36, 1);
+
+/**
+ * The workout's emblem, derived from the coach's real current state. When the
+ * resolved badge identity changes it materializes: scale 0.85→1 with a slight
+ * -4deg→0 rotate settle. Skipped entirely under Reduce Motion (DESIGN.md law).
+ */
+function MaterializingEmblem({ source }: { source: ImageSourcePropType }) {
+  const reduced = useReducedMotion();
+  const scale = useSharedValue(1);
+  const rotate = useSharedValue(0);
+  const prevSource = useRef(source);
+
+  useEffect(() => {
+    if (prevSource.current === source) return;
+    prevSource.current = source;
+    if (reduced) return;
+    scale.value = 0.85;
+    rotate.value = -4;
+    scale.value = withTiming(1, { duration: 700, easing: EMBLEM_EASING });
+    rotate.value = withTiming(0, { duration: 700, easing: EMBLEM_EASING });
+  }, [source, reduced, scale, rotate]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+  }));
+
+  return (
+    <Animated.View style={[s.emblemWrap, animatedStyle]}>
+      <Image source={source} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+    </Animated.View>
+  );
+}
 
 export default function CreateWorkoutScreen() {
   const router = useRouter();
@@ -558,6 +597,16 @@ export default function CreateWorkoutScreen() {
     selectedEquipment.length ? selectedEquipment.map(equipmentLabel).join(', ') : null,
   ].filter(Boolean).join(' · ');
 
+  // ── Emblem — derived from REAL current state (focus + added exercises +
+  // name) so it matches exactly what the library and the athlete will show.
+  const emblemSource = useMemo(() => {
+    const muscleGroups = [
+      ...selectedFocus,
+      ...selectedExercises.map(e => e.muscle_group).filter(Boolean),
+    ];
+    return getWorkoutEmblem(editId ?? 'new-workout', name.trim() || undefined, muscleGroups);
+  }, [editId, name, selectedFocus, selectedExercises]);
+
   // ── Load enrollment info for the assign sheet (best-effort; falls back to name-only) ──
   const loadEnrollments = useCallback(async () => {
     if (activeClients.length === 0) return;
@@ -784,17 +833,17 @@ export default function CreateWorkoutScreen() {
                   onPress={() => toggleExerciseInPicker(item)}
                   activeOpacity={0.7}
                 >
-                  <View style={[s.exercisePickIcon, { overflow: 'hidden' }]}>
+                  <View style={[s.exercisePickIcon, item.image_url && !failedGifs.has(item.image_url) && s.thumbPaper]}>
                     {item.image_url && !failedGifs.has(item.image_url) ? (
                       <Image
-                        source={{ uri: item.image_url }}
-                        style={{ width: '100%', height: '100%', borderRadius: 8 }}
+                        source={{ uri: proxyGifStill(item.image_url)! }}
+                        style={{ width: '100%', height: '100%' }}
                         contentFit="cover"
                         cachePolicy="disk"
                         onError={() => setFailedGifs(prev => new Set(prev).add(item.image_url!))}
                       />
                     ) : (
-                      <Ionicons name="barbell-outline" size={22} color={CoachColors.textFaint} />
+                      <Ionicons name="barbell-outline" size={20} color={CoachColors.textFaint} />
                     )}
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -849,16 +898,16 @@ export default function CreateWorkoutScreen() {
     return (
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.setupHeader}>
-          <TouchableOpacity onPress={() => setMode('setup')} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
+          <TouchableOpacity onPress={() => setMode('setup')} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <View style={{ width: 36 }} />
+          <View style={{ width: 40 }} />
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={s.setupScroll} keyboardShouldPersistTaps="handled">
-            <Text style={s.title}>Describe the workout</Text>
-            <Text style={s.subtitle}>Exercises are picked from your library — nothing invented that you can't assign.</Text>
+            <WizardHeading kicker="New workout · Describe it" title="Describe the workout" />
+            <Text style={[s.subtitle, { marginTop: Spacing.sm }]}>Exercises are picked from your library — nothing invented that you can't assign.</Text>
 
             <View style={[s.describeInputWrap, aiLoading && { opacity: 0.5 }]}>
               <TextInput
@@ -917,9 +966,9 @@ export default function CreateWorkoutScreen() {
     return (
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.setupHeader}>
-          <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <WizardTopBar step={1} totalSteps={2} onBack={() => router.back()} />
+          </View>
           <TouchableOpacity onPress={skipSetup} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={s.skipText}>Skip setup</Text>
           </TouchableOpacity>
@@ -927,8 +976,39 @@ export default function CreateWorkoutScreen() {
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={s.setupScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={s.title}>What does this workout target?</Text>
-            <Text style={s.subtitle}>Only used to pre-filter the exercise list. Change anything later in the builder.</Text>
+            <WizardHeading kicker="New workout · Identity" title={'Name it.\nWatch it earn its badge.'} />
+
+            <View style={s.nameRow}>
+              <MaterializingEmblem source={emblemSource} />
+              <View style={s.nameFieldWrap}>
+                <Text style={s.nameMicroLabel} maxFontSizeMultiplier={1.4}>Workout name</Text>
+                <TextInput
+                  style={s.nameInput}
+                  placeholder="Name your workout"
+                  placeholderTextColor={CoachColors.textFaint}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  selectionColor={CoachColors.accent}
+                />
+              </View>
+            </View>
+            {suggestedNames.length > 0 && (
+              <View style={[s.chipRow, { marginTop: Spacing.sm }]}>
+                {suggestedNames.map(n => (
+                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
+                    key={n}
+                    style={[s.chip, name === n && s.chipActive]}
+                    onPress={() => setName(n)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, name === n && s.chipTextActive]}>{n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={[s.subtitle, { marginTop: Spacing.xl, marginBottom: Spacing.md }]}>Focus and equipment only pre-filter the exercise list — change anything later in the builder.</Text>
 
             <Text style={s.sectionLabel}>Focus</Text>
             <View style={s.chipGrid}>
@@ -964,31 +1044,6 @@ export default function CreateWorkoutScreen() {
               })}
             </View>
 
-            <Text style={[s.sectionLabel, { marginTop: Spacing.xl }]}>Name</Text>
-            <TextInput
-              style={s.nameField}
-              placeholder="Name your workout"
-              placeholderTextColor={CoachColors.textFaint}
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              selectionColor={CoachColors.accent}
-            />
-            {suggestedNames.length > 0 && (
-              <View style={[s.chipRow, { marginTop: Spacing.sm }]}>
-                {suggestedNames.map(n => (
-                  <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
-                    key={n}
-                    style={[s.chip, name === n && s.chipActive]}
-                    onPress={() => setName(n)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[s.chipText, name === n && s.chipTextActive]}>{n}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
             <TouchableOpacity style={s.describeCard} onPress={() => setMode('describe')} activeOpacity={0.8}>
               <View style={s.describeCardIcon}>
                 <Ionicons name="chatbubble-outline" size={22} color={CoachColors.accent} />
@@ -1019,10 +1074,13 @@ export default function CreateWorkoutScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <View style={s.builderHeader}>
-            <TouchableOpacity style={s.iconBtn} onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="arrow-back" size={25} color={CoachColors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={s.builderHeaderTitle}>{editId ? 'Edit workout' : 'Build workout'}</Text>
+            <View style={{ flex: 1 }}>
+              <WizardTopBar
+                step={editId ? 1 : 2}
+                totalSteps={editId ? 1 : 2}
+                onBack={() => router.back()}
+              />
+            </View>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.createBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator size="small" color={CoachColors.onAccent} />
@@ -1041,17 +1099,23 @@ export default function CreateWorkoutScreen() {
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <View style={s.builderIntro}>
-                <TextInput
-                  style={s.titleInput}
-                  placeholder="Workout name"
-                  placeholderTextColor={CoachColors.textFaint}
-                  value={name}
-                  onChangeText={setName}
-                  selectionColor={CoachColors.accent}
-                  autoFocus={!name}
-                />
+                <View style={s.nameRow}>
+                  <MaterializingEmblem source={emblemSource} />
+                  <View style={s.nameFieldWrap}>
+                    <Text style={s.nameMicroLabel} maxFontSizeMultiplier={1.4}>Workout name</Text>
+                    <TextInput
+                      style={s.nameInput}
+                      placeholder="Workout name"
+                      placeholderTextColor={CoachColors.textFaint}
+                      value={name}
+                      onChangeText={setName}
+                      selectionColor={CoachColors.accent}
+                      autoFocus={!name}
+                    />
+                  </View>
+                </View>
                 {summaryLine ? <Text style={s.summaryLine}>{summaryLine}</Text> : null}
-                <Text style={s.statsLine}>{statsLine}</Text>
+                <Text style={[s.statsLine, !summaryLine && { marginTop: 12 }]}>{statsLine}</Text>
               </View>
             }
             ListEmptyComponent={
@@ -1063,10 +1127,7 @@ export default function CreateWorkoutScreen() {
             ListFooterComponent={
               <>
                 <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xl }}>
-                  <TouchableOpacity style={s.addExerciseBtn} onPress={() => setShowPicker(true)} activeOpacity={0.8}>
-                    <Ionicons name="add" size={20} color={CoachColors.accent} />
-                    <Text style={s.addExerciseBtnText}>Add exercise</Text>
-                  </TouchableOpacity>
+                  <GhostSlot label="Add exercise" onPress={() => setShowPicker(true)} />
                 </View>
               </>
             }
@@ -1091,17 +1152,17 @@ export default function CreateWorkoutScreen() {
                       <TouchableOpacity onPressIn={drag} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: Spacing.sm }}>
                         <Ionicons name="reorder-three-outline" size={25} color={CoachColors.textFaint} />
                       </TouchableOpacity>
-                      <View style={[s.accordionThumb, ex.image_url && !failedGifs.has(ex.image_url) ? { padding: 0, overflow: 'hidden' } : {}]}>
+                      <View style={[s.accordionThumb, ex.image_url && !failedGifs.has(ex.image_url) && s.thumbPaper]}>
                         {ex.image_url && !failedGifs.has(ex.image_url) ? (
                           <Image
                             source={proxyGifStill(ex.image_url)}
-                            style={{ width: '100%', height: '100%', borderRadius: 8 }}
+                            style={{ width: '100%', height: '100%' }}
                             contentFit="cover"
                             cachePolicy="disk"
                             onError={() => setFailedGifs(prev => new Set(prev).add(ex.image_url!))}
                           />
                         ) : (
-                          <Ionicons name="barbell" size={25} color={CoachColors.textFaint} />
+                          <Ionicons name="barbell" size={22} color={CoachColors.textFaint} />
                         )}
                       </View>
                       <View style={s.accordionInfo}>
@@ -1478,9 +1539,32 @@ export default function CreateWorkoutScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
 
+  // Matches WizardTopBar's close/back circle so the describe branch wears
+  // the same chrome as the stepped screens.
   iconBtn: {
-    width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
+    width: 40, height: 40, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
     alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Identity row — emblem + name (canvas · Creation flows) ──
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 },
+  emblemWrap: {
+    width: 64, height: 64, borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden',
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+  },
+  nameFieldWrap: {
+    flex: 1, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.accent,
+    borderRadius: 16, borderCurve: 'continuous',
+    paddingHorizontal: 14, paddingVertical: 10, gap: 2,
+  },
+  nameMicroLabel: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, letterSpacing: 1,
+    textTransform: 'uppercase', color: CoachColors.accent,
+  },
+  nameInput: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 18, color: CoachColors.textPrimary, padding: 0,
   },
 
   // ── Setup / describe screens ──
@@ -1490,10 +1574,6 @@ const s = StyleSheet.create({
   },
   skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textSecondary },
   setupScroll: { paddingHorizontal: Spacing.lg, paddingBottom: 40 },
-  title: {
-    fontFamily: CoachFonts.headingBold, fontSize: 27, color: CoachColors.textPrimary,
-    lineHeight: 33.5, marginBottom: 8, marginTop: 4,
-  },
   subtitle: {
     fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted,
     lineHeight: 20, marginBottom: 24,
@@ -1505,8 +1585,10 @@ const s = StyleSheet.create({
 
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Selection pills — 36pt, radius 999 (canvas · Creation flows).
   chip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full, borderCurve: 'continuous',
+    height: 36, paddingHorizontal: 14, borderRadius: 999, borderCurve: 'continuous',
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border,
   },
@@ -1516,12 +1598,6 @@ const s = StyleSheet.create({
   },
   chipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
   chipTextActive: { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold },
-
-  nameField: {
-    fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
-    borderRadius: Radius.sm, borderCurve: 'continuous', paddingHorizontal: 14, paddingVertical: 14,
-  },
 
   describeCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -1564,7 +1640,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  builderHeaderTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   createBtn: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: CoachColors.accent, borderRadius: Radius.full, borderCurve: 'continuous', minWidth: 64, alignItems: 'center' },
   createBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
 
@@ -1572,31 +1647,25 @@ const s = StyleSheet.create({
   // footer (Save lives in the header) and no tab bar renders over this screen.
   scrollContent: {},
   builderIntro: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
-  titleInput: {
-    fontFamily: CoachFonts.headingBold, fontSize: 29, color: CoachColors.textPrimary, marginBottom: 6, padding: 0,
-  },
-  summaryLine: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 4 },
+  summaryLine: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 12, marginBottom: 4 },
   statsLine: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textSecondary },
 
   emptyBuilder: { alignItems: 'center', paddingVertical: 40, gap: 10, paddingHorizontal: Spacing.lg },
   emptyBuilderText: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, textAlign: 'center' },
 
-  addExerciseBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderWidth: 1, borderColor: CoachColors.border, borderRadius: Radius.md, borderCurve: 'continuous',
-    paddingVertical: 14,
-  },
-  addExerciseBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.accent },
-
   accordionContainer: { backgroundColor: 'transparent' },
   accordionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   accordionThumb: {
-    width: 44, height: 44, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
-    alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
+    width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
+    alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md, overflow: 'hidden',
   },
+  // The stills are line drawings on white — the tile keeps that paper white
+  // so `cover` never letterboxes a white box against the dark card
+  // (WeekSection.tsx precedent).
+  thumbPaper: { backgroundColor: '#FFFFFF' },
   accordionInfo: { flex: 1 },
   accordionName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary, marginBottom: 3 },
-  accordionSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+  accordionSub: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted, fontVariant: ['tabular-nums'] },
 
   expandedContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
 
@@ -1662,7 +1731,8 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textPrimary, height: '100%' },
 
   filterChip: {
-    flexShrink: 0, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderCurve: 'continuous',
+    flexShrink: 0, height: 36, paddingHorizontal: 12, borderRadius: 999, borderCurve: 'continuous',
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
   },
   filterChipActive: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
@@ -1680,8 +1750,9 @@ const s = StyleSheet.create({
 
   exercisePickItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md },
   exercisePickIcon: {
-    width: 44, height: 44, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
+    width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous', backgroundColor: CoachColors.surface,
     borderWidth: 1, borderColor: CoachColors.border, alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
   exercisePickName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 17, color: CoachColors.textPrimary },
   exercisePickSub: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 2 },

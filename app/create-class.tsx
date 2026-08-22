@@ -6,7 +6,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { WizardTopBar, WizardHeading, TakingShape, GhostSlot } from '../components/wizard/WizardChrome';
+import CardImage from '../components/ui/CardImage';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import { useApp } from '../context/AppContext';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
@@ -23,10 +27,10 @@ const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced'];
 const TAGS_LIST = ['Full Body', 'Upper Body', 'Lower Body', 'Core', 'Cardio', 'Treadmill', 'Outdoor', 'Morning', 'Evening', 'No Equipment', 'Guided Audio'];
 const EQUIPMENT_LIST = ['Bodyweight', 'Dumbbell', 'Barbell', 'Bands', 'Kettlebell', 'Mat', 'Foam Roller', 'Bike', 'Treadmill'];
 
-const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
-  1: { title: 'Class details', subtitle: 'Step 1 of 3' },
-  2: { title: 'Media & workout', subtitle: 'Step 2 of 3' },
-  3: { title: 'Access & publish', subtitle: 'Step 3 of 3' },
+const STEP_HEADINGS: Record<number, { kicker: string; title: string }> = {
+  1: { kicker: 'New class · The basics', title: 'Name the class' },
+  2: { kicker: 'New class · The footage', title: 'Put it on film' },
+  3: { kicker: 'New class · The release', title: 'Who gets to press play?' },
 };
 
 export default function CreateClassScreen() {
@@ -38,9 +42,12 @@ export default function CreateClassScreen() {
   const { classes, createClass, updateClass, workouts, plans, trainer } = useApp();
   const { showAlert } = useAlert();
 
+  const reducedMotion = useReducedMotion();
   const [wizardStep, setWizardStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [titleFocused, setTitleFocused] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
 
   // Step 1
   const [title, setTitle] = useState('');
@@ -314,30 +321,16 @@ export default function CreateClassScreen() {
     }
   };
 
-  const stepInfo = STEP_TITLES[wizardStep];
+  const stepInfo = STEP_HEADINGS[wizardStep];
+  const entering = reducedMotion ? undefined : FadeInDown.duration(400);
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleBack} style={styles.backBtn}>
-            <Ionicons name={wizardStep === 1 ? 'close' : 'chevron-back'} size={27} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.stepIndicator}>
-            {[1, 2, 3].map(step => (
-              <View
-                key={step}
-                style={[
-                  styles.stepDot,
-                  wizardStep >= step ? styles.stepDotSeen : null,
-                  wizardStep === step && styles.stepDotActive,
-                ]}
-              />
-            ))}
-          </View>
-          <View style={{ width: 40 }} />
+        {/* Shared wizard chrome */}
+        <View style={styles.chromeWrap}>
+          <WizardTopBar step={wizardStep} totalSteps={3} onBack={handleBack} />
         </View>
 
         {/* Root-stack screen — no tab bar. Clear only the sticky footer (which
@@ -352,34 +345,41 @@ export default function CreateClassScreen() {
         >
 
           {wizardStep === 1 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
-              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
+            <Animated.View entering={entering} style={styles.stepContainer}>
+              <WizardHeading kicker={stepInfo.kicker} title={stepInfo.title} />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Title</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 30 Min Full Body HIIT"
-                  placeholderTextColor={CoachColors.textFaint}
-                  value={title}
-                  onChangeText={setTitle}
-                  selectionColor={CoachColors.accent}
-                />
+              <View style={[styles.inputGroup, { marginTop: 24 }]}>
+                <View style={[styles.fieldWrap, titleFocused && styles.fieldWrapActive]}>
+                  <Text style={[styles.fieldLabel, titleFocused && styles.fieldLabelActive]}>Title</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="e.g. 30 min full body HIIT"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={title}
+                    onChangeText={setTitle}
+                    onFocus={() => setTitleFocused(true)}
+                    onBlur={() => setTitleFocused(false)}
+                    selectionColor={CoachColors.accent}
+                  />
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="What will users experience in this class?"
-                  placeholderTextColor={CoachColors.textFaint}
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  textAlignVertical="top"
-                  selectionColor={CoachColors.accent}
-                />
+                <View style={[styles.fieldWrap, descFocused && styles.fieldWrapActive]}>
+                  <Text style={[styles.fieldLabel, descFocused && styles.fieldLabelActive]}>Description</Text>
+                  <TextInput
+                    style={[styles.fieldInput, styles.fieldTextArea]}
+                    placeholder="What will athletes experience in this class?"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={description}
+                    onChangeText={setDescription}
+                    onFocus={() => setDescFocused(true)}
+                    onBlur={() => setDescFocused(false)}
+                    multiline
+                    textAlignVertical="top"
+                    selectionColor={CoachColors.accent}
+                  />
+                </View>
                 <Text style={styles.charCount}>{description.length}/500</Text>
               </View>
 
@@ -471,18 +471,17 @@ export default function CreateClassScreen() {
                 </View>
               </View>
 
-            </View>
+            </Animated.View>
           )}
 
           {wizardStep === 2 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
-              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
+            <Animated.View entering={entering} style={styles.stepContainer}>
+              <WizardHeading kicker={stepInfo.kicker} title={stepInfo.title} />
 
-              <View style={styles.inputGroup}>
+              <View style={[styles.inputGroup, { marginTop: 24 }]}>
                 <Text style={styles.sectionLabel}>Class video</Text>
-                <View style={styles.mediaContainer}>
-                  {videoUrl ? (
+                {videoUrl ? (
+                  <View style={styles.mediaContainer}>
                     <View style={styles.videoPreview}>
                       <View style={styles.videoPlayIcon}>
                         <Ionicons name="play" size={36} color={CoachColors.textPrimary} />
@@ -492,38 +491,30 @@ export default function CreateClassScreen() {
                         <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
-                  ) : (
-                    <TouchableOpacity style={styles.addMediaBtn} onPress={() => setShowVideoModal(true)}>
-                      <Ionicons name="videocam-outline" size={36} color={CoachColors.textFaint} />
-                      <Text style={styles.addMediaText}>Add class video</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  <GhostSlot label="Add class video" icon="videocam-outline" height={120} onPress={() => setShowVideoModal(true)} />
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.sectionLabel}>Custom thumbnail (optional)</Text>
-                <View style={styles.mediaContainer}>
-                  {thumbnailUrl ? (
+                {thumbnailUrl ? (
+                  <View style={styles.mediaContainer}>
                     <View style={styles.thumbPreview}>
                       <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                       <TouchableOpacity style={styles.mediaClearBtnAlt} onPress={() => setThumbnailUrl('')}>
                         <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
-                  ) : (
-                    <TouchableOpacity style={styles.addMediaBtn} onPress={handleThumbnailUpload} disabled={uploadingMedia}>
-                      {uploadingMedia ? (
-                        <ActivityIndicator color={CoachColors.accent} />
-                      ) : (
-                        <>
-                          <Ionicons name="image-outline" size={36} color={CoachColors.textFaint} />
-                          <Text style={styles.addMediaText}>Upload thumbnail</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  </View>
+                ) : uploadingMedia ? (
+                  <View style={[styles.mediaContainer, { height: 120, alignItems: 'center', justifyContent: 'center' }]}>
+                    <ActivityIndicator color={CoachColors.accent} />
+                  </View>
+                ) : (
+                  <GhostSlot label="Upload thumbnail" icon="image-outline" height={120} onPress={handleThumbnailUpload} />
+                )}
               </View>
 
               <View style={styles.inputGroup}>
@@ -545,15 +536,14 @@ export default function CreateClassScreen() {
                   <Text style={styles.helperText}>You don't have any saved workouts yet.</Text>
                 )}
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {wizardStep === 3 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.stepTitle}>{stepInfo.title}</Text>
-              <Text style={styles.stepSubtitle}>{stepInfo.subtitle}</Text>
+            <Animated.View entering={entering} style={styles.stepContainer}>
+              <WizardHeading kicker={stepInfo.kicker} title={stepInfo.title} />
 
-              <View style={styles.inputGroup}>
+              <View style={[styles.inputGroup, { marginTop: 24 }]}>
                 <Text style={styles.sectionLabel}>Access level</Text>
                 <View style={styles.rowGroup}>
                   <TouchableOpacity
@@ -579,23 +569,39 @@ export default function CreateClassScreen() {
                 {isFree && <Text style={styles.warningText}>Max 3 free classes allowed per coach.</Text>}
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Preview</Text>
-                <View style={styles.previewCard}>
-                  {thumbnailUrl ? (
-                    <Image source={{ uri: thumbnailUrl }} style={styles.previewImg} contentFit="cover" />
-                  ) : (
-                    <View style={styles.previewImgPlaceholder}>
-                      <Ionicons name="play" size={36} color={CoachColors.textFaint} />
-                    </View>
-                  )}
-                  <View style={styles.previewContent}>
-                    <View style={styles.previewBadge}>
-                      <Text style={styles.previewBadgeText}>{category}</Text>
-                    </View>
-                    <Text style={styles.previewTitle} numberOfLines={2}>{title || 'Untitled class'}</Text>
-                    <Text style={styles.previewMeta}>{duration} min • {difficulty} • {trainer?.name || 'Coach'}</Text>
+              {/* The exact cinema card athletes see on the Explore shelf —
+                  real state only; unset fields render as faint placeholders. */}
+              <TakingShape />
+              <View style={styles.cinemaCard}>
+                <CardImage
+                  source={thumbnailUrl ? { uri: thumbnailUrl } : require('../assets/images/session-bg.jpg')}
+                  scrim="gradient"
+                />
+                <View style={styles.cinemaTopRow}>
+                  <View style={styles.cinemaDraftPill}>
+                    <Text style={styles.cinemaDraftText}>Draft</Text>
                   </View>
+                  <View style={styles.cinemaDuration}>
+                    <Text style={styles.cinemaDurationText}>{duration} min</Text>
+                  </View>
+                </View>
+                <View style={styles.cinemaInfo}>
+                  <Text style={styles.cinemaTags} numberOfLines={1}>
+                    <Text style={{ color: CoachColors.accent }}>{category}</Text>
+                    <Text style={styles.cinemaTagDot}>  •  {difficulty}</Text>
+                  </Text>
+                  <Text
+                    style={[styles.cinemaTitle, !title.trim() && styles.cinemaTitleFaint]}
+                    numberOfLines={2}
+                  >
+                    {title.trim() || 'Untitled class'}
+                  </Text>
+                  <Text
+                    style={[styles.cinemaCoach, !trainer?.name && styles.cinemaTitleFaint]}
+                    numberOfLines={1}
+                  >
+                    {trainer?.name || 'Your coach name'}
+                  </Text>
                 </View>
               </View>
 
@@ -616,7 +622,7 @@ export default function CreateClassScreen() {
                   <Text style={styles.draftBtnText}>Save as draft</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           )}
 
         </ScrollView>
@@ -699,76 +705,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CoachColors.bg,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: CoachColors.borderMuted,
-  },
-  backBtn: {
-    padding: 8,
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  stepDot: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    borderCurve: 'continuous',
-    backgroundColor: CoachColors.borderMuted,
-  },
-  stepDotSeen: {
-    backgroundColor: CoachColors.textFaint,
-  },
-  stepDotActive: {
-    backgroundColor: CoachColors.accent,
+  chromeWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
   },
   stepContainer: {
     flex: 1,
-  },
-  stepTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 24.5,
-    color: CoachColors.textPrimary,
-    marginBottom: 4,
-  },
-  stepSubtitle: {
-    fontFamily: CoachFonts.body,
-    fontSize: 13.5,
-    color: CoachColors.textMuted,
-    marginBottom: Spacing.xl,
   },
   inputGroup: {
     marginBottom: Spacing.xl,
   },
   sectionLabel: {
     fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13.5,
-    color: CoachColors.textSecondary,
+    fontSize: 12.5,
+    color: CoachColors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginBottom: Spacing.sm,
   },
-  input: {
+  // Lime input treatment (add-client step-1 precedent): surface field with a
+  // micro-label that lights up lime alongside the accent border on focus.
+  fieldWrap: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.border,
-    borderRadius: Radius.sm,
+    borderRadius: 16,
     borderCurve: 'continuous',
-    padding: Spacing.md,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  fieldWrapActive: {
+    borderColor: CoachColors.accent,
+  },
+  fieldLabel: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: CoachColors.textFaint,
+  },
+  fieldLabelActive: {
+    color: CoachColors.accent,
+  },
+  fieldInput: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 18,
     color: CoachColors.textPrimary,
+    padding: 0,
   },
-  textArea: {
-    height: 120,
+  fieldTextArea: {
+    height: 108,
+    textAlignVertical: 'top',
   },
   charCount: {
     fontFamily: CoachFonts.body,
@@ -813,9 +804,10 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.border,
-    borderRadius: Radius.sm,
+    borderRadius: 999,
     borderCurve: 'continuous',
-    paddingVertical: 10,
+    minHeight: 36,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
@@ -884,17 +876,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
   },
-  addMediaBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  addMediaText: {
-    fontFamily: CoachFonts.bodyMedium,
-    fontSize: 15.5,
-    color: CoachColors.textSecondary,
-  },
   videoPreview: {
     flex: 1,
     backgroundColor: CoachColors.borderMuted,
@@ -946,8 +927,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CoachColors.border,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: Radius.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    borderRadius: 999,
     borderCurve: 'continuous',
     marginRight: 8,
   },
@@ -958,7 +940,7 @@ const styles = StyleSheet.create({
   workoutCardTitle: {
     fontFamily: CoachFonts.bodyMedium,
     fontSize: 15.5,
-    color: CoachColors.textPrimary,
+    color: CoachColors.textSecondary,
   },
   workoutCardTitleActive: {
     color: CoachColors.accent,
@@ -1002,52 +984,84 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  previewCard: {
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    borderRadius: Radius.sm,
+  // The Explore-shelf cinema card, verbatim (explore-classes.tsx classRow):
+  // CardImage cover + scrim, duration mono pill top-left, honest draft pill.
+  cinemaCard: {
+    height: 200,
+    marginTop: 16,
+    marginBottom: Spacing.xl,
+    borderRadius: 16,
     borderCurve: 'continuous',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.surface,
+    justifyContent: 'space-between',
+    padding: 14,
   },
-  previewImg: {
-    width: '100%',
-    height: 180,
-  },
-  previewImgPlaceholder: {
-    width: '100%',
-    height: 180,
-    backgroundColor: CoachColors.borderMuted,
+  cinemaTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  previewContent: {
-    padding: Spacing.md,
-  },
-  previewBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
+  cinemaDuration: {
+    backgroundColor: CoachColors.bg,
+    borderRadius: 999,
     borderCurve: 'continuous',
-    backgroundColor: CoachColors.accentSoft,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  previewBadgeText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 12.5,
-    color: CoachColors.accent,
-  },
-  previewTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 20,
+  cinemaDurationText: {
+    fontFamily: CoachFonts.mono,
+    fontSize: 11,
+    letterSpacing: 0.5,
     color: CoachColors.textPrimary,
-    marginBottom: 4,
+    fontVariant: ['tabular-nums'],
   },
-  previewMeta: {
+  cinemaDraftPill: {
+    backgroundColor: CoachColors.surface,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  cinemaDraftText: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: CoachColors.textSecondary,
+  },
+  cinemaInfo: {
+    gap: 4,
+  },
+  cinemaTags: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: CoachColors.textPrimary,
+  },
+  cinemaTagDot: {
+    color: CoachColors.textSecondary,
+  },
+  cinemaTitle: {
+    fontFamily: CoachFonts.headingBold,
+    fontSize: 21,
+    letterSpacing: -0.3,
+    color: CoachColors.textPrimary,
+    lineHeight: 25.5,
+  },
+  cinemaTitleFaint: {
+    color: CoachColors.textFaint,
+  },
+  cinemaCoach: {
     fontFamily: CoachFonts.body,
-    fontSize: 13.5,
-    color: CoachColors.textMuted,
+    fontSize: 12.5,
+    color: CoachColors.textSecondary,
   },
   publishBtnContainer: {
     marginTop: Spacing.xl,

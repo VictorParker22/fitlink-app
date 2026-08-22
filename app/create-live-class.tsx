@@ -15,6 +15,7 @@ import DateTimePicker from '../lib/DateTimePicker';
 import { useApp } from '../context/AppContext';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { WizardHeading } from '../components/wizard/WizardChrome';
 import { useAlert } from '../context/AlertContext';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -129,13 +130,18 @@ export default function CreateLiveClassScreen() {
     <SafeAreaView edges={['top']} style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 
-        {/* ── Header ───────────────────────────────────────────────────── */}
-        <View style={s.header}>
-          <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={s.headerBack} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={25} color={CoachColors.textSecondary} />
+        {/* ── Shared wizard chrome: close circle + editorial heading ───── */}
+        <View style={s.chromeWrap}>
+          <TouchableOpacity
+            style={s.closeBtn}
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <Ionicons name="close" size={19} color={CoachColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>{isEditMode ? 'Edit class' : 'Schedule a Class'}</Text>
-          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView
@@ -145,20 +151,30 @@ export default function CreateLiveClassScreen() {
           keyboardShouldPersistTaps="handled"
         >
 
-          {/* ── Title ─────────────────────────────────────────────────── */}
-          <Section label="Class title">
-            <TextInput
-              style={[s.input, titleFocused && s.inputFocused]}
-              placeholder="e.g. Saturday Morning HIIT"
-              placeholderTextColor={CoachColors.textFaint}
-              value={title}
-              onChangeText={setTitle}
-              onFocus={() => setTitleFocused(true)}
-              onBlur={() => setTitleFocused(false)}
-              selectionColor={CoachColors.accent}
-              returnKeyType="done"
+          <View style={s.headingWrap}>
+            <WizardHeading
+              kicker={isEditMode ? 'Live class · Edit' : 'Live class · The broadcast'}
+              title="When are you going live?"
             />
-          </Section>
+          </View>
+
+          {/* ── Title ─────────────────────────────────────────────────── */}
+          <View style={s.section}>
+            <View style={[s.fieldWrap, titleFocused && s.fieldWrapActive]}>
+              <Text style={[s.fieldLabel, titleFocused && s.fieldLabelActive]}>Class title</Text>
+              <TextInput
+                style={s.fieldInput}
+                placeholder="e.g. Saturday morning HIIT"
+                placeholderTextColor={CoachColors.textFaint}
+                value={title}
+                onChangeText={setTitle}
+                onFocus={() => setTitleFocused(true)}
+                onBlur={() => setTitleFocused(false)}
+                selectionColor={CoachColors.accent}
+                returnKeyType="done"
+              />
+            </View>
+          </View>
 
           {/* ── Category ──────────────────────────────────────────────── */}
           <Section label="Category">
@@ -211,20 +227,23 @@ export default function CreateLiveClassScreen() {
           </Section>
 
           {/* ── Description ───────────────────────────────────────────── */}
-          <Section label="Description · optional">
-            <TextInput
-              style={[s.input, s.textArea, descFocused && s.inputFocused]}
-              placeholder="What should attendees expect? Intensity, equipment, any warm-up required..."
-              placeholderTextColor={CoachColors.textFaint}
-              value={desc}
-              onChangeText={setDesc}
-              onFocus={() => setDescFocused(true)}
-              onBlur={() => setDescFocused(false)}
-              multiline
-              textAlignVertical="top"
-              selectionColor={CoachColors.accent}
-            />
-          </Section>
+          <View style={s.section}>
+            <View style={[s.fieldWrap, descFocused && s.fieldWrapActive]}>
+              <Text style={[s.fieldLabel, descFocused && s.fieldLabelActive]}>Description · optional</Text>
+              <TextInput
+                style={[s.fieldInput, s.fieldTextArea]}
+                placeholder="What should attendees expect? Intensity, equipment, any warm-up required..."
+                placeholderTextColor={CoachColors.textFaint}
+                value={desc}
+                onChangeText={setDesc}
+                onFocus={() => setDescFocused(true)}
+                onBlur={() => setDescFocused(false)}
+                multiline
+                textAlignVertical="top"
+                selectionColor={CoachColors.accent}
+              />
+            </View>
+          </View>
 
         </ScrollView>
 
@@ -318,33 +337,29 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.bg,
   },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: CoachColors.borderMuted,
+  // ── Chrome ──────────────────────────────────────────────────────────────────
+  chromeWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
   },
-  headerBack: {
+  closeBtn: {
     width: 40,
     height: 40,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 19,
-    color: CoachColors.textPrimary,
-    letterSpacing: -0.2,
+  headingWrap: {
+    marginBottom: 24,
   },
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
   scroll: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
     paddingBottom: 16,
     gap: 4,
   },
@@ -362,26 +377,39 @@ const s = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 
-  // ── Text Input ──────────────────────────────────────────────────────────────
-  input: {
+  // ── Text input — lime treatment (add-client step-1 precedent) ───────────────
+  fieldWrap: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
     borderColor: CoachColors.border,
-    borderRadius: Radius.md,
+    borderRadius: 16,
     borderCurve: 'continuous',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 17,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  fieldWrapActive: {
+    borderColor: CoachColors.accent,
+  },
+  fieldLabel: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: CoachColors.textFaint,
+  },
+  fieldLabelActive: {
+    color: CoachColors.accent,
+  },
+  fieldInput: {
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: 18,
     color: CoachColors.textPrimary,
+    padding: 0,
   },
-  inputFocused: {
-    borderColor: CoachColors.accent,
-    backgroundColor: CoachColors.surface,
-  },
-  textArea: {
-    height: 132,
-    paddingTop: 14,
+  fieldTextArea: {
+    height: 108,
+    textAlignVertical: 'top',
   },
 
   // ── Category chips ──────────────────────────────────────────────────────────
@@ -444,8 +472,9 @@ const s = StyleSheet.create({
   durationBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: Radius.sm,
+    justifyContent: 'center',
+    minHeight: 36,
+    borderRadius: 999,
     borderCurve: 'continuous',
     backgroundColor: CoachColors.surface,
     borderWidth: 1,

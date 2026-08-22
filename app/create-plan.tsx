@@ -20,6 +20,10 @@ import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
 import { formatRun, formatDeadline, parseLocalDay } from '../lib/cohort';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../lib/platformFee';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { WizardTopBar, WizardHeading, GhostSlot, TakingShape } from '../components/wizard/WizardChrome';
+import CardImage from '../components/ui/CardImage';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Turn 19 — "Creating a pass": a 5-step season builder.
@@ -98,6 +102,11 @@ export default function CreatePassScreen() {
 
   // ── Flow state ──
   const [step, setStep] = useState(1);
+  const reduced = useReducedMotion();
+  // Reduce Motion is law — new elements skip the entrance entirely.
+  const enterAnim = reduced ? undefined : FadeInDown.duration(400);
+  // Which text input currently holds focus — drives the lime active border.
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   // Pass cover (Phase 2, COACH_IDENTITY_PLAN.md). Uploaded on pick so the
   // coach sees the real, already-hosted image before publishing — never a
   // local preview that could silently fail to upload at save time.
@@ -721,35 +730,89 @@ export default function CreatePassScreen() {
   // Steps
   // ─────────────────────────────────────────────────────────────────────────
 
+  // "New pass · Basics" / "Edit pass · Price and start" — the one-line context
+  // above each step's single question.
+  const kicker = `${isEdit ? 'Edit pass' : 'New pass'} · ${STEP_LABELS[step - 1]}`;
+
+  // ── "Taking shape" — the live membership-card preview (steps 1–3) ─────────
+  // The exact card athletes will see, filling in from real state. Stats that
+  // aren't set yet say so ("$—" · "price · step 4") — never a fake number.
+  const renderShapeCard = () => {
+    const workoutTotal = step >= 3 ? trackCounts.workouts : templateCounts.workout * weeks;
+    const stats = [
+      { value: String(weeks), caption: 'weeks', pending: false },
+      workoutTotal > 0
+        ? { value: String(workoutTotal), caption: 'workouts', pending: false }
+        : { value: '—', caption: 'workouts · step 2', pending: true },
+      price > 0
+        ? { value: `$${price}`, caption: period === 'month' ? 'per month' : 'per year', pending: false }
+        : { value: '$—', caption: 'price · step 4', pending: true },
+    ];
+    return (
+      <>
+        <TakingShape />
+        <Animated.View entering={enterAnim} style={s.shapeCard}>
+          <CardImage source={coverUrl ? { uri: coverUrl } : require('../assets/images/card-season-pass.jpg')} />
+          <View style={s.shapeCardContent}>
+            <Text style={s.shapeEyebrow} maxFontSizeMultiplier={1.3}>{weeks}-week season</Text>
+            <Text style={[s.shapeName, !name.trim() && s.shapeNameGhost]} numberOfLines={2}>
+              {name.trim() || 'Your season'}
+            </Text>
+            {promise.trim() ? (
+              <Text style={s.shapePromise} numberOfLines={2}>“{promise.trim()}”</Text>
+            ) : null}
+            <View style={s.shapeStatRow}>
+              {stats.map(stat => (
+                <View key={stat.caption}>
+                  <Text style={[s.shapeStatNum, stat.pending && s.shapeStatNumPending]}>{stat.value}</Text>
+                  <Text style={s.shapeStatCaption}>{stat.caption}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Animated.View>
+        <Text style={s.shapeCaption}>This is the exact card athletes will see. It fills in as you go.</Text>
+      </>
+    );
+  };
+
   const renderStep1 = () => (
     <>
-      <Text style={s.title}>Name the season</Text>
+      <WizardHeading kicker={kicker} title="Name the season" />
 
-      <Text style={s.eyebrow}>Pass name</Text>
-      <TextInput
-        style={s.nameInput}
-        placeholder="e.g. Spring strength block"
-        placeholderTextColor={CoachColors.textFaint}
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="sentences"
-        selectionColor={CoachColors.accent}
-      />
-
-      <View style={s.promiseHeader}>
-        <Text style={s.eyebrow}>The promise · one line</Text>
-        <Text style={s.charCounter}>{promise.length} / {PROMISE_MAX}</Text>
+      <View style={[s.limeField, focusedField === 'name' && s.limeFieldActive]}>
+        <Text style={s.microLabel}>Pass name</Text>
+        <TextInput
+          style={s.limeInput}
+          placeholder="e.g. Spring strength block"
+          placeholderTextColor={CoachColors.textFaint}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="sentences"
+          selectionColor={CoachColors.accent}
+          onFocus={() => setFocusedField('name')}
+          onBlur={() => setFocusedField(null)}
+        />
       </View>
-      <TextInput
-        style={s.promiseInput}
-        placeholder="What an athlete walks away with"
-        placeholderTextColor={CoachColors.textFaint}
-        value={promise}
-        onChangeText={setPromise}
-        maxLength={PROMISE_MAX}
-        multiline
-        selectionColor={CoachColors.accent}
-      />
+
+      <View style={[s.limeField, focusedField === 'promise' && s.limeFieldActive]}>
+        <View style={s.promiseHeader}>
+          <Text style={s.microLabel}>The promise · one line</Text>
+          <Text style={s.charCounter}>{promise.length} / {PROMISE_MAX}</Text>
+        </View>
+        <TextInput
+          style={s.limeInputMulti}
+          placeholder="What an athlete walks away with"
+          placeholderTextColor={CoachColors.textFaint}
+          value={promise}
+          onChangeText={setPromise}
+          maxLength={PROMISE_MAX}
+          multiline
+          selectionColor={CoachColors.accent}
+          onFocus={() => setFocusedField('promise')}
+          onBlur={() => setFocusedField(null)}
+        />
+      </View>
 
       {/* The pass card photo — the Ladder team-card ground. Optional: the
           athlete-side falls back to the coach's own cover, then to text. */}
@@ -811,6 +874,8 @@ export default function CreatePassScreen() {
           <View style={[s.switchKnob, startWeekOne && s.switchKnobOn]} />
         </View>
       </TouchableOpacity>
+
+      {renderShapeCard()}
     </>
   );
 
@@ -818,7 +883,7 @@ export default function CreatePassScreen() {
     const trainingDays = templateTrainingDays;
     return (
       <>
-        <Text style={s.title}>What does a normal week look like?</Text>
+        <WizardHeading kicker={kicker} title="What does a normal week look like?" />
         <Text style={s.subtitle}>Fill one week. We repeat it across all {weeks} and you edit from there.</Text>
 
         {renderDayStrip(weekTemplate, null)}
@@ -841,13 +906,15 @@ export default function CreatePassScreen() {
             )}
           </View>
         )}
+
+        {renderShapeCard()}
       </>
     );
   };
 
   const renderStep3 = () => (
     <>
-      <Text style={s.title}>{seasonWeeks.length} weeks, laid out</Text>
+      <WizardHeading kicker={kicker} title={`${seasonWeeks.length} weeks, laid out`} />
       <Text style={s.subtitle}>Tap a week to change it. Everything below is yours to edit before anyone sees it.</Text>
 
       {seasonWeeks.map((wk, i) => {
@@ -874,12 +941,14 @@ export default function CreatePassScreen() {
                 {renderPalette()}
                 <Text style={[s.eyebrow, { marginTop: 12 }]}>Week label · optional</Text>
                 <TextInput
-                  style={s.weekLabelInput}
+                  style={[s.weekLabelInput, focusedField === `week-${i}` && s.limeFieldActive]}
                   placeholder='e.g. "Baseline", "Deload"'
                   placeholderTextColor={CoachColors.textFaint}
                   value={wk.label}
                   onChangeText={t => setSeasonWeeks(prev => prev.map((w2, j) => (j === i ? { ...w2, label: t } : w2)))}
                   selectionColor={CoachColors.accent}
+                  onFocus={() => setFocusedField(`week-${i}`)}
+                  onBlur={() => setFocusedField(null)}
                 />
                 <Text style={s.helperText}>A label becomes a milestone athletes see at the start of that week.</Text>
               </View>
@@ -889,12 +958,12 @@ export default function CreatePassScreen() {
       })}
 
       <View style={s.outlineBtnRow}>
-        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.outlineBtn} onPress={addRestWeek} activeOpacity={0.7}>
-          <Text style={s.outlineBtnText}>+ Rest week</Text>
-        </TouchableOpacity>
-        <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.outlineBtn} onPress={() => setShowMilestoneInput(true)} activeOpacity={0.7}>
-          <Text style={s.outlineBtnText}>+ Milestone</Text>
-        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <GhostSlot label="Rest week" icon="moon-outline" height={48} onPress={addRestWeek} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <GhostSlot label="Milestone" icon="trophy-outline" height={48} onPress={() => setShowMilestoneInput(true)} />
+        </View>
       </View>
 
       {showMilestoneInput && (
@@ -949,6 +1018,8 @@ export default function CreatePassScreen() {
         <View style={[s.dot, { backgroundColor: CoachColors.borderMuted, marginLeft: 12 }]} />
         <Text style={s.legendText}>Rest</Text>
       </View>
+
+      {renderShapeCard()}
     </>
   );
 
@@ -994,7 +1065,7 @@ export default function CreatePassScreen() {
 
     return (
       <>
-        <Text style={s.title}>Price and start</Text>
+        <WizardHeading kicker={kicker} title="Price and start" />
 
         {/* ── Product type: evergreen vs cohort ── */}
         <Text style={s.eyebrow}>How athletes start</Text>
@@ -1069,7 +1140,7 @@ export default function CreatePassScreen() {
 
             <Text style={[s.eyebrow, { marginTop: 16 }]}>Seats</Text>
             <TextInput
-              style={s.capacityInput}
+              style={[s.capacityInput, focusedField === 'capacity' && s.limeFieldActive]}
               placeholder="Leave empty for unlimited"
               placeholderTextColor={CoachColors.textFaint}
               value={capacityText}
@@ -1077,6 +1148,8 @@ export default function CreatePassScreen() {
               keyboardType="number-pad"
               selectionColor={CoachColors.accent}
               accessibilityLabel="Seat cap. Leave empty for unlimited."
+              onFocus={() => setFocusedField('capacity')}
+              onBlur={() => setFocusedField(null)}
             />
 
             {cohortSummary && (
@@ -1242,15 +1315,19 @@ export default function CreatePassScreen() {
 
     return (
       <>
-        <Text style={s.title}>What {firstClient ? firstClient.name : 'your athletes'} would see</Text>
+        <WizardHeading kicker={kicker} title={`What ${firstClient ? firstClient.name : 'your athletes'} would see`} />
 
-        {/* Athlete-facing preview card */}
-        <View style={s.previewCard}>
+        {/* Athlete-facing preview card — the same card "taking shape" built on
+            steps 1–3, now completed. */}
+        <Animated.View entering={enterAnim} style={s.previewCard}>
           <View style={s.previewHero}>
-            <Text style={s.previewEyebrow}>{weeks}-week season</Text>
-            <Text style={s.previewName}>{name || 'Your pass'}</Text>
-            {promise.trim() ? <Text style={s.previewPromise}>{promise.trim()}</Text> : null}
-            {cohortSummary ? <Text style={s.previewCohort}>{cohortSummary}</Text> : null}
+            <CardImage source={coverUrl ? { uri: coverUrl } : require('../assets/images/card-season-pass.jpg')} />
+            <View style={s.shapeCardContent}>
+              <Text style={s.shapeEyebrow} maxFontSizeMultiplier={1.3}>{weeks}-week season</Text>
+              <Text style={s.shapeName}>{name || 'Your pass'}</Text>
+              {promise.trim() ? <Text style={s.shapePromise}>“{promise.trim()}”</Text> : null}
+              {cohortSummary ? <Text style={s.previewCohort}>{cohortSummary}</Text> : null}
+            </View>
           </View>
           <View style={s.previewBody}>
             <View style={s.coachRow}>
@@ -1284,7 +1361,7 @@ export default function CreatePassScreen() {
               <Text style={s.mockCtaText}>Start the season · ${price || 0}{period === 'month' ? '/mo' : '/yr'}</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Offers are a launch move — an edit sends none, so the list hides. */}
         {!isEdit && activeClients.length > 0 && (
@@ -1341,25 +1418,14 @@ export default function CreatePassScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <TouchableOpacity onPress={goBack} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name={step === 1 ? 'close' : 'chevron-back'} size={25} color={CoachColors.textPrimary} />
-          </TouchableOpacity>
-          <View style={{ alignItems: 'center', flex: 1 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>{name.trim() || (isEdit ? 'Edit pass' : 'New pass')}</Text>
-            <Text style={s.headerSub}>
-              {isEdit ? 'Edit pass · ' : ''}Step {stepSequence.indexOf(step) + 1} of {stepSequence.length} · {STEP_LABELS[step - 1]}
-            </Text>
-          </View>
-          <View style={{ width: 32 }} />
-        </View>
-
-        {/* Real progress bar — one segment per step in this mode's walk, no fake urgency */}
-        <View style={s.progressBar}>
-          {stepSequence.map(sv => (
-            <View key={sv} style={[s.progressSeg, sv <= step && s.progressSegDone]} />
-          ))}
+        {/* ── Top bar: close/back circle · segmented lime progress · counter.
+            Progress counts steps in this mode's walk (edit skips 2–3). ── */}
+        <View style={s.topBarWrap}>
+          <WizardTopBar
+            step={stepSequence.indexOf(step) + 1}
+            totalSteps={stepSequence.length}
+            onBack={goBack}
+          />
         </View>
 
         <ScrollView
@@ -1475,12 +1541,13 @@ export default function CreatePassScreen() {
                 ))
               )}
               {(picker?.kind === 'diet' ? diets : workouts).length > 0 && (
-                <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }} style={s.sheetCreateRow} onPress={handleCreateFromPicker} activeOpacity={0.7}>
-                  <Ionicons name="add" size={18} color={CoachColors.accent} />
-                  <Text style={s.sheetCreateRowText}>
-                    {picker?.kind === 'diet' ? 'Not here? Create a meal plan' : 'Not here? Create a workout'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ marginBottom: 8 }}>
+                  <GhostSlot
+                    label={picker?.kind === 'diet' ? 'Not here? Create a meal plan' : 'Not here? Create a workout'}
+                    height={48}
+                    onPress={handleCreateFromPicker}
+                  />
+                </View>
               )}
             </ScrollView>
           </View>
@@ -1554,21 +1621,11 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CoachColors.bg },
   scroll: { paddingHorizontal: 20, paddingBottom: 20 },
 
-  // Header + progress
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
-  headerBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
-  headerSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 1 },
-  progressBar: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, paddingBottom: 14 },
-  progressSeg: { flex: 1, height: 3, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted },
-  progressSegDone: { backgroundColor: CoachColors.accent },
+  // Top bar (WizardTopBar supplies its own internals)
+  topBarWrap: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
 
   // Typography
-  title: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, marginTop: 8, marginBottom: 6 },
-  subtitle: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 18 },
+  subtitle: { fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 18, marginTop: 8 },
   eyebrow: {
     fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint,
     letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 8, marginTop: 14,
@@ -1589,18 +1646,25 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16,
   },
   coverPickText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textMuted, flexShrink: 1 },
-  nameInput: {
-    fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 17,
+  // Lime field treatment — surface box, accent border while focused, lime
+  // micro-label (the add-client step-1 pattern).
+  limeField: {
+    backgroundColor: CoachColors.surface, borderRadius: 12, borderCurve: 'continuous',
     borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: 16, paddingVertical: 12, gap: 4, marginTop: 16,
   },
-  promiseHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  charCounter: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint, marginBottom: 8 },
-  promiseInput: {
+  limeFieldActive: { borderColor: CoachColors.accent },
+  microLabel: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 10.5, letterSpacing: 0.6,
+    textTransform: 'uppercase', color: CoachColors.accent,
+  },
+  limeInput: { fontFamily: CoachFonts.bodyMedium, fontSize: 18, color: CoachColors.textPrimary, padding: 0 },
+  limeInputMulti: {
     fontFamily: CoachFonts.body, fontSize: 16, color: CoachColors.textPrimary,
-    backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: CoachColors.border, minHeight: 82, textAlignVertical: 'top',
+    padding: 0, minHeight: 62, textAlignVertical: 'top',
   },
+  promiseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  charCounter: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
 
   // Cards
   card: {
@@ -1683,11 +1747,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.border,
   },
   outlineBtnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  outlineBtn: {
-    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed',
-    borderRadius: 999, borderCurve: 'continuous', paddingHorizontal: 15, paddingVertical: 9,
-  },
-  outlineBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
   milestoneInputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
     backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 14,
@@ -1795,19 +1854,40 @@ const s = StyleSheet.create({
   compareMeta: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 1 },
   comparePrice: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15, color: CoachColors.textSecondary },
 
+  // "Taking shape" — the live membership card (steps 1–3) and the completed
+  // step-5 hero share one anatomy.
+  shapeCard: {
+    borderRadius: 24, borderCurve: 'continuous', overflow: 'hidden',
+    minHeight: 200, marginTop: 16, justifyContent: 'flex-end',
+    borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface,
+  },
+  shapeCardContent: { padding: 20, gap: 4 },
+  shapeEyebrow: {
+    fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textSecondary,
+    letterSpacing: 0.9, textTransform: 'uppercase',
+  },
+  shapeName: { fontFamily: CoachFonts.headingBold, fontSize: 23, color: CoachColors.textPrimary },
+  shapeNameGhost: { color: CoachColors.textFaint },
+  shapePromise: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.accent, lineHeight: 20 },
+  shapeStatRow: { flexDirection: 'row', gap: 20, marginTop: 8 },
+  shapeStatNum: {
+    fontFamily: CoachFonts.mono, fontSize: 16, color: CoachColors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  shapeStatNumPending: { color: CoachColors.textFaint },
+  shapeStatCaption: { fontFamily: CoachFonts.body, fontSize: 10.5, color: CoachColors.textFaint, marginTop: 2 },
+  shapeCaption: {
+    fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint,
+    textAlign: 'center', marginTop: 8,
+  },
+
   // Step 5 — preview
   previewCard: {
-    borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden', marginTop: 10,
+    borderRadius: 24, borderCurve: 'continuous', overflow: 'hidden', marginTop: 16,
     borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  previewHero: { backgroundColor: CoachColors.accent, padding: 20 },
-  previewEyebrow: {
-    fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: 'rgba(16,18,16,0.65)',
-    letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 6,
-  },
-  previewName: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.onAccent },
-  previewPromise: { fontFamily: CoachFonts.body, fontSize: 15, color: 'rgba(16,18,16,0.75)', marginTop: 5, lineHeight: 21.5 },
-  previewCohort: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: 'rgba(16,18,16,0.85)', marginTop: 8 },
+  previewHero: { minHeight: 200, justifyContent: 'flex-end', backgroundColor: CoachColors.surface },
+  previewCohort: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary, marginTop: 4 },
   previewBody: { backgroundColor: CoachColors.surface, padding: 16, gap: 14 },
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coachAvatar: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous' },
@@ -1823,7 +1903,7 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', paddingVertical: 10,
     backgroundColor: CoachColors.bg, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted,
   },
-  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
+  statNum: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, fontVariant: ['tabular-nums'] },
   statLabel: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textMuted, marginTop: 2 },
   mockCta: {
     backgroundColor: CoachColors.accent, opacity: 0.55, borderRadius: 999, borderCurve: 'continuous',
@@ -1881,12 +1961,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
   },
   sheetCreateBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 15.5, color: CoachColors.onAccent },
-  sheetCreateRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed', borderRadius: 14, borderCurve: 'continuous',
-    paddingVertical: 13, marginBottom: 8,
-  },
-  sheetCreateRowText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   sheetItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', padding: 13, marginBottom: 8,

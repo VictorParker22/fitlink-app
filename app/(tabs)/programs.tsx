@@ -1,18 +1,28 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Image as RNImage, Switch, Alert as RNAlert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Switch, Alert as RNAlert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
+import { Image as ExpoImage } from 'expo-image';
 import { useApp, ClassItem } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
-import { Spacing, Radius } from '../../constants/theme';
-import { getCategoryColor } from '../../data/categoryColors';
+import { Radius } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { isCohort, formatRun, formatDay, parseLocalDay } from '../../lib/cohort';
 import { totalWeeks } from '../../lib/passWeeks';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import { proxyGifStill } from '../../lib/exercisedb';
+import { GhostSlot } from '../../components/wizard/WizardChrome';
+import LibraryHeader from '../../components/library/LibraryHeader';
+import LibraryTabs from '../../components/library/LibraryTabs';
+import PassHero from '../../components/library/PassHero';
+import WorkoutGridCard from '../../components/library/WorkoutGridCard';
+import DietSpineRow from '../../components/library/DietSpineRow';
+import ClassCinemaCard from '../../components/library/ClassCinemaCard';
 
 /**
  * "SEP 8 · 4 WEEKS" — the dated badge that makes a cohort instantly
@@ -41,11 +51,6 @@ const stripHtml = (html?: string) => {
 const titleCase = (s: string) =>
   s.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-const formatMuscleGroups = (groups: string[]) => {
-  const unique = Array.from(new Set(groups.filter(Boolean).map((g) => titleCase(g.trim()))));
-  return unique.slice(0, 3).join(' · ');
-};
-
 // ─── PassCard — pass card with track progress + Autoflow configuration ──────
 
 function PassCard({
@@ -71,16 +76,11 @@ function PassCard({
   const selectedWorkout = workouts.find(w => w.id === selectedWorkoutId);
   const trackLength = item.track?.length || 0;
   const hasTrack = trackLength > 0;
-  const subtitle = `$${item.price} / ${item.period || 'monthly'}${hasTrack ? ` · ${trackLength} node${trackLength === 1 ? '' : 's'}` : ' · track not built yet'}`;
 
   // A cohort is a dated pass (lib/cohort.ts). Evergreen passes show nothing here.
   const cohort = isCohort(item);
   const cohortRun = cohort ? formatRun(item) : null;
   const cohortBadge = cohort ? cohortBadgeLabel(item) : null;
-
-  const workoutCount = (item.track || []).filter((n: any) => n.type === 'workout').length;
-  const dietCount = (item.track || []).filter((n: any) => n.type === 'diet').length;
-  const milestoneCount = (item.track || []).filter((n: any) => n.type === 'milestone').length;
 
   const save = async () => {
     setSaving(true);
@@ -106,46 +106,11 @@ function PassCard({
 
   return (
     <View style={passStyles.card}>
-      {/* ── Main row ── */}
-      <View style={passStyles.cardTop}>
-        {/* The cover the athlete-side cards wear — shown here so the coach
-            knows which passes still present as text. Absent = no thumb. */}
-        {item.cover_url ? (
-          <RNImage source={{ uri: item.cover_url }} style={passStyles.coverThumb} />
-        ) : null}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={passStyles.cardTitleRow}>
-            <Text style={passStyles.cardTitle} numberOfLines={1}>{item.name}</Text>
-            {cohortBadge && (
-              <View
-                style={passStyles.cohortTag}
-                accessible
-                accessibilityLabel={`Cohort. ${cohortRun ?? cohortBadge}`}
-              >
-                <Text style={passStyles.cohortTagText}>{cohortBadge}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={passStyles.cardSubtitle} numberOfLines={1}>{subtitle}</Text>
-          {cohortRun ? <Text style={passStyles.cardSubtitle} numberOfLines={1}>{cohortRun}</Text> : null}
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 5 }}>
-          {hasTrack ? (
-            <View style={[passStyles.badge, autoflowActive && passStyles.badgeActive]}>
-              <Text style={[passStyles.badgeText, autoflowActive && passStyles.badgeTextActive]}>
-                {autoflowActive ? 'Autoflow on' : 'Autoflow off'}
-              </Text>
-            </View>
-          ) : (
-            <View style={passStyles.badgeWarning}>
-              <Text style={passStyles.badgeWarningText}>Needs a track</Text>
-            </View>
-          )}
-          {stats && (
-            <Text style={passStyles.holderCount}>{stats.holders} holder{stats.holders === 1 ? '' : 's'}</Text>
-          )}
-        </View>
-      </View>
+      {/* ── Membership face ── */}
+      <PassHero item={item} holders={stats?.holders} cohortBadge={cohortBadge} />
+
+      <View style={passStyles.body}>
+      {cohortRun ? <Text style={passStyles.cohortRunText} numberOfLines={1}>{cohortRun}</Text> : null}
 
       {/* Track progress / needs-a-track callout */}
       {hasTrack ? (
@@ -163,29 +128,6 @@ function PassCard({
             ? `${stats.holders} athlete${stats.holders === 1 ? '' : 's'} bought this and have nothing to follow. Add workouts to the track.`
             : 'Build a track so athletes have something to follow.'}
         </Text>
-      )}
-
-      {hasTrack && (
-        <View style={passStyles.metaRow}>
-          {workoutCount > 0 && (
-            <View style={passStyles.metaItem}>
-              <Ionicons name="barbell-outline" size={15} color={CoachColors.textSecondary} />
-              <Text style={passStyles.metaText}>{workoutCount} workout{workoutCount === 1 ? '' : 's'}</Text>
-            </View>
-          )}
-          {dietCount > 0 && (
-            <View style={passStyles.metaItem}>
-              <Ionicons name="nutrition-outline" size={15} color={CoachColors.textSecondary} />
-              <Text style={passStyles.metaText}>{dietCount} meal plan{dietCount === 1 ? '' : 's'}</Text>
-            </View>
-          )}
-          {milestoneCount > 0 && (
-            <View style={passStyles.metaItem}>
-              <Ionicons name="trophy-outline" size={15} color={CoachColors.textSecondary} />
-              <Text style={passStyles.metaText}>{milestoneCount} milestone{milestoneCount === 1 ? '' : 's'}</Text>
-            </View>
-          )}
-        </View>
       )}
 
       {!hasTrack && (
@@ -303,6 +245,7 @@ function PassCard({
           </TouchableOpacity>
         </View>
       )}
+      </View>
 
       {/* ── Workout Picker Sheet ── */}
       <Modal
@@ -359,31 +302,12 @@ function PassCard({
 }
 
 const passStyles = StyleSheet.create({
-  card: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 16, borderCurve: 'continuous', padding: 16 },
-  coverThumb: { width: 64, height: 40, borderRadius: 8, borderCurve: 'continuous', marginRight: 12, backgroundColor: CoachColors.bg },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary, flexShrink: 1 },
-  cardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.textMuted, marginTop: 3 },
-  cohortTag: {
-    paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderCurve: 'continuous',
-    borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)',
-    backgroundColor: 'rgba(198,242,78,0.08)', flexShrink: 0,
+  card: {
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 24, borderCurve: 'continuous', overflow: 'hidden',
   },
-  cohortTagText: { fontFamily: CoachFonts.bodyBold, fontSize: 10.5, color: CoachColors.accent, letterSpacing: 0.7 },
-  badge: {
-    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 999, borderCurve: 'continuous',
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
-  badgeActive: { borderColor: 'rgba(198,242,78,0.35)', backgroundColor: CoachColors.accentSofter },
-  badgeText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.textFaint, letterSpacing: 0.3 },
-  badgeTextActive: { color: CoachColors.accent },
-  badgeWarning: {
-    borderWidth: 1, borderColor: 'rgba(224,184,78,0.4)', borderRadius: 999, borderCurve: 'continuous',
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
-  badgeWarningText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, color: CoachColors.warning, letterSpacing: 0.3 },
-  holderCount: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted },
+  body: { paddingHorizontal: 16, paddingBottom: 12 },
+  cohortRunText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 12 },
 
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   progressTrack: { flex: 1, height: 5, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
@@ -391,10 +315,6 @@ const passStyles = StyleSheet.create({
   progressLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textSecondary },
 
   warningText: { fontFamily: CoachFonts.body, fontSize: 14, color: CoachColors.warning, marginTop: 12, lineHeight: 20 },
-
-  metaRow: { flexDirection: 'row', gap: 14, marginTop: 14, flexWrap: 'wrap' },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textSecondary },
 
   buildTrackBtn: {
     borderWidth: 1, borderColor: CoachColors.border, borderRadius: 999, borderCurve: 'continuous',
@@ -516,6 +436,7 @@ const passEmptyStyles = StyleSheet.create({
 export default function ProgramsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
 
   const { workouts, exercises, diets, plans, classes, refreshData, refreshPlans, deleteWorkout, deleteDietPlan, deleteClass } = useApp();
   const { showAlert } = useAlert();
@@ -719,52 +640,56 @@ export default function ProgramsScreen() {
     setTimeout(() => router.push(route as any), 350);
   };
 
-  const renderWorkoutItem = ({ item }: { item: typeof workouts[0] }) => {
-    const exerciseCount = item.workout_exercises?.length || 0;
-    const statLine = `${exerciseCount} exercise${exerciseCount !== 1 ? 's' : ''} · On-demand`;
+  // Entrance: FadeInDown, 55ms stagger capped at ~8 items, decel bezier.
+  // Skipped entirely under OS Reduce Motion (DESIGN.md — Reduce Motion is law).
+  const itemEntering = (index: number) =>
+    reduceMotion
+      ? undefined
+      : FadeInDown.delay(Math.min(index, 8) * 55).duration(400).easing(Easing.bezier(0.22, 1, 0.36, 1));
 
-    const muscleGroups = (item.workout_exercises?.map((we: any) => we.exercises?.muscle_group).filter(Boolean) || []) as string[];
-    const muscleSummary = muscleGroups.length > 0 ? formatMuscleGroups(muscleGroups) : 'Full body';
-
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        activeOpacity={0.7}
+  const renderWorkoutItem = ({ item, index }: { item: typeof workouts[0]; index: number }) => (
+    <Animated.View entering={itemEntering(index)} style={{ flex: 1 }}>
+      <WorkoutGridCard
+        item={item}
         onPress={() => router.push(`/workout/${item.id}` as any)}
-      >
-        <View style={styles.thumbnailContainer}>
-          <Ionicons name="barbell-outline" size={22} color={CoachColors.textSecondary} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.rowSubtitle} numberOfLines={1}>{muscleSummary}</Text>
-          <Text style={styles.rowDescription} numberOfLines={1}>{statLine}</Text>
-        </View>
-        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteWorkout(item.id, item.name)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
+        onDelete={() => handleDeleteWorkout(item.id, item.name)}
+      />
+    </Animated.View>
+  );
 
-  const renderExerciseItem = ({ item }: { item: typeof exercises[0] }) => {
+  const renderExerciseItem = ({ item, index }: { item: typeof exercises[0]; index: number }) => {
     const equipmentLabel = item.equipment ? titleCase(item.equipment) : 'Bodyweight';
     const subtitle = `${titleCase(item.muscle_group)} · ${equipmentLabel}`;
     const desc = stripHtml(item.instructions) || 'No instructions provided.';
+    const stillUrl = proxyGifStill(item.image_url);
 
     return (
+      <Animated.View entering={itemEntering(index)}>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.7}
         onPress={() => router.push(`/create-exercise?editId=${item.id}` as any)}
       >
-        <View style={styles.thumbnailContainer}>
-          <Ionicons
-            name={item.is_custom ? 'person-outline' : 'globe-outline'}
-            size={20}
-            color={CoachColors.textSecondary}
-          />
-        </View>
+        {stillUrl ? (
+          <View style={styles.exerciseThumbTile}>
+            <ExpoImage
+              source={{ uri: stillUrl }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              transition={120}
+              recyclingKey={item.id}
+              accessible={false}
+            />
+          </View>
+        ) : (
+          <View style={styles.thumbnailContainer}>
+            <Ionicons
+              name={item.is_custom ? 'person-outline' : 'globe-outline'}
+              size={20}
+              color={CoachColors.textSecondary}
+            />
+          </View>
+        )}
         <View style={styles.textContainer}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
@@ -778,114 +703,35 @@ export default function ProgramsScreen() {
           <Text style={styles.rowDescription} numberOfLines={2}>{desc}</Text>
         </View>
       </TouchableOpacity>
+      </Animated.View>
     );
   };
 
-  const renderDietItem = ({ item }: { item: typeof diets[0] }) => {
-    const mealCount = item.diet_plan_meals?.length || 0;
-    let totalCals = 0;
-    (item.diet_plan_meals || []).forEach(m => {
-      if (m.meals) totalCals += m.meals.calories * (m.servings || 1);
-    });
-    const CATEGORY_LABELS: Record<string, string> = {
-      'balanced': 'Balanced',
-      'high-protein': 'High protein',
-      'keto': 'Keto',
-      'vegan': 'Vegan',
-      'weight-loss': 'Weight loss',
-      'custom': 'Custom',
-    };
-    const catLabel = item.category ? (CATEGORY_LABELS[item.category] || 'Custom') : 'Nutrition';
-    const subtitle = `${mealCount} meal${mealCount !== 1 ? 's' : ''} · ${Math.round(totalCals)} cal · ${catLabel}`;
-    const desc = item.description || 'Nutritional meal plan details.';
-
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        activeOpacity={0.7}
+  const renderDietItem = ({ item, index }: { item: typeof diets[0]; index: number }) => (
+    <Animated.View entering={itemEntering(index)}>
+      <DietSpineRow
+        item={item}
         onPress={() => router.push(`/diet/${item.id}` as any)}
-      >
-        <View style={styles.thumbnailContainer}>
-          <Ionicons name="nutrition-outline" size={22} color={CoachColors.textSecondary} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.rowSubtitle} numberOfLines={1}>{subtitle}</Text>
-          <Text style={styles.rowDescription} numberOfLines={2}>{desc}</Text>
-        </View>
-        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteDiet(item.id, item.name)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
+        onDelete={() => handleDeleteDiet(item.id, item.name)}
+      />
+    </Animated.View>
+  );
 
-  const renderPlanItem = ({ item }: { item: typeof plans[0] }) => {
-    return <PassCard item={item} workouts={workouts} onRefresh={refreshPlans} stats={planStats[item.id]} />;
-  };
+  const renderPlanItem = ({ item, index }: { item: typeof plans[0]; index: number }) => (
+    <Animated.View entering={itemEntering(index)}>
+      <PassCard item={item} workouts={workouts} onRefresh={refreshPlans} stats={planStats[item.id]} />
+    </Animated.View>
+  );
 
-  const renderClassItem = ({ item }: { item: ClassItem }) => {
-    const statusColors = {
-      'DRAFT': CoachColors.textMuted,
-      'PUBLISHED': CoachColors.accent,
-      'ARCHIVED': CoachColors.warning
-    };
-    const statusColor = statusColors[item.status as keyof typeof statusColors] || CoachColors.textMuted;
-    const categoryColor = item.category ? getCategoryColor(item.category) : CoachColors.textPrimary;
-
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        activeOpacity={0.7}
+  const renderClassItem = ({ item, index }: { item: ClassItem; index: number }) => (
+    <Animated.View entering={itemEntering(index)}>
+      <ClassCinemaCard
+        item={item}
         onPress={() => router.push(`/class/${item.id}` as any)}
-        onLongPress={() => handleDeleteClass(item.id, item.title)}
-      >
-        <View style={styles.thumbnailContainer}>
-          {item.thumbnail_url ? (
-            <RNImage source={{ uri: item.thumbnail_url }} style={{ width: 44, height: 44, borderRadius: Radius.xs }} />
-          ) : (
-            <Ionicons name="videocam-outline" size={25} color={CoachColors.textPrimary} />
-          )}
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.title.toUpperCase()}</Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-            <View style={[styles.pillBadge, { borderColor: categoryColor }]}>
-              <Text style={[styles.pillBadgeText, { color: categoryColor }]}>{item.category?.toUpperCase() || 'UNCATEGORIZED'}</Text>
-            </View>
-            <View style={[styles.pillBadge, { borderColor: CoachColors.border }]}>
-              <Text style={[styles.pillBadgeText, { color: CoachColors.textPrimary }]}>{item.difficulty?.toUpperCase() || 'ALL LEVELS'}</Text>
-            </View>
-            <View style={[styles.pillBadge, { borderColor: CoachColors.border }]}>
-              <Text style={[styles.pillBadgeText, { color: CoachColors.textPrimary }]}>{item.duration_minutes || 0} MIN</Text>
-            </View>
-            <View style={[styles.pillBadge, { borderColor: statusColor }]}>
-              <Text style={[styles.pillBadgeText, { color: statusColor }]}>{item.status?.toUpperCase() || 'DRAFT'}</Text>
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="play-outline" size={13} color={CoachColors.textMuted} />
-              <Text style={styles.rowDescription}>{item.take_count || 0}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="star-outline" size={13} color={CoachColors.textMuted} />
-              <Text style={styles.rowDescription}>{(item.avg_rating || 0).toFixed(1)}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="time-outline" size={13} color={CoachColors.textMuted} />
-              <Text style={styles.rowDescription}>{item.total_watch_minutes || 0}M</Text>
-            </View>
-          </View>
-        </View>
-        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => handleDeleteClass(item.id, item.title)} style={styles.actionBtn}>
-          <Ionicons name="trash-outline" size={18} color={CoachColors.danger} />
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
+        onDelete={() => handleDeleteClass(item.id, item.title)}
+      />
+    </Animated.View>
+  );
 
   const isPassesTab = activeTab === 'plans';
   const totalHolders = useMemo(
@@ -907,6 +753,18 @@ export default function ProgramsScreen() {
     classes: classes.length,
     exercises: exercises.length,
   };
+  const ADD_LABEL: Record<TabType, string> = {
+    plans: 'New pass',
+    workouts: 'New workout',
+    diets: 'New meal plan',
+    classes: 'New class',
+    exercises: 'New exercise',
+  };
+  // Spacing-scale gaps per layout: tight for grids/spines, roomier for cards
+  // and the dense exercise list.
+  const sepHeight = activeTab === 'workouts' || activeTab === 'diets' ? 12
+    : activeTab === 'exercises' ? 24
+    : 20;
   // Every tab has exactly one obvious thing "+ New" should create, except
   // Classes — that tab covers both on-demand and live, so it's the only one
   // that still needs a chooser.
@@ -936,32 +794,7 @@ export default function ProgramsScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
         {/* Header */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>{isPassesTab ? 'Passes' : 'Library'}</Text>
-            {isPassesTab && (
-              <Text style={styles.headerSub}>
-                {plans.length} pass{plans.length === 1 ? '' : 'es'}
-                {totalHolders > 0 ? ` · ${totalHolders} athletes holding one` : ''}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
-            style={styles.headerAddBtn}
-            onPress={handleHeaderAdd}
-            accessibilityRole="button"
-            accessibilityLabel={
-              activeTab === 'plans' ? 'New pass' :
-              activeTab === 'workouts' ? 'New workout' :
-              activeTab === 'diets' ? 'New meal plan' :
-              activeTab === 'exercises' ? 'New exercise' :
-              'New class'
-            }
-          >
-            <Ionicons name="add" size={20} color={CoachColors.onAccent} />
-            <Text style={styles.headerAddText}>New</Text>
-          </TouchableOpacity>
-        </View>
+        <LibraryHeader onAdd={handleHeaderAdd} addLabel={ADD_LABEL[activeTab]} />
 
         {/* Search */}
         <View style={styles.searchRow}>
@@ -983,25 +816,21 @@ export default function ProgramsScreen() {
 
         {/* Tabs */}
         <View style={styles.filtersWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.togglesContainer}>
-            {(['plans', 'workouts', 'diets', 'classes', 'exercises'] as TabType[]).map((tab) => (
-              <TouchableOpacity hitSlop={{ top: 7, bottom: 7 }}
-                key={tab}
-                style={[styles.toggleBtn, activeTab === tab && styles.toggleBtnActive]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setActiveTab(tab);
-                  setSearchQuery('');
-                  setActiveCategory('All');
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.toggleText, activeTab === tab && styles.toggleTextActive]}>
-                  {TAB_LABEL[tab]} {TAB_COUNT[tab]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <LibraryTabs
+            tabs={(['plans', 'workouts', 'diets', 'classes', 'exercises'] as TabType[]).map((tab) => ({
+              key: tab,
+              label: TAB_LABEL[tab],
+              count: TAB_COUNT[tab],
+            }))}
+            active={activeTab}
+            onSelect={(tab) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab(tab as TabType);
+              setSearchQuery('');
+              setActiveCategory('All');
+            }}
+            reduceMotion={reduceMotion}
+          />
         </View>
 
         {activeTab === 'exercises' && (
@@ -1039,6 +868,13 @@ export default function ProgramsScreen() {
             "welcome message" input and a Save button inside these rows, so the
             list needs a KAV to keep the focused row above the keyboard. */}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* Keyed by tab so content crossfades (and the list remounts — required
+            anyway to switch numColumns). Crossfade skipped under Reduce Motion. */}
+        <Animated.View
+          key={activeTab}
+          style={{ flex: 1 }}
+          entering={reduceMotion ? undefined : FadeIn.duration(180)}
+        >
         <FlatList keyboardShouldPersistTaps="handled"
           data={currentData as any}
           keyExtractor={(item: any) => item.id}
@@ -1049,6 +885,8 @@ export default function ProgramsScreen() {
             activeTab === 'classes' ? renderClassItem :
             renderPlanItem) as any
           }
+          numColumns={activeTab === 'workouts' ? 2 : 1}
+          {...(activeTab === 'workouts' ? { columnWrapperStyle: { gap: 12 } } : null)}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 130 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -1058,7 +896,14 @@ export default function ProgramsScreen() {
               tintColor={CoachColors.textPrimary}
             />
           }
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.xl }} />}
+          ItemSeparatorComponent={() => <View style={{ height: sepHeight }} />}
+          ListFooterComponent={
+            (currentData?.length || 0) > 0 ? (
+              <View style={{ marginTop: sepHeight }}>
+                <GhostSlot label={ADD_LABEL[activeTab]} onPress={handleHeaderAdd} height={56} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             isPassesTab ? (
               !searchQuery ? (
@@ -1082,11 +927,12 @@ export default function ProgramsScreen() {
                 title={`No ${TAB_LABEL[activeTab].toLowerCase()} yet`}
                 subtitle="Everything you build lives here, ready to assign to any athlete."
                 actionLabel="Create your first"
-                onAction={() => setShowAddActionSheet(true)}
+                onAction={handleHeaderAdd}
               />
             )
           }
         />
+        </Animated.View>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
@@ -1154,44 +1000,6 @@ const styles = StyleSheet.create({
     backgroundColor: CoachColors.bg,
   },
 
-  // Header
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 29,
-    color: CoachColors.textPrimary,
-    letterSpacing: -0.4,
-  },
-  headerSub: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14,
-    color: CoachColors.textMuted,
-    marginTop: 2,
-  },
-  headerAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: CoachColors.accent,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    marginTop: 2,
-  },
-  headerAddText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 14.5,
-    color: CoachColors.onAccent,
-  },
-
   // Search
   searchRow: {
     flexDirection: 'row',
@@ -1217,30 +1025,6 @@ const styles = StyleSheet.create({
   // Tabs
   filtersWrapper: {
     paddingVertical: 16,
-  },
-  togglesContainer: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  toggleBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-  },
-  toggleBtnActive: {
-    backgroundColor: CoachColors.accent,
-    borderColor: CoachColors.accent,
-  },
-  toggleText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14.5,
-    color: CoachColors.textSecondary,
-  },
-  toggleTextActive: {
-    color: CoachColors.onAccent,
   },
 
   // Exercise Sub-categories
@@ -1330,10 +1114,16 @@ const styles = StyleSheet.create({
     color: CoachColors.textFaint,
     lineHeight: 18,
   },
-  actionBtn: {
-    padding: 8,
-    justifyContent: 'center',
-    alignSelf: 'center',
+  // First-frame ExerciseDB demo thumbnail — the gifs ship on a white plate,
+  // so the tile wears the off-white token to blend the crop edge.
+  exerciseThumbTile: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    backgroundColor: CoachColors.textPrimary,
+    marginRight: 14,
   },
 
   // Badges
@@ -1353,36 +1143,6 @@ const styles = StyleSheet.create({
     color: CoachColors.accent,
     letterSpacing: 0.3,
   },
-  popularBadge: {
-    backgroundColor: CoachColors.warningSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: CoachColors.warning,
-    borderRadius: Radius.xs,
-    borderCurve: 'continuous',
-    marginLeft: 8,
-  },
-  popularBadgeText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
-    color: CoachColors.warning,
-    letterSpacing: 0.5,
-  },
-  pillBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderRadius: Radius.xs,
-    borderCurve: 'continuous',
-    backgroundColor: CoachColors.surface,
-  },
-  pillBadgeText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 9,
-    letterSpacing: 0.5,
-  },
-
   // Empty State
   emptyState: {
     alignItems: 'center',

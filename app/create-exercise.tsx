@@ -7,6 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useApp, sanitizeCategory } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { WizardHeading, GhostSlot } from '../components/wizard/WizardChrome';
+import { proxyGifStill } from '../lib/exercisedb';
 import { useAlert } from '../context/AlertContext';
 import { supabase, SUPABASE_URL } from '../lib/supabase';
 
@@ -36,6 +38,8 @@ export default function CreateExerciseScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
+  const [nameFocused, setNameFocused] = useState(false);
+  const [instructionsFocused, setInstructionsFocused] = useState(false);
 
   useEffect(() => {
     if (editId && exercises.length > 0) {
@@ -240,29 +244,53 @@ export default function CreateExerciseScreen() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-          {/* Header */}
-          <View style={s.header}>
-            <TouchableOpacity hitSlop={4} onPress={() => router.back()} style={s.headerBack} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
+          {/* Shared wizard chrome: close circle + editorial heading */}
+          <View style={s.chromeWrap}>
+            <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => router.back()}
+              style={s.closeBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={19} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <Text style={s.headerTitle}>{editId ? 'Edit exercise' : 'New exercise'}</Text>
-            <View style={{ width: 36 }} />
           </View>
 
           <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
+            <View style={s.headingWrap}>
+              <WizardHeading
+                kicker={editId ? 'New exercise · Edit' : 'New exercise · The movement'}
+                title="Name the movement"
+              />
+            </View>
+
             {/* Name */}
-            <Section label="Name">
+            <View style={s.section}>
               <View style={s.nameRow}>
-                <TextInput
-                  style={[s.input, { flex: 1 }]}
-                  placeholder="e.g. Landmine Press"
-                  placeholderTextColor={CoachColors.textFaint}
-                  value={name}
-                  onChangeText={(t) => { setName(t); setAutoFilled(false); }}
-                  autoCapitalize="words"
-                  selectionColor={CoachColors.accent}
-                />
+                {imageUrl ? (
+                  // First frame of the attached demo, as a still — only when a
+                  // remote url exists (a locally-picked file gets no fake thumb).
+                  <View style={s.nameThumb}>
+                    <Image source={{ uri: proxyGifStill(imageUrl) || imageUrl }} style={s.nameThumbImage} contentFit="cover" />
+                  </View>
+                ) : null}
+                <View style={[s.fieldWrap, { flex: 1 }, nameFocused && s.fieldWrapActive]}>
+                  <Text style={[s.fieldLabel, nameFocused && s.fieldLabelActive]}>Name</Text>
+                  <TextInput
+                    style={s.fieldInput}
+                    placeholder="e.g. Landmine press"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={name}
+                    onChangeText={(t) => { setName(t); setAutoFilled(false); }}
+                    onFocus={() => setNameFocused(true)}
+                    onBlur={() => setNameFocused(false)}
+                    autoCapitalize="words"
+                    selectionColor={CoachColors.accent}
+                  />
+                </View>
                 <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                   style={[s.autoFillBtn, (!name.trim() || generating) && s.autoFillBtnDisabled]}
                   onPress={() => handleGenerateAI()}
@@ -276,7 +304,7 @@ export default function CreateExerciseScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-            </Section>
+            </View>
 
             {/* Auto-fill confirmation banner */}
             {autoFilled && !generating && (
@@ -337,41 +365,46 @@ export default function CreateExerciseScreen() {
             </Section>
 
             {/* Instructions */}
-            <Section label="Instructions">
-              <TextInput
-                style={[s.input, s.textArea]}
-                placeholder="Describe how to perform the movement safely and effectively..."
-                placeholderTextColor={CoachColors.textFaint}
-                value={instructions}
-                onChangeText={setInstructions}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                selectionColor={CoachColors.accent}
-              />
-            </Section>
+            <View style={s.section}>
+              <View style={[s.fieldWrap, instructionsFocused && s.fieldWrapActive]}>
+                <Text style={[s.fieldLabel, instructionsFocused && s.fieldLabelActive]}>Instructions</Text>
+                <TextInput
+                  style={[s.fieldInput, s.fieldTextArea]}
+                  placeholder="Describe how to perform the movement safely and effectively..."
+                  placeholderTextColor={CoachColors.textFaint}
+                  value={instructions}
+                  onChangeText={setInstructions}
+                  onFocus={() => setInstructionsFocused(true)}
+                  onBlur={() => setInstructionsFocused(false)}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  selectionColor={CoachColors.accent}
+                />
+              </View>
+            </View>
 
             {/* Photo / demo clip */}
-            <TouchableOpacity style={s.mediaRow} onPress={handlePickImage} disabled={uploadingImage} activeOpacity={0.7}>
-              {uploadingImage ? (
+            {uploadingImage ? (
+              <View style={[s.mediaRow, { justifyContent: 'center' }]}>
+                <ActivityIndicator color={CoachColors.accent} />
+              </View>
+            ) : imageUrl ? (
+              <TouchableOpacity style={s.mediaRow} onPress={handlePickImage} activeOpacity={0.7}>
                 <View style={s.mediaThumb}>
-                  <ActivityIndicator color={CoachColors.accent} />
-                </View>
-              ) : imageUrl ? (
-                <View style={s.mediaThumb}>
-                  <Image source={{ uri: imageUrl }} style={s.mediaThumbImage} />
+                  <Image source={{ uri: proxyGifStill(imageUrl) || imageUrl }} style={s.mediaThumbImage} contentFit="cover" />
                   <View style={s.mediaEditBadge}>
                     <Ionicons name="pencil" size={12} color={CoachColors.onAccent} />
                   </View>
                 </View>
-              ) : (
-                <View style={s.mediaThumb}>
-                  <Ionicons name="image-outline" size={22} color={CoachColors.textFaint} />
-                </View>
-              )}
-              <Text style={s.mediaRowText}>Add a photo or demo clip</Text>
-              <Text style={s.mediaRowOptional}>Optional</Text>
-            </TouchableOpacity>
+                <Text style={s.mediaRowText}>Change the photo or demo clip</Text>
+                <Text style={s.mediaRowOptional}>Optional</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ marginBottom: 24 }}>
+                <GhostSlot label="Add a photo or demo clip" icon="image-outline" onPress={handlePickImage} />
+              </View>
+            )}
 
             {/* Action buttons */}
             <View style={s.btnRow}>
@@ -416,30 +449,27 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: CoachColors.bg,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  chromeWrap: {
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: CoachColors.borderMuted,
+    paddingTop: 12,
   },
-  headerBack: {
-    width: 36,
-    height: 36,
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 20,
-    color: CoachColors.textPrimary,
+  headingWrap: {
+    marginBottom: 24,
   },
   // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scroll: {
     paddingHorizontal: 20,
-    paddingTop: 22,
   },
 
   section: {
@@ -501,38 +531,73 @@ const s = StyleSheet.create({
     color: CoachColors.textPrimary,
   },
 
-  input: {
+  // Lime input treatment (add-client step-1 precedent).
+  fieldWrap: {
     backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
-    borderRadius: 14,
+    borderColor: CoachColors.border,
+    borderRadius: 16,
     borderCurve: 'continuous',
     paddingHorizontal: 15,
-    paddingVertical: 17,
-    fontFamily: CoachFonts.body,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  fieldWrapActive: {
+    borderColor: CoachColors.accent,
+  },
+  fieldLabel: {
+    fontFamily: CoachFonts.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: CoachColors.textFaint,
+  },
+  fieldLabelActive: {
+    color: CoachColors.accent,
+  },
+  fieldInput: {
+    fontFamily: CoachFonts.bodySemiBold,
     fontSize: 17,
     color: CoachColors.textPrimary,
+    padding: 0,
   },
-  textArea: {
-    height: 132,
-    paddingTop: 14,
+  fieldTextArea: {
+    height: 108,
+    textAlignVertical: 'top',
+  },
+  nameThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: CoachColors.borderMuted,
+    overflow: 'hidden',
+    backgroundColor: CoachColors.surface,
+  },
+  nameThumbImage: {
+    width: '100%',
+    height: '100%',
   },
 
   chipScroll: {
     gap: 8,
     paddingVertical: 2,
   },
+  // Selection pill pattern: selected accentSoft + accent border + accent text;
+  // unselected surface + border + textSecondary. 36pt, radius 999.
   chip: {
-    backgroundColor: 'transparent',
+    backgroundColor: CoachColors.surface,
     borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
+    borderColor: CoachColors.border,
     borderRadius: 999,
     borderCurve: 'continuous',
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   chipActive: {
-    backgroundColor: CoachColors.accentSofter,
+    backgroundColor: CoachColors.accentSoft,
     borderColor: CoachColors.accent,
   },
   chipText: {
