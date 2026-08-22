@@ -15,6 +15,8 @@ import CardImage from '../../components/ui/CardImage';
 import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
 import GlobalSearchModal from '../../components/dashboard/GlobalSearchModal';
 import AICoachModal from '../../components/dashboard/AICoachModal';
+import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
+import { useRevenueCat } from '../../context/RevenueCatContext';
 import { RosterHeatmap } from '../../components/coach/RosterHeatmap';
 import RollingNumber from '../../components/RollingNumber';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -42,6 +44,10 @@ export default function CoachHomeScreen() {
   const checkInsY = useRef(0);
   const [showSearch, setShowSearch] = useState(false);
   const [showAICoach, setShowAICoach] = useState(false);
+  const [showElitePaywall, setShowElitePaywall] = useState(false);
+  // AI assistant is Elite (paid inference; also enforced server-side with a
+  // 402 in coach-assistant). Non-elite taps route to the paywall instead.
+  const { isCoachElite } = useRevenueCat();
 
   const activeClients = clients.filter(c => c.status !== 'inactive');
   const firstName = trainer?.name?.split(' ')[0] || 'Coach';
@@ -334,7 +340,7 @@ export default function CoachHomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconBtn}
-              onPress={() => setShowAICoach(true)}
+              onPress={() => (isCoachElite ? setShowAICoach(true) : setShowElitePaywall(true))}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Coach assistant"
@@ -568,6 +574,11 @@ export default function CoachHomeScreen() {
 
       <GlobalSearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
       <AICoachModal visible={showAICoach} onClose={() => setShowAICoach(false)} />
+      <CoachElitePaywall
+        visible={showElitePaywall}
+        onClose={() => setShowElitePaywall(false)}
+        onSuccess={() => { setShowElitePaywall(false); setShowAICoach(true); }}
+      />
 
       {/* One-time first-client celebration (flag set before this renders). */}
       {celebratedName !== null && (

@@ -50,14 +50,16 @@ const PLATFORM_FEE = 0.10;
 const FALLBACK_PRICE = 29;
 const FALLBACK_PRICE_STRING = '$29';
 
-// Only features actually gated behind isCoachElite (studio.tsx gates go
-// live, entering the studio, and scheduling live classes; the broadcast
-// screen carries viewer chat and save-to-library; profile.tsx shows the
-// Elite badge). Nothing here that nothing gates.
+// Only features actually gated behind Elite (studio.tsx gates broadcasting;
+// the roster cap lives in add-client + the trg_roster_cap trigger; the AI
+// assistant is gated on the coach home and 402s server-side; the 5% fee is
+// payment_split_for_trainer reading trainers.elite_until). Nothing here
+// that nothing gates.
 const PERKS = [
-  'Unlimited live broadcasts to your clients',
-  'Real-time viewer chat while you stream',
-  'Save replays to your on-demand library',
+  'Unlimited athletes — the free plan holds 5',
+  'Keep 95% of every sale — the fee drops to 5%',
+  'AI coach assistant across your whole roster',
+  'Live broadcasts with viewer chat and replays',
   'Elite badge on your coach profile',
 ];
 

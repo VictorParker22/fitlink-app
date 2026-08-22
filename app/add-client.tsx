@@ -13,6 +13,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
+import { useRevenueCat } from '../context/RevenueCatContext';
+import CoachElitePaywall from '../components/paywalls/CoachElitePaywall';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { supabase } from '../lib/supabase';
 
@@ -142,6 +144,14 @@ export default function AddClientScreen() {
   const [contactsIndex, setContactsIndex] = useState<Contacts.Contact[] | null>(null);
   const [contactsDenied, setContactsDenied] = useState(false);
   const searchSeq = useRef(0);
+
+  // Free tier holds 5 active athletes; Elite is unlimited. The database
+  // enforces this too (trg_roster_cap) — this is the friendly wall, the
+  // trigger is the real one.
+  const { isCoachElite } = useRevenueCat();
+  const [showElitePaywall, setShowElitePaywall] = useState(false);
+  const atRosterCap = !isCoachElite && !(trainer as any)?.org_id &&
+    clients.filter(c => c.status !== 'inactive').length >= 5;
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
   // Derived DB status: a plan + "paying now" makes the client active;
@@ -315,6 +325,13 @@ export default function AddClientScreen() {
 
     } catch (err: any) {
       console.error('[AddClient] Save failed:', err);
+      // The database's roster-cap trigger (trg_roster_cap) — a patched or
+      // stale client got past the soft wall; answer with the paywall, not
+      // a raw Postgres message.
+      if (String(err?.message || '').includes('roster_limit')) {
+        setShowElitePaywall(true);
+        return;
+      }
       showAlert({ type: 'error', title: 'Failed to add', message: err.message || 'Something went wrong. Please try again.' });
     } finally {
       setSaving(false);
@@ -346,6 +363,7 @@ export default function AddClientScreen() {
   };
 
   const handleLinkClient = async (client: any) => {
+    if (atRosterCap) { setShowElitePaywall(true); return; }
     setLinking(client.id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -396,6 +414,10 @@ export default function AddClientScreen() {
       // Refresh state AFTER navigation
       setTimeout(() => { refreshClients(); }, 600);
     } catch (err: any) {
+      if (String(err?.message || '').includes('roster_limit')) {
+        setShowElitePaywall(true);
+        return;
+      }
       showAlert({ type: 'error', title: 'Link error', message: err.message || 'Failed to link client' });
       setLinking(null);
     }
@@ -403,6 +425,10 @@ export default function AddClientScreen() {
 
   // ── Navigation ──
   const goNext = () => {
+    if (step === 1 && atRosterCap) {
+      setShowElitePaywall(true);
+      return;
+    }
     if (step === 1 && !name.trim()) {
       return showAlert({ type: 'warning', title: 'Name required', message: 'Enter a client name to continue.' });
     }
@@ -870,6 +896,11 @@ export default function AddClientScreen() {
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <CoachElitePaywall
+        visible={showElitePaywall}
+        onClose={() => setShowElitePaywall(false)}
+        onSuccess={() => setShowElitePaywall(false)}
+      />
     </View>
   );
 }

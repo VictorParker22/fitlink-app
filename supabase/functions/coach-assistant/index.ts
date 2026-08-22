@@ -16,7 +16,25 @@ serve(async (req) => {
     // Was unauthenticated: anyone holding the anon key could burn the
     // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
     // but it is somebody else's invoice.
-    await requireCaller(req);
+    const caller = await requireCaller(req);
+
+    // Elite-only: every call is paid inference. The gate reads
+    // trainers.elite_until — written only by the revenuecat-webhook
+    // function — so a patched client can't talk its way in. 402 tells
+    // the app to show the paywall instead of an error toast.
+    const { data: trainerRow } = await caller.admin
+      .from('trainers')
+      .select('elite_until')
+      .eq('id', caller.id)
+      .maybeSingle();
+    const eliteUntil = trainerRow?.elite_until ? new Date(trainerRow.elite_until) : null;
+    if (!eliteUntil || eliteUntil.getTime() <= Date.now()) {
+      return new Response(JSON.stringify({ error: 'elite_required' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 402,
+      });
+    }
+
     const { prompt, context } = await req.json();
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
