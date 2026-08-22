@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, Animated, Keyboard, Share,
@@ -132,13 +132,16 @@ export default function AddClientScreen() {
   const [notes, setNotes] = useState('');
   const [justSaved, setJustSaved] = useState<{ id: string; name: string } | null>(null);
 
-  // Find existing
-  const [showFind, setShowFind] = useState(false);
-  const [findQuery, setFindQuery] = useState('');
+  // Live matching (design option C): the name field IS the search. FitLink
+  // matches stream in debounced; contact matches filter locally once the
+  // coach opts in to contact access (in-context ask, never cold).
   const [findResults, setFindResults] = useState<any[]>([]);
   const [findLoading, setFindLoading] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
+  const [contactsIndex, setContactsIndex] = useState<Contacts.Contact[] | null>(null);
+  const [contactsDenied, setContactsDenied] = useState(false);
+  const searchSeq = useRef(0);
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
   // Derived DB status: a plan + "paying now" makes the client active;
@@ -147,38 +150,57 @@ export default function AddClientScreen() {
   const trialEndLabel = formatTrialEndDate();
   const progressPct = step / 3;
 
-  // ── Contact Import ──
-  const handleImportContact = async () => {
+  // ── Contacts opt-in ──
+  // No picker dialog: once granted, contacts become a local index the name
+  // field matches against live. The ask happens in context, on the coach's
+  // own tap — never cold (lib/permissions doctrine).
+  const enableContactMatching = async () => {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Contact access is needed to import client info.');
+        setContactsDenied(true);
         return;
       }
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Name, Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
       });
-      if (data.length === 0) {
-        showAlert({ type: 'info', title: 'No contacts', message: 'No contacts found on this device.' });
-        return;
-      }
-      const validContacts = data.filter(c => c.name).slice(0, 20);
-      if (validContacts.length === 0) return;
-
-      const buttons = validContacts.slice(0, 5).map(c => ({
-        text: c.name || 'Unknown',
-        onPress: () => {
-          setName(c.name || '');
-          if (c.emails && c.emails.length > 0) setEmail(c.emails[0].email || '');
-          if (c.phoneNumbers && c.phoneNumbers.length > 0) setPhone(c.phoneNumbers[0].number || '');
-        },
-      }));
-      buttons.push({ text: 'Cancel', onPress: () => {} });
-      Alert.alert('Select contact', 'Choose a contact to import', buttons);
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to access contacts' });
+      setContactsIndex(data.filter(c => c.name));
+    } catch {
+      setContactsDenied(true);
     }
   };
+
+  // Local contact matches for the typed name — top 3, only with 2+ chars.
+  const contactMatches = (() => {
+    const q = name.trim().toLowerCase();
+    if (!contactsIndex || q.length < 2) return [];
+    return contactsIndex.filter(c => (c.name || '').toLowerCase().includes(q)).slice(0, 3);
+  })();
+
+  // ── Live FitLink search ──
+  // Debounced off the name field; silent (no alerts) — an empty result list
+  // just means nothing renders. Sequence guard drops stale responses.
+  useEffect(() => {
+    const q = name.trim();
+    if (step !== 1 || q.length < 3) { setFindResults([]); return; }
+    const seq = ++searchSeq.current;
+    const timer = setTimeout(async () => {
+      setFindLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await supabase.functions.invoke('search-unassigned-clients', {
+          body: { query: q, trainerId: user?.id },
+        });
+        if (seq !== searchSeq.current) return;
+        setFindResults(error ? [] : (data?.data || []).slice(0, 3));
+      } catch {
+        if (seq === searchSeq.current) setFindResults([]);
+      } finally {
+        if (seq === searchSeq.current) setFindLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [name, step]);
 
   // ── Avatar ──
   const handlePickAvatar = async () => {
@@ -323,29 +345,6 @@ export default function AddClientScreen() {
     } catch (err) {}
   };
 
-  // ── Find existing ──
-  const handleFindUser = async () => {
-    const q = findQuery.trim();
-    if (!q) return;
-    setFindLoading(true);
-    setFindResults([]);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase.functions.invoke('search-unassigned-clients', {
-        body: { query: q, trainerId: user?.id }
-      });
-      if (error) throw new Error(error.message || 'Search failed');
-      setFindResults(data?.data || []);
-      if ((data?.data || []).length === 0) {
-        showAlert({ type: 'info', title: 'No results', message: 'No users found. Try a different name or email.' });
-      }
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Search error', message: err.message || 'Failed to search' });
-    } finally {
-      setFindLoading(false);
-    }
-  };
-
   const handleLinkClient = async (client: any) => {
     setLinking(client.id);
     try {
@@ -412,7 +411,6 @@ export default function AddClientScreen() {
   };
 
   const goBack = () => {
-    if (showFind) { setShowFind(false); return; }
     if (step > 1) setStep(step - 1);
     else router.back();
   };
@@ -472,32 +470,12 @@ export default function AddClientScreen() {
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          {/* ═══ STEP 1: Identity ═══ */}
-          {step === 1 && !showFind && (
+          {/* ═══ STEP 1: Identity — the name is the screen (design option C) ═══ */}
+          {step === 1 && (
             <KeyboardAwareScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" extraScrollHeight={80} enableOnAndroid>
-              {/* Quick Add Methods */}
-              <Text style={st.sectionLabel}>Fastest way</Text>
-              <View style={st.quickAddRow}>
-                <TouchableOpacity style={st.quickAddCard} onPress={handleImportContact} activeOpacity={0.7}>
-                  <View style={st.quickAddIcon}>
-                    <Ionicons name="people" size={20} color={CoachColors.textSecondary} />
-                  </View>
-                  <Text style={st.quickAddTitle}>Contacts</Text>
-                  <Text style={st.quickAddDesc}>From your phone</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={st.quickAddCard} onPress={() => setShowFind(true)} activeOpacity={0.7}>
-                  <View style={st.quickAddIcon}>
-                    <Ionicons name="search" size={20} color={CoachColors.textSecondary} />
-                  </View>
-                  <Text style={st.quickAddTitle}>Find user</Text>
-                  <Text style={st.quickAddDesc}>Already on FitLink</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Avatar + Name */}
-              <Text style={st.sectionLabel}>Or enter it yourself</Text>
-              <View style={st.identityCard}>
+              {/* Hero name field: one oversized input; contacts + FitLink
+                  matches surface live underneath as the coach types. */}
+              <View style={st.heroRow}>
                 <TouchableOpacity style={st.avatarPicker} onPress={handlePickAvatar} activeOpacity={0.8}>
                   {avatarUri ? (
                     <Image source={{ uri: avatarUri }} style={st.avatarImage} contentFit="cover" />
@@ -506,103 +484,45 @@ export default function AddClientScreen() {
                       {name ? (
                         <Text style={st.avatarInitials}>{initials}</Text>
                       ) : (
-                        <Ionicons name="person" size={25} color={CoachColors.textFaint} />
+                        <Ionicons name="person" size={23} color={CoachColors.textFaint} />
                       )}
                     </View>
                   )}
                   <View style={st.avatarBadge}>
-                    <Ionicons name="camera" size={13} color={CoachColors.onAccent} />
+                    <Ionicons name="camera" size={12} color={CoachColors.onAccent} />
                   </View>
                 </TouchableOpacity>
-
-                <View style={{ flex: 1, gap: 10 }}>
-                  <View style={st.inputWrap}>
-                    <Text style={st.inputLabel}>Full name</Text>
-                    <TextInput
-                      style={st.input}
-                      placeholder="Full name"
-                      placeholderTextColor={CoachColors.textFaint}
-                      value={name}
-                      onChangeText={setName}
-                      autoFocus
-                    />
-                  </View>
-                </View>
-              </View>
-
-              {/* Contact fields */}
-              <View style={st.contactRow}>
-                <View style={[st.inputRow, { flex: 1 }]}>
-                  <Ionicons name="mail-outline" size={19} color={CoachColors.textFaint} />
+                <View style={st.heroField}>
+                  <Text style={st.heroLabel}>Athlete name</Text>
                   <TextInput
-                    style={st.input}
-                    placeholder="Email"
+                    style={st.heroInput}
+                    placeholder="Start typing…"
                     placeholderTextColor={CoachColors.textFaint}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
+                    value={name}
+                    onChangeText={setName}
+                    autoFocus
+                    autoCorrect={false}
                   />
                 </View>
               </View>
-              <View style={st.contactRow}>
-                <View style={[st.inputRow, { flex: 1 }]}>
-                  <Ionicons name="call-outline" size={19} color={CoachColors.textFaint} />
-                  <TextInput
-                    style={st.input}
-                    placeholder="Phone — optional"
-                    placeholderTextColor={CoachColors.textFaint}
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-              <Text style={st.helperText}>The email is how they get their invite and sign in.</Text>
-            </KeyboardAwareScrollView>
-          )}
 
-          {/* ═══ FIND EXISTING (overlay on step 1) ═══ */}
-          {step === 1 && showFind && (
-            <KeyboardAwareScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" extraScrollHeight={80} enableOnAndroid>
-              <Text style={st.findTitle}>Find on FitLink</Text>
-              <Text style={st.findDesc}>Search for someone already on the app.</Text>
+              {/* Contact-matching opt-in — appears until granted or declined */}
+              {contactsIndex === null && !contactsDenied && (
+                <TouchableOpacity style={st.contactsOptIn} onPress={enableContactMatching} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Match from your contacts">
+                  <Ionicons name="people-outline" size={15} color={CoachColors.accent} />
+                  <Text style={st.contactsOptInText}>Match from your contacts as you type</Text>
+                </TouchableOpacity>
+              )}
 
-              <View style={st.inputRow}>
-                <Ionicons name="search" size={18} color={CoachColors.textFaint} />
-                <TextInput
-                  style={st.input}
-                  placeholder="Name, email, or phone..."
-                  placeholderTextColor={CoachColors.textFaint}
-                  value={findQuery}
-                  onChangeText={setFindQuery}
-                  onSubmitEditing={handleFindUser}
-                  returnKeyType="search"
-                  autoCapitalize="none"
-                  autoFocus
-                />
-                {findQuery !== '' && (
-                  <TouchableOpacity hitSlop={12} onPress={() => { setFindQuery(''); setFindResults([]); }}>
-                    <Ionicons name="close-circle" size={18} color={CoachColors.textFaint} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={[st.searchBtn, (!findQuery.trim() || findLoading) && { opacity: 0.4 }]}
-                onPress={handleFindUser}
-                disabled={!findQuery.trim() || findLoading}
-              >
-                {findLoading ? (
-                  <ActivityIndicator size="small" color={CoachColors.onAccent} />
-                ) : (
-                  <><Ionicons name="search" size={18} color={CoachColors.onAccent} /><Text style={st.searchBtnText}>Search</Text></>
-                )}
-              </TouchableOpacity>
-
-              {findResults.length > 0 && (
-                <View style={{ gap: 8, marginTop: 8 }}>
-                  <Text style={st.sectionLabel}>{findResults.length} user{findResults.length !== 1 ? 's' : ''} found</Text>
+              {/* Live matches: FitLink users first (they link, not duplicate), then contacts */}
+              {(findLoading || findResults.length > 0 || contactMatches.length > 0) && (
+                <View style={{ gap: 8, marginTop: 18 }}>
+                  {findLoading && findResults.length === 0 && (
+                    <View style={st.matchSearchingRow}>
+                      <ActivityIndicator size="small" color={CoachColors.textFaint} />
+                      <Text style={st.matchSearchingText}>Checking FitLink…</Text>
+                    </View>
+                  )}
                   {findResults.map(client => {
                     const chips = intakeChips(client.assessment_data);
                     const canExpand = intakeHasDetailBeyondChips(client.assessment_data);
@@ -627,7 +547,7 @@ export default function AddClientScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={st.findResultName}>{client.name}</Text>
-                            <Text style={st.findResultContact}>{client.email || client.phone || 'No contact'}</Text>
+                            <Text style={st.findResultContact}>On FitLink · {client.email || client.phone || 'no contact'}</Text>
                           </View>
                           {canExpand && (
                             <Ionicons
@@ -673,8 +593,65 @@ export default function AddClientScreen() {
                     </View>
                     );
                   })}
+                  {contactMatches.map((c, idx) => (
+                    <View key={`contact-${idx}`} style={st.findResultCard}>
+                      <View style={st.findResultTopRow}>
+                        <View style={st.findResultBody}>
+                          <View style={st.findResultInitials}>
+                            <Ionicons name="person-outline" size={17} color={CoachColors.textSecondary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={st.findResultName}>{c.name}</Text>
+                            <Text style={st.findResultContact}>
+                              From your contacts · {c.emails?.[0]?.email || c.phoneNumbers?.[0]?.number || 'no details'}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
+                          style={st.contactFillBtn}
+                          onPress={() => {
+                            setName(c.name || '');
+                            if (c.emails?.[0]?.email) setEmail(c.emails[0].email);
+                            if (c.phoneNumbers?.[0]?.number) setPhone(c.phoneNumbers[0].number);
+                          }}
+                        >
+                          <Text style={st.contactFillBtnText}>Add</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
                 </View>
               )}
+
+              {/* Details */}
+              <View style={[st.contactRow, { marginTop: 22 }]}>
+                <View style={[st.inputRow, { flex: 1 }]}>
+                  <Ionicons name="mail-outline" size={19} color={CoachColors.textFaint} />
+                  <TextInput
+                    style={st.input}
+                    placeholder="Email — sends their invite"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+              <View style={st.contactRow}>
+                <View style={[st.inputRow, { flex: 1 }]}>
+                  <Ionicons name="call-outline" size={19} color={CoachColors.textFaint} />
+                  <TextInput
+                    style={st.input}
+                    placeholder="Phone — optional"
+                    placeholderTextColor={CoachColors.textFaint}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              </View>
+              <Text style={st.helperText}>The email is how they get their invite and sign in.</Text>
             </KeyboardAwareScrollView>
           )}
 
@@ -863,7 +840,7 @@ export default function AddClientScreen() {
           )}
 
           {/* ═══ Bottom CTA ═══ */}
-          {!showFind && (
+          {(
             <View style={st.ctaWrap}>
               <TouchableOpacity onPress={goNext} activeOpacity={0.85} disabled={saving} style={st.ctaBtn}>
                 {saving ? (
@@ -930,26 +907,38 @@ const st = StyleSheet.create({
   },
 
   // Quick Add
-  quickAddRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  quickAddCard: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1, borderColor: CoachColors.borderMuted,
-    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 15, paddingHorizontal: 14,
-  },
-  quickAddIcon: {
-    width: 36, height: 36, borderRadius: 18, borderCurve: 'continuous',
-    backgroundColor: RAISED_CIRCLE,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  quickAddTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
-  quickAddDesc: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 1 },
-
   // Identity card
-  identityCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 10,
+  // Hero name field (design option C): the name is the screen. Underline
+  // treatment instead of a boxed input — the accent bottom border reads as
+  // "this is the one thing to do here".
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 },
+  heroField: {
+    flex: 1, borderBottomWidth: 2, borderBottomColor: CoachColors.accent,
+    paddingBottom: 8, gap: 2,
   },
+  heroLabel: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: 11, letterSpacing: 1,
+    textTransform: 'uppercase', color: CoachColors.textFaint,
+  },
+  heroInput: {
+    fontFamily: CoachFonts.headingSemiBold, fontSize: 24, color: CoachColors.textPrimary,
+    padding: 0,
+  },
+  contactsOptIn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
+    marginTop: 14, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: CoachColors.accentSofter,
+  },
+  contactsOptInText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.accent },
+  matchSearchingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  matchSearchingText: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textFaint },
+  contactFillBtn: {
+    height: 32, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
+  },
+  contactFillBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
   avatarPicker: { position: 'relative' },
   avatarImage: { width: 62, height: 62, borderRadius: 31, borderCurve: 'continuous' },
   avatarPlaceholder: {
@@ -986,13 +975,6 @@ const st = StyleSheet.create({
   helperText: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 12, lineHeight: 19 },
 
   // Find
-  findTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 24.5, color: CoachColors.textPrimary, marginBottom: 4 },
-  findDesc: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginBottom: 20 },
-  searchBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 14, marginTop: 12,
-  },
-  searchBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.onAccent },
   findResultCard: {
     backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous',
     padding: 14, borderWidth: 1, borderColor: CoachColors.borderMuted,
