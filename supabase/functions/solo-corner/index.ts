@@ -15,6 +15,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
+import { guardRate, clampText } from '../_shared/rateLimit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,8 +62,17 @@ serve(async (req) => {
       });
     }
 
-    const { message, history, context, character } = await req.json();
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    // Per-user cap even for paying athletes: bounds the credit blast
+    // radius of a compromised/abused account.
+    const limited = await guardRate(caller.admin, caller.id, { bucket: 'solo-corner', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    if (limited) return limited;
+
+    const body = await req.json();
+    const message = clampText(body?.message, 2000);
+    const history = Array.isArray(body?.history) ? body.history : [];
+    const context = body?.context;
+    const character = body?.character;
+    if (!message.trim()) {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -79,9 +89,11 @@ serve(async (req) => {
     // free-form key/values; absent data simply isn't mentioned (§4).
     let contextBlock = '';
     if (context && typeof context === 'object') {
-      for (const [k, v] of Object.entries(context)) {
+      // Cap the NUMBER of keys too — not just each value — so a caller
+      // can't bloat the prompt with thousands of entries.
+      for (const [k, v] of Object.entries(context).slice(0, 20)) {
         if (v === null || v === undefined || String(v).trim() === '') continue;
-        contextBlock += `\n${k}: ${String(v).slice(0, 400)}`;
+        contextBlock += `\n${clampText(k, 60)}: ${clampText(String(v), 400)}`;
       }
     }
 

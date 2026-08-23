@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { guardRate, clampText } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,9 +36,15 @@ serve(async (req) => {
       });
     }
 
-    const { prompt, context } = await req.json();
+    // Per-user cap: bounds credit blast radius of an abused Elite account.
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'coach-assistant', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    if (rl) return rl;
 
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+    const body = await req.json();
+    const prompt = clampText(body?.prompt, 2000);
+    const context = body?.context;
+
+    if (!prompt.trim()) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
