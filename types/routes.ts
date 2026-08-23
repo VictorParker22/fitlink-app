@@ -30,6 +30,8 @@ export const ClientRoute = {
   mySessions: '/(client-tabs)/my-sessions' as const,
   connectedTech: '/(client-tabs)/connected-tech' as const,
   findCoach: '/(client-tabs)/find-coach' as const,
+  solo: '/(client-tabs)/solo' as const,
+  soloSetup: '/(client-tabs)/solo-setup' as const,
 
   // Param screens
   classDetail: '/(client-tabs)/class-detail' as const,

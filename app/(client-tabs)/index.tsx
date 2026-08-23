@@ -834,6 +834,33 @@ export default function AthleteTodayScreen() {
           <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
         </Pressable>
 
+        {/* ── Solo mode entry — coachless athletes only ──
+            An athlete WITH a coach never sees this: the human relationship
+            owns that space, and software does not compete with it. */}
+        {!trainer && (
+          <Pressable
+            style={st.activityCard}
+            onPress={() =>
+              router.push(
+                ((clientData as any)?.solo_character
+                  ? ClientRoute.solo
+                  : ClientRoute.soloSetup) as any
+              )
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Open solo mode"
+          >
+            <View style={st.activityIconWrap}>
+              <Ionicons name="fitness-outline" size={20} color={C.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.activityTitle}>Your corner</Text>
+              <Text style={st.activitySub}>Solo mode — software that reads your numbers</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
+          </Pressable>
+        )}
+
         {/* ── Sessions — the dedicated surface (next booked / nudge / find) ── */}
         <SessionsCard />
 

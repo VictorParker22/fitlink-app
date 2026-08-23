@@ -60,8 +60,9 @@ serve(async (req) => {
     ? event.entitlement_ids
     : event?.entitlement_id ? [event.entitlement_id] : [];
 
-  // Only the coach entitlement moves trainers.elite_until.
-  if (!appUserId || !entitlements.includes('coach_elite')) {
+  const isElite = entitlements.includes('coach_elite');
+  const isPremium = entitlements.includes('client_premium');
+  if (!appUserId || (!isElite && !isPremium)) {
     return new Response(JSON.stringify({ ok: true, ignored: true }), { status: 200 });
   }
 
@@ -89,17 +90,29 @@ serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, noop: type }), { status: 200 });
   }
 
-  const { error } = await admin
-    .from('trainers')
-    .update({ elite_until: eliteUntil })
-    .eq('id', appUserId);
+  // coach_elite → trainers.elite_until (app_user_id IS trainers.id);
+  // client_premium → clients.premium_until (app_user_id is the athlete's
+  // auth user id — the clients row is keyed by auth_user_id).
+  let error = null as { message: string } | null;
+  if (isElite) {
+    ({ error } = await admin
+      .from('trainers')
+      .update({ elite_until: eliteUntil })
+      .eq('id', appUserId));
+  }
+  if (!error && isPremium) {
+    ({ error } = await admin
+      .from('clients')
+      .update({ premium_until: eliteUntil })
+      .eq('auth_user_id', appUserId));
+  }
 
   if (error) {
     console.error('[revenuecat-webhook] update failed:', error.message);
-    // 500 so RevenueCat retries — a dropped grant is a paying coach on
-    // the wrong fee rate.
+    // 500 so RevenueCat retries — a dropped grant is a paying user on
+    // the wrong entitlement.
     return new Response(JSON.stringify({ ok: false }), { status: 500 });
   }
 
-  return new Response(JSON.stringify({ ok: true, type, eliteUntil }), { status: 200 });
+  return new Response(JSON.stringify({ ok: true, type, until: eliteUntil }), { status: 200 });
 });

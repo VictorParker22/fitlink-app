@@ -64,6 +64,29 @@ entitlement is UX, not truth.
   7th until they resubscribe. Fee returns to 10% at expiry (+3-day
   billing-retry grace baked into the webhook).
 
+## Athlete side: FitLink Solo (added 2026-08-23)
+
+`client_premium` ($19.99/mo · $149.99/yr, 7-day trials — real ASC
+products) now has its content: **Solo mode**, the AI corner for
+athletes without a coach. Positioning rules (non-negotiable):
+
+- Never called a "coach" — it's "your corner" / Solo. Human coaching
+  stays the premium of the product story.
+- Every AI message grounds in the athlete's REAL data; the guardrailed
+  persona prompts live server-side in `solo-corner` (402s non-premium —
+  `clients.premium_until`, written only by revenuecat-webhook).
+- "Prefer a human? Find a coach" is visible inside the mode — Solo
+  FEEDS the marketplace (graduation dossier), never competes with it.
+  Athletes with a coach never see Solo entries.
+- Four characters (Reyes/Imani/Dane/Sol — lib/soloCharacters.ts), two
+  male/two female voices, all labeled AI, abstract marks only. A
+  character changes delivery, never the brain.
+- Voice (ElevenLabs) is v2 — no dead mic/play buttons shipped in v1.
+- Solo chat (`solo_messages`) is PRIVATE to the athlete: no trainer
+  read policy, ever. A hired coach gets derived stats, not transcripts.
+- Deferred to v2: solo season auto-generation and the graduation
+  screen (needs solo seasons to complete).
+
 ## User-side setup still owed (RevenueCat dashboard)
 
 1. Products/offerings/entitlements per lib/revenuecat.ts header.
