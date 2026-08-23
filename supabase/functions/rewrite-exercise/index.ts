@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { guardRate, clampText } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,8 +18,13 @@ serve(async (req) => {
     // Was unauthenticated: anyone holding the anon key could burn the
     // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
     // but it is somebody else's invoice.
-    await requireCaller(req);
-    const { description } = await req.json();
+    const caller = await requireCaller(req);
+
+    // Per-user cap: bounds credit blast radius of an abused account.
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'rewrite-exercise', limit: 40, windowSeconds: 3600 }, corsHeaders);
+    if (rl) return rl;
+
+    let { description } = await req.json();
 
     if (!description || typeof description !== 'string' || description.trim() === '') {
       return new Response(JSON.stringify({ error: 'Description is required' }), {
@@ -26,6 +32,7 @@ serve(async (req) => {
         status: 400,
       });
     }
+    description = clampText(description, 2000);
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {

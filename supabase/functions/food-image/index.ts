@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { guardRate, clampText } from '../_shared/rateLimit.ts'
 
 // Deploy: supabase functions deploy food-image
 // Secret:  supabase secrets set spooncalc=<your key>   (already set by the user)
@@ -24,8 +25,13 @@ serve(async (req) => {
     // Was unauthenticated: anyone holding the anon key could burn the
     // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
     // but it is somebody else's invoice.
-    await requireCaller(req);
-    const { query } = await req.json();
+    const caller = await requireCaller(req);
+
+    // Per-user cap: bounds credit blast radius of an abused account.
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'food-image', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    if (rl) return rl;
+
+    let { query } = await req.json();
 
     if (!query || typeof query !== 'string' || query.trim() === '') {
       return new Response(JSON.stringify({ error: 'query is required' }), {
@@ -33,6 +39,7 @@ serve(async (req) => {
         status: 400,
       });
     }
+    query = clampText(query, 2000);
 
     const apiKey = Deno.env.get('spooncalc') ?? Deno.env.get('SPOONCALC');
     if (!apiKey) {

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { guardRate, clampText } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +19,7 @@ serve(async (req) => {
   try {
     // Was unauthenticated: anyone could burn the ElevenLabs quota and write
     // into the exercise-audio bucket.
-    await requireCaller(req);
+    const caller = await requireCaller(req);
 
     const { exercise_id, text } = await req.json();
 
@@ -68,8 +69,14 @@ serve(async (req) => {
       });
     }
 
+    // Only the fresh-synthesis path costs an ElevenLabs call — a cache hit
+    // above returned already. Rate-limit + clamp only here so cached audio
+    // stays free and unthrottled.
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'text-to-speech', limit: 100, windowSeconds: 3600 }, corsHeaders);
+    if (rl) return rl;
+
     // Strip HTML tags for clean speech
-    const plainText = text.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const plainText = clampText(text, 1200).replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
     if (!plainText) {
       return new Response(JSON.stringify({ error: 'No speakable text after stripping HTML' }), {
