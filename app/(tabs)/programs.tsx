@@ -4,7 +4,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
 import { Image as ExpoImage } from 'expo-image';
 import { useApp, ClassItem } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
@@ -640,21 +639,14 @@ export default function ProgramsScreen() {
     setTimeout(() => router.push(route as any), 350);
   };
 
-  // Entrance: FadeInDown, 55ms stagger capped at ~8 items, decel bezier.
-  // Skipped entirely under OS Reduce Motion (DESIGN.md — Reduce Motion is law).
-  const itemEntering = (index: number) =>
-    reduceMotion
-      ? undefined
-      : FadeInDown.delay(Math.min(index, 8) * 55).duration(400).easing(Easing.bezier(0.22, 1, 0.36, 1));
-
   const renderWorkoutItem = ({ item, index }: { item: typeof workouts[0]; index: number }) => (
-    <Animated.View entering={itemEntering(index)} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <WorkoutGridCard
         item={item}
         onPress={() => router.push(`/workout/${item.id}` as any)}
         onDelete={() => handleDeleteWorkout(item.id, item.name)}
       />
-    </Animated.View>
+    </View>
   );
 
   const renderExerciseItem = ({ item, index }: { item: typeof exercises[0]; index: number }) => {
@@ -664,7 +656,7 @@ export default function ProgramsScreen() {
     const stillUrl = proxyGifStill(item.image_url);
 
     return (
-      <Animated.View entering={itemEntering(index)}>
+      <View>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.7}
@@ -703,34 +695,34 @@ export default function ProgramsScreen() {
           <Text style={styles.rowDescription} numberOfLines={2}>{desc}</Text>
         </View>
       </TouchableOpacity>
-      </Animated.View>
+      </View>
     );
   };
 
   const renderDietItem = ({ item, index }: { item: typeof diets[0]; index: number }) => (
-    <Animated.View entering={itemEntering(index)}>
+    <View>
       <DietSpineRow
         item={item}
         onPress={() => router.push(`/diet/${item.id}` as any)}
         onDelete={() => handleDeleteDiet(item.id, item.name)}
       />
-    </Animated.View>
+    </View>
   );
 
   const renderPlanItem = ({ item, index }: { item: typeof plans[0]; index: number }) => (
-    <Animated.View entering={itemEntering(index)}>
+    <View>
       <PassCard item={item} workouts={workouts} onRefresh={refreshPlans} stats={planStats[item.id]} />
-    </Animated.View>
+    </View>
   );
 
   const renderClassItem = ({ item, index }: { item: ClassItem; index: number }) => (
-    <Animated.View entering={itemEntering(index)}>
+    <View>
       <ClassCinemaCard
         item={item}
         onPress={() => router.push(`/class/${item.id}` as any)}
         onDelete={() => handleDeleteClass(item.id, item.title)}
       />
-    </Animated.View>
+    </View>
   );
 
   const isPassesTab = activeTab === 'plans';
@@ -870,11 +862,7 @@ export default function ProgramsScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Keyed by tab so content crossfades (and the list remounts — required
             anyway to switch numColumns). Crossfade skipped under Reduce Motion. */}
-        <Animated.View
-          key={activeTab}
-          style={{ flex: 1 }}
-          entering={reduceMotion ? undefined : FadeIn.duration(180)}
-        >
+        <View key={activeTab} style={{ flex: 1 }}>
         <FlatList keyboardShouldPersistTaps="handled"
           data={currentData as any}
           keyExtractor={(item: any) => item.id}
@@ -932,7 +920,7 @@ export default function ProgramsScreen() {
             )
           }
         />
-        </Animated.View>
+        </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
