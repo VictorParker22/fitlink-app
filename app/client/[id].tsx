@@ -48,6 +48,9 @@ import ClientHabitGrid from '../../components/dashboard/ClientHabitGrid';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
 import { LineChart } from 'react-native-gifted-charts';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import CardImage from '../../components/ui/CardImage';
+import { GhostSlot } from '../../components/wizard/WizardChrome';
+import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 
 type AssignMode = 'enroll' | 'workout' | 'diet' | null;
 type TabType = 'overview' | 'health' | 'programs' | 'progress';
@@ -93,6 +96,14 @@ const TABS: { key: TabType; label: string }[] = [
 ];
 const TAB_W = (W - 32) / TABS.length;
 
+/** The assign sheet's three shelves — the segments replace the old
+ *  "quick-assign" disclosure and the "back to programs" footer link. */
+const ASSIGN_SEGMENTS: { key: Exclude<AssignMode, null>; label: string }[] = [
+  { key: 'enroll',  label: 'Program'   },
+  { key: 'workout', label: 'Workout'   },
+  { key: 'diet',    label: 'Meal plan' },
+];
+
 // Animated ring (for engagement score widget)
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -121,7 +132,6 @@ export default function ClientDetailScreen() {
   const [activeTab,        setActiveTab]        = useState<TabType>('overview');
   const [assignMode,       setAssignMode]       = useState<AssignMode>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showQuickAdd,     setShowQuickAdd]     = useState(false);
   const [editingNotes,     setEditingNotes]     = useState(false);
   const [notesText,        setNotesText]        = useState('');
   const [notesSaving,      setNotesSaving]      = useState(false);
@@ -1383,96 +1393,176 @@ export default function ClientDetailScreen() {
         </View>
       </Modal>
 
-      {/* ── Assign Modal ── */}
-      <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setAssignMode(null); setShowQuickAdd(false); }}>
+      {/* ── Assign Modal — the library "shelf" language: membership cards for
+             programs, emblem/food rows for items, a GhostSlot at the foot. ── */}
+      <Modal visible={assignMode !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAssignMode(null)}>
         <SafeAreaView style={[s.root, { backgroundColor: CoachColors.bg }]}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setAssignMode(null); setShowQuickAdd(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
+            <TouchableOpacity onPress={() => setAssignMode(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
               <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
             </TouchableOpacity>
-            <Text style={s.modalNavTitle}>
-              {assignMode==='enroll' ? 'Enroll in Program' : `Assign ${assignMode==='workout'?'Workout':'Diet Plan'}`}
+            <Text style={s.assignNavTitle} numberOfLines={1}>
+              Give {toTitleCase(client.name).split(' ')[0]}
             </Text>
             <View style={{ width: 24 }} />
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12 }}>
+
+          {/* Shelf switcher — replaces the quick-assign disclosure */}
+          <View style={s.assignSegments}>
+            {ASSIGN_SEGMENTS.map(seg => {
+              const on = assignMode === seg.key;
+              return (
+                <TouchableOpacity
+                  key={seg.key}
+                  style={[s.assignSegment, on && s.assignSegmentOn]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAssignMode(seg.key); }}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityLabel={seg.label}
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text style={[s.assignSegmentText, on && s.assignSegmentTextOn]} numberOfLines={1}>{seg.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 12 }}>
             {assignMode === 'enroll' && (
               <>
-                <Text style={s.modalHint}>Select a program to enroll {client.name}.</Text>
                 {plans.length === 0 ? (
                   <View style={s.emptyBlock}>
                     <Text style={s.emptyBlockTitle}>No programs yet</Text>
-                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={s.emptyBlockBtn} onPress={() => { setAssignMode(null); dismissThenGo('/create-plan'); }}>
-                      <Text style={s.emptyBlockBtnText}>Create Program</Text>
-                    </TouchableOpacity>
+                    <View style={s.emptyGhostWrap}>
+                      <GhostSlot label="Build a new program" onPress={() => { setAssignMode(null); dismissThenGo('/create-plan'); }} />
+                    </View>
                   </View>
-                ) : plans.map(plan => {
-                  const isActive = client.plan_id === plan.id;
-                  const wC = plan.track?.filter(n => n.type==='workout').length || 0;
-                  const dC = plan.track?.filter(n => n.type==='diet').length || 0;
-                  return (
-                    <TouchableOpacity key={plan.id} style={[s.modalPlanRow, isActive && s.modalPlanRowActive]} activeOpacity={0.8}
-                      onPress={async () => {
-                        if (isActive) return;
-                        try { await upgradeClientToPlan(client.id, plan.id); setAssignMode(null); showAlert({ type: 'success', title: 'Enrolled!', message: `${client.name} is now on ${plan.name}.` }); }
-                        catch (err: any) { showAlert({ type: 'error', title: 'Error', message: err.message||'Failed' }); }
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.modalPlanName}>{plan.name}</Text>
-                        <Text style={s.modalPlanMeta}>${plan.price}/{plan.period==='monthly'?'mo':plan.period}{wC>0?` · ${wC}w`:''}{dC>0?`+${dC}d`:''}</Text>
-                      </View>
-                      {isActive
-                        ? <Text style={s.activePlanTag}>Active</Text>
-                        : <Text style={s.enrollTag}>Enroll →</Text>}
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity style={s.quickAddToggle} onPress={() => setShowQuickAdd(!showQuickAdd)} activeOpacity={0.7}>
-                  <Text style={s.quickAddToggleText}>Quick-assign individual item</Text>
-                  <Ionicons name={showQuickAdd ? 'chevron-up' : 'chevron-down'} size={16} color={CoachColors.textMuted} />
-                </TouchableOpacity>
-                {showQuickAdd && (
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('workout')} activeOpacity={0.8}>
-                      <Ionicons name="barbell-outline" size={19} color={CoachColors.accent} />
-                      <Text style={s.quickAddBtnText}>Workout</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.quickAddBtn, { flex: 1 }]} onPress={() => setAssignMode('diet')} activeOpacity={0.8}>
-                      <Ionicons name="nutrition-outline" size={19} color={CoachColors.textSecondary} />
-                      <Text style={s.quickAddBtnText}>Diet Plan</Text>
-                    </TouchableOpacity>
-                  </View>
+                ) : (
+                  <>
+                    {plans.map(plan => {
+                      const isActive = client.plan_id === plan.id;
+                      const nodes = plan.track?.length || 0;
+                      const meta: string[] = [];
+                      if (plan.price != null) meta.push(`$${plan.price}/${plan.period === 'monthly' ? 'mo' : plan.period}`);
+                      if (nodes > 0) meta.push(`${nodes} node${nodes === 1 ? '' : 's'}`);
+                      const metaLine = meta.join(' · ');
+
+                      // The plan they're already on never offers an Enroll pill —
+                      // it states where they are instead.
+                      if (isActive) {
+                        return (
+                          <View
+                            key={plan.id}
+                            style={s.assignPlanActive}
+                            accessible={true}
+                            accessibilityLabel={`${plan.name}. ${metaLine}. On now.`}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.assignPlanName} numberOfLines={2}>{plan.name}</Text>
+                              {!!metaLine && <Text style={s.assignPlanMeta} numberOfLines={1}>{metaLine}</Text>}
+                            </View>
+                            <View style={s.onNowRow}>
+                              <View style={s.onNowDot} />
+                              <Text style={s.onNowText}>On now</Text>
+                            </View>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          key={plan.id}
+                          style={s.assignPlanCard}
+                          activeOpacity={0.85}
+                          onPress={async () => {
+                            try { await upgradeClientToPlan(client.id, plan.id); setAssignMode(null); showAlert({ type: 'success', title: 'Enrolled!', message: `${client.name} is now on ${plan.name}.` }); }
+                            catch (err: any) { showAlert({ type: 'error', title: 'Error', message: err.message||'Failed' }); }
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Enroll in ${plan.name}. ${metaLine}`}
+                        >
+                          <CardImage
+                            source={(plan as any).cover_url ? { uri: (plan as any).cover_url } : require('../../assets/images/card-season-pass.jpg')}
+                            scrim="gradient"
+                            recyclingKey={plan.id}
+                          />
+                          <View style={s.assignPlanFoot}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.assignPlanName} numberOfLines={1}>{plan.name}</Text>
+                              {!!metaLine && <Text style={s.assignPlanMeta} numberOfLines={1}>{metaLine}</Text>}
+                            </View>
+                            <View style={s.enrollPill}>
+                              <Text style={s.enrollPillText}>Enroll</Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <GhostSlot label="Build a new program" onPress={() => { setAssignMode(null); dismissThenGo('/create-plan'); }} />
+                  </>
                 )}
               </>
             )}
+
             {(assignMode === 'workout' || assignMode === 'diet') && (
               <>
-                <TouchableOpacity style={s.quickAddBtn} onPress={() => { const m=assignMode; setAssignMode(null); dismissThenGo(m==='workout'?'/create-workout':'/create-diet'); }} activeOpacity={0.8}>
-                  <Ionicons name="add" size={20} color={CoachColors.accent} />
-                  <Text style={s.quickAddBtnText}>Create new {assignMode==='workout'?'workout':'diet plan'}</Text>
-                </TouchableOpacity>
                 {(assignMode==='workout'?workouts:diets).map((item: any) => {
                   const isW = assignMode==='workout';
                   const taken = isW
                     ? assignedWorkouts.some(aw => aw.workout.id===item.id && aw.assignment.status==='assigned')
                     : assignedDiets.some(ad => ad.diet.id===item.id && ad.assignment.status==='assigned');
+                  const count = isW ? (item.workout_exercises?.length||0) : (item.diet_plan_meals?.length||0);
+                  const metaLine = count > 0
+                    ? (isW ? `${count} ex` : `${count} meal${count === 1 ? '' : 's'}`)
+                    : '';
                   return (
-                    <TouchableOpacity key={item.id} style={[s.modalPlanRow, { opacity: taken ? 0.45 : 1 }]}
-                      onPress={() => !taken && handleAssign(item.id)} disabled={taken} activeOpacity={0.7}>
-                      <Ionicons name={isW ? 'barbell-outline' : 'nutrition-outline'} size={20} color={isW ? CoachColors.accent : CoachColors.textSecondary} />
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[s.assignRow, taken && s.assignRowTaken]}
+                      onPress={() => !taken && handleAssign(item.id)}
+                      disabled={taken}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.name}.${metaLine ? ` ${metaLine}.` : ''} ${taken ? 'Already assigned' : 'Assign'}`}
+                    >
+                      {isW ? (
+                        <View style={s.assignTile}>
+                          <EImage
+                            source={getWorkoutEmblem(item.id, item.name, item.muscle_groups ?? [])}
+                            style={s.assignTileEmblem}
+                            contentFit="contain"
+                            recyclingKey={item.id}
+                            accessible={false}
+                          />
+                        </View>
+                      ) : item.image_url ? (
+                        <EImage
+                          source={{ uri: item.image_url }}
+                          style={s.assignTile}
+                          contentFit="cover"
+                          transition={180}
+                          recyclingKey={item.id}
+                          accessible={false}
+                        />
+                      ) : (
+                        <View style={s.assignTile}>
+                          <Ionicons name="nutrition-outline" size={21} color={CoachColors.accent} />
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
-                        <Text style={s.modalPlanName}>{item.name}</Text>
-                        <Text style={s.modalPlanMeta}>{isW ? `${item.workout_exercises?.length||0} exercises` : `${item.diet_plan_meals?.length||0} meals`}</Text>
+                        <Text style={s.assignRowName} numberOfLines={1}>{item.name}</Text>
+                        {!!metaLine && <Text style={s.assignRowMeta} numberOfLines={1}>{metaLine}</Text>}
                       </View>
-                      {taken ? <Text style={s.activePlanTag}>Assigned</Text> : <Text style={s.enrollTag}>Add →</Text>}
+                      {taken
+                        ? <Text style={s.assignedTag}>Assigned</Text>
+                        : <View style={s.addGhostBtn}><Ionicons name="add" size={19} color={CoachColors.accent} /></View>}
                     </TouchableOpacity>
                   );
                 })}
-                <TouchableOpacity style={{ flexDirection:'row', alignItems:'center', gap:6, paddingVertical:14, justifyContent:'center' }} onPress={() => setAssignMode('enroll')} activeOpacity={0.7}>
-                  <Ionicons name="arrow-back" size={16} color={CoachColors.textMuted} />
-                  <Text style={{ fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted }}>Back to programs</Text>
-                </TouchableOpacity>
+                <GhostSlot
+                  label={assignMode==='workout' ? 'New workout' : 'New meal plan'}
+                  onPress={() => { const m=assignMode; setAssignMode(null); dismissThenGo(m==='workout'?'/create-workout':'/create-diet'); }}
+                />
               </>
             )}
           </ScrollView>
@@ -1867,15 +1957,71 @@ const s = StyleSheet.create({
   modalNavTitle: { fontFamily: CoachFonts.headingSemiBold, fontSize: 19, color: CoachColors.textPrimary },
   modalHint:     { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, lineHeight: 22.5, marginBottom: 4 },
   modalPlanRow:  { backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  modalPlanRowActive: { borderWidth: 1.5, borderColor: CoachColors.accent },
   modalPlanName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 18, color: CoachColors.textPrimary },
   modalPlanMeta: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted, marginTop: 2 },
-  activePlanTag: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   enrollTag:     { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
-  quickAddToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4 },
-  quickAddToggleText: { fontFamily: CoachFonts.bodyMedium, fontSize: 15.5, color: CoachColors.textMuted },
-  quickAddBtn:   { backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  quickAddBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary },
+
+  // ASSIGN SHEET — library "shelf" language (PassHero / DietSpineRow / GhostSlot)
+  assignNavTitle: { flex: 1, textAlign: 'center', fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary },
+  assignSegments: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  assignSegment: {
+    flex: 1, height: 38, borderRadius: 999, borderCurve: 'continuous',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
+  },
+  assignSegmentOn: { backgroundColor: CoachColors.accentSoft, borderColor: CoachColors.accent },
+  assignSegmentText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textSecondary },
+  assignSegmentTextOn: { color: CoachColors.accent },
+
+  // Program membership card (the Passes shelf face)
+  assignPlanCard: {
+    height: 122, borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden',
+    justifyContent: 'flex-end', padding: 14,
+  },
+  assignPlanFoot: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  assignPlanName: { fontFamily: CoachFonts.headingBold, fontSize: 17, color: CoachColors.textPrimary, lineHeight: 22 },
+  assignPlanMeta: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textSecondary, fontVariant: ['tabular-nums'], marginTop: 3 },
+  enrollPill: {
+    height: 34, borderRadius: 999, borderCurve: 'continuous',
+    paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CoachColors.accent,
+  },
+  enrollPillText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent },
+  assignPlanActive: {
+    minHeight: 122, borderRadius: 18, borderCurve: 'continuous',
+    backgroundColor: CoachColors.accentSofter,
+    borderWidth: 1, borderColor: CoachColors.accent,
+    justifyContent: 'flex-end', padding: 14,
+    flexDirection: 'row', alignItems: 'flex-end', gap: 12,
+  },
+  onNowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  onNowDot: { width: 6, height: 6, borderRadius: 999, backgroundColor: CoachColors.accent },
+  onNowText: { fontFamily: CoachFonts.bodyBold, fontSize: 11, letterSpacing: 0.7, textTransform: 'uppercase', color: CoachColors.accent },
+
+  // Workout / meal-plan shelf rows
+  assignRow: {
+    minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 16, borderCurve: 'continuous',
+  },
+  assignRowTaken: { opacity: 0.45 },
+  assignTile: {
+    width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden',
+    backgroundColor: CoachColors.accentSofter,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  assignTileEmblem: { width: 36, height: 36 },
+  assignRowName: { fontFamily: CoachFonts.headingSemiBold, fontSize: 16, color: CoachColors.textPrimary },
+  assignRowMeta: { fontFamily: CoachFonts.mono, fontSize: 11, color: CoachColors.textMuted, fontVariant: ['tabular-nums'], marginTop: 3 },
+  assignedTag:   { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
+  addGhostBtn: {
+    width: 34, height: 34, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptyGhostWrap: { alignSelf: 'stretch', marginTop: 8 },
 
   // NUTRITION (last 7 days)
   nutriDayRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
