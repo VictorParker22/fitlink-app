@@ -65,15 +65,21 @@ function useUnreadMessageCount() {
 // Order rationale:
 //  1. Home     — command centre / business overview (always first)
 //  2. Clients  — CRM, high daily frequency (who needs attention?)
-//  3. Schedule — CENTRE = prime real estate, coaches live by their calendar
-//  4. Studio   — flagship live/content feature
+//  3. Library  — CENTRE = prime real estate: everything the coach sells and
+//     builds. It held no tab until 2026-08-23 and was reached only through
+//     Home or a pill borrowed from the Clients header — a daily building
+//     surface behind someone else's door.
+//  4. Schedule — the calendar
 //  5. Messages — client comms (persistent, rightmost by convention)
-// Removed: Library/programs — medium freq, accessed via Home quick actions
+// Studio left the bar for Library: it is Elite-gated AND live broadcasting is
+// iOS-only (lib/liveBroadcast.ts), so it was a dead tab for most Android
+// coaches. It lives on as the Classes shelf inside Library plus the Home
+// go-live quick action — an occasional feature shouldn't outrank a daily one.
 const VISIBLE_TABS = [
   { name: 'index',    label: 'Home',     icon: 'home-outline',       iconFocused: 'home',       hint: 'Business overview' },
   { name: 'clients',  label: 'Clients',  icon: 'people-outline',     iconFocused: 'people',     hint: 'Your athletes' },
+  { name: 'programs', label: 'Library',  icon: 'albums-outline',     iconFocused: 'albums',     hint: 'Passes, workouts, meal plans and classes' },
   { name: 'schedule', label: 'Schedule', icon: 'calendar-outline',   iconFocused: 'calendar',   hint: 'Your calendar' },
-  { name: 'studio',   label: 'Studio',   icon: 'radio-outline',      iconFocused: 'radio',      hint: 'Live and content' },
   { name: 'messages', label: 'Messages', icon: 'chatbubble-outline', iconFocused: 'chatbubble', hint: 'Client messages' },
 ] as const;
 
@@ -161,11 +167,11 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />     {/* 1. Home */}
       <Tabs.Screen name="clients" />   {/* 2. Clients — CRM */}
-      <Tabs.Screen name="schedule" />  {/* 3. Schedule — centre prime spot */}
-      <Tabs.Screen name="studio" />    {/* 4. Studio — flagship */}
+      <Tabs.Screen name="programs" />  {/* 3. Library — centre prime spot */}
+      <Tabs.Screen name="schedule" />  {/* 4. Schedule */}
       <Tabs.Screen name="messages" />  {/* 5. Messages */}
       {/* Hidden from tab bar — accessible via navigation */}
-      <Tabs.Screen name="programs" options={{ href: null }} />
+      <Tabs.Screen name="studio"   options={{ href: null }} />
       <Tabs.Screen name="profile"  options={{ href: null }} />
     </Tabs>
   );

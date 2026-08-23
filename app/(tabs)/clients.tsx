@@ -918,16 +918,6 @@ export default function ClientsScreen() {
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.libraryBtn}
-              onPress={() => router.push('/(tabs)/programs?tab=workouts' as any)}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Open workout and pass library"
-            >
-              <Ionicons name="barbell-outline" size={18} color={CoachColors.textPrimary} />
-              <Text style={styles.libraryBtnText}>Library</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={styles.addBtn}
               onPress={() => router.push('/add-client' as any)}
               activeOpacity={0.8}
@@ -1044,15 +1034,6 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-  },
-  libraryBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    height: 44, borderRadius: 22, borderCurve: 'continuous',
-    borderWidth: 1, borderColor: CoachColors.border,
-    paddingHorizontal: 14,
-  },
-  libraryBtnText: {
-    fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary,
   },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,

@@ -856,6 +856,29 @@ export default function ProgramsScreen() {
           </Text>
         </View>
 
+        {/* Studio lives here now. It gave up its tab slot to Library (an
+            Elite-gated, iOS-only-broadcast feature outranking a daily
+            building surface was the wrong trade) — so the Classes shelf,
+            which already holds everything Studio produces, carries its door. */}
+        {activeTab === 'classes' && (
+          <TouchableOpacity
+            style={styles.studioRow}
+            activeOpacity={0.7}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/studio' as any); }}
+            accessibilityRole="button"
+            accessibilityLabel="Open Studio to broadcast or record"
+          >
+            <View style={styles.studioIcon}>
+              <Ionicons name="radio-outline" size={18} color={CoachColors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.studioTitle}>Studio</Text>
+              <Text style={styles.studioSub}>Go live or record a class</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={CoachColors.textFaint} />
+          </TouchableOpacity>
+        )}
+
         {/* Flat List Content — PassCard's autoflow panel embeds a multiline
             "welcome message" input and a Save button inside these rows, so the
             list needs a KAV to keep the focused row above the keyboard. */}
@@ -1047,6 +1070,21 @@ const styles = StyleSheet.create({
   },
 
   // Results Label
+  studioRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 20, marginBottom: 14,
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 16, borderCurve: 'continuous',
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  studioIcon: {
+    width: 38, height: 38, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: CoachColors.accentSofter,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  studioTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  studioSub: { fontFamily: CoachFonts.body, fontSize: 12.5, color: CoachColors.textMuted, marginTop: 1 },
   resultsInfoRow: {
     paddingHorizontal: 20,
     marginBottom: 12,
