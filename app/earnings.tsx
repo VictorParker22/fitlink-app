@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import RollingNumber from '../components/RollingNumber';
@@ -33,6 +34,7 @@ export default function EarningsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trainer, plans, clients, refreshData, classes } = useApp();
+  const { showAlert } = useAlert();
   const [stripeLoading, setStripeLoading] = useState(false);
   const [classRevenue, setClassRevenue] = useState<any[]>([]);
   const [classRevenueLoading, setClassRevenueLoading] = useState(true);
@@ -187,11 +189,11 @@ export default function EarningsScreen() {
         await refreshData();
       }
     } catch (err: any) {
-      Alert.alert('Stripe Error', err.message || 'Could not connect to Stripe.');
+      showAlert({ type: 'error', title: 'Stripe error', message: err.message || 'Could not connect to Stripe.' });
     } finally {
       setStripeLoading(false);
     }
-  }, [trainer]);
+  }, [trainer, showAlert]);
 
   const handleStripeDashboard = useCallback(async () => {
     if (!trainer) return;
@@ -232,11 +234,11 @@ export default function EarningsScreen() {
         }
       }
     } catch (err: any) {
-      Alert.alert('Stripe Error', err.message || 'Could not open Stripe dashboard.');
+      showAlert({ type: 'error', title: 'Stripe error', message: err.message || 'Could not open Stripe dashboard.' });
     } finally {
       setStripeLoading(false);
     }
-  }, [trainer]);
+  }, [trainer, showAlert]);
 
   // ── Format helpers ─────────────────────────────────
   const formatDate = (d: Date) => {

@@ -15,12 +15,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated as RNAnimated, Easing, Modal, Alert
+  Animated as RNAnimated, Easing, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
+import { useAlert } from '../../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface GymCheckInWidgetProps {
@@ -33,6 +34,7 @@ interface GymCheckInWidgetProps {
 
 export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activeCalories }: GymCheckInWidgetProps) {
   const reduced = useReducedMotion();
+  const { showAlert } = useAlert();
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pulseAnim] = useState(new RNAnimated.Value(1));
@@ -128,25 +130,30 @@ export default function GymCheckInWidget({ activeVisit, checkIn, checkOut, activ
     Haptics.selectionAsync();
     // Review before commit — checking in starts a running timer, so a bare tap
     // only asks; the session starts on the explicit confirm.
-    Alert.alert('Start a gym session?', 'Checking in starts the session timer.', [
-      { text: 'Not now', style: 'cancel' },
-      {
-        text: 'Check in',
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await checkIn();
-            setFailure(null);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch {
-            setFailure("Couldn't start that session — nothing was saved. Try again.");
-          } finally {
-            setBusy(false);
-          }
+    showAlert({
+      type: 'confirm',
+      title: 'Start a gym session?',
+      message: 'Checking in starts the session timer.',
+      buttons: [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Check in',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await checkIn();
+              setFailure(null);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch {
+              setFailure("Couldn't start that session — nothing was saved. Try again.");
+            } finally {
+              setBusy(false);
+            }
+          },
         },
-      },
-    ]);
-  }, [checkIn]);
+      ],
+    });
+  }, [checkIn, showAlert]);
 
   const handleEndSession = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

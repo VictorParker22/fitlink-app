@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, TextInput, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -28,6 +28,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -41,6 +42,7 @@ export default function ClientProfileScreen() {
     clientData, trainer, exercisePrs, progressLogs, completedWorkoutCount,
     updateClientAvatar, healthSharingEnabled, toggleHealthSharing,
   } = useClient();
+  const { showAlert } = useAlert();
 
   const [uploading, setUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -86,11 +88,16 @@ export default function ClientProfileScreen() {
 
   const handlePickImage = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Profile photo', 'Where from?', [
-      { text: 'Camera', onPress: () => pickImage('camera') },
-      { text: 'Photo library', onPress: () => pickImage('library') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    showAlert({
+      type: 'info',
+      title: 'Profile photo',
+      message: 'Where from?',
+      buttons: [
+        { text: 'Camera', onPress: () => pickImage('camera') },
+        { text: 'Photo library', onPress: () => pickImage('library') },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   };
 
   const pickImage = async (source: 'camera' | 'library') => {
@@ -102,12 +109,13 @@ export default function ClientProfileScreen() {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission needed',
-        source === 'camera'
+      showAlert({
+        type: 'warning',
+        title: 'Permission needed',
+        message: source === 'camera'
           ? 'Allow camera access to take a new profile picture. You can change this in Settings.'
           : 'Allow photo access to change your picture. You can change this in Settings.',
-      );
+      });
       return;
     }
     const pickerOptions: ImagePicker.ImagePickerOptions = {
@@ -118,12 +126,12 @@ export default function ClientProfileScreen() {
       : await ImagePicker.launchImageLibraryAsync(pickerOptions);
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    if (!asset.base64) { Alert.alert('Something went wrong', 'Could not read that image.'); return; }
+    if (!asset.base64) { showAlert({ type: 'error', title: 'Something went wrong', message: 'Could not read that image.' }); return; }
     setUploading(true);
     try {
       await updateClientAvatar(asset.base64, asset.uri);
     } catch (err: any) {
-      Alert.alert('Upload failed', err.message || 'Could not upload that photo.');
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Could not upload that photo.' });
     } finally {
       setUploading(false);
     }
@@ -136,43 +144,50 @@ export default function ClientProfileScreen() {
     try {
       await toggleHealthSharing(next);
     } catch {
-      Alert.alert('Something went wrong', 'Could not update health sharing. Try again.');
+      showAlert({ type: 'error', title: 'Something went wrong', message: 'Could not update health sharing. Try again.' });
     } finally {
       setHealthBusy(false);
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign out', 'Sign out of your account on this phone?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut },
-    ]);
+    showAlert({
+      type: 'confirm',
+      title: 'Sign out',
+      message: 'Sign out of your account on this phone?',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: signOut },
+      ],
+    });
   };
 
   const handleLeaveCoach = () => {
-    Alert.alert(
-      `Leave ${coachFirst}'s roster`,
-      `Leaving happens through ${coachFirst} — a message tells ${coachFirst} directly and gets it sorted, including any billing. If you want everything gone instead, delete your account below.`,
-      [
+    showAlert({
+      type: 'confirm',
+      title: `Leave ${coachFirst}'s roster`,
+      message: `Leaving happens through ${coachFirst} — a message tells ${coachFirst} directly and gets it sorted, including any billing. If you want everything gone instead, delete your account below.`,
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         { text: `Message ${coachFirst}`, onPress: () => router.push(ClientRoute.myMessages) },
-      ]
-    );
+      ],
+    });
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently removes your account, training history, check-ins and progress. It cannot be undone.',
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'Delete account',
+      message: 'This permanently removes your account, training history, check-ins and progress. It cannot be undone.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Continue',
           style: 'destructive',
           onPress: () => { setDeleteInput(''); setShowDeleteModal(true); },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleConfirmDelete = async () => {
@@ -196,14 +211,15 @@ export default function ClientProfileScreen() {
         // The account and its rows ARE gone. Claiming a complete erasure when
         // some files survived would be exactly the false-success this codebase
         // keeps deleting elsewhere.
-        Alert.alert(
-          'Account deleted',
-          'Your account and data have been removed. Some uploaded files could not be deleted automatically — contact support and they will be removed for you.'
-        );
+        showAlert({
+          type: 'warning',
+          title: 'Account deleted',
+          message: 'Your account and data have been removed. Some uploaded files could not be deleted automatically — contact support and they will be removed for you.',
+        });
       }
       await signOut();
     } catch (err: any) {
-      Alert.alert('Something went wrong', err.message || 'Could not delete the account. Contact support.');
+      showAlert({ type: 'error', title: 'Something went wrong', message: err.message || 'Could not delete the account. Contact support.' });
       setShowDeleteModal(false);
     }
   };

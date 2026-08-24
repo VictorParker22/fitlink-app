@@ -30,7 +30,6 @@ import {
   Modal,
   ActivityIndicator,
   ScrollView,
-  Alert,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +40,7 @@ import * as Haptics from 'expo-haptics';
 import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // Must match earnings.tsx: const PLATFORM_FEE = 0.10;
@@ -81,6 +81,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   // different products and the packages would otherwise collide.
   const { coachOfferings: offerings, purchasePackage, restorePurchases } = useRevenueCat();
   const { plans, activeClients } = useApp();
+  const { showAlert } = useAlert();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -169,10 +170,11 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
         onSuccess();
         return;
       }
-      Alert.alert(
-        'Not available right now',
-        "We couldn't load Elite pricing. Check your connection and try again — nothing has been charged.",
-      );
+      showAlert({
+        type: 'error',
+        title: 'Not available right now',
+        message: "We couldn't load Elite pricing. Check your connection and try again — nothing has been charged.",
+      });
       return;
     }
     setPurchasing(true);
@@ -182,7 +184,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess();
     } else if (error) {
-      Alert.alert('Purchase failed', error);
+      showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
   };
 
@@ -195,9 +197,9 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess();
     } else if (error) {
-      Alert.alert('Restore failed', error);
+      showAlert({ type: 'error', title: 'Restore failed', message: error });
     } else {
-      Alert.alert('Nothing to restore', 'No previous Elite purchase was found for this account.');
+      showAlert({ type: 'info', title: 'Nothing to restore', message: 'No previous Elite purchase was found for this account.' });
     }
   };
 

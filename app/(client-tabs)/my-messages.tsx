@@ -19,7 +19,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Image as RNImage,
-  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import { enqueueMessage, flushOutbox, isNetworkError, loadOutbox, makeTempId, type OutboxMessage } from '../../lib/outbox';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useAlert } from '../../context/AlertContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
@@ -125,6 +125,7 @@ export default function ClientMessagesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { conversation, trainer, clientData } = useClient();
+  const { showAlert } = useAlert();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -363,7 +364,7 @@ export default function ClientMessagesScreen() {
       }
     } catch (err) {
       console.error('Image upload failed', err);
-      Alert.alert('Image not sent', "We couldn't send your image. Please try again.");
+      showAlert({ type: 'error', title: 'Image not sent', message: "We couldn't send your image. Please try again." });
     } finally {
       setSending(false);
     }

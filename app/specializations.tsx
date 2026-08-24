@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const PRESET_SPECS = [
@@ -26,6 +27,7 @@ export default function SpecializationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trainer, updateTrainer } = useApp();
+  const { showAlert } = useAlert();
 
   const [specs, setSpecs] = useState<string[]>(() => parseList(trainer?.specialization));
   const [customSpec, setCustomSpec] = useState('');
@@ -33,7 +35,7 @@ export default function SpecializationsScreen() {
 
   const addSpec = (spec: string) => {
     if (specs.length >= MAX_SPECS) {
-      Alert.alert('Limit reached', `You can list up to ${MAX_SPECS} specializations. Keep the ones that best describe your coaching.`);
+      showAlert({ type: 'warning', title: 'Limit reached', message: `You can list up to ${MAX_SPECS} specializations. Keep the ones that best describe your coaching.` });
       return;
     }
     setSpecs((prev) => (prev.includes(spec) ? prev : [...prev, spec]));
@@ -45,7 +47,7 @@ export default function SpecializationsScreen() {
     const trimmed = customSpec.trim();
     if (!trimmed) return;
     if (specs.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-      Alert.alert('Already added', 'This specialization is already on your list.');
+      showAlert({ type: 'warning', title: 'Already added', message: 'This specialization is already on your list.' });
       return;
     }
     addSpec(trimmed);
@@ -59,7 +61,7 @@ export default function SpecializationsScreen() {
       await updateTrainer({ specialization: specs.join(', ') });
       router.back();
     } catch (err: any) {
-      Alert.alert('Could not save', err.message || 'Something went wrong. Try again.');
+      showAlert({ type: 'error', title: 'Could not save', message: err.message || 'Something went wrong. Try again.' });
     } finally {
       setSaving(false);
     }

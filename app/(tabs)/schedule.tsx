@@ -37,7 +37,7 @@ import {
 } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, Alert, Dimensions, Animated,
+  RefreshControl, Dimensions, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import CancelSessionSheet, { type SheetSession } from '../../components/sessions/CancelSessionSheet';
@@ -102,6 +103,7 @@ const MONTH_NAMES = [
 export default function ScheduleScreen() {
   const router   = useRouter();
   const insets   = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const { sessions, getClientById, getSessionsForDate, updateSession, addSession, refreshData } = useApp();
 
   const [selectedDate, setSelectedDate]       = useState(new Date());
@@ -250,7 +252,7 @@ export default function ScheduleScreen() {
     try {
       await updateSession(sessionId, { status: newStatus });
     } catch {
-      Alert.alert('Error', 'Failed to update session. Please try again.');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to update session. Please try again.' });
     }
     setExpandedSession(null);
   };

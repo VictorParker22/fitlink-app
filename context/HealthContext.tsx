@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type PropsWithChildren } from 'react';
-import { Platform, AppState, Alert, NativeModules } from 'react-native';
+import { Platform, AppState, NativeModules } from 'react-native';
 // Platform-aware wrapper: expo-secure-store has NO web implementation and
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
 import { supabase } from '../lib/supabase';
 import { isMissingSchemaError } from '../lib/schemaErrors';
+import { useAlert } from './AlertContext';
 
 // ─── Types ──────────────────────────────────────────────────
 export interface HealthSnapshot {
@@ -133,6 +134,7 @@ function loadAppleHealth() {
 const HealthContext = createContext<HealthContextType | null>(null);
 
 export function HealthProvider({ children }: PropsWithChildren) {
+  const { showAlert } = useAlert();
   const [isHealthAvailable, setIsHealthAvailable] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -329,15 +331,16 @@ export function HealthProvider({ children }: PropsWithChildren) {
   const connectIOS = useCallback(async () => {
     const AppleHealthKit = loadAppleHealth();
     if (!AppleHealthKit) {
-      Alert.alert(
-        'Apple Health Unavailable',
-        'Apple Health requires a custom development build. '
-        + 'It is not available in Expo Go.\n\n'
-        + 'To enable Apple Health:\n'
-        + '1. Run: npx expo run:ios\n'
-        + '2. Or create an EAS development build',
-        [{ text: 'OK' }]
-      );
+      showAlert({
+        type: 'warning',
+        title: 'Apple Health unavailable',
+        message: 'Apple Health requires a custom development build. '
+          + 'It is not available in Expo Go.\n\n'
+          + 'To enable Apple Health:\n'
+          + '1. Run: npx expo run:ios\n'
+          + '2. Or create an EAS development build',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
 
@@ -345,7 +348,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
     if (!Permissions) {
       console.error('[HealthContext] Apple HealthKit Constants not available');
-      Alert.alert('Error', 'Apple HealthKit permissions could not be loaded. Please reinstall the app.');
+      showAlert({ type: 'error', title: 'Error', message: 'Apple HealthKit permissions could not be loaded. Please reinstall the app.' });
       return;
     }
 
@@ -493,11 +496,12 @@ export function HealthProvider({ children }: PropsWithChildren) {
       }
     } catch (err: any) {
       console.error('[HealthContext] Connect failed:', err);
-      Alert.alert(
-        'Connection Failed',
-        err?.message || 'Could not connect to health services. Please try again.',
-        [{ text: 'OK' }]
-      );
+      showAlert({
+        type: 'error',
+        title: 'Connection failed',
+        message: err?.message || 'Could not connect to health services. Please try again.',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setIsLoading(false);
     }

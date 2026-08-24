@@ -24,7 +24,7 @@ import React, {
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Dimensions,
-  StatusBar, Alert,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -40,6 +40,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
@@ -223,6 +224,7 @@ export default function SessionCompleteScreen() {
   const reduced                  = useReducedMotion();
   const { sessionId }            = useLocalSearchParams<{ sessionId: string }>();
   const { sessions, getClientById, getClientSessions, updateSession } = useApp();
+  const { showAlert }            = useAlert();
 
   // Pull exercise data from cache (set by tracker, null if from schedule)
   const completionData = useRef(getCompletionData()).current;
@@ -321,10 +323,11 @@ export default function SessionCompleteScreen() {
       // completion summary. Say so rather than swallowing it.
       updateSession(session.id, { status: 'completed' }).catch((e: any) => {
         console.error('[SessionComplete] could not mark session completed:', e);
-        Alert.alert(
-          'Session not marked complete',
-          'The recap is here, but the session is still showing as upcoming on your schedule. Open it again to retry.',
-        );
+        showAlert({
+          type: 'error',
+          title: 'Session not marked complete',
+          message: 'The recap is here, but the session is still showing as upcoming on your schedule. Open it again to retry.',
+        });
       });
     }
   }, []);
@@ -341,10 +344,10 @@ export default function SessionCompleteScreen() {
       // Silently dropping this lost the coach's session notes with no tick and
       // no warning — the text is still on screen, so tell them to retry.
       console.error('[SessionComplete] notes save failed:', e);
-      Alert.alert('Notes not saved', e?.message || 'Your notes are still on screen. Tap out of the box again to retry.');
+      showAlert({ type: 'error', title: 'Notes not saved', message: e?.message || 'Your notes are still on screen. Tap out of the box again to retry.' });
     }
     finally { setSaving(false); }
-  }, [session, notes, updateSession]);
+  }, [session, notes, updateSession, showAlert]);
 
   // ── Book next session ──
   const handleBookNext = useCallback(() => {

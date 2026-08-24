@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Share,
   Platform, Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -16,6 +16,7 @@ import { CATEGORY_COLORS } from '../../data/categoryColors';
 import React from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import ClientPaywall from '../../components/paywalls/ClientPaywall';
 
@@ -51,6 +52,7 @@ export default function ClassDetailScreen() {
   }>();
 
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { activeSession, startWorkout, getSavedProgress, resumeSavedWorkout, getClassHistory, getClassTakeCount } = useWorkout();
   const { isClientPremium } = useRevenueCat();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -96,7 +98,7 @@ export default function ClassDetailScreen() {
       // The heart is a claim that the save landed — put it back if it didn't.
       setIsFavorite(wasFavorite);
       if (__DEV__) console.warn('[class-detail] favorite toggle failed:', error.message);
-      Alert.alert('Not saved', "We couldn't update your saved classes. Please try again.");
+      showAlert({ type: 'error', title: 'Not saved', message: "We couldn't update your saved classes. Please try again." });
     }
   };
 
@@ -181,7 +183,7 @@ export default function ClassDetailScreen() {
 
   const handleAddToCal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Added to Calendar', `"${params.title}" has been added to your calendar.`);
+    showAlert({ type: 'success', title: 'Added to calendar', message: `"${params.title}" has been added to your calendar.` });
   };
 
   return (

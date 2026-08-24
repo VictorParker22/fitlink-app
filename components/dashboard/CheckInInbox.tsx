@@ -18,11 +18,11 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 function toTitleCase(str: string): string {
@@ -101,6 +101,7 @@ function CheckInCard({
   item: CheckIn;
   onReply: (id: string, note: string) => Promise<void>;
 }) {
+  const { showAlert } = useAlert();
   const [expanded, setExpanded] = useState(false);
   const [note, setNote] = useState(item.coach_note || '');
   const [saving, setSaving] = useState(false);
@@ -128,7 +129,7 @@ function CheckInCard({
     } catch {
       // onReply only rejects when the reply was not stored.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Reply not saved', "We couldn't save your reply. Please try again.");
+      showAlert({ type: 'error', title: 'Reply not saved', message: "We couldn't save your reply. Please try again." });
     } finally {
       setSaving(false);
     }

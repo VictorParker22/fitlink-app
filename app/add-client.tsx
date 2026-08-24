@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, Animated, Keyboard, Share,
+  ActivityIndicator, Animated, Keyboard, Share,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -214,21 +214,26 @@ export default function AddClientScreen() {
 
   // ── Avatar ──
   const handlePickAvatar = async () => {
-    Alert.alert('Client photo', 'Choose how to add a photo', [
-      { text: 'Take photo', onPress: () => launchPicker('camera') },
-      { text: 'Choose from library', onPress: () => launchPicker('library') },
-      ...(avatarUri ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => { setAvatarUri(null); setAvatarBase64(null); } }] : []),
-      { text: 'Cancel', style: 'cancel' as const },
-    ]);
+    showAlert({
+      type: 'info',
+      title: 'Client photo',
+      message: 'Choose how to add a photo',
+      buttons: [
+        { text: 'Take photo', onPress: () => launchPicker('camera') },
+        { text: 'Choose from library', onPress: () => launchPicker('library') },
+        ...(avatarUri ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => { setAvatarUri(null); setAvatarBase64(null); } }] : []),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    });
   };
 
   const launchPicker = async (source: 'camera' | 'library') => {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') { Alert.alert('Permission required', 'Camera access is needed.'); return; }
+      if (status !== 'granted') { showAlert({ type: 'warning', title: 'Permission required', message: 'Camera access is needed.' }); return; }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') { Alert.alert('Permission required', 'Photo library access is needed.'); return; }
+      if (status !== 'granted') { showAlert({ type: 'warning', title: 'Permission required', message: 'Photo library access is needed.' }); return; }
     }
 
     const result = source === 'camera'
@@ -237,7 +242,7 @@ export default function AddClientScreen() {
 
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    if (!asset.base64) { Alert.alert('Error', 'Could not read image data.'); return; }
+    if (!asset.base64) { showAlert({ type: 'error', title: 'Error', message: 'Could not read image data.' }); return; }
     setAvatarUri(asset.uri);
     setAvatarBase64(asset.base64);
   };

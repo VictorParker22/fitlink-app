@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { useAlert } from '../context/AlertContext';
 
 const PRIVACY_EMAIL = 'privacy@getfitlink.com';
 
@@ -75,10 +76,11 @@ const PRIVACY_SECTIONS = [
 export default function TermsPrivacyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
 
   const openPrivacyEmail = () => {
     Linking.openURL(`mailto:${PRIVACY_EMAIL}`).catch(() =>
-      Alert.alert('No mail app found', `Email us at ${PRIVACY_EMAIL}.`)
+      showAlert({ type: 'info', title: 'No mail app found', message: `Email us at ${PRIVACY_EMAIL}.` })
     );
   };
 

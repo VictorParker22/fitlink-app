@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, Image as RNImage, ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image as RNImage, ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -469,13 +469,18 @@ export default function CreateWorkoutScreen() {
   };
 
   const removeExercise = (id: string) => {
-    Alert.alert('Remove exercise', 'Are you sure you want to remove this exercise?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => {
-        setSelectedExercises((prev) => prev.filter((e) => e.exercise_id !== id));
-        if (expandedExerciseId === id) setExpandedExerciseId(null);
-      }},
-    ]);
+    showAlert({
+      type: 'confirm',
+      title: 'Remove exercise',
+      message: 'Are you sure you want to remove this exercise?',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => {
+          setSelectedExercises((prev) => prev.filter((e) => e.exercise_id !== id));
+          if (expandedExerciseId === id) setExpandedExerciseId(null);
+        }},
+      ],
+    });
   };
 
   const updateExercise = (id: string, field: string, value: number | string | null) => {

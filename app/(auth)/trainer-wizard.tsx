@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView,
   Dimensions, Linking, ActivityIndicator, Image,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -17,6 +17,7 @@ import * as SecureStore from '../../lib/secureStore';
 import { onboardedKey } from '../../lib/onboardingFlags';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
@@ -51,6 +52,7 @@ export default function TrainerWizardScreen() {
   const router = useRouter();
   const { trainer, updateTrainer } = useApp();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const [step, setStep] = useState(0);
   const slideAnim = useSharedValue(0);
@@ -130,7 +132,7 @@ export default function TrainerWizardScreen() {
   const handleNext = async () => {
     if (step === 0) {
       // Validate & save profile
-      if (!name.trim()) return Alert.alert('Required', 'Please enter your name.');
+      if (!name.trim()) return showAlert({ type: 'warning', title: 'Required', message: 'Please enter your name.' });
       setSaving(true);
 
       // Upload avatar if selected
@@ -165,7 +167,7 @@ export default function TrainerWizardScreen() {
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         });
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'Failed to save profile');
+        showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save profile' });
         setSaving(false);
         return;
       }
@@ -185,7 +187,7 @@ export default function TrainerWizardScreen() {
       try {
         await updateTrainer({ working_hours: workingHours });
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'Failed to save availability');
+        showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save availability' });
         setSaving(false);
         return;
       }
@@ -239,7 +241,7 @@ export default function TrainerWizardScreen() {
       setStripeComplete(true);
       return true;
     } catch (err: any) {
-      Alert.alert('Setup Error', err.message || 'Failed to start payment setup');
+      showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Failed to start payment setup' });
       return false;
     } finally {
       setStripeLoading(false);

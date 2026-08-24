@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, ActivityIndicator, Share, Image, Modal, TextInput,
+  ActivityIndicator, Share, Image, Modal, TextInput,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
   const { isCoachElite } = useRevenueCat();
+  const { showAlert } = useAlert();
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -56,17 +58,18 @@ export default function ProfileScreen() {
   // ── Image picker ──────────────────────────────────────────────────────────
   const handlePickImage = (kind: 'avatar' | 'cover' = 'avatar') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert(
-      kind === 'avatar' ? 'Profile photo' : 'Cover photo',
-      kind === 'avatar'
+    showAlert({
+      type: 'info',
+      title: kind === 'avatar' ? 'Profile photo' : 'Cover photo',
+      message: kind === 'avatar'
         ? 'Choose how to update your photo'
         : 'This is the photo athletes see first — you coaching, your space.',
-      [
+      buttons: [
         { text: 'Take photo', onPress: () => launchPicker('camera', kind) },
         { text: 'Choose from library', onPress: () => launchPicker('library', kind) },
         { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+      ],
+    });
   };
 
   const launchPicker = async (source: 'camera' | 'library', kind: 'avatar' | 'cover' = 'avatar') => {
@@ -74,7 +77,7 @@ export default function ProfileScreen() {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert('Permission required', source === 'camera' ? 'Camera access is needed.' : 'Photo library access is needed.');
+      showAlert({ type: 'warning', title: 'Permission required', message: source === 'camera' ? 'Camera access is needed.' : 'Photo library access is needed.' });
       return;
     }
     // Avatars stay square; the cover crops 16:10 — the card shape it will
@@ -85,7 +88,7 @@ export default function ProfileScreen() {
       : ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect, quality: 0.7, base64: true }));
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    if (!asset.base64) { Alert.alert('Error', 'Could not read image data.'); return; }
+    if (!asset.base64) { showAlert({ type: 'error', title: 'Error', message: 'Could not read image data.' }); return; }
     await uploadImage(asset.base64, asset.uri, kind);
   };
 
@@ -109,7 +112,7 @@ export default function ProfileScreen() {
       await updateTrainer({ [kind === 'avatar' ? 'avatar_url' : 'cover_url']: `${urlData.publicUrl}?t=${Date.now()}` });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      Alert.alert('Upload failed', err.message || 'Could not upload photo.');
+      showAlert({ type: 'error', title: 'Upload failed', message: err.message || 'Could not upload photo.' });
     } finally {
       setBusy(false);
     }
@@ -132,17 +135,23 @@ export default function ProfileScreen() {
   // ── Auth actions ──────────────────────────────────────────────────────────
   const handleSignOut = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut },
-    ]);
+    showAlert({
+      type: 'confirm',
+      title: 'Sign out',
+      message: 'Are you sure you want to sign out?',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: signOut },
+      ],
+    });
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your account and all data. This cannot be undone.',
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'Delete account',
+      message: 'This permanently deletes your account and all data. This cannot be undone.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Continue',
@@ -152,8 +161,8 @@ export default function ProfileScreen() {
           // A Modal is the cross-platform confirmation, matching my-profile.
           onPress: () => { setDeleteInput(''); setShowDeleteModal(true); },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleConfirmDelete = async () => {
@@ -173,7 +182,7 @@ export default function ProfileScreen() {
     setDeleting(false);
     if (error) {
       setShowDeleteModal(false);
-      Alert.alert('Account not deleted', `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.`);
+      showAlert({ type: 'error', title: 'Account not deleted', message: `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.` });
       return;
     }
     setShowDeleteModal(false);
@@ -181,10 +190,11 @@ export default function ProfileScreen() {
       // The account and its rows ARE gone. Saying "fully deleted" when some
       // files survived would be exactly the false-success this codebase keeps
       // deleting elsewhere.
-      Alert.alert(
-        'Account deleted',
-        'Your account and data have been removed. Some uploaded files could not be deleted automatically — contact support and they will be removed for you.'
-      );
+      showAlert({
+        type: 'warning',
+        title: 'Account deleted',
+        message: 'Your account and data have been removed. Some uploaded files could not be deleted automatically — contact support and they will be removed for you.',
+      });
     }
     await signOut();
   };

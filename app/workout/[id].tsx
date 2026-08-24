@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, TextInput, Modal, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, TextInput, Modal, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -215,21 +215,26 @@ export default function WorkoutDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Workout', `Are you sure you want to delete "${workout.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          setDeleting(true);
-          try {
-            await deleteWorkout(workout.id);
-            router.back();
-          } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to delete');
-            setDeleting(false);
-          }
+    showAlert({
+      type: 'confirm',
+      title: 'Delete workout',
+      message: `Are you sure you want to delete "${workout.name}"?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteWorkout(workout.id);
+              router.back();
+            } catch (err: any) {
+              showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to delete' });
+              setDeleting(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const handlePlayVideo = (url: string, exerciseName?: string) => {
@@ -242,7 +247,7 @@ export default function WorkoutDetailScreen() {
       // Not https (file:, content:, javascript:, an app scheme...) - never
       // hand it to the OS or to the native media loader.
       if (__DEV__) console.warn('[workout] Blocked unsafe video URL:', url);
-      Alert.alert('Video unavailable', "This exercise's video link can't be opened.");
+      showAlert({ type: 'error', title: 'Video unavailable', message: "This exercise's video link can't be opened." });
     } else {
       setVideoExerciseName(exerciseName || 'Exercise Demo');
       setVideoUrl(url);
@@ -255,9 +260,9 @@ export default function WorkoutDetailScreen() {
       const today = new Date().toISOString().split('T')[0];
       await assignWorkout(workout.id, clientId, today);
       setShowAssign(false);
-      Alert.alert('Success', 'Workout assigned!');
+      showAlert({ type: 'success', title: 'Success', message: 'Workout assigned!' });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to assign workout');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to assign workout' });
     }
   };
 

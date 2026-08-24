@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList, Alert
+  KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -464,7 +464,7 @@ export default function CreateDietScreen() {
         servings: finalServings,
       });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save meal');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save meal' });
     }
   };
 

@@ -30,7 +30,6 @@ import {
   Modal,
   ActivityIndicator,
   ScrollView,
-  Alert,
   Image,
   Platform,
 } from 'react-native';
@@ -42,6 +41,7 @@ import * as Haptics from 'expo-haptics';
 import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import type { PurchasesPackage } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // ─── What client_premium actually unlocks — nothing else may be listed ───────
@@ -69,6 +69,7 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
   // A Modal inherits no safe area — the scroll supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
   const { offerings, purchasePackage, restorePurchases, isLoading } = useRevenueCat();
+  const { showAlert } = useAlert();
   const [selectedType, setSelectedType] = useState<'annual' | 'monthly'>('annual');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -106,7 +107,7 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
       else onDismiss();
     } else if (error) {
       // A cancelled purchase returns no error and lands here silently.
-      Alert.alert('Purchase failed', error);
+      showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
   };
 
@@ -116,13 +117,18 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
     setRestoring(false);
     if (restored) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Restored', 'Your subscription has been restored.', [
-        { text: 'Continue', onPress: onDismiss },
-      ]);
+      showAlert({
+        type: 'success',
+        title: 'Restored',
+        message: 'Your subscription has been restored.',
+        buttons: [
+          { text: 'Continue', onPress: onDismiss },
+        ],
+      });
     } else if (success) {
-      Alert.alert('Nothing to restore', 'No previous purchases found for this account.');
+      showAlert({ type: 'info', title: 'Nothing to restore', message: 'No previous purchases found for this account.' });
     } else {
-      Alert.alert('Error', error || 'Could not restore purchases.');
+      showAlert({ type: 'error', title: 'Error', message: error || 'Could not restore purchases.' });
     }
   };
 

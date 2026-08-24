@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const PRESET_CERTS = [
@@ -25,6 +26,7 @@ export default function CertificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trainer, updateTrainer } = useApp();
+  const { showAlert } = useAlert();
 
   const [certs, setCerts] = useState<string[]>(() => parseList(trainer?.certifications));
   const [customCert, setCustomCert] = useState('');
@@ -32,7 +34,7 @@ export default function CertificationsScreen() {
 
   const addCert = (cert: string) => {
     if (certs.length >= MAX_CERTS) {
-      Alert.alert('Limit reached', `You can list up to ${MAX_CERTS} certifications.`);
+      showAlert({ type: 'warning', title: 'Limit reached', message: `You can list up to ${MAX_CERTS} certifications.` });
       return;
     }
     setCerts((prev) => (prev.includes(cert) ? prev : [...prev, cert]));
@@ -44,7 +46,7 @@ export default function CertificationsScreen() {
     const trimmed = customCert.trim();
     if (!trimmed) return;
     if (certs.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-      Alert.alert('Already added', 'This certification is already on your list.');
+      showAlert({ type: 'warning', title: 'Already added', message: 'This certification is already on your list.' });
       return;
     }
     addCert(trimmed);
@@ -58,7 +60,7 @@ export default function CertificationsScreen() {
       await updateTrainer({ certifications: certs.join(', ') });
       router.back();
     } catch (err: any) {
-      Alert.alert('Could not save', err.message || 'Something went wrong. Try again.');
+      showAlert({ type: 'error', title: 'Could not save', message: err.message || 'Something went wrong. Try again.' });
     } finally {
       setSaving(false);
     }

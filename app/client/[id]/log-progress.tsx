@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../../../context/AppContext';
+import { useAlert } from '../../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { getAvatarColor } from '../../../constants/theme';
 import { supabase } from '../../../lib/supabase';
@@ -17,6 +18,7 @@ export default function LogProgressScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addProgressLog, getClientById } = useApp();
+  const { showAlert } = useAlert();
 
   const client = getClientById(id || '');
 
@@ -64,7 +66,7 @@ export default function LogProgressScreen() {
 
   const handleSave = async () => {
     if (!weight) {
-      Alert.alert('Required', 'Please enter a weight.');
+      showAlert({ type: 'warning', title: 'Required', message: 'Please enter a weight.' });
       return;
     }
 
@@ -101,16 +103,17 @@ export default function LogProgressScreen() {
       });
 
       if (photoDropped) {
-        Alert.alert(
-          'Saved without the photo',
-          'The measurements were saved, but the photo could not be uploaded. You can add it again from this screen.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
+        showAlert({
+          type: 'warning',
+          title: 'Saved without the photo',
+          message: 'The measurements were saved, but the photo could not be uploaded. You can add it again from this screen.',
+          buttons: [{ text: 'OK', onPress: () => router.back() }],
+        });
         return;
       }
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save progress.');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save progress.' });
     } finally {
       setSaving(false);
     }

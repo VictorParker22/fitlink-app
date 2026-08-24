@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
-  TextInput, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator, Alert,
+  TextInput, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import type { PlanEnrollment } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
@@ -72,6 +73,7 @@ export default function PassHoldersScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const { plans, clients } = useApp();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const plan = plans.find(p => p.id === planId);
   const track = plan?.track || [];
@@ -202,16 +204,17 @@ export default function PassHoldersScreen() {
 
     if (sent === 0) {
       // Nothing went out — keep the sheet and the typed text.
-      Alert.alert('Not sent', lastError || 'The message could not be sent to anyone. Please try again.');
+      showAlert({ type: 'error', title: 'Not sent', message: lastError || 'The message could not be sent to anyone. Please try again.' });
       return;
     }
     setSentCount(sent);
     setComposeText('');
     if (failed > 0) {
-      Alert.alert(
-        'Sent to some athletes',
-        `${sent} of ${rows.length} got the message. ${failed} did not${lastError ? `: ${lastError}` : '.'}`
-      );
+      showAlert({
+        type: 'warning',
+        title: 'Sent to some athletes',
+        message: `${sent} of ${rows.length} got the message. ${failed} did not${lastError ? `: ${lastError}` : '.'}`,
+      });
     }
     setTimeout(() => {
       setComposeOpen(false);

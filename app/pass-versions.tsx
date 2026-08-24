@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import type { TrackNode, PlanEnrollment } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { weekOfPosition, isOnLatestTrack } from '../lib/passWeeks';
 import { isMissingSchemaError } from '../lib/schemaErrors';
@@ -41,6 +42,7 @@ export default function PassVersionsScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const { plans, clients, updatePlanTrack } = useApp();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const plan = plans.find(p => p.id === planId);
 
@@ -128,18 +130,19 @@ export default function PassVersionsScreen() {
     setBusy(false);
     // Previously this said "Sent" no matter what the insert returned.
     if (failure) {
-      Alert.alert('Not sent', failure);
+      showAlert({ type: 'error', title: 'Not sent', message: failure });
       return;
     }
-    Alert.alert('Sent', `Asked ${clientName.split(' ')[0]} about v${currentVersionNumber}.`);
+    showAlert({ type: 'success', title: 'Sent', message: `Asked ${clientName.split(' ')[0]} about v${currentVersionNumber}.` });
   };
 
   const rollBack = () => {
     if (!plan || !rollbackTarget) return;
-    Alert.alert(
-      `Roll back to v${rollbackTarget.version}?`,
-      'The pass returns to its previous shape. Anything athletes have already completed stays completed.',
-      [
+    showAlert({
+      type: 'confirm',
+      title: `Roll back to v${rollbackTarget.version}?`,
+      message: 'The pass returns to its previous shape. Anything athletes have already completed stays completed.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Roll back',
@@ -158,23 +161,24 @@ export default function PassVersionsScreen() {
                 summary: `Rolled back to v${rollbackTarget.version}`,
               });
               if (versionErr && !isMissingSchemaError(versionErr)) {
-                Alert.alert(
-                  'Rollback not recorded',
-                  `${versionErr.message}\n\nThe pass has not been changed. Please try again.`
-                );
+                showAlert({
+                  type: 'error',
+                  title: 'Rollback not recorded',
+                  message: `${versionErr.message}\n\nThe pass has not been changed. Please try again.`,
+                });
                 return;
               }
               await updatePlanTrack(plan.id, rollbackTarget.track);
               await load();
             } catch (err: any) {
-              Alert.alert('Error', err.message || 'Rollback failed');
+              showAlert({ type: 'error', title: 'Error', message: err.message || 'Rollback failed' });
             } finally {
               setBusy(false);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   if (!plan) {

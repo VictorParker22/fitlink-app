@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -8,6 +8,7 @@ import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-nativ
 import { useApp } from '../context/AppContext';
 import type { TrackNode, PlanEnrollment } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { weekOfPosition, weekStartIndices, totalWeeks, diffTracks } from '../lib/passWeeks';
 import type { TrackDiffEntry } from '../lib/passWeeks';
@@ -42,6 +43,7 @@ export default function PassTrackEditorScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const { plans, workouts, diets, classes, clients, updatePlanTrack, refreshPlans } = useApp();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   // Classes are a COACH-SCOPED library — AppContext already loads only this
   // coach's rows (classes … .eq('trainer_id', user.id)). Only published ones
@@ -177,7 +179,7 @@ export default function PassTrackEditorScreen() {
         await updatePlanTrack(plan.id, clean);
         router.back();
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'Failed to save track');
+        showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save track' });
       } finally {
         setSaving(false);
       }
@@ -309,10 +311,11 @@ export default function PassTrackEditorScreen() {
       });
 
       if (publishErr) {
-        Alert.alert(
-          'Not published',
-          `The pass was left exactly as it was — nothing changed for anyone. ${publishErr.message}`,
-        );
+        showAlert({
+          type: 'error',
+          title: 'Not published',
+          message: `The pass was left exactly as it was — nothing changed for anyone. ${publishErr.message}`,
+        });
         return;
       }
       // Keep local context in step with what the server now holds.
@@ -321,10 +324,11 @@ export default function PassTrackEditorScreen() {
       if (typeof movedCount === 'number' && snapshots.length > 0 && movedCount < snapshots.length) {
         // The transaction succeeded, so this means rows no longer matched
         // (an athlete left the pass mid-publish) — worth saying, not alarming.
-        Alert.alert(
-          'Published',
-          `${movedCount} of ${snapshots.length} athletes moved to the new track. The others are no longer on this pass.`,
-        );
+        showAlert({
+          type: 'warning',
+          title: 'Published',
+          message: `${movedCount} of ${snapshots.length} athletes moved to the new track. The others are no longer on this pass.`,
+        });
       }
 
       if (audience === 'everyone' && notify && message.trim()) {
@@ -337,7 +341,7 @@ export default function PassTrackEditorScreen() {
         const parts: string[] = [];
         if (messageFailures > 0) parts.push(`${messageFailures} athlete${messageFailures === 1 ? '' : 's'} did not get the update message.`);
         if (versionWarning) parts.push(`Version history was not recorded: ${versionWarning}`);
-        Alert.alert('Published, with problems', parts.join('\n\n'));
+        showAlert({ type: 'warning', title: 'Published, with problems', message: parts.join('\n\n') });
         router.back();
         return;
       }
@@ -345,7 +349,7 @@ export default function PassTrackEditorScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to publish changes');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to publish changes' });
     } finally {
       setSaving(false);
     }

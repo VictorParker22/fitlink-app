@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const SUPPORT_EMAIL = 'support@getfitlink.com';
@@ -14,12 +15,13 @@ export default function ContactSupportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [selectedTopic, setSelectedTopic] = useState('');
   const [message, setMessage] = useState('');
 
   const handleSend = async () => {
-    if (!selectedTopic) return Alert.alert('Select a topic', 'Please choose what your message is about.');
-    if (!message.trim()) return Alert.alert('Empty message', 'Please describe your issue.');
+    if (!selectedTopic) return showAlert({ type: 'warning', title: 'Select a topic', message: 'Please choose what your message is about.' });
+    if (!message.trim()) return showAlert({ type: 'warning', title: 'Empty message', message: 'Please describe your issue.' });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const subject = `FitLink support — ${selectedTopic}`;
@@ -29,7 +31,7 @@ export default function ContactSupportScreen() {
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('No mail app found', `Please email us directly at ${SUPPORT_EMAIL}.`);
+      showAlert({ type: 'error', title: 'No mail app found', message: `Please email us directly at ${SUPPORT_EMAIL}.` });
     }
   };
 
@@ -89,7 +91,7 @@ export default function ContactSupportScreen() {
           <TouchableOpacity
             style={s.directRow}
             activeOpacity={0.7}
-            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => Alert.alert('No mail app found', `Email us at ${SUPPORT_EMAIL}.`))}
+            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => showAlert({ type: 'error', title: 'No mail app found', message: `Email us at ${SUPPORT_EMAIL}.` }))}
           >
             <Text style={s.directRowLabel}>Or email us directly</Text>
             <Text style={s.directRowEmail}>{SUPPORT_EMAIL}</Text>

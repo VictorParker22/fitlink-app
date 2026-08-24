@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, Modal, Image as RNImage, Alert
+  KeyboardAvoidingView, Platform, Share, RefreshControl, Keyboard, Modal, Image as RNImage
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import { decode } from 'base64-arraybuffer';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import FormReviewMessage, { FORM_REVIEW_PREFIX, parseFormReview } from '../../components/chat/FormReviewMessage';
 import { useSignedMediaUrl } from '../../lib/privateMedia';
+import { useAlert } from '../../context/AlertContext';
 
 interface Message {
   id: string;
@@ -180,11 +181,12 @@ function SignedFormReviewComposer({
   onSend: (seconds: number, comment: string) => void;
 }) {
   const { url, ready, failed } = useSignedMediaUrl(storedUrl);
+  const { showAlert } = useAlert();
   const unusable = ready && (failed || !url);
 
   useEffect(() => {
     if (!unusable) return;
-    Alert.alert('Attachment unavailable', 'That video could not be opened. Please try again.');
+    showAlert({ type: 'error', title: 'Attachment unavailable', message: 'That video could not be opened. Please try again.' });
     onClose();
   }, [unusable, onClose]);
 
@@ -320,6 +322,7 @@ export default function ChatScreen() {
   const [clientPushToken, setClientPushToken] = useState<string | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
 
   // ?draft= support — pre-fills the input, never auto-sends. The initial
   // value is seeded via useState above; this effect covers re-navigation to
@@ -436,7 +439,7 @@ export default function ChatScreen() {
       // The insert RESOLVES with { error } — it does not throw. Without this the
       // composer closed on failure and the coach believed the review was sent.
       if (insertError) {
-        Alert.alert('Review not sent', insertError.message || 'Your form review could not be sent. Please try again.');
+        showAlert({ type: 'error', title: 'Review not sent', message: insertError.message || 'Your form review could not be sent. Please try again.' });
         return; // keep reviewTarget open so the typed comment is not lost
       }
       const previewText = `Form review at ${fmtClock(seconds)}: ${comment}`;
@@ -476,7 +479,7 @@ export default function ChatScreen() {
       // Resolves with { error }; it does not throw. Previously the picker modal
       // closed either way and the attachment silently never reached the athlete.
       if (insertError) {
-        Alert.alert('Not sent', insertError.message || 'That could not be sent. Please try again.');
+        showAlert({ type: 'error', title: 'Not sent', message: insertError.message || 'That could not be sent. Please try again.' });
         return;
       }
       let previewText = content;
@@ -635,7 +638,7 @@ export default function ChatScreen() {
       } else {
         console.error('Send failed:', err);
         setNewMessage(content);
-        Alert.alert('Message not sent', (err as any)?.message || 'Your message could not be sent. It has been put back in the box — please try again.');
+        showAlert({ type: 'error', title: 'Message not sent', message: (err as any)?.message || 'Your message could not be sent. It has been put back in the box — please try again.' });
       }
     } finally {
       setSending(false);
@@ -684,7 +687,7 @@ export default function ChatScreen() {
         // The upload succeeding does not mean the message row landed — this
         // insert resolves with { error } rather than throwing.
         if (insertError) {
-          Alert.alert('Image not sent', insertError.message || 'The image uploaded but the message could not be sent. Please try again.');
+          showAlert({ type: 'error', title: 'Image not sent', message: insertError.message || 'The image uploaded but the message could not be sent. Please try again.' });
           return;
         }
 
@@ -707,7 +710,7 @@ export default function ChatScreen() {
       }
     } catch (err: any) {
       console.error('Image upload failed', err);
-      Alert.alert('Image not sent', err?.message || 'The image could not be uploaded. Please try again.');
+      showAlert({ type: 'error', title: 'Image not sent', message: err?.message || 'The image could not be uploaded. Please try again.' });
     } finally {
       setSending(false);
     }

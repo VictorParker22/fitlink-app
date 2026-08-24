@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform,
   LayoutAnimation, UIManager, ActivityIndicator, TextInput, KeyboardAvoidingView,
-  Modal, Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { useWorkout, StrengthSetLog, SetFeel, WorkoutHistoryEntry } from '../../
 import { suggestNextLoad } from '../../lib/loadSuggestion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useClient } from '../../context/ClientContext';
+import { useAlert } from '../../context/AlertContext';
 import PRCelebration, { WeeklyBest } from '../../components/client-tabs/PRCelebration';
 import ExerciseMediaDemo from '../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../components/shared/exercise/ExerciseInstructions';
@@ -123,6 +124,7 @@ export default function StrengthSessionScreen() {
   const { workoutHistory, recordStrengthWorkout } = useWorkout();
   const { clientData, trainer, conversation, enrollment, exercisePrs, logExerciseSet, checkAndUpdatePr } = useClient();
   const reducedMotion = useReducedMotion();
+  const { showAlert } = useAlert();
 
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -420,10 +422,11 @@ export default function StrengthSessionScreen() {
         // instead of finishing as though everything saved.
         if (__DEV__) console.warn('[StrengthSession] Log save failed:', error.message);
         setFinishing(false);
-        Alert.alert(
-          'Sets not synced',
-          "Your sets are saved on this device, but we couldn't send them to your coach. They won't show in your coach's view until this syncs.",
-        );
+        showAlert({
+          type: 'error',
+          title: 'Sets not synced',
+          message: "Your sets are saved on this device, but we couldn't send them to your coach. They won't show in your coach's view until this syncs.",
+        });
         if (bestPr) setShowPr(true);
         else router.push(ClientRoute.workouts);
         return;
@@ -464,7 +467,7 @@ export default function StrengthSessionScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(ClientRoute.workouts);
     }
-  }, [session, clientData, trainer, recordStrengthWorkout, checkAndUpdatePr, router]);
+  }, [session, clientData, trainer, recordStrengthWorkout, checkAndUpdatePr, router, showAlert]);
 
   const logSet = () => {
     if (!currentEx) return;
@@ -555,19 +558,20 @@ export default function StrengthSessionScreen() {
     if (showAllExercises) { setShowAllExercises(false); return true; }
     if (mode === 'live') {
       if (logged.length === 0) { setMode('overview'); return true; }
-      Alert.alert(
-        'Leave this session?',
-        `You have ${logged.length} set${logged.length === 1 ? '' : 's'} logged. Finish to save them to your coach, or leave and lose them.`,
-        [
+      showAlert({
+        type: 'confirm',
+        title: 'Leave this session?',
+        message: `You have ${logged.length} set${logged.length === 1 ? '' : 's'} logged. Finish to save them to your coach, or leave and lose them.`,
+        buttons: [
           { text: 'Keep training', style: 'cancel' },
           { text: 'Finish and save', onPress: () => finishSession(logged, prHit) },
           { text: 'Leave', style: 'destructive', onPress: () => router.push(ClientRoute.workouts) },
-        ]
-      );
+        ],
+      });
       return true;
     }
     return false;
-  }, [showPr, showAllExercises, mode, logged, prHit, finishSession, router]));
+  }, [showPr, showAllExercises, mode, logged, prHit, finishSession, router, showAlert]));
 
   // ── PR overlay data (all from real history) ──
   const prOverlayData = useMemo(() => {

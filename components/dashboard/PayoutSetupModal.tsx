@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
-  Dimensions, Animated, Image, ActivityIndicator, Linking, Alert,
+  Dimensions, Animated, Image, ActivityIndicator, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -22,6 +23,7 @@ interface PayoutSetupModalProps {
 export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -71,7 +73,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
       await Linking.openURL(data.url);
       transitionTo(2);
     } catch (err: any) {
-      Alert.alert('Setup error', err.message || 'Failed to start payment setup');
+      showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Failed to start payment setup' });
     } finally {
       setLoading(false);
     }

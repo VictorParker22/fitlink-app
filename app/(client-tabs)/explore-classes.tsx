@@ -14,7 +14,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Modal, ScrollView, TextInput, RefreshControl, Alert, KeyboardAvoidingView,
+  Modal, ScrollView, TextInput, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -28,6 +28,7 @@ import { Bolt } from '../../components/mascot/Bolt';
 import CardImage from '../../components/ui/CardImage';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
+import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 
@@ -101,6 +102,7 @@ export default function ExploreClassesScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { clientData, trainer } = useClient();
+  const { showAlert } = useAlert();
   const trainerId = clientData?.trainer_id || null;
   const coachFirst = (trainer?.name || '').split(' ')[0] || 'your coach';
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -253,7 +255,7 @@ export default function ExploreClassesScreen() {
         return next;
       });
       if (__DEV__) console.warn('[explore-classes] favorite toggle failed:', error.message);
-      Alert.alert('Not saved', "We couldn't update your saved classes. Please try again.");
+      showAlert({ type: 'error', title: 'Not saved', message: "We couldn't update your saved classes. Please try again." });
     }
   };
 

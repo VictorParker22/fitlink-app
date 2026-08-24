@@ -21,7 +21,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, TextInput, StatusBar, Dimensions, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,7 @@ import Animated, {
   FadeIn, FadeInUp, useSharedValue, useAnimatedStyle, withTiming,
 } from 'react-native-reanimated';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import Avatar from '../../components/Avatar';
 import { useRestChime } from '../../hooks/useRestChime';
@@ -86,6 +87,7 @@ const STATUS_CONFIG = {
 export default function TrainerSessionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const params = useLocalSearchParams<{ id: string; mode?: string }>();
   const sessionId = params.id;
   const mode = params.mode ?? 'track'; // 'detail' | 'track'
@@ -281,10 +283,10 @@ export default function TrainerSessionScreen() {
       setTimeout(() => setNotesSaved(false), 2500);
     } catch (e: any) {
       console.error('[Session] notes save failed:', e);
-      Alert.alert('Notes not saved', e?.message || 'Your notes are still on screen. Tap out of the box again to retry.');
+      showAlert({ type: 'error', title: 'Notes not saved', message: e?.message || 'Your notes are still on screen. Tap out of the box again to retry.' });
     }
     finally { setNotesSaving(false); }
-  }, [session, detailNotes, updateSession]);
+  }, [session, detailNotes, updateSession, showAlert]);
 
   const handleStartTracking = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

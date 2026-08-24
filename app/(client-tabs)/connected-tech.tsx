@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { useHealth } from '../../context/HealthContext';
+import { useAlert } from '../../context/AlertContext';
 import { loginWithSpotify, getStoredToken, disconnectSpotify } from '../../lib/spotify';
 
 // ─── PLATFORM COPY ───────────────────────────────────────
@@ -91,6 +92,7 @@ export default function ConnectedTechScreen() {
     connectHealth,
     disconnectHealth,
   } = useHealth();
+  const { showAlert } = useAlert();
   const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
   const [activeGuide, setActiveGuide] = useState<BrandGuide | null>(null);
@@ -126,10 +128,11 @@ export default function ConnectedTechScreen() {
   };
 
   const handleDisconnectHealth = () => {
-    Alert.alert(
-      `Disconnect ${HEALTH_PLATFORM}`,
-      `This will stop syncing your health data from ${HEALTH_PLATFORM}. You can reconnect at any time.`,
-      [
+    showAlert({
+      type: 'confirm',
+      title: `Disconnect ${HEALTH_PLATFORM}`,
+      message: `This will stop syncing your health data from ${HEALTH_PLATFORM}. You can reconnect at any time.`,
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Disconnect',
@@ -139,8 +142,8 @@ export default function ConnectedTechScreen() {
             disconnectHealth();
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleSpotifyConnect = async () => {
@@ -163,10 +166,11 @@ export default function ConnectedTechScreen() {
   };
 
   const handleSpotifyDisconnect = () => {
-    Alert.alert(
-      'Disconnect Spotify',
-      'This will disconnect Spotify music playback controls. You can reconnect at any time.',
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'Disconnect Spotify',
+      message: 'This will disconnect Spotify music playback controls. You can reconnect at any time.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Disconnect',
@@ -177,8 +181,8 @@ export default function ConnectedTechScreen() {
             setIsSpotifyConnected(false);
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleOpenGuide = (guide: BrandGuide) => {

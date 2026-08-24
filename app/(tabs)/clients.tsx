@@ -26,7 +26,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, RefreshControl, Linking, Alert, Dimensions,
+  TouchableOpacity, RefreshControl, Linking, Dimensions,
   Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useHaptic } from '../../hooks/useHaptic';
@@ -147,6 +148,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
   // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
   const { liveHabitRows } = useApp();
+  const { showAlert } = useAlert();
   const [state, setState]     = useState<Record<HabitKey, boolean>>(EMPTY_HABIT_STATE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState<HabitKey | null>(null);
@@ -204,7 +206,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
     setSaving(null);
     if (error) {
       setState(state); // revert
-      Alert.alert('Could not save', 'The habit update did not go through. Try again.');
+      showAlert({ type: 'error', title: 'Could not save', message: 'The habit update did not go through. Try again.' });
     }
   };
 
@@ -369,6 +371,7 @@ export default function ClientsScreen() {
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
   const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows, completedWorkoutCounts } = useApp();
+  const { showAlert } = useAlert();
 
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -517,7 +520,7 @@ export default function ClientsScreen() {
         onPress: () => {
           haptic.trigger('medium');
           if (item.phone) { Linking.openURL(`tel:${item.phone}`); }
-          else Alert.alert('No phone number', `${name} has no phone on file.`);
+          else showAlert({ type: 'info', title: 'No phone number', message: `${name} has no phone on file.` });
         },
       },
     ];
@@ -531,11 +534,11 @@ export default function ClientsScreen() {
       haptic.trigger('medium');
       await updateClient(client.id, { status: 'active' });
     } catch {
-      Alert.alert('Could not accept', 'The request could not be accepted. Try again.');
+      showAlert({ type: 'error', title: 'Could not accept', message: 'The request could not be accepted. Try again.' });
     } finally {
       setRequestBusyId(null);
     }
-  }, [requestBusyId, updateClient, haptic]);
+  }, [requestBusyId, updateClient, haptic, showAlert]);
 
   const declineRequest = useCallback(async (client: Client) => {
     setRequestBusyId(client.id);
@@ -589,30 +592,32 @@ export default function ClientsScreen() {
       }
       haptic.trigger('light');
       if (noticeFailed) {
-        Alert.alert(
-          'Declined, but no message sent',
-          `${toTitleCase(client.name)} has been moved out of your roster, but the note explaining why could not be sent: ${noticeFailed}`,
-        );
+        showAlert({
+          type: 'warning',
+          title: 'Declined, but no message sent',
+          message: `${toTitleCase(client.name)} has been moved out of your roster, but the note explaining why could not be sent: ${noticeFailed}`,
+        });
       }
     } catch {
-      Alert.alert('Could not decline', 'The request could not be declined. Try again.');
+      showAlert({ type: 'error', title: 'Could not decline', message: 'The request could not be declined. Try again.' });
     } finally {
       setRequestBusyId(null);
     }
-  }, [updateClient, trainer, haptic]);
+  }, [updateClient, trainer, haptic, showAlert]);
 
   const handleDeclineRequest = useCallback((client: Client) => {
     if (requestBusyId) return;
     const name = toTitleCase(client.name);
-    Alert.alert(
-      'Decline this request?',
-      `${name} asked to train with you through Find a coach. Declining moves them out of your roster and sends them a short message letting them know you can't take them on right now.`,
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'Decline this request?',
+      message: `${name} asked to train with you through Find a coach. Declining moves them out of your roster and sends them a short message letting them know you can't take them on right now.`,
+      buttons: [
         { text: 'Keep request', style: 'cancel' },
         { text: 'Decline', style: 'destructive', onPress: () => declineRequest(client) },
       ],
-    );
-  }, [requestBusyId, declineRequest]);
+    });
+  }, [requestBusyId, declineRequest, showAlert]);
 
   // ── Marketplace request row ──────────────────────────────────────────────────
   const renderRequestRow = (client: Client) => {

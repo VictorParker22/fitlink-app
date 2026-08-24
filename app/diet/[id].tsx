@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -186,21 +186,26 @@ export default function DietDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete diet plan', `Are you sure you want to delete "${diet.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          setDeleting(true);
-          try {
-            await deleteDietPlan(diet.id);
-            router.back();
-          } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to delete');
-            setDeleting(false);
-          }
+    showAlert({
+      type: 'confirm',
+      title: 'Delete diet plan',
+      message: `Are you sure you want to delete "${diet.name}"?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteDietPlan(diet.id);
+              router.back();
+            } catch (err: any) {
+              showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to delete' });
+              setDeleting(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const handleAssign = async (clientId: string) => {
@@ -208,9 +213,9 @@ export default function DietDetailScreen() {
       const today = new Date().toISOString().split('T')[0];
       await assignDietPlan(diet.id, clientId, today);
       setShowAssign(false);
-      Alert.alert('Success', 'Diet plan assigned!');
+      showAlert({ type: 'success', title: 'Success', message: 'Diet plan assigned!' });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to assign diet plan');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to assign diet plan' });
     }
   };
 

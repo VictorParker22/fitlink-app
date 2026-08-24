@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren } from 'react';
-import { AppState, Alert } from 'react-native';
+import { AppState } from 'react-native';
 // Platform-aware wrapper: expo-secure-store has NO web implementation and
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
+import { useAlert } from './AlertContext';
 
 // ─── TYPES ───────────────────────────────────────────────
 export interface RunPhase {
@@ -170,6 +171,7 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 // ─── PROVIDER ────────────────────────────────────────────
 export function WorkoutProvider({ children }: PropsWithChildren) {
+  const { showAlert } = useAlert();
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
   const [savedSessions, setSavedSessions] = useState<Record<string, SavedProgress>>({});
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryEntry[]>([]);
@@ -386,10 +388,11 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
   }, [activeSession, finishWorkout]);
 
   const confirmStopWorkout = useCallback((onStopped?: () => void) => {
-    Alert.alert(
-      'End Workout?',
-      'This workout will be saved to your activity history.',
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'End workout?',
+      message: 'This workout will be saved to your activity history.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'End Workout',
@@ -400,8 +403,8 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
           },
         },
       ],
-    );
-  }, [stopWorkout]);
+    });
+  }, [stopWorkout, showAlert]);
 
   const advancePhase = useCallback(() => {
     setActiveSession(prev => {

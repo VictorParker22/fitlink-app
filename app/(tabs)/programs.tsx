@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Switch, Alert as RNAlert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -64,6 +64,7 @@ function PassCard({
   stats?: { holders: number; avgNode: number };
 }) {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const [enabled, setEnabled] = useState<boolean>(item.autoflow_enabled !== false);
@@ -93,7 +94,7 @@ function PassCard({
       .eq('id', item.id);
     setSaving(false);
     if (error) {
-      RNAlert.alert('Save failed', error.message);
+      showAlert({ type: 'error', title: 'Save failed', message: error.message });
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRefresh();

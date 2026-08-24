@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Animated,
   ScrollView,
@@ -453,23 +452,28 @@ export default function BroadcastStudioScreen() {
   // ── Stop broadcast ────────────────────────────────────────────────────────
   const handleStopBroadcast = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('End Stream?', 'Are you sure you want to end this live class broadcast?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'End Broadcast', style: 'destructive',
-        onPress: async () => {
-          try {
-            if (publisherRef.current) await publisherRef.current.stopPublishing();
-            setIsBroadcasting(false);
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
-            setShowRecap(true);
-          } catch (e: any) {
-            showAlert({ type: 'error', title: 'Error', message: e.message || 'Could not stop stream.' });
-          }
+    showAlert({
+      type: 'confirm',
+      title: 'End stream?',
+      message: 'Are you sure you want to end this live class broadcast?',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'End Broadcast', style: 'destructive',
+          onPress: async () => {
+            try {
+              if (publisherRef.current) await publisherRef.current.stopPublishing();
+              setIsBroadcasting(false);
+              if (timerRef.current) clearInterval(timerRef.current);
+              if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
+              setShowRecap(true);
+            } catch (e: any) {
+              showAlert({ type: 'error', title: 'Error', message: e.message || 'Could not stop stream.' });
+            }
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   // ── Save to VOD ───────────────────────────────────────────────────────────
@@ -767,20 +771,25 @@ export default function BroadcastStudioScreen() {
           <TouchableOpacity hitSlop={2}
             onPress={() => {
               if (isBroadcasting) {
-                Alert.alert('Leave Studio?', 'This will end your current broadcast.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'End & Leave', style: 'destructive', onPress: async () => {
-                    try {
-                      if (publisherRef.current) await publisherRef.current.stopPublishing();
-                      if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
-                    } catch (e) {
-                      // Studio's abrupt-end detector will close the class out,
-                      // so leaving is still safe — just record why.
-                      console.error('[Broadcast] could not mark class ended on exit:', e);
-                    }
-                    router.back();
-                  }},
-                ]);
+                showAlert({
+                  type: 'confirm',
+                  title: 'Leave studio?',
+                  message: 'This will end your current broadcast.',
+                  buttons: [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'End & Leave', style: 'destructive', onPress: async () => {
+                      try {
+                        if (publisherRef.current) await publisherRef.current.stopPublishing();
+                        if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
+                      } catch (e) {
+                        // Studio's abrupt-end detector will close the class out,
+                        // so leaving is still safe — just record why.
+                        console.error('[Broadcast] could not mark class ended on exit:', e);
+                      }
+                      router.back();
+                    }},
+                  ],
+                });
               } else { router.back(); }
             }}
             style={s.iconBtn}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Switch, Modal, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Switch, Modal, FlatList } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { loadSnapshot, saveSnapshot } from '../../lib/offlineCache';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 interface Conversation {
@@ -63,6 +64,7 @@ export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { clients } = useApp();
+  const { showAlert } = useAlert();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ export default function MessagesScreen() {
     if (error || !data) {
       // Without this the picker just closed and nothing happened — the coach
       // had no way to know the conversation was never created.
-      Alert.alert('Could not start the chat', error?.message || 'Please try again.');
+      showAlert({ type: 'error', title: 'Could not start the chat', message: error?.message || 'Please try again.' });
       return;
     }
     navigate(data.id);

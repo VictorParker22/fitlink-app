@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, RefreshControl, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, Image, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import type { TrackNode } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
@@ -65,6 +66,7 @@ export default function PlanDetailScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const { plans, clients, trainer, sessions, workouts, diets, refreshData } = useApp();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   // Phase 2 catch-up: passes created before covers existed can add one here.
   // create-plan's editId param is not actually read by the builder (a
   // pre-existing gap), so this screen is the only place an existing pass can
@@ -75,7 +77,7 @@ export default function PlanDetailScreen() {
     if (!plan || !user) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is needed to add a cover.');
+      showAlert({ type: 'warning', title: 'Permission needed', message: 'Photo library access is needed to add a cover.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -95,7 +97,7 @@ export default function PlanDetailScreen() {
     });
     if (upErr) {
       setCoverBusy(false);
-      Alert.alert('Upload failed', upErr.message || 'Could not upload the cover.');
+      showAlert({ type: 'error', title: 'Upload failed', message: upErr.message || 'Could not upload the cover.' });
       return;
     }
     const { data: urlData } = supabase.storage.from('coach-media').getPublicUrl(fileName);
@@ -105,7 +107,7 @@ export default function PlanDetailScreen() {
     const { error } = await supabase.from('plans').update({ cover_url }).eq('id', plan.id);
     setCoverBusy(false);
     if (error) {
-      Alert.alert('Not saved', error.message || 'The photo uploaded but the pass was not updated.');
+      showAlert({ type: 'error', title: 'Not saved', message: error.message || 'The photo uploaded but the pass was not updated.' });
       return;
     }
     refreshData();
@@ -167,14 +169,19 @@ export default function PlanDetailScreen() {
 
   const handleCollectPayment = () => {
     if (trainer?.stripe_onboarding_complete !== true) {
-      Alert.alert('Payment setup required', 'Set up your Stripe account before collecting payments.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Set up now', onPress: () => router.push('/earnings' as any) },
-      ]);
+      showAlert({
+        type: 'warning',
+        title: 'Payment setup required',
+        message: 'Set up your Stripe account before collecting payments.',
+        buttons: [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Set up now', onPress: () => router.push('/earnings' as any) },
+        ],
+      });
       return;
     }
     if (subCount === 0) {
-      Alert.alert('No members', 'Add a client to this pass before collecting payment.');
+      showAlert({ type: 'warning', title: 'No members', message: 'Add a client to this pass before collecting payment.' });
     } else if (subCount === 1) {
       router.push({ pathname: '/checkout', params: { planId: plan.id, clientId: subscribers[0].id } } as any);
     } else {
@@ -183,7 +190,7 @@ export default function PlanDetailScreen() {
         onPress: () => router.push({ pathname: '/checkout', params: { planId: plan.id, clientId: c.id } } as any),
       }));
       buttons.push({ text: 'Cancel', onPress: () => {} });
-      Alert.alert('Select member', 'Which member to charge?', buttons as any);
+      showAlert({ type: 'info', title: 'Select member', message: 'Which member to charge?', buttons: buttons as any });
     }
   };
 

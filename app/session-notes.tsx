@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useAlert } from '../context/AlertContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 export default function SessionNotesScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const router = useRouter();
   const { sessions, updateSession, getClientById } = useApp();
+  const { showAlert } = useAlert();
 
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -31,7 +33,7 @@ export default function SessionNotesScreen() {
       await updateSession(session.id, { notes: notes.trim() });
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save notes.');
+      showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save notes.' });
     } finally {
       setSaving(false);
     }

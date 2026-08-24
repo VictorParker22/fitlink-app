@@ -36,7 +36,6 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -44,6 +43,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useClient } from '../../context/ClientContext';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
@@ -121,6 +121,7 @@ export default function ClientWorkoutsScreen() {
     rescheduleWorkoutToToday,
     refreshData,
   } = useClient();
+  const { showAlert } = useAlert();
   const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string }>();
 
   // View: the programme is home; the Library (the coach's on-demand classes
@@ -415,20 +416,22 @@ export default function ClientWorkoutsScreen() {
       // season sessions used to silently discard every logged set.
       const res = await completeTrackWorkout(activeWorkout.id, summaryElapsedSeconds);
       if (!res?.ok) {
-        Alert.alert(
-          'Session not saved',
-          "Your workout is logged on this device, but we couldn't record it on your plan. Check your connection and finish again.",
-        );
+        showAlert({
+          type: 'error',
+          title: 'Session not saved',
+          message: "Your workout is logged on this device, but we couldn't record it on your plan. Check your connection and finish again.",
+        });
         return;
       }
       if (isFinal) setFinishedSeason({ ...enrollment, completed_at: new Date().toISOString() });
     } else {
       const res = await completeWorkoutWithLog(activeWorkout.id, summaryElapsedSeconds);
       if (!res?.ok) {
-        Alert.alert(
-          'Session not saved',
-          "Your workout is logged on this device, but we couldn't send it to your coach. Check your connection and finish again.",
-        );
+        showAlert({
+          type: 'error',
+          title: 'Session not saved',
+          message: "Your workout is logged on this device, but we couldn't send it to your coach. Check your connection and finish again.",
+        });
         return;
       }
     }
@@ -465,8 +468,8 @@ export default function ClientWorkoutsScreen() {
   // context; on failure it reverts there and we say so plainly here.
   const moveToToday = useCallback(async (cw: any) => {
     const ok = await rescheduleWorkoutToToday(cw.id);
-    if (!ok) Alert.alert('Could not move it', 'Something went wrong on our end. Give it another try in a moment.');
-  }, [rescheduleWorkoutToToday]);
+    if (!ok) showAlert({ type: 'error', title: 'Could not move it', message: 'Something went wrong on our end. Give it another try in a moment.' });
+  }, [rescheduleWorkoutToToday, showAlert]);
 
   // ── Player / summary overlays ─────────────────────────────────────────────
   if (activeWorkout && showSummary) {

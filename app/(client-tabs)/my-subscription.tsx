@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -39,10 +39,11 @@ export default function MySubscriptionScreen() {
   const handleCancel = () => {
     if (!subscription) return;
 
-    Alert.alert(
-      'Cancel Subscription?',
-      `Are you sure you want to cancel? You will retain access until the end of your current billing period (${new Date(subscription.current_period_end).toLocaleDateString()}).`,
-      [
+    showAlert({
+      type: 'confirm',
+      title: 'Cancel subscription?',
+      message: `Are you sure you want to cancel? You will retain access until the end of your current billing period (${new Date(subscription.current_period_end).toLocaleDateString()}).`,
+      buttons: [
         { text: 'Keep Subscription', style: 'cancel' },
         {
           text: 'Cancel',
@@ -59,8 +60,8 @@ export default function MySubscriptionScreen() {
             }
           }
         }
-      ]
-    );
+      ],
+    });
   };
 
   const handleManageCard = async () => {

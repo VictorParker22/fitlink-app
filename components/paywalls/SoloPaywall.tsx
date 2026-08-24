@@ -30,7 +30,6 @@ import {
   Modal,
   ActivityIndicator,
   ScrollView,
-  Alert,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +40,7 @@ import * as Haptics from 'expo-haptics';
 // react-native-purchases cannot be imported on web at all.
 import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import CardImage from '../ui/CardImage';
@@ -71,6 +71,7 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
   // The DEFAULT offering — athlete products (fitlink_athlete_monthly/annual
   // → client_premium). The coach offering is a different audience entirely.
   const { offerings, purchasePackage, restorePurchases } = useRevenueCat();
+  const { showAlert } = useAlert();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [term, setTerm] = useState<'annual' | 'monthly'>('annual');
@@ -135,10 +136,11 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
         onSuccess();
         return;
       }
-      Alert.alert(
-        'Not available right now',
-        "We couldn't load solo mode pricing. Check your connection and try again — nothing has been charged.",
-      );
+      showAlert({
+        type: 'error',
+        title: 'Not available right now',
+        message: "We couldn't load solo mode pricing. Check your connection and try again — nothing has been charged.",
+      });
       return;
     }
     setPurchasing(true);
@@ -148,7 +150,7 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess();
     } else if (error) {
-      Alert.alert('Purchase failed', error);
+      showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
   };
 
@@ -161,9 +163,9 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess();
     } else if (error) {
-      Alert.alert('Restore failed', error);
+      showAlert({ type: 'error', title: 'Restore failed', message: error });
     } else {
-      Alert.alert('Nothing to restore', 'No previous solo mode purchase was found for this account.');
+      showAlert({ type: 'info', title: 'Nothing to restore', message: 'No previous solo mode purchase was found for this account.' });
     }
   };
 

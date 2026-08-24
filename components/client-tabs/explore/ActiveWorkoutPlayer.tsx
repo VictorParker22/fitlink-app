@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform,
   KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useClient } from '../../../context/ClientContext';
+import { useAlert } from '../../../context/AlertContext';
 
 import ExerciseMediaDemo from '../../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../../components/shared/exercise/ExerciseInstructions';
@@ -81,6 +82,7 @@ export default function ActiveWorkoutPlayer({
   onCancelWorkout,
 }: ActiveWorkoutPlayerProps) {
   const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer } = useClient();
+  const { showAlert } = useAlert();
   // This player renders inside the Train tab, so it sits under BOTH the status
   // bar / Dynamic Island and the floating tab bar. It had no safe-area
   // handling at all: the header ran under the notch and the finish button sat
@@ -450,16 +452,26 @@ export default function ActiveWorkoutPlayer({
     const anyLogged = exerciseStates.some((ex) => ex.sets.some((set) => set.completed));
     if (!anyLogged) {
       // Nothing committed yet — no "end workout" interrogation, just leave.
-      Alert.alert('Leave workout?', 'Nothing has been logged yet.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', onPress: leave },
-      ]);
+      showAlert({
+        type: 'confirm',
+        title: 'Leave workout?',
+        message: 'Nothing has been logged yet.',
+        buttons: [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', onPress: leave },
+        ],
+      });
       return;
     }
-    Alert.alert('End workout?', 'Your progress will be lost.', [
-      { text: 'Keep going', style: 'cancel' },
-      { text: 'End', style: 'destructive', onPress: leave },
-    ]);
+    showAlert({
+      type: 'confirm',
+      title: 'End workout?',
+      message: 'Your progress will be lost.',
+      buttons: [
+        { text: 'Keep going', style: 'cancel' },
+        { text: 'End', style: 'destructive', onPress: leave },
+      ],
+    });
   };
 
   const handlePlayVideo = (url: string, exerciseName?: string) => {
@@ -472,7 +484,7 @@ export default function ActiveWorkoutPlayer({
       // Not https at all (file:, content:, javascript:, an app scheme…) —
       // never hand it to the OS or to the native media loader.
       if (__DEV__) console.warn('[ActiveWorkoutPlayer] Blocked unsafe video URL:', url);
-      Alert.alert('Video unavailable', "This exercise's video link can't be opened.");
+      showAlert({ type: 'error', title: 'Video unavailable', message: "This exercise's video link can't be opened." });
     } else {
       setVideoExerciseName(exerciseName || 'Exercise demo');
       setVideoUrl(url);

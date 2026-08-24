@@ -21,13 +21,14 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useClient } from '../../../context/ClientContext';
+import { useAlert } from '../../../context/AlertContext';
 import { useWorkout } from '../../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
@@ -92,6 +93,7 @@ function messageSnippet(content: string): string {
 export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps) {
   const router = useRouter();
   const reduced = useReducedMotion();
+  const { showAlert } = useAlert();
   const { trainer, workouts, upcomingSessions, rescheduleWorkoutToToday } = useClient();
   const { workoutHistory } = useWorkout();
 
@@ -171,9 +173,9 @@ export default function ClientCopilot({ latestCoachMessage }: ClientCopilotProps
     const ok = await rescheduleWorkoutToToday(w.id);
     if (!ok) {
       setRecovered(null);
-      Alert.alert('Could not move it', 'Something went wrong on our end. Give it another try in a moment.');
+      showAlert({ type: 'error', title: 'Could not move it', message: 'Something went wrong on our end. Give it another try in a moment.' });
     }
-  }, [rescheduleWorkoutToToday]);
+  }, [rescheduleWorkoutToToday, showAlert]);
 
   // ── Rows — every line built from real data or skipped ────────────────────
   const rows = useMemo<CopilotRow[]>(() => {
