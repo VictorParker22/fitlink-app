@@ -246,7 +246,7 @@ export function normalizeExerciseDB(item: ExerciseDBItem) {
   const equipment = item.equipments?.[0] || 'body weight';
   const html = buildInstructionsHtml(item.instructions);
 
-  console.log(`[ExerciseDB normalize] "${item.name}" | raw instructions: ${item.instructions?.length || 0} | html length: ${html.length} | category: ${mapBodyPartToCategory(bodyPart)} | equip: ${mapEquipment(equipment)}`);
+  if (__DEV__) console.log(`[ExerciseDB normalize] "${item.name}" | raw instructions: ${item.instructions?.length || 0} | html length: ${html.length} | category: ${mapBodyPartToCategory(bodyPart)} | equip: ${mapEquipment(equipment)}`);
 
   return {
     id: item.exerciseId,

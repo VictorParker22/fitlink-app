@@ -90,13 +90,26 @@ async function ensurePlanEnrollment(
       console.warn(`[webhook][enroll] cohort capacity check failed for plan ${planId}:`, countErr.message)
     } else if (typeof count === 'number' && count >= plan.capacity) {
       // The money was already taken — refusing the seat now would leave a paid
-      // athlete with nothing. Enroll them and leave a loud trace so the coach
-      // can decide on a refund or an extra seat.
+      // athlete with nothing. Enroll them and TELL THE COACH: a log line is
+      // not a control. The notification lands in their inbox so they can
+      // decide on a refund or an extra seat.
       console.warn(
         `[webhook][enroll] COHORT OVER CAPACITY: plan ${planId} ("${plan.name}") ` +
-        `capacity ${plan.capacity}, already ${count} enrolled. Client ${clientId} ` +
-        `paid and IS being enrolled anyway — coach must decide on refund/extra seat.`
+        `capacity ${plan.capacity}, already ${count} enrolled. Client ${clientId} enrolled anyway.`
       )
+      const { data: planOwner } = await supabaseAdmin
+        .from('plans').select('trainer_id').eq('id', planId).maybeSingle()
+      const { data: who } = await supabaseAdmin
+        .from('clients').select('name').eq('id', clientId).maybeSingle()
+      if (planOwner?.trainer_id) {
+        await supabaseAdmin.from('notifications').insert({
+          trainer_id: planOwner.trainer_id,
+          type: 'cohort_over_capacity',
+          title: 'Cohort is over capacity',
+          body: `${who?.name ?? 'An athlete'} paid for "${plan.name}" after it filled (${count + 1} of ${plan.capacity}). Add a seat or refund them.`,
+          data: { plan_id: planId, client_id: clientId },
+        })
+      }
     }
   }
 
@@ -261,6 +274,27 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
+  // Event-id dedupe. Stripe redelivers; without this a late redelivery of
+  // an older customer.subscription.updated overwrote newer state, and the
+  // org-seat handler re-applied seats on every retry.
+  {
+    const { error: dedupeErr } = await supabaseAdmin
+      .from('stripe_events')
+      .insert({ id: event.id, type: event.type, created: new Date(event.created * 1000).toISOString() })
+    if (dedupeErr) {
+      if (dedupeErr.code === '23505') {
+        console.log(`Duplicate delivery ignored: ${event.id}`)
+        return new Response(JSON.stringify({ received: true, duplicate: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      // Ledger unavailable: process anyway (better a rare double than a
+      // dropped payment), but say so in the logs.
+      console.warn('stripe_events insert failed:', dedupeErr.message)
+    }
+  }
+
   try {
     // Gym seat billing shares Stripe's subscription event types with athlete
     // billing, so it is dispatched FIRST on its metadata stamp. If this were
@@ -300,19 +334,36 @@ serve(async (req) => {
             })
             .eq('id', clientId)
 
-          // Create or update subscription record
-          await supabaseAdmin
+          // One-off PaymentIntents (create-payment-intent) have no Stripe
+          // subscription, so there is no real period to record. Never
+          // fabricate one: write the row only if none exists, with null
+          // period bounds, and never overwrite a row that a real
+          // subscription owns.
+          const { data: existingRow } = await supabaseAdmin
             .from('client_subscriptions')
-            .upsert({
-              client_id: clientId,
-              plan_id: planId,
-              trainer_id: trainerId,
-              stripe_customer_id: pi.customer as string,
-              status: 'active',
-              current_period_start: new Date().toISOString(),
-              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'client_id,plan_id' })
+            .select('id, stripe_subscription_id')
+            .eq('client_id', clientId)
+            .eq('plan_id', planId)
+            .maybeSingle()
+
+          if (!existingRow) {
+            const { error: insErr } = await supabaseAdmin
+              .from('client_subscriptions')
+              .insert({
+                client_id: clientId,
+                plan_id: planId,
+                trainer_id: trainerId,
+                stripe_customer_id: pi.customer as string,
+                status: 'active',
+                updated_at: new Date().toISOString(),
+              })
+            if (insErr) console.error('[webhook] client_subscriptions insert failed:', insErr.message)
+          } else if (!existingRow.stripe_subscription_id) {
+            await supabaseAdmin
+              .from('client_subscriptions')
+              .update({ status: 'active', stripe_customer_id: pi.customer as string, updated_at: new Date().toISOString() })
+              .eq('id', existingRow.id)
+          }
 
           // Create the season enrollment. Awaited (not backgrounded) so a
           // failure surfaces in this delivery's logs and Stripe's retry can
@@ -447,6 +498,18 @@ serve(async (req) => {
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription
         console.log(`Subscription updated: ${sub.id}`)
+
+        // Last-writer-wins protection: skip if our row was updated by a
+        // newer Stripe event than this one.
+        const { data: cur } = await supabaseAdmin
+          .from('client_subscriptions')
+          .select('updated_at')
+          .eq('stripe_subscription_id', sub.id)
+          .maybeSingle()
+        if (cur?.updated_at && new Date(cur.updated_at).getTime() > event.created * 1000 + 5_000) {
+          console.log(`Stale subscription.updated for ${sub.id} ignored`)
+          break
+        }
 
         await supabaseAdmin
           .from('client_subscriptions')

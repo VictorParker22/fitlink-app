@@ -6,6 +6,7 @@ import * as SecureStore from '../lib/secureStore';
 import { supabase } from '../lib/supabase';
 import { isMissingSchemaError } from '../lib/schemaErrors';
 import { useAlert } from './AlertContext';
+import { useClient } from './ClientContext';
 
 // ─── Types ──────────────────────────────────────────────────
 export interface HealthSnapshot {
@@ -135,6 +136,9 @@ const HealthContext = createContext<HealthContextType | null>(null);
 
 export function HealthProvider({ children }: PropsWithChildren) {
   const { showAlert } = useAlert();
+  // Consent lives on clients.health_sharing_enabled (ClientContext owns the
+  // toggle). HealthProvider mounts inside ClientProvider (app/_layout.tsx).
+  const { healthSharingEnabled, clientData } = useClient();
   const [isHealthAvailable, setIsHealthAvailable] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -529,6 +533,13 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
   const syncToServer = useCallback(async (clientId: string) => {
     if (!healthData) return;
+    // CONSENT GATE. Nothing leaves the device unless the athlete has turned
+    // sharing on — the coach-side read is gated on the same flag, but the
+    // rows must never be written in the first place.
+    if (!healthSharingEnabled) {
+      if (__DEV__) console.log('[HealthContext] Sync skipped: health sharing is off');
+      return;
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const { error } = await supabase.from('client_health_snapshots').upsert({
@@ -558,7 +569,20 @@ export function HealthProvider({ children }: PropsWithChildren) {
         console.error('[HealthContext] Health snapshot NOT synced:', error.message);
       }
     }
-  }, [healthData]);
+  }, [healthData, healthSharingEnabled]);
+
+  // Sharing turned ON → push what we have right away, so the coach's card is
+  // not empty until the next scheduled sync. Rising edge only.
+  const prevSharingRef = useRef(healthSharingEnabled);
+  useEffect(() => {
+    const was = prevSharingRef.current;
+    prevSharingRef.current = healthSharingEnabled;
+    if (!was && healthSharingEnabled && clientData?.id && healthData) {
+      syncToServer(clientData.id).catch((e) => {
+        if (__DEV__) console.warn('[HealthContext] Sync after enabling sharing failed:', e);
+      });
+    }
+  }, [healthSharingEnabled, clientData?.id, healthData, syncToServer]);
 
   return (
     <HealthContext.Provider value={{

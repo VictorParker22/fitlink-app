@@ -18,6 +18,7 @@ import AICoachModal from '../../components/dashboard/AICoachModal';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { RosterHeatmap } from '../../components/coach/RosterHeatmap';
+import { usePaymentSplit, coachKeeps } from '../../lib/platformFee';
 import RollingNumber from '../../components/RollingNumber';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -81,15 +82,20 @@ export default function CoachHomeScreen() {
     [todaysSessions, nextSession]
   );
 
-  // Monthly earnings (net, 90% after platform fee) — same calc as Earnings.
-  const monthlyEarnings = useMemo(() => {
+  // Monthly earnings (net, after the coach's REAL split) — same calc as
+  // Earnings. null while the split is unknown: the card shows "—" rather
+  // than a guessed 90% (lib/platformFee.ts).
+  const { split } = usePaymentSplit(trainer?.id);
+  const monthlyEarnings = useMemo<number | null>(() => {
+    if (!split) return null;
     let total = 0;
     plans.forEach(p => {
       const subs = activeClients.filter(c => c.plan_id === p.id).length;
-      total += Number(p.price || 0) * subs * 0.9;
+      total += coachKeeps(Number(p.price || 0) * subs, split);
     });
     return total;
-  }, [clients, plans]);
+  }, [clients, plans, split]);
+  const monthlyEarningsLabel = monthlyEarnings == null ? '—' : `$${monthlyEarnings.toFixed(0)}`;
 
   // At-risk: no completed session (or no session at all since joining) in 7+ days.
   const atRiskClients = useMemo(() => {
@@ -497,13 +503,13 @@ export default function CoachHomeScreen() {
             onPress={() => router.push('/earnings')}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel={`${monthLabel} revenue, $${monthlyEarnings.toFixed(0)}, ${activeClients.length} active athletes. Double tap to open earnings`}
+            accessibilityLabel={`${monthLabel} revenue, ${monthlyEarningsLabel}, ${activeClients.length} active athletes. Double tap to open earnings`}
           >
             <View>
               <Text style={styles.revenueMonth}>{monthLabel}</Text>
               <View style={styles.revenueValueRow}>
                 <RollingNumber
-                  text={`$${monthlyEarnings.toFixed(0)}`}
+                  text={monthlyEarningsLabel}
                   style={styles.revenueValue}
                 />
                 <Text style={styles.revenueValue} numberOfLines={1}> · {activeClients.length} active</Text>

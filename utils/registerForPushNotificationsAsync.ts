@@ -37,7 +37,7 @@ export async function registerForPushNotificationsAsync() {
         projectId,
       })).data;
       
-      console.log('Expo Push Token:', token);
+      if (__DEV__) console.log('Expo Push Token:', token);
     } catch (e) {
       console.warn('Error fetching push token:', e);
     }

@@ -158,6 +158,49 @@ serve(async (req) => {
 
     const split = await getPaymentSplit(supabaseAdmin, trainerId)
 
+    // A second tap must not open a second subscription. If this athlete
+    // already has a live subscription for this plan, hand back its
+    // pending invoice's client secret (or tell the caller it is already
+    // active) instead of creating another one that bills forever.
+    const { data: existingSub } = await supabaseAdmin
+      .from('client_subscriptions')
+      .select('stripe_subscription_id, status')
+      .eq('client_id', clientId)
+      .eq('plan_id', planId)
+      .maybeSingle()
+
+    if (existingSub?.stripe_subscription_id && ['incomplete', 'active', 'trialing', 'past_due'].includes(existingSub.status)) {
+      try {
+        const live = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id, {
+          expand: ['latest_invoice.payment_intent'],
+        })
+        if (live.status === 'active' || live.status === 'trialing') {
+          return new Response(
+            JSON.stringify({ alreadyActive: true, subscriptionId: live.id, customerId: stripeCustomerId }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        if (live.status === 'incomplete') {
+          const inv = live.latest_invoice as Stripe.Invoice
+          const pi = inv?.payment_intent as Stripe.PaymentIntent | null
+          if (pi?.client_secret) {
+            return new Response(
+              JSON.stringify({ clientSecret: pi.client_secret, customerId: stripeCustomerId, subscriptionId: live.id }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+        }
+        // canceled / incomplete_expired / unpaid → fall through and create anew
+      } catch (e) {
+        console.warn('existing subscription lookup failed; creating fresh:', (e as any)?.message)
+      }
+    }
+
+    // Idempotency: the same athlete + plan within the same hour maps to
+    // one Stripe subscription even if two requests race.
+    const hourBucket = Math.floor(Date.now() / 3_600_000)
+    const idempotencyKey = `sub:${clientId}:${planId}:${hourBucket}`
+
     // Create a Stripe Subscription with a trial or first payment
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
@@ -180,14 +223,18 @@ serve(async (req) => {
         fitlink_org_share_bps: String(split.orgShareBps),
         ...(split.orgId ? { fitlink_org_id: split.orgId } : {}),
       },
-    })
+    }, { idempotencyKey })
 
     // Get the client secret from the subscription's first invoice
     const invoice = subscription.latest_invoice as Stripe.Invoice
     const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent
 
-    // Record subscription in our database
-    await supabaseAdmin
+    // Record subscription in our database. This row is what the webhook
+    // uses to find the athlete when the invoice is paid — if it is not
+    // written, the athlete pays and is never enrolled. So a failure here
+    // is a failure of the whole request: cancel the subscription we just
+    // opened and tell the caller.
+    const { error: subRowErr } = await supabaseAdmin
       .from('client_subscriptions')
       .upsert({
         client_id: clientId,
@@ -201,8 +248,17 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'client_id,plan_id' })
 
+    if (subRowErr) {
+      console.error('client_subscriptions write failed; voiding subscription:', subRowErr.message)
+      try { await stripe.subscriptions.cancel(subscription.id) } catch {}
+      return new Response(
+        JSON.stringify({ error: 'Could not record your subscription. You have not been charged.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Record the initial payment
-    await supabaseAdmin.from('payments').insert({
+    await supabaseAdmin.from('payments').upsert({
       trainer_id: trainerId,
       client_id: clientId,
       plan_id: planId,
@@ -210,7 +266,7 @@ serve(async (req) => {
       amount: paymentIntent.amount,
       currency: 'usd',
       status: 'pending',
-    })
+    }, { onConflict: 'stripe_payment_intent_id', ignoreDuplicates: true })
 
     return new Response(
       JSON.stringify({

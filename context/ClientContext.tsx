@@ -223,7 +223,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       setHealthSharingEnabled(!!client.health_sharing_enabled);
 
       const [
-        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes
+        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes, subscriptionRes
       ] = await Promise.all([
         // Explicit columns, not select('*'): the athlete's own coach row was
         // handing over stripe_account_id (the coach's Stripe Connect account)
@@ -263,7 +263,17 @@ export function ClientProvider({ children }: PropsWithChildren) {
         // map, and client_workout_id so the completed-workout count can tell an
         // assignment log apart from a standalone session (lib/workoutCounts.ts).
         // Avoids pulling full log rows (notes, duration, etc).
-        supabase.from('client_workout_logs').select('exercises, client_workout_id').eq('client_id', client.id)
+        supabase.from('client_workout_logs').select('exercises, client_workout_id').eq('client_id', client.id),
+        // The athlete's REAL membership row — written by create-subscription and
+        // kept current by the stripe-webhook. Latest row wins; null when the
+        // athlete has never checked out. Replaces a client-side synthesis that
+        // invented a current_period_end one month out.
+        supabase.from('client_subscriptions')
+          .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, plan_id')
+          .eq('client_id', client.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (__DEV__) console.log('[ClientContext] Related data:', JSON.stringify({
@@ -291,6 +301,18 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (convRes.data) setConversation(convRes.data);
       if (plansRes.data) setPlans(plansRes.data);
       if (payRes.data) setPaymentHistory(payRes.data);
+      if (subscriptionRes?.error) {
+        if (__DEV__) console.log('[ClientContext] subscription fetch error:', subscriptionRes.error.message);
+        setSubscription(null);
+      } else if (subscriptionRes?.data) {
+        const row: any = subscriptionRes.data;
+        setSubscription({
+          ...row,
+          plans: (plansRes.data || []).find((p: any) => p.id === row.plan_id) ?? null,
+        });
+      } else {
+        setSubscription(null);
+      }
       let pickedEnrollment: any = null;
       if (enrollmentRes?.error && __DEV__) {
         console.log('[ClientContext] enrollment fetch error:', enrollmentRes.error.message);
@@ -420,26 +442,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
     };
   }, [clientData?.id, refreshData]);
 
-  // Synthesize subscription object from clientData
-  useEffect(() => {
-    if (clientData && clientData.status === 'active') {
-      const activePlan = plans.find(p => p.id === clientData.plan_id) || {
-        id: clientData.plan_id || 'custom-plan',
-        name: 'Personal Coaching',
-        price: '---',
-        interval: 'monthly'
-      };
-      
-      setSubscription({
-        id: 'sub_' + clientData.id,
-        status: clientData.status,
-        current_period_end: clientData.trial_end_date || new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
-        plans: activePlan
-      });
-      return;
-    }
-    setSubscription(null);
-  }, [clientData, plans]);
+  // `subscription` is the real client_subscriptions row (set in fetchClientData
+  // above). It is no longer synthesised from clientData.status — that version
+  // invented a current_period_end and showed a "membership" to anyone the coach
+  // had marked active, checkout or not.
 
 
   // Log individual exercise set completion (in-memory only)
@@ -932,12 +938,24 @@ export function ClientProvider({ children }: PropsWithChildren) {
       .from('clients')
       .update({ health_sharing_enabled: enabled })
       .eq('id', clientData.id);
-    if (!error) {
-      setHealthSharingEnabled(enabled);
-      setClientData((prev) => prev ? { ...prev, health_sharing_enabled: enabled } as any : prev);
-    } else {
-      throw error;
+    if (error) throw error;
+
+    setHealthSharingEnabled(enabled);
+    setClientData((prev) => prev ? { ...prev, health_sharing_enabled: enabled } as any : prev);
+
+    if (!enabled) {
+      // Withdrawing consent removes what was already shared, not just future
+      // syncs. Retried once; a failure is reported (dev) but does not undo
+      // the flag — the coach-side read is gated on the flag regardless.
+      const wipe = () => supabase.from('client_health_snapshots').delete().eq('client_id', clientData.id);
+      let { error: wipeError } = await wipe();
+      if (wipeError) ({ error: wipeError } = await wipe());
+      if (wipeError && __DEV__) {
+        console.warn('[ClientContext] Health snapshots not deleted after opting out:', wipeError.message);
+      }
     }
+    // Turning ON: HealthContext watches healthSharingEnabled and syncs on the
+    // rising edge (it sits below this provider, so it cannot be called here).
   }, [clientData]);
 
   const checkInGym = useCallback(async () => {

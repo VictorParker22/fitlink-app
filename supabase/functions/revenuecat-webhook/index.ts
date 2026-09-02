@@ -71,6 +71,19 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // RevenueCat does not guarantee delivery order. A late EXPIRATION for an
+  // old period arriving after a fresh purchase must not revoke the new
+  // one, and a late grant must not shorten a longer one. Read the current
+  // value and only move it in the direction the event justifies.
+  const readCurrent = async (): Promise<number> => {
+    if (isElite) {
+      const { data } = await admin.from('trainers').select('elite_until').eq('id', appUserId).maybeSingle();
+      return data?.elite_until ? new Date(data.elite_until).getTime() : 0;
+    }
+    const { data } = await admin.from('clients').select('premium_until').eq('auth_user_id', appUserId).maybeSingle();
+    return data?.premium_until ? new Date(data.premium_until).getTime() : 0;
+  };
+
   let eliteUntil: string | null = null;
   if (GRANT_EVENTS.has(type)) {
     // expiration_at_ms is RevenueCat's authoritative expiry. A 3-day grace
@@ -83,7 +96,20 @@ serve(async (req) => {
       // Non-expiring purchase shape — grant a renewal-length window.
       eliteUntil = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString();
     }
+    // Grants only move forward.
+    const current = await readCurrent();
+    if (current >= new Date(eliteUntil).getTime()) {
+      return new Response(JSON.stringify({ ok: true, noop: 'stale-grant' }), { status: 200 });
+    }
   } else if (REVOKE_EVENTS.has(type)) {
+    // Revoke only if the stored expiry belongs to the period this event
+    // closes. If a newer purchase pushed it further out, leave it.
+    const current = await readCurrent();
+    const expMs = Number(event?.expiration_at_ms);
+    const grace = 3 * 24 * 60 * 60 * 1000;
+    if (Number.isFinite(expMs) && expMs > 0 && current > expMs + grace + 60_000) {
+      return new Response(JSON.stringify({ ok: true, noop: 'stale-expiration' }), { status: 200 });
+    }
     eliteUntil = new Date().toISOString();
   } else {
     // TRANSFER, BILLING_ISSUE, CANCELLATION, TEST … — no access change.

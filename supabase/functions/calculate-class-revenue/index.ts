@@ -1,6 +1,24 @@
 // supabase/functions/calculate-class-revenue/index.ts
 // Deploy with: supabase functions deploy calculate-class-revenue
-// Set secrets: supabase secrets set STRIPE_SECRET=sk_test_...
+//
+// Monthly on-demand class revenue share. Service-role only.
+//
+// THE POOL IS AN INPUT, NOT A GUESS. On-demand classes are sold through
+// RevenueCat (client_premium), so the platform receives NET proceeds after
+// the App Store / Play commission. The old version computed
+// `count(class_subscriptions) × $19.99 × 90%` from a Stripe table nothing
+// writes any more — and, rewired to IAP headcount, it would have paid out
+// more than the platform received. The caller now passes
+// `netProceedsCents` (from the RevenueCat / App Store Connect payout for
+// that month); the coach pool is 90% of that.
+//
+// LEDGER BEFORE MONEY. class_revenue_shares is written as `pending` before
+// stripe.transfers.create, then flipped to `completed`. The previous
+// ordering wrote the ledger after the transfer with column names that did
+// not exist, so the write always failed and a retry paid everyone again.
+// Transfers also carry an idempotency key derived from (trainer, month).
+//
+// Body: { month?: 'YYYY-MM', netProceedsCents: number, dryRun?: boolean }
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
@@ -15,31 +33,36 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+
+const COACH_SHARE = 0.90
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    // MOVES REAL MONEY. This was callable by anyone: each invocation
-    // recomputed the pool and issued FRESH stripe.transfers.create() calls
-    // to coach Connect accounts, and the class_revenue_shares upsert
-    // happened AFTER the transfer without gating it — so looping the
-    // endpoint paid the pool out again and again. Payouts are a cron/
-    // service-role job, never something the app can trigger.
     requireServiceRole(req)
 
     const body = await req.json().catch(() => ({}))
     let { month } = body
+    const dryRun = body?.dryRun === true
+    const netProceedsCents = Number(body?.netProceedsCents)
+
+    if (!Number.isFinite(netProceedsCents) || netProceedsCents < 0) {
+      return json({ error: 'netProceedsCents (integer, post-store-commission) is required' }, 400)
+    }
 
     if (!month) {
-      // Default to previous month if not provided
       const date = new Date()
       date.setMonth(date.getMonth() - 1)
-      const year = date.getFullYear()
-      const m = (date.getMonth() + 1).toString().padStart(2, '0')
-      month = `${year}-${m}`
+      month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    }
+    if (!/^\d{4}-\d{2}$/.test(String(month))) {
+      return json({ error: 'month must be YYYY-MM' }, 400)
     }
 
     const supabaseAdmin = createClient(
@@ -47,138 +70,110 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // 1. Calculate total active On-Demand Pass subscribers for the month
-    // Note: In a real scenario you might look at historical data, but for this exercise we take current active count
-    // or records active during that month. Following the prompt's instruction:
-    const { count: subscriberCount, error: countError } = await supabaseAdmin
-      .from('class_subscriptions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
+    const grossPool = Math.round(netProceedsCents)
+    const coachPool = Math.floor(grossPool * COACH_SHARE)
 
-    if (countError) {
-      throw new Error(`Failed to count subscribers: ${countError.message}`)
-    }
+    // Per-coach watch minutes. The RPC returns { trainer_id, minutes }.
+    const { data: coachMinutes, error: minutesError } = await supabaseAdmin
+      .rpc('get_coach_watch_minutes', { target_month: month })
+    if (minutesError) throw new Error(`Failed to get coach minutes: ${minutesError.message}`)
 
-    const totalSubscribers = subscriberCount || 0
+    const rows: { trainer_id: string; minutes: number }[] = (coachMinutes ?? [])
+      .map((r: any) => ({ trainer_id: r.trainer_id, minutes: Number(r.minutes ?? 0) }))
+      .filter((r) => r.minutes > 0)
+    const totalMinutes = rows.reduce((s, r) => s + r.minutes, 0)
 
-    // 2. Total revenue = subscriber_count * 1999 (cents)
-    const totalRevenue = totalSubscribers * 1999
+    const distributions: any[] = []
 
-    // 3. Platform cut = 10%
-    const platformCut = Math.round(totalRevenue * 0.10)
+    if (coachPool > 0 && totalMinutes > 0) {
+      for (const coach of rows) {
+        const sharePercentage = coach.minutes / totalMinutes
+        const payoutCents = Math.floor(coachPool * sharePercentage)
 
-    // 4. Coach pool = totalRevenue - platformCut
-    const coachPool = totalRevenue - platformCut
+        // Idempotency: the ledger row is the source of truth.
+        const { data: prior } = await supabaseAdmin
+          .from('class_revenue_shares')
+          .select('id, stripe_transfer_id, status')
+          .eq('trainer_id', coach.trainer_id)
+          .eq('month', month)
+          .maybeSingle()
 
-    const distributions = []
-
-    if (coachPool > 0) {
-      // 5. Get per-coach watch minutes using RPC
-      const { data: coachMinutes, error: minutesError } = await supabaseAdmin.rpc('get_coach_watch_minutes', {
-        target_month: month
-      })
-
-      if (minutesError) {
-        throw new Error(`Failed to get coach minutes: ${minutesError.message}`)
-      }
-
-      if (coachMinutes && coachMinutes.length > 0) {
-        // 6. Calculate total minutes across all coaches
-        const totalMinutes = coachMinutes.reduce((sum: number, row: any) => sum + Number(row.total_minutes || 0), 0)
-
-        if (totalMinutes > 0) {
-          // 7. For each coach calculate share and distribute
-          for (const coach of coachMinutes) {
-            const minutes = Number(coach.total_minutes || 0)
-            if (minutes <= 0) continue
-
-            const sharePercentage = minutes / totalMinutes
-            const payoutCents = Math.round(coachPool * sharePercentage)
-            
-            let transferId = null
-            let transferStatus = 'pending'
-
-            const { data: trainerData } = await supabaseAdmin
-              .from('trainers')
-              .select('stripe_account_id')
-              .eq('id', coach.trainer_id)
-              .single()
-
-            // IDEMPOTENCY. Without this, re-running a month re-pays it.
-            // class_revenue_shares is the ledger — if this (trainer, month)
-            // already completed, skip the transfer entirely.
-            const { data: priorShare } = await supabaseAdmin
-              .from('class_revenue_shares')
-              .select('stripe_transfer_id, status')
-              .eq('trainer_id', coach.trainer_id)
-              .eq('month', month)
-              .maybeSingle()
-
-            if (priorShare?.status === 'completed' && priorShare?.stripe_transfer_id) {
-              transferId = priorShare.stripe_transfer_id
-              transferStatus = 'completed'
-              console.log(`Skipping already-paid share for ${coach.trainer_id} ${month}`)
-            } else if (trainerData?.stripe_account_id && payoutCents > 0) {
-              try {
-                const transfer = await stripe.transfers.create({
-                  amount: payoutCents,
-                  currency: 'usd',
-                  destination: trainerData.stripe_account_id,
-                  description: `FitLink On-Demand class revenue share for ${month}`,
-                })
-                transferId = transfer.id
-                transferStatus = 'completed'
-              } catch (transferErr: any) {
-                console.error(`Transfer failed for trainer ${coach.trainer_id}:`, transferErr)
-                transferStatus = 'failed'
-              }
-            } else {
-              transferStatus = 'no_account'
-            }
-
-            // Upsert into class_revenue_shares table
-            await supabaseAdmin.from('class_revenue_shares').upsert({
-              trainer_id: coach.trainer_id,
-              month: month,
-              watch_minutes: minutes,
-              share_percentage: sharePercentage,
-              payout_amount: payoutCents,
-              stripe_transfer_id: transferId,
-              status: transferStatus,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'trainer_id,month' })
-
-            distributions.push({
-              trainer_id: coach.trainer_id,
-              minutes,
-              sharePercentage,
-              payoutCents,
-              transferId,
-              status: transferStatus
-            })
-          }
+        if (prior?.status === 'completed' && prior?.stripe_transfer_id) {
+          distributions.push({ trainer_id: coach.trainer_id, minutes: coach.minutes, payoutCents, status: 'already_paid', transferId: prior.stripe_transfer_id })
+          continue
         }
+
+        const { data: trainerData } = await supabaseAdmin
+          .from('trainers')
+          .select('stripe_account_id')
+          .eq('id', coach.trainer_id)
+          .maybeSingle()
+
+        const base = {
+          trainer_id: coach.trainer_id,
+          month,
+          total_watch_minutes: coach.minutes,
+          platform_total_minutes: totalMinutes,
+          share_percentage: Number(sharePercentage.toFixed(4)),
+          gross_pool_cents: grossPool,
+          payout_cents: payoutCents,
+          calculated_at: new Date().toISOString(),
+        }
+
+        if (dryRun) {
+          distributions.push({ ...base, status: 'dry_run' })
+          continue
+        }
+
+        if (!trainerData?.stripe_account_id || payoutCents <= 0) {
+          const { error } = await supabaseAdmin
+            .from('class_revenue_shares')
+            .upsert({ ...base, status: 'no_account', stripe_transfer_id: null }, { onConflict: 'trainer_id,month' })
+          if (error) throw new Error(`Ledger write failed: ${error.message}`)
+          distributions.push({ ...base, status: 'no_account' })
+          continue
+        }
+
+        // 1. Ledger first, as pending.
+        const { error: pendErr } = await supabaseAdmin
+          .from('class_revenue_shares')
+          .upsert({ ...base, status: 'pending' }, { onConflict: 'trainer_id,month' })
+        if (pendErr) throw new Error(`Ledger write failed: ${pendErr.message}`)
+
+        // 2. Money, with an idempotency key so a retry cannot double-pay
+        //    even if the ledger flip below is lost.
+        let transferId: string | null = null
+        let status = 'failed'
+        try {
+          const transfer = await stripe.transfers.create({
+            amount: payoutCents,
+            currency: 'usd',
+            destination: trainerData.stripe_account_id,
+            description: `FitLink on-demand class revenue share for ${month}`,
+            metadata: { fitlink_trainer_id: coach.trainer_id, fitlink_month: month },
+          }, { idempotencyKey: `class-share:${coach.trainer_id}:${month}` })
+          transferId = transfer.id
+          status = 'completed'
+        } catch (transferErr: any) {
+          console.error(`Transfer failed for trainer ${coach.trainer_id}:`, transferErr?.message)
+        }
+
+        // 3. Flip the ledger.
+        const { error: doneErr } = await supabaseAdmin
+          .from('class_revenue_shares')
+          .update({ status, stripe_transfer_id: transferId })
+          .eq('trainer_id', coach.trainer_id)
+          .eq('month', month)
+        if (doneErr) console.error(`Ledger flip failed for ${coach.trainer_id} ${month}:`, doneErr.message)
+
+        distributions.push({ ...base, status, transferId })
       }
     }
 
-    // 8. Return summary
-    return new Response(
-      JSON.stringify({
-        month,
-        totalSubscribers,
-        totalRevenue,
-        platformCut,
-        coachPool,
-        distributions
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ month, dryRun, grossPool, coachPool, totalMinutes, coaches: rows.length, distributions })
   } catch (err: any) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'calculate-class-revenue' })
     console.error('Error calculating class revenue:', err)
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ error: err.message }, 500)
   }
 })

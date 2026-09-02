@@ -139,14 +139,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
 
       // ── Layers: identify authenticated user ──────────────────────────────
+      // Id and role only. Email, phone, name and signup date are PII the
+      // analytics vendor has no need for — they never leave the app.
       try {
-        layers.identify(s.user.id, {
-          email: s.user.email,
-          phone: s.user.phone,
-          role,
-          name: s.user.user_metadata?.name,
-          signup_date: s.user.created_at,
-        });
+        layers.identify(s.user.id, { role });
       } catch (e) {
         if (__DEV__) console.warn('[Layers] identify error:', e);
       }
@@ -163,6 +159,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
       handleSession(s);
+    }).catch((e) => {
+      // getSession can REJECT (not just return {error}) — a dead network at
+      // launch, or storage that throws. Without this catch `loading` never
+      // cleared and AuthGuard rendered null forever: a blank app when offline.
+      // Resolve auth as signed-out; a later onAuthStateChange can still restore.
+      if (__DEV__) console.warn('[AuthContext] Session restore threw, continuing signed out:', e);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     });
 
 
@@ -246,11 +251,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
     if (error) throw error;
 
-    // Set role to client in metadata
+    // Set role to client in metadata. This write is load-bearing: the
+    // signup trigger defaults a fresh user to a trainer row, and handleSession
+    // reads the role from metadata. If it silently failed, the athlete was
+    // routed into the coach wizard with no way back. Check it, retry once,
+    // and on a second failure sign out and surface the error — never route
+    // on a guessed role.
     if (data.user) {
       const meta: Record<string, string> = { role: 'client' };
       if (name) meta.name = name;
-      await supabase.auth.updateUser({ data: meta });
+      let { error: roleError } = await supabase.auth.updateUser({ data: meta });
+      if (roleError) {
+        ({ error: roleError } = await supabase.auth.updateUser({ data: meta }));
+      }
+      if (roleError) {
+        if (__DEV__) console.warn('[AuthContext] Athlete role not written:', roleError.message);
+        await supabase.auth.signOut().catch(() => {});
+        throw new Error("We couldn't finish setting up your athlete account. Check your connection and try again.");
+      }
       // DB trigger handles auto-linking by phone via raw_user_meta_data
     }
 

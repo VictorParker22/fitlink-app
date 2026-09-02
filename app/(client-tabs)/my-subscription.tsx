@@ -27,6 +27,17 @@ export default function MySubscriptionScreen() {
 
   const memberYear = clientData?.created_at ? new Date(clientData.created_at).getFullYear() : new Date().getFullYear();
 
+  // `subscription` is the real client_subscriptions row (ClientContext). The
+  // card shows while the membership is live: status active, OR cancelled at
+  // period end but the paid-for period hasn't ended yet. In the second case
+  // the row reads "Ends {date}" — there is no renewal to promise.
+  const periodEndMs = subscription?.current_period_end ? new Date(subscription.current_period_end).getTime() : NaN;
+  const periodEndFuture = Number.isFinite(periodEndMs) && periodEndMs > Date.now();
+  const isCanceling = !!subscription?.cancel_at_period_end && periodEndFuture;
+  const membershipLive = !!subscription && (subscription.status === 'active' || isCanceling);
+  const periodEndLabel = Number.isFinite(periodEndMs) ? new Date(periodEndMs).toLocaleDateString() : null;
+  const priceInterval = subscription?.plans?.period === 'year' ? 'year' : 'month';
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -42,7 +53,9 @@ export default function MySubscriptionScreen() {
     showAlert({
       type: 'confirm',
       title: 'Cancel subscription?',
-      message: `Are you sure you want to cancel? You will retain access until the end of your current billing period (${new Date(subscription.current_period_end).toLocaleDateString()}).`,
+      message: periodEndLabel
+        ? `Are you sure you want to cancel? You will keep access until the end of your current billing period, ${periodEndLabel}.`
+        : 'Are you sure you want to cancel? You will keep access until the end of your current billing period.',
       buttons: [
         { text: 'Keep Subscription', style: 'cancel' },
         {
@@ -132,38 +145,42 @@ export default function MySubscriptionScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} colors={[CoachColors.accent]} />}
       >
         {/* ── HERO: ACTIVE PLAN ── */}
-        {subscription && subscription.plans ? (
+        {membershipLive ? (
           <View style={styles.heroCard}>
             {/* Accent top line */}
-            <View style={[styles.heroAccentLine, subscription.status === 'canceled' && { backgroundColor: CoachColors.danger }]} />
+            <View style={[styles.heroAccentLine, isCanceling && { backgroundColor: CoachColors.danger }]} />
 
             <View style={styles.heroContent}>
               <View style={styles.heroTop}>
                 <View style={styles.heroIconBadge}>
                   <Ionicons name="star" size={20} color={CoachColors.accent} />
                 </View>
-                <View style={[styles.statusBadge, subscription.status === 'canceled' && styles.statusBadgeCanceled]}>
-                  <Text style={[styles.statusText, subscription.status === 'canceled' && styles.statusTextCanceled]}>
-                    {subscription.status.toUpperCase()}
+                <View style={[styles.statusBadge, isCanceling && styles.statusBadgeCanceled]}>
+                  <Text style={[styles.statusText, isCanceling && styles.statusTextCanceled]}>
+                    {isCanceling ? 'ENDING' : 'ACTIVE'}
                   </Text>
                 </View>
               </View>
 
-              <Text style={styles.planName}>{subscription.plans.name}</Text>
-              <Text style={styles.planPrice}>
-                <Text style={styles.planPriceAccent}>${subscription.plans.price}</Text>
-                <Text style={styles.planInterval}> / month</Text>
-              </Text>
+              <Text style={styles.planName}>{subscription.plans?.name ?? 'Coaching plan'}</Text>
+              {subscription.plans?.price != null && (
+                <Text style={styles.planPrice}>
+                  <Text style={styles.planPriceAccent}>${subscription.plans.price}</Text>
+                  <Text style={styles.planInterval}> / {priceInterval}</Text>
+                </Text>
+              )}
 
               <View style={styles.heroDivider} />
 
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>NEXT BILLING</Text>
-                <Text style={styles.detailValue}>
-                  {subscription.status === 'canceled' ? 'Cancels ' : 'Renews '}
-                  {new Date(subscription.current_period_end).toLocaleDateString()}
-                </Text>
-              </View>
+              {periodEndLabel && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{isCanceling ? 'ACCESS' : 'NEXT BILLING'}</Text>
+                  <Text style={styles.detailValue}>
+                    {isCanceling ? 'Ends ' : 'Renews '}
+                    {periodEndLabel}
+                  </Text>
+                </View>
+              )}
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>MEMBER SINCE</Text>
                 <Text style={styles.detailValue}>{memberYear}</Text>
@@ -181,7 +198,7 @@ export default function MySubscriptionScreen() {
         )}
 
         {/* ── PAYMENT METHOD ── */}
-        {subscription && (
+        {membershipLive && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>PAYMENT METHOD</Text>
             <View style={styles.sectionDivider} />
@@ -248,8 +265,8 @@ export default function MySubscriptionScreen() {
           )}
         </View>
 
-        {/* ── AVAILABLE PLANS (no subscription) ── */}
-        {!subscription && plans && plans.length > 0 && (
+        {/* ── AVAILABLE PLANS (no live membership) ── */}
+        {!membershipLive && plans && plans.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>AVAILABLE PLANS</Text>
             <View style={styles.sectionDivider} />
@@ -290,14 +307,15 @@ export default function MySubscriptionScreen() {
           </View>
         )}
 
-        {/* ── DANGER ZONE: CANCEL ── */}
-        {subscription && subscription.status === 'active' && (
+        {/* ── DANGER ZONE: CANCEL — only while a renewal is still scheduled ── */}
+        {membershipLive && !isCanceling && (
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: CoachColors.danger }]}>DANGER ZONE</Text>
             <View style={[styles.sectionDivider, { backgroundColor: CoachColors.dangerSoft }]} />
             <Text style={styles.dangerText}>
-              Cancel your subscription. You'll retain access until{' '}
-              {new Date(subscription.current_period_end).toLocaleDateString()}.
+              {periodEndLabel
+                ? `Cancel your subscription. You'll keep access until ${periodEndLabel}.`
+                : 'Cancel your subscription. You\'ll keep access until the end of your current billing period.'}
             </Text>
             <TouchableOpacity
               style={styles.cancelBtn}

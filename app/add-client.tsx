@@ -99,9 +99,17 @@ function intakeHasDetailBeyondChips(ad: any): boolean {
   return intakeGoal(ad, true) !== intakeGoal(ad, false);
 }
 
-function formatTrialEndDate(): string {
+const TRIAL_DAYS = 14;
+
+/** The trial's end, TRIAL_DAYS from now — written to clients.trial_end_date. */
+function trialEndDate(): Date {
   const d = new Date();
-  d.setDate(d.getDate() + 14);
+  d.setDate(d.getDate() + TRIAL_DAYS);
+  return d;
+}
+
+function formatTrialEndDate(): string {
+  const d = trialEndDate();
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
@@ -300,6 +308,12 @@ export default function AddClientScreen() {
         status: derivedStatus,
         trainer_id: user.id,
       };
+      // A trial has a real end date on the row so the athlete profile's
+      // countdown reads the same day this wizard promised. Nothing schedules
+      // a charge at that date — the athlete checks out themselves.
+      if (derivedStatus === 'trial') {
+        insertPayload.trial_end_date = trialEndDate().toISOString();
+      }
       if (goals.trim() || notes.trim()) {
         insertPayload.assessment_data = {
           ...(goals.trim() ? { fitness_goals: goals.split(',').map(g => g.trim()).filter(Boolean) } : {}),
@@ -754,8 +768,8 @@ export default function AddClientScreen() {
                       onPress={() => setStartMode('trial')}
                       activeOpacity={0.7}
                     >
-                      <Text style={[st.startModeTitle, startMode === 'trial' && st.startModeTitleActive]}>14-day trial</Text>
-                      <Text style={st.startModeDesc}>Charges after {trialEndLabel}</Text>
+                      <Text style={[st.startModeTitle, startMode === 'trial' && st.startModeTitleActive]}>{TRIAL_DAYS}-day trial</Text>
+                      <Text style={st.startModeDesc}>Trial until {trialEndLabel} · no charge until they check out</Text>
                     </TouchableOpacity>
                     <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
                       style={[st.startModeCard, startMode === 'paying' && st.startModeCardActive]}
@@ -888,7 +902,7 @@ export default function AddClientScreen() {
               {step === 2 && (
                 selectedPlanData ? (
                   <Text style={st.ctaSubtext}>
-                    {selectedPlanData.name} · {startMode === 'trial' ? `trial until ${trialEndLabel}, then` : 'charges'} ${selectedPlanData.price}/{selectedPlanData.period || 'mo'}
+                    {selectedPlanData.name} · {startMode === 'trial' ? `trial until ${trialEndLabel} · no charge until they check out` : `charges $${selectedPlanData.price}/${selectedPlanData.period === 'year' ? 'yr' : 'mo'}`}
                   </Text>
                 ) : (
                   <Text style={st.ctaSubtext}>No pass · 1-on-1 coaching only</Text>

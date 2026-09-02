@@ -138,7 +138,7 @@ export default function SoloScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const { clientData, todayWorkout, workouts, progressLogs } = useClient();
+  const { clientData, todayWorkout, workouts, progressLogs, healthSharingEnabled } = useClient();
   const { isConnected: healthConnected, healthData } = useHealth();
   const { workoutHistory } = useWorkout();
 
@@ -149,6 +149,11 @@ export default function SoloScreen() {
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
+  // A 402 in the seconds after a local purchase is RevenueCat's webhook
+  // still landing, not a missing subscription. Don't bounce the athlete back
+  // to the paywall they just paid on — show a quiet "activating" line.
+  const [activating, setActivating] = useState(false);
+  const lastPurchaseAtRef = useRef(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
   const sendingRef = useRef(false);
@@ -226,80 +231,106 @@ export default function SoloScreen() {
     if (streak.days > 0) {
       ctx.training_streak = `${streak.days} consecutive day${streak.days === 1 ? '' : 's'}${streak.trainedToday ? ', trained today' : ''}`;
     }
-    if (healthConnected && healthData && healthData.stepsToday > 0) {
+    // Steps leave the device only under the same consent that gates the
+    // coach's view — health sharing off means the corner never sees them.
+    if (healthSharingEnabled && healthConnected && healthData && healthData.stepsToday > 0) {
       ctx.steps_today = String(healthData.stepsToday);
     }
     const lastCheckIn = progressLogs?.[0]?.date;
     if (lastCheckIn) ctx.last_check_in = String(lastCheckIn);
     return ctx;
-  }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthConnected, healthData, progressLogs]);
+  }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthSharingEnabled, healthConnected, healthData, progressLogs]);
 
   // ── Send ───────────────────────────────────────────────────────────────────
   const deliver = useCallback(
     async (athleteMsg: SoloMessage, priorHistory: SoloMessage[]) => {
       if (!clientData?.id) return;
       setWaiting(true);
+      // try/finally: a thrown invoke (network down mid-call) used to leave
+      // `waiting` stuck true — typing dots forever and the send button dead.
+      try {
+        const history = priorHistory
+          .filter((m) => !m.failed)
+          .slice(-12)
+          .map((m) => ({ role: m.role, content: m.content }));
 
-      const history = priorHistory
-        .filter((m) => !m.failed)
-        .slice(-12)
-        .map((m) => ({ role: m.role, content: m.content }));
+        const { data, error } = await supabase.functions.invoke('solo-corner', {
+          body: {
+            message: athleteMsg.content,
+            history,
+            context: buildContext(),
+            character: character.key,
+          },
+        });
 
-      const { data, error } = await supabase.functions.invoke('solo-corner', {
-        body: {
-          message: athleteMsg.content,
-          history,
-          context: buildContext(),
-          character: character.key,
-        },
-      });
-
-      setWaiting(false);
-
-      if (error) {
-        const status = (error as any)?.context?.status;
-        if (status === 402) {
-          setPaywallVisible(true);
+        if (error) {
+          const status = (error as any)?.context?.status;
+          if (status === 402) {
+            if (Date.now() - lastPurchaseAtRef.current < 90_000) {
+              setActivating(true);
+            } else {
+              setPaywallVisible(true);
+            }
+          }
+          // Quiet inline retry on the bubble — never a toast storm.
+          setMessages((prev) =>
+            prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
+          );
+          return;
         }
-        // Quiet inline retry on the bubble — never a toast storm.
+
+        const reply: string | undefined = data?.reply;
+        if (!reply) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
+          );
+          return;
+        }
+
+        // A reply means the entitlement landed — the activating line is done.
+        setActivating(false);
+
+        const cornerMsg: SoloMessage = {
+          id: `local-corner-${Date.now()}`,
+          role: 'corner',
+          content: reply,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, cornerMsg]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+        // Persist the corner row — {error}-checked, quiet failure tolerable
+        // (the reply already rendered; the row simply misses history).
+        const { data: row, error: insertError } = await supabase
+          .from('solo_messages')
+          .insert({ client_id: clientData.id, role: 'corner', content: reply })
+          .select('id, role, content, created_at')
+          .single();
+        if (insertError) {
+          if (__DEV__) console.warn('[Solo] corner row not saved:', insertError.message);
+        } else if (row) {
+          setMessages((prev) => prev.map((m) => (m.id === cornerMsg.id ? (row as SoloMessage) : m)));
+        }
+      } catch (e) {
+        if (__DEV__) console.warn('[Solo] deliver threw:', e);
         setMessages((prev) =>
           prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
         );
-        return;
-      }
-
-      const reply: string | undefined = data?.reply;
-      if (!reply) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
-        );
-        return;
-      }
-
-      const cornerMsg: SoloMessage = {
-        id: `local-corner-${Date.now()}`,
-        role: 'corner',
-        content: reply,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, cornerMsg]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-
-      // Persist the corner row — {error}-checked, quiet failure tolerable
-      // (the reply already rendered; the row simply misses history).
-      const { data: row, error: insertError } = await supabase
-        .from('solo_messages')
-        .insert({ client_id: clientData.id, role: 'corner', content: reply })
-        .select('id, role, content, created_at')
-        .single();
-      if (insertError) {
-        if (__DEV__) console.warn('[Solo] corner row not saved:', insertError.message);
-      } else if (row) {
-        setMessages((prev) => prev.map((m) => (m.id === cornerMsg.id ? (row as SoloMessage) : m)));
+      } finally {
+        setWaiting(false);
       }
     },
     [clientData?.id, buildContext, character.key]
   );
+
+  // The activating line has a lifetime — the same 90s grace window. Past it,
+  // a 402 is a real paywall again.
+  useEffect(() => {
+    if (!activating) return;
+    const remaining = Math.max(0, 90_000 - (Date.now() - lastPurchaseAtRef.current));
+    const t = setTimeout(() => setActivating(false), remaining);
+    return () => clearTimeout(t);
+  }, [activating]);
 
   const handleSend = useCallback(async () => {
     const content = input.trim();
@@ -317,22 +348,31 @@ export default function SoloScreen() {
     const prior = messages;
     setMessages((prev) => [...prev, athleteMsg]);
 
-    // Persist the athlete row — {error}-checked, quiet failure tolerable.
-    const { data: row, error: insertError } = await supabase
-      .from('solo_messages')
-      .insert({ client_id: clientData.id, role: 'athlete', content })
-      .select('id, role, content, created_at')
-      .single();
-    let liveMsg = athleteMsg;
-    if (insertError) {
-      if (__DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
-    } else if (row) {
-      liveMsg = row as SoloMessage;
-      setMessages((prev) => prev.map((m) => (m.id === athleteMsg.id ? liveMsg : m)));
-    }
+    try {
+      // Persist the athlete row — {error}-checked, quiet failure tolerable.
+      const { data: row, error: insertError } = await supabase
+        .from('solo_messages')
+        .insert({ client_id: clientData.id, role: 'athlete', content })
+        .select('id, role, content, created_at')
+        .single();
+      let liveMsg = athleteMsg;
+      if (insertError) {
+        if (__DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
+      } else if (row) {
+        liveMsg = row as SoloMessage;
+        setMessages((prev) => prev.map((m) => (m.id === athleteMsg.id ? liveMsg : m)));
+      }
 
-    await deliver(liveMsg, prior);
-    sendingRef.current = false;
+      await deliver(liveMsg, prior);
+    } catch (e) {
+      if (__DEV__) console.warn('[Solo] send threw:', e);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
+      );
+    } finally {
+      // Always released — a throw above used to leave the composer locked.
+      sendingRef.current = false;
+    }
   }, [input, clientData?.id, messages, deliver]);
 
   // Retry a failed message: the row (when it saved) is already in
@@ -343,8 +383,11 @@ export default function SoloScreen() {
       sendingRef.current = true;
       setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, failed: false } : m)));
       const prior = messages.slice(0, messages.findIndex((m) => m.id === msg.id));
-      await deliver({ ...msg, failed: false }, prior);
-      sendingRef.current = false;
+      try {
+        await deliver({ ...msg, failed: false }, prior);
+      } finally {
+        sendingRef.current = false;
+      }
     },
     [messages, deliver]
   );
@@ -464,6 +507,16 @@ export default function SoloScreen() {
           />
         )}
 
+        {/* ── Post-purchase grace: entitlement is propagating ── */}
+        {activating && (
+          <View style={s.activatingRow} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={C.accent} />
+            <Text style={s.activatingText} maxFontSizeMultiplier={1.3}>
+              Activating your subscription…
+            </Text>
+          </View>
+        )}
+
         {/* ── Honesty footer ── */}
         <View style={s.honestyRow}>
           <Text style={s.honestyText} maxFontSizeMultiplier={1.3}>
@@ -516,7 +569,11 @@ export default function SoloScreen() {
       <SoloPaywall
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        onSuccess={() => setPaywallVisible(false)}
+        onSuccess={() => {
+          // Opens the 90s grace window for the webhook to land server-side.
+          lastPurchaseAtRef.current = Date.now();
+          setPaywallVisible(false);
+        }}
       />
     </View>
   );
@@ -612,6 +669,13 @@ const s = StyleSheet.create({
     backgroundColor: C.textSecondary,
   },
 
+  activatingRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, paddingBottom: 8,
+  },
+  activatingText: {
+    fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary,
+  },
   honestyRow: { paddingHorizontal: 20, paddingBottom: 8 },
   honestyText: {
     fontFamily: F.body, fontSize: 12, lineHeight: 17.5,

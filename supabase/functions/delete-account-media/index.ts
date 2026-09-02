@@ -34,18 +34,28 @@ const json = (body: unknown, status = 200) =>
 
 /** Remove every object under `prefix/` in `bucket`. Returns how many went. */
 async function purgePrefix(admin: any, bucket: string, prefix: string) {
-  const { data: entries, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000 })
-  if (error) return { bucket, prefix, removed: 0, ok: false, error: error.message }
-  if (!entries || entries.length === 0) return { bucket, prefix, removed: 0, ok: true }
+  // Paginated: list() caps at 1000, and a long-lived account can hold more
+  // chat attachments than that. Loop until a page comes back empty, with
+  // a hard ceiling so a listing bug can't spin forever.
+  let removed = 0
+  for (let page = 0; page < 50; page++) {
+    const { data: entries, error } = await admin.storage
+      .from(bucket)
+      .list(prefix, { limit: 1000, offset: 0 }) // offset stays 0: we delete as we go
+    if (error) return { bucket, prefix, removed, ok: false, error: error.message }
+    if (!entries || entries.length === 0) break
 
-  const paths = entries
-    .filter((e: any) => e?.name && e.id !== null) // skip nested "folders"
-    .map((e: any) => `${prefix}/${e.name}`)
-  if (paths.length === 0) return { bucket, prefix, removed: 0, ok: true }
+    const paths = entries
+      .filter((e: any) => e?.name && e.id !== null) // skip nested "folders"
+      .map((e: any) => `${prefix}/${e.name}`)
+    if (paths.length === 0) break
 
-  const { error: rmErr } = await admin.storage.from(bucket).remove(paths)
-  if (rmErr) return { bucket, prefix, removed: 0, ok: false, error: rmErr.message }
-  return { bucket, prefix, removed: paths.length, ok: true }
+    const { error: rmErr } = await admin.storage.from(bucket).remove(paths)
+    if (rmErr) return { bucket, prefix, removed, ok: false, error: rmErr.message }
+    removed += paths.length
+    if (entries.length < 1000) break
+  }
+  return { bucket, prefix, removed, ok: true }
 }
 
 serve(async (req) => {

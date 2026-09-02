@@ -461,7 +461,7 @@ export default function ChatScreen() {
       }
       setReviewTarget(null);
     } catch (err) {
-      console.error('Send form review failed:', err);
+      if (__DEV__) console.error('Send form review failed:', err);
     } finally {
       setSending(false);
     }
@@ -511,7 +511,7 @@ export default function ChatScreen() {
         }).catch(err => { if (__DEV__) console.log('[Chat] Push error:', err?.message); });
       }
     } catch (err) {
-      console.error('Send custom failed:', err);
+      if (__DEV__) console.error('Send custom failed:', err);
     } finally {
       setSending(false);
       setShowWorkoutPickerModal(false);
@@ -636,7 +636,7 @@ export default function ChatScreen() {
         // Connectivity dropped mid-send — queue it for the reconnect flush.
         await queueLocally(content);
       } else {
-        console.error('Send failed:', err);
+        if (__DEV__) console.error('Send failed:', err);
         setNewMessage(content);
         showAlert({ type: 'error', title: 'Message not sent', message: (err as any)?.message || 'Your message could not be sent. It has been put back in the box — please try again.' });
       }
@@ -692,7 +692,7 @@ export default function ChatScreen() {
         }
 
         const { error: convError } = await supabase.from('conversations').update({
-          last_message: 'Sent an image 📸',
+          last_message: 'Sent an image',
           last_message_at: new Date().toISOString(),
         }).eq('id', conversationId);
         if (__DEV__ && convError) console.warn('[Chat] conversation preview update failed:', convError);
@@ -709,7 +709,7 @@ export default function ChatScreen() {
         }
       }
     } catch (err: any) {
-      console.error('Image upload failed', err);
+      if (__DEV__) console.error('Image upload failed', err);
       showAlert({ type: 'error', title: 'Image not sent', message: err?.message || 'The image could not be uploaded. Please try again.' });
     } finally {
       setSending(false);

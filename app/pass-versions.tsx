@@ -66,8 +66,13 @@ export default function PassVersionsScreen() {
 
   const liveHolders = useMemo(() => enrollments
     .filter(e => e.status === 'active' || e.status === 'paused')
-    .map(e => ({ enrollment: e, client: clients.find(c => c.id === e.client_id) }))
-    .filter(h => !!h.client), [enrollments, clients]);
+    // A deleted athlete's enrollment can outlive their client row. Keep the
+    // holder (the season is still in use) but render it as "Deleted athlete"
+    // instead of dereferencing a missing client.
+    .map(e => {
+      const client = clients.find(c => c.id === e.client_id) ?? null;
+      return { enrollment: e, client, name: client?.name ?? 'Deleted athlete' };
+    }), [enrollments, clients]);
 
   const currentVersionNumber = versions.length > 0 ? versions[0].version + 1 : 1;
   const latestRow = versions[0] ?? null;
@@ -217,7 +222,7 @@ export default function PassVersionsScreen() {
             <View style={st.avatarStack}>
               {onCurrent.slice(0, 5).map((h, i) => (
                 <View key={h.enrollment.id} style={[st.avatar, i > 0 && { marginLeft: -10 }]}>
-                  <Text style={st.avatarText}>{initials(h.client!.name)}</Text>
+                  <Text style={st.avatarText}>{initials(h.name)}</Text>
                 </View>
               ))}
             </View>
@@ -237,21 +242,23 @@ export default function PassVersionsScreen() {
             {holders.map(h => {
               const w = weekOfPosition(h.enrollment.track_position, h.enrollment.track_snapshot ?? [], plan.duration_weeks);
               const end = endDate(h.enrollment);
-              const firstName = h.client!.name.split(' ')[0];
+              const firstName = h.name.split(' ')[0];
               return (
                 <View key={h.enrollment.id} style={st.oldHolderBlock}>
                   <View style={st.oldHolderTop}>
-                    <View style={st.avatar}><Text style={st.avatarText}>{initials(h.client!.name)}</Text></View>
+                    <View style={st.avatar}><Text style={st.avatarText}>{initials(h.name)}</Text></View>
                     <Text style={st.oldHolderName}>
-                      {h.client!.name} only{end ? ` · ends ${end}` : ''}
+                      {h.name} only{end ? ` · ends ${end}` : ''}
                     </Text>
                   </View>
                   <Text style={st.honestyLine}>
-                    {h.client!.name} is {w} week{w === 1 ? '' : 's'} in and paid for this shape of season. Moving them early is your call, not the app's.
+                    {h.name} is {w} week{w === 1 ? '' : 's'} in and paid for this shape of season. Moving them early is your call, not the app's.
                   </Text>
-                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy}>
-                    <Text style={st.askBtnText}>Ask {firstName} if they want v{currentVersionNumber}</Text>
-                  </TouchableOpacity>
+                  {h.client && (
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy}>
+                      <Text style={st.askBtnText}>Ask {firstName} if they want v{currentVersionNumber}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}

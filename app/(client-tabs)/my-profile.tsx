@@ -16,7 +16,7 @@
  * exit and is preserved unchanged.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, TextInput, Switch, KeyboardAvoidingView, Platform,
@@ -47,6 +47,11 @@ export default function ClientProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  // Ref, not just state: two taps in the same frame both see `deleting`
+  // false, and a second delete_client_account call during the first is how
+  // the athlete got a confusing error after their account was already gone.
+  const deletingRef = useRef(false);
   const [healthBusy, setHealthBusy] = useState(false);
 
   const name = clientData?.name || 'You';
@@ -192,6 +197,9 @@ export default function ClientProfileScreen() {
 
   const handleConfirmDelete = async () => {
     if (deleteInput !== 'DELETE') { setShowDeleteModal(false); return; }
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setDeleting(true);
     try {
       // .rpc() resolves with { error } — it does not throw. Without this check
       // a failed deletion still closed the modal and signed the athlete out,
@@ -221,6 +229,9 @@ export default function ClientProfileScreen() {
     } catch (err: any) {
       showAlert({ type: 'error', title: 'Something went wrong', message: err.message || 'Could not delete the account. Contact support.' });
       setShowDeleteModal(false);
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
     }
   };
 
@@ -319,9 +330,11 @@ export default function ClientProfileScreen() {
           <MenuRow label="My sessions and bookings" onPress={() => router.push(ClientRoute.mySessions)} />
           <MenuRow label="My diet plan" onPress={() => router.push(ClientRoute.myDiet)} />
           <MenuRow label="Membership and billing" onPress={() => router.push(ClientRoute.mySubscription)} />
-          {/* Notifications + help-center + terms-privacy are coach-oriented rewrites —
-              clients get the neutral contact-support flow instead. */}
+          {/* Notifications + help-center are coach-oriented rewrites — clients
+              get the neutral contact-support flow instead. The policy screen
+              is shared and stays IN the app (no hand-off to a browser). */}
           <MenuRow label="Help and support" onPress={() => router.push(SharedRoute.contactSupport)} />
+          <MenuRow label="Privacy and terms" onPress={() => router.push(SharedRoute.termsPrivacy)} />
         </View>
 
         {/* Sign out · leave */}
@@ -387,18 +400,22 @@ export default function ClientProfileScreen() {
                 <Text style={s.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
-                style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && { opacity: 0.35 }]}
+                style={[s.modalBtn, s.modalBtnConfirm, deleteInput !== 'DELETE' && !deleting && { opacity: 0.35 }]}
                 onPress={handleConfirmDelete}
-                disabled={deleteInput !== 'DELETE'}
+                disabled={deleteInput !== 'DELETE' || deleting}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Delete forever"
-                accessibilityState={{ disabled: deleteInput !== 'DELETE' }}
-                accessibilityHint={deleteInput !== 'DELETE'
-                  ? 'Unavailable until you type DELETE in the field above'
-                  : 'Permanently erases your account and everything you have logged'}
+                accessibilityState={{ disabled: deleteInput !== 'DELETE' || deleting, busy: deleting }}
+                accessibilityHint={deleting
+                  ? 'Deleting your account, please wait'
+                  : deleteInput !== 'DELETE'
+                    ? 'Unavailable until you type DELETE in the field above'
+                    : 'Permanently erases your account and everything you have logged'}
               >
-                <Text style={s.modalBtnConfirmText}>Delete forever</Text>
+                {deleting
+                  ? <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                  : <Text style={s.modalBtnConfirmText}>Delete forever</Text>}
               </TouchableOpacity>
             </View>
           </View>

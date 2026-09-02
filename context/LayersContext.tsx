@@ -57,8 +57,11 @@ export function LayersAnalyticsProvider({ children }: PropsWithChildren) {
     // 3. Handle deep link attribution
     const handleURL = (url: string | null) => {
       if (!url) return;
-      if (__DEV__) console.log('[Layers] Deep link:', url);
-      layers.track('deep_link_open', { url });
+      // Path only. Query strings and fragments carry invite codes, tokens and
+      // referral ids — attribution needs the route, not the payload.
+      const path = url.split(/[?#]/)[0];
+      if (__DEV__) console.log('[Layers] Deep link:', path);
+      layers.track('deep_link_open', { url: path });
     };
 
     // Cold-start URL (app opened from a link while closed)

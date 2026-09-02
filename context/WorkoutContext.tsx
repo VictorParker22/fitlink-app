@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 // Platform-aware wrapper: expo-secure-store has NO web implementation and
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAlert } from './AlertContext';
 
 // ─── TYPES ───────────────────────────────────────────────
@@ -165,7 +166,28 @@ interface WorkoutContextType {
 
 const STORAGE_KEY = 'fitlink_active_workout';
 const SAVED_KEY = 'fitlink_saved_workouts';
+// History lives in AsyncStorage, NOT SecureStore: Android's Keystore-backed
+// store fails silently above ~2KB, and 200 entries of sets blow past that —
+// history was being dropped on every write. Nothing in it is a secret.
+// Older installs are migrated once from the SecureStore key (below).
 const HISTORY_KEY = 'fitlink_workout_history';
+
+async function loadHistoryWithMigration(): Promise<string | null> {
+  const current = await AsyncStorage.getItem(HISTORY_KEY);
+  if (current) return current;
+  // One-time migration: read the legacy SecureStore copy, move it across,
+  // then remove the old key so this branch never runs again.
+  try {
+    const legacy = await SecureStore.getItemAsync(HISTORY_KEY);
+    if (!legacy) return null;
+    await AsyncStorage.setItem(HISTORY_KEY, legacy);
+    await SecureStore.deleteItemAsync(HISTORY_KEY);
+    return legacy;
+  } catch (e) {
+    if (__DEV__) console.warn('[WorkoutContext] History migration failed:', e);
+    return null;
+  }
+}
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
@@ -187,7 +209,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
         const saved = await SecureStore.getItemAsync(SAVED_KEY);
         if (saved) setSavedSessions(JSON.parse(saved));
         
-        const history = await SecureStore.getItemAsync(HISTORY_KEY);
+        const history = await loadHistoryWithMigration();
         if (history) setWorkoutHistory(JSON.parse(history));
         
         const active = await SecureStore.getItemAsync(STORAGE_KEY);
@@ -309,7 +331,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
 
     setWorkoutHistory(prev => {
       const updated = [entry, ...prev].slice(0, 200); // Keep last 200
-      SecureStore.setItemAsync(HISTORY_KEY, JSON.stringify(updated)).catch(() => {});
+      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
 
@@ -479,7 +501,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     };
     setWorkoutHistory(prev => {
       const updated = [entry, ...prev].slice(0, 200);
-      SecureStore.setItemAsync(HISTORY_KEY, JSON.stringify(updated)).catch(() => {});
+      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
     return entry;
@@ -570,7 +592,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
 
   const clearHistory = useCallback(() => {
     setWorkoutHistory([]);
-    SecureStore.deleteItemAsync(HISTORY_KEY).catch(() => {});
+    AsyncStorage.removeItem(HISTORY_KEY).catch(() => {});
   }, []);
 
   return (

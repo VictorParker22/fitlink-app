@@ -18,11 +18,12 @@ import { onboardedKey } from '../../lib/onboardingFlags';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, SUPABASE_URL } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
 import PermissionCards from '../../components/onboarding/PermissionCards';
 import { getNotificationState, requestNotifications, getCameraMicState, requestCameraMic } from '../../lib/permissions';
+import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../../lib/platformFee';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -53,6 +54,14 @@ export default function TrainerWizardScreen() {
   const { trainer, updateTrainer } = useApp();
   const { user } = useAuth();
   const { showAlert } = useAlert();
+  // The worked example on the payments step uses the coach's REAL split
+  // (lib/platformFee.ts). Figures are omitted while it is unknown — never a
+  // guessed 90/10.
+  const { split } = usePaymentSplit(user?.id ?? trainer?.id);
+  const EXAMPLE_PRICE = 180;
+  const exampleKeeps = split ? coachKeeps(EXAMPLE_PRICE, split) : null;
+  const exampleFee = split ? totalDeduction(EXAMPLE_PRICE, split) : null;
+  const keepPct = split ? split.coachKeepsBps / 100 : null;
 
   const [step, setStep] = useState(0);
   const slideAnim = useSharedValue(0);
@@ -221,7 +230,7 @@ export default function TrainerWizardScreen() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
-        'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-connect-account',
+        `${SUPABASE_URL}/functions/v1/create-connect-account`,
         {
           method: 'POST',
           headers: {
@@ -563,18 +572,36 @@ export default function TrainerWizardScreen() {
             {step === 3 && (
               <>
                 <View style={styles.payCard}>
-                  <Text style={styles.payEyebrow}>On a $180 pass</Text>
-                  <View style={styles.payAmountRow}>
-                    <Text style={styles.payAmount}>$162</Text>
-                    <Text style={styles.payAmountLabel}>reaches you</Text>
-                  </View>
-                  <View style={styles.paySplitTrack}>
-                    <View style={styles.paySplitFill} />
-                  </View>
-                  <View style={styles.paySplitLabels}>
-                    <Text style={styles.paySplitYou}>Your 90%</Text>
-                    <Text style={styles.paySplitFee}>FitLink fee 10% · $18</Text>
-                  </View>
+                  <Text style={styles.payEyebrow}>On a ${EXAMPLE_PRICE} pass</Text>
+                  {split && exampleKeeps != null && exampleFee != null && keepPct != null ? (
+                    <>
+                      <View style={styles.payAmountRow}>
+                        <Text style={styles.payAmount}>${Math.round(exampleKeeps)}</Text>
+                        <Text style={styles.payAmountLabel}>reaches you</Text>
+                      </View>
+                      <View style={styles.paySplitTrack}>
+                        <View style={[styles.paySplitFill, { width: `${keepPct}%` }]} />
+                      </View>
+                      <View style={styles.paySplitLabels}>
+                        <Text style={styles.paySplitYou}>Your {bpsToPercentLabel(split.coachKeepsBps)}</Text>
+                        <Text style={styles.paySplitFee}>
+                          {split.orgShareBps > 0 ? 'Fees' : 'FitLink fee'} {bpsToPercentLabel(split.platformFeeBps + split.orgShareBps)} · ${Math.round(exampleFee)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.payAmountRow}>
+                        <View style={styles.paySkeletonAmount} />
+                        <Text style={styles.payAmountLabel}>reaches you</Text>
+                      </View>
+                      <View style={styles.paySplitTrack} />
+                      <View style={styles.paySplitLabels}>
+                        <Text style={styles.paySplitYou}>Your share</Text>
+                        <Text style={styles.paySplitFee}>Loading your rate…</Text>
+                      </View>
+                    </>
+                  )}
                   <Text style={styles.payFootnote}>Payouts land 2 business days after an athlete is charged.</Text>
                 </View>
 
@@ -739,7 +766,8 @@ const styles = StyleSheet.create({
   payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -0.9, color: CoachColors.accent },
   payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
   paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
-  paySplitFill: { width: '90%', height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous' },
+  paySplitFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous' },
+  paySkeletonAmount: { width: 96, height: 36, borderRadius: 12, borderCurve: 'continuous', backgroundColor: CoachColors.border },
   paySplitLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
   paySplitYou: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
   paySplitFee: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },

@@ -4,17 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAlert } from '../context/AlertContext';
+import { TERMS_URL, PRIVACY_URL } from '../lib/legalLinks';
 
 const PRIVACY_EMAIL = 'privacy@getfitlink.com';
 
 const TERMS_SECTIONS = [
   {
     title: '1. Acceptance of terms',
-    content: 'By downloading, installing, or using the FitLink coach app ("the app"), you agree to be bound by these terms of service. If you do not agree, do not use the app.',
+    content: 'By downloading, installing, or using the FitLink app ("the app"), whether as a coach or as an athlete, you agree to be bound by these terms of service. If you do not agree, do not use the app.',
   },
   {
     title: '2. Description of service',
-    content: 'FitLink provides coaches with tools to manage athletes, build training passes with seasons and tracks, create workouts and meal plans, run live and on-demand classes, message athletes, review check-ins, and collect payments.',
+    content: 'FitLink connects coaches and athletes. Coaches use it to manage athletes, build training passes, create workouts and meal plans, run live and on-demand classes, message athletes, review check-ins, and collect payments. Athletes use it to follow their coach\'s programming, log training and check-ins, message their coach, join classes, and pay for coaching or an optional subscription.',
   },
   {
     title: '3. User accounts',
@@ -22,19 +23,19 @@ const TERMS_SECTIONS = [
   },
   {
     title: '4. Health disclaimer',
-    content: 'FitLink is not a medical provider. As a coach, you are responsible for the programming you deliver to your athletes and for advising them to consult a qualified healthcare professional before beginning any new exercise or nutrition program.',
+    content: 'FitLink is not a medical provider and nothing in the app is medical advice. Athletes should consult a qualified healthcare professional before beginning any new exercise or nutrition program. Coaches are responsible for the programming they deliver to their athletes.',
   },
   {
-    title: '5. Payments, fees & payouts',
-    content: 'Payments from athletes are processed by Stripe. FitLink deducts a 10% platform fee from athlete payments before payout to your connected Stripe account. Optional Coach Elite subscriptions are billed through your app store account and are subject to the app store\'s terms. Fees are non-refundable unless required by law.',
+    title: '5. Payments, fees, subscriptions & payouts',
+    content: 'Coaching payments from athletes are processed by Stripe. FitLink deducts a platform fee from those payments before payout to the coach\'s connected Stripe account; the current fee is shown in the app before a coach sets a price. Optional subscriptions (the athlete pass, solo mode and Coach Elite) are billed through your App Store or Google Play account, renew automatically unless cancelled at least 24 hours before the end of the current period, and are subject to the store\'s terms. Fees are non-refundable unless required by law.',
   },
   {
     title: '6. Your content',
-    content: 'Workouts, meal plans, classes, and other content you create remain yours. By publishing content in the app, you grant FitLink a license to host and deliver it to your athletes. You must have the rights to any content you upload.',
+    content: 'Workouts, meal plans, classes, progress photos, check-ins and other content you create remain yours. By publishing content in the app, you grant FitLink a license to host it and deliver it to the people you share it with. You must have the rights to any content you upload.',
   },
   {
     title: '7. Acceptable use',
-    content: 'You agree not to misuse the service. You will not send spam, store illegal content, or harass athletes or other users.',
+    content: 'You agree not to misuse the service. You will not send spam, store illegal content, or harass other users.',
   },
   {
     title: '8. Intellectual property',
@@ -53,15 +54,15 @@ const TERMS_SECTIONS = [
 const PRIVACY_SECTIONS = [
   {
     title: 'Information we collect',
-    content: 'We collect the information you provide (name, email, profile details, content you create), usage data (sessions, classes, messages you send through the app), and basic device information (OS and app version).',
+    content: 'We collect the information you provide (name, email, profile details, content you create), health and fitness data you choose to share (workouts, check-ins, and, if you connect it, Apple Health or Health Connect data), usage data (sessions, classes, messages you send through the app), and basic device information (OS and app version). If you use contact matching to invite people, your contacts stay on your device and are never uploaded.',
   },
   {
     title: 'How we use your data',
-    content: 'Your data is used to provide the service, connect you with your athletes, process payments, improve the app, send service-related notifications, and provide customer support. We do not sell your personal data.',
+    content: 'Your data is used to provide the service, connect coaches and athletes, process payments, improve the app, send service-related notifications, and provide customer support. We do not sell your personal data.',
   },
   {
     title: 'Payments',
-    content: 'Payment processing is handled by Stripe (athlete payments and payouts) and by your app store via RevenueCat (Coach Elite subscriptions). FitLink does not store your card or bank details.',
+    content: 'Payment processing is handled by Stripe (coaching payments and payouts) and by your App Store or Google Play account via RevenueCat (subscriptions). FitLink does not store your card or bank details.',
   },
   {
     title: 'Data storage & security',
@@ -69,7 +70,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: 'Your rights',
-    content: 'You can request a copy of your data or delete your account at any time. Account deletion is available at the bottom of the Profile tab, or you can contact us.',
+    content: 'You can request a copy of your data or delete your account at any time. Account deletion is available from your profile, or you can contact us.',
   },
 ];
 
@@ -77,6 +78,14 @@ export default function TermsPrivacyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
+
+  // The hosted documents are the canonical versions; the text below is a
+  // summary. If the browser refuses the URL the summary is already on screen.
+  const openHosted = (url: string) => {
+    Linking.openURL(url).catch(() =>
+      showAlert({ type: 'info', title: 'Could not open the browser', message: 'The summary below covers the same terms.' })
+    );
+  };
 
   const openPrivacyEmail = () => {
     Linking.openURL(`mailto:${PRIVACY_EMAIL}`).catch(() =>
@@ -95,8 +104,24 @@ export default function TermsPrivacyScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+        <View style={s.hostedRow}>
+          <TouchableOpacity style={s.hostedBtn} activeOpacity={0.8} onPress={() => openHosted(TERMS_URL)} accessibilityRole="link" accessibilityLabel="Open full terms of use">
+            <Ionicons name="document-text-outline" size={18} color={CoachColors.textPrimary} />
+            <Text style={s.hostedText} maxFontSizeMultiplier={1.3}>Terms of use</Text>
+            <Ionicons name="open-outline" size={14} color={CoachColors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.hostedBtn} activeOpacity={0.8} onPress={() => openHosted(PRIVACY_URL)} accessibilityRole="link" accessibilityLabel="Open full privacy policy">
+            <Ionicons name="shield-checkmark-outline" size={18} color={CoachColors.textPrimary} />
+            <Text style={s.hostedText} maxFontSizeMultiplier={1.3}>Privacy policy</Text>
+            <Ionicons name="open-outline" size={14} color={CoachColors.textFaint} />
+          </TouchableOpacity>
+        </View>
+        <Text style={s.summaryNote}>
+          The full documents live on the web. What follows is a summary.
+        </Text>
+
         <Text style={s.pageTitle}>Terms of service</Text>
-        <Text style={s.lastUpdated}>LAST UPDATED: MAY 2026</Text>
+        <Text style={s.lastUpdated}>LAST UPDATED: SEPTEMBER 2026</Text>
 
         {TERMS_SECTIONS.map((section) => (
           <View key={section.title} style={s.section}>
@@ -143,6 +168,17 @@ const s = StyleSheet.create({
   headerTitle: { fontFamily: CoachFonts.headingBold, fontSize: 19, color: CoachColors.textPrimary },
   // paddingBottom is applied inline from the real bottom inset (pushed route: no tab bar).
   scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+
+  hostedRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  hostedBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted,
+    borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 12, minHeight: 44,
+  },
+  hostedText: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.textPrimary },
+  summaryNote: {
+    fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint, lineHeight: 19, marginBottom: 24,
+  },
 
   pageTitle: {
     fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary,

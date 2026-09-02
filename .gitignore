@@ -74,3 +74,10 @@ medical-record.pdf
 dist-web/
 dist-ios-check/
 dist-web-test/
+
+# Audit 2026-09-01: personal/scratch files at the root
+*.pdf
+credentials.json
+credentials/
+/*.patch
+/*.txt

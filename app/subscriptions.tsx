@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import BoltEmptyState from '../components/mascot/BoltEmptyState';
+import { usePaymentSplit, coachKeeps, bpsToPercentLabel } from '../lib/platformFee';
 
 /**
  * Passes — the business lens on the same plans the Library's Passes tab
@@ -14,17 +15,20 @@ import BoltEmptyState from '../components/mascot/BoltEmptyState';
  *
  * Fixes over the previous version: the price-derived DIAMOND/GOLD/SILVER
  * "tier" theatre is gone (it encoded nothing real), "YOUR EMPIRE" is gone,
- * and every revenue figure now subtracts the same 10% platform fee that
- * earnings.tsx uses — the old screen showed gross dressed up as take-home.
- * All counts come from real client rows; nothing is invented.
+ * and every revenue figure now subtracts the coach's REAL split (platform fee
+ * plus any org share, from lib/platformFee.ts — the same function Stripe
+ * uses) exactly as earnings.tsx does — the old screen showed gross dressed
+ * up as take-home. While the split is still loading the figures read "—"
+ * rather than guessing 10%. All counts come from real client rows.
  */
-
-const PLATFORM_FEE = 0.10;
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { plans, clients, refreshData } = useApp();
+  const { plans, clients, trainer, refreshData } = useApp();
+  const { split } = usePaymentSplit(trainer?.id);
+  const feeLabel = split ? bpsToPercentLabel(split.platformFeeBps + split.orgShareBps) : null;
+  const keepLabel = split ? bpsToPercentLabel(split.coachKeepsBps) : null;
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -45,11 +49,11 @@ export default function SubscriptionsScreen() {
         const active = holders.filter(h => h.status === 'active').length;
         const trial = holders.filter(h => h.status === 'trial').length;
         const gross = Number(plan.price) * holders.length;
-        const net = gross * (1 - PLATFORM_FEE);
+        const net = split ? coachKeeps(gross, split) : 0;
         return { plan, holders: holders.length, active, trial, gross, net };
       })
       .sort((a, b) => b.net - a.net);
-  }, [plans, holdersOf]);
+  }, [plans, holdersOf, split]);
 
   const totalNet = useMemo(() => breakdown.reduce((s, b) => s + b.net, 0), [breakdown]);
   const totalHolders = useMemo(() => breakdown.reduce((s, b) => s + b.holders, 0), [breakdown]);
@@ -57,6 +61,8 @@ export default function SubscriptionsScreen() {
 
   const formatWhole = (n: number) => `$${Math.round(n).toLocaleString()}`;
   const formatCurrency = (n: number) => `$${n.toFixed(2)}`;
+  // Net figures only exist once the split is known.
+  const fmtNet = (n: number) => (split ? formatWhole(n) : '—');
 
   return (
     <SafeAreaView style={st.container} edges={['top']}>
@@ -88,7 +94,7 @@ export default function SubscriptionsScreen() {
           <BoltEmptyState
             pose="welcome"
             title="No passes yet"
-            subtitle="Create a pass to start charging athletes monthly. You keep 90% of every payment."
+            subtitle={keepLabel ? `Create a pass to start charging athletes monthly. You keep ${keepLabel} of every payment.` : 'Create a pass to start charging athletes monthly.'}
             actionLabel="Create a pass"
             onAction={() => router.push('/create-plan' as any)}
           />
@@ -97,9 +103,9 @@ export default function SubscriptionsScreen() {
             {/* ── Headline ── */}
             <View style={st.headlineCard}>
               <Text style={st.headlineLabel}>Monthly recurring</Text>
-              <Text style={st.headlineValue}>{formatWhole(totalNet)}</Text>
+              <Text style={st.headlineValue}>{fmtNet(totalNet)}</Text>
               <Text style={st.headlineDesc}>
-                From {totalHolders} pass holder{totalHolders === 1 ? '' : 's'} across {plans.length} pass{plans.length === 1 ? '' : 'es'}, after the 10% fee.
+                From {totalHolders} pass holder{totalHolders === 1 ? '' : 's'} across {plans.length} pass{plans.length === 1 ? '' : 'es'}, after the {feeLabel ?? 'platform'} fee.
                 {totalTrial > 0 ? ` ${totalTrial} of them ${totalTrial === 1 ? 'is' : 'are'} still on a trial.` : ''}
               </Text>
             </View>
@@ -129,7 +135,7 @@ export default function SubscriptionsScreen() {
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={st.passNet}>{formatWhole(net)}</Text>
+                      <Text style={st.passNet}>{fmtNet(net)}</Text>
                       <Text style={st.passNetSub}>/mo after fee</Text>
                     </View>
                   </View>
@@ -166,7 +172,7 @@ export default function SubscriptionsScreen() {
             })}
 
             <Text style={st.footnote}>
-              Revenue here matches Earnings: holder count × price, minus the 10% platform fee.
+              Revenue here matches Earnings: holder count × price, minus the {feeLabel ? `${feeLabel} ` : ''}platform fee.
             </Text>
           </>
         )}

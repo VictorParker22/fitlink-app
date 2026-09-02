@@ -4,7 +4,7 @@
  * Design turn 24, option 24d: "Elite — priced against the money already on
  * the table." Instead of a feature grid, the screen argues with numbers the
  * coach already recognises — their real monthly take (active plan holders ×
- * plan price × 0.9, the same math as earnings.tsx) — and prices Elite as a
+ * plan price × their real split from lib/platformFee.ts) — and prices Elite as a
  * fraction of it. When there's no revenue yet, it drops the comparison and
  * states the price plainly rather than inventing projections.
  *
@@ -42,9 +42,8 @@ import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
-
-// Must match earnings.tsx: const PLATFORM_FEE = 0.10;
-const PLATFORM_FEE = 0.10;
+import { usePaymentSplit } from '../../lib/platformFee';
+import PaywallLegal from './PaywallLegal';
 
 // Fallback when RevenueCat offerings are unavailable (Expo Go).
 const FALLBACK_PRICE = 29;
@@ -55,13 +54,22 @@ const FALLBACK_PRICE_STRING = '$29';
 // assistant is gated on the coach home and 402s server-side; the 5% fee is
 // payment_split_for_trainer reading trainers.elite_until). Nothing here
 // that nothing gates.
-const PERKS = [
-  'Unlimited athletes — the free plan holds 5',
-  'Keep 95% of every sale — the fee drops to 5%',
+//
+// The fee perk is built at render time from the coach's REAL split
+// (lib/platformFee.ts): the "90% → 95%" comparison is only true for an
+// independent coach on the standard 10% fee. A coach on an org seat pays no
+// platform fee of their own (the gym is billed per seat), so quoting them a
+// percentage they have never paid would be a fabricated number on the money
+// screen. While the split is still loading, or failed to load, no figure is
+// shown — INVARIANTS §4: never guess a number a coach prices around.
+const PERKS_BEFORE_FEE = ['Unlimited athletes — the free plan holds 5'];
+const PERKS_AFTER_FEE = [
   'AI coach assistant across your whole roster',
   'Live broadcasts with viewer chat and replays',
   'Elite badge on your coach profile',
 ];
+const FEE_PERK_STANDARD = 'Keep 95% of every sale — the fee drops to 5%';
+const FEE_PERK_NO_FIGURE = 'A lower platform fee on every sale';
 
 interface CoachElitePaywallProps {
   visible: boolean;
@@ -80,8 +88,15 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   // The COACH offering, not the athlete default — the two audiences buy
   // different products and the packages would otherwise collide.
   const { coachOfferings: offerings, purchasePackage, restorePurchases } = useRevenueCat();
-  const { plans, activeClients } = useApp();
+  const { plans, activeClients, trainer } = useApp();
+  const { split } = usePaymentSplit(trainer?.id);
   const { showAlert } = useAlert();
+
+  // Fee perk copy: percentages only when the coach is actually on the
+  // standard 10% fee (1000 bps). Org-seat coaches (0 bps) and an unresolved
+  // split both get the perk without a figure.
+  const feePerk = split?.platformFeeBps === 1000 ? FEE_PERK_STANDARD : FEE_PERK_NO_FIGURE;
+  const perks = [...PERKS_BEFORE_FEE, feePerk, ...PERKS_AFTER_FEE];
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -124,17 +139,21 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
     ? `${intro!.periodNumberOfUnits}-${intro!.periodUnit.toLowerCase()} free trial`
     : null;
 
-  // ── The coach's real numbers — same math as earnings.tsx ──────────────────
+  // ── The coach's real numbers — the same split Stripe applies ──────────────
+  // Empty until the split resolves: a take-home figure computed against a
+  // guessed fee is exactly the number this file must never show.
   const planBreakdown = useMemo(() => {
+    if (!split) return [];
+    const keepRatio = split.coachKeepsBps / 10000;
     return plans
       .map((plan) => {
         const holders = activeClients.filter((c) => c.plan_id === plan.id).length;
-        const net = Number(plan.price || 0) * holders * (1 - PLATFORM_FEE);
+        const net = Number(plan.price || 0) * holders * keepRatio;
         return { plan, holders, net };
       })
       .filter((row) => row.holders > 0)
       .sort((a, b) => b.net - a.net);
-  }, [plans, activeClients]);
+  }, [plans, activeClients, split]);
 
   const monthlyNet = useMemo(
     () => planBreakdown.reduce((sum, row) => sum + row.net, 0),
@@ -312,7 +331,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
               </View>
             )}
             <View style={s.perkList}>
-              {PERKS.map((perk) => (
+              {perks.map((perk) => (
                 <View key={perk} style={s.perkRow}>
                   <Ionicons
                     name="checkmark"
@@ -387,6 +406,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
           </TouchableOpacity>
           </>
           )}
+          <PaywallLegal style={s.legal} />
         </View>
       </View>
     </Modal>
@@ -496,8 +516,9 @@ const s = StyleSheet.create({
 
   footer: {
     paddingHorizontal: 20, paddingTop: 14,
-    borderTopWidth: 1, borderTopColor: '#1E211D', backgroundColor: CoachColors.bg,
+    borderTopWidth: 1, borderTopColor: CoachColors.borderMuted, backgroundColor: CoachColors.bg,
   },
+  legal: { marginTop: 8 },
   cta: {
     backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', height: 52,
     alignItems: 'center', justifyContent: 'center',

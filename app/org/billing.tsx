@@ -303,7 +303,12 @@ export default function OrgBillingScreen() {
         </View>
 
         {/* ── Controls, owner only ────────────────────────────── */}
-        {b.is_owner ? (
+        {/* On iOS the seat purchase must not leave the app for Stripe
+            Checkout (App Store 3.1.1 / 3.1.3): seats are bought on the web
+            dashboard instead. Android and web keep the Stripe flow. */}
+        {Platform.OS === 'ios' ? (
+          <Text style={st.adminNote}>Manage seats from your FitLink web dashboard.</Text>
+        ) : b.is_owner ? (
           <View style={st.actions}>
             <TouchableOpacity
               style={[st.primary, busy && st.disabled]}

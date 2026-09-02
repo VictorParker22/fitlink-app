@@ -37,6 +37,21 @@ import { StripeProvider } from '../lib/stripe-provider';
 import { NetworkProvider } from '../context/NetworkContext';
 import OfflineBanner from '../components/OfflineBanner';
 import { RevenueCatProvider } from '../context/RevenueCatContext';
+import * as Sentry from '@sentry/react-native';
+
+// Crash reporting. Without this a production crash left nothing to look
+// at. The DSN comes from EAS env (EXPO_PUBLIC_SENTRY_DSN); when it is
+// absent — local dev, or before the Sentry project exists — the SDK is
+// simply not started and nothing changes. No PII is sent by default.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN && !__DEV__) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    sendDefaultPii: false,
+    tracesSampleRate: 0.1,
+    enableAutoSessionTracking: true,
+  });
+}
 import { LayersAnalyticsProvider } from '../context/LayersContext';
 
 // react-native-bootsplash requires a native build (EAS dev client or production).
@@ -616,6 +631,9 @@ const styles = StyleSheet.create({
 });
 
 export function ErrorBoundary(props: ErrorBoundaryProps) {
+  useEffect(() => {
+    if (SENTRY_DSN && !__DEV__) Sentry.captureException(props.error);
+  }, [props.error]);
   return (
     <View style={[styles.loadingContainer, { padding: 20 }]}>
       <Ionicons name="warning" size={54} color={CoachColors.warning} style={{ marginBottom: 10 }} />

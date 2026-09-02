@@ -1914,9 +1914,13 @@ export function AppProvider({ children }: PropsWithChildren) {
     try {
       // expo_push_token is the column the send paths read (see chat/[id].tsx,
       // client-autoflow) — clients rows are keyed by auth_user_id, not id.
-      const { error } = trainer
-        ? await supabase.from('trainers').update({ expo_push_token: token }).eq('id', user.id)
-        : await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', user.id);
+      // Branch on the ROLE, not on whether the trainer row has loaded yet —
+      // a coach whose profile fetch was still in flight used to have their
+      // token written to a clients row that does not exist, i.e. dropped.
+      const role = (user.user_metadata?.role as 'trainer' | 'client' | undefined) || 'trainer';
+      const { error } = role === 'client'
+        ? await supabase.from('clients').update({ expo_push_token: token }).eq('auth_user_id', user.id)
+        : await supabase.from('trainers').update({ expo_push_token: token }).eq('id', user.id);
       if (error && __DEV__) console.warn('Failed to update push token', error.message);
     } catch (err) {
       if (__DEV__) console.warn('Failed to update push token', err);

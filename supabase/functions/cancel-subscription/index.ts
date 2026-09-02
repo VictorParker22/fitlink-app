@@ -70,8 +70,20 @@ serve(async (req) => {
         })
         console.log(`Stripe subscription ${subscription.stripe_subscription_id} set to cancel at period end`)
       } catch (stripeErr: any) {
-        console.error('Stripe cancellation error:', stripeErr.message)
-        // Continue with local cancellation even if Stripe fails
+        // "already canceled" means the processor agrees with us; anything
+        // else means we must NOT write local state that says cancelled
+        // while Stripe keeps billing.
+        const msg = String(stripeErr?.message ?? '')
+        const alreadyGone = stripeErr?.code === 'resource_missing' || /already been canceled|No such subscription/i.test(msg)
+        if (!alreadyGone) {
+          console.error('Stripe cancellation error:', msg)
+          return new Response(
+            JSON.stringify({
+              error: 'We could not reach our payment processor. Your subscription has NOT been cancelled — please try again in a moment.',
+            }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
       }
     }
 

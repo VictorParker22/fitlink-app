@@ -262,7 +262,7 @@ function buildMatch(trainer: any, plans: any[], answers: IntakeAnswers): CoachMa
   const timeFit = coversTime(trainer.working_hours, answers.time);
   if (timeFit === true) {
     score += 1;
-    facts.push(`${answers.time} ✓`);
+    if (answers.time) facts.push(answers.time);
   } else if (timeFit === false) {
     gaps.push(`Not available ${(answers.time || '').toLowerCase()}`);
   }

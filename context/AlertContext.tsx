@@ -17,6 +17,16 @@
  * Button layout: one or two buttons sit side by side; THREE OR MORE STACK
  * vertically — three pills squeezed across a phone is how a dialog becomes
  * unreadable at large text sizes.
+ *
+ * Two invariants added 2026-09-02:
+ *   - A button fires ONCE. A fast double-tap used to run the handler twice
+ *     (two deletes, two navigations) because the press landed during the
+ *     130ms dismiss animation. `firedRef` latches on the first press and
+ *     resets only once the dialog is fully gone.
+ *   - Alerts never overwrite each other. `showAlert` while one is visible
+ *     enqueues (FIFO) and the next shows when the current one dismisses —
+ *     previously the second call silently replaced the first, and the user
+ *     never saw (or answered) the one it replaced.
  */
 
 import { createContext, useContext, useState, useCallback, type PropsWithChildren } from 'react';
@@ -73,11 +83,34 @@ export function AlertProvider({ children }: PropsWithChildren) {
   const scaleAnim = useRef(new Animated.Value(0.94)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const riseAnim = useRef(new Animated.Value(6)).current;
+  // Mirrors `visible` for the stable showAlert callback (no stale closure).
+  const visibleRef = useRef(false);
+  const queueRef = useRef<AlertConfig[]>([]);
+  const firedRef = useRef(false);
 
   const showAlert = useCallback((cfg: AlertConfig) => {
+    if (visibleRef.current) {
+      queueRef.current.push(cfg);
+      return;
+    }
+    visibleRef.current = true;
+    firedRef.current = false;
     setConfig(cfg);
     setVisible(true);
   }, []);
+
+  // When a dialog has fully gone, surface the next queued one. Going through
+  // state (false → true) rather than swapping config in place guarantees the
+  // entrance animation runs again for the next alert.
+  useEffect(() => {
+    if (visible) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+    visibleRef.current = true;
+    firedRef.current = false;
+    setConfig(next);
+    setVisible(true);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -99,21 +132,27 @@ export function AlertProvider({ children }: PropsWithChildren) {
   }, [visible, reduceMotion]);
 
   const dismiss = useCallback(() => {
-    if (reduceMotion) {
+    const finish = () => {
+      visibleRef.current = false;
+      firedRef.current = false;
       setVisible(false);
       setConfig(null);
+    };
+    if (reduceMotion) {
+      finish();
       return;
     }
     Animated.parallel([
       Animated.timing(scaleAnim, { toValue: 0.96, duration: 130, useNativeDriver: true }),
       Animated.timing(opacityAnim, { toValue: 0, duration: 130, useNativeDriver: true }),
-    ]).start(() => {
-      setVisible(false);
-      setConfig(null);
-    });
+    ]).start(finish);
   }, [reduceMotion]);
 
   const handleButton = useCallback((btn?: AlertButton) => {
+    // One press per dialog: the second tap of a double-tap lands while the
+    // dismiss animation is still running and must be a no-op.
+    if (firedRef.current) return;
+    firedRef.current = true;
     dismiss();
     // The callback fires after the dialog is gone, so a handler that
     // navigates never races the dismissal animation.

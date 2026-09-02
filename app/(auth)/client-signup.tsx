@@ -52,6 +52,32 @@ function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
 }
 
+/** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. */
+function formatDobInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  const y = digits.slice(0, 4);
+  const m = digits.slice(4, 6);
+  const d = digits.slice(6, 8);
+  return [y, m, d].filter(Boolean).join('-');
+}
+
+const MIN_AGE = 16;
+
+function parseDob(value: string): { ok: true; iso: string } | { ok: false; message: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return { ok: false, message: 'Enter your date of birth as YYYY-MM-DD' };
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  const valid = date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+  if (!valid || y < 1900) return { ok: false, message: 'That date does not look right' };
+  const now = new Date();
+  let age = now.getUTCFullYear() - y;
+  const beforeBirthday = now.getUTCMonth() + 1 < mo || (now.getUTCMonth() + 1 === mo && now.getUTCDate() < d);
+  if (beforeBirthday) age -= 1;
+  if (age < MIN_AGE) return { ok: false, message: `You need to be ${MIN_AGE} or older to use FitLink` };
+  return { ok: true, iso: value.trim() };
+}
+
 export default function ClientSignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -72,6 +98,9 @@ export default function ClientSignupScreen() {
   const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Age gate. FitLink is not directed at children under 16 (privacy policy
+  // §8); the date is kept in auth metadata, never shown to coaches.
+  const [dob, setDob] = useState('');
 
   // Coach resolved from the invite link (?ref= / ?trainer=), if any.
   const [inviteTrainer, setInviteTrainer] = useState<InviteTrainer | null>(null);
@@ -139,7 +168,7 @@ export default function ClientSignupScreen() {
         setFlowStep('new_signup');
       }
     } catch (err) {
-      console.error('[ClientSignup] Lookup error:', err);
+      if (__DEV__) console.error('[ClientSignup] Lookup error:', err);
       setError('Something went wrong. Try again.');
     } finally {
       setLoading(false);
@@ -176,7 +205,7 @@ export default function ClientSignupScreen() {
 
       setSuccess("You're in. One moment.");
     } catch (err: any) {
-      console.error('[ClientSignup] Error:', err);
+      if (__DEV__) console.error('[ClientSignup] Error:', err);
       setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
@@ -189,13 +218,15 @@ export default function ClientSignupScreen() {
     if (!name.trim()) return setError('Enter your name');
     if (!contact.trim() || !isEmail(contact.trim())) return setError('Enter your email');
     if (password.length < 6) return setError('Password must be 6+ characters');
+    const dobCheck = parseDob(dob);
+    if (!dobCheck.ok) return setError(dobCheck.message);
 
     setLoading(true);
     try {
       const { error: signUpErr } = await supabase.auth.signUp({
         email: contact.trim().toLowerCase(),
         password,
-        options: { data: { name: name.trim(), role: 'client' } },
+        options: { data: { name: name.trim(), role: 'client', date_of_birth: dobCheck.iso } },
       });
       if (signUpErr) throw signUpErr;
 
@@ -533,6 +564,22 @@ export default function ClientSignupScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={st.fieldHint}>Six characters is enough.</Text>
+              </View>
+              <View style={st.field}>
+                <Text style={st.fieldLabel}>Date of birth</Text>
+                <TextInput
+                  style={st.input}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={C.textFaint}
+                  value={dob}
+                  onChangeText={(t) => setDob(formatDobInput(t))}
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  returnKeyType="go"
+                  accessibilityLabel="Date of birth"
+                  selectionColor={C.accent}
+                />
+                <Text style={st.fieldHint}>You must be 16 or older. Your coach never sees this.</Text>
               </View>
 
               <TouchableOpacity

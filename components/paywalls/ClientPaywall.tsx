@@ -43,6 +43,7 @@ import type { PurchasesPackage } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import PaywallLegal from './PaywallLegal';
 
 // ─── What client_premium actually unlocks — nothing else may be listed ───────
 
@@ -261,12 +262,8 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
                 )}
               </TouchableOpacity>
 
-              {/* Legal + restore */}
-              <Text style={s.legal}>
-                Subscriptions auto-renew unless cancelled at least 24 hours before the end of
-                the current period. Manage in your device Settings.
-              </Text>
-
+              {/* Restore, then the shared legal footer (auto-renew disclosure +
+                  terms/privacy links) — rendered once, from PaywallLegal. */}
               <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                 style={s.restoreBtn}
                 onPress={handleRestore}
@@ -280,6 +277,8 @@ export default function ClientPaywall({ visible, onDismiss, onPurchased, blocked
               </TouchableOpacity>
             </>
           )}
+
+          <PaywallLegal style={s.legal} />
         </ScrollView>
       </View>
     </Modal>
@@ -496,15 +495,8 @@ const s = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  // Legal
-  legal: {
-    fontFamily: CoachFonts.body,
-    fontSize: 12.5,
-    color: CoachColors.textFaint,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
+  // Legal footer spacing — the text itself lives in PaywallLegal.
+  legal: { marginTop: 12 },
   restoreBtn: { alignItems: 'center', paddingVertical: 10 },
   restoreText: {
     fontFamily: CoachFonts.bodySemiBold,

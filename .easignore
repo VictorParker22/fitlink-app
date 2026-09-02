@@ -59,3 +59,18 @@ check_*.py
 find_*.py
 search*.py
 *.py
+
+# ── Audit 2026-09-01: never on a build server ───────────────────────
+# credentials.json holds the distribution-certificate password; the
+# credentials/ dir holds the certs themselves. EAS-managed signing does
+# not read them from the archive.
+credentials.json
+credentials/
+# Personal / scratch files that live at the repo root.
+*.pdf
+/*.sql
+/*.patch
+/*.txt
+/*.cjs
+fix_ts.js
+SOP.md

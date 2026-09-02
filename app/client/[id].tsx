@@ -544,7 +544,8 @@ export default function ClientDetailScreen() {
   // the first thing a coach sees, not buried under aggregate numbers.
   let attentionBanner: ReactElement | null = null;
   if (client.status === 'trial') {
-    const trialEnd  = client.trial_end_date ? new Date(client.trial_end_date) : new Date(new Date(client.created_at).getTime() + 20 * 86400000);
+    // Fallback matches the 14-day trial add-client promises (and now writes).
+    const trialEnd  = client.trial_end_date ? new Date(client.trial_end_date) : new Date(new Date(client.created_at).getTime() + 14 * 86400000);
     const daysLeft  = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000));
     const totalDays = Math.ceil((trialEnd.getTime() - new Date(client.created_at).getTime()) / 86400000);
     const pct       = Math.min(1, (totalDays - daysLeft) / Math.max(totalDays, 1));

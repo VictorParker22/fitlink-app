@@ -178,11 +178,18 @@ export default function ProfileScreen() {
     const { data: mediaResult } = await supabase.functions.invoke('delete-account-media');
     const mediaIncomplete = mediaResult && mediaResult.success === false;
 
-    const { error } = await supabase.rpc('delete_trainer_account');
+    // delete-trainer-account cancels every athlete's Stripe subscription
+    // that pays this coach BEFORE removing rows. If the processor cannot be
+    // reached it refuses, so nobody keeps getting billed by a coach who no
+    // longer exists.
+    const { data: delResult, error: invokeErr } = await supabase.functions.invoke('delete-trainer-account');
     setDeleting(false);
-    if (error) {
+    const failureMessage =
+      (delResult && delResult.success !== true && delResult.error) ||
+      (invokeErr ? invokeErr.message : null);
+    if (failureMessage) {
       setShowDeleteModal(false);
-      showAlert({ type: 'error', title: 'Account not deleted', message: `${error.message || 'Failed to delete account.'}\n\nYour account and data are still here. Please try again or contact support.` });
+      showAlert({ type: 'error', title: 'Account not deleted', message: `${failureMessage}\n\nYour account and data are still here. Please try again or contact support.` });
       return;
     }
     setShowDeleteModal(false);

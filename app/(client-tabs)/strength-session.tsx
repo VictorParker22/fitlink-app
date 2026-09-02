@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform,
   LayoutAnimation, UIManager, ActivityIndicator, TextInput, KeyboardAvoidingView,
-  Modal,
+  Modal, AppState,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,53 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
  * progression at the bottom with a jumpable exercise rail. Per-exercise
  * input drafts are keyed by exercise id so navigation never loses state.
  */
+
+/**
+ * Outbox for client_workout_logs rows that could not be inserted (offline at
+ * the moment of finishing). Appended on failure, flushed in order on mount
+ * and whenever the app returns to the foreground. A row that fails again
+ * stays at the head so ordering (and the coach's timeline) is preserved.
+ */
+const STRENGTH_OUTBOX_KEY = 'strength_outbox';
+let outboxFlushing = false;
+
+async function enqueueStrengthLog(payload: Record<string, unknown>) {
+  try {
+    const raw = await AsyncStorage.getItem(STRENGTH_OUTBOX_KEY);
+    const list: Record<string, unknown>[] = raw ? JSON.parse(raw) : [];
+    list.push(payload);
+    await AsyncStorage.setItem(STRENGTH_OUTBOX_KEY, JSON.stringify(list));
+  } catch (e) {
+    if (__DEV__) console.warn('[StrengthSession] Outbox append failed:', e);
+  }
+}
+
+async function flushStrengthOutbox() {
+  if (outboxFlushing) return;
+  outboxFlushing = true;
+  try {
+    const raw = await AsyncStorage.getItem(STRENGTH_OUTBOX_KEY);
+    if (!raw) return;
+    const list: Record<string, unknown>[] = JSON.parse(raw);
+    if (!Array.isArray(list) || list.length === 0) return;
+    let sent = 0;
+    for (const payload of list) {
+      const { error } = await supabase.from('client_workout_logs').insert(payload);
+      if (error) {
+        if (__DEV__) console.warn('[StrengthSession] Outbox flush stopped:', error.message);
+        break;
+      }
+      sent++;
+    }
+    const remaining = list.slice(sent);
+    if (remaining.length === 0) await AsyncStorage.removeItem(STRENGTH_OUTBOX_KEY);
+    else if (sent > 0) await AsyncStorage.setItem(STRENGTH_OUTBOX_KEY, JSON.stringify(remaining));
+  } catch (e) {
+    if (__DEV__) console.warn('[StrengthSession] Outbox flush threw:', e);
+  } finally {
+    outboxFlushing = false;
+  }
+}
 
 const FEELS: { key: SetFeel; label: string }[] = [
   { key: 'easy', label: 'Easy' },
@@ -146,6 +194,12 @@ export default function StrengthSessionScreen() {
   const [instrOpen, setInstrOpen] = useState<Record<string, boolean>>({});
   const startedAtRef = useRef(0);
   const finishedRef = useRef(false);
+  // Time spent backgrounded is not training time. Accumulated while the app
+  // is away and subtracted from the clock and the logged duration.
+  const pausedMsRef = useRef(0);
+  const backgroundedAtRef = useRef<number | null>(null);
+  const trainingElapsedSec = () =>
+    Math.floor((Date.now() - startedAtRef.current - pausedMsRef.current) / 1000);
   // In-progress inputs per exercise id — Prev/Next never loses typed state.
   const draftsRef = useRef<Record<string, InputDraft>>({});
   // Card slide direction: 1 = forward (slide in from right), -1 = backward.
@@ -297,10 +351,41 @@ export default function StrengthSessionScreen() {
     setWeightStr(fmtKg(suggestion.suggestedWeight));
   }, [suggestion]);
 
+  // ── Outbox: flush sets that were saved offline, on mount and on return ──
+  useEffect(() => {
+    flushStrengthOutbox();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') flushStrengthOutbox();
+    });
+    return () => sub.remove();
+  }, []);
+
   // ── Timers ──
+  // Pauses while the app is not active: the interval alone would freeze in
+  // the background, but Date.now() math would then count every minute away
+  // as training. Track the away time and subtract it.
+  useEffect(() => {
+    if (mode !== 'live') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        if (backgroundedAtRef.current != null) {
+          pausedMsRef.current += Date.now() - backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
+        }
+        setElapsed(trainingElapsedSec());
+      } else if (backgroundedAtRef.current == null) {
+        backgroundedAtRef.current = Date.now();
+      }
+    });
+    return () => sub.remove();
+  }, [mode]);
+
   useEffect(() => {
     if (mode !== 'live' || showPr) return;
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)), 1000);
+    const t = setInterval(() => {
+      if (backgroundedAtRef.current != null) return; // paused
+      setElapsed(trainingElapsedSec());
+    }, 1000);
     return () => clearInterval(t);
   }, [mode, showPr]);
 
@@ -382,7 +467,7 @@ export default function StrengthSessionScreen() {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setFinishing(true);
-    const durationSec = Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000));
+    const durationSec = Math.max(1, trainingElapsedSec());
 
     // Local history — fitlink_workout_history, sets include feel.
     recordStrengthWorkout({
@@ -410,22 +495,31 @@ export default function StrengthSessionScreen() {
           ...(s.feel ? { feel: s.feel } : {}),
         };
       });
-      const { error } = await supabase.from('client_workout_logs').insert({
+      const logPayload = {
         client_id: clientData.id,
         workout_id: session.id,
         exercises: Object.values(byExercise),
         duration_minutes: Math.round(durationSec / 60),
-      });
-      if (error) {
+      };
+      let logError: { message: string } | null = null;
+      try {
+        ({ error: logError } = await supabase.from('client_workout_logs').insert(logPayload));
+      } catch (e: any) {
+        // A thrown fetch (no network) must land in the outbox exactly like a
+        // returned error — it used to escape this function and lose the sets.
+        logError = { message: e?.message || 'network' };
+      }
+      if (logError) {
         // The athlete's sets are the whole point of this screen. They are in
-        // local history, but the coach-visible copy did not land — say so
-        // instead of finishing as though everything saved.
-        if (__DEV__) console.warn('[StrengthSession] Log save failed:', error.message);
+        // local history AND the outbox — flushed on next launch / foreground —
+        // but the coach-visible copy has not landed yet, so say so honestly.
+        if (__DEV__) console.warn('[StrengthSession] Log save failed, queued:', logError.message);
+        await enqueueStrengthLog(logPayload);
         setFinishing(false);
         showAlert({
-          type: 'error',
-          title: 'Sets not synced',
-          message: "Your sets are saved on this device, but we couldn't send them to your coach. They won't show in your coach's view until this syncs.",
+          type: 'warning',
+          title: 'Sets saved offline',
+          message: "Your sets are saved on this device. We'll send them to your coach automatically the next time you're online.",
         });
         if (bestPr) setShowPr(true);
         else router.push(ClientRoute.workouts);

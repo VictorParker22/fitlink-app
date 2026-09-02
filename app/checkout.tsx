@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 // pulls react-native internals the web bundler rejects), so the import itself
 // has to differ, not just the behaviour. See lib/stripe-checkout.web.tsx.
 import { useStripe } from '../lib/stripe-checkout';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useClient } from '../context/ClientContext';
 import { useAlert } from '../context/AlertContext';
@@ -17,7 +17,7 @@ import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { isCohort, enrollmentState, formatDay, parseLocalDay } from '../lib/cohort';
 
 // Use the subscription endpoint for recurring monthly billing
-const EDGE_FUNCTION_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-subscription';
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-subscription`;
 
 export default function CheckoutScreen() {
   const { planId, clientId } = useLocalSearchParams<{ planId: string; clientId: string }>();
@@ -41,6 +41,16 @@ export default function CheckoutScreen() {
 
   const [loading, setLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  // Synchronous in-flight guard. `loading` is React state and lags a frame,
+  // so a fast double-tap could start two purchases before the button
+  // disabled itself. A ref flips before any await.
+  const inFlightRef = useRef(false);
+  // The post-success "go back" timer, cleared on unmount so a screen that was
+  // dismissed early never calls router.back() on a route that no longer exists.
+  const backTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (backTimerRef.current) clearTimeout(backTimerRef.current);
+  }, []);
 
   const plan =
     plans.find((p) => p.id === planId) ||
@@ -50,14 +60,29 @@ export default function CheckoutScreen() {
     (clientData?.id === clientId ? clientData : undefined);
   const trainer = coachSideTrainer || athleteSideTrainer;
 
+  // Billing cadence comes from the plan row ('month' | 'year'); every piece of
+  // copy below reads it so a yearly pass is never described as monthly.
+  const period: 'month' | 'year' = (plan as any)?.period === 'year' ? 'year' : 'month';
+  const periodShort = period === 'year' ? 'yr' : 'mo';
+  const periodWord = period === 'year' ? 'year' : 'month';
+  const billedCadence = period === 'year' ? 'yearly' : 'monthly';
+
   const handlePayment = useCallback(async () => {
+    // Guard FIRST — before any await, before any early return can race.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLoading(true);
+    const release = () => { inFlightRef.current = false; setLoading(false); };
+
     if (!trainer?.stripe_onboarding_complete) {
       showAlert({ type: 'warning', title: 'Payment setup required', message: 'The coach needs to complete Stripe setup before accepting payments.' });
+      release();
       return;
     }
 
     if (!plan || !client || !trainer) {
       showAlert({ type: 'error', title: 'Error', message: 'Missing plan, client, or trainer information.' });
+      release();
       return;
     }
 
@@ -91,6 +116,7 @@ export default function CheckoutScreen() {
           title: 'This cohort just filled up',
           message: 'The last seat went while you were looking. Message your coach about the next one.',
         });
+        release();
         return;
       }
       if (state === 'closed-date') {
@@ -104,13 +130,16 @@ export default function CheckoutScreen() {
             ? `This cohort is no longer taking sign-ups. It ${started ? 'started' : 'starts'} on ${startDay}.`
             : 'This cohort is no longer taking sign-ups.',
         });
+        release();
         return;
       }
     }
 
-    setLoading(true);
     setPaymentStatus('processing');
 
+    // The charge. Only THIS block may report "Payment failed" — everything
+    // after a successful presentPaymentSheet() is bookkeeping and must never
+    // turn a completed charge into an error screen.
     try {
       // Step 1: Get client secret from our Edge Function
       const { data: { session } } = await supabase.auth.getSession();
@@ -153,52 +182,66 @@ export default function CheckoutScreen() {
       if (presentError) {
         if (presentError.code === 'Canceled') {
           setPaymentStatus('idle');
-          setLoading(false);
+          release();
           return;
         }
         throw new Error(presentError.message);
       }
-
-      // Payment succeeded!
-      setPaymentStatus('success');
-
-      // NOTE on enrollment: the season enrollment (client_plan_enrollments) is
-      // created SERVER-SIDE by the stripe-webhook, which is the source of truth.
-      // Do not add a client-side insert here — athletes have no INSERT policy on
-      // client_plan_enrollments (see fix_enrollment_client_rls.sql: SELECT and
-      // UPDATE only), so it would fail silently for the exact users who need it,
-      // and widening that policy would let anyone self-enroll in a paid plan.
-      // refreshData() below plus the realtime subscription in ClientContext pick
-      // the row up as soon as the webhook writes it.
-
-      // Fire autoflow (assign welcome workout + send welcome message + notify coach).
-      // The Stripe webhook also triggers this, but we call it directly here so the
-      // demo works instantly even if webhook delivery is delayed or not configured.
-      // The autoflow function is idempotent — a double-fire is harmless.
-      if (plan && client && trainer) {
-        supabase.functions.invoke('client-autoflow', {
-          body: { clientId: client.id, trainerId: trainer.id, planId: plan.id },
-        }).then(({ error: afErr }) => {
-          if (__DEV__ && afErr) console.warn('[Checkout] autoflow invoke error:', afErr);
-        });
-      }
-
-      await refreshData();
-      await refreshClientData?.();
-
-      // Show success and navigate back after delay
-      setTimeout(() => {
-        router.back();
-      }, 2000);
-
     } catch (err: any) {
       console.error('Payment error:', err);
       setPaymentStatus('error');
       showAlert({ type: 'error', title: 'Payment failed', message: err.message || 'Something went wrong. Please try again.' });
-    } finally {
-      setLoading(false);
+      release();
+      return;
     }
-  }, [plan, client, trainer, initPaymentSheet, presentPaymentSheet]);
+
+    // Payment succeeded! From here on nothing may show "Payment failed".
+    setPaymentStatus('success');
+
+    // NOTE on enrollment: the season enrollment (client_plan_enrollments) is
+    // created SERVER-SIDE by the stripe-webhook, which is the source of truth.
+    // Do not add a client-side insert here — athletes have no INSERT policy on
+    // client_plan_enrollments (see fix_enrollment_client_rls.sql: SELECT and
+    // UPDATE only), so it would fail silently for the exact users who need it,
+    // and widening that policy would let anyone self-enroll in a paid plan.
+    // refreshData() below plus the realtime subscription in ClientContext pick
+    // the row up as soon as the webhook writes it.
+
+    // Fire autoflow (assign welcome workout + send welcome message + notify coach).
+    // The Stripe webhook also triggers this, but we call it directly here so the
+    // demo works instantly even if webhook delivery is delayed or not configured.
+    // The autoflow function is idempotent — a double-fire is harmless. Both the
+    // resolved-with-error and rejected paths are handled: a network rejection
+    // here used to be an unhandled promise.
+    supabase.functions.invoke('client-autoflow', {
+      body: { clientId: client.id, trainerId: trainer.id, planId: plan.id },
+    }).then(({ error: afErr }) => {
+      if (__DEV__ && afErr) console.warn('[Checkout] autoflow invoke error:', afErr);
+    }).catch((afErr: unknown) => {
+      if (__DEV__) console.warn('[Checkout] autoflow invoke rejected:', afErr);
+    });
+
+    // Refresh both contexts. A failed refresh is logged, never surfaced as a
+    // payment error — the money already moved.
+    try {
+      await refreshData();
+    } catch (refreshErr) {
+      if (__DEV__) console.warn('[Checkout] refreshData after charge failed:', refreshErr);
+    }
+    try {
+      await refreshClientData?.();
+    } catch (refreshErr) {
+      if (__DEV__) console.warn('[Checkout] refreshClientData after charge failed:', refreshErr);
+    }
+
+    release();
+
+    // Show success and navigate back after a delay (cleared on unmount).
+    backTimerRef.current = setTimeout(() => {
+      backTimerRef.current = null;
+      router.back();
+    }, 2000);
+  }, [plan, client, trainer, initPaymentSheet, presentPaymentSheet, refreshData, refreshClientData, router, showAlert]);
 
   if (!plan || !client) {
     return (
@@ -241,7 +284,7 @@ export default function CheckoutScreen() {
         <View
           style={styles.summaryCard}
           accessible
-          accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${(plan as any).period || 'month'}. Billing ${client.name}.`}
+          accessibilityLabel={`${plan.name}, $${Number(plan.price).toFixed(2)} per ${periodWord}. Billing ${client.name}.`}
         >
           <View style={styles.planBadge}>
             <Ionicons name="card-outline" size={22} color={CoachColors.accent} />
@@ -249,7 +292,7 @@ export default function CheckoutScreen() {
           <Text style={styles.planName}>{plan.name}</Text>
           <Text style={styles.planPrice}>
             ${Number(plan.price).toFixed(2)}
-            <Text style={styles.planPeriod}> / {(plan as any).period || 'month'}</Text>
+            <Text style={styles.planPeriod}> / {periodWord}</Text>
           </Text>
           {/*
             The fee breakdown ("Platform fee (10%)" / "Coach receives") used to
@@ -278,7 +321,7 @@ export default function CheckoutScreen() {
             </View>
             <Text style={styles.statusTitle}>Payment successful</Text>
             <Text style={styles.statusDesc}>
-              {client.name} is now subscribed to {plan.name}. You'll be billed monthly. Redirecting...
+              {client.name} is now subscribed to {plan.name}. You'll be billed {billedCadence}. Redirecting...
             </Text>
           </View>
         )}
@@ -311,7 +354,7 @@ export default function CheckoutScreen() {
             disabled={loading}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={`Subscribe for $${Number(plan.price).toFixed(2)} per month`}
+            accessibilityLabel={`Subscribe for $${Number(plan.price).toFixed(2)} per ${periodWord}`}
             accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
@@ -320,7 +363,7 @@ export default function CheckoutScreen() {
               <>
                 <Ionicons name="card-outline" size={20} color={CoachColors.onAccent} />
                 <Text style={styles.payBtnText}>
-                  Subscribe — ${Number(plan.price).toFixed(2)}/mo
+                  Subscribe — ${Number(plan.price).toFixed(2)}/{periodShort}
                 </Text>
               </>
             )}

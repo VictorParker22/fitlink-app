@@ -18,7 +18,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useClient } from '../../context/ClientContext';
 import ClientPaywall from '../../components/paywalls/ClientPaywall';
+import * as Calendar from 'expo-calendar';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_HEIGHT = 380;
@@ -55,10 +57,50 @@ export default function ClassDetailScreen() {
   const { showAlert } = useAlert();
   const { activeSession, startWorkout, getSavedProgress, resumeSavedWorkout, getClassHistory, getClassTakeCount } = useWorkout();
   const { isClientPremium } = useRevenueCat();
+  const { clientData } = useClient();
   const [isFavorite, setIsFavorite] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
+  const [addingToCal, setAddingToCal] = useState(false);
+
+  // ── Season-track access ──
+  // A class the coach placed in a pass the athlete PAID for is theirs to take,
+  // athlete-pass or not: the pass purchase is the entitlement. Verified
+  // server-side-shaped: the enrollment must be readable by this athlete (RLS
+  // scopes client_plan_enrollments to their own rows), belong to their client
+  // row, and its frozen track_snapshot must actually contain this class.
+  // 'unknown' while checking; the general library (no enrollmentId) never
+  // enters this path and keeps the IAP gate.
+  const [trackAccess, setTrackAccess] = useState<'unknown' | 'granted' | 'denied'>(
+    params.enrollmentId ? 'unknown' : 'denied',
+  );
+  React.useEffect(() => {
+    const enrollmentId = params.enrollmentId;
+    if (!enrollmentId || !params.id) { setTrackAccess('denied'); return; }
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('client_plan_enrollments')
+        .select('id, client_id, track_snapshot')
+        .eq('id', enrollmentId)
+        .maybeSingle();
+      if (!alive) return;
+      if (error || !data) {
+        if (__DEV__ && error) console.warn('[class-detail] enrollment check failed:', error.message);
+        setTrackAccess('denied');
+        return;
+      }
+      const ownRow = !!clientData?.id && data.client_id === clientData.id;
+      const snapshot = Array.isArray(data.track_snapshot) ? data.track_snapshot : [];
+      const inTrack = snapshot.some((n: any) => n && n.type === 'class' && n.id === params.id);
+      setTrackAccess(ownRow && inTrack ? 'granted' : 'denied');
+    })();
+    return () => { alive = false; };
+  }, [params.enrollmentId, params.id, clientData?.id]);
 
   const requiresPass = params.is_free === 'false';
+  // The gate: a pass-only class opens for premium athletes OR for an athlete
+  // whose paid season includes it.
+  const gated = requiresPass && !isClientPremium && trackAccess !== 'granted';
 
   React.useEffect(() => {
     async function checkFavorite() {
@@ -146,8 +188,9 @@ export default function ClassDetailScreen() {
   const handleBeginClass = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // ── Paywall gate: non-premium clients can't start PASS-required classes ──
-    if (requiresPass && !isClientPremium) {
+    // ── Paywall gate: non-premium clients can't start PASS-required classes,
+    // unless the class is part of a season they're enrolled in (see trackAccess).
+    if (gated) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setPaywallVisible(true);
       return;
@@ -181,9 +224,70 @@ export default function ClassDetailScreen() {
     });
   };
 
-  const handleAddToCal = () => {
+  // Writes a real event. On-demand classes have no fixed slot, so the event
+  // is placed at the next full hour from now, for the class's duration.
+  // Success is only claimed once createEventAsync hands back an id.
+  const handleAddToCal = async () => {
+    if (addingToCal) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showAlert({ type: 'success', title: 'Added to calendar', message: `"${params.title}" has been added to your calendar.` });
+    setAddingToCal(true);
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert({
+          type: 'warning',
+          title: 'Calendar access needed',
+          message: 'Allow calendar access in Settings to add classes to your calendar.',
+        });
+        return;
+      }
+
+      // Pick a writable calendar: the platform default on iOS, else the
+      // primary (or first writable) calendar on Android.
+      let calendarId: string | null = null;
+      if (Platform.OS === 'ios') {
+        const def = await Calendar.getDefaultCalendarAsync();
+        calendarId = def?.id ?? null;
+      }
+      if (!calendarId) {
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        const writable = calendars.filter((c) => c.allowsModifications);
+        const primary = writable.find((c) => (c as any).isPrimary) ?? writable[0];
+        calendarId = primary?.id ?? null;
+      }
+      if (!calendarId) {
+        showAlert({ type: 'error', title: 'No calendar found', message: "We couldn't find a calendar to add this class to." });
+        return;
+      }
+
+      const start = new Date();
+      start.setMinutes(0, 0, 0);
+      start.setHours(start.getHours() + 1);
+      const minutes = Math.max(5, Number(params.durationMin) || 30);
+      const end = new Date(start.getTime() + minutes * 60_000);
+
+      const eventId = await Calendar.createEventAsync(calendarId, {
+        title: String(params.title || 'FitLink class'),
+        startDate: start,
+        endDate: end,
+        notes: [params.instructor ? `With ${params.instructor}` : null, 'Open FitLink to start the class.'].filter(Boolean).join('\n'),
+      });
+
+      if (!eventId) throw new Error('No event id returned');
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const when = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      showAlert({
+        type: 'success',
+        title: 'Added to calendar',
+        message: `"${params.title}" is on your calendar today at ${when}, for ${minutes} minutes.`,
+      });
+    } catch (err: any) {
+      if (__DEV__) console.warn('[class-detail] add to calendar failed:', err?.message || err);
+      showAlert({ type: 'error', title: 'Not added', message: "We couldn't add this class to your calendar. Please try again." });
+    } finally {
+      setAddingToCal(false);
+    }
   };
 
   return (
@@ -279,8 +383,16 @@ export default function ClassDetailScreen() {
               </Text>
               <Ionicons name={isThisClassActive ? 'arrow-forward' : savedProgress ? 'refresh' : 'play'} size={16} color={CoachColors.onAccent} />
             </TouchableOpacity>
-            <TouchableOpacity style={s.calBtn} onPress={handleAddToCal} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add to calendar">
-              <Text style={s.calBtnText}>Add to cal</Text>
+            <TouchableOpacity
+              style={[s.calBtn, addingToCal && { opacity: 0.6 }]}
+              onPress={handleAddToCal}
+              disabled={addingToCal}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Add to calendar"
+              accessibilityState={{ disabled: addingToCal, busy: addingToCal }}
+            >
+              <Text style={s.calBtnText}>{addingToCal ? 'Adding…' : 'Add to cal'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -288,7 +400,7 @@ export default function ClassDetailScreen() {
               as the Begin-class gate. A Stripe path used to live here — wrong
               rail (in-app digital content must use IAP) and it never actually
               collected payment. Hidden once the pass is held. */}
-          {requiresPass && !isClientPremium && (
+          {gated && (
             <View style={s.premiumBanner}>
               <Ionicons name="lock-closed" size={18} color={CoachColors.warning} />
               <Text style={s.premiumText}>Requires the athlete pass</Text>

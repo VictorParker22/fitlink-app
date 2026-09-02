@@ -363,7 +363,7 @@ export default function ClientMessagesScreen() {
         }
       }
     } catch (err) {
-      console.error('Image upload failed', err);
+      if (__DEV__) console.error('Image upload failed', err);
       showAlert({ type: 'error', title: 'Image not sent', message: "We couldn't send your image. Please try again." });
     } finally {
       setSending(false);

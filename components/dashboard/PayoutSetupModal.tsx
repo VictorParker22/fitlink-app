@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, SUPABASE_URL } from '../../lib/supabase';
 import { Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -55,7 +55,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
-        'https://qcmtaskhyhwzyoegtfpw.supabase.co/functions/v1/create-connect-account',
+        `${SUPABASE_URL}/functions/v1/create-connect-account`,
         {
           method: 'POST',
           headers: {

@@ -44,6 +44,7 @@ import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import CardImage from '../ui/CardImage';
+import PaywallLegal from './PaywallLegal';
 
 // The promise — only what solo mode actually does (canvas paywall board).
 const PROMISES = [
@@ -334,6 +335,7 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
           >
             <Text style={s.coachLinkText}>Or find a real coach — free</Text>
           </TouchableOpacity>
+          <PaywallLegal style={s.legal} />
         </View>
       </View>
     </Modal>
@@ -426,4 +428,5 @@ const s = StyleSheet.create({
   },
   coachLink: { alignItems: 'center', paddingVertical: 8, marginTop: 2 },
   coachLinkText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
+  legal: { marginTop: 8 },
 });

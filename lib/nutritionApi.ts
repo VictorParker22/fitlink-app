@@ -4,7 +4,10 @@
  * Docs: https://fdc.nal.usda.gov/api-guide.html
  */
 
-const API_KEY = 'DEMO_KEY'; // Can be upgraded to a free registered key later
+// DEMO_KEY is shared across every caller worldwide and rate-limits at ~30 req/h.
+// Register a free key at https://fdc.nal.usda.gov/api-key-signup and set
+// EXPO_PUBLIC_USDA_API_KEY in EAS env.
+const API_KEY = process.env.EXPO_PUBLIC_USDA_API_KEY || 'DEMO_KEY';
 const BASE_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search';
 
 export interface NutritionResult {

@@ -7,10 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import RollingNumber from '../components/RollingNumber';
 import BoltEmptyState from '../components/mascot/BoltEmptyState';
+import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../lib/platformFee';
 
 /**
  * Earnings — design turn 13 "Money".
@@ -27,14 +28,17 @@ import BoltEmptyState from '../components/mascot/BoltEmptyState';
  * a projection.
  */
 
-const SUPABASE_URL = 'https://qcmtaskhyhwzyoegtfpw.supabase.co';
-const PLATFORM_FEE = 0.10;
 
 export default function EarningsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trainer, plans, clients, refreshData, classes } = useApp();
   const { showAlert } = useAlert();
+  // The coach's REAL split (platform fee + any org share), read from the same
+  // function Stripe uses. null until it loads — every net figure below is
+  // omitted ("—") rather than guessed at 10% (lib/platformFee.ts).
+  const { split } = usePaymentSplit(trainer?.id);
+  const feeLabel = split ? bpsToPercentLabel(split.platformFeeBps + split.orgShareBps) : null;
   const [stripeLoading, setStripeLoading] = useState(false);
   const [classRevenue, setClassRevenue] = useState<any[]>([]);
   const [classRevenueLoading, setClassRevenueLoading] = useState(true);
@@ -82,17 +86,20 @@ export default function EarningsScreen() {
 
   const formatCurrency = (n: number) => `$${n.toFixed(2)}`;
   const formatWhole = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  // Net (after-fee) figures are only real once the split is known.
+  const fmtNet = (n: number) => (split ? formatWhole(n) : '—');
+  const fmtNetC = (n: number) => (split ? formatCurrency(n) : '—');
 
   // ── Revenue calculations ────────────────────────────
   const planBreakdown = useMemo(() => {
     return plans.map((plan) => {
       const subs = getSubCount(plan.id);
       const gross = Number(plan.price) * subs;
-      const fee = gross * PLATFORM_FEE;
-      const net = gross - fee;
+      const fee = split ? totalDeduction(gross, split) : 0;
+      const net = split ? coachKeeps(gross, split) : 0;
       return { plan, subs, gross, fee, net };
     });
-  }, [plans, getSubCount]);
+  }, [plans, getSubCount, split]);
 
   const totalNet = useMemo(() => planBreakdown.reduce((s, p) => s + p.net, 0), [planBreakdown]);
   const totalSubscribers = useMemo(() => planBreakdown.reduce((s, p) => s + p.subs, 0), [planBreakdown]);
@@ -109,7 +116,7 @@ export default function EarningsScreen() {
         const plan = plans.find((p) => p.id === client.plan_id);
         if (!plan) return null;
         const gross = Number(plan.price);
-        const net = gross * (1 - PLATFORM_FEE);
+        const net = split ? coachKeeps(gross, split) : 0;
         // Client created_at stands in for a payment date — there's no separate
         // payments ledger to read from yet.
         const date = new Date(client.created_at);
@@ -118,7 +125,7 @@ export default function EarningsScreen() {
       .filter(Boolean)
       .sort((a, b) => b!.date.getTime() - a!.date.getTime())
       .slice(0, 10) as { client: typeof clients[0]; plan: typeof plans[0]; gross: number; net: number; date: Date; status: string }[];
-  }, [activeClients, plans]);
+  }, [activeClients, plans, split]);
 
   // "Since you started" — sum of every recorded transaction plus every class
   // payout on file. This used to be `totalNet * 3`, a three-month MRR
@@ -278,7 +285,7 @@ export default function EarningsScreen() {
                 <Text style={styles.pendingBadge}>Nothing can pay out yet</Text>
               </View>
               <Text style={styles.pendingHeadline}>
-                {formatWhole(pendingAmount)} is waiting on{'\n'}your bank details
+                {fmtNet(pendingAmount)} is waiting on{'\n'}your bank details
               </Text>
               <Text style={styles.pendingDesc}>
                 {recentTransactions.length > 0
@@ -317,7 +324,7 @@ export default function EarningsScreen() {
                         <Text style={styles.heldName} numberOfLines={1}>{tx.client.name}</Text>
                         <Text style={styles.heldMeta} numberOfLines={1}>{formatDate(tx.date)} · {tx.plan.name}</Text>
                       </View>
-                      <Text style={styles.heldAmount}>{formatCurrency(tx.net)}</Text>
+                      <Text style={styles.heldAmount}>{fmtNetC(tx.net)}</Text>
                     </View>
                   ))}
                 </View>
@@ -337,7 +344,7 @@ export default function EarningsScreen() {
               formatCurrency={formatCurrency}
             />
 
-            <HowPayoutsWork />
+            <HowPayoutsWork feeLabel={feeLabel} />
           </>
         ) : (
           <>
@@ -346,12 +353,12 @@ export default function EarningsScreen() {
               <Text style={styles.headlineLabel}>This month, so far</Text>
               <View style={styles.headlineRow}>
                 <RollingNumber
-                  text={formatWhole(thisMonthNet)}
+                  text={fmtNet(thisMonthNet)}
                   style={styles.headlineValue}
                 />
               </View>
               <Text style={styles.headlineDesc}>
-                From {totalSubscribers} active subscription{totalSubscribers === 1 ? '' : 's'}, after the 10% fee.
+                From {totalSubscribers} active subscription{totalSubscribers === 1 ? '' : 's'}, after the {feeLabel ?? 'platform'} fee.
               </Text>
               <View style={styles.headlineFooter}>
                 <View style={styles.pendingDotAccent} />
@@ -360,13 +367,13 @@ export default function EarningsScreen() {
             </View>
 
             <View style={styles.statsRow}>
-              <View style={styles.statTile} accessible={true} accessibilityLabel={`Paid this month, ${formatWhole(thisMonthNet)}`}>
+              <View style={styles.statTile} accessible={true} accessibilityLabel={`Paid this month, ${fmtNet(thisMonthNet)}`}>
                 <Text style={styles.statLabel}>Paid this month</Text>
-                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{formatWhole(thisMonthNet)}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{fmtNet(thisMonthNet)}</Text>
               </View>
-              <View style={styles.statTile} accessible={true} accessibilityLabel={`Since you started, ${formatWhole(sinceStarted)}`}>
+              <View style={styles.statTile} accessible={true} accessibilityLabel={`Since you started, ${fmtNet(sinceStarted)}`}>
                 <Text style={styles.statLabel}>Since you started</Text>
-                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{formatWhole(sinceStarted)}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{fmtNet(sinceStarted)}</Text>
               </View>
             </View>
 
@@ -401,7 +408,7 @@ export default function EarningsScreen() {
                 </View>
                 <Text style={styles.sectionDesc}>
                   If nobody joins or leaves, next month lands at{' '}
-                  <Text style={styles.sectionDescStrong}>{formatWhole(totalNet)}</Text>.
+                  <Text style={styles.sectionDescStrong}>{fmtNet(totalNet)}</Text>.
                 </Text>
                 <View style={styles.breakdownCard}>
                   {planBreakdown.map((item, index) => {
@@ -414,7 +421,7 @@ export default function EarningsScreen() {
                             <Text style={styles.breakdownMeta}>{item.subs} holder{item.subs === 1 ? '' : 's'} · {formatCurrency(Number(item.plan.price))}</Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={styles.breakdownAmount}>{formatCurrency(item.net)}</Text>
+                            <Text style={styles.breakdownAmount}>{fmtNetC(item.net)}</Text>
                             <Text style={styles.breakdownAfterFee}>after fee</Text>
                           </View>
                         </View>
@@ -446,7 +453,7 @@ export default function EarningsScreen() {
                         <Text style={styles.heldMeta} numberOfLines={1}>{tx.plan.name} · {formatDate(tx.date)}</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.heldAmount}>{formatCurrency(tx.net)}</Text>
+                        <Text style={styles.heldAmount}>{fmtNetC(tx.net)}</Text>
                         <Text style={styles.breakdownAfterFee}>of {formatCurrency(tx.gross)}</Text>
                       </View>
                     </View>
@@ -476,7 +483,7 @@ export default function EarningsScreen() {
               />
             )}
 
-            <HowPayoutsWork />
+            <HowPayoutsWork feeLabel={feeLabel} />
           </>
         )}
 
@@ -487,10 +494,12 @@ export default function EarningsScreen() {
 
 // ── Shared sub-sections ────────────────────────────────────────
 
-function HowPayoutsWork() {
+function HowPayoutsWork({ feeLabel }: { feeLabel: string | null }) {
   const items = [
     'Money lands in your bank 2 business days after an athlete is charged.',
-    'FitLink keeps 10% of each payment. Card fees come out of that.',
+    feeLabel
+      ? `FitLink keeps ${feeLabel} of each payment. Card fees come out of that.`
+      : 'FitLink keeps a platform fee from each payment. Card fees come out of that.',
     'Class pool money is paid on the 5th of the following month.',
   ];
   return (

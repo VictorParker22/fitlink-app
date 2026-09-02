@@ -17,13 +17,12 @@
       "supportsTablet": false,
       "bundleIdentifier": "fitlink.app",
       "infoPlist": {
-        "NSContactsUsageDescription": "FitLink needs access to your contacts to invite clients.",
+        "NSContactsUsageDescription": "FitLink matches names you type against your contacts so you can invite athletes faster. Contacts stay on your device and are never uploaded.",
         "NSCameraUsageDescription": "FitLink uses the camera so you can take a profile or client photo, film exercise demos, and broadcast live classes.",
         "NSMicrophoneUsageDescription": "FitLink uses the microphone to record audio for your exercise videos and to carry your voice during live classes.",
         "NSPhotoLibraryUsageDescription": "FitLink needs access to your photo library so you can choose profile pictures, progress photos, class thumbnails and exercise videos.",
         "ITSAppUsesNonExemptEncryption": false,
-        "NSHealthShareUsageDescription": "FitLink needs access to your health data to track your fitness progress and share insights with your coach.",
-        "NSHealthUpdateUsageDescription": "FitLink needs access to update your health data."
+        "NSHealthShareUsageDescription": "FitLink needs access to your health data to track your fitness progress and share insights with your coach."
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
@@ -48,27 +47,52 @@
             "NSPrivacyAccessedAPITypeReasons": [
               "E174.1"
             ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
           }
         ],
         "NSPrivacyCollectedDataTypes": [
-          {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeHealthAndFitness",
-            "NSPrivacyCollectedDataTypeLinked": true,
-            "NSPrivacyCollectedDataTypeTracking": false,
-            "NSPrivacyCollectedDataTypePurposes": [
-              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
-            ]
-          },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
-              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeCustomerSupport"
             ]
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhoneNumber",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeCustomerSupport"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeCustomerSupport"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeHealth",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeFitness",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
@@ -77,6 +101,64 @@
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePaymentInfo",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAnalytics",
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCrashData",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePerformanceData",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeContacts",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
@@ -149,7 +231,7 @@
         "react-native-health",
         {
           "healthSharePermission": "FitLink needs access to your health data to track your fitness progress and share insights with your coach.",
-          "healthUpdatePermission": "FitLink needs access to update your health data."
+          "healthUpdatePermission": "FitLink only reads health data and never writes to Health. This entry is required by the Health integration and is not used."
         }
       ],
       "expo-health-connect",
@@ -165,8 +247,30 @@
       ],
       "expo-video",
       "expo-web-browser",
-      "./plugins/withFfmpegBitcodeStrip"
+      "./plugins/withFfmpegBitcodeStrip",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "FitLink adds classes you book to your calendar so you don't miss them."
+        }
+      ],
+      [
+        "@sentry/react-native",
+        {
+          "organization": "fitlink",
+          "project": "fitlink-native",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/dbf0a57a-dc69-427a-9fc1-1d53779bfc49",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
