@@ -255,11 +255,11 @@
         }
       ],
       [
-        "@sentry/react-native",
+        "@sentry/react-native/expo",
         {
-          "organization": "fitlink",
-          "project": "fitlink-native",
-          "url": "https://sentry.io/"
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "fitlink-px"
         }
       ]
     ],

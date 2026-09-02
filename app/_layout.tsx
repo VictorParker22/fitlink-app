@@ -444,7 +444,7 @@ function StartupDoctor() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
   // Real startup milestones, fed to the splash's determinate bar:
   // fonts .33 → session + onboarding flags .66 → route settled 1.
@@ -540,7 +540,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
     </LayersAnalyticsProvider>
   );
-}
+});
 
 function ThemedStatusBar() {
   const { isDark } = useTheme();

@@ -81,3 +81,5 @@ credentials.json
 credentials/
 /*.patch
 /*.txt
+
+.env.local
