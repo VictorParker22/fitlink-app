@@ -168,7 +168,7 @@
         ],
         "NSPrivacyTracking": false
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": false
     },
     "android": {
       "package": "com.fitlink.app",

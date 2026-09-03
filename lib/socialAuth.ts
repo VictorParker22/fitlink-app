@@ -20,6 +20,12 @@ export type SocialAuthResult = { ok: true } | { cancelled: true } | { error: str
 
 export async function isAppleAvailable(): Promise<boolean> {
   if (Platform.OS !== 'ios') return false;
+  // The Sign in with Apple entitlement needs a provisioning profile that
+  // carries the capability, which only an interactive `eas build` can
+  // regenerate. Until that has happened once (and app.json has
+  // ios.usesAppleSignIn: true), the button stays hidden: an entitlement the
+  // profile lacks would crash the sign-in call, not fail it politely.
+  if (process.env.EXPO_PUBLIC_APPLE_SIGNIN !== '1') return false;
   try {
     return await AppleAuthentication.isAvailableAsync();
   } catch {
