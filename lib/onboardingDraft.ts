@@ -35,6 +35,8 @@ export interface OnboardingDraft {
   dob?: string;
   /** Athlete's chosen way to train: a human coach, or the AI corner. */
   path?: 'coach' | 'solo';
+  /** Display name typed on the account step (phone sign-ups have no other source). */
+  name?: string;
   updatedAt?: number;
 }
 
@@ -80,7 +82,10 @@ export async function applyOnboardingDraft(userId: string): Promise<DraftRole | 
       const { error } = await supabase.from('trainers').update(update).eq('id', userId);
       if (error && __DEV__) console.warn('[onboardingDraft] trainers update failed:', error.message);
     }
-    await supabase.auth.updateUser({ data: { role: 'trainer' } }).catch(() => {});
+    await supabase.auth.updateUser({ data: { role: 'trainer', ...(d.name ? { name: d.name } : {}) } }).catch(() => {});
+    if (d.name) {
+      await supabase.from('trainers').update({ name: d.name }).eq('id', userId);
+    }
   } else {
     // Athlete: role + intake into auth metadata. A stray trainers row from
     // the signup trigger (OAuth signups carry no role) is removed server-side.
@@ -96,6 +101,7 @@ export async function applyOnboardingDraft(userId: string): Promise<DraftRole | 
       onboarding_path: d.path ?? null,
     };
     if (d.dob) meta.date_of_birth = d.dob;
+    if (d.name) meta.name = d.name;
     const { error } = await supabase.auth.updateUser({ data: meta });
     if (error && __DEV__) console.warn('[onboardingDraft] metadata update failed:', error.message);
     await supabase.rpc('claim_athlete_role').then(({ error: e }) => {
