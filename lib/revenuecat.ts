@@ -30,7 +30,7 @@ import { Platform, NativeModules } from 'react-native';
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 // Replace these with your real keys from app.revenuecat.com → Project Settings → API Keys
 const RC_IOS_KEY     = 'appl_uxVliITLpaYeSvYwsXSnkeGIkAg';
-const RC_ANDROID_KEY = 'goog_REPLACE_WITH_YOUR_ANDROID_KEY';
+const RC_ANDROID_KEY = 'goog_snlgIfpDyeEieSOAaDSfHhhCqlk';
 
 // ─── Entitlement Identifiers ──────────────────────────────────────────────────
 // Must match EXACTLY what you create in the RC dashboard
