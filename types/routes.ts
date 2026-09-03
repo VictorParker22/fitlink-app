@@ -51,6 +51,7 @@ export const SharedRoute = {
   helpCenter: '/help-center' as const,
   contactSupport: '/contact-support' as const,
   termsPrivacy: '/terms-privacy' as const,
+  reportCoach: '/report-coach' as const,
   checkout: '/checkout' as const,
 } as const;
 

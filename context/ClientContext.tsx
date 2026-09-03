@@ -173,6 +173,42 @@ export function ClientProvider({ children }: PropsWithChildren) {
   // stale snapshots can never overwrite fresh (or legitimately empty) data.
   const netLoadedRef = useRef(false);
 
+  // Everything that belongs to one athlete. Called when the signed-in user
+  // changes (sign-out, or a different account signs in on the same phone)
+  // and when the network says this user has no client row.
+  const resetAthleteState = useCallback(() => {
+    setClientData(null);
+    setTrainer(null);
+    setEnrollment(null);
+    setAllTrainerWorkouts([]);
+    setSessions([]);
+    setWorkouts([]);
+    setDiets([]);
+    setProgressLogs([]);
+    setConversation(null);
+    setPlans([]);
+    setSubscription(null);
+    setPaymentHistory([]);
+    setExerciseLogs({});
+    setExercisePrs({});
+    setWorkoutLogRows([]);
+    setHealthSharingEnabled(false);
+    setActiveGymVisit(null);
+    setMealLogs({});
+  }, []);
+
+  // The provider lives above the auth switch and is never remounted, so
+  // state must be cleared by hand whenever the account changes.
+  const lastUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = user?.id ?? null;
+    if (lastUserIdRef.current !== null && lastUserIdRef.current !== id) {
+      resetAthleteState();
+      setLoading(!!id);
+    }
+    lastUserIdRef.current = id;
+  }, [user?.id, resetAthleteState]);
+
   // Hydrate the athlete's core data from the last-known-good snapshot so the
   // Today/Train/Food screens render instantly, even in airplane mode.
   useEffect(() => {
@@ -218,7 +254,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
       if (__DEV__) console.log('[ClientContext] Fetch result:', JSON.stringify({ userId: user.id, client: client?.id, clientErr }));
 
-      if (!client) { setLoading(false); return; }
+      if (!client) {
+        // No client row for THIS user. Clear everything: a freshly signed-up
+        // athlete on a phone that previously held another athlete was shown
+        // that athlete's coach, pass and messages (TestFlight build 25).
+        resetAthleteState();
+        setLoading(false);
+        return;
+      }
       setClientData(client);
       setHealthSharingEnabled(!!client.health_sharing_enabled);
 

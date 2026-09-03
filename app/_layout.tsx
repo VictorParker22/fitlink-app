@@ -390,6 +390,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       <Stack.Screen name="help-center" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="contact-support" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="terms-privacy" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="report-coach" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="broadcast/setup" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="broadcast/[id]" options={{ animation: 'fade', gestureEnabled: false }} />

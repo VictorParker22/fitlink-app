@@ -335,6 +335,9 @@ export default function ClientProfileScreen() {
               is shared and stays IN the app (no hand-off to a browser). */}
           <MenuRow label="Help and support" onPress={() => router.push(SharedRoute.contactSupport)} />
           <MenuRow label="Privacy and terms" onPress={() => router.push(SharedRoute.termsPrivacy)} />
+          {trainer ? (
+            <MenuRow label={`Report a concern about ${coachFirst}`} onPress={() => router.push(SharedRoute.reportCoach as any)} />
+          ) : null}
         </View>
 
         {/* Sign out · leave */}
