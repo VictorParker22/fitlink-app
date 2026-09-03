@@ -87,7 +87,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const insets = useSafeAreaInsets();
   // The COACH offering, not the athlete default — the two audiences buy
   // different products and the packages would otherwise collide.
-  const { coachOfferings: offerings, purchasePackage, restorePurchases } = useRevenueCat();
+  const { coachOfferings: offerings, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
   const { plans, activeClients, trainer } = useApp();
   const { split } = usePaymentSplit(trainer?.id);
   const { showAlert } = useAlert();
@@ -192,7 +192,9 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
       showAlert({
         type: 'error',
         title: 'Not available right now',
-        message: "We couldn't load Elite pricing. Check your connection and try again — nothing has been charged.",
+        message: `We couldn't load Elite pricing. Nothing has been charged.${storeStatus ? `
+
+${storeStatus}` : ''}`,
       });
       return;
     }

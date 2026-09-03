@@ -270,12 +270,26 @@ export default function ClientSignupScreen() {
       });
       if (signUpErr) throw signUpErr;
 
-      // Arrived on a coach's link — connect straight to that coach.
+      // Arrived on a coach's link — connect straight to that coach. Wins even
+      // over a 'solo' draft choice: a human invited them, so that invite is
+      // honoured regardless of what the pre-signup draft said.
       if (inviteTrainer) {
         await connectToTrainer(inviteTrainer.id);
         return;
       }
 
+      // An onboarding draft with a client role already carries the athlete's
+      // path (coach or solo) — AuthContext's applyOnboardingDraft writes it to
+      // auth metadata on SIGNED_IN, and AuthGuard routes from there. Forcing a
+      // coach pick here would override a 'solo' choice the athlete already
+      // made (the "waiting on Victor" bug). Just stay on the loading state.
+      const draft = await loadDraft();
+      if (draft.role === 'client') {
+        return;
+      }
+
+      // Legacy path: no draft (old entry point) and no invite — the only case
+      // that still asks the athlete to pick a coach right here.
       setLoadingTrainers(true);
       const { data: trainerList } = await supabase
         .from('trainers_public')
@@ -284,9 +298,9 @@ export default function ClientSignupScreen() {
       setTrainers(trainerList || []);
       setLoadingTrainers(false);
       setFlowStep('pick_trainer');
+      setLoading(false);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
-    } finally {
       setLoading(false);
     }
   };

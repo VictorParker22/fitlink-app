@@ -44,6 +44,7 @@ import { ensureSoloClient } from '../../lib/soloClient';
 import { useSoloVoice, getAutoPlay, setAutoPlay as persistAutoPlay } from '../../lib/soloVoice';
 import { Orb, SpokenLine, SOLO_TINT } from '../../components/solo/Presence';
 import SoloPaywall from '../../components/paywalls/SoloPaywall';
+import { buildSoloProgram } from '../../lib/soloProgram';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 
 interface SoloMessage {
@@ -135,6 +136,23 @@ export default function SoloScreen() {
     })();
   }, [clientData?.id, refreshData]);
 
+  // ── First week: the corner writes the program once premium is live ────────
+  // solo-program is idempotent server-side (skips when built < 6 days ago),
+  // so this can fire on every mount without duplicating a week.
+  const programAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (!clientData?.id || programAttemptedRef.current) return;
+    const until = (clientData as any)?.premium_until ? new Date((clientData as any).premium_until).getTime() : 0;
+    if (until <= Date.now()) return;
+    if ((clientData as any)?.solo_program_built_at) return;
+    programAttemptedRef.current = true;
+    (async () => {
+      const res = await buildSoloProgram();
+      if (res.ok && res.created.length > 0) await refreshData();
+      else if (!res.ok && __DEV__) console.warn('[solo] program build:', res.reason, res.message);
+    })();
+  }, [clientData?.id, (clientData as any)?.premium_until, (clientData as any)?.solo_program_built_at, refreshData]);
+
   // ── History: last 50, oldest first ─────────────────────────────────────────
   useEffect(() => {
     if (!clientData?.id) return;
@@ -193,7 +211,10 @@ export default function SoloScreen() {
     if (!activating) return;
     const remaining = Math.max(0, 90_000 - (Date.now() - lastPurchaseAtRef.current));
     const t = setTimeout(() => setActivating(false), remaining);
-    return () => clearTimeout(t);
+    // The webhook lands premium_until in seconds; poll the profile so the
+    // corner (and the program build above) wake up without a restart.
+    const poll = setInterval(() => { refreshData().catch(() => {}); }, 5_000);
+    return () => { clearTimeout(t); clearInterval(poll); };
   }, [activating]);
 
   // ── Core call to the corner ─────────────────────────────────────────────────

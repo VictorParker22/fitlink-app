@@ -99,6 +99,15 @@ export interface OrbProps {
   reduced?: boolean;
   /** Show the bar-meter row under the orb (Corner screen only). */
   showMeter?: boolean;
+  /**
+   * Glow diameter as a multiple of `size`. Kept small and circular by
+   * default so the glow never bleeds past a clipping card (setup screen's
+   * voice cards); the corner screen can opt into a bigger ambient glow by
+   * passing a higher value once it needs one, but never above 1.6 — a
+   * bigger radius reads as a rectangle once it is squared against the
+   * containing box.
+   */
+  glowScale?: number;
 }
 
 /**
@@ -106,7 +115,7 @@ export interface OrbProps {
  * behind it. Breathes at rest (scale 1 → 1.04, 2.4s loop); the ring pulses
  * opacity while loading. Reduce Motion is law — both loops freeze at rest.
  */
-export function Orb({ tint, size, speaking, loading, reduced, showMeter }: OrbProps) {
+export function Orb({ tint, size, speaking, loading, reduced, showMeter, glowScale = 1.6 }: OrbProps) {
   const breathe = useSharedValue(1);
   const ringOpacity = useSharedValue(1);
 
@@ -149,13 +158,15 @@ export function Orb({ tint, size, speaking, loading, reduced, showMeter }: OrbPr
     opacity: ringOpacity.value,
   }));
 
-  const glowSize = size * 3.2;
+  const glowSize = size * Math.min(glowScale, 1.6);
   const innerSize = size * 0.61;
 
   return (
     <View style={{ alignItems: 'center' }}>
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-        {/* Wide glow behind everything */}
+        {/* Soft glow behind everything — a small circle, never a rectangle:
+            capped at 1.6x the orb, clipped to its own radius, and kept
+            faint enough to read as ambient light rather than a panel. */}
         <View
           pointerEvents="none"
           style={[
@@ -171,7 +182,7 @@ export function Orb({ tint, size, speaking, loading, reduced, showMeter }: OrbPr
         >
           <LinearGradient
             colors={[hexWithAlpha(tint, '33'), hexWithAlpha(tint, '00')]}
-            style={StyleSheet.absoluteFill}
+            style={{ width: glowSize, height: glowSize, borderRadius: glowSize / 2 }}
           />
         </View>
 
@@ -259,7 +270,7 @@ export function SpokenLine({ text, tint, state, onToggle, muted }: SpokenLinePro
 }
 
 const s = StyleSheet.create({
-  glow: { position: 'absolute' },
+  glow: { position: 'absolute', overflow: 'hidden', borderCurve: 'continuous', opacity: 0.18 },
   ring: { position: 'absolute', borderWidth: 1 },
   barRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 4,

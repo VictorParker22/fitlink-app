@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View, Text, TextInput, StyleSheet, Pressable, Linking, Keyboard,
-  KeyboardAvoidingView, Platform, TouchableWithoutFeedback, AccessibilityInfo,
+  KeyboardAvoidingView, Platform, ScrollView, AccessibilityInfo,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -231,31 +231,38 @@ export default function AccountScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <Screen
-          footer={(
-            <>
-              {error ? (
-                <Text style={s.errorText} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
-                  {error}
-                </Text>
-              ) : null}
-              {footerButton}
-              <View style={s.legalWrap}>
-                <Text style={s.legalText}>
-                  By continuing you agree to the{' '}
-                  <Text style={s.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
-                  {' '}and{' '}
-                  <Text style={s.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>
-                  .
-                </Text>
-              </View>
-            </>
-          )}
-        >
-          <TopNav onBack={() => router.back()} />
+      <Screen
+        footer={(
+          <>
+            {error ? (
+              <Text style={s.errorText} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
+                {error}
+              </Text>
+            ) : null}
+            {footerButton}
+            <View style={s.legalWrap}>
+              <Text style={s.legalText}>
+                By continuing you agree to the{' '}
+                <Text style={s.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
+                {' '}and{' '}
+                <Text style={s.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>
+                .
+              </Text>
+            </View>
+          </>
+        )}
+      >
+        <TopNav onBack={() => router.back()} />
 
-          <View style={s.body}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={s.body}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss} accessible={false}>
             <View style={{ gap: 10 }}>
               <Headline>Keep this. Save your FitLink.</Headline>
               <Sub>
@@ -400,15 +407,15 @@ export default function AccountScreen() {
                   : 'You set every price. Athletes pay in the app.'}
               </Text>
             </View>
-          </View>
-        </Screen>
-      </TouchableWithoutFeedback>
+          </Pressable>
+        </ScrollView>
+      </Screen>
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
-  body: { flex: 1, paddingHorizontal: OBSpace.screen, paddingTop: 8 },
+  body: { flexGrow: 1, paddingHorizontal: OBSpace.screen, paddingTop: 8, paddingBottom: 24 },
 
   fieldWrap: { gap: 8 },
   fieldLabel: { fontFamily: OBFonts.sansSemiBold, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: OB.faint },

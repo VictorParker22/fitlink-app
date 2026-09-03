@@ -71,7 +71,7 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
   const router = useRouter();
   // The DEFAULT offering — athlete products (fitlink_athlete_monthly/annual
   // → client_premium). The coach offering is a different audience entirely.
-  const { offerings, purchasePackage, restorePurchases } = useRevenueCat();
+  const { offerings, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
   const { showAlert } = useAlert();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -140,7 +140,9 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
       showAlert({
         type: 'error',
         title: 'Not available right now',
-        message: "We couldn't load solo mode pricing. Check your connection and try again — nothing has been charged.",
+        message: `We couldn't load solo mode pricing. Nothing has been charged.${storeStatus ? `
+
+${storeStatus}` : ''}`,
       });
       return;
     }
@@ -274,6 +276,11 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
                   ? 'Subscriptions are managed in the FitLink app. Open it on your phone to start solo mode or restore a purchase.'
                   : "We couldn't load solo mode pricing right now. Check your connection and pull this screen up again — nothing is charged until you buy."}
               </Text>
+              {!isWeb && storeStatus ? (
+                <Text style={[s.noStoreText, { marginTop: 10, fontSize: 12, color: CoachColors.textFaint }]} maxFontSizeMultiplier={1.3}>
+                  {storeStatus}
+                </Text>
+              ) : null}
             </View>
           )}
         </ScrollView>

@@ -57,14 +57,23 @@ export default function AthletePermissionsScreen() {
     });
   }
 
-  const finish = () => {
+  const finish = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Remember that the asks were explained, so the AuthGuard never routes
     // this athlete back here. Best effort: routing does not wait on it.
     supabase.auth.updateUser({ data: { permissions_primed: true } }).catch(() => {});
+    // The context user's metadata can be stale right here — this screen is
+    // reached moments after signUp, and applyOnboardingDraft's onboarding_path
+    // write may not have propagated to the cached AuthContext user yet. Read
+    // the freshest metadata directly, falling back to the context user only
+    // if that read fails.
+    let chosePath = user?.user_metadata?.onboarding_path;
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) chosePath = data.user.user_metadata?.onboarding_path ?? chosePath;
+    } catch {}
     // An athlete who chose Solo in onboarding goes straight to choosing a
     // voice; the coach path lands on Home, where Find a coach leads.
-    const chosePath = user?.user_metadata?.onboarding_path;
     const dest = typeof next === 'string' && next
       ? next
       : chosePath === 'solo' ? '/(client-tabs)/solo-setup' : '/(client-tabs)';

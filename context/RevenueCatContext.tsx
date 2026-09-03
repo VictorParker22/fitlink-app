@@ -53,6 +53,10 @@ interface RevenueCatContextType {
   coachOfferings: PurchasesOffering | null;
   isClientPremium: boolean;
   isCoachElite: boolean;
+  /** Plain-language reason the store has no prices, or null when it does.
+   *  Shown on the paywalls' fallback card so a misconfiguration is
+   *  diagnosable from the phone instead of a silent empty offering. */
+  storeStatus: string | null;
   purchasePackage: (pkg: PurchasesPackage) => Promise<{ success: boolean; error?: string }>;
   restorePurchases: () => Promise<{ success: boolean; restored: boolean; error?: string }>;
   refreshCustomerInfo: () => Promise<void>;
@@ -68,6 +72,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
   const [coachOfferings, setCoachOfferings] = useState<PurchasesOffering | null>(null);
+  const [storeStatus, setStoreStatus] = useState<string | null>(null);
 
   // ── Computed entitlement flags ──
   const isClientPremium = !!customerInfo?.entitlements.active[ENTITLEMENT_CLIENT_PREMIUM];
@@ -99,8 +104,23 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         const defaultOffering = offeringsResult.current ?? offeringsResult.all[OFFERING_DEFAULT] ?? null;
         setOfferings(defaultOffering);
         setCoachOfferings(offeringsResult.all[OFFERING_COACH] ?? null);
-      } catch (err) {
+
+        // Diagnose an empty store precisely. The three usual causes look
+        // identical from the paywall (no price) but need different fixes.
+        const ids = Object.keys(offeringsResult.all);
+        const pkgCount = defaultOffering?.availablePackages.length ?? 0;
+        if (ids.length === 0) {
+          setStoreStatus('RevenueCat returned no offerings. Check the app API key and that an offering named "default" is marked current.');
+        } else if (!defaultOffering) {
+          setStoreStatus(`Offerings found (${ids.join(', ')}) but none is current or named "default".`);
+        } else if (pkgCount === 0) {
+          setStoreStatus(`Offering "${defaultOffering.identifier}" has no packages. The store rejected its products: in App Store Connect check the Paid Applications agreement, product status "Ready to Submit", and identifiers matching RevenueCat.`);
+        } else {
+          setStoreStatus(null);
+        }
+      } catch (err: any) {
         if (__DEV__) console.warn('[RevenueCat] Init error:', err);
+        setStoreStatus(`Store error: ${err?.message ?? String(err)}`);
       } finally {
         setIsLoading(false);
       }
@@ -197,6 +217,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         coachOfferings,
         isClientPremium,
         isCoachElite,
+        storeStatus,
         purchasePackage,
         restorePurchases,
         refreshCustomerInfo,

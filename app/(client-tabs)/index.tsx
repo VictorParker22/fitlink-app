@@ -24,6 +24,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
@@ -102,6 +103,12 @@ const LAPSE_REASONS: { label: string; message: (days: number) => string }[] = [
 export default function AthleteTodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  // The athlete's onboarding choice — decides which coachless block leads
+  // (design turn: Solo mode ordering). Unset defaults to the coach lead,
+  // same as an explicit 'coach' choice.
+  const onboardingPath = (user?.user_metadata as any)?.onboarding_path;
+  const soloLeads = onboardingPath === 'solo';
   const {
     clientData,
     trainer,
@@ -258,10 +265,12 @@ export default function AthleteTodayScreen() {
 
   const instruction = useMemo(() => {
     if (!clientData || !trainer) {
+      // Leads the screen when the athlete didn't choose Solo (an explicit
+      // 'coach' choice, or no choice at all — the legacy default).
       return {
         kind: 'no-coach' as const,
         eyebrow: 'Waiting on a coach',
-        title: 'No coach yet',
+        title: soloLeads ? 'No coach yet' : 'Find your coach',
         sub: 'Once a coach takes you on, this screen becomes your plan — one session at a time, with a direct line to whoever set it.',
       };
     }
@@ -345,7 +354,7 @@ export default function AthleteTodayScreen() {
       title: 'Nothing on the plan today',
       sub: 'Rest is part of the programme, not a gap in it.',
     };
-  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst, enrollment, workouts, lapse, plans]);
+  }, [clientData, trainer, todayWorkout, trackNode, exerciseCount, durationMin, workoutRow, coachFirst, enrollment, workouts, lapse, plans, soloLeads]);
 
   // ── The three answers ─────────────────────────────────────────────────────
 
@@ -561,11 +570,13 @@ export default function AthleteTodayScreen() {
           </Pressable>
         </View>
 
-        {/* Solo mode — the lead for a coachless athlete. An athlete WITH a
-            coach never sees this: the human relationship owns that space,
-            and software does not compete with it. Sits ABOVE everything
-            else, including the instruction hero below. */}
-        {!trainer && (
+        {/* Solo mode — the lead for a coachless athlete who chose Solo at
+            onboarding. An athlete WITH a coach never sees this: the human
+            relationship owns that space, and software does not compete with
+            it. Sits ABOVE everything else, including the instruction hero
+            below. An athlete who chose (or never chose) the coach path sees
+            the hero lead instead, with a compact corner below it. */}
+        {!trainer && soloLeads && (
           <View style={{ marginTop: 18 }}>
             <CornerCard />
           </View>
@@ -828,6 +839,17 @@ export default function AthleteTodayScreen() {
             )
           )}
         </View>
+
+        {/* Solo mode — the compact "other door" for a coachless athlete who
+            chose (or never chose) the coach path: Find a coach already led
+            above, so the AI corner sits below it here instead. Same
+            CornerCard component, unmodified — only its position changes. */}
+        {!trainer && !soloLeads && (
+          <View style={{ marginTop: 18 }}>
+            <Text style={st.soloBelowLabel}>Or train solo with an AI corner</Text>
+            <CornerCard />
+          </View>
+        )}
 
         {/* ── Client copilot — up to 4 real "what's next" rows ── */}
         <ClientCopilot latestCoachMessage={latestCoachMsg} />
@@ -1098,6 +1120,10 @@ const st = StyleSheet.create({
   humanLabel: {
     fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
     color: C.textFaint, marginTop: 20,
+  },
+  soloBelowLabel: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
+    color: C.textFaint, marginBottom: 10,
   },
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15,

@@ -314,7 +314,7 @@ const s = StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: C.surface,
-    borderRadius: 20, borderCurve: 'continuous',
+    borderRadius: 20, borderCurve: 'continuous', overflow: 'hidden',
     borderWidth: 1, borderColor: C.borderMuted,
     padding: 16,
   },
