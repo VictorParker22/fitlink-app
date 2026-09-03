@@ -19,6 +19,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import PermissionCards, { type PermissionItem } from '../../components/onboarding/PermissionCards';
 import { getNotificationState, requestNotifications, type PermState } from '../../lib/permissions';
 import { useHealth } from '../../context/HealthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function AthletePermissionsScreen() {
   const router = useRouter();
@@ -56,6 +57,9 @@ export default function AthletePermissionsScreen() {
 
   const finish = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Remember that the asks were explained, so the AuthGuard never routes
+    // this athlete back here. Best effort: routing does not wait on it.
+    supabase.auth.updateUser({ data: { permissions_primed: true } }).catch(() => {});
     router.replace((typeof next === 'string' && next ? next : '/(client-tabs)') as any);
   };
 

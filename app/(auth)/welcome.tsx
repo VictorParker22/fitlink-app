@@ -1,329 +1,158 @@
-import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, StatusBar } from 'react-native';
+/**
+ * FitLink welcome — editorial onboarding entry (canvas "FitLink Arrival",
+ * screen 01). No photography: the monogram (a ring bisected by a rising
+ * stroke — two parties, one line between them) inside two concentric
+ * hairline rings is the entire visual, with three faint vertical hairlines
+ * as the grid motif every later screen aligns to.
+ *
+ * On mount the outer ring + monogram fade/scale in (1100ms), the lime dot
+ * lands last, and the copy rises 16px. Reduce Motion: everything appears in
+ * place, no movement (useReducedMotion is law — see .agents/DESIGN.md).
+ */
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withDelay,
-  withSpring,
   Easing,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
-/**
- * FitLink landing — design #15a "PROOF": show the product, not a pitch.
- *
- * A real card floats over the coach photo — today's session + a nudge
- * prompt — instead of a rotating carousel of athlete-facing marketing
- * copy. Single primary action ("Start coaching on FitLink") straight into
- * coach signup; the athlete fork is a quiet text link, not a second button.
- */
-
+import { OB, OBFonts, OBMotion } from '../../constants/onboardingDesign';
+import { Wordmark, Monogram, AccentDot, PrimaryButton, TextButton } from '../../components/onboarding/Editorial';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { CoachColors, CoachFonts } from '../../constants/coachDesign';
-
-// This screen used to redeclare the palette as local hex literals identical to
-// the tokens, which meant design-system fixes (e.g. the textFaint contrast
-// correction) silently skipped it. Aliased to the tokens instead — same values,
-// now actually shared.
-const BG = CoachColors.bg;
-const ACCENT = CoachColors.accent;
-const TEXT_PRIMARY = CoachColors.textPrimary;
-const TEXT_SECONDARY = CoachColors.textSecondary;
-const TEXT_MUTED = CoachColors.textMuted;
-
-function AnimatedPrimaryButton({ title, onPress }: { title: string; onPress: () => void }) {
-  const reduceMotion = useReducedMotion();
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  return (
-    <Animated.View style={[styles.primaryBtn, style]}>
-      <Pressable
-        style={styles.primaryBtnPressable}
-        onPressIn={() => { if (!reduceMotion) scale.value = withSpring(0.97); }}
-        onPressOut={() => { if (!reduceMotion) scale.value = withSpring(1); }}
-        onPress={onPress}
-      >
-        <Text style={styles.primaryBtnText}>{title}</Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const reduceMotion = useReducedMotion();
-  const cardIn = useSharedValue(reduceMotion ? 1 : 0);
+
+  const ringIn = useSharedValue(reduceMotion ? 1 : 0);
+  const dotIn = useSharedValue(reduceMotion ? 1 : 0);
   const contentIn = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
-    // Reduce Motion: the staggered rise is pure decoration — land on the
-    // final layout immediately.
     if (reduceMotion) {
+      ringIn.value = 1;
+      dotIn.value = 1;
       contentIn.value = 1;
-      cardIn.value = 1;
       return;
     }
-    contentIn.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) });
-    cardIn.value = withDelay(
-      160,
-      withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) })
-    );
-  }, [reduceMotion, contentIn, cardIn]);
+    ringIn.value = withTiming(1, { duration: OBMotion.monogram, easing: Easing.out(Easing.cubic) });
+    dotIn.value = withDelay(900, withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) }));
+    contentIn.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+  }, [reduceMotion, ringIn, dotIn, contentIn]);
 
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: ringIn.value,
+    transform: [{ scale: 0.85 + ringIn.value * 0.15 }],
+  }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: dotIn.value }));
   const contentStyle = useAnimatedStyle(() => ({
     opacity: contentIn.value,
-    transform: [{ translateY: (1 - contentIn.value) * 14 }],
-  }));
-
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: cardIn.value,
-    transform: [{ translateY: (1 - cardIn.value) * 22 }],
+    transform: [{ translateY: (1 - contentIn.value) * 16 }],
   }));
 
   return (
-    <View style={styles.root}>
+    <View style={[s.screen, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <Image
-        source={require('../../assets/images/welcome-bg.jpg')}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
+      {/* Grid motif */}
+      <View style={[s.vLine, { left: 97 }]} />
+      <View style={[s.vLine, { left: 195 }]} />
+      <View style={[s.vLine, { left: 292 }]} />
+      <View style={s.hLine} />
 
-      {/* Multi-stop scrim: photo reads at the top, resolves to solid #101210 by
-          the point the card and copy start, matching the design's gradient. */}
-      <LinearGradient
-        pointerEvents="none"
-        colors={['rgba(16,18,16,0.2)', 'rgba(16,18,16,0.55)', 'rgba(16,18,16,0.96)', BG]}
-        locations={[0, 0.38, 0.66, 0.84]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={[styles.topBar, { paddingTop: insets.top + 18 }]}>
-        <Text style={styles.brand}>FITLINK</Text>
-        <Pressable hitSlop={12} onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.signIn}>Sign in</Text>
-        </Pressable>
+      <View style={[s.top, { paddingTop: insets.top + 34 }]}>
+        <Wordmark />
       </View>
 
-      <View style={[styles.content, { paddingBottom: insets.bottom + 34 }]}>
-        <Animated.View style={contentStyle}>
-          <Text style={styles.headline}>Your Tuesday,{'\n'}already sorted.</Text>
+      <View style={s.monogramWrap}>
+        <Animated.View style={[s.ringOuter, ringStyle]}>
+          <View style={s.ringOuterLine} />
+          <View style={s.ringInnerLine} />
+          <Monogram size={72} />
+          <Animated.View style={[s.dotWrap, dotStyle]}>
+            <AccentDot />
+          </Animated.View>
         </Animated.View>
+      </View>
 
-        {/* Proof card: what the product actually does, not marketing copy. */}
-        <Animated.View style={[styles.card, cardStyle]}>
-          <View style={styles.cardRow}>
-            <View style={styles.timePill}>
-              <Text style={styles.timePillText}>9:00</Text>
-            </View>
-            <View style={styles.cardRowText}>
-              <Text style={styles.cardTitle}>Sarah M.</Text>
-              <Text style={styles.cardSub}>Strength · week 4</Text>
-            </View>
-            <View style={styles.joinPill}>
-              <Text style={styles.joinPillText}>Join</Text>
-            </View>
-          </View>
+      <Animated.View style={[s.content, contentStyle]}>
+        <Text style={s.headline} maxFontSizeMultiplier={1.25} accessibilityRole="header">
+          Your training.{'\n'}
+          <Text style={s.headlineItalic}>Connected.</Text>
+        </Text>
+        <Text style={s.sub} maxFontSizeMultiplier={1.4}>
+          Coaching, sessions, programs and progress, in one place, between you and the person who trains you.
+        </Text>
+      </Animated.View>
 
-          <View style={styles.cardDivider} />
-
-          <View style={styles.cardRow}>
-            <View style={styles.alertDot} />
-            <View style={styles.cardRowText}>
-              <Text style={styles.cardTitleSm}>Smør has gone quiet</Text>
-              <Text style={styles.cardSub}>12 days · usually trains Tuesdays</Text>
-            </View>
-            <Text style={styles.nudgeText}>Nudge</Text>
-          </View>
-        </Animated.View>
-
-        <Animated.View style={contentStyle}>
-          <Text style={styles.body}>
-            FitLink runs the roster, the calendar, the programmes and the payments. You show up
-            and coach.
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
+        <View style={s.credRow}>
+          <Ionicons name="checkmark" size={14} color={OB.accent} />
+          <Text style={s.credText} maxFontSizeMultiplier={1.4}>
+            Every coach is identity-verified before they can be paid.
           </Text>
-        </Animated.View>
-
-        <Animated.View style={contentStyle}>
-          <AnimatedPrimaryButton
-            title="Start coaching on FitLink"
-            onPress={() => router.push('/(auth)/coach-signup')}
-          />
-          <Pressable
-            hitSlop={10}
-            style={styles.athleteLink}
-            onPress={() => router.push('/(auth)/client-signup')}
-          >
-            <Text style={styles.athleteLinkText}>
-              Training with a coach? <Text style={styles.athleteLinkTextStrong}>Open the athlete app</Text>
-            </Text>
-          </Pressable>
-        </Animated.View>
+        </View>
+        <PrimaryButton label="Get started" onPress={() => router.push('/(auth)/role' as any)} />
+        <TextButton label="I already have an account" onPress={() => router.push('/(auth)/login' as any)} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: BG,
-  },
+const RING_OUTER = 168;
+const RING_INNER = 120;
 
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-  },
-  brand: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 18,
-    letterSpacing: 3.4,
-    color: TEXT_PRIMARY,
-  },
-  signIn: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14.5,
-    color: '#C9CEC2',
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: OB.bg },
+  vLine: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: OB.line, opacity: 0.6 },
+  hLine: { position: 'absolute', left: 24, right: 24, top: 300, height: 1, backgroundColor: OB.line },
 
-  content: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 24,
-  },
-  headline: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 45,
-    lineHeight: 45,
-    letterSpacing: -0.8,
-    color: TEXT_PRIMARY,
-  },
+  top: { paddingHorizontal: 24 },
 
-  card: {
-    marginTop: 26,
-    backgroundColor: 'rgba(24,27,23,0.9)',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    borderRadius: 18,
-    borderCurve: 'continuous',
-    padding: 15,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-  },
-  cardRowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: CoachColors.border,
-    marginVertical: 13,
-  },
-  timePill: {
-    backgroundColor: 'rgba(198,242,78,0.14)',
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    paddingVertical: 8,
-    paddingHorizontal: 11,
-  },
-  timePillText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 15.5,
-    color: ACCENT,
-  },
-  cardTitle: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 16,
-    color: TEXT_PRIMARY,
-  },
-  cardTitleSm: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 15,
-    color: TEXT_PRIMARY,
-  },
-  cardSub: {
-    fontFamily: CoachFonts.body,
-    fontSize: 13.5,
-    color: TEXT_SECONDARY,
-    marginTop: 1,
-  },
-  joinPill: {
-    backgroundColor: ACCENT,
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-  },
-  joinPillText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
-    color: BG,
-  },
-  alertDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderCurve: 'continuous',
-    backgroundColor: '#E05C5C',
-    marginLeft: 12,
-  },
-  nudgeText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 14,
-    color: ACCENT,
-  },
-
-  body: {
-    fontFamily: CoachFonts.body,
-    fontSize: 15.5,
-    lineHeight: 24.5,
-    color: TEXT_SECONDARY,
-    marginTop: 22,
-  },
-
-  primaryBtn: {
-    backgroundColor: ACCENT,
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    marginTop: 26,
-  },
-  primaryBtnPressable: {
-    paddingVertical: 16,
+  monogramWrap: { position: 'absolute', left: 0, right: 0, top: 178, alignItems: 'center', justifyContent: 'center' },
+  ringOuter: {
+    width: RING_OUTER,
+    height: RING_OUTER,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryBtnText: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 17.5,
-    color: BG,
+  ringOuterLine: {
+    position: 'absolute',
+    width: RING_OUTER,
+    height: RING_OUTER,
+    borderRadius: RING_OUTER / 2,
+    borderWidth: 1,
+    borderColor: OB.line,
   },
+  ringInnerLine: {
+    position: 'absolute',
+    width: RING_INNER,
+    height: RING_INNER,
+    borderRadius: RING_INNER / 2,
+    borderWidth: 1,
+    borderColor: OB.line,
+  },
+  dotWrap: { position: 'absolute', top: -3, alignSelf: 'center' },
 
-  athleteLink: {
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 4,
+  content: { position: 'absolute', left: 24, right: 24, top: 440, gap: 16 },
+  headline: {
+    fontFamily: OBFonts.display,
+    fontSize: 46,
+    lineHeight: 48,
+    color: OB.fg,
+    letterSpacing: -0.5,
   },
-  athleteLinkText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: TEXT_MUTED,
-  },
-  athleteLinkTextStrong: {
-    fontFamily: CoachFonts.bodyBold,
-    color: '#C9CEC2',
-  },
+  headlineItalic: { fontFamily: OBFonts.displayItalic, color: OB.muted },
+  sub: { fontFamily: OBFonts.sans, fontSize: 15, lineHeight: 23, color: OB.muted },
+
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 24, gap: 8 },
+  credRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4, paddingBottom: 10 },
+  credText: { fontFamily: OBFonts.sans, fontSize: 13, lineHeight: 18, color: OB.muted, flex: 1 },
 });

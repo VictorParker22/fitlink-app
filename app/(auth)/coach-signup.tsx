@@ -181,7 +181,7 @@ export default function CoachSignupScreen() {
                 {/* Title */}
                 <View style={styles.titleBlock}>
                   <Text style={styles.title}>Set up your{'\n'}coaching account</Text>
-                  <Text style={styles.subtitle}>Free while you have fewer than three athletes.</Text>
+                  <Text style={styles.subtitle}>Free for your first five athletes. Elite when you need more.</Text>
                 </View>
 
                 {/* Auth Mode Tabs */}

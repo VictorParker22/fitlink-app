@@ -11,6 +11,7 @@ import { layers } from '../lib/layers';
 import { clearSnapshots } from '../lib/offlineCache';
 import { clearOutbox } from '../lib/outbox';
 import { clearMediaUrlCache } from '../lib/privateMedia';
+import { applyOnboardingDraft } from '../lib/onboardingDraft';
 import type { User, Session } from '@supabase/supabase-js';
 
 Notifications.setNotificationHandler({
@@ -184,6 +185,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
       handleSession(s);
+      // Editorial onboarding collects role and answers BEFORE the account
+      // exists (lib/onboardingDraft.ts). The moment a session appears, write
+      // them to the profile, then refresh so user_metadata (role,
+      // client_onboarded) is current for the AuthGuard.
+      if (event === 'SIGNED_IN' && s?.user?.id) {
+        applyOnboardingDraft(s.user.id)
+          .then((applied) => { if (applied) return supabase.auth.refreshSession(); })
+          .catch((e) => { if (__DEV__) console.warn('[Auth] onboarding draft apply failed:', e); });
+      }
     });
 
     return () => subscription.unsubscribe();

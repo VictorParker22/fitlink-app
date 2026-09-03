@@ -8,6 +8,11 @@ export default function AuthLayout() {
     >
       <Stack.Screen name="welcome" options={{ animation: 'none', contentStyle: { backgroundColor: '#000' } }} />
       <Stack.Screen name="login" options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: '#000' } }} />
+      {/* Editorial onboarding (FitLink Arrival): role → intake → account. */}
+      <Stack.Screen name="role" options={{ animation: 'fade', contentStyle: { backgroundColor: '#101210' } }} />
+      <Stack.Screen name="intake" options={{ animation: 'fade', contentStyle: { backgroundColor: '#101210' } }} />
+      <Stack.Screen name="coach-intake" options={{ animation: 'fade', contentStyle: { backgroundColor: '#101210' } }} />
+      <Stack.Screen name="account" options={{ animation: 'fade', contentStyle: { backgroundColor: '#101210' } }} />
       <Stack.Screen name="onboarding" options={{ animation: 'none', contentStyle: { backgroundColor: '#000' } }} />
       <Stack.Screen name="create-account" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#000' }, headerShown: false }} />
       <Stack.Screen name="coach-signup" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#000' } }} />
