@@ -256,16 +256,30 @@ serve(async (req) => {
   const signature = req.headers.get('stripe-signature')!
   const body = await req.text()
 
-  let event: Stripe.Event
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET')!
-    )
-  } catch (err) {
-    console.error(`Webhook signature verification failed: ${err.message}`)
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 })
+  // Two Stripe destinations post here and each has its own signing secret:
+  //   STRIPE_WEBHOOK_SECRET          — "Your account": payments, invoices,
+  //                                    subscriptions (the money events).
+  //   STRIPE_CONNECT_WEBHOOK_SECRET  — "Connected accounts": account.updated
+  //                                    when a coach finishes onboarding.
+  // Try each; a payload that matches neither is rejected.
+  const secrets = [
+    Deno.env.get('STRIPE_WEBHOOK_SECRET'),
+    Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET'),
+  ].filter((s): s is string => !!s)
+
+  let event: Stripe.Event | null = null
+  let lastErr = 'no signing secret configured'
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, secret)
+      break
+    } catch (err) {
+      lastErr = err.message
+    }
+  }
+  if (!event) {
+    console.error(`Webhook signature verification failed: ${lastErr}`)
+    return new Response(`Webhook Error: ${lastErr}`, { status: 400 })
   }
 
   // Create a Supabase admin client
