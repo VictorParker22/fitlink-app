@@ -10,7 +10,7 @@
  * screen never navigates on a successful social sign-in.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, Linking, Keyboard } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { loadDraft, saveDraft } from '../../lib/onboardingDraft';
@@ -128,8 +128,17 @@ export default function AccountScreen() {
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={OB.faint}
                 value={dob}
-                onChangeText={(t) => setDob(formatDobInput(t))}
+                onChangeText={(t) => {
+                  const v = formatDobInput(t);
+                  setDob(v);
+                  // number-pad has no return key on iOS: the field is done
+                  // the moment the date is complete, so put the keyboard away.
+                  if (v.length === 10) Keyboard.dismiss();
+                }}
                 keyboardType="number-pad"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                blurOnSubmit
                 maxLength={10}
                 accessibilityLabel="Date of birth"
                 selectionColor={OB.accent}

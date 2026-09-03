@@ -1,38 +1,44 @@
 /**
- * (auth)/client-signup.tsx — Athlete arrival + sign-up (design turn 25a/25b).
+ * (auth)/client-signup.tsx — athlete arrival + sign-up on the editorial
+ * onboarding system (design canvas "FitLink Arrival").
  *
  * Most athletes arrive holding a coach's link, so the first screen answers
  * "whose is this?" before it asks for anything:
  *   - If the link carries ?ref=<trainer_id> (or ?trainer=), the coach's real
  *     name / avatar / specialization is resolved from the public trainers
- *     table and leads the screen.
+ *     table and leads the screen as a coach chip.
  *   - If not, a neutral athlete welcome is shown (no invented coach).
  *
- * Sign-up asks for as little as possible; everything else is deferred into
- * the client intake. Mechanics preserved from the previous version:
- * lookup_client_by_contact → create_password (coach pre-added you) or
- * new_signup → create_client_and_notify. AuthGuard handles the redirect
- * after a session exists.
+ * Mechanics preserved from the previous version:
+ *   welcome → lookup (lookup_client_by_contact) → either
+ *     create_password (coach pre-added you: link_client_to_auth_user), or
+ *     new_signup → pick_trainer / connectToTrainer (create_client_and_notify)
+ * AuthGuard handles the redirect once a session exists — this screen never
+ * navigates on a successful sign-in.
  *
- * Fixed dark/lime system (constants/coachDesign.ts). No useTheme here.
+ * The 16+ date-of-birth gate lives here (parseDob/formatDobInput, copied
+ * from account.tsx so both format identically) — UNLESS the onboarding
+ * draft (lib/onboardingDraft.ts) already has a dob, in which case the field
+ * is skipped and the draft value is used directly.
  */
-
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   AccessibilityInfo,
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, StatusBar,
+  View, Text, TextInput, StyleSheet, Pressable, Linking, Keyboard,
+  KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import Avatar from '../../components/Avatar';
-import { CoachColors, CoachFonts } from '../../constants/coachDesign';
-
-const C = CoachColors;
-const F = CoachFonts;
+import { useAlert } from '../../context/AlertContext';
+import { loadDraft } from '../../lib/onboardingDraft';
+import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import { OB, OBFonts, OBRadius, OBSpace, OBMotion } from '../../constants/onboardingDesign';
+import {
+  Screen, TopNav, Headline, Sub, PrimaryButton, TextButton, AccentDot, Hairline,
+} from '../../components/onboarding/Editorial';
 
 type FlowStep = 'welcome' | 'lookup' | 'create_password' | 'new_signup' | 'pick_trainer';
 
@@ -52,7 +58,8 @@ function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
 }
 
-/** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. */
+/** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. Copied
+ *  from account.tsx so both screens format identically. */
 function formatDobInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 8);
   const y = digits.slice(0, 4);
@@ -80,19 +87,16 @@ function parseDob(value: string): { ok: true; iso: string } | { ok: false; messa
 
 export default function ClientSignupScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
+  const reduced = useReducedMotion();
   const params = useLocalSearchParams<{ ref?: string; trainer?: string }>();
 
   const [flowStep, setFlowStep] = useState<FlowStep>('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // accessibilityLiveRegion is Android-only, so on iOS an error that merely
-  // appears on screen is silent for VoiceOver. Announce it explicitly.
   useEffect(() => {
     if (error) AccessibilityInfo.announceForAccessibility(`Sign up failed. ${error}`);
   }, [error]);
-
-  const [success, setSuccess] = useState('');
 
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
@@ -101,6 +105,10 @@ export default function ClientSignupScreen() {
   // Age gate. FitLink is not directed at children under 16 (privacy policy
   // §8); the date is kept in auth metadata, never shown to coaches.
   const [dob, setDob] = useState('');
+  // If the onboarding draft already carries a dob, the field is skipped
+  // entirely and this value is used at submit time.
+  const [draftDob, setDraftDob] = useState<string | null>(null);
+  const [draftAck, setDraftAck] = useState(false);
 
   // Coach resolved from the invite link (?ref= / ?trainer=), if any.
   const [inviteTrainer, setInviteTrainer] = useState<InviteTrainer | null>(null);
@@ -112,7 +120,23 @@ export default function ClientSignupScreen() {
   const [trainers, setTrainers] = useState<any[]>([]);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
 
-  // ── Resolve the inviting coach from the link ref ──────────────────────────
+  const contactRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const dobRef = useRef<TextInput>(null);
+  const createPasswordRef = useRef<TextInput>(null);
+
+  // ── Onboarding draft: dob (skip the field if already answered) + role/goals
+  // acknowledgement copy ────────────────────────────────────────────────
+  useEffect(() => {
+    loadDraft().then((d) => {
+      if (d.dob) setDraftDob(d.dob);
+      if (d.role === 'client' && d.goals?.length) setDraftAck(true);
+    });
+  }, []);
+
+  // ── Resolve the inviting coach from the link ref ──────────────────────
   useEffect(() => {
     const refId = (params.ref || params.trainer || '').toString().trim();
     if (!refId) return;
@@ -127,6 +151,20 @@ export default function ClientSignupScreen() {
     })();
     return () => { alive = false; };
   }, [params.ref, params.trainer]);
+
+  // ── Step transition: 320ms fade + 16px slide, 200ms crossfade with Reduce
+  // Motion. ──────────────────────────────────────────────────────────────
+  const stepAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    stepAnim.setValue(0);
+    Animated.timing(stepAnim, {
+      toValue: 1,
+      duration: reduced ? OBMotion.reduced : OBMotion.screen,
+      useNativeDriver: true,
+    }).start();
+  }, [flowStep]);
+  const bodyOpacity = stepAnim;
+  const bodyTranslateY = stepAnim.interpolate({ inputRange: [0, 1], outputRange: reduced ? [0, 0] : [16, 0] });
 
   const isEmail = (val: string) => val.includes('@');
   const formatPhone = (raw: string) => {
@@ -147,7 +185,7 @@ export default function ClientSignupScreen() {
       return setError('Enter a valid email or phone number');
     }
 
-    setError(''); setSuccess('');
+    setError('');
     setLoading(true);
     try {
       const { data, error: rpcErr } = await supabase.rpc('lookup_client_by_contact', { contact_value: lookupVal });
@@ -156,8 +194,12 @@ export default function ClientSignupScreen() {
 
       if (data?.found) {
         if (data.has_account) {
-          setSuccess('You already have an account. Taking you to sign in.');
-          setTimeout(() => router.push('/(auth)/client-login'), 1500);
+          showAlert({
+            type: 'info',
+            title: 'You already have an account',
+            message: "Let's get you signed in.",
+            buttons: [{ text: 'Sign in', onPress: () => router.push('/(auth)/client-login') }],
+          });
         } else {
           setFoundClientName(data.client_name || '');
           setFoundTrainerName(data.trainer_name || inviteTrainer?.name || 'your coach');
@@ -173,7 +215,7 @@ export default function ClientSignupScreen() {
     } finally {
       setLoading(false);
     }
-  }, [contact, router, inviteTrainer]);
+  }, [contact, router, inviteTrainer, showAlert]);
 
   // ── Coach pre-added you: just a password ──────────────────────────────────
   const handleCreatePassword = async () => {
@@ -202,23 +244,21 @@ export default function ClientSignupScreen() {
         p_phone: !isEmail(contact.trim()) ? formatPhone(contact.trim()) : null,
       });
       if (__DEV__) console.log('[ClientSignup] Link:', JSON.stringify({ linkResult, linkErr }));
-
-      setSuccess("You're in. One moment.");
+      // Left loading — AuthGuard takes it from here.
     } catch (err: any) {
       if (__DEV__) console.error('[ClientSignup] Error:', err);
       setError(err.message || 'Failed to create account');
-    } finally {
       setLoading(false);
     }
   };
 
-  // ── New athlete: name + email + password, nothing else ────────────────────
+  // ── New athlete: name + email + password (+ dob unless the draft has one) ──
   const handleNewSignup = async () => {
     setError('');
     if (!name.trim()) return setError('Enter your name');
     if (!contact.trim() || !isEmail(contact.trim())) return setError('Enter your email');
     if (password.length < 6) return setError('Password must be 6+ characters');
-    const dobCheck = parseDob(dob);
+    const dobCheck = draftDob ? { ok: true as const, iso: draftDob } : parseDob(dob);
     if (!dobCheck.ok) return setError(dobCheck.message);
 
     setLoading(true);
@@ -266,8 +306,7 @@ export default function ClientSignupScreen() {
       });
       if (rpcErr) throw rpcErr;
       if (!result?.success) throw new Error(result?.reason || 'Failed to connect');
-
-      setSuccess('Connected. One moment.');
+      // Left loading — AuthGuard takes it from here.
     } catch (err: any) {
       setError(err.message || 'Failed to connect to coach');
       setLoading(false);
@@ -275,7 +314,7 @@ export default function ClientSignupScreen() {
   };
 
   const goBack = () => {
-    setError(''); setSuccess('');
+    setError('');
     if (flowStep === 'welcome') router.back();
     else if (flowStep === 'lookup') setFlowStep('welcome');
     else if (flowStep === 'pick_trainer') setFlowStep('new_signup');
@@ -284,467 +323,388 @@ export default function ClientSignupScreen() {
 
   const coachFirst = firstName(inviteTrainer?.name);
 
-  // ── 25a: the front door ────────────────────────────────────────────────────
-  if (flowStep === 'welcome') {
+  return (
+    <Screen footer={flowStep === 'pick_trainer' ? undefined : renderFooter()}>
+      <TopNav onBack={goBack} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Animated.View style={[styles.body, { opacity: bodyOpacity, transform: [{ translateY: bodyTranslateY }] }]}>
+            {flowStep === 'welcome' && (
+              <>
+                {inviteTrainer ? (
+                  <View style={styles.coachChip}>
+                    <CoachAvatar trainer={inviteTrainer} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.coachChipTitle}>{inviteTrainer.name} invited you</Text>
+                      {inviteTrainer.specialization ? (
+                        <Text style={styles.coachChipSub}>{inviteTrainer.specialization}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ) : null}
+                <View style={{ gap: 10, marginTop: inviteTrainer ? 20 : 0 }}>
+                  <Headline>{inviteTrainer ? `Train with ${coachFirst}.` : 'Find the right coach.'}</Headline>
+                  <Sub>
+                    {draftAck
+                      ? 'Your answers are saved. This just makes them yours.'
+                      : inviteTrainer
+                        ? `You'll get ${coachFirst}'s programme, check-ins, and a way to reach ${coachFirst} that isn't a text message that gets forgotten.`
+                        : 'Your programme, your check-ins, and a direct line to your coach — all in one place.'}
+                  </Sub>
+                </View>
+              </>
+            )}
+
+            {flowStep === 'lookup' && (
+              <>
+                <View style={{ gap: 10 }}>
+                  <Headline>Already set up by a coach?</Headline>
+                  <Sub>Enter the email or phone your coach has for you.</Sub>
+                </View>
+                <View style={{ marginTop: 24 }}>
+                  <Field label="Email or phone">
+                    <TextInput
+                      ref={contactRef}
+                      style={styles.input}
+                      placeholder="you@example.com or (555) 000-0000"
+                      placeholderTextColor={OB.faint}
+                      value={contact}
+                      onChangeText={setContact}
+                      autoCapitalize="none"
+                      autoFocus
+                      keyboardType="email-address"
+                      autoComplete="username"
+                      textContentType="username"
+                      returnKeyType="done"
+                      onSubmitEditing={handleLookup}
+                      accessibilityLabel="Email or phone number"
+                      selectionColor={OB.accent}
+                    />
+                  </Field>
+                </View>
+              </>
+            )}
+
+            {flowStep === 'create_password' && (
+              <>
+                <View style={{ gap: 10 }}>
+                  <Headline>Choose a password.</Headline>
+                  <Sub>{foundTrainerName} has everything ready{foundClientName ? `, ${firstName(foundClientName)}` : ''}.</Sub>
+                </View>
+                <View style={{ marginTop: 24 }}>
+                  <Field label="Password">
+                    <PasswordRow
+                      inputRef={createPasswordRef}
+                      value={password}
+                      onChangeText={setPassword}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      onSubmitEditing={handleCreatePassword}
+                    />
+                  </Field>
+                </View>
+              </>
+            )}
+
+            {flowStep === 'new_signup' && (
+              <>
+                <View style={{ gap: 10 }}>
+                  <Headline>Your email, then you are in.</Headline>
+                  <Sub>
+                    {draftAck
+                      ? 'Your answers are saved. This just makes them yours.'
+                      : inviteTrainer
+                        ? `${coachFirst} sees your name and your training. Nothing else on this screen goes to him.`
+                        : 'Your coach sees your name and your training. Nothing else on this screen goes to them.'}
+                  </Sub>
+                </View>
+                <View style={{ marginTop: 24, gap: 14 }}>
+                  <Field label="Name">
+                    <TextInput
+                      ref={nameRef}
+                      style={styles.input}
+                      placeholder="Your name"
+                      placeholderTextColor={OB.faint}
+                      value={name}
+                      onChangeText={setName}
+                      autoComplete="name"
+                      textContentType="name"
+                      returnKeyType="next"
+                      onSubmitEditing={() => emailRef.current?.focus()}
+                      accessibilityLabel="Name"
+                      selectionColor={OB.accent}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <TextInput
+                      ref={emailRef}
+                      style={styles.input}
+                      placeholder="you@example.com"
+                      placeholderTextColor={OB.faint}
+                      value={contact}
+                      onChangeText={setContact}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      textContentType="emailAddress"
+                      returnKeyType="next"
+                      onSubmitEditing={() => passwordRef.current?.focus()}
+                      accessibilityLabel="Email"
+                      selectionColor={OB.accent}
+                    />
+                  </Field>
+                  <Field label="Password">
+                    <PasswordRow
+                      inputRef={passwordRef}
+                      value={password}
+                      onChangeText={setPassword}
+                      show={showPassword}
+                      onToggle={() => setShowPassword((v) => !v)}
+                      returnKeyType={draftDob ? 'done' : 'next'}
+                      onSubmitEditing={() => (draftDob ? handleNewSignup() : dobRef.current?.focus())}
+                    />
+                  </Field>
+                  {draftDob ? null : (
+                    <Field label="Date of birth">
+                      <TextInput
+                        ref={dobRef}
+                        style={styles.input}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor={OB.faint}
+                        value={dob}
+                        onChangeText={(t) => {
+                          const v = formatDobInput(t);
+                          setDob(v);
+                          if (v.length === 10) Keyboard.dismiss();
+                        }}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        maxLength={10}
+                        accessibilityLabel="Date of birth"
+                        selectionColor={OB.accent}
+                      />
+                    </Field>
+                  )}
+                </View>
+                <View style={styles.noteRow}>
+                  <AccentDot />
+                  <Text style={styles.noteText}>Nothing is shared with a coach until you choose one.</Text>
+                </View>
+              </>
+            )}
+
+            {flowStep === 'pick_trainer' && (
+              <>
+                <View style={{ gap: 10 }}>
+                  <Headline>Pick your coach.</Headline>
+                  <Sub>Choose who you'll be training with.</Sub>
+                </View>
+                <View style={{ marginTop: 20 }}>
+                  {loadingTrainers ? (
+                    <ActivityIndicator size="large" color={OB.accent} style={{ marginTop: 40 }} />
+                  ) : trainers.length === 0 ? (
+                    <View style={styles.emptySection}>
+                      <Ionicons name="people-outline" size={40} color={OB.faint} />
+                      <Text style={styles.emptyText}>No coaches available yet</Text>
+                    </View>
+                  ) : (
+                    trainers.map((t, i) => (
+                      <View key={t.id}>
+                        {i > 0 ? <Hairline /> : null}
+                        <Pressable
+                          onPress={() => connectToTrainer(t.id)}
+                          disabled={loading}
+                          style={({ pressed }) => [styles.trainerRow, pressed && { opacity: 0.85 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Select coach ${t.name}`}
+                        >
+                          <CoachAvatar trainer={t} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.trainerName}>{t.name}</Text>
+                            {t.specialization ? <Text style={styles.trainerSpec}>{t.specialization}</Text> : null}
+                          </View>
+                          <Ionicons name="chevron-forward" size={18} color={OB.faint} />
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+                  {loading ? <ActivityIndicator size="small" color={OB.accent} style={{ marginTop: 16 }} /> : null}
+                </View>
+              </>
+            )}
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
+    </Screen>
+  );
+
+  function renderFooter() {
     return (
-      <View style={st.container}>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <View style={[st.welcomeBody, { paddingTop: insets.top + 30 }]}>
-          <Text style={st.brand}>FITLINK</Text>
-
-          <View style={{ flex: 1 }} />
-
-          {inviteTrainer ? (
-            <>
-              <View style={st.coachAvatarWrap}>
-                {inviteTrainer.avatar_url ? (
-                  <Avatar name={inviteTrainer.name} size="lg" imageUrl={inviteTrainer.avatar_url} />
-                ) : (
-                  <Text style={st.coachAvatarText}>{initials(inviteTrainer.name)}</Text>
-                )}
-              </View>
-              <Text style={st.welcomeTitle}>{inviteTrainer.name}{'\n'}invited you to train</Text>
-              <Text style={st.welcomeSub}>
-                {inviteTrainer.specialization
-                  ? `${inviteTrainer.specialization}. `
-                  : ''}
-                You'll get {coachFirst}'s programme, check-ins, and a way to reach {coachFirst} that isn't a text message that gets forgotten.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={st.welcomeTitle}>Train with your coach,{'\n'}all in one place</Text>
-              <Text style={st.welcomeSub}>
-                Your programme, your check-ins, and a direct line to your coach. If they sent you a link, your plan is already on its way.
-              </Text>
-            </>
-          )}
-
-          <View style={st.stepsCol}>
-            {[
-              'A few questions about you',
-              inviteTrainer ? `${coachFirst} picks the right plan` : 'Your coach picks the right plan',
-              'Then you train',
-            ].map((label, i) => (
-              <View key={i} style={st.stepRow}>
-                <View style={st.stepNum}><Text style={st.stepNumText}>{i + 1}</Text></View>
-                <Text style={st.stepLabel}>{label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={[st.welcomeFooter, { paddingBottom: insets.bottom + 24 }]}>
-          <TouchableOpacity
-            style={st.primaryBtn}
-            onPress={() => setFlowStep('lookup')}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Get started"
+      <>
+        {error ? (
+          <Text
+            style={styles.errorText}
+            accessible
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            accessibilityLabel={`Sign up failed. ${error}`}
           >
-            <Text style={st.primaryBtnText}>Get started</Text>
-          </TouchableOpacity>
-          <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
-            onPress={() => router.push('/(auth)/client-login')}
-            style={st.footerRow}
-            accessibilityRole="button"
-            accessibilityLabel="Sign in"
-          >
-            <Text style={st.footerText}>
-              {inviteTrainer ? `Already train with ${coachFirst}? ` : 'Already have an account? '}
-              <Text style={st.footerLink}>Sign in</Text>
+            {error}
+          </Text>
+        ) : null}
+
+        {flowStep === 'welcome' && (
+          <>
+            <PrimaryButton label="Get started" onPress={() => setFlowStep('lookup')} />
+            <TextButton
+              label={inviteTrainer ? `Already train with ${coachFirst}? Sign in` : 'Already have an account? Sign in'}
+              onPress={() => router.push('/(auth)/client-login')}
+            />
+          </>
+        )}
+
+        {flowStep === 'lookup' && (
+          <>
+            <PrimaryButton label="Continue" onPress={handleLookup} loading={loading} />
+            <TextButton label="Already have an account? Sign in" onPress={() => router.push('/(auth)/client-login')} />
+          </>
+        )}
+
+        {flowStep === 'create_password' && (
+          <>
+            <PrimaryButton label="Create account" onPress={handleCreatePassword} loading={loading} />
+            <Text style={styles.legalText}>
+              By continuing you agree to the{' '}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
+              {' '}and{' '}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>.
             </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          </>
+        )}
+
+        {flowStep === 'new_signup' && (
+          <>
+            <PrimaryButton label="Create account" onPress={handleNewSignup} loading={loading} />
+            <Text style={styles.legalText}>
+              By continuing you agree to the{' '}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
+              {' '}and{' '}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>.
+            </Text>
+          </>
+        )}
+      </>
     );
   }
+}
 
-  // ── 25b: the form steps ─────────────────────────────────────────────────────
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View style={st.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={[st.scrollContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <TouchableOpacity hitSlop={5} style={st.backBtn} onPress={goBack} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={20} color="#C9CEC2" />
-          </TouchableOpacity>
-
-          {/* Title */}
-          {flowStep === 'lookup' && (
-            <>
-              <Text style={st.title}>First, your email{'\n'}or phone</Text>
-              <Text style={st.subtitle}>
-                {inviteTrainer
-                  ? `If ${coachFirst} already added you, everything is ready and you just set a password.`
-                  : 'If your coach already added you, everything is ready and you just set a password.'}
-              </Text>
-            </>
-          )}
-          {flowStep === 'create_password' && (
-            <>
-              <Text style={st.title}>Almost there{foundClientName ? `, ${firstName(foundClientName)}` : ''}</Text>
-              <Text style={st.subtitle}>
-                {foundTrainerName} has everything ready. Set a password and you're in.
-              </Text>
-            </>
-          )}
-          {flowStep === 'new_signup' && (
-            <>
-              <Text style={st.title}>Make your account</Text>
-              <Text style={st.subtitle}>
-                {inviteTrainer
-                  ? `${coachFirst} sees your name and your training. Nothing else on this screen goes to him.`
-                  : 'Your coach sees your name and your training. Nothing else on this screen goes to them.'}
-              </Text>
-            </>
-          )}
-          {flowStep === 'pick_trainer' && (
-            <>
-              <Text style={st.title}>Pick your coach</Text>
-              <Text style={st.subtitle}>Choose who you'll be training with.</Text>
-            </>
-          )}
-
-          {/* Messages */}
-          {error ? (
-            <View
-              style={st.messageBox}
-              accessible
-              accessibilityRole="alert"
-              accessibilityLiveRegion="assertive"
-              accessibilityLabel={`Sign up failed. ${error}`}
-            >
-              <Ionicons name="alert-circle" size={19} color={C.danger} />
-              <Text style={st.errorText}>{error}</Text>
-            </View>
-          ) : null}
-          {success ? (
-            <View style={st.messageBox}>
-              <Ionicons name="checkmark-circle" size={19} color={C.accent} />
-              <Text style={st.successText}>{success}</Text>
-            </View>
-          ) : null}
-
-          {/* Lookup */}
-          {flowStep === 'lookup' && (
-            <>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Email or phone</Text>
-                <TextInput
-                  style={st.input}
-                  placeholder="you@example.com or (555) 000-0000"
-                  placeholderTextColor={C.textFaint}
-                  value={contact}
-                  onChangeText={setContact}
-                  autoCapitalize="none"
-                  autoFocus
-                  keyboardType="email-address"
-                  autoComplete="username"
-                  textContentType="username"
-                  returnKeyType="next"
-                  accessibilityLabel="Email or phone number"
-                  selectionColor={C.accent}
-                />
-              </View>
-              <TouchableOpacity
-                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
-                onPress={handleLookup}
-                disabled={loading}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Continue"
-              >
-                <Text style={st.primaryBtnText}>{loading ? 'Checking...' : 'Continue'}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* Coach pre-added you: password only */}
-          {flowStep === 'create_password' && (
-            <>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Password</Text>
-                <View style={st.passwordWrap}>
-                  <TextInput
-                    style={[st.input, { flex: 1, borderWidth: 0, backgroundColor: 'transparent' }]}
-                    placeholder="6+ characters"
-                    placeholderTextColor={C.textFaint}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoComplete="password-new"
-                    textContentType="newPassword"
-                    returnKeyType="go"
-                    autoFocus
-                    accessibilityLabel="Create password"
-                    selectionColor={C.accent}
-                  />
-                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                    <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={st.fieldHint}>Six characters is enough.</Text>
-              </View>
-
-              <TouchableOpacity
-                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
-                onPress={handleCreatePassword}
-                disabled={loading}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Create account"
-              >
-                <Text style={st.primaryBtnText}>{loading ? 'Setting up...' : 'Create account'}</Text>
-              </TouchableOpacity>
-              <Text style={st.termsText}>
-                By continuing you agree to the <Text style={st.termsLink}>terms</Text> and <Text style={st.termsLink}>privacy policy</Text>
-              </Text>
-            </>
-          )}
-
-          {/* New athlete */}
-          {flowStep === 'new_signup' && (
-            <>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Name</Text>
-                <TextInput
-                  style={st.input}
-                  placeholder="Your name"
-                  placeholderTextColor={C.textFaint}
-                  value={name}
-                  onChangeText={setName}
-                  autoComplete="name"
-                  textContentType="name"
-                  returnKeyType="next"
-                  accessibilityLabel="Name"
-                  selectionColor={C.accent}
-                />
-              </View>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Email</Text>
-                <TextInput
-                  style={st.input}
-                  placeholder="you@example.com"
-                  placeholderTextColor={C.textFaint}
-                  value={contact}
-                  onChangeText={setContact}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  returnKeyType="next"
-                  accessibilityLabel="Email"
-                  selectionColor={C.accent}
-                />
-              </View>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Password</Text>
-                <View style={st.passwordWrap}>
-                  <TextInput
-                    style={[st.input, { flex: 1, borderWidth: 0, backgroundColor: 'transparent' }]}
-                    placeholder="6+ characters"
-                    placeholderTextColor={C.textFaint}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoComplete="password-new"
-                    textContentType="newPassword"
-                    returnKeyType="go"
-                    accessibilityLabel="Create password"
-                    selectionColor={C.accent}
-                  />
-                  <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} onPress={() => setShowPassword(!showPassword)} style={st.showBtn} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                    <Text style={st.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={st.fieldHint}>Six characters is enough.</Text>
-              </View>
-              <View style={st.field}>
-                <Text style={st.fieldLabel}>Date of birth</Text>
-                <TextInput
-                  style={st.input}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={C.textFaint}
-                  value={dob}
-                  onChangeText={(t) => setDob(formatDobInput(t))}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  returnKeyType="go"
-                  accessibilityLabel="Date of birth"
-                  selectionColor={C.accent}
-                />
-                <Text style={st.fieldHint}>You must be 16 or older. Your coach never sees this.</Text>
-              </View>
-
-              <TouchableOpacity
-                style={[st.primaryBtn, { marginTop: 26 }, loading && st.btnDisabled]}
-                onPress={handleNewSignup}
-                disabled={loading}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Create account"
-              >
-                <Text style={st.primaryBtnText}>{loading ? 'Creating...' : 'Create account'}</Text>
-              </TouchableOpacity>
-              <Text style={st.termsText}>
-                By continuing you agree to the <Text style={st.termsLink}>terms</Text> and <Text style={st.termsLink}>privacy policy</Text>
-              </Text>
-            </>
-          )}
-
-          {/* Pick a coach (no invite ref) */}
-          {flowStep === 'pick_trainer' && (
-            <>
-              {loadingTrainers ? (
-                <ActivityIndicator size="large" color={C.accent} style={{ marginTop: 40 }} />
-              ) : trainers.length === 0 ? (
-                <View style={st.emptySection}>
-                  <Ionicons name="people-outline" size={45} color={C.textFaint} />
-                  <Text style={st.emptyText}>No coaches available yet</Text>
-                </View>
-              ) : (
-                trainers.map((t) => (
-                  <TouchableOpacity
-                    key={t.id}
-                    activeOpacity={0.7}
-                    onPress={() => connectToTrainer(t.id)}
-                    disabled={loading}
-                    style={st.trainerCard}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Select coach ${t.name}`}
-                  >
-                    <Avatar name={t.name} size="md" imageUrl={t.avatar_url} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={st.trainerName}>{t.name}</Text>
-                      {t.specialization ? <Text style={st.trainerSpec}>{t.specialization}</Text> : null}
-                    </View>
-                    <View style={st.selectBadge}>
-                      <Text style={st.selectText}>Select</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
-            </>
-          )}
-
-          {/* Footer */}
-          {flowStep !== 'pick_trainer' && (
-            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
-              onPress={() => router.push('/(auth)/client-login')}
-              style={st.footerRow}
-              accessibilityRole="button"
-              accessibilityLabel="Go to sign in"
-            >
-              <Text style={st.footerText}>
-                Already have an account? <Text style={st.footerLink}>Sign in</Text>
-              </Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
     </View>
   );
 }
 
-const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+function PasswordRow({
+  inputRef, value, onChangeText, show, onToggle, returnKeyType = 'done', onSubmitEditing,
+}: {
+  inputRef: React.RefObject<TextInput | null>;
+  value: string;
+  onChangeText: (t: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  returnKeyType?: 'done' | 'next' | 'go';
+  onSubmitEditing?: () => void;
+}) {
+  return (
+    <View style={styles.passwordRow}>
+      <TextInput
+        ref={inputRef}
+        style={[styles.input, { flex: 1 }]}
+        placeholder="6+ characters"
+        placeholderTextColor={OB.faint}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={!show}
+        autoComplete="password-new"
+        textContentType="newPassword"
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        accessibilityLabel="Password"
+        selectionColor={OB.accent}
+      />
+      <Pressable
+        onPress={onToggle}
+        hitSlop={8}
+        style={styles.eyeBtn}
+        accessibilityRole="button"
+        accessibilityLabel={show ? 'Hide password' : 'Show password'}
+      >
+        <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color={OB.faint} />
+      </Pressable>
+    </View>
+  );
+}
 
-  // Welcome (25a)
-  welcomeBody: { flex: 1, paddingHorizontal: 24 },
-  brand: {
-    fontFamily: F.headingBold, fontSize: 14.5, letterSpacing: 3.4,
-    color: C.textFaint, textTransform: 'uppercase',
-  },
-  coachAvatarWrap: {
-    width: 72, height: 72, borderRadius: 36, borderCurve: 'continuous', backgroundColor: '#2A3320',
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  coachAvatarText: { fontFamily: F.headingBold, fontSize: 27, color: C.accent },
-  welcomeTitle: {
-    fontFamily: F.headingBold, fontSize: 34.5, lineHeight: 41.5,
-    color: C.textPrimary, marginTop: 20,
-  },
-  welcomeSub: { fontFamily: F.body, fontSize: 15.5, lineHeight: 24.5, color: '#A9AF9F', marginTop: 12 },
-  stepsCol: { gap: 11, marginTop: 26 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  stepNum: {
-    width: 24, height: 24, borderRadius: 8, borderCurve: 'continuous', backgroundColor: '#1E211D',
-    borderWidth: 1, borderColor: '#2E322B', alignItems: 'center', justifyContent: 'center',
-  },
-  stepNumText: { fontFamily: F.bodyBold, fontSize: 13, color: C.accent },
-  stepLabel: { flex: 1, fontFamily: F.body, fontSize: 15, color: '#C9CEC2' },
-  welcomeFooter: { paddingHorizontal: 24, paddingTop: 26 },
+/** 44pt coach avatar: real photo when the invite/roster carries one,
+ *  otherwise initials on the accent-soft wash. */
+function CoachAvatar({ trainer }: { trainer: { name: string; avatar_url?: string | null } }) {
+  if (trainer.avatar_url) {
+    return <Animated.Image source={{ uri: trainer.avatar_url }} style={styles.avatarImg} />;
+  }
+  return (
+    <View style={styles.avatarFallback}>
+      <Text style={styles.avatarFallbackText}>{initials(trainer.name)}</Text>
+    </View>
+  );
+}
 
-  // Form steps
-  scrollContent: { flexGrow: 1, paddingHorizontal: 20 },
-  backBtn: {
-    width: 34, height: 34, borderRadius: 17, borderCurve: 'continuous', backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
-  },
-  title: {
-    fontFamily: F.headingBold, fontSize: 30, lineHeight: 36,
-    color: C.textPrimary, marginTop: 26,
-  },
-  subtitle: { fontFamily: F.body, fontSize: 14.5, lineHeight: 22.5, color: C.textMuted, marginTop: 9, marginBottom: 26 },
+const styles = StyleSheet.create({
+  body: { flex: 1, paddingHorizontal: OBSpace.screen, paddingTop: 8 },
 
-  messageBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted, borderRadius: 12, borderCurve: 'continuous',
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
+  coachChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: OB.surface,
+    borderRadius: OBRadius.m, borderCurve: 'continuous', borderWidth: 1, borderColor: OB.line,
+    padding: 12,
   },
-  errorText: { fontFamily: F.body, fontSize: 14.5, color: C.danger, flex: 1 },
-  successText: { fontFamily: F.body, fontSize: 14.5, color: C.accent, flex: 1 },
+  coachChipTitle: { fontFamily: OBFonts.sansSemiBold, fontSize: 15, color: OB.fg },
+  coachChipSub: { fontFamily: OBFonts.sans, fontSize: 13, color: OB.muted, marginTop: 2 },
 
-  field: { marginBottom: 11 },
-  fieldLabel: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginBottom: 7 },
+  avatarImg: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', backgroundColor: OB.surface },
+  avatarFallback: {
+    width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', backgroundColor: OB.accentSoft,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: OB.line,
+  },
+  avatarFallbackText: { fontFamily: OBFonts.sansSemiBold, fontSize: 15, color: OB.accent },
+
+  field: { gap: 8 },
+  fieldLabel: { fontFamily: OBFonts.sansSemiBold, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: OB.faint },
   input: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 14, borderCurve: 'continuous', paddingVertical: 18, paddingHorizontal: 15,
-    fontFamily: F.bodyMedium, fontSize: 17, color: C.textPrimary,
+    height: 54, borderRadius: OBRadius.m, borderCurve: 'continuous', backgroundColor: OB.surface,
+    borderWidth: 1, borderColor: OB.line, paddingHorizontal: 16,
+    fontFamily: OBFonts.sans, fontSize: 16, color: OB.fg,
   },
-  fieldHint: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, marginTop: 7 },
-  passwordWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14, borderCurve: 'continuous',
+  passwordRow: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: OBRadius.m, borderCurve: 'continuous',
+    backgroundColor: OB.surface, borderWidth: 1, borderColor: OB.line, paddingRight: 14,
   },
-  showBtn: { paddingHorizontal: 15, paddingVertical: 12 },
-  showText: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
+  eyeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 
-  primaryBtn: {
-    backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 16, alignItems: 'center',
-  },
-  primaryBtnText: { fontFamily: F.bodyBold, fontSize: 17.5, color: C.onAccent },
-  btnDisabled: { opacity: 0.5 },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
+  noteText: { flex: 1, fontFamily: OBFonts.sans, fontSize: 13, lineHeight: 18, color: OB.muted },
 
-  termsText: {
-    fontFamily: F.body, fontSize: 12.5, color: C.textFaint,
-    textAlign: 'center', marginTop: 12, lineHeight: 18,
-  },
-  termsLink: { color: C.textMuted },
+  errorText: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.danger, marginBottom: 4 },
 
-  trainerCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
-    borderRadius: 16, borderCurve: 'continuous', padding: 15, marginBottom: 10,
-  },
-  trainerName: { fontFamily: F.bodySemiBold, fontSize: 16, color: C.textPrimary },
-  trainerSpec: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 2 },
-  selectBadge: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
-    paddingHorizontal: 14, paddingVertical: 7,
-  },
-  selectText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },
+  legalText: { fontFamily: OBFonts.sans, fontSize: 12, lineHeight: 17, color: OB.faint, textAlign: 'center', marginTop: 4 },
+  legalLink: { color: OB.muted, textDecorationLine: 'underline' },
+
+  trainerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  trainerName: { fontFamily: OBFonts.sansSemiBold, fontSize: 16, color: OB.fg },
+  trainerSpec: { fontFamily: OBFonts.sans, fontSize: 13, color: OB.muted, marginTop: 2 },
 
   emptySection: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontFamily: F.body, fontSize: 15.5, color: C.textMuted },
-
-  footerRow: { alignItems: 'center', marginTop: 20, paddingVertical: 8 },
-  footerText: { fontFamily: F.body, fontSize: 14.5, color: C.textMuted },
-  footerLink: { fontFamily: F.bodySemiBold, color: C.accent },
+  emptyText: { fontFamily: OBFonts.sans, fontSize: 15, color: OB.muted },
 });
