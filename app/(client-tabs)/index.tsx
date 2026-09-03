@@ -37,6 +37,7 @@ import SeasonPulseCard from '../../components/client-tabs/home/SeasonPulseCard';
 import GymCheckInWidget from '../../components/client-tabs/progress/GymCheckInWidget';
 import HydrationCell from '../../components/client-tabs/home/HydrationCell';
 import HabitTracker from '../../components/client-tabs/home/HabitTracker';
+import CornerCard from '../../components/solo/CornerCard';
 import { useHealth } from '../../context/HealthContext';
 import { proxyGifStill } from '../../lib/exercisedb';
 import CardImage from '../../components/ui/CardImage';
@@ -560,6 +561,16 @@ export default function AthleteTodayScreen() {
           </Pressable>
         </View>
 
+        {/* Solo mode — the lead for a coachless athlete. An athlete WITH a
+            coach never sees this: the human relationship owns that space,
+            and software does not compete with it. Sits ABOVE everything
+            else, including the instruction hero below. */}
+        {!trainer && (
+          <View style={{ marginTop: 18 }}>
+            <CornerCard />
+          </View>
+        )}
+
         {/* First-run checklist — only for brand-new athletes (no enrollment,
             no assigned work yet). The component persists its own dismissal. */}
         <WelcomeGuide
@@ -655,11 +666,15 @@ export default function AthleteTodayScreen() {
             </ScrollView>
           )}
 
-          {/* 26a: no coach yet — the self-serve path */}
+          {/* 26a: no coach yet — the self-serve path. Solo already led this
+              screen above; this is honestly the OTHER door. */}
           {instruction.kind === 'no-coach' && (
-            <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button">
-              <Text style={st.primaryBtnText}>Find a coach</Text>
-            </Pressable>
+            <>
+              <Text style={st.humanLabel}>WHEN YOU WANT A HUMAN</Text>
+              <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button">
+                <Text style={st.primaryBtnText}>Find a coach</Text>
+              </Pressable>
+            </>
           )}
 
           {/* The three answers */}
@@ -833,33 +848,6 @@ export default function AthleteTodayScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
         </Pressable>
-
-        {/* ── Solo mode entry — coachless athletes only ──
-            An athlete WITH a coach never sees this: the human relationship
-            owns that space, and software does not compete with it. */}
-        {!trainer && (
-          <Pressable
-            style={st.activityCard}
-            onPress={() =>
-              router.push(
-                ((clientData as any)?.solo_character
-                  ? ClientRoute.solo
-                  : ClientRoute.soloSetup) as any
-              )
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Open solo mode"
-          >
-            <View style={st.activityIconWrap}>
-              <Ionicons name="fitness-outline" size={20} color={C.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={st.activityTitle}>Your corner</Text>
-              <Text style={st.activitySub}>Solo mode — software that reads your numbers</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
-          </Pressable>
-        )}
 
         {/* ── Sessions — the dedicated surface (next booked / nudge / find) ── */}
         <SessionsCard />
@@ -1107,6 +1095,10 @@ const st = StyleSheet.create({
   },
 
 
+  humanLabel: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
+    color: C.textFaint, marginTop: 20,
+  },
   primaryBtn: {
     backgroundColor: C.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 15,
     alignItems: 'center', marginTop: 17,

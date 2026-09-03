@@ -11,6 +11,28 @@ const corsHeaders = {
 // ElevenLabs voice ID - "Rachel" (calm, clear female coach voice)
 const VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
+// Solo mode: one voice per corner character (lib/soloCharacters.ts).
+// Premade ElevenLabs voices by default; override per character with
+// SOLO_VOICE_<KEY> secrets once custom voices exist.
+const SOLO_VOICES: Record<string, string> = {
+  reyes: Deno.env.get('SOLO_VOICE_REYES') || 'pNInz6obpgDQGcFmaJgB', // Adam — low, calm
+  imani: Deno.env.get('SOLO_VOICE_IMANI') || '21m00Tcm4TlvDq8ikWAM', // Rachel — clear, warm
+  dane:  Deno.env.get('SOLO_VOICE_DANE')  || 'TxGEqnHWrfWFTfGW9XjX', // Josh — bright, driven
+  sol:   Deno.env.get('SOLO_VOICE_SOL')   || 'EXAVITQu4vr4xnSDxMaL', // Bella — soft, steady
+};
+// Delivery settings per register: the same line lands differently.
+const SOLO_SETTINGS: Record<string, { stability: number; similarity_boost: number; style: number }> = {
+  reyes: { stability: 0.7, similarity_boost: 0.75, style: 0.15 },
+  imani: { stability: 0.55, similarity_boost: 0.75, style: 0.3 },
+  dane:  { stability: 0.35, similarity_boost: 0.8, style: 0.6 },
+  sol:   { stability: 0.75, similarity_boost: 0.75, style: 0.2 },
+};
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -21,12 +43,63 @@ serve(async (req) => {
     // into the exercise-audio bucket.
     const caller = await requireCaller(req);
 
-    const { exercise_id, text } = await req.json();
+    const { exercise_id, text, mode, voice } = await req.json();
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'Text is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
+      });
+    }
+
+    // ── Solo mode: a corner line in the character's voice ──────────────
+    if (mode === 'solo') {
+      const key = String(voice || '');
+      const voiceId = SOLO_VOICES[key];
+      if (!voiceId) {
+        return new Response(JSON.stringify({ error: 'Unknown voice' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
+        });
+      }
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      if (!apiKey) throw new Error('ELEVENLABS_API_KEY is not set');
+      const admin = caller.admin;
+
+      const plain = clampText(text, 900).replace(/\s+/g, ' ').trim();
+      const path = `${key}/${await sha256Hex(`${voiceId}|${plain}`)}.mp3`;
+
+      // Cache hit: the same line in the same voice is one file forever.
+      const { data: signed } = await admin.storage.from('solo-audio').createSignedUrl(path, 600);
+      if (signed?.signedUrl) {
+        return new Response(JSON.stringify({ audio_url: signed.signedUrl, cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+        });
+      }
+
+      // Fresh synthesis is the only paid path: rate-limit it.
+      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 80, windowSeconds: 3600 }, corsHeaders);
+      if (rl) return rl;
+
+      const tts = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+        body: JSON.stringify({
+          text: plain,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: { ...(SOLO_SETTINGS[key] ?? SOLO_SETTINGS.reyes), use_speaker_boost: true },
+        }),
+      });
+      if (!tts.ok) {
+        console.error('ElevenLabs error (solo):', tts.status, await tts.text());
+        throw new Error(`ElevenLabs API error: ${tts.status}`);
+      }
+      const bytes = new Uint8Array(await tts.arrayBuffer());
+      const { error: upErr } = await admin.storage.from('solo-audio').upload(path, bytes, { contentType: 'audio/mpeg', upsert: true });
+      if (upErr) { console.error('solo-audio upload:', upErr); throw new Error('Failed to cache audio file'); }
+      const { data: fresh, error: signErr } = await admin.storage.from('solo-audio').createSignedUrl(path, 600);
+      if (signErr || !fresh?.signedUrl) throw new Error('Failed to sign audio URL');
+      return new Response(JSON.stringify({ audio_url: fresh.signedUrl, cached: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
       });
     }
 

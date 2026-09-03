@@ -68,7 +68,12 @@ serve(async (req) => {
     if (limited) return limited;
 
     const body = await req.json();
-    const message = clampText(body?.message, 2000);
+    // mode 'brief': the corner speaks first — one line for today, built
+    // from the context alone. No athlete message required.
+    const mode = body?.mode === 'brief' ? 'brief' : 'reply';
+    const message = mode === 'brief'
+      ? "Give me today's brief: one true observation from my data and one instruction for today, under 40 words, spoken aloud."
+      : clampText(body?.message, 2000);
     const history = Array.isArray(body?.history) ? body.history : [];
     const context = body?.context;
     const character = body?.character;
@@ -88,12 +93,14 @@ serve(async (req) => {
     // Context block: whatever real data the app could assemble. Shape is
     // free-form key/values; absent data simply isn't mentioned (§4).
     let contextBlock = '';
+    const basedOn: string[] = [];
     if (context && typeof context === 'object') {
       // Cap the NUMBER of keys too — not just each value — so a caller
       // can't bloat the prompt with thousands of entries.
       for (const [k, v] of Object.entries(context).slice(0, 20)) {
         if (v === null || v === undefined || String(v).trim() === '') continue;
         contextBlock += `\n${clampText(k, 60)}: ${clampText(String(v), 400)}`;
+        basedOn.push(clampText(k, 60).replace(/_/g, ' '));
       }
     }
 
@@ -113,7 +120,9 @@ serve(async (req) => {
     const result = await model.generateContent(prompt);
     const reply = result.response.text();
 
-    return new Response(JSON.stringify({ reply }), {
+    // `based_on` names the real data the line was built from, so the UI can
+    // show it honestly (and show nothing when there was nothing).
+    return new Response(JSON.stringify({ reply, based_on: basedOn, mode }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

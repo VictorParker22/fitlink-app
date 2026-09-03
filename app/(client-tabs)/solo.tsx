@@ -1,18 +1,16 @@
 /**
- * Solo — "Your corner" (design canvas "FitLink Solo Mode", board 2).
+ * Solo — "The corner" (design canvas "FitLink Solo Corner", board "The
+ * corner"). Presence-first, not a chat wall: the persona speaks ONE thing
+ * at a time — orb breathes at rest, bar-meter while audio plays, transcript
+ * one tap away behind the history icon.
  *
- * The athlete's chat with their chosen AI corner (lib/soloCharacters.ts —
- * delivery only; the guardrailed brain lives in the solo-corner edge
- * function). Every sent/received message persists to solo_messages; the last
- * 50 load on mount. Context sent with each call is REAL data only — today's
- * session, streak, steps, last check-in — every key optional, nothing
- * invented (INVARIANTS §4).
+ * Data mechanics kept from the previous chat build: messages persist to
+ * solo_messages (last 50 load on mount), buildContext sends only real data
+ * (INVARIANTS §4), a 402 routes to SoloPaywall with the same 90s
+ * post-purchase "activating" grace window, and failures get a quiet retry —
+ * never a toast storm.
  *
- * The paid boundary is server-side: a 402 {error:'premium_required'} routes
- * to SoloPaywall. Other failures mark the athlete's bubble with a quiet
- * inline retry — no toast storm.
- *
- * No mic in v1 — voice is v2, so no dead controls.
+ * No mic in v1 — voice input is v2, so no dead control ships.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,7 +18,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   Pressable,
@@ -28,17 +26,8 @@ import {
   Platform,
   Keyboard,
   ActivityIndicator,
-  Image,
+  Modal,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSequence,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,128 +36,104 @@ import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useHealth } from '../../context/HealthContext';
 import { useWorkout } from '../../context/WorkoutContext';
+import { useAlert } from '../../context/AlertContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { computeStreak } from '../../lib/streak';
 import { getSoloCharacter } from '../../lib/soloCharacters';
-import { getWorkoutEmblem } from '../../utils/workoutEmblems';
-import CardImage from '../../components/ui/CardImage';
+import { ensureSoloClient } from '../../lib/soloClient';
+import { useSoloVoice, getAutoPlay, setAutoPlay as persistAutoPlay } from '../../lib/soloVoice';
+import { Orb, SpokenLine, SOLO_TINT } from '../../components/solo/Presence';
 import SoloPaywall from '../../components/paywalls/SoloPaywall';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
-import { ClientRoute } from '../../types/routes';
 
 interface SoloMessage {
   id: string;
   role: 'athlete' | 'corner';
   content: string;
   created_at: string;
-  /** Local-only: the corner never heard this one — show the retry affordance. */
-  failed?: boolean;
 }
 
-/**
- * First-open welcome, one per character register. LOCAL and never persisted:
- * it is clearly the corner speaking, references no data, and fabricates no
- * server call disguised as the athlete.
- */
+/** First-open brief fallback if the server call fails before anything else has spoken. */
 const WELCOME: Record<string, string> = {
   reyes: "I'm here. Tell me how training's been going, or just say hi.",
   imani: 'Ask me anything — why a set count, why a rest day. Or just tell me how training has been.',
   dane: "You showed up. That's the hard part. Tell me what we're working with.",
-  sol: 'No rush. Whenever you’re ready, tell me how training has been feeling.',
+  sol: "No rush. Whenever you're ready, tell me how training has been feeling.",
 };
 
-// ── Breathing status dot ─────────────────────────────────────────────────────
-function BreathingDot({ reduced }: { reduced: boolean }) {
-  const phase = useSharedValue(1);
-  useEffect(() => {
-    if (reduced) {
-      phase.value = 1;
-      return;
-    }
-    phase.value = withRepeat(
-      withSequence(
-        withTiming(0.35, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
-        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1
-    );
-  }, [reduced, phase]);
-  const style = useAnimatedStyle(() => ({ opacity: phase.value }));
-  return <Animated.View style={[s.statusDot, style]} />;
-}
+const QUICK_ASKS = ['Plan today', 'I slept badly', 'Log a PR', 'Swap an exercise'];
 
-// ── Typing indicator — three quiet dots ──────────────────────────────────────
-function TypingDot({ reduced, delay }: { reduced: boolean; delay: number }) {
-  const phase = useSharedValue(0.4);
-  useEffect(() => {
-    if (reduced) {
-      phase.value = 0.6;
-      return;
-    }
-    phase.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.9, { duration: 380, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.35, { duration: 380, easing: Easing.inOut(Easing.quad) })
-        ),
-        -1
-      )
-    );
-  }, [reduced, delay, phase]);
-  const style = useAnimatedStyle(() => ({ opacity: phase.value }));
-  return <Animated.View style={[s.typingDot, style]} />;
-}
-
-function TypingBubble({ reduced }: { reduced: boolean }) {
-  return (
-    <View style={s.bubbleRow}>
-      <View style={[s.bubble, s.bubbleCorner, s.typingBubble]}>
-        <View style={s.typingDots}>
-          <TypingDot reduced={reduced} delay={0} />
-          <TypingDot reduced={reduced} delay={160} />
-          <TypingDot reduced={reduced} delay={320} />
-        </View>
-      </View>
-    </View>
-  );
+function dayHeader(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((new Date(now.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export default function SoloScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const { clientData, todayWorkout, workouts, progressLogs, healthSharingEnabled } = useClient();
+  const { showAlert } = useAlert();
+  const { clientData, todayWorkout, workouts, progressLogs, healthSharingEnabled, refreshData } = useClient();
   const { isConnected: healthConnected, healthData } = useHealth();
   const { workoutHistory } = useWorkout();
+  const voice = useSoloVoice();
 
   const character = getSoloCharacter((clientData as any)?.solo_character);
+  const tint = SOLO_TINT[character.key];
 
   const [messages, setMessages] = useState<SoloMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ensuring, setEnsuring] = useState(false);
+  const [setupNeeded, setSetupNeeded] = useState(false);
+  const ensureAttemptedRef = useRef(false);
+
+  const [currentLine, setCurrentLine] = useState<string>('');
+  const [basedOn, setBasedOn] = useState<string[]>([]);
+  const [waitingReply, setWaitingReply] = useState(false);
+  const [athleteEcho, setAthleteEcho] = useState<string | null>(null);
+  const echoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [input, setInput] = useState('');
-  const [waiting, setWaiting] = useState(false);
+  const [autoPlay, setAutoPlayState] = useState(true);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [pendingRetry, setPendingRetry] = useState<{ content: string; prior: SoloMessage[] } | null>(null);
+
   const [paywallVisible, setPaywallVisible] = useState(false);
-  // A 402 in the seconds after a local purchase is RevenueCat's webhook
-  // still landing, not a missing subscription. Don't bounce the athlete back
-  // to the paywall they just paid on — show a quiet "activating" line.
+  // A 402 in the seconds after a local purchase is RevenueCat's webhook still
+  // landing, not a missing subscription — show a quiet "activating" line
+  // instead of bouncing the athlete back to the paywall they just paid on.
   const [activating, setActivating] = useState(false);
   const lastPurchaseAtRef = useRef(0);
-  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
-  const listRef = useRef<FlatList>(null);
+
   const sendingRef = useRef(false);
+  const briefRequestedRef = useRef(false);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-    return () => { showSub.remove(); hideSub.remove(); };
+    getAutoPlay().then(setAutoPlayState);
   }, []);
+
+  useEffect(() => () => { if (echoTimerRef.current) clearTimeout(echoTimerRef.current); }, []);
+
+  // ── Solo client existence: coachless athletes may have no row yet ─────────
+  useEffect(() => {
+    if (clientData?.id || ensureAttemptedRef.current) return;
+    ensureAttemptedRef.current = true;
+    setEnsuring(true);
+    (async () => {
+      const ensured = await ensureSoloClient();
+      if (ensured?.clientId) {
+        await refreshData();
+      } else {
+        setSetupNeeded(true);
+      }
+      setEnsuring(false);
+    })();
+  }, [clientData?.id, refreshData]);
 
   // ── History: last 50, oldest first ─────────────────────────────────────────
   useEffect(() => {
@@ -185,39 +150,20 @@ export default function SoloScreen() {
       if (error) {
         if (__DEV__) console.warn('[Solo] history load failed:', error.message);
       } else if (data) {
-        setMessages([...data].reverse() as SoloMessage[]);
+        const ordered = [...data].reverse() as SoloMessage[];
+        setMessages(ordered);
+        const lastCorner = [...ordered].reverse().find((m) => m.role === 'corner');
+        if (lastCorner) setCurrentLine(lastCorner.content);
       }
       setLoading(false);
     })();
     return () => { mounted = false; };
   }, [clientData?.id]);
 
-  useEffect(() => {
-    if (messages.length > 0 || waiting) {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: !reducedMotion }), 100);
-    }
-  }, [messages.length, waiting, reducedMotion]);
-
   // ── Today's session (real data only) ───────────────────────────────────────
   const workoutRow = todayWorkout?.workouts || todayWorkout;
   const sessionExercises: any[] = workoutRow?.workout_exercises || [];
   const sessionName: string | null = workoutRow?.name || workoutRow?.title || null;
-  const startWorkoutId = todayWorkout
-    ? (todayWorkout.workout_id || todayWorkout.workouts?.id || todayWorkout.id)
-    : null;
-  const sessionEmblem = useMemo(() => {
-    if (!startWorkoutId) return null;
-    const groups: string[] = sessionExercises
-      .map((ex: any) => ex?.exercises?.muscle_group || ex?.exercises?.category)
-      .filter(Boolean);
-    return getWorkoutEmblem(String(startWorkoutId), sessionName || undefined, groups);
-  }, [startWorkoutId, sessionExercises, sessionName]);
-
-  const startSession = useCallback(() => {
-    if (!startWorkoutId) return;
-    // Same start path Today uses — the workouts screen opens the player.
-    router.push({ pathname: ClientRoute.workouts, params: { startWorkoutId: String(startWorkoutId) } });
-  }, [router, startWorkoutId]);
 
   // ── Context assembly — real data or omitted, never invented ───────────────
   const buildContext = useCallback((): Record<string, string> => {
@@ -241,88 +187,6 @@ export default function SoloScreen() {
     return ctx;
   }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthSharingEnabled, healthConnected, healthData, progressLogs]);
 
-  // ── Send ───────────────────────────────────────────────────────────────────
-  const deliver = useCallback(
-    async (athleteMsg: SoloMessage, priorHistory: SoloMessage[]) => {
-      if (!clientData?.id) return;
-      setWaiting(true);
-      // try/finally: a thrown invoke (network down mid-call) used to leave
-      // `waiting` stuck true — typing dots forever and the send button dead.
-      try {
-        const history = priorHistory
-          .filter((m) => !m.failed)
-          .slice(-12)
-          .map((m) => ({ role: m.role, content: m.content }));
-
-        const { data, error } = await supabase.functions.invoke('solo-corner', {
-          body: {
-            message: athleteMsg.content,
-            history,
-            context: buildContext(),
-            character: character.key,
-          },
-        });
-
-        if (error) {
-          const status = (error as any)?.context?.status;
-          if (status === 402) {
-            if (Date.now() - lastPurchaseAtRef.current < 90_000) {
-              setActivating(true);
-            } else {
-              setPaywallVisible(true);
-            }
-          }
-          // Quiet inline retry on the bubble — never a toast storm.
-          setMessages((prev) =>
-            prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
-          );
-          return;
-        }
-
-        const reply: string | undefined = data?.reply;
-        if (!reply) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
-          );
-          return;
-        }
-
-        // A reply means the entitlement landed — the activating line is done.
-        setActivating(false);
-
-        const cornerMsg: SoloMessage = {
-          id: `local-corner-${Date.now()}`,
-          role: 'corner',
-          content: reply,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, cornerMsg]);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-
-        // Persist the corner row — {error}-checked, quiet failure tolerable
-        // (the reply already rendered; the row simply misses history).
-        const { data: row, error: insertError } = await supabase
-          .from('solo_messages')
-          .insert({ client_id: clientData.id, role: 'corner', content: reply })
-          .select('id, role, content, created_at')
-          .single();
-        if (insertError) {
-          if (__DEV__) console.warn('[Solo] corner row not saved:', insertError.message);
-        } else if (row) {
-          setMessages((prev) => prev.map((m) => (m.id === cornerMsg.id ? (row as SoloMessage) : m)));
-        }
-      } catch (e) {
-        if (__DEV__) console.warn('[Solo] deliver threw:', e);
-        setMessages((prev) =>
-          prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
-        );
-      } finally {
-        setWaiting(false);
-      }
-    },
-    [clientData?.id, buildContext, character.key]
-  );
-
   // The activating line has a lifetime — the same 90s grace window. Past it,
   // a 402 is a real paywall again.
   useEffect(() => {
@@ -332,239 +196,431 @@ export default function SoloScreen() {
     return () => clearTimeout(t);
   }, [activating]);
 
-  const handleSend = useCallback(async () => {
-    const content = input.trim();
-    if (!content || sendingRef.current || !clientData?.id) return;
-    sendingRef.current = true;
-    setInput('');
+  // ── Core call to the corner ─────────────────────────────────────────────────
+  const callCorner = useCallback(
+    async (body: Record<string, unknown>) => {
+      return supabase.functions.invoke('solo-corner', {
+        body: { ...body, character: character.key },
+      });
+    },
+    [character.key]
+  );
 
-    // Optimistic append.
+  const speakReply = useCallback((text: string) => {
+    if (autoPlay) voice.speak(text, character.key);
+  }, [autoPlay, voice, character.key]);
+
+  const persistCornerMessage = useCallback(async (content: string) => {
+    if (!clientData?.id) return;
+    const { error } = await supabase
+      .from('solo_messages')
+      .insert({ client_id: clientData.id, role: 'corner', content });
+    if (error && __DEV__) console.warn('[Solo] corner row not saved:', error.message);
+  }, [clientData?.id]);
+
+  // ── First-open brief: when a brand-new corner has no history yet ──────────
+  useEffect(() => {
+    if (loading || !clientData?.id || messages.length > 0 || briefRequestedRef.current) return;
+    briefRequestedRef.current = true;
+    setCurrentLine(WELCOME[character.key] ?? WELCOME.reyes);
+    (async () => {
+      setWaitingReply(true);
+      try {
+        const { data, error } = await callCorner({ mode: 'brief', history: [], context: buildContext() });
+        if (error) {
+          const status = (error as any)?.context?.status;
+          if (status === 402) {
+            setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
+            if (Date.now() - lastPurchaseAtRef.current >= 90_000) setPaywallVisible(true);
+          }
+          return;
+        }
+        const reply: string | undefined = data?.reply;
+        if (!reply) return;
+        setCurrentLine(reply);
+        setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
+        await persistCornerMessage(reply);
+        setMessages((prev) => [...prev, {
+          id: `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+        }]);
+        speakReply(reply);
+      } catch (e) {
+        if (__DEV__) console.warn('[Solo] brief request threw:', e);
+      } finally {
+        setWaitingReply(false);
+      }
+    })();
+  }, [loading, clientData?.id, messages.length, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply]);
+
+  // ── Send an athlete message (composer or quick-ask chip) ──────────────────
+  const deliver = useCallback(
+    async (content: string, priorHistory: SoloMessage[]) => {
+      if (!clientData?.id) return;
+      setWaitingReply(true);
+      setPendingRetry(null);
+      try {
+        const history = priorHistory
+          .slice(-12)
+          .map((m) => ({ role: m.role, content: m.content }));
+
+        const { data, error } = await callCorner({ message: content, history, context: buildContext() });
+
+        if (error) {
+          const status = (error as any)?.context?.status;
+          if (status === 402) {
+            if (Date.now() - lastPurchaseAtRef.current < 90_000) {
+              setActivating(true);
+              setCurrentLine('Activating your subscription…');
+            } else {
+              setPaywallVisible(true);
+              setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
+            }
+          } else if (status === 429) {
+            setCurrentLine("Give me a minute. You've asked a lot this hour.");
+          } else {
+            setCurrentLine("Couldn't reach your corner. Try again.");
+            setPendingRetry({ content, prior: priorHistory });
+          }
+          return;
+        }
+
+        const reply: string | undefined = data?.reply;
+        if (!reply) {
+          setCurrentLine("Couldn't reach your corner. Try again.");
+          setPendingRetry({ content, prior: priorHistory });
+          return;
+        }
+
+        // A reply means the entitlement landed — the activating line is done.
+        setActivating(false);
+        setCurrentLine(reply);
+        setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        await persistCornerMessage(reply);
+        setMessages((prev) => [...prev, {
+          id: `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+        }]);
+        speakReply(reply);
+      } catch (e) {
+        if (__DEV__) console.warn('[Solo] deliver threw:', e);
+        setCurrentLine("Couldn't reach your corner. Try again.");
+        setPendingRetry({ content, prior: priorHistory });
+      } finally {
+        setWaitingReply(false);
+      }
+    },
+    [clientData?.id, callCorner, buildContext, character.name, persistCornerMessage, speakReply]
+  );
+
+  const sendMessage = useCallback(async (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed || sendingRef.current || !clientData?.id) return;
+    sendingRef.current = true;
+    Keyboard.dismiss();
+
+    // Echo the athlete's own line above the orb for a beat, then let the
+    // reply (or waiting state) take over the spoken line.
+    setAthleteEcho(trimmed);
+    if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
+    echoTimerRef.current = setTimeout(() => setAthleteEcho(null), 1500);
+
+    const prior = messages;
     const athleteMsg: SoloMessage = {
       id: `local-athlete-${Date.now()}`,
       role: 'athlete',
-      content,
+      content: trimmed,
       created_at: new Date().toISOString(),
     };
-    const prior = messages;
     setMessages((prev) => [...prev, athleteMsg]);
 
     try {
-      // Persist the athlete row — {error}-checked, quiet failure tolerable.
-      const { data: row, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('solo_messages')
-        .insert({ client_id: clientData.id, role: 'athlete', content })
-        .select('id, role, content, created_at')
-        .single();
-      let liveMsg = athleteMsg;
-      if (insertError) {
-        if (__DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
-      } else if (row) {
-        liveMsg = row as SoloMessage;
-        setMessages((prev) => prev.map((m) => (m.id === athleteMsg.id ? liveMsg : m)));
-      }
-
-      await deliver(liveMsg, prior);
-    } catch (e) {
-      if (__DEV__) console.warn('[Solo] send threw:', e);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === athleteMsg.id ? { ...m, failed: true } : m))
-      );
+        .insert({ client_id: clientData.id, role: 'athlete', content: trimmed });
+      if (insertError && __DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
+      await deliver(trimmed, prior);
     } finally {
-      // Always released — a throw above used to leave the composer locked.
       sendingRef.current = false;
     }
-  }, [input, clientData?.id, messages, deliver]);
+  }, [messages, clientData?.id, deliver]);
 
-  // Retry a failed message: the row (when it saved) is already in
-  // solo_messages — only the corner call is re-run.
-  const handleRetry = useCallback(
-    async (msg: SoloMessage) => {
-      if (sendingRef.current) return;
-      sendingRef.current = true;
-      setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, failed: false } : m)));
-      const prior = messages.slice(0, messages.findIndex((m) => m.id === msg.id));
-      try {
-        await deliver({ ...msg, failed: false }, prior);
-      } finally {
-        sendingRef.current = false;
-      }
-    },
-    [messages, deliver]
-  );
+  const handleSend = useCallback(() => {
+    const content = input.trim();
+    if (!content) return;
+    setInput('');
+    sendMessage(content);
+  }, [input, sendMessage]);
 
-  // ── First-open welcome (local, never persisted) ────────────────────────────
-  const showWelcome = !loading && messages.length === 0;
-  const welcomeText = WELCOME[character.key] ?? WELCOME.reyes;
+  const handleRetry = useCallback(() => {
+    if (!pendingRetry) return;
+    const { content, prior } = pendingRetry;
+    setPendingRetry(null);
+    deliver(content, prior);
+  }, [pendingRetry, deliver]);
 
-  const renderMessage = useCallback(
-    ({ item }: { item: SoloMessage }) => {
-      const isMine = item.role === 'athlete';
-      return (
-        <View style={[s.bubbleRow, isMine && s.bubbleRowRight]}>
-          <View style={[s.bubble, isMine ? s.bubbleAthlete : s.bubbleCorner]}>
-            <Text style={s.bubbleText} maxFontSizeMultiplier={1.4}>{item.content}</Text>
-            {item.failed && (
-              <Pressable
-                onPress={() => handleRetry(item)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel="Couldn't reach your corner. Try again"
-              >
-                <Text style={s.failedText} maxFontSizeMultiplier={1.3}>
-                  Couldn't reach your corner — try again
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      );
-    },
-    [handleRetry]
-  );
+  const toggleAutoPlay = useCallback(() => {
+    const next = !autoPlay;
+    setAutoPlayState(next);
+    persistAutoPlay(next);
+    Haptics.selectionAsync().catch(() => {});
+    if (!next) voice.stop();
+  }, [autoPlay, voice]);
+
+  // ── Orb / spoken-line state ─────────────────────────────────────────────────
+  const speaking = voice.state.activeText === currentLine && voice.state.playing;
+  const orbLoading = waitingReply || (voice.state.activeText === currentLine && voice.state.loading);
+
+  const groupedHistory = useMemo(() => {
+    const groups: { header: string; items: SoloMessage[] }[] = [];
+    messages.forEach((m) => {
+      const header = dayHeader(m.created_at);
+      const last = groups[groups.length - 1];
+      if (last && last.header === header) last.items.push(m);
+      else groups.push({ header, items: [m] });
+    });
+    return groups;
+  }, [messages]);
+
+  // ── Corner not set up yet: a real state, not a spinner forever ────────────
+  if (!clientData?.id) {
+    return (
+      <View style={[s.container, s.centerFill, { paddingTop: insets.top }]}>
+        {ensuring ? (
+          <ActivityIndicator size="large" color={C.accent} />
+        ) : (
+          <>
+            <Ionicons name="mic-off-outline" size={32} color={C.textFaint} />
+            <Text style={s.emptyTitle} maxFontSizeMultiplier={1.3}>Your corner isn't set up yet</Text>
+            <Text style={s.emptySub} maxFontSizeMultiplier={1.3}>
+              Choose a voice to hear from and we'll get it ready.
+            </Text>
+            <TouchableOpacity
+              style={s.emptyCta}
+              onPress={() => router.push('/(client-tabs)/solo-setup' as any)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={s.emptyCtaText} maxFontSizeMultiplier={1.2}>Choose your corner</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.kicker} maxFontSizeMultiplier={1.4}>
-            SOLO · {character.name.toUpperCase()}
-          </Text>
-          <Text style={s.title} maxFontSizeMultiplier={1.3}>Your corner</Text>
-        </View>
-        <Pressable
-          style={s.statusChip}
-          onPress={() => router.push('/(client-tabs)/solo-setup' as any)}
+        <TouchableOpacity
+          style={s.iconBtn}
+          onPress={() => (router.canGoBack() ? router.back() : router.push('/(client-tabs)' as any))}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="In your corner. Change your corner"
+          accessibilityLabel="Go back"
         >
-          <BreathingDot reduced={reducedMotion} />
-          <Text style={s.statusChipText} maxFontSizeMultiplier={1.2}>In your corner</Text>
-          <Ionicons name="chevron-forward" size={12} color={C.textFaint} />
-        </Pressable>
-      </View>
-
-      {/* ── Today's session — pinned under the header for scroll sanity ── */}
-      {todayWorkout && sessionName && (
-        <View style={s.sessionCard}>
-          <CardImage
-            source={require('../../assets/images/session-bg.jpg')}
-            scrim="veil"
-            extraShade={0.3}
-          />
-          <View style={s.sessionRow}>
-            {sessionEmblem && (
-              <Image source={sessionEmblem} style={s.sessionEmblem} resizeMode="contain" accessible={false} />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={s.sessionKicker} maxFontSizeMultiplier={1.3} numberOfLines={1}>
-                TODAY · {sessionName.toUpperCase()}
-              </Text>
-              {sessionExercises.length > 0 && (
-                <Text style={s.sessionMeta} maxFontSizeMultiplier={1.3}>
-                  {sessionExercises.length} exercise{sessionExercises.length === 1 ? '' : 's'}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={s.startPill}
-              onPress={startSession}
-              activeOpacity={0.85}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel={`Start ${sessionName}`}
-            >
-              <Text style={s.startPillText} maxFontSizeMultiplier={1.2}>Start</Text>
-            </TouchableOpacity>
-          </View>
+          <Ionicons name="chevron-back" size={19} color={C.textPrimary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Your corner · AI</Text>
+          <Text style={s.title} maxFontSizeMultiplier={1.3}>{character.name}</Text>
         </View>
-      )}
-
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {loading ? (
-          <View style={s.loadingWrap}>
-            <ActivityIndicator size="large" color={C.accent} />
-          </View>
-        ) : (
-          <FlatList
-            ref={listRef}
-            keyboardShouldPersistTaps="handled"
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={s.messageList}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderMessage}
-            ListHeaderComponent={
-              showWelcome ? (
-                <View style={s.bubbleRow}>
-                  <View style={[s.bubble, s.bubbleCorner]}>
-                    <Text style={s.bubbleText} maxFontSizeMultiplier={1.4}>{welcomeText}</Text>
-                  </View>
-                </View>
-              ) : null
-            }
-            ListFooterComponent={waiting ? <TypingBubble reduced={reducedMotion} /> : null}
-          />
-        )}
-
-        {/* ── Post-purchase grace: entitlement is propagating ── */}
-        {activating && (
-          <View style={s.activatingRow} accessibilityLiveRegion="polite">
-            <ActivityIndicator size="small" color={C.accent} />
-            <Text style={s.activatingText} maxFontSizeMultiplier={1.3}>
-              Activating your subscription…
-            </Text>
-          </View>
-        )}
-
-        {/* ── Honesty footer ── */}
-        <View style={s.honestyRow}>
-          <Text style={s.honestyText} maxFontSizeMultiplier={1.3}>
-            Solo is software, not medical advice.{' '}
-            <Text
-              style={s.honestyLink}
-              onPress={() => router.push(ClientRoute.findCoach)}
-              accessibilityRole="link"
-            >
-              Prefer a human? Find a coach
-            </Text>
-          </Text>
-        </View>
-
-        {/* ── Composer — no mic in v1 (voice is v2, no dead controls) ── */}
-        <View style={s.inputBar}>
-          <TextInput
-            style={s.input}
-            placeholder="Tell your corner anything…"
-            placeholderTextColor={C.textFaint}
-            value={input}
-            onChangeText={setInput}
-            maxLength={2000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-            accessibilityLabel="Message your corner"
-            accessibilityRole="text"
-          />
+        <View style={s.headerActions}>
           <TouchableOpacity
-            style={[s.sendBtn, input.trim() ? s.sendBtnActive : null]}
-            onPress={handleSend}
-            disabled={!input.trim() || waiting}
-            hitSlop={2}
+            style={s.iconBtn}
+            onPress={toggleAutoPlay}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Send"
+            accessibilityLabel={autoPlay ? 'Mute auto-play' : 'Unmute auto-play'}
           >
-            <Ionicons name="send" size={17} color={input.trim() ? C.onAccent : C.textFaint} />
+            <Ionicons
+              name={autoPlay ? 'volume-high-outline' : 'volume-mute-outline'}
+              size={18}
+              color={autoPlay ? C.accent : C.textPrimary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.iconBtn}
+            onPress={() => setHistoryVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Open transcript history"
+          >
+            <Ionicons name="time-outline" size={18} color={C.textPrimary} />
           </TouchableOpacity>
         </View>
-        {/* Clears the floating tab bar (my-messages precedent). */}
-        <View
-          style={{
-            height: isKeyboardVisible ? 0 : Math.max(insets.bottom, 14) + 55,
-            backgroundColor: C.surface,
-          }}
-        />
+      </View>
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          contentContainerStyle={s.presenceScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {athleteEcho && (
+            <Text style={s.echoText} maxFontSizeMultiplier={1.3} numberOfLines={2}>You: {athleteEcho}</Text>
+          )}
+
+          <Orb tint={tint} size={132} speaking={speaking} loading={orbLoading} reduced={reducedMotion} showMeter />
+
+          {loading ? (
+            <ActivityIndicator size="small" color={C.accent} style={{ marginTop: 22 }} />
+          ) : (
+            <View style={[s.spokenBlock, orbLoading && s.spokenBlockDim]}>
+              <SpokenLine
+                text={currentLine}
+                tint={tint}
+                state={voice.state}
+                onToggle={() => voice.toggle(currentLine, character.key)}
+              />
+            </View>
+          )}
+
+          {basedOn.length > 0 && (
+            <View style={s.basedOnRow}>
+              <Ionicons name="layers-outline" size={14} color={C.textFaint} />
+              <Text style={s.basedOnText} maxFontSizeMultiplier={1.3}>
+                {basedOn.join(' · ')}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={s.footerBlock}>
+          {pendingRetry ? (
+            <View style={s.chipsRow}>
+              <TouchableOpacity
+                style={[s.chip, s.retryChip]}
+                onPress={handleRetry}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+              >
+                <Ionicons name="refresh" size={14} color={C.textPrimary} />
+                <Text style={s.chipText} maxFontSizeMultiplier={1.2}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.chipsRow}
+            >
+              {QUICK_ASKS.map((label) => (
+                <TouchableOpacity
+                  key={label}
+                  style={s.chip}
+                  onPress={() => sendMessage(label)}
+                  activeOpacity={0.8}
+                  disabled={waitingReply}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                >
+                  <Text style={s.chipText} maxFontSizeMultiplier={1.2}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={s.inputBar}>
+            <TextInput
+              style={s.input}
+              placeholder={`Ask ${character.name}`}
+              placeholderTextColor={C.textFaint}
+              value={input}
+              onChangeText={setInput}
+              maxLength={2000}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+              accessibilityLabel={`Message ${character.name}`}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, input.trim() ? s.sendBtnActive : null]}
+              onPress={handleSend}
+              disabled={!input.trim() || waitingReply}
+              hitSlop={2}
+              accessibilityRole="button"
+              accessibilityLabel="Send"
+            >
+              <Ionicons name="arrow-up" size={19} color={input.trim() ? C.onAccent : C.textFaint} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: Math.max(insets.bottom, 14) + 55, backgroundColor: C.bg }} />
+        </View>
       </KeyboardAvoidingView>
+
+      {/* ── History sheet ── */}
+      <Modal
+        visible={historyVisible}
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setHistoryVisible(false)}
+      >
+        <View style={[s.historyContainer, { paddingTop: insets.top }]}>
+          <View style={s.historyHeader}>
+            <TouchableOpacity
+              style={s.iconBtn}
+              onPress={() => setHistoryVisible(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close history"
+            >
+              <Ionicons name="chevron-back" size={19} color={C.textPrimary} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>This week</Text>
+              <Text style={s.title} maxFontSizeMultiplier={1.3}>Everything {character.name} said</Text>
+            </View>
+          </View>
+          <ScrollView contentContainerStyle={s.historyScroll} showsVerticalScrollIndicator={false}>
+            {groupedHistory.map((group) => (
+              <View key={group.header}>
+                <Text style={s.dayHeader} maxFontSizeMultiplier={1.3}>{group.header.toUpperCase()}</Text>
+                {group.items.map((m) => {
+                  const isAthlete = m.role === 'athlete';
+                  const isActive = voice.state.activeText === m.content && (voice.state.playing || voice.state.loading);
+                  return (
+                    <View key={m.id} style={s.historyRow}>
+                      <View style={s.historyLabelRow}>
+                        {!isAthlete && <View style={[s.historyDot, { backgroundColor: tint }]} />}
+                        <Text style={s.historyLabel} maxFontSizeMultiplier={1.3}>
+                          {isAthlete ? 'You' : character.name}
+                        </Text>
+                      </View>
+                      <Text style={[s.historyText, isAthlete && s.historyTextMuted]} maxFontSizeMultiplier={1.4}>
+                        {m.content}
+                      </Text>
+                      {!isAthlete && (
+                        <TouchableOpacity
+                          style={s.historyPlay}
+                          onPress={() => voice.toggle(m.content, character.key)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          accessibilityRole="button"
+                          accessibilityLabel={isActive && voice.state.playing ? 'Pause' : 'Play this line'}
+                        >
+                          <Ionicons
+                            name={isActive && voice.state.playing ? 'pause' : 'play'}
+                            size={12}
+                            color={C.textFaint}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+            {groupedHistory.length === 0 && (
+              <Text style={s.historyEmpty} maxFontSizeMultiplier={1.3}>Nothing said yet.</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
 
       <SoloPaywall
         visible={paywallVisible}
@@ -581,126 +637,99 @@ export default function SoloScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+  centerFill: { alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
+  emptyTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary, textAlign: 'center', marginTop: 6 },
+  emptySub: { fontFamily: F.body, fontSize: 14, lineHeight: 20, color: C.textSecondary, textAlign: 'center' },
+  emptyCta: {
+    marginTop: 8, height: 48, paddingHorizontal: 24, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
+  },
+  emptyCtaText: { fontFamily: F.bodyBold, fontSize: 15, color: C.onAccent },
 
   header: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 12,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16,
-  },
-  kicker: {
-    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.4,
-    textTransform: 'uppercase', color: C.accent,
-  },
-  title: {
-    fontFamily: F.headingBold, fontSize: 28, lineHeight: 33,
-    color: C.textPrimary, marginTop: 4,
-  },
-  statusChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, minHeight: 44,
-    borderRadius: 999, borderCurve: 'continuous',
-    backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted,
-  },
-  statusDot: {
-    width: 6, height: 6, borderRadius: 999, borderCurve: 'continuous',
-    backgroundColor: C.accent,
-  },
-  statusChipText: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary },
-
-  sessionCard: {
-    marginHorizontal: 20, marginBottom: 12,
-    borderRadius: 16, borderCurve: 'continuous',
-    overflow: 'hidden',
-    borderWidth: 1, borderColor: C.borderMuted,
-  },
-  sessionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
   },
-  sessionEmblem: { width: 36, height: 36 },
-  sessionKicker: {
-    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
-    color: C.textPrimary,
-  },
-  sessionMeta: {
-    fontFamily: F.mono, fontSize: 11.5, color: C.textSecondary,
-    fontVariant: ['tabular-nums'], marginTop: 3,
-  },
-  startPill: {
-    paddingHorizontal: 16, height: 34,
-    borderRadius: 999, borderCurve: 'continuous',
-    backgroundColor: C.accent,
+  headerActions: { flexDirection: 'row', gap: 8 },
+  iconBtn: {
+    width: 40, height: 40, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: C.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
-  startPillText: { fontFamily: F.bodyBold, fontSize: 13, color: C.onAccent },
+  kicker: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
+    textTransform: 'uppercase', color: C.textMuted,
+  },
+  title: { fontFamily: F.headingBold, fontSize: 18, color: C.textPrimary, marginTop: 2 },
 
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  messageList: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, flexGrow: 1 },
+  presenceScroll: {
+    flexGrow: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, gap: 16,
+  },
+  echoText: {
+    fontFamily: F.bodyMedium, fontSize: 13, color: C.textFaint, textAlign: 'center',
+  },
+  spokenBlock: { marginTop: 4 },
+  spokenBlockDim: { opacity: 0.45 },
 
-  bubbleRow: { flexDirection: 'row', marginBottom: 8 },
-  bubbleRowRight: { justifyContent: 'flex-end' },
-  bubble: {
-    maxWidth: '82%',
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 18, borderCurve: 'continuous',
+  basedOnRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 16, borderCurve: 'continuous',
+    paddingHorizontal: 14, paddingVertical: 12, marginTop: 4,
+    alignSelf: 'stretch',
   },
-  bubbleCorner: {
-    backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted,
-    borderTopLeftRadius: 6,
-  },
-  bubbleAthlete: {
-    backgroundColor: C.accentSoft,
-    borderTopRightRadius: 6,
-  },
-  bubbleText: {
-    fontFamily: F.body, fontSize: 15.5, lineHeight: 23.5,
-    color: C.textPrimary,
-  },
-  failedText: {
-    fontFamily: F.bodySemiBold, fontSize: 12, color: C.danger,
-    marginTop: 6,
-  },
+  basedOnText: { flex: 1, fontFamily: F.body, fontSize: 13, lineHeight: 18, color: C.textSecondary },
 
-  typingBubble: { paddingVertical: 13 },
-  typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  typingDot: {
-    width: 6, height: 6, borderRadius: 999, borderCurve: 'continuous',
-    backgroundColor: C.textSecondary,
+  footerBlock: { paddingTop: 4 },
+  chipsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 12 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    height: 40, paddingHorizontal: 14, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: C.border,
   },
-
-  activatingRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingBottom: 8,
-  },
-  activatingText: {
-    fontFamily: F.bodySemiBold, fontSize: 12, color: C.textSecondary,
-  },
-  honestyRow: { paddingHorizontal: 20, paddingBottom: 8 },
-  honestyText: {
-    fontFamily: F.body, fontSize: 12, lineHeight: 17.5,
-    color: C.textFaint, textAlign: 'center',
-  },
-  honestyLink: { fontFamily: F.bodySemiBold, color: C.accent },
+  retryChip: { borderColor: C.textFaint },
+  chipText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.textPrimary },
 
   inputBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 9,
-    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10,
-    borderTopWidth: 1, borderTopColor: C.border,
-    backgroundColor: C.surface,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 20,
   },
   input: {
-    flex: 1, backgroundColor: C.bg,
-    borderWidth: 1, borderColor: C.border,
+    flex: 1, height: 52, backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.borderMuted,
     borderRadius: 999, borderCurve: 'continuous',
-    paddingHorizontal: 16, paddingVertical: 13,
-    fontFamily: F.body, fontSize: 15.5, color: C.textPrimary,
-    maxHeight: 100,
+    paddingHorizontal: 18,
+    fontFamily: F.body, fontSize: 15, color: C.textPrimary,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 999, borderCurve: 'continuous',
+    width: 52, height: 52, borderRadius: 999, borderCurve: 'continuous',
     backgroundColor: C.borderMuted,
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnActive: { backgroundColor: C.accent },
+
+  historyContainer: { flex: 1, backgroundColor: C.bg },
+  historyHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 20, paddingBottom: 8,
+  },
+  historyScroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
+  dayHeader: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
+    color: C.textMuted, paddingTop: 18, paddingBottom: 6,
+  },
+  historyRow: {
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.borderMuted, gap: 6,
+  },
+  historyLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  historyDot: { width: 8, height: 8, borderRadius: 999, borderCurve: 'continuous' },
+  historyLabel: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 0.8,
+    textTransform: 'uppercase', color: C.textMuted,
+  },
+  historyText: { fontFamily: F.body, fontSize: 15, lineHeight: 22, color: C.textPrimary },
+  historyTextMuted: { color: C.textSecondary },
+  historyPlay: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  historyEmpty: { fontFamily: F.body, fontSize: 14, color: C.textFaint, textAlign: 'center', marginTop: 40 },
 });

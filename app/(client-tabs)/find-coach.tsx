@@ -398,7 +398,12 @@ export default function FindCoachScreen() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
 
-  const alreadyLinked = !!clientData; // has a client row → already has a coach
+  // A client row with a trainer is a real coach relationship — this path
+  // isn't for them. A client row with NO trainer is a solo row (Solo mode
+  // created it): they have no coach yet, so this path still applies, just
+  // with a note that their corner survives the pick.
+  const alreadyLinked = !!clientData?.trainer_id;
+  const soloRow = !!clientData && !clientData.trainer_id;
 
   // ── Load + rank coaches on real data only ─────────────────────────────────
   const loadMatches = useCallback(async (a: IntakeAnswers) => {
@@ -576,6 +581,14 @@ export default function FindCoachScreen() {
     return (
       <View style={s.container}>
         <Header title="Find a coach" sub={`Question ${qIndex + 1} of ${INTAKE_QUESTIONS.length}`} />
+        {soloRow && (
+          <View style={s.soloNoteRow}>
+            <View style={s.soloNoteDot} />
+            <Text style={s.soloNoteText}>
+              Your corner keeps everything you logged. Picking a coach adds a human on top.
+            </Text>
+          </View>
+        )}
         <View style={s.progressRow}>
           {INTAKE_QUESTIONS.map((qq, i) => (
             <View
@@ -1039,6 +1052,15 @@ const s = StyleSheet.create({
   headerTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary },
   headerSub: { fontFamily: F.body, fontSize: 13, color: C.textMuted, marginTop: 2 },
 
+  soloNoteRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    paddingHorizontal: 20, paddingBottom: 14,
+  },
+  soloNoteDot: {
+    width: 6, height: 6, borderRadius: 999, borderCurve: 'continuous',
+    backgroundColor: C.accent, marginTop: 6,
+  },
+  soloNoteText: { flex: 1, fontFamily: F.body, fontSize: 13, lineHeight: 18.5, color: C.textMuted },
   progressRow: {
     flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: C.borderMuted,

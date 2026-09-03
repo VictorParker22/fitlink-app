@@ -405,8 +405,8 @@ function ArrivalStep({
           <Animated.View style={[s.glassRow, row2Style]}>
             <Ionicons name="trending-up-outline" size={20} color={OB.fg} />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Progress</Text>
-              <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Your baseline, then the trend</Text>
+              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Train solo</Text>
+              <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>An AI corner in your ear, from day one</Text>
             </View>
           </Animated.View>
         </Glass>
