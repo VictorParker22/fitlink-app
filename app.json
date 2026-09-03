@@ -262,7 +262,8 @@
           "project": "react-native",
           "organization": "fitlink-px"
         }
-      ]
+      ],
+      "./plugins/withOptionalAppleSignIn"
     ],
     "updates": {
       "url": "https://u.expo.dev/dbf0a57a-dc69-427a-9fc1-1d53779bfc49",
