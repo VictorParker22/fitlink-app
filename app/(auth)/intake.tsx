@@ -164,9 +164,16 @@ export default function IntakeScreen() {
   };
 
   const onSave = async () => {
+    if (saving) return;
     setSaving(true);
-    await saveDraft({ goals, locations: location ? [location] : [], mode: mode ?? undefined });
-    router.push('/(auth)/account?role=client' as any);
+    try {
+      await saveDraft({ goals, locations: location ? [location] : [], mode: mode ?? undefined });
+      router.push('/(auth)/account?role=client' as any);
+    } finally {
+      // This screen stays mounted under the account screen; without the
+      // reset, coming back showed "Save my FitLink" stuck in its spinner.
+      setSaving(false);
+    }
   };
 
   return (

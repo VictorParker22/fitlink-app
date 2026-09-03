@@ -18,7 +18,7 @@ import { isAppleAvailable, isGoogleAvailable, signInWithApple, signInWithGoogle 
 import { useAlert } from '../../context/AlertContext';
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
 import { OB, OBFonts, OBRadius, OBSpace } from '../../constants/onboardingDesign';
-import { Screen, TopNav, Headline, Sub, AccentDot, SecondaryButton, TextButton, Hairline } from '../../components/onboarding/Editorial';
+import { Screen, TopNav, Headline, Sub, AccentDot, PrimaryButton, SecondaryButton, TextButton, Hairline } from '../../components/onboarding/Editorial';
 
 /** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. Copied
  *  from client-signup.tsx so both screens format identically. */
@@ -98,10 +98,20 @@ export default function AccountScreen() {
     handleResult(result);
   };
 
+  const [emailHint, setEmailHint] = useState('');
   const useEmailInstead = async () => {
+    if (socialDisabled) {
+      setEmailHint(dob ? dobCheck.ok ? '' : (dobCheck as { message: string }).message : 'Enter your date of birth first');
+      return;
+    }
+    setEmailHint('');
     await persistDob();
     router.push((isClient ? '/(auth)/client-signup' : '/(auth)/coach-signup') as any);
   };
+  // With no one-tap provider available (Apple is behind its flag, Google
+  // needs a client id) email IS the way forward, so it gets the primary
+  // button. Otherwise it stays the quiet third option.
+  const emailIsPrimary = !appleAvailable && !googleAvailable;
 
   return (
     <Screen>
@@ -174,7 +184,12 @@ export default function AccountScreen() {
             />
           )}
 
-          <TextButton label="Use email instead" onPress={useEmailInstead} />
+          {emailIsPrimary ? (
+            <PrimaryButton label="Continue with email" onPress={useEmailInstead} disabled={socialDisabled} />
+          ) : (
+            <TextButton label="Use email instead" onPress={useEmailInstead} />
+          )}
+          {emailHint ? <Text style={s.emailHint} accessibilityLiveRegion="polite">{emailHint}</Text> : null}
         </View>
 
         <View style={s.noteRow}>
@@ -211,6 +226,7 @@ const s = StyleSheet.create({
     fontFamily: OBFonts.sansMedium, fontSize: 16, color: OB.fg,
   },
   dobHint: { fontFamily: OBFonts.sans, fontSize: 13, color: OB.faint },
+  emailHint: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.danger, textAlign: 'center' },
 
   appleBtn: {
     height: 56, borderRadius: OBRadius.m, borderCurve: 'continuous', backgroundColor: OB.fg,
