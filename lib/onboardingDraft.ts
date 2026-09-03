@@ -33,6 +33,8 @@ export interface OnboardingDraft {
   mode?: CoachingMode;
   /** ISO date; athletes only (16+ gate). */
   dob?: string;
+  /** Athlete's chosen way to train: a human coach, or the AI corner. */
+  path?: 'coach' | 'solo';
   updatedAt?: number;
 }
 
@@ -91,6 +93,7 @@ export async function applyOnboardingDraft(userId: string): Promise<DraftRole | 
         mode: d.mode ?? null,
       },
       intake_goal: d.goals?.[0] ?? null,
+      onboarding_path: d.path ?? null,
     };
     if (d.dob) meta.date_of_birth = d.dob;
     const { error } = await supabase.auth.updateUser({ data: meta });

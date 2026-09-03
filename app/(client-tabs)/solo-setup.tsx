@@ -36,6 +36,22 @@ import { useSoloVoice, sampleLine } from '../../lib/soloVoice';
 import { Orb, SOLO_TINT } from '../../components/solo/Presence';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { SOLO_CHARACTERS, getSoloCharacter, type SoloCharacter } from '../../lib/soloCharacters';
+import { useRevenueCat } from '../../context/RevenueCatContext';
+import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
+import SoloPaywall from '../../components/paywalls/SoloPaywall';
+
+/** Days in an intro-offer period, from the store's unit fields. */
+function introDaysFromIntro(intro: { periodNumberOfUnits: number; periodUnit: string } | null | undefined): number | null {
+  if (!intro) return null;
+  const n = intro.periodNumberOfUnits;
+  switch (intro.periodUnit) {
+    case 'DAY': return n;
+    case 'WEEK': return n * 7;
+    case 'MONTH': return n * 30;
+    case 'YEAR': return n * 365;
+    default: return null;
+  }
+}
 
 export default function SoloSetupScreen() {
   const router = useRouter();
@@ -44,13 +60,36 @@ export default function SoloSetupScreen() {
   const { clientData, refreshData } = useClient();
   const { showAlert } = useAlert();
   const voice = useSoloVoice();
+  const { offerings } = useRevenueCat();
 
   // Start from whatever is already saved on the clients row.
   const [selectedKey, setSelectedKey] = useState<SoloCharacter['key']>(
     getSoloCharacter((clientData as any)?.solo_character).key
   );
   const [saving, setSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const selected = getSoloCharacter(selectedKey);
+
+  // Store pricing for the footnote — never hardcoded, and only rendered
+  // when the store actually has a monthly package.
+  const monthlyPkg =
+    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
+    offerings?.availablePackages?.[0] ??
+    null;
+  const priceString = monthlyPkg?.product.priceString ?? null;
+  const intro = monthlyPkg?.product.introPrice;
+  const hasTrial = !!intro && intro.price === 0;
+  const trialDays = hasTrial ? introDaysFromIntro(intro) : null;
+  const priceFootnote = !priceString
+    ? 'Price shown in the store'
+    : hasTrial && trialDays
+      ? `${priceString} a month after a ${trialDays}-day free trial`
+      : `${priceString} a month`;
+
+  // Premium is only "active" when it genuinely covers today — a null or
+  // past premium_until means the paywall still gates the corner.
+  const premiumUntil = (clientData as any)?.premium_until as string | null | undefined;
+  const isPremiumActive = !!premiumUntil && new Date(premiumUntil) > new Date();
 
   // Hydrate once the row loads (setup can be reached before clientData is
   // ready, e.g. straight from onboarding).
@@ -103,11 +142,17 @@ export default function SoloSetupScreen() {
         return;
       }
       await refreshData();
-      router.replace('/(client-tabs)/solo' as any);
+      if (isPremiumActive) {
+        router.replace('/(client-tabs)/solo' as any);
+      } else {
+        // No active premium yet — open the paywall right here instead of
+        // bouncing to the corner, which would just 402 and send them back.
+        setShowPaywall(true);
+      }
     } finally {
       setSaving(false);
     }
-  }, [saving, clientData?.id, selectedKey, refreshData, router, showAlert]);
+  }, [saving, clientData?.id, selectedKey, refreshData, router, showAlert, isPremiumActive]);
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -209,15 +254,27 @@ export default function SoloSetupScreen() {
           disabled={saving}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={`Put ${selected.name} in my corner`}
+          accessibilityLabel={`Start with ${selected.name}`}
         >
           {saving ? (
             <ActivityIndicator color={C.onAccent} />
           ) : (
-            <Text style={s.ctaText} maxFontSizeMultiplier={1.2}>Put {selected.name} in my corner</Text>
+            <Text style={s.ctaText} maxFontSizeMultiplier={1.2}>Start with {selected.name}</Text>
           )}
         </TouchableOpacity>
+        {!isPremiumActive && (
+          <Text style={s.priceFootnote} maxFontSizeMultiplier={1.3}>{priceFootnote}</Text>
+        )}
       </View>
+
+      <SoloPaywall
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSuccess={() => {
+          setShowPaywall(false);
+          router.replace('/(client-tabs)/solo' as any);
+        }}
+      />
     </View>
   );
 }
@@ -291,4 +348,7 @@ const s = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.7 },
   ctaText: { fontFamily: F.bodyBold, fontSize: 16, color: C.onAccent },
+  priceFootnote: {
+    fontFamily: F.body, fontSize: 13, color: C.textFaint, textAlign: 'center',
+  },
 });

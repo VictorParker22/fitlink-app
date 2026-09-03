@@ -20,10 +20,12 @@ import PermissionCards, { type PermissionItem } from '../../components/onboardin
 import { getNotificationState, requestNotifications, type PermState } from '../../lib/permissions';
 import { useHealth } from '../../context/HealthContext';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AthletePermissionsScreen() {
   const router = useRouter();
   const { next } = useLocalSearchParams<{ next?: string }>();
+  const { user } = useAuth();
   const { isConnected, connectHealth } = useHealth();
 
   const items: PermissionItem[] = [
@@ -60,7 +62,13 @@ export default function AthletePermissionsScreen() {
     // Remember that the asks were explained, so the AuthGuard never routes
     // this athlete back here. Best effort: routing does not wait on it.
     supabase.auth.updateUser({ data: { permissions_primed: true } }).catch(() => {});
-    router.replace((typeof next === 'string' && next ? next : '/(client-tabs)') as any);
+    // An athlete who chose Solo in onboarding goes straight to choosing a
+    // voice; the coach path lands on Home, where Find a coach leads.
+    const chosePath = user?.user_metadata?.onboarding_path;
+    const dest = typeof next === 'string' && next
+      ? next
+      : chosePath === 'solo' ? '/(client-tabs)/solo-setup' : '/(client-tabs)';
+    router.replace(dest as any);
   };
 
   return (

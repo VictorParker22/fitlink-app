@@ -11,7 +11,7 @@
  * (applyOnboardingDraft, called from AuthContext on SIGNED_IN).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,14 +22,21 @@ import Animated, {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { BackHandler, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 
-import { OB, OBFonts, OBSpace, OBMotion } from '../../constants/onboardingDesign';
+import { OB, OBFonts, OBSpace, OBMotion, OBRadius } from '../../constants/onboardingDesign';
 import {
   Screen, TopNav, Headline, Sub, Wordmark, Monogram, AccentDot,
   PrimaryButton, TextButton, Pill, RadioRow, Segment, Glass, Hairline,
 } from '../../components/onboarding/Editorial';
 import { loadDraft, saveDraft, type CoachingMode } from '../../lib/onboardingDraft';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useRevenueCat } from '../../context/RevenueCatContext';
+import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
+import { DEFAULT_CHARACTER } from '../../lib/soloCharacters';
+
+type OnboardingPath = 'coach' | 'solo';
 
 /* ── Data ───────────────────────────────────────────────────────────── */
 
@@ -68,9 +75,10 @@ const LOCATION_WORD: Record<LocationKey, string> = {
   flexible: 'wherever the plan says',
 };
 
-type Step = 'goals' | 'preferences' | 'arrival';
-const STEP_ORDER: Step[] = ['goals', 'preferences', 'arrival'];
-const STEP_NUM: Record<Step, number> = { goals: 2, preferences: 3, arrival: 4 };
+type Step = 'goals' | 'preferences' | 'path' | 'arrival';
+const STEP_ORDER: Step[] = ['goals', 'preferences', 'path', 'arrival'];
+const STEP_NUM: Record<Step, number> = { goals: 2, preferences: 3, path: 4, arrival: 5 };
+const STEP_TOTAL = 5;
 
 /* ── Copy assembly ──────────────────────────────────────────────────── */
 
@@ -96,6 +104,21 @@ function secondSentence(mode: CoachingMode | null, location: LocationKey | null)
   return null;
 }
 
+/** Days in an intro-offer period, from the store's unit fields — same
+ *  inputs SoloPaywall reads, converted to a single number for copy like
+ *  "a 7-day free trial". */
+function introDays(intro: { periodNumberOfUnits: number; periodUnit: string } | null | undefined): number | null {
+  if (!intro) return null;
+  const n = intro.periodNumberOfUnits;
+  switch (intro.periodUnit) {
+    case 'DAY': return n;
+    case 'WEEK': return n * 7;
+    case 'MONTH': return n * 30;
+    case 'YEAR': return n * 365;
+    default: return null;
+  }
+}
+
 /* ── Screen ─────────────────────────────────────────────────────────── */
 
 export default function IntakeScreen() {
@@ -107,6 +130,7 @@ export default function IntakeScreen() {
   const [goals, setGoals] = useState<string[]>([]);
   const [location, setLocation] = useState<LocationKey | null>(null);
   const [mode, setMode] = useState<CoachingMode | null>(null);
+  const [path, setPath] = useState<OnboardingPath | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -115,6 +139,7 @@ export default function IntakeScreen() {
       const loc = d.locations?.[0] as LocationKey | undefined;
       if (loc) setLocation(loc);
       if (d.mode) setMode(d.mode);
+      if (d.path) setPath(d.path as OnboardingPath);
     });
   }, []);
 
@@ -153,13 +178,19 @@ export default function IntakeScreen() {
 
   const onContinuePreferences = async () => {
     await saveDraft({ locations: location ? [location] : [], mode: mode ?? undefined });
-    goToStep('arrival', 1);
+    goToStep('path', 1);
   };
 
   const onDecideLater = () => {
     // Deliberately not saved — the athlete deferred this question.
     setLocation(null);
     setMode(null);
+    goToStep('path', 1);
+  };
+
+  const onContinuePath = async () => {
+    if (!path) return;
+    await saveDraft({ path });
     goToStep('arrival', 1);
   };
 
@@ -167,7 +198,7 @@ export default function IntakeScreen() {
     if (saving) return;
     setSaving(true);
     try {
-      await saveDraft({ goals, locations: location ? [location] : [], mode: mode ?? undefined });
+      await saveDraft({ goals, locations: location ? [location] : [], mode: mode ?? undefined, path: path ?? undefined });
       router.push('/(auth)/account?role=client' as any);
     } finally {
       // This screen stays mounted under the account screen; without the
@@ -177,14 +208,15 @@ export default function IntakeScreen() {
   };
 
   return (
-    <Screen footer={<Footer step={step} onContinueGoals={onContinueGoals} onContinuePreferences={onContinuePreferences} onDecideLater={onDecideLater} onSave={onSave} goals={goals} location={location} saving={saving} />}>
-      {step !== 'arrival' && <TopNav step={STEP_NUM[step]} total={4} onBack={onBack} />}
+    <Screen footer={<Footer step={step} onContinueGoals={onContinueGoals} onContinuePreferences={onContinuePreferences} onDecideLater={onDecideLater} onContinuePath={onContinuePath} onSave={onSave} goals={goals} location={location} path={path} saving={saving} />}>
+      {step !== 'arrival' && <TopNav step={STEP_NUM[step]} total={STEP_TOTAL} onBack={onBack} />}
       <StepTransition step={step} dir={dirRef.current}>
         {step === 'goals' && <GoalsStep goals={goals} setGoals={setGoals} />}
         {step === 'preferences' && (
           <PreferencesStep location={location} setLocation={setLocation} mode={mode} setMode={setMode} />
         )}
-        {step === 'arrival' && <ArrivalStep goals={goals} location={location} mode={mode} onBack={onBack} />}
+        {step === 'path' && <PathStep path={path} setPath={setPath} />}
+        {step === 'arrival' && <ArrivalStep goals={goals} location={location} mode={mode} path={path} onBack={onBack} />}
       </StepTransition>
     </Screen>
   );
@@ -193,15 +225,17 @@ export default function IntakeScreen() {
 /* ── Footer (varies per step) ───────────────────────────────────────── */
 
 function Footer({
-  step, onContinueGoals, onContinuePreferences, onDecideLater, onSave, goals, location, saving,
+  step, onContinueGoals, onContinuePreferences, onDecideLater, onContinuePath, onSave, goals, location, path, saving,
 }: {
   step: Step;
   onContinueGoals: () => void;
   onContinuePreferences: () => void;
   onDecideLater: () => void;
+  onContinuePath: () => void;
   onSave: () => void;
   goals: string[];
   location: LocationKey | null;
+  path: OnboardingPath | null;
   saving: boolean;
 }) {
   if (step === 'goals') {
@@ -214,6 +248,9 @@ function Footer({
         <TextButton label="Decide later" onPress={onDecideLater} />
       </View>
     );
+  }
+  if (step === 'path') {
+    return <PrimaryButton label="Continue" onPress={onContinuePath} disabled={!path} />;
   }
   return <PrimaryButton label="Save my FitLink" onPress={onSave} loading={saving} />;
 }
@@ -327,14 +364,115 @@ function PreferencesStep({
   );
 }
 
+/* ── Path step ──────────────────────────────────────────────────────── */
+
+function PathStep({ path, setPath }: { path: OnboardingPath | null; setPath: (p: OnboardingPath) => void }) {
+  const { offerings } = useRevenueCat();
+
+  const monthlyPkg =
+    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
+    offerings?.availablePackages?.[0] ??
+    null;
+  const annualPkg = offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.ANNUAL) ?? null;
+
+  const priceString = monthlyPkg?.product.priceString ?? null;
+  const annualPriceString = annualPkg?.product.priceString ?? null;
+  const intro = monthlyPkg?.product.introPrice;
+  const hasTrial = !!intro && intro.price === 0;
+  const trialDays = hasTrial ? introDays(intro) : null;
+
+  let soloPriceLine: string;
+  if (!priceString) {
+    soloPriceLine = 'Price shown in the store';
+  } else {
+    soloPriceLine = `${priceString} a month`;
+    if (hasTrial && trialDays) soloPriceLine += ` after a ${trialDays}-day free trial`;
+    if (annualPriceString) soloPriceLine += ` · or ${annualPriceString} a year`;
+  }
+
+  const choose = (p: OnboardingPath) => {
+    Haptics.selectionAsync();
+    setPath(p);
+  };
+
+  return (
+    <View style={s.body}>
+      <View style={s.intro}>
+        <Headline>How do you want to train?</Headline>
+        <Sub>Both start from what you just told us. You can switch later.</Sub>
+      </View>
+      <View style={s.doors}>
+        <DoorCard
+          icon="search-outline"
+          title="Find a coach"
+          label="Human coaching"
+          description="Browse verified coaches by goal, days and time of day. They set the price. You pay in the app."
+          selected={path === 'coach'}
+          onPress={() => choose('coach')}
+        />
+        <DoorCard
+          icon="mic-outline"
+          title="Go solo with Reyes"
+          label="AI corner · premium"
+          description="An AI corner that reads what you log, says one true thing and gives one instruction, in a voice you choose."
+          priceLine={soloPriceLine}
+          footNote="Cancel any time. Nothing is charged until you start."
+          selected={path === 'solo'}
+          onPress={() => choose('solo')}
+        />
+      </View>
+      <View style={s.pathNoteRow}>
+        <AccentDot />
+        <Text style={s.pathNoteText} maxFontSizeMultiplier={1.4}>
+          Switch between them whenever you like. Nothing you logged is lost.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function DoorCard({
+  icon, title, label, description, priceLine, footNote, selected, onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  label: string;
+  description: string;
+  priceLine?: string;
+  footNote?: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => { Haptics.selectionAsync(); onPress(); }}
+      style={({ pressed }) => [s.door, selected && s.doorOn, pressed && { opacity: 0.9 }]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${title}. ${description}`}
+    >
+      <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View style={s.doorContent}>
+        <Ionicons name={icon} size={24} color={OB.fg} />
+        <Text style={[s.doorTitle, selected && s.doorTitleOn]} maxFontSizeMultiplier={1.25}>{title}</Text>
+        <Text style={s.doorDesc} maxFontSizeMultiplier={1.4}>{description}</Text>
+        {priceLine ? <Text style={s.doorPrice} maxFontSizeMultiplier={1.4}>{priceLine}</Text> : null}
+        {footNote ? <Text style={s.doorFoot} maxFontSizeMultiplier={1.4}>{footNote}</Text> : null}
+        <Text style={s.doorLabel} maxFontSizeMultiplier={1.3}>{label}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 /* ── Arrival step ───────────────────────────────────────────────────── */
 
 function ArrivalStep({
-  goals, location, mode,
+  goals, location, mode, path,
 }: {
   goals: string[];
   location: LocationKey | null;
   mode: CoachingMode | null;
+  path: OnboardingPath | null;
   onBack: () => void;
 }) {
   const reduceMotion = useReducedMotion();
@@ -363,8 +501,9 @@ function ArrivalStep({
   const row1Style = useAnimatedStyle(() => ({ opacity: row1.value }));
   const row2Style = useAnimatedStyle(() => ({ opacity: row2.value }));
 
+  const isSolo = path === 'solo';
   const g = goalsSentence(goals);
-  const m = secondSentence(mode, location);
+  const m = isSolo ? `${DEFAULT_CHARACTER.name} will read every session you log.` : secondSentence(mode, location);
   const sub = [g, m, 'Here is what opens next.'].filter(Boolean).join(' ');
 
   return (
@@ -381,34 +520,68 @@ function ArrivalStep({
         </View>
       </View>
       <View style={s.arrivalCopy}>
-        <Headline size={40} lineHeight={44}>Your FitLink{'\n'}is ready.</Headline>
+        {isSolo ? (
+          <Headline size={40} lineHeight={44}>Your corner{'\n'}is ready.</Headline>
+        ) : (
+          <Headline size={40} lineHeight={44}>Your FitLink{'\n'}is ready.</Headline>
+        )}
         <Sub>{sub}</Sub>
       </View>
       <Animated.View style={[s.arrivalGlassWrap, panelStyle]}>
         <Glass>
-          <Animated.View style={[s.glassRow, row0Style]}>
-            <Ionicons name="search-outline" size={20} color={OB.fg} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Coach discovery</Text>
-              <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Coaches that match your goals</Text>
-            </View>
-          </Animated.View>
-          <Hairline />
-          <Animated.View style={[s.glassRow, row1Style]}>
-            <Ionicons name="calendar-outline" size={20} color={OB.fg} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>First session</Text>
-              <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Book once a coach accepts you</Text>
-            </View>
-          </Animated.View>
-          <Hairline />
-          <Animated.View style={[s.glassRow, row2Style]}>
-            <Ionicons name="trending-up-outline" size={20} color={OB.fg} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Train solo</Text>
-              <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>An AI corner in your ear, from day one</Text>
-            </View>
-          </Animated.View>
+          {isSolo ? (
+            <>
+              <Animated.View style={[s.glassRow, row0Style]}>
+                <Ionicons name="mic-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Your voice</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Choose who is in your corner</Text>
+                </View>
+              </Animated.View>
+              <Hairline />
+              <Animated.View style={[s.glassRow, row1Style]}>
+                <Ionicons name="sunny-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Daily brief</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>A spoken line every morning, from your data</Text>
+                </View>
+              </Animated.View>
+              <Hairline />
+              <Animated.View style={[s.glassRow, row2Style]}>
+                <Ionicons name="people-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>A human, any time</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Add a coach later without losing a thing</Text>
+                </View>
+              </Animated.View>
+            </>
+          ) : (
+            <>
+              <Animated.View style={[s.glassRow, row0Style]}>
+                <Ionicons name="search-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Coach discovery</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Coaches that match your goals</Text>
+                </View>
+              </Animated.View>
+              <Hairline />
+              <Animated.View style={[s.glassRow, row1Style]}>
+                <Ionicons name="calendar-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>First session</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>Book once a coach accepts you</Text>
+                </View>
+              </Animated.View>
+              <Hairline />
+              <Animated.View style={[s.glassRow, row2Style]}>
+                <Ionicons name="trending-up-outline" size={20} color={OB.fg} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Train solo</Text>
+                  <Text style={s.rowTitle} maxFontSizeMultiplier={1.4}>An AI corner in your ear, from day one</Text>
+                </View>
+              </Animated.View>
+            </>
+          )}
         </Glass>
       </Animated.View>
     </View>
@@ -429,6 +602,22 @@ const s = StyleSheet.create({
   modeSection: { paddingHorizontal: OBSpace.screen, paddingTop: 28, gap: 14 },
   modeLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   modeLabel: { fontFamily: OBFonts.sansSemiBold, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', color: OB.muted },
+
+  doors: { paddingHorizontal: OBSpace.screen, paddingTop: 32, gap: 14 },
+  door: {
+    minHeight: 44, borderRadius: OBRadius.l, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: OB.line, backgroundColor: OB.glass, overflow: 'hidden',
+  },
+  doorOn: { borderColor: OB.accent },
+  doorContent: { padding: 20, gap: 8 },
+  doorTitle: { fontFamily: OBFonts.display, fontSize: 26, lineHeight: 30, color: OB.fg },
+  doorTitleOn: { color: OB.accent },
+  doorDesc: { fontFamily: OBFonts.sans, fontSize: 14, lineHeight: 20, color: OB.muted },
+  doorPrice: { fontFamily: OBFonts.sansMedium, fontSize: 14, color: OB.fg, marginTop: 2 },
+  doorFoot: { fontFamily: OBFonts.sans, fontSize: 12, color: OB.faint },
+  doorLabel: { fontFamily: OBFonts.sansSemiBold, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: OB.faint, marginTop: 4 },
+  pathNoteRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: OBSpace.screen, paddingTop: 24 },
+  pathNoteText: { fontFamily: OBFonts.sans, fontSize: 13, color: OB.muted, flex: 1 },
 
   arrival: { flex: 1 },
   glow: {
