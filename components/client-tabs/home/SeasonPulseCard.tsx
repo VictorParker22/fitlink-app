@@ -40,7 +40,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
-import { useClient } from '../../../context/ClientContext';
+import { useClientTraining } from '../../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
@@ -55,7 +55,7 @@ const F = CoachFonts;
 export default function SeasonPulseCard() {
   const router = useRouter();
   const reduced = useReducedMotion();
-  const { enrollment, plans, todayWorkout } = useClient();
+  const { enrollment, plans, todayWorkout } = useClientTraining();
 
   // ── Season math — same sources as SeasonHero, via passWeeks only ─────────
   const season = useMemo(() => {

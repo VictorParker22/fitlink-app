@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../lib/supabase';
 import { playPop } from '../../../lib/sounds';
 import { useHealth } from '../../../context/HealthContext';
-import { useClient } from '../../../context/ClientContext';
+import { useClientNutrition } from '../../../context/ClientContext';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
@@ -302,7 +302,7 @@ function HabitItem({
 
 export default function HabitTracker({ clientId, onHabitsChange }: HabitTrackerProps) {
   const { healthData, isConnected } = useHealth();
-  const { diets, mealLogs } = useClient();
+  const { diets, mealLogs } = useClientNutrition();
   const reduced = useReducedMotion();
 
   const [habits, setHabits] = useState<DailyHabits>(DEFAULT_HABITS);

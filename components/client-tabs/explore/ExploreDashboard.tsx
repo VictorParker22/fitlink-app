@@ -37,7 +37,7 @@ import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { ClientRoute } from '../../../types/routes';
 import { supabase } from '../../../lib/supabase';
-import { useClient } from '../../../context/ClientContext';
+import { useClientIdentity } from '../../../context/ClientContext';
 import { ContinueWatchingStrip } from './ContinueWatchingStrip';
 import { SavedClassesStrip } from './SavedClassesStrip';
 
@@ -111,7 +111,7 @@ type ClassRow = {
 export default function ExploreDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { clientData, trainer } = useClient();
+  const { clientData, trainer } = useClientIdentity();
   const trainerId = clientData?.trainer_id || null;
   const coachFirst = firstName(trainer?.name) || 'your coach';
 

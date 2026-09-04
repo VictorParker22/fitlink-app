@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
-import { useClient } from '../../../context/ClientContext';
+import { useClientIdentity } from '../../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 // ─── Question model ───────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ function ratingWord(q: Question, v: number) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function WeeklyCheckIn() {
-  const { clientData, trainer } = useClient();
+  const { clientData, trainer } = useClientIdentity();
   const insets = useSafeAreaInsets();
   const coachFirst = (trainer?.name || 'Your coach').split(' ')[0];
 

@@ -157,7 +157,55 @@ interface ClientContextType {
   checkOutGym: () => Promise<void>;
 }
 
-const ClientContext = createContext<ClientContextType | null>(null);
+// ── Domain slices ────────────────────────────────────────────────────────────
+// One state machine, published through five contexts with their own useMemo,
+// so a meal tick does not re-render the season card and a gym check-in does
+// not re-render the coach header. Every key of ClientContextType lives in
+// exactly one slice; useClient() composes them for the multi-slice screens.
+
+/** Who the athlete is: profile row, coach, pending request, conversation, billing. */
+export type ClientIdentitySlice = Pick<ClientContextType,
+  | 'loading' | 'clientData' | 'trainer' | 'pendingCoach' | 'cancelCoachRequest'
+  | 'refreshData' | 'conversation'
+  | 'updateAssessment' | 'updateClientAvatar'
+  | 'subscription' | 'paymentHistory' | 'cancelSubscription' | 'setupPaymentMethod'
+>;
+
+/** Assigned workouts, the season enrollment, set logs and PRs. */
+export type ClientTrainingSlice = Pick<ClientContextType,
+  | 'workouts' | 'todayWorkout' | 'enrollment' | 'plans'
+  | 'exerciseLogs' | 'exercisePrs' | 'completedWorkoutCount'
+  | 'logExerciseSet' | 'checkAndUpdatePr' | 'clearExerciseLogs'
+  | 'completeWorkoutWithLog' | 'markWorkoutComplete' | 'markWorkoutSkipped' | 'rescheduleWorkoutToToday'
+  | 'completeTrackWorkout' | 'skipTrackWorkout' | 'advanceEnrollment'
+>;
+
+/** Booked sessions with the coach. */
+export type ClientSessionsSlice = Pick<ClientContextType, 'sessions' | 'upcomingSessions'>;
+
+/** Diet plans and today's meal ticks. */
+export type ClientNutritionSlice = Pick<ClientContextType,
+  | 'diets' | 'mealLogs' | 'logMealEaten' | 'unlogMeal'
+>;
+
+/** Body-progress logs, gym visits, health-sharing consent. */
+export type ClientProgressSlice = Pick<ClientContextType,
+  | 'progressLogs' | 'logProgress'
+  | 'activeGymVisit' | 'checkInGym' | 'checkOutGym'
+  | 'healthSharingEnabled' | 'toggleHealthSharing'
+>;
+
+// Compile-time proof that the five slices cover ClientContextType exactly.
+type _SliceUnion = ClientIdentitySlice & ClientTrainingSlice & ClientSessionsSlice & ClientNutritionSlice & ClientProgressSlice;
+type _MissingFromSlices = Exclude<keyof ClientContextType, keyof _SliceUnion>;
+const _sliceCoverage: [_MissingFromSlices] extends [never] ? true : _MissingFromSlices = true;
+void _sliceCoverage;
+
+const ClientIdentityContext = createContext<ClientIdentitySlice | null>(null);
+const ClientTrainingContext = createContext<ClientTrainingSlice | null>(null);
+const ClientSessionsContext = createContext<ClientSessionsSlice | null>(null);
+const ClientNutritionContext = createContext<ClientNutritionSlice | null>(null);
+const ClientProgressContext = createContext<ClientProgressSlice | null>(null);
 
 export function ClientProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
@@ -1137,35 +1185,115 @@ export function ClientProvider({ children }: PropsWithChildren) {
     return countCompletedWorkoutsForClient(workouts as any, workoutLogRows);
   }, [workouts, workoutLogRows]);
 
+  const identitySlice: ClientIdentitySlice = useMemo(() => ({
+    loading, clientData, trainer, pendingCoach, cancelCoachRequest, refreshData, conversation,
+    updateAssessment, updateClientAvatar,
+    subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
+  }), [
+    loading, clientData, trainer, pendingCoach, cancelCoachRequest, refreshData, conversation,
+    updateAssessment, updateClientAvatar,
+    subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
+  ]);
+
+  const trainingSlice: ClientTrainingSlice = useMemo(() => ({
+    workouts, todayWorkout, enrollment, plans,
+    exerciseLogs, exercisePrs, completedWorkoutCount,
+    logExerciseSet, checkAndUpdatePr, clearExerciseLogs,
+    completeWorkoutWithLog, markWorkoutComplete, markWorkoutSkipped, rescheduleWorkoutToToday,
+    completeTrackWorkout, skipTrackWorkout, advanceEnrollment,
+  }), [
+    workouts, todayWorkout, enrollment, plans,
+    exerciseLogs, exercisePrs, completedWorkoutCount,
+    logExerciseSet, checkAndUpdatePr, clearExerciseLogs,
+    completeWorkoutWithLog, markWorkoutComplete, markWorkoutSkipped, rescheduleWorkoutToToday,
+    completeTrackWorkout, skipTrackWorkout, advanceEnrollment,
+  ]);
+
+  const sessionsSlice: ClientSessionsSlice = useMemo(() => ({
+    sessions, upcomingSessions,
+  }), [sessions, upcomingSessions]);
+
+  const nutritionSlice: ClientNutritionSlice = useMemo(() => ({
+    diets, mealLogs, logMealEaten, unlogMeal,
+  }), [diets, mealLogs, logMealEaten, unlogMeal]);
+
+  const progressSlice: ClientProgressSlice = useMemo(() => ({
+    progressLogs, logProgress,
+    activeGymVisit, checkInGym, checkOutGym,
+    healthSharingEnabled, toggleHealthSharing,
+  }), [
+    progressLogs, logProgress,
+    activeGymVisit, checkInGym, checkOutGym,
+    healthSharingEnabled, toggleHealthSharing,
+  ]);
+
   return (
-    <ClientContext.Provider value={{
-      loading, clientData, trainer, pendingCoach, cancelCoachRequest, sessions, workouts, diets, progressLogs,
-      conversation, plans, upcomingSessions, todayWorkout, enrollment, exerciseLogs, exercisePrs,
-      completedWorkoutCount,
-      subscription, paymentHistory, healthSharingEnabled, activeGymVisit,
-        logExerciseSet,
-        checkAndUpdatePr,
-        clearExerciseLogs,
-        completeWorkoutWithLog,
-        markWorkoutComplete,
-        markWorkoutSkipped,
-        rescheduleWorkoutToToday,
-        completeTrackWorkout,
-        skipTrackWorkout,
-        advanceEnrollment,
-        mealLogs,
-        logMealEaten,
-        unlogMeal,
-        updateAssessment, updateClientAvatar, logProgress, cancelSubscription, setupPaymentMethod, toggleHealthSharing, refreshData,
-      checkInGym, checkOutGym,
-    }}>
-      {children}
-    </ClientContext.Provider>
+    <ClientIdentityContext.Provider value={identitySlice}>
+      <ClientTrainingContext.Provider value={trainingSlice}>
+        <ClientSessionsContext.Provider value={sessionsSlice}>
+          <ClientNutritionContext.Provider value={nutritionSlice}>
+            <ClientProgressContext.Provider value={progressSlice}>
+              {children}
+            </ClientProgressContext.Provider>
+          </ClientNutritionContext.Provider>
+        </ClientSessionsContext.Provider>
+      </ClientTrainingContext.Provider>
+    </ClientIdentityContext.Provider>
   );
 }
 
-export function useClient() {
-  const context = useContext(ClientContext);
-  if (!context) throw new Error('useClient must be used within ClientProvider');
+const OUTSIDE = 'must be used within ClientProvider';
+
+/** Profile row, coach, pending request, conversation, billing, load state, refresh. */
+export function useClientIdentity(): ClientIdentitySlice {
+  const context = useContext(ClientIdentityContext);
+  if (!context) throw new Error(`useClientIdentity ${OUTSIDE}`);
   return context;
+}
+
+/** Assigned workouts, season enrollment, set logs, PRs, completion callbacks. */
+export function useClientTraining(): ClientTrainingSlice {
+  const context = useContext(ClientTrainingContext);
+  if (!context) throw new Error(`useClientTraining ${OUTSIDE}`);
+  return context;
+}
+
+/** Booked sessions with the coach. */
+export function useClientSessions(): ClientSessionsSlice {
+  const context = useContext(ClientSessionsContext);
+  if (!context) throw new Error(`useClientSessions ${OUTSIDE}`);
+  return context;
+}
+
+/** Diet plans and today's meal ticks. */
+export function useClientNutrition(): ClientNutritionSlice {
+  const context = useContext(ClientNutritionContext);
+  if (!context) throw new Error(`useClientNutrition ${OUTSIDE}`);
+  return context;
+}
+
+/** Body-progress logs, gym visits, health-sharing consent. */
+export function useClientProgress(): ClientProgressSlice {
+  const context = useContext(ClientProgressContext);
+  if (!context) throw new Error(`useClientProgress ${OUTSIDE}`);
+  return context;
+}
+
+/**
+ * Legacy composite. Subscribes to EVERY slice, so a change anywhere re-renders
+ * the caller — prefer the slice hooks above when a component's needs fit one.
+ */
+export function useClient(): ClientContextType {
+  const identity = useContext(ClientIdentityContext);
+  const training = useContext(ClientTrainingContext);
+  const sessionsCtx = useContext(ClientSessionsContext);
+  const nutrition = useContext(ClientNutritionContext);
+  const progress = useContext(ClientProgressContext);
+  if (!identity || !training || !sessionsCtx || !nutrition || !progress) {
+    throw new Error('useClient must be used within ClientProvider');
+  }
+  return useMemo(
+    () => ({ ...identity, ...training, ...sessionsCtx, ...nutrition, ...progress }),
+    [identity, training, sessionsCtx, nutrition, progress],
+  );
 }
