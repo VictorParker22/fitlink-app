@@ -62,7 +62,10 @@ const WELCOME: Record<string, string> = {
   sol: "No rush. Whenever you're ready, tell me how training has been feeling.",
 };
 
-const QUICK_ASKS = ['Plan today', 'I slept badly', 'Log a PR', 'Swap an exercise'];
+const QUICK_ASKS = ['Plan today', 'Build my week', 'I slept badly', 'Log a PR', 'Swap an exercise'];
+// Anything that reads as "write me a program" rebuilds the week before the
+// corner answers, so the reply can talk about real sessions.
+const BUILD_INTENT = /(build|rebuild|make|write|create|plan).*(week|program|plan|programme)|new (week|program|plan)/i;
 
 function dayHeader(iso: string): string {
   const d = new Date(iso);
@@ -140,16 +143,24 @@ export default function SoloScreen() {
   // solo-program is idempotent server-side (skips when built < 6 days ago),
   // so this can fire on every mount without duplicating a week.
   const programAttemptedRef = useRef(false);
+  // The brief waits for this so a first-ever line can name real sessions.
+  const [programSettled, setProgramSettled] = useState(false);
+  const [buildingWeek, setBuildingWeek] = useState(false);
   useEffect(() => {
     if (!clientData?.id || programAttemptedRef.current) return;
     const until = (clientData as any)?.premium_until ? new Date((clientData as any).premium_until).getTime() : 0;
-    if (until <= Date.now()) return;
-    if ((clientData as any)?.solo_program_built_at) return;
+    if (until <= Date.now() || (clientData as any)?.solo_program_built_at) { setProgramSettled(true); return; }
     programAttemptedRef.current = true;
     (async () => {
-      const res = await buildSoloProgram();
-      if (res.ok && res.created.length > 0) await refreshData();
-      else if (!res.ok && __DEV__) console.warn('[solo] program build:', res.reason, res.message);
+      setBuildingWeek(true);
+      try {
+        const res = await buildSoloProgram();
+        if (res.ok && res.created.length > 0) await refreshData();
+        else if (!res.ok && __DEV__) console.warn('[solo] program build:', res.reason, res.message);
+      } finally {
+        setBuildingWeek(false);
+        setProgramSettled(true);
+      }
     })();
   }, [clientData?.id, (clientData as any)?.premium_until, (clientData as any)?.solo_program_built_at, refreshData]);
 
@@ -202,6 +213,17 @@ export default function SoloScreen() {
     }
     const lastCheckIn = progressLogs?.[0]?.date;
     if (lastCheckIn) ctx.last_check_in = String(lastCheckIn);
+    // The week the corner wrote: with no logs yet this is the only thing it
+    // can honestly talk about, and it should lead with it.
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = (workouts || [])
+      .filter((w: any) => w?.assigned_date && String(w.assigned_date) >= today && w?.status !== 'completed')
+      .sort((a: any, b: any) => String(a.assigned_date).localeCompare(String(b.assigned_date)))
+      .slice(0, 6)
+      .map((w: any) => `${w?.workouts?.name ?? w?.name ?? 'Session'} on ${String(w.assigned_date)}`);
+    if (upcoming.length > 0) ctx.week_plan = upcoming.join('; ');
+    const logged = (workoutHistory || []).length;
+    if (logged === 0) ctx.sessions_logged = "none yet, this is the athlete's first week";
     return ctx;
   }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthSharingEnabled, healthConnected, healthData, progressLogs]);
 
@@ -242,6 +264,7 @@ export default function SoloScreen() {
   // ── First-open brief: when a brand-new corner has no history yet ──────────
   useEffect(() => {
     if (loading || !clientData?.id || messages.length > 0 || briefRequestedRef.current) return;
+    if (!programSettled) { setCurrentLine(buildingWeek ? 'Writing your first week…' : (WELCOME[character.key] ?? WELCOME.reyes)); return; }
     briefRequestedRef.current = true;
     setCurrentLine(WELCOME[character.key] ?? WELCOME.reyes);
     (async () => {
@@ -271,7 +294,7 @@ export default function SoloScreen() {
         setWaitingReply(false);
       }
     })();
-  }, [loading, clientData?.id, messages.length, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply]);
+  }, [loading, clientData?.id, messages.length, programSettled, buildingWeek, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply]);
 
   // ── Send an athlete message (composer or quick-ask chip) ──────────────────
   const deliver = useCallback(
@@ -284,7 +307,21 @@ export default function SoloScreen() {
           .slice(-12)
           .map((m) => ({ role: m.role, content: m.content }));
 
-        const { data, error } = await callCorner({ message: content, history, context: buildContext() });
+        // "Build my week" and its cousins: write the program first, then let
+        // the corner describe what it just wrote.
+        const extra: Record<string, string> = {};
+        if (BUILD_INTENT.test(content)) {
+          setCurrentLine('Writing your week…');
+          const res = await buildSoloProgram({ rebuild: true });
+          if (res.ok && res.created.length > 0) {
+            extra.just_built_week = res.created.map((c) => `${c.name} on ${c.date}`).join('; ');
+            refreshData().catch(() => {});
+          } else if (!res.ok && res.reason !== 'premium_required') {
+            extra.program_build_failed = 'the program could not be written just now';
+          }
+        }
+
+        const { data, error } = await callCorner({ message: content, history, context: { ...buildContext(), ...extra } });
 
         if (error) {
           const status = (error as any)?.context?.status;

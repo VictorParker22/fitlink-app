@@ -24,6 +24,9 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status });
 
+// workouts.category is CHECK-constrained to these five.
+const ALLOWED_CATEGORIES = new Set(['strength', 'cardio', 'flexibility', 'hiit', 'circuit']);
+
 const LOCATION_EQUIPMENT: Record<string, string> = {
   gym: 'full commercial gym: barbells, dumbbells, cables, machines, racks',
   home: 'home: bodyweight, a pair of dumbbells, a band; no barbell or machines',
@@ -90,7 +93,7 @@ serve(async (req) => {
 Athlete: goals = ${goals.join(', ') || 'general fitness'}; experience = ${experience}; trains ${days} days a week; setting = ${LOCATION_EQUIPMENT[location] ?? LOCATION_EQUIPMENT.gym}${limitation ? `; must work around: ${limitation}` : ''}.
 
 Write exactly ${days} workouts. Return ONLY JSON:
-{"workouts":[{"name":string,"description":string,"estimated_duration":number,"exercises":[{"exercise_name":string,"sets":number,"reps":string,"rest_seconds":number}]}]}
+{"workouts":[{"name":string,"description":string,"category":"strength"|"cardio"|"flexibility"|"hiit"|"circuit","estimated_duration":number,"exercises":[{"exercise_name":string,"sets":number,"reps":string,"rest_seconds":number}]}]}
 Rules:
 - exercise_name MUST exactly match a name from the list below.
 - 4 to 7 exercises per workout, compound movements first, then accessories. Balance push, pull, legs and core across the week.
@@ -126,7 +129,7 @@ ${list}`;
           trainer_id: null,
           name,
           description: clampText(String(w.description ?? ''), 240),
-          category: 'solo',
+          category: ALLOWED_CATEGORIES.has(String(w.category)) ? String(w.category) : 'strength',
           estimated_duration: Math.min(90, Math.max(20, Number(w.estimated_duration) || 45)),
         })
         .select('id')
