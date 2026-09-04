@@ -150,6 +150,9 @@ export default function AthleteTodayScreen() {
   // The coach just accepted a request: say so for a week, then stop.
   const acceptedAt = (clientData as any)?.coach_accepted_at ? new Date((clientData as any).coach_accepted_at) : null;
   const justAccepted = !!trainer && !!acceptedAt && Date.now() - acceptedAt.getTime() < 7 * 86_400_000;
+  // A coach said no: one honest line for a week, then nothing. The plan never changed.
+  const declinedAt = (clientData as any)?.coach_declined_at ? new Date((clientData as any).coach_declined_at) : null;
+  const justDeclined = !trainer && !pendingCoach && !!declinedAt && Date.now() - declinedAt.getTime() < 7 * 86_400_000;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -736,6 +739,15 @@ export default function AthleteTodayScreen() {
               <Ionicons name="paper-plane-outline" size={16} color={C.accent} />
               <Text style={st.pendingText} maxFontSizeMultiplier={1.3}>
                 Request sent to {firstName(pendingCoach.name) || 'your coach'}. Your plan stays as it is until they accept.
+              </Text>
+              <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+            </Pressable>
+          )}
+          {justDeclined && (
+            <Pressable style={st.pendingStrip} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button" accessibilityLabel="Your coach request was declined. Browse other coaches.">
+              <Ionicons name="information-circle-outline" size={16} color={C.textMuted} />
+              <Text style={st.pendingText} maxFontSizeMultiplier={1.3}>
+                That coach couldn't take you on right now. Nothing about your plan changed. Other coaches are a tap away.
               </Text>
               <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
             </Pressable>

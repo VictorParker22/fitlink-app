@@ -52,6 +52,9 @@ interface ClientData {
   coach_requested_at?: string | null;
   /** When the current coach accepted — the home tells the athlete about the switch for a week. */
   coach_accepted_at?: string | null;
+  /** A coach declined the last request; the home says so for a week. */
+  coach_declined_at?: string | null;
+  coach_declined_by?: string | null;
   solo_character?: string | null;
   solo_program_built_at?: string | null;
   name: string;
@@ -307,8 +310,11 @@ export function ClientProvider({ children }: PropsWithChildren) {
           .select('*')
           .eq('client_id', client.id)
           .order('date', { ascending: false }),
-        supabase.from('conversations').select('*').eq('client_id', client.id).maybeSingle(),
-        supabase.from('plans').select('*').eq('trainer_id', client.trainer_id),
+        // An athlete can now have several conversations over time (one per
+        // coach they asked). Newest first; the pick below prefers the current
+        // coach, then the coach a request is pending with.
+        supabase.from('conversations').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('plans').select('*').eq('trainer_id', client.trainer_id ?? '00000000-0000-0000-0000-000000000000'),
         supabase.from('payments').select('*, plans(*)').eq('client_id', client.id).order('created_at', { ascending: false }),
         supabase.from('gym_visits').select('*').eq('client_id', client.id).is('check_out_time', null).maybeSingle(),
         supabase.from('client_meal_logs').select('*').eq('client_id', client.id).eq('logged_date', new Date().toISOString().split('T')[0]),
@@ -366,7 +372,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
         });
         setMealLogs(logs);
       }
-      if (convRes.data) setConversation(convRes.data);
+      {
+        const convs: any[] = Array.isArray(convRes.data) ? convRes.data : (convRes.data ? [convRes.data] : []);
+        const picked =
+          convs.find((c) => client.trainer_id && c.trainer_id === client.trainer_id) ??
+          convs.find((c) => client.requested_trainer_id && c.trainer_id === client.requested_trainer_id) ??
+          convs[0] ?? null;
+        if (picked) setConversation(picked);
+      }
       if (plansRes.data) setPlans(plansRes.data);
       if (payRes.data) setPaymentHistory(payRes.data);
       if (subscriptionRes?.error) {
