@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { useApp } from '../../context/AppContext';
+import { useAppPlans } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 /**
@@ -44,7 +44,7 @@ interface PassRow {
 }
 
 export default function PassPerformance() {
-  const { plans } = useApp();
+  const { plans } = useAppPlans();
   const [rows, setRows] = useState<PassRow[] | null>(null);
   const [failed, setFailed] = useState(false);
 

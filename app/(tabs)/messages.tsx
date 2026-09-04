@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { loadSnapshot, saveSnapshot } from '../../lib/offlineCache';
 import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
+import { useAppClients } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
@@ -63,7 +63,7 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { clients } = useApp();
+  const { clients } = useAppClients();
   const { showAlert } = useAlert();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');

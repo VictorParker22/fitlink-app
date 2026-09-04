@@ -63,6 +63,44 @@ interface RevenueCatContextType {
   refreshCustomerInfo: () => Promise<void>;
 }
 
+// ─── Purchase error taxonomy ──────────────────────────────────────────────────
+
+type PurchaseFailure = { reason: string; message: string; retryable: boolean };
+
+/** Name of the PURCHASES_ERROR_CODE member for a raw SDK code, or 'UNKNOWN'. */
+function errorCodeName(code: unknown): string {
+  const hit = Object.entries(PURCHASES_ERROR_CODE).find(([, v]) => String(v) === String(code));
+  return hit ? hit[0] : 'UNKNOWN';
+}
+
+export function classifyPurchaseError(err: any): PurchaseFailure {
+  const name = errorCodeName(err?.code);
+  switch (name) {
+    case 'PURCHASE_NOT_ALLOWED_ERROR':
+      return { reason: 'not_allowed', retryable: false, message: 'Purchases are not allowed on this device. Check Screen Time or parental controls, then try again.' };
+    case 'PURCHASE_INVALID_ERROR':
+      return { reason: 'payment_invalid', retryable: true, message: 'The store could not take that payment. Check your payment method in your store account and try again.' };
+    case 'PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR':
+      return { reason: 'product_unavailable', retryable: false, message: 'That plan is not available in your store region right now. Nothing has been charged.' };
+    case 'PRODUCT_ALREADY_PURCHASED_ERROR':
+    case 'RECEIPT_ALREADY_IN_USE_ERROR':
+      return { reason: 'already_owned', retryable: false, message: 'This subscription is already active on a store account. Use Restore purchases to bring it here.' };
+    case 'NETWORK_ERROR':
+    case 'OFFLINE_CONNECTION_ERROR':
+      return { reason: 'offline', retryable: true, message: 'No connection to the store. Check your network and try again. Nothing has been charged.' };
+    case 'STORE_PROBLEM_ERROR':
+      return { reason: 'store_problem', retryable: true, message: 'The store is having trouble right now. Try again in a few minutes. Nothing has been charged.' };
+    case 'PAYMENT_PENDING_ERROR':
+      return { reason: 'payment_pending', retryable: false, message: 'Your payment is pending approval. Your plan unlocks as soon as the store confirms it.' };
+    case 'INVALID_CREDENTIALS_ERROR':
+    case 'CONFIGURATION_ERROR':
+    case 'INVALID_APP_USER_ID_ERROR':
+      return { reason: 'configuration', retryable: false, message: 'Something is misconfigured on our side. Nothing has been charged; please contact support.' };
+    default:
+      return { reason: name === 'UNKNOWN' ? 'unknown' : name.toLowerCase().replace(/_error$/, ''), retryable: true, message: err?.message || 'Purchase failed. Please try again.' };
+  }
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const RevenueCatContext = createContext<RevenueCatContextType | null>(null);
@@ -173,10 +211,17 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       } catch (err: any) {
         // User cancelled — not an error we need to surface
         if (err?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
+          layers.track('purchase_cancelled', { product_id: pkg.product.identifier });
           return { success: false };
         }
         if (__DEV__) console.warn('[RevenueCat] Purchase error:', err);
-        return { success: false, error: err?.message || 'Purchase failed. Please try again.' };
+        // Error taxonomy (roast phase 3): one named reason per failure so
+        // the dashboard can tell a store outage from a declined card from a
+        // misconfigured product, and the athlete gets a sentence that says
+        // what to do rather than the SDK's message.
+        const failure = classifyPurchaseError(err);
+        layers.track('purchase_failed', { product_id: pkg.product.identifier, reason: failure.reason, code: String(err?.code ?? ''), retryable: failure.retryable });
+        return { success: false, error: failure.message };
       }
     },
     []

@@ -224,6 +224,11 @@ export interface SpokenLineProps {
   onToggle: () => void;
   /** Muted for the athlete's own echoed line — no progress/clock chrome. */
   muted?: boolean;
+  /**
+   * Force the "being spoken" look regardless of text equality — used while a
+   * streaming reply is still growing and the voice is keyed by sequence id.
+   */
+  activeOverride?: boolean;
 }
 
 /**
@@ -231,8 +236,8 @@ export interface SpokenLineProps {
  * tint-filled progress line and a mono clock underneath. Tap toggles
  * playback of `text` in the corner's voice.
  */
-export function SpokenLine({ text, tint, state, onToggle, muted }: SpokenLineProps) {
-  const isActive = state.activeText === text && (state.playing || state.loading);
+export function SpokenLine({ text, tint, state, onToggle, muted, activeOverride }: SpokenLineProps) {
+  const isActive = (activeOverride ?? state.activeText === text) && (state.playing || state.loading);
   const progressPct = Math.round(Math.min(1, Math.max(0, state.progress)) * 100);
   const clock = isActive
     ? `${formatClock(state.positionMs)} / ${formatClock(state.durationMs)}`

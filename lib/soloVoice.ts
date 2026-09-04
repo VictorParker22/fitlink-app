@@ -143,7 +143,115 @@ export function useSoloVoice() {
     await speak(text, voice);
   }, [state.activeText, state.playing, state.loading, speak, stop]);
 
-  return { state, speak, stop, toggle };
+  /**
+   * Chunked playback for a STREAMING reply (roast phase 2): the caller pushes
+   * the first sentence as soon as it exists and the remainder when the
+   * stream ends; each chunk is synthesised and played in order, the next
+   * chunk's audio fetched while the current one plays. `state.activeText`
+   * is `key` for the whole sequence, so a SpokenLine whose text keeps
+   * growing can still show itself as the line being spoken.
+   */
+  const speakSequence = useCallback((key: string, voice: VoiceKey) => {
+    const seq = ++seqRef.current;
+    const queue: string[] = [];
+    const urls = new Map<string, Promise<string>>();
+    let ended = false;
+    let playing = false;
+    let finished = false;
+
+    const prefetch = (text: string) => {
+      if (!urls.has(text)) urls.set(text, fetchSoloAudioUrl(text, voice));
+      return urls.get(text)!;
+    };
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (seq !== seqRef.current) return;
+      setState({ ...IDLE, activeText: null });
+      unload();
+      Audio.setAudioModeAsync(RESTORE_AUDIO_MODE).catch(() => {});
+    };
+
+    const playNext = async (): Promise<void> => {
+      if (seq !== seqRef.current) return;
+      if (playing) return;
+      const text = queue.shift();
+      if (text === undefined) {
+        if (ended) finish();
+        return;
+      }
+      playing = true;
+      try {
+        const url = await prefetch(text);
+        if (seq !== seqRef.current) return;
+        // Start the next chunk's synthesis while this one plays.
+        if (queue[0]) prefetch(queue[0]);
+        const old = soundRef.current;
+        soundRef.current = null;
+        if (old) { try { await old.unloadAsync(); } catch { /* gone */ } }
+        const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true }, (st: AVPlaybackStatus) => {
+          if (!st.isLoaded || seq !== seqRef.current) return;
+          const durationMs = st.durationMillis ?? 0;
+          const positionMs = st.positionMillis ?? 0;
+          if (st.didJustFinish) {
+            playing = false;
+            playNext();
+            return;
+          }
+          setState({
+            activeText: key,
+            loading: false,
+            playing: st.isPlaying,
+            progress: durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0,
+            durationMs,
+            positionMs,
+            error: null,
+          });
+        });
+        if (seq !== seqRef.current) { sound.unloadAsync().catch(() => {}); return; }
+        soundRef.current = sound;
+      } catch (e: any) {
+        if (seq !== seqRef.current) return;
+        playing = false;
+        // One chunk failing must not swallow the rest of the reply.
+        if (queue.length === 0 && ended) {
+          setState({ ...IDLE, error: e?.message || 'Could not play that' });
+          Audio.setAudioModeAsync(RESTORE_AUDIO_MODE).catch(() => {});
+          finished = true;
+        } else {
+          playNext();
+        }
+      }
+    };
+
+    (async () => {
+      await unload();
+      if (seq !== seqRef.current) return;
+      setState({ ...IDLE, activeText: key, loading: true });
+      await Audio.setAudioModeAsync(DUCK_AUDIO_MODE).catch(() => {});
+    })();
+
+    return {
+      key,
+      push(text: string) {
+        const t = text.trim();
+        if (!t || seq !== seqRef.current) return;
+        queue.push(t);
+        prefetch(t);
+        playNext();
+      },
+      end() {
+        ended = true;
+        if (!playing && queue.length === 0) finish();
+      },
+      cancel() {
+        if (seq === seqRef.current) stop();
+      },
+    };
+  }, [unload, stop]);
+
+  return { state, speak, stop, toggle, speakSequence };
 }
 
 /** The sample every character says on the setup screen. */

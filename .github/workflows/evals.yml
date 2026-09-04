@@ -1,0 +1,41 @@
+name: Persona evals
+
+# The golden set runs whenever a prompt, a persona, the eval cases or the
+# eval runner change — and on demand. It needs GEMINI_API_KEY in the repo
+# secrets; without it the runner skips cleanly (exit 0) so a fork or a
+# secret-less run does not turn red for the wrong reason.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/functions/solo-corner/**'
+      - 'supabase/functions/_shared/ai.ts'
+      - 'evals/**'
+      - 'scripts/eval-personas.mjs'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'supabase/functions/solo-corner/**'
+      - 'supabase/functions/_shared/ai.ts'
+      - 'evals/**'
+      - 'scripts/eval-personas.mjs'
+  workflow_dispatch:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run persona evals
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/eval-personas.mjs

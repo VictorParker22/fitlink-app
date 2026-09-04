@@ -100,7 +100,9 @@ export function report(err: unknown, tags: Record<string, string> = {}): void {
       platform: 'javascript',
       level: 'error',
       logger: 'edge',
-      tags: { runtime: 'supabase-edge', prompt_version: PROMPT_VERSION, ...tags },
+      environment: 'production',
+      release: `fitlink-edge@${PROMPT_VERSION}`,
+      tags: { runtime: 'supabase-edge', prompt_version: PROMPT_VERSION, region: Deno.env.get('SB_REGION') ?? 'unknown', ...tags },
       exception: { values: [{ type: (err as any)?.name ?? 'Error', value: String((err as any)?.message ?? err) }] },
     };
     const envelope = `${JSON.stringify({ event_id: event.event_id, sent_at: event.timestamp })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(event)}\n`;

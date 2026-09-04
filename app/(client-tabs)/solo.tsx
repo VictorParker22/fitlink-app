@@ -43,6 +43,7 @@ import { computeStreak } from '../../lib/streak';
 import { getSoloCharacter } from '../../lib/soloCharacters';
 import { ensureSoloClient } from '../../lib/soloClient';
 import { useSoloVoice, getAutoPlay, setAutoPlay as persistAutoPlay } from '../../lib/soloVoice';
+import { streamCorner, firstSentence, StreamHttpError } from '../../lib/soloStream';
 import { useDictation } from '../../lib/soloDictation';
 import { Orb, SpokenLine, SOLO_TINT } from '../../components/solo/Presence';
 import SoloPaywall from '../../components/paywalls/SoloPaywall';
@@ -356,6 +357,86 @@ export default function SoloScreen() {
     if (autoPlay) voice.speak(text, character.key);
   }, [autoPlay, voice, character.key]);
 
+  // The sequence key of the reply currently being spoken chunk-by-chunk, so
+  // the spoken line can show itself active while its text is still growing.
+  const streamKeyRef = useRef<string | null>(null);
+  const streamActive = !!streamKeyRef.current && voice.state.activeText === streamKeyRef.current;
+
+  /**
+   * Ask the corner and paint the answer as it arrives (roast phase 2).
+   * Streams by default: the line types in, speech starts on the first
+   * sentence, the rest follows as one clip. Falls back to the plain JSON
+   * call when streaming is unavailable. Throws { status } on an HTTP
+   * refusal (402 paywall, 429 rate limit) or { status: 0 } when nothing
+   * usable came back.
+   */
+  const runCorner = useCallback(async (body: Record<string, unknown>, startedAt: number) => {
+    const key = `stream-${startedAt}`;
+    const seqCtl = { current: null as ReturnType<typeof voice.speakSequence> | null };
+    let spokenPrefix = '';
+    let firstTextAt = 0;
+    try {
+      const res = await streamCorner({ ...body, character: character.key }, {
+        onMeta: (m) => setBasedOn(m.based_on),
+        onText: (t) => {
+          if (!firstTextAt) firstTextAt = Date.now();
+          setCurrentLine(t);
+          if (autoPlay && !seqCtl.current) {
+            const fs = firstSentence(t);
+            if (fs) {
+              seqCtl.current = voice.speakSequence(key, character.key);
+              streamKeyRef.current = key;
+              spokenPrefix = fs;
+              seqCtl.current.push(fs);
+            }
+          }
+        },
+      });
+      if (seqCtl.current) {
+        if (res.rewritten || !res.reply.startsWith(spokenPrefix)) {
+          // The grounding check changed the text after part of it was
+          // spoken: say the corrected line whole rather than a mismatched tail.
+          seqCtl.current.cancel();
+          streamKeyRef.current = null;
+          voice.speak(res.reply, character.key);
+        } else {
+          const rest = res.reply.slice(spokenPrefix.length).trim();
+          if (rest) seqCtl.current.push(rest);
+          seqCtl.current.end();
+        }
+      } else if (autoPlay) {
+        voice.speak(res.reply, character.key);
+      }
+      return {
+        reply: res.reply,
+        basedOn: res.meta.based_on,
+        promptVersion: res.meta.prompt_version,
+        firstTextMs: firstTextAt ? firstTextAt - startedAt : null,
+        streamed: true,
+      };
+    } catch (e: any) {
+      if (seqCtl.current) { seqCtl.current.cancel(); streamKeyRef.current = null; }
+      if (e instanceof StreamHttpError) throw { status: e.status };
+      // Streaming unavailable (older function, buffering proxy, transport):
+      // the plain call still answers, just all at once.
+      const { data, error } = await callCorner(body);
+      if (error) throw { status: (error as any)?.context?.status ?? 0 };
+      const reply: string | undefined = data?.reply;
+      if (!reply) throw { status: 0 };
+      setCurrentLine(reply);
+      const basedOn = Array.isArray(data?.based_on) ? data.based_on : [];
+      setBasedOn(basedOn);
+      if (autoPlay) voice.speak(reply, character.key);
+      return {
+        reply,
+        basedOn,
+        promptVersion: typeof data?.prompt_version === 'string' ? data.prompt_version : null,
+        firstTextMs: Date.now() - startedAt,
+        streamed: false,
+      };
+    }
+  }, [voice, character.key, autoPlay, callCorner]);
+
   /** Returns the persisted row's id (for feedback's message_id), or null. */
   const persistCornerMessage = useCallback(async (content: string): Promise<string | null> => {
     if (!clientData?.id) return null;
@@ -398,24 +479,26 @@ export default function SoloScreen() {
       setWaitingReply(true);
       const startedAt = Date.now();
       try {
-        const { data, error } = await callCorner({ mode: 'brief', history: [], context: buildContext() });
-        if (error) {
-          const status = (error as any)?.context?.status;
-          if (status === 402) handle402();
+        let out: Awaited<ReturnType<typeof runCorner>>;
+        try {
+          out = await runCorner({ mode: 'brief', history: [], context: buildContext() }, startedAt);
+        } catch (err: any) {
+          if (err?.status === 402) handle402();
           return;
         }
-        const reply: string | undefined = data?.reply;
-        if (!reply) return;
-        setCurrentLine(reply);
-        setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
+        const reply = out.reply;
         const msgId = await persistCornerMessage(reply);
         setCurrentMessageId(msgId);
-        setPromptVersion(typeof data?.prompt_version === 'string' ? data.prompt_version : null);
+        setPromptVersion(out.promptVersion);
         setMessages((prev) => [...prev, {
           id: msgId ?? `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
         }]);
-        layers.track('brief_delivered', { character: character.key, latency_ms: Date.now() - startedAt });
-        speakReply(reply);
+        layers.track('brief_delivered', {
+          character: character.key,
+          latency_ms: Date.now() - startedAt,
+          first_text_ms: out.firstTextMs,
+          streamed: out.streamed,
+        });
       } catch (e) {
         if (__DEV__) console.warn('[Solo] brief request threw:', e);
       } finally {
@@ -453,10 +536,11 @@ export default function SoloScreen() {
           }
         }
 
-        const { data, error } = await callCorner({ message: content, history, context: { ...buildContext(), ...extra } });
-
-        if (error) {
-          const status = (error as any)?.context?.status;
+        let out: Awaited<ReturnType<typeof runCorner>>;
+        try {
+          out = await runCorner({ message: content, history, context: { ...buildContext(), ...extra } }, startedAt);
+        } catch (err: any) {
+          const status = err?.status;
           if (status === 402) {
             handle402();
           } else if (status === 429) {
@@ -467,31 +551,24 @@ export default function SoloScreen() {
           }
           return;
         }
-
-        const reply: string | undefined = data?.reply;
-        if (!reply) {
-          setCurrentLine("Couldn't reach your corner. Try again.");
-          setPendingRetry({ content, prior: priorHistory });
-          return;
-        }
+        const reply = out.reply;
 
         // A reply means the entitlement landed — the activating line is done.
         setActivating(false);
-        setCurrentLine(reply);
-        setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         const msgId = await persistCornerMessage(reply);
         setCurrentMessageId(msgId);
-        setPromptVersion(typeof data?.prompt_version === 'string' ? data.prompt_version : null);
+        setPromptVersion(out.promptVersion);
         setMessages((prev) => [...prev, {
           id: msgId ?? `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
         }]);
         layers.track('corner_reply', {
           character: character.key,
           latency_ms: Date.now() - startedAt,
+          first_text_ms: out.firstTextMs,
+          streamed: out.streamed,
           audio_autoplayed: autoPlayedThisReply,
         });
-        speakReply(reply);
       } catch (e) {
         if (__DEV__) console.warn('[Solo] deliver threw:', e);
         setCurrentLine("Couldn't reach your corner. Try again.");
@@ -702,7 +779,8 @@ export default function SoloScreen() {
                   text={currentLine}
                   tint={tint}
                   state={voice.state}
-                  onToggle={() => voice.toggle(currentLine, character.key)}
+                  activeOverride={streamActive ? true : undefined}
+                  onToggle={() => (streamActive ? voice.stop() : voice.toggle(currentLine, character.key))}
                 />
               </View>
               {!!currentLine && (

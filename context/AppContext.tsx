@@ -454,7 +454,60 @@ interface AppContextType {
   }>;
 }
 
-const AppContext = createContext<AppContextType | null>(null);
+// ── Domain slices ────────────────────────────────────────────────────────────
+// The provider keeps ONE state machine but publishes it through five contexts,
+// each with its own useMemo, so a realtime notification does not re-render a
+// component that only reads the exercise library. Every key of AppContextType
+// lives in exactly one slice; useApp() composes them for the legacy consumers.
+
+export type AppClientsSlice = Pick<AppContextType,
+  | 'clients' | 'activeClients' | 'trialClients' | 'inactiveClients'
+  | 'addClient' | 'updateClient' | 'upgradeClientToPlan' | 'extendClientTrial'
+  | 'updateClientAssessment' | 'getClientById' | 'refreshClients'
+  | 'enrollClientInPlan' | 'pauseEnrollment' | 'resumeEnrollment' | 'getClientEnrollment'
+  | 'completedWorkoutCounts' | 'liveHabitRows'
+  | 'clientWorkouts' | 'clientDiets' | 'getClientWorkouts' | 'getClientDiets'
+  | 'assignWorkout' | 'assignDietPlan'
+  | 'progressLogs' | 'getClientProgress' | 'addProgressLog' | 'deleteProgressLog'
+  | 'getClientHealthSnapshot' | 'requestHealthAccess'
+>;
+
+export type AppPlansSlice = Pick<AppContextType,
+  | 'plans' | 'workouts' | 'exercises' | 'diets' | 'meals' | 'classes' | 'liveClasses'
+  | 'autoAddExerciseId' | 'setAutoAddExerciseId'
+  | 'createPlan' | 'updatePlan' | 'updatePlanTrack' | 'refreshPlans'
+  | 'createExercise' | 'updateExercise' | 'importExercise'
+  | 'createWorkout' | 'updateWorkout' | 'deleteWorkout' | 'duplicateWorkout'
+  | 'createMeal' | 'createDietPlan' | 'updateDietPlan' | 'duplicateDietPlan' | 'deleteDietPlan'
+  | 'createClass' | 'updateClass' | 'deleteClass' | 'publishClass'
+  | 'createLiveClass' | 'updateLiveClass' | 'deleteLiveClass'
+>;
+
+export type AppSessionsSlice = Pick<AppContextType,
+  | 'sessions' | 'activities' | 'todaySessions' | 'upcomingSessions'
+  | 'addSession' | 'updateSession' | 'getSessionsForDate' | 'getClientSessions' | 'refreshSessions'
+>;
+
+export type AppBusinessSlice = Pick<AppContextType,
+  | 'trainer' | 'updateTrainer'
+  | 'referrals' | 'totalReferrals' | 'totalMonthlyRevenue'
+  | 'notifications' | 'markNotificationRead' | 'updatePushToken'
+  | 'createStripeConnectAccount' | 'fetchAnalytics'
+>;
+
+export type AppMetaSlice = Pick<AppContextType, 'loading' | 'refreshData'>;
+
+// Compile-time proof that the five slices cover AppContextType exactly.
+type _SliceUnion = AppClientsSlice & AppPlansSlice & AppSessionsSlice & AppBusinessSlice & AppMetaSlice;
+type _MissingFromSlices = Exclude<keyof AppContextType, keyof _SliceUnion>;
+const _sliceCoverage: [_MissingFromSlices] extends [never] ? true : _MissingFromSlices = true;
+void _sliceCoverage;
+
+const AppClientsContext = createContext<AppClientsSlice | null>(null);
+const AppPlansContext = createContext<AppPlansSlice | null>(null);
+const AppSessionsContext = createContext<AppSessionsSlice | null>(null);
+const AppBusinessContext = createContext<AppBusinessSlice | null>(null);
+const AppMetaContext = createContext<AppMetaSlice | null>(null);
 
 /** Missing table/column, i.e. a migration that has not run — never a real failure. */
 const isMissingSchema = (e: any) =>
@@ -2168,48 +2221,62 @@ export function AppProvider({ children }: PropsWithChildren) {
     return data as { url: string; accountId: string };
   }, [user, trainer]);
 
-  const value: AppContextType = useMemo(() => ({
-    loading,
-    trainer,
+  const clientsSlice: AppClientsSlice = useMemo(() => ({
     clients,
-    sessions,
-    activities,
-    plans,
-    referrals,
-    workouts,
-    exercises,
-    autoAddExerciseId,
-    setAutoAddExerciseId,
-    diets,
-    meals,
-    notifications,
-    liveHabitRows,
-    classes: trainerClasses,
-    liveClasses: liveClassesList,
-    clientWorkouts: clientWorkoutsList,
-    clientDiets: clientDietsList,
-    completedWorkoutCounts,
     activeClients,
     trialClients,
     inactiveClients,
-    todaySessions,
-    upcomingSessions,
-    totalReferrals,
-    totalMonthlyRevenue,
     addClient,
     updateClient,
     upgradeClientToPlan,
     extendClientTrial,
     updateClientAssessment,
     getClientById,
-    addSession,
-    updateSession,
-    getSessionsForDate,
-    getClientSessions,
-    updateTrainer,
+    refreshClients,
+    enrollClientInPlan,
+    pauseEnrollment,
+    resumeEnrollment,
+    getClientEnrollment,
+    completedWorkoutCounts,
+    liveHabitRows,
+    clientWorkouts: clientWorkoutsList,
+    clientDiets: clientDietsList,
+    getClientWorkouts,
+    getClientDiets,
+    assignWorkout,
+    assignDietPlan,
+    progressLogs,
+    getClientProgress,
+    addProgressLog,
+    deleteProgressLog,
+    getClientHealthSnapshot,
+    requestHealthAccess,
+  }), [
+    clients, activeClients, trialClients, inactiveClients,
+    addClient, updateClient, upgradeClientToPlan, extendClientTrial,
+    updateClientAssessment, getClientById, refreshClients,
+    enrollClientInPlan, pauseEnrollment, resumeEnrollment, getClientEnrollment,
+    completedWorkoutCounts, liveHabitRows,
+    clientWorkoutsList, clientDietsList, getClientWorkouts, getClientDiets,
+    assignWorkout, assignDietPlan,
+    progressLogs, getClientProgress, addProgressLog, deleteProgressLog,
+    getClientHealthSnapshot, requestHealthAccess,
+  ]);
+
+  const plansSlice: AppPlansSlice = useMemo(() => ({
+    plans,
+    workouts,
+    exercises,
+    diets,
+    meals,
+    classes: trainerClasses,
+    liveClasses: liveClassesList,
+    autoAddExerciseId,
+    setAutoAddExerciseId,
     createPlan,
     updatePlan,
     updatePlanTrack,
+    refreshPlans,
     createExercise,
     updateExercise,
     importExercise,
@@ -2217,23 +2284,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     updateWorkout,
     deleteWorkout,
     duplicateWorkout,
-    assignWorkout,
     createMeal,
     createDietPlan,
     updateDietPlan,
     duplicateDietPlan,
     deleteDietPlan,
-    assignDietPlan,
-    getClientWorkouts,
-    getClientDiets,
-    progressLogs,
-    getClientProgress,
-    addProgressLog,
-    deleteProgressLog,
-    markNotificationRead,
-    updatePushToken,
-    getClientHealthSnapshot,
-    requestHealthAccess,
     createClass,
     updateClass,
     deleteClass,
@@ -2241,42 +2296,121 @@ export function AppProvider({ children }: PropsWithChildren) {
     createLiveClass,
     updateLiveClass,
     deleteLiveClass,
-    refreshData,
-    refreshClients,
-    refreshPlans,
-    refreshSessions,
-    createStripeConnectAccount,
-    fetchAnalytics,
-    enrollClientInPlan,
-    pauseEnrollment,
-    resumeEnrollment,
-    getClientEnrollment,
   }), [
-    loading, trainer, clients, sessions, activities, plans, referrals,
-    workouts, exercises, autoAddExerciseId, diets, meals, notifications, liveHabitRows,
-    clientWorkoutsList, clientDietsList, completedWorkoutCounts, activeClients, trialClients,
-    inactiveClients, todaySessions, upcomingSessions, totalReferrals,
-    totalMonthlyRevenue, addClient, updateClient, upgradeClientToPlan,
-    extendClientTrial, updateClientAssessment, getClientById, addSession,
-    updateSession, getSessionsForDate, getClientSessions, updateTrainer,
-    createPlan, updatePlan, updatePlanTrack, createExercise, updateExercise, importExercise,
-    createWorkout, updateWorkout, deleteWorkout, duplicateWorkout, assignWorkout,
-    createMeal, createDietPlan, updateDietPlan, duplicateDietPlan, deleteDietPlan, assignDietPlan, getClientWorkouts,
-    getClientDiets, progressLogs, getClientProgress, addProgressLog,
-    deleteProgressLog, markNotificationRead, updatePushToken,
-    getClientHealthSnapshot, requestHealthAccess,
+    plans, workouts, exercises, diets, meals, trainerClasses, liveClassesList,
+    autoAddExerciseId,
+    createPlan, updatePlan, updatePlanTrack, refreshPlans,
+    createExercise, updateExercise, importExercise,
+    createWorkout, updateWorkout, deleteWorkout, duplicateWorkout,
+    createMeal, createDietPlan, updateDietPlan, duplicateDietPlan, deleteDietPlan,
     createClass, updateClass, deleteClass, publishClass,
-    refreshData, refreshClients, refreshSessions,
-    createStripeConnectAccount, fetchAnalytics, trainerClasses,
-    enrollClientInPlan,
-    pauseEnrollment, resumeEnrollment, getClientEnrollment,
+    createLiveClass, updateLiveClass, deleteLiveClass,
   ]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  const sessionsSlice: AppSessionsSlice = useMemo(() => ({
+    sessions,
+    activities,
+    todaySessions,
+    upcomingSessions,
+    addSession,
+    updateSession,
+    getSessionsForDate,
+    getClientSessions,
+    refreshSessions,
+  }), [
+    sessions, activities, todaySessions, upcomingSessions,
+    addSession, updateSession, getSessionsForDate, getClientSessions, refreshSessions,
+  ]);
+
+  const businessSlice: AppBusinessSlice = useMemo(() => ({
+    trainer,
+    updateTrainer,
+    referrals,
+    totalReferrals,
+    totalMonthlyRevenue,
+    notifications,
+    markNotificationRead,
+    updatePushToken,
+    createStripeConnectAccount,
+    fetchAnalytics,
+  }), [
+    trainer, updateTrainer, referrals, totalReferrals, totalMonthlyRevenue,
+    notifications, markNotificationRead, updatePushToken,
+    createStripeConnectAccount, fetchAnalytics,
+  ]);
+
+  const metaSlice: AppMetaSlice = useMemo(() => ({
+    loading,
+    refreshData,
+  }), [loading, refreshData]);
+
+  return (
+    <AppMetaContext.Provider value={metaSlice}>
+      <AppBusinessContext.Provider value={businessSlice}>
+        <AppSessionsContext.Provider value={sessionsSlice}>
+          <AppPlansContext.Provider value={plansSlice}>
+            <AppClientsContext.Provider value={clientsSlice}>
+              {children}
+            </AppClientsContext.Provider>
+          </AppPlansContext.Provider>
+        </AppSessionsContext.Provider>
+      </AppBusinessContext.Provider>
+    </AppMetaContext.Provider>
+  );
 }
 
-export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
+const OUTSIDE = 'must be used within AppProvider';
+
+/** Clients, their assignments, progress, habits, enrollments. */
+export function useAppClients(): AppClientsSlice {
+  const context = useContext(AppClientsContext);
+  if (!context) throw new Error(`useAppClients ${OUTSIDE}`);
   return context;
+}
+
+/** Library: passes, workouts, exercises, diets, meals, classes. */
+export function useAppPlans(): AppPlansSlice {
+  const context = useContext(AppPlansContext);
+  if (!context) throw new Error(`useAppPlans ${OUTSIDE}`);
+  return context;
+}
+
+/** Schedule: sessions, activity feed. */
+export function useAppSessions(): AppSessionsSlice {
+  const context = useContext(AppSessionsContext);
+  if (!context) throw new Error(`useAppSessions ${OUTSIDE}`);
+  return context;
+}
+
+/** Trainer profile, referrals, revenue, notifications, payments. */
+export function useAppBusiness(): AppBusinessSlice {
+  const context = useContext(AppBusinessContext);
+  if (!context) throw new Error(`useAppBusiness ${OUTSIDE}`);
+  return context;
+}
+
+/** Load state and the full refresh. */
+export function useAppMeta(): AppMetaSlice {
+  const context = useContext(AppMetaContext);
+  if (!context) throw new Error(`useAppMeta ${OUTSIDE}`);
+  return context;
+}
+
+/**
+ * Legacy composite. Subscribes to EVERY slice, so a change anywhere re-renders
+ * the caller — prefer the slice hooks above when a component's needs fit one.
+ */
+export function useApp(): AppContextType {
+  const clientsSlice = useContext(AppClientsContext);
+  const plansSlice = useContext(AppPlansContext);
+  const sessionsSlice = useContext(AppSessionsContext);
+  const businessSlice = useContext(AppBusinessContext);
+  const metaSlice = useContext(AppMetaContext);
+  if (!clientsSlice || !plansSlice || !sessionsSlice || !businessSlice || !metaSlice) {
+    throw new Error('useApp must be used within AppProvider');
+  }
+  return useMemo(
+    () => ({ ...clientsSlice, ...plansSlice, ...sessionsSlice, ...businessSlice, ...metaSlice }),
+    [clientsSlice, plansSlice, sessionsSlice, businessSlice, metaSlice],
+  );
 }

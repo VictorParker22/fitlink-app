@@ -125,56 +125,103 @@ serve(async (req) => {
 
     const prompt = `${persona}\n${SHARED_RULES}\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete${clientRow?.name ? ` (${clientRow.name})` : ''} data:${contextBlock || '\n(no data available yet)'}\n\nRecent conversation:\n${turns || '(first message)'}\n\nAthlete: ${message.trim()}\n\nReply as the corner:`;
 
-    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'solo-corner' });
-    let reply = result.response.text();
+    const groundingSource = `${memoryBlock}\n${contextBlock}`;
 
     // Grounding check: flag any number the reply states that never appeared
     // in the context it was given, and ask the model to rewrite once rather
-    // than ship a hallucinated figure.
-    const groundingSource = `${memoryBlock}\n${contextBlock}`;
-    let flagged = numbersNotInContext(reply, groundingSource);
-    if (flagged.length > 0) {
-      const fixPrompt = `Your reply below states number(s) that do not appear anywhere in the athlete's data or memory: ${flagged.join(', ')}. Rewrite the reply so it states NO number that isn't in the data/memory provided. Keep the same voice, length limit, and intent. Never mention this correction to the athlete.\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete data:${contextBlock || '\n(no data available yet)'}\n\nOriginal reply:\n${reply}\n\nRewritten reply:`;
+    // than ship a hallucinated figure. Returns the (possibly rewritten) reply.
+    const groundReply = async (draft: string): Promise<{ reply: string; flagged: string[] }> => {
+      const flagged = numbersNotInContext(draft, groundingSource);
+      if (flagged.length === 0) return { reply: draft, flagged };
+      const fixPrompt = `Your reply below states number(s) that do not appear anywhere in the athlete's data or memory: ${flagged.join(', ')}. Rewrite the reply so it states NO number that isn't in the data/memory provided. Keep the same voice, length limit, and intent. Never mention this correction to the athlete.\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete data:${contextBlock || '\n(no data available yet)'}\n\nOriginal reply:\n${draft}\n\nRewritten reply:`;
       try {
         const fixResult = await withRetry(() => model.generateContent(fixPrompt), { timeoutMs: 20000, label: 'solo-corner-fix' });
-        reply = fixResult.response.text();
+        return { reply: fixResult.response.text(), flagged };
       } catch (fixErr) {
-        // The rewrite call itself failing is not fatal — ship the flagged
+        // The rewrite call itself failing is not fatal: ship the flagged
         // original rather than error the whole reply, but keep the flag.
         report(fixErr, { fn: 'solo-corner-grounding-fix' });
+        return { reply: draft, flagged };
       }
-    }
+    };
 
     // Rolling memory: every 8th athlete message, ask the model to fold the
-    // old summary + this exchange into a fresh ≤120-word summary and persist
-    // it. Fire-and-forget — must not slow down or fail the athlete's reply.
-    if (clientRow?.id && mode === 'reply') {
+    // old summary + this exchange into a fresh 120-word summary and persist
+    // it. Fire-and-forget: must not slow down or fail the athlete's reply.
+    const scheduleSummary = (reply: string) => {
+      if (!clientRow?.id || mode !== 'reply') return;
       const priorAthleteTurns = history.filter((h: any) => h?.role === 'athlete').length;
-      const athleteTurnNumber = priorAthleteTurns + 1;
-      if (athleteTurnNumber % 8 === 0) {
-        const clientId = clientRow.id;
-        const oldSummary = memoryBlock;
-        const summaryTask = async () => {
+      if ((priorAthleteTurns + 1) % 8 !== 0) return;
+      const clientId = clientRow.id;
+      const oldSummary = memoryBlock;
+      const summaryTask = async () => {
+        try {
+          const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+          const summaryPrompt = `Merge the existing summary and this new exchange into ONE updated summary of this athlete for a coaching AI's long-term memory. Keep concrete facts (goals, equipment, injuries, preferences, patterns) and drop small talk. 120 words maximum, plain prose, no bullet points.\n\nExisting summary:\n${oldSummary || '(none yet)'}\n\nNew exchange:\nAthlete: ${message.trim()}\nCorner: ${reply}\n\nUpdated summary:`;
+          const summaryResult = await withRetry(() => summaryModel.generateContent(summaryPrompt), { timeoutMs: 20000, label: 'solo-corner-summary' });
+          const summary = summaryResult.response.text().trim().slice(0, 1600);
+          const { error: updErr } = await caller.admin
+            .from('clients')
+            .update({ solo_summary: summary, solo_summary_at: new Date().toISOString() })
+            .eq('id', clientId);
+          if (updErr) console.error('[solo-corner] summary write failed:', updErr.message);
+        } catch (sumErr) {
+          console.error('[solo-corner] summary refresh failed:', sumErr);
+          report(sumErr, { fn: 'solo-corner-summary' });
+        }
+      };
+      // EdgeRuntime.waitUntil() keeps the worker alive after the Response
+      // returns; a plain unawaited promise would be silently killed.
+      EdgeRuntime.waitUntil(summaryTask());
+    };
+
+    // Streaming path (roast phase 2): tokens reach the phone as they are
+    // generated, so the spoken line types in and speech can start on the
+    // first sentence. Wire format, text/plain:
+    //   line 1:  {"based_on":[...],"mode":..,"prompt_version":..}\n
+    //   then:    raw reply text as it streams
+    //   tail:    \n{"reply":"<rewritten>","flagged":[...]}\n   only when the
+    //            grounding check rewrote the reply; the client replaces what
+    //            it showed with the corrected text.
+    if (body?.stream === true) {
+      const streamResult = await withRetry(() => model.generateContentStream(prompt), { timeoutMs: 20000, label: 'solo-corner-stream' });
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(encoder.encode(`${JSON.stringify({ based_on: basedOn, mode, prompt_version: PROMPT_VERSION })}\n`));
+          let full = '';
           try {
-            const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-            const summaryPrompt = `Merge the existing summary and this new exchange into ONE updated summary of this athlete for a coaching AI's long-term memory. Keep concrete facts (goals, equipment, injuries, preferences, patterns) and drop small talk. 120 words maximum, plain prose, no bullet points.\n\nExisting summary:\n${oldSummary || '(none yet)'}\n\nNew exchange:\nAthlete: ${message.trim()}\nCorner: ${reply}\n\nUpdated summary:`;
-            const summaryResult = await withRetry(() => summaryModel.generateContent(summaryPrompt), { timeoutMs: 20000, label: 'solo-corner-summary' });
-            const summary = summaryResult.response.text().trim().slice(0, 1600);
-            const { error: updErr } = await caller.admin
-              .from('clients')
-              .update({ solo_summary: summary, solo_summary_at: new Date().toISOString() })
-              .eq('id', clientId);
-            if (updErr) console.error('[solo-corner] summary write failed:', updErr.message);
-          } catch (sumErr) {
-            console.error('[solo-corner] summary refresh failed:', sumErr);
-            report(sumErr, { fn: 'solo-corner-summary' });
+            for await (const chunk of streamResult.stream) {
+              const piece = chunk.text();
+              if (!piece) continue;
+              full += piece;
+              controller.enqueue(encoder.encode(piece));
+            }
+            const grounded = await groundReply(full);
+            if (grounded.flagged.length > 0) {
+              controller.enqueue(encoder.encode(`\n${JSON.stringify({ reply: grounded.reply, flagged: grounded.flagged })}\n`));
+            }
+            scheduleSummary(grounded.reply);
+          } catch (streamErr) {
+            report(streamErr, { fn: 'solo-corner-stream' });
+            console.error('[solo-corner] stream failed:', streamErr);
+            if (!full) controller.enqueue(encoder.encode(`\n${JSON.stringify({ error: 'stream_failed' })}\n`));
+          } finally {
+            controller.close();
           }
-        };
-        // EdgeRuntime.waitUntil() keeps the worker alive after the Response
-        // returns; a plain unawaited promise would be silently killed.
-        EdgeRuntime.waitUntil(summaryTask());
-      }
+        },
+      });
+      return new Response(stream, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' },
+        status: 200,
+      });
     }
+
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'solo-corner' });
+    const grounded = await groundReply(result.response.text());
+    const reply = grounded.reply;
+    const flagged = grounded.flagged;
+    scheduleSummary(reply);
 
     // `based_on` names the real data the line was built from, so the UI can
     // show it honestly (and show nothing when there was nothing).

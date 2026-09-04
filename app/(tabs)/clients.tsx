@@ -38,7 +38,8 @@ import Reanimated, {
   useSharedValue, withRepeat, withTiming, Easing, cancelAnimation,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { useApp } from '../../context/AppContext';
+import { useApp, useAppClients } from '../../context/AppContext';
+import { useRenderCount } from '../../lib/devRenderCount';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -148,7 +149,7 @@ function HabitSheet({ client, onClose }: { client: Client; onClose: () => void }
   const haptic = useHaptic();
   // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
-  const { liveHabitRows } = useApp();
+  const { liveHabitRows } = useAppClients();
   const { showAlert } = useAlert();
   const [state, setState]     = useState<Record<HabitKey, boolean>>(EMPTY_HABIT_STATE);
   const [loading, setLoading] = useState(true);
@@ -371,6 +372,7 @@ export default function ClientsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
+  useRenderCount('ClientsScreen');
   const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows, completedWorkoutCounts } = useApp();
   const { showAlert } = useAlert();
 

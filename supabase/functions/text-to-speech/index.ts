@@ -78,7 +78,7 @@ serve(async (req) => {
       }
 
       // Fresh synthesis is the only paid path: rate-limit it.
-      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 80, windowSeconds: 3600, daily: 150 }, corsHeaders);
+      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 160, windowSeconds: 3600, daily: 450 }, corsHeaders);
       if (rl) return rl;
 
       const tts = await withRetry(() => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {

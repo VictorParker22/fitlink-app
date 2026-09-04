@@ -202,11 +202,21 @@ ${storeStatus}` : ''}`,
     const { success, error } = await purchasePackage(pkg);
     setPurchasing(false);
     if (success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // The moment reads as an event: success haptic plus a lime pulse on the
+      // button for Motion.moment before the sheet closes (roast phase 1).
+      await celebrate();
       onSuccess();
     } else if (error) {
       showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
+  };
+
+  const [celebrating, setCelebrating] = useState(false);
+  const celebrate = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCelebrating(true);
+    await new Promise((r) => setTimeout(r, 400));
+    setCelebrating(false);
   };
 
   const handleRestore = async () => {
@@ -373,12 +383,15 @@ ${storeStatus}` : ''}`,
           ) : (
           <>
           <TouchableOpacity
-            style={[s.cta, purchasing && s.ctaDisabled]}
+            style={[s.cta, purchasing && s.ctaDisabled, celebrating && s.ctaCelebrate]}
             onPress={handlePurchase}
-            disabled={purchasing || restoring}
+            disabled={purchasing || restoring || celebrating}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
-            {purchasing ? (
+            {celebrating ? (
+              <Text style={s.ctaText}>You're in</Text>
+            ) : purchasing ? (
               <ActivityIndicator color={CoachColors.onAccent} />
             ) : (
               <Text style={s.ctaText}>
@@ -526,6 +539,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   ctaDisabled: { opacity: 0.7 },
+  ctaCelebrate: { transform: [{ scale: 1.03 }], shadowColor: CoachColors.accent, shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
   ctaText: { fontFamily: CoachFonts.bodyBold, fontSize: 17, color: CoachColors.onAccent },
   footerNote: {
     fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint,

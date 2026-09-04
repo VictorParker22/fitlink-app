@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
-import { useApp } from '../../context/AppContext';
+import { useAppClients } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import HabitGrid, { HABITS, getLast7Days, pct } from '../shared/HabitGrid';
 
@@ -36,7 +36,7 @@ export default function ClientHabitGrid({ clientId }: HabitGridProps) {
   const [fetchedRows, setFetchedRows] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
-  const { liveHabitRows } = useApp();
+  const { liveHabitRows } = useAppClients();
 
   const days = getLast7Days();
   const dateStrings = days.map((d) => d.date);

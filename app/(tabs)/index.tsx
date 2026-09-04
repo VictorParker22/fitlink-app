@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { useRenderCount } from '../../lib/devRenderCount';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
@@ -40,6 +41,7 @@ const FIRST_CLIENT_CELEBRATED_KEY = 'coach_first_client_celebrated';
 export default function CoachHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  useRenderCount('CoachHomeScreen');
   const { trainer, clients, sessions, notifications, plans, workouts, loading } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const checkInsY = useRef(0);
