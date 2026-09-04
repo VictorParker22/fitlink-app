@@ -79,7 +79,11 @@ export default function CoachSignupScreen() {
   const otpInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    loadDraft().then((d) => { if (d.role === 'trainer' && d.goals?.length) setDraftAck(true); });
+    loadDraft().then((d) => {
+      if (d.role === 'trainer' && d.goals?.length) setDraftAck(true);
+      // The account step already asked for the name; do not ask twice.
+      if (d.name) setName((prev) => prev || d.name!);
+    });
   }, []);
 
   // ── Step transition: 320ms fade + 16px slide, 200ms crossfade with Reduce
