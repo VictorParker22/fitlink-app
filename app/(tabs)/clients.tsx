@@ -119,8 +119,9 @@ const STATUS_LABEL: Record<string, string> = {
  * after create_client_and_notify — these are join requests, not confirmed clients.
  */
 function isMarketplaceRequest(client: Client): boolean {
-  return client.status === 'trial'
-    && (client.assessment_data as any)?.intake?.source === 'marketplace';
+  // A pending request is a row that names this coach in requested_trainer_id
+  // and has NO trainer yet. The athlete stays solo until the coach accepts.
+  return !!client.requested_trainer_id && !client.trainer_id;
 }
 
 // ─── Habit sheet ──────────────────────────────────────────────────────────────
@@ -532,7 +533,20 @@ export default function ClientsScreen() {
     setRequestBusyId(client.id);
     try {
       haptic.trigger('medium');
-      await updateClient(client.id, { status: 'active' });
+      const { data, error } = await supabase.rpc('respond_coach_request', { p_client_id: client.id, p_accept: true });
+      if (error || !data?.success) throw new Error(error?.message || data?.reason || 'accept failed');
+      // Tell the athlete on their phone — their programme is about to change hands.
+      if (client.expo_push_token) {
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            pushToken: client.expo_push_token,
+            title: `${toTitleCase(trainer?.name || 'Your coach').split(' ')[0]} took you on`,
+            body: 'Your sessions now come from your coach. Open FitLink to see what changes.',
+            data: { type: 'coach_accepted' },
+          },
+        }).catch(() => {});
+      }
+      await refreshData();
     } catch {
       showAlert({ type: 'error', title: 'Could not accept', message: 'The request could not be accepted. Try again.' });
     } finally {
@@ -543,7 +557,8 @@ export default function ClientsScreen() {
   const declineRequest = useCallback(async (client: Client) => {
     setRequestBusyId(client.id);
     try {
-      await updateClient(client.id, { status: 'inactive' });
+      const { data, error } = await supabase.rpc('respond_coach_request', { p_client_id: client.id, p_accept: false });
+      if (error || !data?.success) throw new Error(error?.message || data?.reason || 'decline failed');
 
       // Courteous decline message in the athlete's real conversation.
       const first = toTitleCase(client.name).split(' ')[0];

@@ -45,7 +45,15 @@ export interface ExerciseLogEntry {
 
 interface ClientData {
   id: string;
-  trainer_id: string;
+  /** Null for a solo / coachless athlete. Only a coach ACCEPTING sets it. */
+  trainer_id: string | null;
+  /** Pending coaching request (request_coach RPC). Cleared on accept/decline/cancel. */
+  requested_trainer_id?: string | null;
+  coach_requested_at?: string | null;
+  /** When the current coach accepted — the home tells the athlete about the switch for a week. */
+  coach_accepted_at?: string | null;
+  solo_character?: string | null;
+  solo_program_built_at?: string | null;
   name: string;
   email?: string;
   phone?: string;
@@ -78,6 +86,9 @@ interface ClientContextType {
   loading: boolean;
   clientData: ClientData | null;
   trainer: any;
+  /** Public card of the coach a request is pending with, or null. */
+  pendingCoach: { id: string; name: string; avatar_url: string | null } | null;
+  cancelCoachRequest: () => Promise<boolean>;
   sessions: any[];
   workouts: any[];
   diets: any[];
@@ -149,6 +160,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
   const [clientData, setClientData] = useState<ClientData | null>(null);
   const [trainer, setTrainer] = useState<any>(null);
+  const [pendingCoach, setPendingCoach] = useState<{ id: string; name: string; avatar_url: string | null } | null>(null);
   const [enrollment, setEnrollment] = useState<any>(null);
   const [allTrainerWorkouts, setAllTrainerWorkouts] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -331,6 +343,17 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
 
       if (trainerRes.data) setTrainer(trainerRes.data);
+      // The coach a request is pending with — public card only.
+      if (client.requested_trainer_id && !client.trainer_id) {
+        const { data: pc } = await supabase
+          .from('trainers_public')
+          .select('id, name, avatar_url')
+          .eq('id', client.requested_trainer_id)
+          .maybeSingle();
+        setPendingCoach(pc ? { id: pc.id, name: pc.name, avatar_url: pc.avatar_url ?? null } : { id: client.requested_trainer_id, name: 'your coach', avatar_url: null });
+      } else {
+        setPendingCoach(null);
+      }
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (workoutsRes.data) setWorkouts(workoutsRes.data);
       if (dietsRes.data) setDiets(dietsRes.data);
@@ -463,6 +486,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
   // Realtime Subscriptions
   const refreshData = useCallback(async () => {
     await fetchClientData(true);
+  }, [fetchClientData]);
+
+  const cancelCoachRequest = useCallback(async () => {
+    const { data, error } = await supabase.rpc('cancel_coach_request');
+    if (error || !data?.success) return false;
+    setPendingCoach(null);
+    await fetchClientData(true);
+    return true;
   }, [fetchClientData]);
 
   useEffect(() => {
@@ -1094,7 +1125,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
 
   return (
     <ClientContext.Provider value={{
-      loading, clientData, trainer, sessions, workouts, diets, progressLogs,
+      loading, clientData, trainer, pendingCoach, cancelCoachRequest, sessions, workouts, diets, progressLogs,
       conversation, plans, upcomingSessions, todayWorkout, enrollment, exerciseLogs, exercisePrs,
       completedWorkoutCount,
       subscription, paymentHistory, healthSharingEnabled, activeGymVisit,

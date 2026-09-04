@@ -27,7 +27,12 @@ interface Trainer {
 
 export interface Client {
   id: string;
-  trainer_id: string;
+  /** Null while the athlete is only REQUESTING this coach (see requested_trainer_id). */
+  trainer_id: string | null;
+  requested_trainer_id?: string | null;
+  coach_requested_at?: string | null;
+  coach_accepted_at?: string | null;
+  expo_push_token?: string | null;
   name: string;
   email?: string;
   phone?: string;
@@ -573,7 +578,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       try {
         const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, progressRes, healthSnapshotsRes, classesRes, liveClassesRes, logsRes] = await Promise.all([
           supabase.from('trainers').select('*').eq('id', user!.id).single(),
-          supabase.from('clients').select('*').eq('trainer_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('clients').select('*').or(`trainer_id.eq.${user!.id},requested_trainer_id.eq.${user!.id}`).order('created_at', { ascending: false }),
           supabase.from('plans').select('*').eq('trainer_id', user!.id).order('price'),
           supabase.from('sessions').select('*').eq('trainer_id', user!.id).order('date'),
           supabase.from('referrals').select('*').eq('trainer_id', user!.id).order('date', { ascending: false }),
@@ -649,7 +654,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (!user) return;
     const [trainerRes, clientsRes, plansRes, sessionsRes, referralsRes, activitiesRes, workoutsRes, exercisesRes, dietsRes, mealsRes, notifRes, cwRes, cdRes, logsRes] = await Promise.all([
       supabase.from('trainers').select('*').eq('id', user.id).single(),
-      supabase.from('clients').select('*').eq('trainer_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('clients').select('*').or(`trainer_id.eq.${user.id},requested_trainer_id.eq.${user.id}`).order('created_at', { ascending: false }),
       supabase.from('plans').select('*').eq('trainer_id', user.id).order('price'),
       supabase.from('sessions').select('*').eq('trainer_id', user.id).order('date'),
       supabase.from('referrals').select('*').eq('trainer_id', user.id).order('date', { ascending: false }),

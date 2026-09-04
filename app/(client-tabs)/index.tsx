@@ -29,6 +29,7 @@ import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Motion } from '../../constants/motion';
 import { ClientRoute } from '../../types/routes';
+import { getSoloCharacter } from '../../lib/soloCharacters';
 import { Ionicons } from '@expo/vector-icons';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
 import SquadFeed from '../../components/client-tabs/SquadFeed';
@@ -122,6 +123,7 @@ export default function AthleteTodayScreen() {
     conversation,
     loading,
     refreshData,
+    pendingCoach,
     activeGymVisit,
     checkInGym,
     checkOutGym,
@@ -137,7 +139,17 @@ export default function AthleteTodayScreen() {
   const [localConversation, setLocalConversation] = useState<any>(null);
 
   const conv = conversation || localConversation;
-  const coachFirst = firstName(trainer?.name) || 'your coach';
+  // Who "set" the plan in the copy: the human coach when there is one, the
+  // corner's character for a solo athlete, a neutral phrase otherwise.
+  const soloCharacter = !trainer && (clientData as any)?.solo_character ? getSoloCharacter((clientData as any).solo_character) : null;
+  const coachFirst = firstName(trainer?.name) || soloCharacter?.name || 'your coach';
+  // Solo athletes are not sold a coach in their first week: they just chose
+  // not to have one. After that, one quiet line — never the hero.
+  const daysOnApp = clientData?.created_at ? Math.floor((Date.now() - new Date(clientData.created_at).getTime()) / 86_400_000) : 0;
+  const soloOfferCoach = soloLeads && !trainer && !pendingCoach && daysOnApp >= 7;
+  // The coach just accepted a request: say so for a week, then stop.
+  const acceptedAt = (clientData as any)?.coach_accepted_at ? new Date((clientData as any).coach_accepted_at) : null;
+  const justAccepted = !!trainer && !!acceptedAt && Date.now() - acceptedAt.getTime() < 7 * 86_400_000;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -265,7 +277,17 @@ export default function AthleteTodayScreen() {
   }, [startWorkoutId, exercises, workoutRow]);
 
   const instruction = useMemo(() => {
-    if (!clientData || !trainer) {
+    const soloHasPlan = !!todayWorkout || (workouts || []).length > 0;
+    if (!clientData || (!trainer && !(soloLeads && soloHasPlan))) {
+      // A solo athlete whose corner is still building the week.
+      if (clientData && !trainer && soloLeads) {
+        return {
+          kind: 'solo-building' as const,
+          eyebrow: 'Your corner',
+          title: `${coachFirst} is building your week`,
+          sub: 'Open your corner and the first sessions land here, one day at a time.',
+        };
+      }
       // Leads the screen when the athlete didn't choose Solo (an explicit
       // 'coach' choice, or no choice at all — the legacy default).
       return {
@@ -695,13 +717,37 @@ export default function AthleteTodayScreen() {
 
           {/* 26a: no coach yet — the self-serve path. Solo already led this
               screen above; this is honestly the OTHER door. */}
-          {instruction.kind === 'no-coach' && (
+          {instruction.kind === 'no-coach' && !pendingCoach && (
             <>
               <Text style={st.humanLabel}>WHEN YOU WANT A HUMAN</Text>
               <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button">
                 <Text style={st.primaryBtnText}>Find a coach</Text>
               </Pressable>
             </>
+          )}
+          {instruction.kind === 'solo-building' && (
+            <Pressable style={st.primaryBtn} onPress={() => router.push(ClientRoute.solo)} accessibilityRole="button">
+              <Text style={st.primaryBtnText}>Open your corner</Text>
+            </Pressable>
+          )}
+          {/* A request is out: the plan is untouched until the coach answers. */}
+          {!trainer && pendingCoach && (
+            <Pressable style={st.pendingStrip} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="button" accessibilityLabel={`Coaching request pending with ${pendingCoach.name}`}>
+              <Ionicons name="paper-plane-outline" size={16} color={C.accent} />
+              <Text style={st.pendingText} maxFontSizeMultiplier={1.3}>
+                Request sent to {firstName(pendingCoach.name) || 'your coach'}. Your plan stays as it is until they accept.
+              </Text>
+              <Ionicons name="chevron-forward" size={15} color={C.textFaint} />
+            </Pressable>
+          )}
+          {/* The coach accepted: the programme changes hands, said plainly for a week. */}
+          {justAccepted && (
+            <View style={st.pendingStrip} accessible accessibilityLabel={`${coachFirst} took you on. Your sessions now come from them.`}>
+              <Ionicons name="checkmark-circle" size={16} color={C.accent} />
+              <Text style={st.pendingText} maxFontSizeMultiplier={1.3}>
+                {coachFirst} took you on. Your sessions now come from them; what your corner built stays in your history.
+              </Text>
+            </View>
           )}
 
           {/* The three answers */}
@@ -865,6 +911,11 @@ export default function AthleteTodayScreen() {
             <Text style={st.soloBelowLabel}>Or train solo with an AI corner</Text>
             <CornerCard />
           </View>
+        )}
+        {soloOfferCoach && (
+          <Pressable style={st.quietLink} onPress={() => router.push(ClientRoute.findCoach)} accessibilityRole="link">
+            <Text style={st.quietLinkText} maxFontSizeMultiplier={1.3}>Want a human coach some day? Browse coaches</Text>
+          </Pressable>
         )}
 
         {/* ── Client copilot — up to 4 real "what's next" rows ── */}
@@ -1150,6 +1201,15 @@ const st = StyleSheet.create({
     fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
     color: C.textFaint, marginTop: 20,
   },
+  pendingStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 12, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 14, borderCurve: 'continuous',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+  },
+  pendingText: { flex: 1, fontFamily: F.body, fontSize: 13.5, lineHeight: 19, color: C.textSecondary },
+  quietLink: { alignSelf: 'center', paddingVertical: 14, marginTop: 8 },
+  quietLinkText: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, textDecorationLine: 'underline' },
   soloBelowLabel: {
     fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 1.2,
     color: C.textFaint, marginBottom: 10,

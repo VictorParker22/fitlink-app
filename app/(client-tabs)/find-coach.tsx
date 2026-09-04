@@ -380,7 +380,7 @@ export default function FindCoachScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { clientData, refreshData } = useClient();
+  const { clientData, refreshData, pendingCoach, cancelCoachRequest } = useClient();
 
   const [step, setStep] = useState<Step>('intake');
   // Seed from onboarding once, at mount — the athlete already answered these.
@@ -404,6 +404,10 @@ export default function FindCoachScreen() {
   // with a note that their corner survives the pick.
   const alreadyLinked = !!clientData?.trainer_id;
   const soloRow = !!clientData && !clientData.trainer_id;
+  // A request already out with a coach: one at a time, and the athlete can
+  // withdraw it. Their solo plan is untouched while it is pending.
+  const pendingRequest = !alreadyLinked && !!clientData?.requested_trainer_id;
+  const [cancelling, setCancelling] = useState(false);
 
   // ── Load + rank coaches on real data only ─────────────────────────────────
   const loadMatches = useCallback(async (a: IntakeAnswers) => {
@@ -478,36 +482,10 @@ export default function FindCoachScreen() {
       const athleteName = (user.user_metadata as any)?.name || user.email?.split('@')[0] || 'Athlete';
       const athleteEmail = user.email || '';
 
-      // Same RPC the pick-a-coach signup path uses: client row + notification.
-      const { data: result, error: rpcErr } = await supabase.rpc('create_client_and_notify', {
-        p_name: athleteName,
-        p_email: athleteEmail,
-        p_trainer_id: selected.trainer.id,
-        p_phone: null,
-      });
-      if (rpcErr) throw rpcErr;
-      if (!result?.success) {
-        throw new Error(
-          result?.reason === 'already_exists'
-            ? 'You already have a coach on this account.'
-            : result?.reason || 'Could not send the request'
-        );
-      }
-      const clientId = result.client_id;
-
-      // Save the intake against the new client row (assessment_data.intake).
-      // Non-critical — the message below carries the same answers.
-      const { error: intakeErr } = await supabase
-        .from('clients')
-        .update({ assessment_data: { intake: { ...answers, source: 'marketplace' } } })
-        .eq('id', clientId);
-      if (intakeErr && __DEV__) {
-        // Non-blocking: the first message below repeats the same answers.
-        console.warn('[find-coach] intake save failed:', intakeErr.message);
-      }
-
       // First message: the athlete's answers plus their note, in the real
-      // conversation the coach will reply in.
+      // conversation the coach will reply in. The RPC writes it server-side —
+      // athletes cannot insert conversations under RLS, so the old
+      // client-side insert never reached the coach.
       const lines = [
         `Hi ${firstName(selected.trainer.name)} — I'd like to train with you.`,
         answers.goal ? `Goal: ${answers.goal}` : null,
@@ -517,25 +495,24 @@ export default function FindCoachScreen() {
       ].filter(Boolean);
       const content = lines.join('\n');
 
-      // The request itself already landed via the RPC, so a failure here does
-      // not fail the flow — but it must not vanish either.
-      const { data: conv, error: convErr } = await supabase
-        .from('conversations')
-        .insert({ client_id: clientId, trainer_id: selected.trainer.id })
-        .select()
-        .single();
-      if (convErr && __DEV__) console.warn('[find-coach] conversation create failed:', convErr.message);
-      if (conv) {
-        const { error: msgErr } = await supabase.from('messages').insert({
-          conversation_id: conv.id,
-          sender_type: 'client',
-          content,
-        });
-        if (msgErr && __DEV__) console.warn('[find-coach] intro message failed:', msgErr.message);
-        await supabase.rpc('increment_conversation_unread', {
-          conv_id: conv.id,
-          new_last_message: content,
-        }).then(undefined, () => { /* older DBs may lack the rpc */ });
+      // A REQUEST, not an attachment: the coach must accept before anything
+      // about the athlete's plan changes (request_coach RPC).
+      const { data: result, error: rpcErr } = await supabase.rpc('request_coach', {
+        p_trainer_id: selected.trainer.id,
+        p_intake: { ...answers, source: 'marketplace' },
+        p_message: content,
+        p_name: athleteName,
+        p_email: athleteEmail,
+      });
+      if (rpcErr) throw rpcErr;
+      if (!result?.success) {
+        throw new Error(
+          result?.reason === 'already_coached'
+            ? 'You already have a coach on this account.'
+            : result?.reason === 'already_pending'
+            ? 'You already have a request out. Withdraw it before sending another.'
+            : result?.reason || 'Could not send the request'
+        );
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -562,6 +539,41 @@ export default function FindCoachScreen() {
   );
 
   // ── Already linked: this path isn't for you ───────────────────────────────
+  if (pendingRequest && step !== 'sent') {
+    const who = pendingCoach?.name ? firstName(pendingCoach.name) : 'the coach';
+    const since = clientData?.coach_requested_at ? new Date(clientData.coach_requested_at) : null;
+    const days = since ? Math.max(0, Math.floor((Date.now() - since.getTime()) / 86_400_000)) : null;
+    return (
+      <View style={s.container}>
+        <Header title="Find a coach" />
+        <View style={s.centerFill}>
+          <Ionicons name="paper-plane-outline" size={43} color={C.accent} />
+          <Text style={s.emptyTitle}>Request sent to {who}</Text>
+          <Text style={s.emptyBody}>
+            {days == null ? 'Waiting on their answer.' : days === 0 ? 'Sent today.' : `Sent ${days} day${days === 1 ? '' : 's'} ago.`}
+            {' '}Nothing about your plan changes until they accept — your sessions stay exactly as they are.
+          </Text>
+          <TouchableOpacity
+            style={[s.secondaryBtn, { marginTop: 22 }]}
+            onPress={async () => {
+              if (cancelling) return;
+              setCancelling(true);
+              const ok = await cancelCoachRequest();
+              setCancelling(false);
+              if (!ok) setSendError('Could not withdraw the request. Try again.');
+            }}
+            disabled={cancelling}
+            accessibilityRole="button"
+            accessibilityLabel="Withdraw request"
+          >
+            {cancelling ? <ActivityIndicator color={C.textPrimary} /> : <Text style={s.secondaryBtnText}>Withdraw request</Text>}
+          </TouchableOpacity>
+          {sendError ? <Text style={s.errorText}>{sendError}</Text> : null}
+        </View>
+      </View>
+    );
+  }
+
   if (alreadyLinked && step !== 'sent') {
     return (
       <View style={s.container}>
@@ -1020,7 +1032,9 @@ export default function FindCoachScreen() {
         </Text>
         <Text style={s.sentBody}>
           Your answers and your note are in their inbox. Coaches usually reply within a day —
-          and the answer is theirs to give. Your Today screen will change the moment they do.
+          and the answer is theirs to give. Until they accept, nothing about your plan changes:
+          your sessions stay exactly as they are. If they take you on, we will say so here and
+          your programme will come from them.
         </Text>
         <TouchableOpacity
           style={[s.primaryBtn, { alignSelf: 'stretch', marginTop: 26 }]}
@@ -1258,6 +1272,12 @@ const s = StyleSheet.create({
     backgroundColor: C.dangerSoft, borderRadius: 12, borderCurve: 'continuous', padding: 12,
   },
   errorText: { flex: 1, fontFamily: F.body, fontSize: 14, color: C.danger },
+  secondaryBtn: {
+    minHeight: 50, paddingHorizontal: 22, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: C.borderMuted, backgroundColor: C.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  secondaryBtnText: { fontFamily: F.bodySemiBold, fontSize: 15, color: C.textPrimary },
 
   // Footer
   footer: {
