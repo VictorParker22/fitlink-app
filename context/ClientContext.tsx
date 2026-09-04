@@ -279,7 +279,9 @@ export function ClientProvider({ children }: PropsWithChildren) {
           // needs the boolean "can this coach take payments". The Stripe
           // ACCOUNT ID stays excluded — the flag is not the key.
           .select('id, name, email, phone, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, referral_code, expo_push_token, notification_prefs, onboarding_complete, stripe_onboarding_complete, created_at')
-          .eq('id', client.trainer_id).single(),
+          // Solo athletes have no trainer: a null eq is a PostgREST error,
+          // and .single() on zero rows is another. Neither should exist.
+          .eq('id', client.trainer_id ?? '00000000-0000-0000-0000-000000000000').maybeSingle(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')
           .select('*, workouts(*, workout_exercises(*, exercises(*)))')
