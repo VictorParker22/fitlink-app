@@ -103,7 +103,14 @@ Rules:
       });
     }
 
-    const availableNames = new Set((availableExercises || []).map((e: any) => String(e?.name ?? '').toLowerCase()));
+    // Match the way the app does (app/create-workout.tsx): exact, then
+    // either name containing the other, so "Barbell Bench Press" still finds
+    // "Bench Press (Barbell)". Rows that match nothing are dropped.
+    const availableNames = (availableExercises || []).map((e: any) => String(e?.name ?? '').toLowerCase()).filter(Boolean);
+    const matchesLibrary = (n: string) => {
+      const q = n.toLowerCase();
+      return availableNames.some((a) => a === q || a.includes(q) || q.includes(a));
+    };
     const exercises = (Array.isArray(raw.exercises) ? raw.exercises : [])
       .slice(0, 12)
       .map((e: any) => ({
@@ -112,7 +119,7 @@ Rules:
         reps: clampInt(e?.reps, 1, 30, 10),
         rest_seconds: clampInt(e?.rest_seconds, 20, 240, 60),
       }))
-      .filter((e: any) => e.exercise_name && (availableNames.size === 0 || availableNames.has(e.exercise_name.toLowerCase())));
+      .filter((e: any) => e.exercise_name && (availableNames.length === 0 || matchesLibrary(e.exercise_name)));
 
     const data = {
       name: clampStr(raw.name, 60, 'Custom Workout'),

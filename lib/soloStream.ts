@@ -105,7 +105,10 @@ export function streamCorner(
       let metaSent = false;
       let lastText = '';
       let settled = false;
-      const timeoutMs = opts.timeoutMs ?? 30_000;
+      // Server worst case is one 20 s generation plus a grounding rewrite;
+      // sit above that so a slow-but-alive stream is not abandoned for a
+      // third model call.
+      const timeoutMs = opts.timeoutMs ?? 50_000;
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;

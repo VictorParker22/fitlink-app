@@ -43,11 +43,12 @@ serve(async (req) => {
     const caller = await requireCaller(req);
     const admin = caller.admin;
 
-    const { data: client } = await admin
+    const { data: client, error: clientErr } = await admin
       .from('clients')
       .select('id, name, premium_until, solo_program_built_at, trainer_id')
       .eq('auth_user_id', caller.id)
       .maybeSingle();
+    if (clientErr) throw clientErr;
     if (!client) return json({ error: 'no_client' }, 404);
 
     const premiumUntil = client.premium_until ? new Date(client.premium_until) : null;
@@ -130,7 +131,10 @@ ${list}`;
     // Rebuild/adapt: clear this athlete's future solo assignments first.
     if (rebuild || adapt) {
       const today = new Date().toISOString().slice(0, 10);
-      await admin.from('client_workouts').delete().eq('client_id', client.id).is('trainer_id', null).gte('assigned_date', today);
+      // Future, not-yet-done assignments only: a session the athlete already
+      // completed today (adapt runs automatically on open) must survive.
+      await admin.from('client_workouts').delete().eq('client_id', client.id).is('trainer_id', null).gt('assigned_date', today);
+      await admin.from('client_workouts').delete().eq('client_id', client.id).is('trainer_id', null).eq('assigned_date', today).neq('status', 'completed');
     }
 
     // Spread across the next 7 days, starting tomorrow.
@@ -162,7 +166,7 @@ ${list}`;
           exercise_id: lib.id,
           order_index: order++,
           sets: clampInt(ex?.sets, 1, 6, 3),
-          reps: clampStr(ex?.reps, 12, '8-10'),
+          reps: clampStr(typeof ex?.reps === 'number' ? String(ex.reps) : ex?.reps, 12, '8-10'),
           rest_seconds: clampInt(ex?.rest_seconds, 20, 240, 75),
         });
       }

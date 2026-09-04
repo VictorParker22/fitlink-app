@@ -52,11 +52,14 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Paid boundary: clients.premium_until, service-role read.
-    const { data: clientRow } = await caller.admin
+    const { data: clientRow, error: clientErr } = await caller.admin
       .from('clients')
       .select('id, premium_until, solo_character, name, solo_summary')
       .eq('auth_user_id', caller.id)
       .maybeSingle();
+    // A schema/DB error must not masquerade as "not premium" (a 402 would
+    // send every paying athlete to the paywall).
+    if (clientErr) throw clientErr;
 
     const premiumUntil = clientRow?.premium_until ? new Date(clientRow.premium_until) : null;
     if (!premiumUntil || premiumUntil.getTime() <= Date.now()) {
@@ -125,7 +128,10 @@ serve(async (req) => {
 
     const prompt = `${persona}\n${SHARED_RULES}\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete${clientRow?.name ? ` (${clientRow.name})` : ''} data:${contextBlock || '\n(no data available yet)'}\n\nRecent conversation:\n${turns || '(first message)'}\n\nAthlete: ${message.trim()}\n\nReply as the corner:`;
 
-    const groundingSource = `${memoryBlock}\n${contextBlock}`;
+    // Numbers the athlete said themselves ("I benched 100 today") and the
+    // recent turns are legitimate sources too; only figures from nowhere
+    // count as invented.
+    const groundingSource = `${memoryBlock}\n${contextBlock}\n${turns}\n${message}`;
 
     // Grounding check: flag any number the reply states that never appeared
     // in the context it was given, and ask the model to rewrite once rather
@@ -184,7 +190,9 @@ serve(async (req) => {
     //            grounding check rewrote the reply; the client replaces what
     //            it showed with the corrected text.
     if (body?.stream === true) {
-      const streamResult = await withRetry(() => model.generateContentStream(prompt), { timeoutMs: 20000, label: 'solo-corner-stream' });
+      // No retry on the stream: the client's own timeout is the backstop, and
+      // a second attempt would run past it while the first keeps generating.
+      const streamResult = await withRetry(() => model.generateContentStream(prompt), { timeoutMs: 20000, retries: 0, label: 'solo-corner-stream' });
       const encoder = new TextEncoder();
       const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
@@ -198,7 +206,9 @@ serve(async (req) => {
               controller.enqueue(encoder.encode(piece));
             }
             const grounded = await groundReply(full);
-            if (grounded.flagged.length > 0) {
+            // Only send a tail when the text actually changed; an unchanged
+            // reply must not make the client restart speech.
+            if (grounded.flagged.length > 0 && grounded.reply.trim() !== full.trim()) {
               controller.enqueue(encoder.encode(`\n${JSON.stringify({ reply: grounded.reply, flagged: grounded.flagged })}\n`));
             }
             scheduleSummary(grounded.reply);
