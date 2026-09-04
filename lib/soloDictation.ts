@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
 type Module = {
   start: (opts: Record<string, unknown>) => void;
@@ -26,11 +27,18 @@ type Module = {
 let cached: Module | null | undefined;
 function loadModule(): Module | null {
   if (cached !== undefined) return cached;
+  cached = null;
   try {
+    // Probe the NATIVE side first. requireOptionalNativeModule returns null
+    // instead of throwing when the binary predates the module, so the JS
+    // package (whose top level calls requireNativeModule and throws) is only
+    // evaluated on builds that actually carry it. Build 28 crashed here when
+    // the package was required directly (Sentry 74f33b75, 2026-09-04).
+    if (!requireOptionalNativeModule('ExpoSpeechRecognition')) return cached;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('expo-speech-recognition');
     const m = mod?.ExpoSpeechRecognitionModule;
-    cached = m && typeof m.start === 'function' && m.isRecognitionAvailable() ? (m as Module) : null;
+    if (m && typeof m.start === 'function' && m.isRecognitionAvailable()) cached = m as Module;
   } catch {
     cached = null;
   }
