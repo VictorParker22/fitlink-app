@@ -141,7 +141,7 @@ serve(async (req) => {
       if (flagged.length === 0) return { reply: draft, flagged };
       const fixPrompt = `Your reply below states number(s) that do not appear anywhere in the athlete's data or memory: ${flagged.join(', ')}. Rewrite the reply so it states NO number that isn't in the data/memory provided. Keep the same voice, length limit, and intent. Never mention this correction to the athlete.\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete data:${contextBlock || '\n(no data available yet)'}\n\nOriginal reply:\n${draft}\n\nRewritten reply:`;
       try {
-        const fixResult = await withRetry(() => model.generateContent(fixPrompt), { timeoutMs: 20000, label: 'solo-corner-fix' });
+        const fixResult = await withRetry(() => model.generateContent(fixPrompt), { timeoutMs: 20000, retries: 0, label: 'solo-corner-fix' });
         return { reply: fixResult.response.text(), flagged };
       } catch (fixErr) {
         // The rewrite call itself failing is not fatal: ship the flagged

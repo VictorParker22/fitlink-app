@@ -373,7 +373,7 @@ export default function ClientsScreen() {
   const insets  = useSafeAreaInsets();
   const haptic  = useHaptic();
   useRenderCount('ClientsScreen');
-  const { clients, plans, notifications, refreshData, updateClient, trainer, liveHabitRows, completedWorkoutCounts } = useApp();
+  const { clients, coachRequests, plans, notifications, refreshData, updateClient, trainer, liveHabitRows, completedWorkoutCounts } = useApp();
   const { showAlert } = useAlert();
 
   const [activeTab, setActiveTab]     = useState<TabFilter>('all');
@@ -399,7 +399,7 @@ export default function ClientsScreen() {
   const inactiveCount = roster.filter(c => c.status === 'inactive').length;
 
   // ── Marketplace join requests (find-coach flow) ─────────────────────────────
-  const joinRequests = useMemo(() => clients.filter(isMarketplaceRequest), [clients]);
+  const joinRequests = coachRequests;
 
   // ── Filtered + sorted list (join requests live in their own section) ────────
   const filtered = useMemo(() => {
@@ -554,13 +554,15 @@ export default function ClientsScreen() {
     } finally {
       setRequestBusyId(null);
     }
-  }, [requestBusyId, updateClient, haptic, showAlert]);
+  }, [requestBusyId, haptic, showAlert, trainer, refreshData]);
 
   const declineRequest = useCallback(async (client: Client) => {
     setRequestBusyId(client.id);
     try {
       const { data, error } = await supabase.rpc('respond_coach_request', { p_client_id: client.id, p_accept: false });
       if (error || !data?.success) throw new Error(error?.message || data?.reason || 'decline failed');
+      // The row leaves the requests section only once the list is refetched.
+      await refreshData();
 
       // Courteous decline message in the athlete's real conversation.
       const first = toTitleCase(client.name).split(' ')[0];
@@ -620,7 +622,7 @@ export default function ClientsScreen() {
     } finally {
       setRequestBusyId(null);
     }
-  }, [updateClient, trainer, haptic, showAlert]);
+  }, [trainer, haptic, showAlert, refreshData]);
 
   const handleDeclineRequest = useCallback((client: Client) => {
     if (requestBusyId) return;

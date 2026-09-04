@@ -178,7 +178,8 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       try {
         const { customerInfo: info, transaction } = await Purchases.purchasePackage(pkg) as any;
         setCustomerInfo(info);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // The paywall that called us owns the success moment (haptic + pulse);
+        // firing here too doubled the notification.
 
         // ── Layers purchase events ───────────────────────────────────────────
         const productId = pkg.product.identifier;
@@ -238,7 +239,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       setCustomerInfo(info);
       const hasActive =
         Object.keys(info.entitlements.active).length > 0;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hasActive) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return { success: true, restored: hasActive };
     } catch (err: any) {
       if (__DEV__) console.warn('[RevenueCat] Restore error:', err);

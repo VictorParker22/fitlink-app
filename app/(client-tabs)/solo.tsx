@@ -877,7 +877,7 @@ export default function SoloScreen() {
               blurOnSubmit={false}
               accessibilityLabel={`Message ${character.name}`}
             />
-            {dictation.available && !input.trim() ? (
+            {dictation.available && (dictation.listening || !input.trim()) ? (
               <TouchableOpacity
                 style={[s.sendBtn, dictation.listening ? s.micBtnLive : null]}
                 onPressIn={onHoldStart}

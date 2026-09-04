@@ -194,6 +194,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const resetAthleteState = useCallback(() => {
     setClientData(null);
     setTrainer(null);
+    setPendingCoach(null);
     setEnrollment(null);
     setAllTrainerWorkouts([]);
     setSessions([]);

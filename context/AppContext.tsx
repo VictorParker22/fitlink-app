@@ -350,6 +350,8 @@ interface AppContextType {
   loading: boolean;
   trainer: Trainer | null;
   clients: Client[];
+  /** Athletes asking to be coached by this trainer (not roster yet). */
+  coachRequests: Client[];
   sessions: Session[];
   activities: Activity[];
   plans: Plan[];
@@ -461,7 +463,7 @@ interface AppContextType {
 // lives in exactly one slice; useApp() composes them for the legacy consumers.
 
 export type AppClientsSlice = Pick<AppContextType,
-  | 'clients' | 'activeClients' | 'trialClients' | 'inactiveClients'
+  | 'clients' | 'coachRequests' | 'activeClients' | 'trialClients' | 'inactiveClients'
   | 'addClient' | 'updateClient' | 'upgradeClientToPlan' | 'extendClientTrial'
   | 'updateClientAssessment' | 'getClientById' | 'refreshClients'
   | 'enrollClientInPlan' | 'pauseEnrollment' | 'resumeEnrollment' | 'getClientEnrollment'
@@ -554,7 +556,13 @@ export const sanitizeCategory = (cat?: string): string => {
 export function AppProvider({ children }: PropsWithChildren) {
   const { user, signOut } = useAuth();
   const [trainer, setTrainer] = useState<Trainer | null>(null);
-  const [clients, setClients] = useState<Client[]>([]);
+  // Every row the coach may see: their roster plus athletes REQUESTING them.
+  // Consumers get the two apart: `clients` is the roster only (a request is
+  // not a client yet — it must not count, celebrate, nudge or take a seat),
+  // `coachRequests` is the pending requests.
+  const [allClientRows, setClients] = useState<Client[]>([]);
+  const clients = useMemo(() => allClientRows.filter((c) => !!c.trainer_id), [allClientRows]);
+  const coachRequests = useMemo(() => allClientRows.filter((c) => !c.trainer_id && !!c.requested_trainer_id), [allClientRows]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -2223,6 +2231,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   const clientsSlice: AppClientsSlice = useMemo(() => ({
     clients,
+    coachRequests,
     activeClients,
     trialClients,
     inactiveClients,
@@ -2252,7 +2261,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     getClientHealthSnapshot,
     requestHealthAccess,
   }), [
-    clients, activeClients, trialClients, inactiveClients,
+    clients, coachRequests, activeClients, trialClients, inactiveClients,
     addClient, updateClient, upgradeClientToPlan, extendClientTrial,
     updateClientAssessment, getClientById, refreshClients,
     enrollClientInPlan, pauseEnrollment, resumeEnrollment, getClientEnrollment,
