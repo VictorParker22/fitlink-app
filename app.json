@@ -261,6 +261,13 @@
           "project": "react-native",
           "organization": "fitlink-px"
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "FitLink uses the microphone to record audio for your exercise videos, to carry your voice during live classes, and to hear you when you hold to talk to your Solo corner.",
+          "speechRecognitionPermission": "FitLink turns what you say into text so your Solo corner can answer you. Nothing is stored beyond the reply."
+        }
       ]
     ],
     "updates": {

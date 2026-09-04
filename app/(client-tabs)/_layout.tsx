@@ -15,7 +15,6 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import WorkoutMiniPlayer from '../../components/WorkoutMiniPlayer';
@@ -73,7 +72,6 @@ function AthleteTabBar({ state, navigation }: any) {
 
   const handlePress = useCallback(
     (routeName: string, routeKey: string) => {
-      Haptics.selectionAsync();
       const event = navigation.emit({ type: 'tabPress', target: routeKey, canPreventDefault: true });
       if (!event.defaultPrevented) navigation.navigate(routeName);
     },

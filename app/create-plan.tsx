@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
-import PassPublishedOverlay from '../components/coach/PassPublishedOverlay';
+import CelebrationOverlay from '../components/CelebrationOverlay';
 import { formatRun, formatDeadline, parseLocalDay } from '../lib/cohort';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../lib/platformFee';
@@ -1607,10 +1607,17 @@ export default function CreatePassScreen() {
 
       {/* ── Publish celebration — in-screen overlay, never a native Modal ── */}
       {published && (
-        <PassPublishedOverlay
-          planName={name.trim() || 'Your pass'}
-          offersSent={published.offersSent}
-          onDone={() => router.back()}
+        <CelebrationOverlay
+          visible={!!published}
+          kind="pass-published"
+          title={name.trim() || 'Your pass'}
+          subtitle={
+            published.offersSent > 0
+              ? `${published.offersSent} athlete${published.offersSent === 1 ? '' : 's'} just got a message from you — watch your inbox for replies.`
+              : 'Athletes can take it from your Passes tab whenever you offer it.'
+          }
+          primary={{ label: 'Done', onPress: () => router.back() }}
+          onDismiss={() => router.back()}
         />
       )}
     </View>

@@ -501,7 +501,7 @@ export default function ExploreClassesScreen() {
         <TouchableOpacity
           style={s.sortBtn}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Haptics.selectionAsync();
             setShowSortModal(true);
           }}
           activeOpacity={0.6}
@@ -656,7 +656,7 @@ export default function ExploreClassesScreen() {
       <TouchableOpacity
         style={[s.filterFab, { bottom: insets.bottom + 130 }]}
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          Haptics.selectionAsync();
           setShowFilterModal(true);
         }}
         activeOpacity={0.85}

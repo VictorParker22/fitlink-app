@@ -145,21 +145,33 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagHeader}>Activity calendar</Text>
+      <Text style={styles.tagHeader} maxFontSizeMultiplier={1.2}>Activity calendar</Text>
 
       <View style={styles.navRow}>
-        <TouchableOpacity hitSlop={6} onPress={handlePrevMonth} style={styles.navBtn}>
+        <TouchableOpacity
+          hitSlop={6}
+          onPress={handlePrevMonth}
+          style={styles.navBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+        >
           <Ionicons name="chevron-back" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.monthLabel}>{getMonthName(calMonth)}, {calYear}</Text>
-        <TouchableOpacity hitSlop={6} onPress={handleNextMonth} style={styles.navBtn}>
+        <Text style={styles.monthLabel} maxFontSizeMultiplier={1.4}>{getMonthName(calMonth)}, {calYear}</Text>
+        <TouchableOpacity
+          hitSlop={6}
+          onPress={handleNextMonth}
+          style={styles.navBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+        >
           <Ionicons name="chevron-forward" size={18} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.daysHeader}>
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <Text key={i} style={styles.dayHeaderText}>{d}</Text>
+          <Text key={i} style={styles.dayHeaderText} maxFontSizeMultiplier={1.2}>{d}</Text>
         ))}
       </View>
 
@@ -193,11 +205,14 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
                 isFuture ? styles.futureCell : { backgroundColor: bgColor },
                 isToday && styles.todayCell
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${getMonthName(calMonth)} ${cell}, ${calYear}`}
+              accessibilityState={{ selected: isSelected }}
             >
               {isToday && (
                 <Animated.View style={[styles.todayGlow, { opacity: glowAnim }]} />
               )}
-              <Text style={[styles.cellText, isSelected && styles.selectedCellText]}>{cell}</Text>
+              <Text style={[styles.cellText, isSelected && styles.selectedCellText]} maxFontSizeMultiplier={1.2}>{cell}</Text>
             </TouchableOpacity>
           );
         })}
@@ -224,28 +239,28 @@ export function ActivityHeatmapCalendar({ activityMap, workouts }: ActivityHeatm
 
       <View style={styles.statsRow}>
         <View style={styles.pill}>
-          <Text style={styles.pillNumber}>{activeDays}</Text>
-          <Text style={styles.pillLabel}>Active days</Text>
+          <Text style={styles.pillNumber} maxFontSizeMultiplier={1.2}>{activeDays}</Text>
+          <Text style={styles.pillLabel} maxFontSizeMultiplier={1.2}>Active days</Text>
         </View>
         <View style={styles.pill}>
-          <Text style={styles.pillNumber}>{workoutCount}</Text>
-          <Text style={styles.pillLabel}>Workouts</Text>
+          <Text style={styles.pillNumber} maxFontSizeMultiplier={1.2}>{workoutCount}</Text>
+          <Text style={styles.pillLabel} maxFontSizeMultiplier={1.2}>Workouts</Text>
         </View>
         <View style={styles.pill}>
-          <Text style={styles.pillNumber}>{bestStreak}</Text>
-          <Text style={styles.pillLabel}>Best streak</Text>
+          <Text style={styles.pillNumber} maxFontSizeMultiplier={1.2}>{bestStreak}</Text>
+          <Text style={styles.pillLabel} maxFontSizeMultiplier={1.2}>Best streak</Text>
         </View>
       </View>
 
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>Less</Text>
+        <Text style={styles.legendText} maxFontSizeMultiplier={1.2}>Less</Text>
         <LinearGradient
           colors={[CoachColors.bg, CoachColors.accent]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.legendBar}
         />
-        <Text style={styles.legendText}>More</Text>
+        <Text style={styles.legendText} maxFontSizeMultiplier={1.2}>More</Text>
       </View>
     </View>
   );

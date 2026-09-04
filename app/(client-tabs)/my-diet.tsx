@@ -36,6 +36,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -432,27 +433,88 @@ export default function AthleteFoodScreen() {
         </View>
         <View style={[st.center, { flex: 1, paddingHorizontal: 32, paddingBottom: 120 }]}>
           <View style={st.emptyIcon}>
-            <Ionicons name="restaurant-outline" size={29} color={C.textFaint} />
+            <Ionicons name="restaurant-outline" size={22} color={C.accent} />
           </View>
           <Text style={st.emptyTitle}>No meal plan yet</Text>
-          <Text style={st.emptyText}>
+          <Text style={st.emptyText} numberOfLines={2}>
             {trainer
-              ? `${coachFirst} hasn't put a plan on your account. Once one lands, today's meals — and how much room you have left — show up here.`
-              : 'Once a coach takes you on and writes a meal plan, it shows up here.'}
+              ? `${coachFirst} hasn't put a plan on your account yet.`
+              : 'Track food yourself in the AI corner until a coach takes you on.'}
           </Text>
-          {trainer && (
-            <Pressable hitSlop={{ top: 2, bottom: 2 }} style={st.emptyBtn} onPress={() => router.push(ClientRoute.myMessages)} accessibilityRole="button">
-              <Text style={st.emptyBtnText}>Ask {coachFirst} about food</Text>
-            </Pressable>
-          )}
+          <Pressable
+            hitSlop={{ top: 2, bottom: 2 }}
+            style={st.emptyBtn}
+            onPress={() => router.push(trainer ? ClientRoute.myMessages : ClientRoute.solo)}
+            accessibilityRole="button"
+          >
+            <Text style={st.emptyBtnText}>{trainer ? `Ask ${coachFirst} about food` : 'Open the corner'}</Text>
+          </Pressable>
         </View>
       </View>
     );
   }
 
+  // One meal row — real macros, real swap state, the shared MealCard.
+  const renderMeal = (m: (typeof dayMeals)[number]) => {
+    const logged = !!logs[m.key];
+    const swapMeal = logs[m.key]?.swapMealId ? swapMealsById[logs[m.key].swapMealId!] : null;
+    const isNext = m.key === nextKey;
+    const resolvedSwaps = (m.swapEntry?.allowedMealIds || []).filter((id) => swapMealsById[id]);
+    const canSwap = !!m.swapEntry && (resolvedSwaps.length > 0 || m.swapEntry.allowOwnLog);
+    const slotName = m.slotLabel || m.mealTime || 'Meal';
+
+    // A swapped log shows the meal actually eaten, with its own macros
+    // and its own photo — same values the room-left maths counted.
+    const shown = swapMeal
+      ? {
+          id: swapMeal.id as string,
+          name: swapMeal.name as string,
+          calories: realOrNull(swapMeal.calories),
+          protein: realOrNull(swapMeal.protein),
+          image_url: swapMeal.image_url || null,
+          image_color: swapMeal.image_color || null,
+        }
+      : {
+          id: m.mealId,
+          name: m.name,
+          calories: realOrNull(m.calories),
+          protein: realOrNull(m.protein),
+          image_url: m.imageUrl,
+          image_color: m.imageColor,
+        };
+
+    const slotLine = [
+      isNext ? `Next up · ${slotName}` : slotName,
+      swapMeal ? 'swapped' : null,
+    ].filter(Boolean).join(' · ');
+
+    return (
+      <MealCard
+        meal={shown}
+        slot={slotLine}
+        logged={logged}
+        actionHint={logged ? 'unlog it' : 'log it as eaten'}
+        onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
+        onSwap={canSwap ? () => setSwapSheetKey(m.key) : undefined}
+        swapLabel={
+          `Swap ${m.name}` +
+          (resolvedSwaps.length > 0
+            ? `, ${resolvedSwaps.length} option${resolvedSwaps.length === 1 ? '' : 's'}`
+            : '')
+        }
+        reduceMotion={reduceMotion}
+      />
+    );
+  };
+
   return (
     <View style={st.container}>
-      <ScrollView keyboardShouldPersistTaps="handled"
+      <FlashList
+        keyboardShouldPersistTaps="handled"
+        data={dayMeals}
+        keyExtractor={(m) => m.key}
+        renderItem={({ item }) => renderMeal(item)}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130, paddingHorizontal: 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
@@ -461,125 +523,72 @@ export default function AthleteFoodScreen() {
           setStickyVisible((prev) => (prev === past ? prev : past));
         }}
         scrollEventThrottle={32}
-      >
-        {/* Header */}
-        <Text style={st.title}>Food</Text>
-        <Text style={st.subtitle}>
-          {weekdayLine}
-          {week ? ` · ${isTrainingDay ? 'training day' : 'rest day'}` : ''}
-        </Text>
+        ListHeaderComponent={
+          <>
+            <Text style={st.title}>Food</Text>
+            <Text style={st.subtitle}>
+              {weekdayLine}
+              {week ? ` · ${isTrainingDay ? 'training day' : 'rest day'}` : ''}
+            </Text>
 
-        {/* ── Room left ── */}
-        <View
-          style={st.roomCard}
-          onLayout={(e) => {
-            // The pinned meter takes over once this card scrolls out of view.
-            roomCardBottomRef.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height - insets.top;
-          }}
-          accessible={true}
-          accessibilityLabel={`${Math.abs(kcalLeft).toLocaleString()} calories ${kcalLeft >= 0 ? 'left' : 'over'} of ${target.kcal.toLocaleString()}. Protein ${consumed.p} of ${target.p} grams, carbs ${consumed.c} of ${target.c} grams, fat ${consumed.f} of ${target.f} grams`}
-        >
-          <View style={st.roomTopRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-              <Text style={st.roomBig}>{Math.abs(kcalLeft).toLocaleString()}</Text>
-              <Text style={st.roomBigLabel}>{kcalLeft >= 0 ? 'kcal left' : 'kcal over'}</Text>
+            {/* ── Room left ── */}
+            <View
+              style={st.roomCard}
+              onLayout={(e) => {
+                // The pinned meter takes over once this card scrolls out of view.
+                roomCardBottomRef.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height - insets.top;
+              }}
+              accessible={true}
+              accessibilityLabel={`${Math.abs(kcalLeft).toLocaleString()} calories ${kcalLeft >= 0 ? 'left' : 'over'} of ${target.kcal.toLocaleString()}. Protein ${consumed.p} of ${target.p} grams, carbs ${consumed.c} of ${target.c} grams, fat ${consumed.f} of ${target.f} grams`}
+            >
+              <View style={st.roomTopRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                  <Text style={st.roomBig}>{Math.abs(kcalLeft).toLocaleString()}</Text>
+                  <Text style={st.roomBigLabel}>{kcalLeft >= 0 ? 'kcal left' : 'kcal over'}</Text>
+                </View>
+                <Text style={st.roomOf}>of {target.kcal.toLocaleString()}</Text>
+              </View>
+              <View style={st.roomBarTrack}>
+                <Animated.View style={[st.roomBarFill, fillStyle, kcalLeft < 0 && { backgroundColor: C.warning }]} />
+              </View>
+              <View style={st.macroRow}>
+                {([
+                  ['Protein', consumed.p, target.p, C.accent],
+                  ['Carbs', consumed.c, target.c, CARB_GREY],
+                  ['Fat', consumed.f, target.f, FAT_GREY],
+                ] as const).map(([label, val, tgt, color]) => (
+                  <View key={label} style={{ flex: 1 }}>
+                    <View style={st.macroLabelRow}>
+                      <Text style={st.macroLabel}>{label}</Text>
+                      <Text style={st.macroVal}>
+                        {val}
+                        <Text style={st.macroValMuted}>/{tgt}</Text>
+                      </Text>
+                    </View>
+                    <View style={st.macroBarTrack}>
+                      <View style={[st.macroBarFill, { width: `${pct(val, tgt)}%`, backgroundColor: color }]} />
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
-            <Text style={st.roomOf}>of {target.kcal.toLocaleString()}</Text>
-          </View>
-          <View style={st.roomBarTrack}>
-            <Animated.View style={[st.roomBarFill, fillStyle, kcalLeft < 0 && { backgroundColor: C.warning }]} />
-          </View>
-          <View style={st.macroRow}>
-            {([
-              ['Protein', consumed.p, target.p, C.accent],
-              ['Carbs', consumed.c, target.c, CARB_GREY],
-              ['Fat', consumed.f, target.f, FAT_GREY],
-            ] as const).map(([label, val, tgt, color]) => (
-              <View key={label} style={{ flex: 1 }}>
-                <View style={st.macroLabelRow}>
-                  <Text style={st.macroLabel}>{label}</Text>
-                  <Text style={st.macroVal}>
-                    {val}
-                    <Text style={st.macroValMuted}>/{tgt}</Text>
+
+            {/* ── Free-meal day callout ── */}
+            {isFreeMealDay && (
+              <View style={st.freeCard}>
+                <Ionicons name="pizza-outline" size={18} color={C.warning} style={{ marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={st.freeTitle}>{DAY_NAMES[todayKey]} dinner is off the books</Text>
+                  <Text style={st.freeText}>
+                    One free meal a week — {coachFirst}'s orders. Eat it, enjoy it, don't log it.
                   </Text>
                 </View>
-                <View style={st.macroBarTrack}>
-                  <View style={[st.macroBarFill, { width: `${pct(val, tgt)}%`, backgroundColor: color }]} />
-                </View>
               </View>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Free-meal day callout ── */}
-        {isFreeMealDay && (
-          <View style={st.freeCard}>
-            <Ionicons name="pizza-outline" size={18} color={C.warning} style={{ marginTop: 1 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.freeTitle}>{DAY_NAMES[todayKey]} dinner is off the books</Text>
-              <Text style={st.freeText}>
-                One free meal a week — {coachFirst}'s orders. Eat it, enjoy it, don't log it.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── Meals (design turn 24: tinted recipe cards) ── */}
-        <View style={{ gap: 12, marginTop: 15 }}>
-          {dayMeals.map((m) => {
-            const logged = !!logs[m.key];
-            const swapMeal = logs[m.key]?.swapMealId ? swapMealsById[logs[m.key].swapMealId!] : null;
-            const isNext = m.key === nextKey;
-            const resolvedSwaps = (m.swapEntry?.allowedMealIds || []).filter((id) => swapMealsById[id]);
-            const canSwap = !!m.swapEntry && (resolvedSwaps.length > 0 || m.swapEntry.allowOwnLog);
-            const slotName = m.slotLabel || m.mealTime || 'Meal';
-
-            // A swapped log shows the meal actually eaten, with its own macros
-            // and its own photo — same values the room-left maths counted.
-            const shown = swapMeal
-              ? {
-                  id: swapMeal.id as string,
-                  name: swapMeal.name as string,
-                  calories: realOrNull(swapMeal.calories),
-                  protein: realOrNull(swapMeal.protein),
-                  image_url: swapMeal.image_url || null,
-                  image_color: swapMeal.image_color || null,
-                }
-              : {
-                  id: m.mealId,
-                  name: m.name,
-                  calories: realOrNull(m.calories),
-                  protein: realOrNull(m.protein),
-                  image_url: m.imageUrl,
-                  image_color: m.imageColor,
-                };
-
-            const slotLine = [
-              isNext ? `Next up · ${slotName}` : slotName,
-              swapMeal ? 'swapped' : null,
-            ].filter(Boolean).join(' · ');
-
-            return (
-              <MealCard
-                key={m.key}
-                meal={shown}
-                slot={slotLine}
-                logged={logged}
-                actionHint={logged ? 'unlog it' : 'log it as eaten'}
-                onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
-                onSwap={canSwap ? () => setSwapSheetKey(m.key) : undefined}
-                swapLabel={
-                  `Swap ${m.name}` +
-                  (resolvedSwaps.length > 0
-                    ? `, ${resolvedSwaps.length} option${resolvedSwaps.length === 1 ? '' : 's'}`
-                    : '')
-                }
-                reduceMotion={reduceMotion}
-              />
-            );
-          })}
-        </View>
-      </ScrollView>
+            )}
+            <View style={{ height: 15 }} />
+          </>
+        }
+      />
 
       {/* ── Pinned meter — instant feedback wherever the athlete is.
           pointerEvents none: purely informational, taps pass through. ── */}
@@ -876,15 +885,16 @@ const st = StyleSheet.create({
   useBtnText: { fontFamily: F.bodyBold, fontSize: 15.5, color: C.onAccent },
   sheetFootnote: { fontFamily: F.body, fontSize: 12.5, color: C.textFaint, textAlign: 'center', marginTop: 9 },
 
-  // Empty state
+  // Empty state — icon tile 42pt accentSoft, Space Grotesk title, one
+  // Epilogue line, one honest action.
   emptyIcon: {
-    width: 64, height: 64, borderRadius: 32, borderCurve: 'continuous', backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
+    width: 42, height: 42, borderRadius: 12, borderCurve: 'continuous', backgroundColor: C.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
   },
-  emptyTitle: { fontFamily: F.headingBold, fontSize: 20, color: C.textPrimary, marginTop: 16 },
+  emptyTitle: { fontFamily: F.headingSemiBold, fontSize: 17, color: C.textPrimary, marginTop: 14 },
   emptyText: {
-    fontFamily: F.body, fontSize: 14.5, color: C.textSecondary,
-    textAlign: 'center', marginTop: 8, lineHeight: 21.5,
+    fontFamily: F.body, fontSize: 14, color: C.textMuted,
+    textAlign: 'center', marginTop: 6, lineHeight: 20,
   },
   emptyBtn: {
     borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',

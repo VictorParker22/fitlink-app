@@ -98,13 +98,18 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
         <View style={st.titleRow}>
           <View style={st.badge}>
             <Ionicons name="sparkles" size={13} color={CoachColors.accent} />
-            <Text style={st.badgeText}>Get started</Text>
+            <Text style={st.badgeText} maxFontSizeMultiplier={1.2}>Get started</Text>
           </View>
-          <TouchableOpacity onPress={handleDismiss} hitSlop={10}>
-            <Text style={st.dismissText}>Dismiss</Text>
+          <TouchableOpacity
+            onPress={handleDismiss}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss welcome guide"
+          >
+            <Text style={st.dismissText} maxFontSizeMultiplier={1.2}>Dismiss</Text>
           </TouchableOpacity>
         </View>
-        <Text style={st.title}>Welcome to FitLink</Text>
+        <Text style={st.title} maxFontSizeMultiplier={1.3}>Welcome to FitLink</Text>
         <Text style={st.subtitle}>
           {allCompleted
             ? "You're all set! Enjoy your high-performance training."
@@ -123,11 +128,16 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
                 style={[st.stepCard, isDone && st.stepCardDone]}
                 onPress={() => router.push(step.route as any)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${step.title}. ${step.subtitle}`}
               >
                 <TouchableOpacity
                   style={st.checkbox}
                   onPress={() => toggleStep(step.id)}
                   hitSlop={8}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`Mark ${step.title} as done`}
+                  accessibilityState={{ checked: isDone }}
                 >
                   <Ionicons
                     name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
@@ -141,8 +151,8 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
                 </View>
 
                 <View style={st.stepInfo}>
-                  <Text style={[st.stepTitle, isDone && st.stepTextDone]}>{step.title}</Text>
-                  <Text style={st.stepSubtitle} numberOfLines={1}>{step.subtitle}</Text>
+                  <Text style={[st.stepTitle, isDone && st.stepTextDone]} maxFontSizeMultiplier={1.4}>{step.title}</Text>
+                  <Text style={st.stepSubtitle} numberOfLines={1} maxFontSizeMultiplier={1.4}>{step.subtitle}</Text>
                 </View>
 
                 <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
@@ -162,7 +172,7 @@ export default function WelcomeGuide({ visible }: { visible: boolean }) {
             ]}
           />
         </View>
-        <Text style={st.progressText}>
+        <Text style={st.progressText} maxFontSizeMultiplier={1.2}>
           {completedSteps.length}/{STEPS.length} completed
         </Text>
       </View>

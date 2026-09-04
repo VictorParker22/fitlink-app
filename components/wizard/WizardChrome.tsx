@@ -60,8 +60,8 @@ interface WizardHeadingProps {
 export function WizardHeading({ kicker, title }: WizardHeadingProps) {
   return (
     <View style={s.heading}>
-      <Text style={s.kicker} maxFontSizeMultiplier={1.4}>{kicker}</Text>
-      <Text style={s.title} maxFontSizeMultiplier={1.4}>{title}</Text>
+      <Text style={s.kicker} maxFontSizeMultiplier={1.2}>{kicker}</Text>
+      <Text style={s.title} maxFontSizeMultiplier={1.3}>{title}</Text>
     </View>
   );
 }
@@ -84,7 +84,7 @@ export function GhostSlot({ label, onPress, icon = 'add', height = 52 }: GhostSl
       accessibilityLabel={label}
     >
       <Ionicons name={icon} size={15} color={CoachColors.textFaint} />
-      <Text style={s.ghostText} maxFontSizeMultiplier={1.3}>{label}</Text>
+      <Text style={s.ghostText} maxFontSizeMultiplier={1.4}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -94,7 +94,7 @@ export function TakingShape({ label = 'Taking shape' }: { label?: string }) {
   return (
     <View style={s.shapeRow}>
       <View style={s.shapeLine} />
-      <Text style={s.shapeText} maxFontSizeMultiplier={1.3}>{label.toUpperCase()}</Text>
+      <Text style={s.shapeText} maxFontSizeMultiplier={1.2}>{label.toUpperCase()}</Text>
       <View style={s.shapeLine} />
     </View>
   );

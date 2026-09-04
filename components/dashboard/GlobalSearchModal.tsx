@@ -169,13 +169,24 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity hitSlop={12} onPress={() => setSearchQuery('')}>
+                <TouchableOpacity
+                  hitSlop={12}
+                  onPress={() => setSearchQuery('')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
                   <Ionicons name="close-circle" size={22} color={CoachColors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={handleClose} style={st.searchCancel}>
-              <Text style={st.searchCancelText}>Cancel</Text>
+            <TouchableOpacity
+              hitSlop={{ top: 6, bottom: 6 }}
+              onPress={handleClose}
+              style={st.searchCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel search"
+            >
+              <Text style={st.searchCancelText} maxFontSizeMultiplier={1.2}>Cancel</Text>
             </TouchableOpacity>
           </View>
 
@@ -183,7 +194,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           {searchQuery.trim() === '' ? (
             <View style={st.searchEmptyState}>
               <Ionicons name="search" size={63} color={CoachColors.textFaint} />
-              <Text style={st.searchEmptyTitle}>Search FitLink</Text>
+              <Text style={st.searchEmptyTitle} maxFontSizeMultiplier={1.3}>Search FitLink</Text>
               <Text style={st.searchEmptySubtitle}>Find clients, sessions, plans, and more</Text>
               {/* Recent / Suggestions */}
               <View style={st.searchSuggestions}>
@@ -193,9 +204,17 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
                   { label: 'Programs', icon: 'document-text', onPress: () => closeThenGo('/(tabs)/programs') },
                   { label: 'Messages', icon: 'chatbubble', onPress: () => closeThenGo('/(tabs)/messages') },
                 ].map((s, i) => (
-                  <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} key={i} style={st.searchSuggestionChip} onPress={s.onPress} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    hitSlop={{ top: 4, bottom: 4 }}
+                    key={i}
+                    style={st.searchSuggestionChip}
+                    onPress={s.onPress}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Go to ${s.label}`}
+                  >
                     <Ionicons name={s.icon as any} size={18} color={CoachColors.textSecondary} />
-                    <Text style={st.searchSuggestionText}>{s.label}</Text>
+                    <Text style={st.searchSuggestionText} maxFontSizeMultiplier={1.2}>{s.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -203,7 +222,7 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
           ) : searchResults.length === 0 ? (
             <View style={st.searchEmptyState}>
               <Ionicons name="search-outline" size={54} color={CoachColors.textFaint} />
-              <Text style={st.searchEmptyTitle}>No results</Text>
+              <Text style={st.searchEmptyTitle} maxFontSizeMultiplier={1.3}>No results</Text>
               <Text style={st.searchEmptySubtitle}>Try a different search term</Text>
             </View>
           ) : (
@@ -216,18 +235,24 @@ export default function GlobalSearchModal({ visible, onClose }: GlobalSearchModa
               renderSectionHeader={({ section }) => (
                 <View style={st.searchSectionHeader}>
                   <Ionicons name={section.icon as any} size={16} color={CoachColors.textMuted} />
-                  <Text style={st.searchSectionTitle}>{section.title}</Text>
-                  <Text style={st.searchSectionCount}>{section.data.length}</Text>
+                  <Text style={st.searchSectionTitle} maxFontSizeMultiplier={1.2}>{section.title}</Text>
+                  <Text style={st.searchSectionCount} maxFontSizeMultiplier={1.2}>{section.data.length}</Text>
                 </View>
               )}
               renderItem={({ item }) => (
-                <TouchableOpacity style={st.searchResultItem} onPress={item.onPress} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={st.searchResultItem}
+                  onPress={item.onPress}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.title}`}
+                >
                   <View style={st.searchResultIcon}>
                     <Ionicons name={item.icon as any} size={20} color={CoachColors.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={st.searchResultTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={st.searchResultSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+                    <Text style={st.searchResultTitle} numberOfLines={1} maxFontSizeMultiplier={1.4}>{item.title}</Text>
+                    <Text style={st.searchResultSubtitle} numberOfLines={1} maxFontSizeMultiplier={1.4}>{item.subtitle}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={CoachColors.textFaint} />
                 </TouchableOpacity>

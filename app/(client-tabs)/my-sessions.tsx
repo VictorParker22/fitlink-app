@@ -199,7 +199,7 @@ function EmptyState({
         pose="welcome"
         title="No sessions on the calendar"
         subtitle={`Sessions are scheduled by ${coachName}. A message is how one gets on the calendar.`}
-        actionLabel={`Message ${coachName}`}
+        actionLabel={`Ask ${coachName}`}
         onAction={onMessageCoach}
       />
     );
@@ -208,8 +208,8 @@ function EmptyState({
     <BoltEmptyState
       pose="welcome"
       title="No sessions yet"
-      subtitle="Sessions land here once a coach takes you on."
-      actionLabel="Find a coach"
+      subtitle="Sessions land here once a coach takes you on. Train solo with the AI corner until then."
+      actionLabel="Open the corner"
       onAction={onFindCoach}
     />
   );
@@ -464,7 +464,7 @@ export default function MySessionsScreen() {
         {!hasAnyData ? (
           <EmptyState
               coachName={coachFirst}
-              onFindCoach={() => router.push(ClientRoute.findCoach)}
+              onFindCoach={() => router.push(ClientRoute.solo)}
               onMessageCoach={() => router.push(ClientRoute.myMessages)}
             />
         ) : (
@@ -497,7 +497,7 @@ export default function MySessionsScreen() {
                 {upcomingSessions.length === 0 && (
                   <EmptyState
               coachName={coachFirst}
-              onFindCoach={() => router.push(ClientRoute.findCoach)}
+              onFindCoach={() => router.push(ClientRoute.solo)}
               onMessageCoach={() => router.push(ClientRoute.myMessages)}
             />
                 )}

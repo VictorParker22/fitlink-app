@@ -161,7 +161,7 @@ function PassCard({
         <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpanded(v => !v); }}
+          onPress={() => { Haptics.selectionAsync(); setExpanded(v => !v); }}
         >
           <Text style={[passStyles.footerBtnText, autoflowActive && { color: CoachColors.accent }]}>
             {expanded ? 'Close' : 'Autoflow'}

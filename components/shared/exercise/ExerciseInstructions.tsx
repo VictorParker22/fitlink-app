@@ -105,6 +105,8 @@ export default function ExerciseInstructions({
           onPress={handleSpeak}
           activeOpacity={0.7}
           disabled={isLoadingAudio}
+          accessibilityRole="button"
+          accessibilityLabel={isLoadingAudio ? 'Generating audio' : isSpeaking ? 'Stop audio playback' : 'Play exercise instructions aloud'}
         >
           {isLoadingAudio ? (
             <ActivityIndicator size="small" color={CoachColors.onAccent} />
@@ -115,7 +117,7 @@ export default function ExerciseInstructions({
               color={(isSpeaking || isLoadingAudio) ? CoachColors.onAccent : CoachColors.accent}
             />
           )}
-          <Text style={[styles.voiceBtnText, (isSpeaking || isLoadingAudio) && styles.voiceBtnTextActive]}>
+          <Text style={[styles.voiceBtnText, (isSpeaking || isLoadingAudio) && styles.voiceBtnTextActive]} maxFontSizeMultiplier={1.2}>
             {isLoadingAudio ? 'Generating...' : isSpeaking ? 'Stop' : 'Listen'}
           </Text>
         </TouchableOpacity>
@@ -124,9 +126,12 @@ export default function ExerciseInstructions({
           style={styles.showTextBtn}
           onPress={() => setShowText(!showText)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={showText ? 'Hide instructions text' : 'Show instructions text'}
+          accessibilityState={{ expanded: showText }}
         >
           <Ionicons name={showText ? 'eye-off-outline' : 'document-text-outline'} size={18} color={CoachColors.textSecondary} />
-          <Text style={styles.showTextBtnText}>
+          <Text style={styles.showTextBtnText} maxFontSizeMultiplier={1.2}>
             {showText ? 'Hide text' : 'Read instructions'}
           </Text>
         </TouchableOpacity>

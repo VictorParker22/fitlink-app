@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 // ─── Question model ───────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ const DAY_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
 export default function ClientOnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
 
   const [step, setStep] = useState(0);
   const [coachFirst, setCoachFirst] = useState<string | null>(null);
@@ -181,6 +183,11 @@ export default function ClientOnboardingScreen() {
   }, [done, coachless]);
 
   const animateTo = (nextStep: number) => {
+    if (reduceMotion) {
+      setStep(nextStep);
+      slideAnim.setValue(0);
+      return;
+    }
     Animated.timing(slideAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
       setStep(nextStep);
       slideAnim.setValue(24);

@@ -317,7 +317,7 @@ export default function LivePlayerScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={styles.errorText}>Class not found.</Text>
-        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={styles.backBtnAlt} onPress={() => router.back()}>
+        <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={styles.backBtnAlt} onPress={() => router.back()} accessibilityRole="button">
           <Text style={styles.backBtnAltText}>Go back</Text>
         </TouchableOpacity>
       </View>
@@ -336,21 +336,21 @@ export default function LivePlayerScreen() {
     >
       {/* Header Bar */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.closeBtn}>
+        <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={() => router.back()} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="chevron-down" size={31} color={CoachColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
-          <Text style={styles.title}>{liveClass.title}</Text>
+          <Text style={styles.title} maxFontSizeMultiplier={1.3}>{liveClass.title}</Text>
           <View style={styles.badgeRow}>
             <View style={[styles.liveBadge, isStreamEnded && { backgroundColor: CoachColors.surface }, isStreamStarting && { backgroundColor: CoachColors.warningSoft }]}>
-              <Text style={[styles.liveBadgeText, isStreamEnded && { color: CoachColors.textMuted }, isStreamStarting && { color: CoachColors.warning }]}>
+              <Text style={[styles.liveBadgeText, isStreamEnded && { color: CoachColors.textMuted }, isStreamStarting && { color: CoachColors.warning }]} maxFontSizeMultiplier={1.2}>
                 {isStreamEnded ? 'ENDED' : isStreamStarting ? 'STARTING' : 'LIVE'}
               </Text>
             </View>
             <View style={styles.viewersBadge}>
               <Ionicons name="eye" size={13} color={CoachColors.textSecondary} style={{ marginRight: 4 }} />
-              <Text style={styles.viewersText}>{liveClass.viewer_count ?? '—'}</Text>
+              <Text style={styles.viewersText} maxFontSizeMultiplier={1.2}>{liveClass.viewer_count ?? '—'}</Text>
             </View>
           </View>
         </View>
@@ -361,16 +361,16 @@ export default function LivePlayerScreen() {
         {isStreamEnded ? (
           <View style={styles.endedBanner}>
             <Ionicons name="sparkles" size={36} color={CoachColors.accent} style={{ marginBottom: 8 }} />
-            <Text style={styles.endedTitle}>Broadcast has concluded</Text>
+            <Text style={styles.endedTitle} maxFontSizeMultiplier={1.3}>Broadcast has concluded</Text>
             <Text style={styles.endedSub}>Your coach has wrapped up this live class. Thanks for training live!</Text>
-            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={styles.backToExploreBtn} onPress={() => router.back()}>
-              <Text style={styles.backToExploreText}>Explore more classes</Text>
+            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={styles.backToExploreBtn} onPress={() => router.back()} accessibilityRole="button">
+              <Text style={styles.backToExploreText} maxFontSizeMultiplier={1.2}>Explore more classes</Text>
             </TouchableOpacity>
           </View>
         ) : isStreamStarting ? (
           <View style={styles.endedBanner}>
             <ActivityIndicator color={CoachColors.accent} size="large" style={{ marginBottom: 16 }} />
-            <Text style={styles.endedTitle}>Waiting for coach</Text>
+            <Text style={styles.endedTitle} maxFontSizeMultiplier={1.3}>Waiting for coach</Text>
             <Text style={styles.endedSub}>Your coach is connecting to the stream. Hang tight, the broadcast will begin automatically in just a moment!</Text>
           </View>
         ) : playbackUrl ? (
@@ -383,10 +383,11 @@ export default function LivePlayerScreen() {
         ) : hasFakeMuxId ? (
           <View style={styles.endedBanner}>
             <Ionicons name="warning-outline" size={36} color={CoachColors.warning} style={{ marginBottom: 8 }} />
-            <Text style={styles.endedTitle}>Stream not configured</Text>
+            <Text style={styles.endedTitle} maxFontSizeMultiplier={1.3}>Stream not configured</Text>
             <Text style={styles.endedSub}>Coach may still be setting up. Try again in a moment.</Text>
             <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
               style={styles.backToExploreBtn}
+              accessibilityRole="button"
               onPress={async () => {
                 setLoading(true);
                 try {
@@ -397,7 +398,7 @@ export default function LivePlayerScreen() {
                 }
               }}
             >
-              <Text style={styles.backToExploreText}>Retry</Text>
+              <Text style={styles.backToExploreText} maxFontSizeMultiplier={1.2}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -414,7 +415,7 @@ export default function LivePlayerScreen() {
         {channelStatus === 'reconnecting' && (
           <View style={styles.reconnectBanner}>
             <ActivityIndicator size="small" color={CoachColors.warning} style={{ marginRight: 8 }} />
-            <Text style={styles.reconnectText}>Reconnecting…</Text>
+            <Text style={styles.reconnectText} maxFontSizeMultiplier={1.4}>Reconnecting…</Text>
           </View>
         )}
         <FlatList keyboardShouldPersistTaps="handled"
@@ -466,6 +467,8 @@ export default function LivePlayerScreen() {
             style={[styles.sendBtn, (!authReady || !chatMessage.trim() || isStreamEnded) && { opacity: 0.5 }]}
             onPress={handleSendChat}
             disabled={!authReady || !chatMessage.trim() || isStreamEnded}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
           >
             <Ionicons name="send" size={20} color={CoachColors.onAccent} />
           </TouchableOpacity>

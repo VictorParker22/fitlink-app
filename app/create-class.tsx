@@ -350,7 +350,7 @@ export default function CreateClassScreen() {
 
               <View style={[styles.inputGroup, { marginTop: 24 }]}>
                 <View style={[styles.fieldWrap, titleFocused && styles.fieldWrapActive]}>
-                  <Text style={[styles.fieldLabel, titleFocused && styles.fieldLabelActive]}>Title</Text>
+                  <Text style={[styles.fieldLabel, titleFocused && styles.fieldLabelActive]} maxFontSizeMultiplier={1.2}>Title</Text>
                   <TextInput
                     style={styles.fieldInput}
                     placeholder="e.g. 30 min full body HIIT"
@@ -366,7 +366,7 @@ export default function CreateClassScreen() {
 
               <View style={styles.inputGroup}>
                 <View style={[styles.fieldWrap, descFocused && styles.fieldWrapActive]}>
-                  <Text style={[styles.fieldLabel, descFocused && styles.fieldLabelActive]}>Description</Text>
+                  <Text style={[styles.fieldLabel, descFocused && styles.fieldLabelActive]} maxFontSizeMultiplier={1.2}>Description</Text>
                   <TextInput
                     style={[styles.fieldInput, styles.fieldTextArea]}
                     placeholder="What will athletes experience in this class?"
@@ -384,7 +384,7 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Category</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Category</Text>
                 <View style={styles.chipGrid}>
                   {CLASS_CATEGORIES.map(cat => {
                     const active = category === cat;
@@ -393,8 +393,11 @@ export default function CreateClassScreen() {
                         key={cat}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => { Haptics.selectionAsync(); setCategory(cat); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={cat}
+                        accessibilityState={{ selected: active }}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat}</Text>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.2}>{cat}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -403,31 +406,38 @@ export default function CreateClassScreen() {
 
               <View style={styles.rowGroup}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: Spacing.md }]}>
-                  <Text style={styles.sectionLabel}>Difficulty</Text>
+                  <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Difficulty</Text>
                   {DIFFICULTIES.map(diff => (
                     <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       key={diff}
                       style={[styles.diffChip, difficulty === diff && styles.diffChipActive]}
                       onPress={() => { Haptics.selectionAsync(); setDifficulty(diff); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={diff}
+                      accessibilityState={{ selected: difficulty === diff }}
                     >
-                      <Text style={[styles.diffChipText, difficulty === diff && styles.diffChipTextActive]}>{diff}</Text>
+                      <Text style={[styles.diffChipText, difficulty === diff && styles.diffChipTextActive]} maxFontSizeMultiplier={1.2}>{diff}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.sectionLabel}>Duration (min)</Text>
+                  <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Duration (min)</Text>
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.max(5, duration - 5)); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease duration"
                     >
                       <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={styles.stepperValue}>{duration}</Text>
+                    <Text style={styles.stepperValue} maxFontSizeMultiplier={1.2}>{duration}</Text>
                     <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
                       style={styles.stepperBtn}
                       onPress={() => { Haptics.selectionAsync(); setDuration(Math.min(120, duration + 5)); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase duration"
                     >
                       <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
@@ -436,7 +446,7 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Equipment</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Equipment</Text>
                 <View style={styles.chipGrid}>
                   {EQUIPMENT_LIST.map(eq => {
                     const active = equipment.includes(eq);
@@ -445,8 +455,11 @@ export default function CreateClassScreen() {
                         key={eq}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleEquipment(eq)}
+                        accessibilityRole="button"
+                        accessibilityLabel={eq}
+                        accessibilityState={{ selected: active }}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{eq}</Text>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.2}>{eq}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -454,7 +467,7 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Tags</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Tags</Text>
                 <View style={styles.chipGrid}>
                   {TAGS_LIST.map(tag => {
                     const active = tags.includes(tag);
@@ -463,8 +476,11 @@ export default function CreateClassScreen() {
                         key={tag}
                         style={[styles.chip, active && styles.chipActive]}
                         onPress={() => toggleTag(tag)}
+                        accessibilityRole="button"
+                        accessibilityLabel={tag}
+                        accessibilityState={{ selected: active }}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{tag}</Text>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.2}>{tag}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -479,7 +495,7 @@ export default function CreateClassScreen() {
               <WizardHeading kicker={stepInfo.kicker} title={stepInfo.title} />
 
               <View style={[styles.inputGroup, { marginTop: 24 }]}>
-                <Text style={styles.sectionLabel}>Class video</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Class video</Text>
                 {videoUrl ? (
                   <View style={styles.mediaContainer}>
                     <View style={styles.videoPreview}>
@@ -487,7 +503,12 @@ export default function CreateClassScreen() {
                         <Ionicons name="play" size={36} color={CoachColors.textPrimary} />
                       </View>
                       <Text style={styles.mediaUrlText} numberOfLines={1}>{videoUrl}</Text>
-                      <TouchableOpacity style={styles.mediaClearBtn} onPress={() => setVideoUrl('')}>
+                      <TouchableOpacity
+                        style={styles.mediaClearBtn}
+                        onPress={() => setVideoUrl('')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove video"
+                      >
                         <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
@@ -498,12 +519,17 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Custom thumbnail (optional)</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Custom thumbnail (optional)</Text>
                 {thumbnailUrl ? (
                   <View style={styles.mediaContainer}>
                     <View style={styles.thumbPreview}>
                       <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-                      <TouchableOpacity style={styles.mediaClearBtnAlt} onPress={() => setThumbnailUrl('')}>
+                      <TouchableOpacity
+                        style={styles.mediaClearBtnAlt}
+                        onPress={() => setThumbnailUrl('')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove thumbnail"
+                      >
                         <Ionicons name="close-circle" size={27} color={CoachColors.danger} />
                       </TouchableOpacity>
                     </View>
@@ -518,7 +544,7 @@ export default function CreateClassScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Linked workout (optional)</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Linked workout (optional)</Text>
                 <Text style={styles.helperText}>Clients can view the structured workout alongside the video.</Text>
                 {workouts && workouts.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
@@ -527,8 +553,11 @@ export default function CreateClassScreen() {
                         key={w.id}
                         style={[styles.workoutCard, workoutId === w.id && styles.workoutCardActive]}
                         onPress={() => setWorkoutId(workoutId === w.id ? '' : w.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={w.name}
+                        accessibilityState={{ selected: workoutId === w.id }}
                       >
-                        <Text style={[styles.workoutCardTitle, workoutId === w.id && styles.workoutCardTitleActive]}>{w.name}</Text>
+                        <Text style={[styles.workoutCardTitle, workoutId === w.id && styles.workoutCardTitleActive]} maxFontSizeMultiplier={1.2}>{w.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -544,11 +573,14 @@ export default function CreateClassScreen() {
               <WizardHeading kicker={stepInfo.kicker} title={stepInfo.title} />
 
               <View style={[styles.inputGroup, { marginTop: 24 }]}>
-                <Text style={styles.sectionLabel}>Access level</Text>
+                <Text style={styles.sectionLabel} maxFontSizeMultiplier={1.2}>Access level</Text>
                 <View style={styles.rowGroup}>
                   <TouchableOpacity
                     style={[styles.accessCard, !isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Subscribers only"
+                    accessibilityState={{ selected: !isFree }}
                   >
                     <Ionicons name="lock-closed" size={27} color={!isFree ? CoachColors.accent : CoachColors.textFaint} />
                     <Text style={[styles.accessTitle, !isFree && styles.accessTitleActive]}>Subscribers only</Text>
@@ -560,6 +592,9 @@ export default function CreateClassScreen() {
                   <TouchableOpacity
                     style={[styles.accessCard, isFree && styles.accessCardActive]}
                     onPress={() => setIsFree(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Free preview"
+                    accessibilityState={{ selected: isFree }}
                   >
                     <Ionicons name="eye" size={27} color={isFree ? CoachColors.accent : CoachColors.textFaint} />
                     <Text style={[styles.accessTitle, isFree && styles.accessTitleActive]}>Free preview</Text>
@@ -579,26 +614,28 @@ export default function CreateClassScreen() {
                 />
                 <View style={styles.cinemaTopRow}>
                   <View style={styles.cinemaDraftPill}>
-                    <Text style={styles.cinemaDraftText}>Draft</Text>
+                    <Text style={styles.cinemaDraftText} maxFontSizeMultiplier={1.2}>Draft</Text>
                   </View>
                   <View style={styles.cinemaDuration}>
-                    <Text style={styles.cinemaDurationText}>{duration} min</Text>
+                    <Text style={styles.cinemaDurationText} maxFontSizeMultiplier={1.2}>{duration} min</Text>
                   </View>
                 </View>
                 <View style={styles.cinemaInfo}>
-                  <Text style={styles.cinemaTags} numberOfLines={1}>
+                  <Text style={styles.cinemaTags} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                     <Text style={{ color: CoachColors.accent }}>{category}</Text>
                     <Text style={styles.cinemaTagDot}>  •  {difficulty}</Text>
                   </Text>
                   <Text
                     style={[styles.cinemaTitle, !title.trim() && styles.cinemaTitleFaint]}
                     numberOfLines={2}
+                    maxFontSizeMultiplier={1.3}
                   >
                     {title.trim() || 'Untitled class'}
                   </Text>
                   <Text
                     style={[styles.cinemaCoach, !trainer?.name && styles.cinemaTitleFaint]}
                     numberOfLines={1}
+                    maxFontSizeMultiplier={1.4}
                   >
                     {trainer?.name || 'Your coach name'}
                   </Text>
@@ -610,6 +647,8 @@ export default function CreateClassScreen() {
                   style={styles.publishBtn}
                   onPress={() => handleSave('published')}
                   disabled={saving}
+                  accessibilityRole="button"
+                  accessibilityLabel="Publish class"
                 >
                   {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : <Text style={styles.publishBtnText}>Publish class</Text>}
                 </TouchableOpacity>
@@ -618,6 +657,7 @@ export default function CreateClassScreen() {
                   style={styles.draftBtn}
                   onPress={() => handleSave('draft')}
                   disabled={saving}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.draftBtnText}>Save as draft</Text>
                 </TouchableOpacity>
@@ -630,7 +670,7 @@ export default function CreateClassScreen() {
         {/* Footer Navigation */}
         {wizardStep < 3 && (
           <View style={[styles.footerRow, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-            <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
+            <TouchableOpacity style={styles.nextBtn} onPress={handleNext} accessibilityRole="button">
               <Text style={styles.nextBtnText}>Next step</Text>
               <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
             </TouchableOpacity>
@@ -643,8 +683,13 @@ export default function CreateClassScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add class video</Text>
-              <TouchableOpacity hitSlop={12} onPress={() => setShowVideoModal(false)}>
+              <Text style={styles.modalTitle} maxFontSizeMultiplier={1.3}>Add class video</Text>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() => setShowVideoModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -666,6 +711,8 @@ export default function CreateClassScreen() {
                     setShowVideoModal(false);
                   }
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Save video URL"
               >
                 <Ionicons name="checkmark" size={22} color={CoachColors.onAccent} />
               </TouchableOpacity>
@@ -677,7 +724,7 @@ export default function CreateClassScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(false)}>
+            <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(false)} accessibilityRole="button">
               <Ionicons name="cloud-upload-outline" size={27} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.videoOptionTitle}>Upload video file</Text>
@@ -685,7 +732,7 @@ export default function CreateClassScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(true)}>
+            <TouchableOpacity style={styles.videoOptionBtn} onPress={() => handleVideoUpload(true)} accessibilityRole="button">
               <Ionicons name="camera-outline" size={27} color={CoachColors.textPrimary} style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.videoOptionTitle}>Record video</Text>

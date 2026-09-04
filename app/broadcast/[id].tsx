@@ -30,6 +30,8 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { liveBroadcastUnsupportedTitle, liveBroadcastUnsupportedMessage } from '../../lib/liveBroadcast';
+import { Motion } from '../../constants/motion';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 let ExpoCameraRtmpPublisherView: any = null;
 let requestCameraPermissionsAsync: any = null;
@@ -87,6 +89,7 @@ export default function BroadcastStudioScreen() {
   const router = useRouter();
   const { liveClasses, updateLiveClass, createClass, classes, deleteClass } = useApp();
   const { showAlert } = useAlert();
+  const reduceMotion = useReducedMotion();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>(
@@ -172,17 +175,17 @@ export default function BroadcastStudioScreen() {
       return [...capped, full];
     });
 
-    Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(opacity, { toValue: 1, duration: reduceMotion ? Motion.reduced : 300, useNativeDriver: true }).start();
 
     const fadeOutTimer = setTimeout(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
+      Animated.timing(opacity, { toValue: 0, duration: reduceMotion ? Motion.reduced : 500, useNativeDriver: true }).start(() => {
         setChatMessages(prev => prev.filter(m => m.id !== full.id));
         opacityMap.delete(full.id);
       });
     }, MSG_VISIBLE_MS);
 
     return () => clearTimeout(fadeOutTimer);
-  }, []);
+  }, [reduceMotion]);
 
   // ── Activity events ───────────────────────────────────────────────────────
   const addActivity = useCallback((type: ActivityEvent['type'], label: string) => {
@@ -290,11 +293,11 @@ export default function BroadcastStudioScreen() {
   const showMarkerToast = useCallback((timestamp: string) => {
     setMarkerToast(`Marker added at ${timestamp}`);
     Animated.sequence([
-      Animated.timing(markerToastAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(markerToastAnim, { toValue: 1, duration: reduceMotion ? Motion.reduced : 250, useNativeDriver: true }),
       Animated.delay(2500),
-      Animated.timing(markerToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(markerToastAnim, { toValue: 0, duration: reduceMotion ? Motion.reduced : 300, useNativeDriver: true }),
     ]).start(() => setMarkerToast(null));
-  }, [markerToastAnim]);
+  }, [markerToastAnim, reduceMotion]);
 
   // ── Share stream ──────────────────────────────────────────────────────────
   const handleShareStream = useCallback(async () => {

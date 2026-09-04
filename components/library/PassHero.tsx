@@ -41,20 +41,20 @@ export default function PassHero({ item, holders, cohortBadge }: PassHeroProps) 
       <View style={s.topRow}>
         <View style={s.chip}>
           {selling && <View style={s.liveDot} />}
-          <Text style={[s.chipText, { color: selling ? CoachColors.accent : CoachColors.textMuted }]}>
+          <Text style={[s.chipText, { color: selling ? CoachColors.accent : CoachColors.textMuted }]} maxFontSizeMultiplier={1.2}>
             {selling ? 'LIVE · SELLING' : 'DRAFT'}
           </Text>
         </View>
         {cohortBadge && (
           <View style={s.chip}>
-            <Text style={[s.chipText, { color: CoachColors.accent }]}>{cohortBadge}</Text>
+            <Text style={[s.chipText, { color: CoachColors.accent }]} maxFontSizeMultiplier={1.2}>{cohortBadge}</Text>
           </View>
         )}
       </View>
 
       <View style={s.bottom}>
-        <Text style={s.name} numberOfLines={2}>{item.name}</Text>
-        <Text style={s.stats} numberOfLines={1}>{stats.join(' · ')}</Text>
+        <Text style={s.name} numberOfLines={2} maxFontSizeMultiplier={1.3}>{item.name}</Text>
+        <Text style={s.stats} numberOfLines={1} maxFontSizeMultiplier={1.2}>{stats.join(' · ')}</Text>
       </View>
     </View>
   );

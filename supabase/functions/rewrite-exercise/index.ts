@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, clampStr, report } from '../_shared/ai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,7 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'rewrite-exercise', limit: 40, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'rewrite-exercise', limit: 40, windowSeconds: 3600, daily: 80 }, corsHeaders);
     if (rl) return rl;
 
     let { description } = await req.json();
@@ -62,17 +63,36 @@ Original Description:
 ${description}
 `;
 
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'rewrite-exercise' });
     const response = await result.response;
     const text = response.text().trim();
 
-    return new Response(JSON.stringify({ rewritten: text }), {
+    // Not a structured JSON generation — the model returns raw HTML prose —
+    // so there is no parseJson step. Still never trust it blind: clamp
+    // length and reject an empty/degenerate rewrite before it reaches the
+    // client or gets saved over the original description.
+    const rewritten = clampStr(text, 4000, '');
+    if (!rewritten) {
+      return new Response(JSON.stringify({ error: 'bad_generation' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 502,
+      });
+    }
+
+    return new Response(JSON.stringify({ rewritten, prompt_version: PROMPT_VERSION }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: any) {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'rewrite-exercise' });
+    report(error, { fn: 'rewrite-exercise' });
     console.error('Error rewriting exercise:', error);
+    if (error instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

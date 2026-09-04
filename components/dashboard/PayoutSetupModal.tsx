@@ -12,6 +12,7 @@ import { useAlert } from '../../context/AlertContext';
 import { supabase, SUPABASE_URL } from '../../lib/supabase';
 import { Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -26,12 +27,18 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
   const { showAlert } = useAlert();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   // Fade animation for step transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const transitionTo = (nextStep: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (reduceMotion) {
+      setStep(nextStep);
+      fadeAnim.setValue(1);
+      return;
+    }
     Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
       setStep(nextStep);
       Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -105,7 +112,12 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
       <View style={[styles.screenContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
         {/* Header */}
         <View style={styles.screenHeader}>
-          <TouchableOpacity onPress={handleClose} style={styles.headerBtn}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
@@ -125,8 +137,8 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             <Ionicons name="wallet-outline" size={31} color={CoachColors.accent} />
           </View>
 
-          <Text style={styles.screenTag}>Payouts</Text>
-          <Text style={styles.screenTitle}>Get paid for{'\n'}your work</Text>
+          <Text style={styles.screenTag} maxFontSizeMultiplier={1.2}>Payouts</Text>
+          <Text style={styles.screenTitle} maxFontSizeMultiplier={1.3}>Get paid for{'\n'}your work</Text>
 
           <Text style={styles.screenBody}>
             FitLink partners with Stripe — the world's most trusted payment platform — to handle all your payouts securely.
@@ -138,10 +150,16 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
 
           <View style={styles.trustRow}>
             <Ionicons name="lock-closed" size={16} color={CoachColors.accent} />
-            <Text style={styles.trustText}>Your financial data stays with Stripe, not us</Text>
+            <Text style={styles.trustText} maxFontSizeMultiplier={1.4}>Your financial data stays with Stripe, not us</Text>
           </View>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={goNext}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Continue"
+          >
             <Text style={styles.primaryBtnText}>Continue</Text>
             <Ionicons name="arrow-forward" size={20} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
@@ -170,7 +188,12 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
       <View style={[styles.screenContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
         {/* Header */}
         <View style={styles.screenHeader}>
-          <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
             <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
@@ -188,7 +211,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
         <View style={styles.bottomContent}>
           {/* Stripe logo */}
           <View style={styles.stripeBadgeLarge}>
-            <Text style={styles.stripeBadgeLabel}>Powered by </Text>
+            <Text style={styles.stripeBadgeLabel} maxFontSizeMultiplier={1.2}>Powered by </Text>
             <Image
               source={require('../../assets/images/stripe-logo.jpg')}
               style={styles.stripeLogoImg}
@@ -196,7 +219,7 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             />
           </View>
 
-          <Text style={styles.screenTitle}>Secure payment{'\n'}connection</Text>
+          <Text style={styles.screenTitle} maxFontSizeMultiplier={1.3}>Secure payment{'\n'}connection</Text>
 
           <Text style={styles.screenBody}>
             You'll be redirected to Stripe's secure portal to verify your identity and connect your bank account. This is a one-time setup.
@@ -208,25 +231,25 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
               <View style={styles.bulletIcon}>
                 <Ionicons name="shield-checkmark" size={18} color={CoachColors.accent} />
               </View>
-              <Text style={styles.bulletText}>Bank-level 256-bit encryption</Text>
+              <Text style={styles.bulletText} maxFontSizeMultiplier={1.4}>Bank-level 256-bit encryption</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
                 <Ionicons name="business-outline" size={18} color={CoachColors.accent} />
               </View>
-              <Text style={styles.bulletText}>Trusted by millions of businesses worldwide</Text>
+              <Text style={styles.bulletText} maxFontSizeMultiplier={1.4}>Trusted by millions of businesses worldwide</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
                 <Ionicons name="flash" size={18} color={CoachColors.accent} />
               </View>
-              <Text style={styles.bulletText}>Fast payouts directly to your bank account</Text>
+              <Text style={styles.bulletText} maxFontSizeMultiplier={1.4}>Fast payouts directly to your bank account</Text>
             </View>
             <View style={styles.bulletItem}>
               <View style={styles.bulletIcon}>
                 <Ionicons name="eye-off-outline" size={18} color={CoachColors.accent} />
               </View>
-              <Text style={styles.bulletText}>FitLink never sees your banking details</Text>
+              <Text style={styles.bulletText} maxFontSizeMultiplier={1.4}>FitLink never sees your banking details</Text>
             </View>
           </View>
 
@@ -236,6 +259,9 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             onPress={handleStripeConnect}
             activeOpacity={0.85}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Connect with Stripe"
+            accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
               <ActivityIndicator color={CoachColors.textPrimary} />
@@ -247,8 +273,15 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.skipRow} onPress={goNext} activeOpacity={0.7}>
-            <Text style={styles.skipText}>I'll set this up later</Text>
+          <TouchableOpacity
+            hitSlop={{ top: 2, bottom: 2 }}
+            style={styles.skipRow}
+            onPress={goNext}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Skip payment setup for now"
+          >
+            <Text style={styles.skipText} maxFontSizeMultiplier={1.2}>I'll set this up later</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -263,7 +296,12 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
       <View style={[styles.screenContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
         {/* Header */}
         <View style={styles.screenHeader}>
-          <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
             <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.stepIndicator}>
@@ -280,17 +318,17 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           contentContainerStyle={styles.pricingScroll}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.pricingTitle}>Pricing</Text>
+          <Text style={styles.pricingTitle} maxFontSizeMultiplier={1.3}>Pricing</Text>
 
           {/* No Subscription */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Subscription fee?</Text>
+            <Text style={styles.dividerText} maxFontSizeMultiplier={1.2}>Subscription fee?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingCardTitle}>No flat subscription</Text>
+            <Text style={styles.pricingCardTitle} maxFontSizeMultiplier={1.3}>No flat subscription</Text>
             <Text style={styles.pricingCardBody}>
               We offer complete flexibility with no subscription fee. You only pay when you earn from your training sessions. Perfect for businesses with seasonal schedules or those just starting out.
             </Text>
@@ -299,27 +337,27 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* Platform Fee */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Platform fee?</Text>
+            <Text style={styles.dividerText} maxFontSizeMultiplier={1.2}>Platform fee?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingCardTitle}>One simple fee</Text>
+            <Text style={styles.pricingCardTitle} maxFontSizeMultiplier={1.3}>One simple fee</Text>
             <Text style={styles.pricingCardBody}>
               Payments are protected by Stripe, a globally trusted platform. One transparent rate, no hidden fees.
             </Text>
 
             <View style={styles.feeDetailRow}>
-              <Text style={styles.feeLabel}>Platform fee: 10% per payment</Text>
+              <Text style={styles.feeLabel} maxFontSizeMultiplier={1.4}>Platform fee: 10% per payment</Text>
             </View>
             <View style={styles.feeDivider} />
             <View style={styles.feeDetailRow}>
-              <Text style={styles.feeSub}>You keep 90% of everything you charge. Payment processing is included.</Text>
+              <Text style={styles.feeSub} maxFontSizeMultiplier={1.4}>You keep 90% of everything you charge. Payment processing is included.</Text>
             </View>
 
             {/* Powered by Stripe */}
             <View style={styles.stripeMini}>
-              <Text style={styles.stripeMiniPrefix}>Powered by </Text>
+              <Text style={styles.stripeMiniPrefix} maxFontSizeMultiplier={1.2}>Powered by </Text>
               <Image
                 source={require('../../assets/images/stripe-logo.jpg')}
                 style={styles.stripeMiniLogo}
@@ -331,16 +369,16 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           {/* Cost When Not Earning */}
           <View style={styles.dividerLabel}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Cost when not earning?</Text>
+            <Text style={styles.dividerText} maxFontSizeMultiplier={1.2}>Cost when not earning?</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.pricingCard}>
             <View style={styles.freeHeader}>
               <View style={styles.freePill}>
-                <Text style={styles.freePillText}>Free</Text>
+                <Text style={styles.freePillText} maxFontSizeMultiplier={1.2}>Free</Text>
               </View>
-              <Text style={styles.freeTitle}>Always free. $0.00 / mo</Text>
+              <Text style={styles.freeTitle} maxFontSizeMultiplier={1.3}>Always free. $0.00 / mo</Text>
             </View>
             <Text style={styles.pricingCardBody}>
               We support all forms of success — whether you're earning or giving back to your community. FitLink is completely free when offering community classes, running charity events, providing pro-bono training, or during seasonal breaks.
@@ -348,7 +386,13 @@ export default function PayoutSetupModal({ visible, onClose }: PayoutSetupModalP
           </View>
 
           {/* Done button */}
-          <TouchableOpacity style={styles.primaryBtn} onPress={goNext} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={goNext}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Got it, close pricing details"
+          >
             <Text style={styles.primaryBtnText}>Got it</Text>
             <Ionicons name="rocket-outline" size={20} color={CoachColors.onAccent} style={{ marginLeft: 8 }} />
           </TouchableOpacity>

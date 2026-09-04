@@ -73,7 +73,7 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagHeader}>Weekly overview</Text>
+      <Text style={styles.tagHeader} maxFontSizeMultiplier={1.2}>Weekly overview</Text>
 
       <View style={styles.row}>
         {weekData.days.map((day, idx) => {
@@ -87,9 +87,12 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
               activeOpacity={0.7}
               onPress={handleDayPress}
               style={[styles.column, day.isToday && styles.todayColumn]}
+              accessibilityRole="button"
+              accessibilityLabel={`${day.label} ${day.dateNum}`}
+              accessibilityState={{ selected: day.isToday }}
             >
-              <Text style={styles.dayLabel}>{day.label}</Text>
-              <Text style={[styles.dateNum, (hasCompleted || day.isToday) ? styles.dateNumActive : {}, day.isToday ? styles.dateNumToday : {}]}>
+              <Text style={styles.dayLabel} maxFontSizeMultiplier={1.2}>{day.label}</Text>
+              <Text style={[styles.dateNum, (hasCompleted || day.isToday) ? styles.dateNumActive : {}, day.isToday ? styles.dateNumToday : {}]} maxFontSizeMultiplier={1.2}>
                 {day.dateNum}
               </Text>
 
@@ -117,7 +120,7 @@ export function ActivityWeekStrip({ workouts = [], sessions = [], progressLogs =
 
       <View style={styles.summaryContainer}>
         <View style={styles.summaryTextRow}>
-          <Text style={styles.summaryNumber}>{weekData.activeCount}</Text>
+          <Text style={styles.summaryNumber} maxFontSizeMultiplier={1.2}>{weekData.activeCount}</Text>
           <Text style={styles.summaryText}> of 7 days active</Text>
         </View>
         <View style={styles.progressBarBg}>

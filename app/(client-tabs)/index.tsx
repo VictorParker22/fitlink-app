@@ -19,14 +19,15 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { Motion } from '../../constants/motion';
 import { ClientRoute } from '../../types/routes';
 import { Ionicons } from '@expo/vector-icons';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
@@ -622,7 +623,15 @@ export default function AthleteTodayScreen() {
                 before the title is read). Trails the eyebrow, clear of the
                 text column. */}
             {(instruction.kind === 'workout' || instruction.kind === 'lapsed') && heroEmblem && (
-              <Image source={heroEmblem} style={st.heroEmblem} resizeMode="contain" accessible={false} />
+              <Image
+                source={heroEmblem}
+                style={st.heroEmblem}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                transition={Motion.quick}
+                priority="high"
+                accessible={false}
+              />
             )}
           </View>
           <Text style={st.heroTitle}>{instruction.title}</Text>
@@ -654,7 +663,14 @@ export default function AthleteTodayScreen() {
                     accessibilityLabel={`${name}${setsReps ? `, ${setsReps}` : ''}`}
                   >
                     {still ? (
-                      <Image source={{ uri: still }} style={st.stripImage} resizeMode="contain" />
+                      <Image
+                        source={{ uri: still }}
+                        style={st.stripImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                        transition={Motion.quick}
+                        recyclingKey={ex.id || String(i)}
+                      />
                     ) : info ? (
                       <View style={st.stripMapWell}>
                         <MuscleMap
@@ -935,7 +951,13 @@ export default function AthleteTodayScreen() {
                   message from a person should look like it came from one.
                   Initials remain the honest fallback, never a stock head. */}
               {trainer?.avatar_url ? (
-                <Image source={{ uri: trainer.avatar_url }} style={st.coachAvatarImg} />
+                <Image
+                  source={{ uri: trainer.avatar_url }}
+                  style={st.coachAvatarImg}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={Motion.quick}
+                />
               ) : (
                 <View style={st.coachAvatar}>
                   <Text style={st.coachAvatarText}>{initials(trainer?.name)}</Text>
@@ -1011,7 +1033,14 @@ export default function AthleteTodayScreen() {
                   accessible={true}
                   accessibilityLabel={`${u.day}, ${u.name}${u.mins ? `, ${u.mins} minutes` : ''}`}
                 >
-                  <Image source={u.emblem} style={st.upcomingEmblem} resizeMode="contain" accessible={false} />
+                  <Image
+                    source={u.emblem}
+                    style={st.upcomingEmblem}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                    transition={Motion.quick}
+                    accessible={false}
+                  />
                   <Text style={st.upcomingDay}>{u.day}</Text>
                   <Text style={st.upcomingName}>{u.name}</Text>
                   {u.mins ? <Text style={st.upcomingMins}>{u.mins} min</Text> : null}

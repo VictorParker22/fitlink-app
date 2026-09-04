@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { supabase } from '../../lib/supabase';
 import { readClientGoalsText } from '../../lib/clientGoals';
+import { hasAiConsent } from '../../lib/aiConsent';
+import { layers } from '../../lib/layers';
+import AiConsentSheet from '../solo/AiConsentSheet';
 
 interface AICoachModalProps {
   visible: boolean;
@@ -16,11 +20,35 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
   // A Modal inherits no safe area — the sheet supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
   const { clients, activeClients, plans, sessions, getClientById } = useApp();
+  const { user } = useAuth();
 
   const [coachPrompt, setCoachPrompt] = useState('');
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachResponse, setCoachResponse] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+
+  // AI consent (Apple 5.1.2(i)) — asked once, before the first call this
+  // account ever makes to coach-assistant.
+  const [consentVisible, setConsentVisible] = useState(false);
+  const pendingAfterConsentRef = useRef<(() => void) | null>(null);
+  const ensureConsent = useCallback((action: () => void) => {
+    if (hasAiConsent(user)) { action(); return; }
+    pendingAfterConsentRef.current = action;
+    setConsentVisible(true);
+  }, [user]);
+  const handleConsentAgree = useCallback(() => {
+    layers.track('ai_consent', { granted: true });
+    setConsentVisible(false);
+    const action = pendingAfterConsentRef.current;
+    pendingAfterConsentRef.current = null;
+    action?.();
+  }, []);
+  const handleConsentDecline = useCallback(() => {
+    layers.track('ai_consent', { granted: false });
+    setConsentVisible(false);
+    pendingAfterConsentRef.current = null;
+    setCoachResponse('The corner stays quiet until you agree.');
+  }, []);
 
   const handleClose = () => {
     setCoachResponse('');
@@ -29,7 +57,7 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
     onClose();
   };
 
-  const handleCoachAsk = async () => {
+  const askCoach = async () => {
     if (!coachPrompt.trim()) return;
     setCoachLoading(true);
     setCoachResponse('');
@@ -69,6 +97,11 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
     } finally {
       setCoachLoading(false);
     }
+  };
+
+  const handleCoachAsk = () => {
+    if (!coachPrompt.trim()) return;
+    ensureConsent(askCoach);
   };
 
   return (
@@ -160,6 +193,12 @@ export default function AICoachModal({ visible, onClose }: AICoachModalProps) {
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      <AiConsentSheet
+        visible={consentVisible}
+        onAgree={handleConsentAgree}
+        onDecline={handleConsentDecline}
+      />
     </Modal>
   );
 }

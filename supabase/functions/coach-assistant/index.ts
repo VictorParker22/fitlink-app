@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +38,7 @@ serve(async (req) => {
     }
 
     // Per-user cap: bounds credit blast radius of an abused Elite account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'coach-assistant', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'coach-assistant', limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (rl) return rl;
 
     const body = await req.json();
@@ -113,17 +114,24 @@ RESPONSE GUIDELINES:
 - If you don't have enough context to give a great answer, say what additional info you'd need.
 `;
 
-    const result = await model.generateContent(systemPrompt);
+    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: 20000, label: 'coach-assistant' });
     const response = result.response;
     const text = response.text().trim();
 
-    return new Response(JSON.stringify({ response: text }), {
+    return new Response(JSON.stringify({ response: text, prompt_version: PROMPT_VERSION }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: any) {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'coach-assistant' });
+    report(error, { fn: 'coach-assistant' });
     console.error('Error in coach assistant:', error);
+    if (error instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

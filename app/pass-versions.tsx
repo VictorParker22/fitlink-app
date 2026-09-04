@@ -197,12 +197,12 @@ export default function PassVersionsScreen() {
   return (
     <View style={[st.container, { paddingTop: insets.top }]}>
       <View style={st.header}>
-        <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.backBtn}>
+        <TouchableOpacity hitSlop={6} onPress={() => router.back()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={25} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>Versions</Text>
-          <Text style={st.headerSub} numberOfLines={1}>{plan.name}</Text>
+          <Text style={st.headerTitle} maxFontSizeMultiplier={1.3}>Versions</Text>
+          <Text style={st.headerSub} numberOfLines={1} maxFontSizeMultiplier={1.4}>{plan.name}</Text>
         </View>
       </View>
 
@@ -211,7 +211,7 @@ export default function PassVersionsScreen() {
         <View style={[st.card, st.cardCurrent]}>
           <View style={st.cardTopRow}>
             <View style={st.liveTag}>
-              <Text style={st.liveTagText}>v{currentVersionNumber} · live</Text>
+              <Text style={st.liveTagText} maxFontSizeMultiplier={1.2}>v{currentVersionNumber} · live</Text>
             </View>
             {latestRow && <Text style={st.cardDate}>Published {fmtDate(latestRow.created_at)}</Text>}
           </View>
@@ -222,7 +222,7 @@ export default function PassVersionsScreen() {
             <View style={st.avatarStack}>
               {onCurrent.slice(0, 5).map((h, i) => (
                 <View key={h.enrollment.id} style={[st.avatar, i > 0 && { marginLeft: -10 }]}>
-                  <Text style={st.avatarText}>{initials(h.name)}</Text>
+                  <Text style={st.avatarText} maxFontSizeMultiplier={1.4}>{initials(h.name)}</Text>
                 </View>
               ))}
             </View>
@@ -246,7 +246,7 @@ export default function PassVersionsScreen() {
               return (
                 <View key={h.enrollment.id} style={st.oldHolderBlock}>
                   <View style={st.oldHolderTop}>
-                    <View style={st.avatar}><Text style={st.avatarText}>{initials(h.name)}</Text></View>
+                    <View style={st.avatar}><Text style={st.avatarText} maxFontSizeMultiplier={1.4}>{initials(h.name)}</Text></View>
                     <Text style={st.oldHolderName}>
                       {h.name} only{end ? ` · ends ${end}` : ''}
                     </Text>
@@ -255,7 +255,7 @@ export default function PassVersionsScreen() {
                     {h.name} is {w} week{w === 1 ? '' : 's'} in and paid for this shape of season. Moving them early is your call, not the app's.
                   </Text>
                   {h.client && (
-                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy}>
+                    <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} style={st.askBtn} onPress={() => askToSwitch(h.client!.name, h.client!.id)} disabled={busy} accessibilityRole="button">
                       <Text style={st.askBtnText}>Ask {firstName} if they want v{currentVersionNumber}</Text>
                     </TouchableOpacity>
                   )}
@@ -274,7 +274,7 @@ export default function PassVersionsScreen() {
 
         {/* ── Rollback ── */}
         {rollbackTarget && (
-          <TouchableOpacity style={st.rollbackRow} onPress={rollBack} disabled={busy} activeOpacity={0.8}>
+          <TouchableOpacity style={st.rollbackRow} onPress={rollBack} disabled={busy} activeOpacity={0.8} accessibilityRole="button">
             <Ionicons name="arrow-undo-outline" size={20} color={CoachColors.textSecondary} />
             <View style={{ flex: 1 }}>
               <Text style={st.rollbackTitle}>Roll back to v{rollbackTarget.version}</Text>
@@ -291,7 +291,7 @@ export default function PassVersionsScreen() {
           </Text>
         )}
 
-        <TouchableOpacity style={st.footerBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={st.footerBtn} onPress={() => router.back()} accessibilityRole="button">
           <Text style={st.footerBtnText}>Back to the pass</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -33,10 +33,10 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  ScrollView,
   Pressable,
   RefreshControl,
 } from 'react-native';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,12 +59,12 @@ import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashbo
 import ActiveWorkoutPlayer from '../../components/client-tabs/explore/ActiveWorkoutPlayer';
 import WorkoutPreview from '../../components/client-tabs/explore/WorkoutPreview';
 import WorkoutSummary from '../../components/client-tabs/explore/WorkoutSummary';
+import CelebrationOverlay from '../../components/CelebrationOverlay';
 import SeasonComplete from '../../components/client-tabs/SeasonComplete';
 import SeasonHero from '../../components/client-tabs/season/SeasonHero';
 import SeasonTrack from '../../components/client-tabs/season/SeasonTrack';
 import TrackStrip from '../../components/client-tabs/season/TrackStrip';
 import WaitingRoom from '../../components/client-tabs/cohort/WaitingRoom';
-import DayOneOverlay from '../../components/client-tabs/cohort/DayOneOverlay';
 import WorkoutCard, { workoutMetaParts } from '../../components/client-tabs/workout/WorkoutCard';
 import {
   aggregateWorkoutMuscles,
@@ -307,13 +307,13 @@ export default function ClientWorkoutsScreen() {
   // Strip-tap → list jump: the track's y in the scroll content plus each
   // week's measured y inside the track. onLayout keeps both fresh across
   // collapses/expands, so the jump stays correct as heights change.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlashListRef<any>>(null);
   const seasonTrackTopRef = useRef(0);
   const weekYsRef = useRef<Record<number, number>>({});
   const scrollToWeek = useCallback(
     (week: number) => {
       const y = seasonTrackTopRef.current + (weekYsRef.current[week] ?? 0);
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: !reducedMotion });
+      scrollRef.current?.scrollToOffset({ offset: Math.max(0, y - 12), animated: !reducedMotion });
     },
     [reducedMotion]
   );
@@ -614,8 +614,18 @@ export default function ClientWorkoutsScreen() {
     ) : null;
 
   // ── Body ──────────────────────────────────────────────────────────────────
+  // The screen is one FlashList: assignedList is the only true homogeneous
+  // row list, everything else (season hero/track, waiting room, empty state)
+  // is header/footer content around it — never a ScrollView wrapping a list.
 
-  let body: React.ReactNode;
+  let headerContent: React.ReactNode = null;
+  let footerContent: React.ReactNode = null;
+  const extrasHead = assignedList.length > 0 ? (
+    <SectionHead
+      label="Extras from your coach"
+      sub={`One-off sessions from ${coachFirst}, on top of your season.`}
+    />
+  ) : null;
 
   if (programme) {
     const planName = programme.plan?.name || 'Your programme';
@@ -664,7 +674,7 @@ export default function ClientWorkoutsScreen() {
       // goals really live (assessment_data).
       const goalMissing = !!trainer && readClientGoals(clientData).length === 0;
 
-      body = (
+      headerContent = (
         <>
           <WaitingRoom
             planName={planName}
@@ -684,20 +694,12 @@ export default function ClientWorkoutsScreen() {
           {showFullPlan && seasonTrackBlock}
 
           {/* One-off assignments still stand on their own before day one */}
-          {assignedList.length > 0 && (
-            <>
-              <SectionHead
-                label="Extras from your coach"
-                sub={`One-off sessions from ${coachFirst}, on top of your season.`}
-              />
-              <View style={{ gap: 12 }}>{assignedList.map(renderAssignment)}</View>
-            </>
-          )}
+          {extrasHead}
         </>
       );
 
     } else {
-    body = (
+    headerContent = (
       <>
         {/* Season hero — pass name, real week-of-weeks, true progress */}
         <SeasonHero
@@ -744,49 +746,43 @@ export default function ClientWorkoutsScreen() {
         )}
 
         {/* One-off assignments — a different thing than the season, and labeled so */}
-        {assignedList.length > 0 && (
-          <>
-            <SectionHead
-              label="Extras from your coach"
-              sub={`One-off sessions from ${coachFirst}, on top of your season.`}
-            />
-            <View style={{ gap: 12 }}>{assignedList.map(renderAssignment)}</View>
-          </>
-        )}
+        {extrasHead}
       </>
     );
     }
   } else if (assignedList.length > 0) {
     // Direct assignments, no pass — the main surface, plus the way into one.
-    body = (
+    headerContent = (
       <>
         <Text style={s.screenTitle}>Train</Text>
         <Text style={s.screenSub}>Sessions {coachFirst} put on your plan</Text>
-        <View style={{ gap: 12, marginTop: 18 }}>{assignedList.map(renderAssignment)}</View>
-        {findSeasonCard}
       </>
     );
+    footerContent = findSeasonCard;
   } else {
-    // No programme, no assignments — honest empty state.
-    body = (
+    // No programme, no assignments — honest empty state. Icon tile + Space
+    // Grotesk title + one Epilogue line + one honest action: message the
+    // coach when there is one, otherwise into the AI corner (no coach yet).
+    headerContent = (
       <>
         <Text style={s.screenTitle}>Train</Text>
-        <View style={s.emptyCard}>
-          <Text style={s.noteTitle}>{trainer ? 'Nothing on your plan yet' : 'No coach yet'}</Text>
-          <Text style={s.noteBody}>
+        <View style={s.emptyState}>
+          <View style={s.emptyIcon}>
+            <Ionicons name={trainer ? 'barbell-outline' : 'sparkles-outline'} size={22} color={C.accent} />
+          </View>
+          <Text style={s.emptyTitle}>{trainer ? 'Nothing on your plan yet' : 'No coach yet'}</Text>
+          <Text style={s.emptyBody} numberOfLines={2}>
             {trainer
-              ? `When ${coachFirst} puts you on a programme or assigns a session, it shows up here — done, current, and ahead, in order.`
-              : 'Once a coach takes you on, your whole programme lives here — what you did, what is next, and what is ahead.'}
+              ? `When ${coachFirst} puts you on a programme or assigns a session, it shows up here.`
+              : 'Train solo with the AI corner until a coach takes you on.'}
           </Text>
-          {trainer && (
-            <Pressable hitSlop={{ top: 3, bottom: 3 }}
-              style={s.emptyBtn}
-              onPress={() => router.push(ClientRoute.myMessages)}
-              accessibilityRole="button"
-            >
-              <Text style={s.emptyBtnText}>Message {coachFirst}</Text>
-            </Pressable>
-          )}
+          <Pressable hitSlop={{ top: 3, bottom: 3 }}
+            style={s.emptyBtn}
+            onPress={() => router.push(trainer ? ClientRoute.myMessages : ClientRoute.solo)}
+            accessibilityRole="button"
+          >
+            <Text style={s.emptyBtnText}>{trainer ? `Ask ${coachFirst}` : 'Open the corner'}</Text>
+          </Pressable>
         </View>
         {trainer ? findSeasonCard : null}
       </>
@@ -796,8 +792,12 @@ export default function ClientWorkoutsScreen() {
   return (
     <View style={s.container}>
       <StatusBar barStyle="light-content" />
-      <ScrollView
+      <FlashList
         ref={scrollRef}
+        data={assignedList}
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }) => renderAssignment(item)}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: insets.top + 14,
@@ -805,39 +805,49 @@ export default function ClientWorkoutsScreen() {
           paddingHorizontal: 20,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
-      >
-        {body}
+        ListHeaderComponent={<>{headerContent}</>}
+        ListFooterComponent={
+          <>
+            {footerContent}
 
-        {/* The Library — one honest entry, no counts promised from here.
-            The row says what is actually behind it: this coach's on-demand
-            classes and live sessions, and nothing else. */}
-        <SectionHead label="On demand" />
-        <Pressable
-          style={s.nodeRow}
-          onPress={() => setShowExplore(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Library, ${coachFirst}'s classes. Double tap to open the on-demand library`}
-        >
-          <Ionicons name="videocam-outline" size={18} color={C.textSecondary} style={s.nodeIcon} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.nodeName}>Library — {coachFirst}'s classes</Text>
-            <Text style={s.nodeSub}>On-demand classes and live sessions, any time</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
-        </Pressable>
-      </ScrollView>
+            {/* The Library — one honest entry, no counts promised from here.
+                The row says what is actually behind it: this coach's on-demand
+                classes and live sessions, and nothing else. */}
+            <SectionHead label="On demand" />
+            <Pressable
+              style={s.nodeRow}
+              onPress={() => setShowExplore(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Library, ${coachFirst}'s classes. Double tap to open the on-demand library`}
+            >
+              <Ionicons name="videocam-outline" size={18} color={C.textSecondary} style={s.nodeIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.nodeName}>Library — {coachFirst}'s classes</Text>
+                <Text style={s.nodeSub}>On-demand classes and live sessions, any time</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={C.textFaint} />
+            </Pressable>
+          </>
+        }
+      />
 
       {/* Day one — the cohort's real start date has arrived, and this
           enrollment has never been told. Shown once, then flagged. An
           in-screen overlay, never a native Modal. */}
       {showDayOne && programme && !finishedSeason && (
-        <DayOneOverlay
-          planName={programme.plan?.name || 'Your season'}
-          firstSessionName={firstSessionWorkout?.name || null}
-          onStart={() => {
-            dismissDayOne();
-            if (firstSessionWorkout) startTrackWorkout(firstSessionWorkout, { viewOnly: false });
+        <CelebrationOverlay
+          visible={showDayOne && !!programme && !finishedSeason}
+          kind="day-one"
+          title={`${programme.plan?.name || 'Your season'} starts today.`}
+          subtitle={firstSessionWorkout?.name ? `First up: ${firstSessionWorkout.name}` : undefined}
+          primary={{
+            label: 'Start week 1',
+            onPress: () => {
+              dismissDayOne();
+              if (firstSessionWorkout) startTrackWorkout(firstSessionWorkout, { viewOnly: false });
+            },
           }}
+          onDismiss={dismissDayOne}
         />
       )}
 
@@ -912,14 +922,31 @@ const s = StyleSheet.create({
   noteTitle: { fontFamily: F.bodySemiBold, fontSize: 14.5, color: C.textPrimary },
   noteBody: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted, marginTop: 4, lineHeight: 20 },
 
-  emptyCard: {
+  emptyState: {
+    alignItems: 'center',
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.borderMuted,
     borderRadius: 18,
     borderCurve: 'continuous',
-    padding: 18,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
     marginTop: 18,
+  },
+  emptyIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: C.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: { fontFamily: F.headingSemiBold, fontSize: 17, color: C.textPrimary, textAlign: 'center' },
+  emptyBody: {
+    fontFamily: F.body, fontSize: 14, color: C.textMuted, textAlign: 'center',
+    marginTop: 6, lineHeight: 20,
   },
   emptyBtn: {
     borderWidth: 1,

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_HEIGHT = SCREEN_HEIGHT * 0.34;
@@ -15,6 +16,7 @@ const CARD_HEIGHT = SCREEN_HEIGHT * 0.34;
 export default function CreateAccountScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
 
   // Animated values
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -25,6 +27,16 @@ export default function CreateAccountScreen() {
   const footerOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      // Jump straight to the settled layout — no fade/slide sequence.
+      headerOpacity.setValue(1);
+      card1Opacity.setValue(1);
+      card1TranslateY.setValue(0);
+      card2Opacity.setValue(1);
+      card2TranslateY.setValue(0);
+      footerOpacity.setValue(1);
+      return;
+    }
     Animated.sequence([
       // Header fades in
       Animated.timing(headerOpacity, {
@@ -65,7 +77,7 @@ export default function CreateAccountScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [reduceMotion]);
 
   const handleCoachSignUp = () => {
     router.push('/(auth)/coach-signup');

@@ -21,6 +21,7 @@ import React, {
   useCallback,
   type PropsWithChildren,
 } from 'react';
+import * as Haptics from 'expo-haptics';
 // PURCHASES_ERROR_CODE is a runtime enum, so it comes from the platform-split
 // module (base = web-safe stub, `.native.ts` = the real SDK). The rest are
 // types and are erased at compile time.
@@ -139,6 +140,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       try {
         const { customerInfo: info, transaction } = await Purchases.purchasePackage(pkg) as any;
         setCustomerInfo(info);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // ── Layers purchase events ───────────────────────────────────────────
         const productId = pkg.product.identifier;
@@ -191,6 +193,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       setCustomerInfo(info);
       const hasActive =
         Object.keys(info.entitlements.active).length > 0;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return { success: true, restored: hasActive };
     } catch (err: any) {
       if (__DEV__) console.warn('[RevenueCat] Restore error:', err);

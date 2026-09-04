@@ -12,7 +12,7 @@ import AccountabilityQueue from '../../components/dashboard/AccountabilityQueue'
 import NewCoachSetupCards from '../../components/dashboard/NewCoachSetupCards';
 import ExampleAtRiskCard from '../../components/dashboard/ExampleAtRiskCard';
 import CardImage from '../../components/ui/CardImage';
-import FirstClientOverlay from '../../components/coach/FirstClientOverlay';
+import CelebrationOverlay from '../../components/CelebrationOverlay';
 import GlobalSearchModal from '../../components/dashboard/GlobalSearchModal';
 import AICoachModal from '../../components/dashboard/AICoachModal';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
@@ -588,9 +588,13 @@ export default function CoachHomeScreen() {
 
       {/* One-time first-client celebration (flag set before this renders). */}
       {celebratedName !== null && (
-        <FirstClientOverlay
-          clientName={celebratedName}
-          onDone={() => setCelebratedName(null)}
+        <CelebrationOverlay
+          visible={celebratedName !== null}
+          kind="first-client"
+          title={celebratedName}
+          subtitle="Your roster is live. Their sessions, check-ins and progress start landing on your dashboard from here."
+          primary={{ label: "Let's go", onPress: () => setCelebratedName(null) }}
+          onDismiss={() => setCelebratedName(null)}
         />
       )}
     </View>

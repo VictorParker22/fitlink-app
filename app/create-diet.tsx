@@ -709,7 +709,7 @@ export default function CreateDietScreen() {
           <WizardHeading kicker={`${kickerBase} · Targets`} title={'Set the day’s numbers.'} />
 
           <View style={[s.fieldWrap, focusField === 'name' && s.fieldWrapActive]}>
-            <Text style={[s.microLabel, focusField === 'name' && s.microLabelActive]}>Plan name</Text>
+            <Text style={[s.microLabel, focusField === 'name' && s.microLabelActive]} maxFontSizeMultiplier={1.2}>Plan name</Text>
             <TextInput
               style={s.nameInput}
               placeholder="e.g. Marcus off-season"
@@ -724,11 +724,13 @@ export default function CreateDietScreen() {
 
           {/* The signature: calories as the hero, macros as a living bar */}
           <View style={s.heroCard}>
-            <Text style={s.eyebrow}>Daily target</Text>
+            <Text style={s.eyebrow} maxFontSizeMultiplier={1.2}>Daily target</Text>
             <View style={s.kcalRow}>
               <TouchableOpacity
                 style={s.stepBtn}
                 onPress={() => { setKcal(k => Math.max(1600, k - 50)); Haptics.selectionAsync(); }}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease daily calories"
               >
                 <Ionicons name="remove" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
@@ -739,6 +741,8 @@ export default function CreateDietScreen() {
               <TouchableOpacity
                 style={s.stepBtn}
                 onPress={() => { setKcal(k => Math.min(3200, k + 50)); Haptics.selectionAsync(); }}
+                accessibilityRole="button"
+                accessibilityLabel="Increase daily calories"
               >
                 <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
@@ -752,8 +756,11 @@ export default function CreateDietScreen() {
                   key={k}
                   style={[s.chip, preset === k && s.chipActive]}
                   onPress={() => changePreset(k)}
+                  accessibilityRole="button"
+                  accessibilityLabel={k === 'custom' ? 'Custom' : PRESETS[k].label}
+                  accessibilityState={{ selected: preset === k }}
                 >
-                  <Text style={[s.chipText, preset === k && s.chipTextActive]}>
+                  <Text style={[s.chipText, preset === k && s.chipTextActive]} maxFontSizeMultiplier={1.2}>
                     {k === 'custom' ? 'Custom' : PRESETS[k].label}
                   </Text>
                 </TouchableOpacity>
@@ -763,7 +770,7 @@ export default function CreateDietScreen() {
               <View style={s.customRow}>
                 {([['Protein g', 'p', customP, setCustomP], ['Carbs g', 'c', customC, setCustomC], ['Fat g', 'f', customF, setCustomF]] as [string, 'p' | 'c' | 'f', string, (v: string) => void][]).map(([label, fieldKey, val, setter]) => (
                   <View key={label} style={s.customField}>
-                    <Text style={[s.microLabel, focusField === fieldKey && s.microLabelActive]}>{label}</Text>
+                    <Text style={[s.microLabel, focusField === fieldKey && s.microLabelActive]} maxFontSizeMultiplier={1.2}>{label}</Text>
                     <TextInput
                       style={[s.customInput, focusField === fieldKey && s.customInputActive]}
                       keyboardType="number-pad"
@@ -781,15 +788,18 @@ export default function CreateDietScreen() {
 
           {/* Meals a day */}
           <View style={s.card}>
-            <Text style={s.eyebrow}>Meals a day</Text>
+            <Text style={s.eyebrow} maxFontSizeMultiplier={1.2}>Meals a day</Text>
             <View style={s.chipRow}>
               {[3, 4, 5, 6].map(n => (
                 <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }}
                   key={n}
                   style={[s.chip, mealsPerDay === n && s.chipActive]}
                   onPress={() => { changeMealsPerDay(n); Haptics.selectionAsync(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${n} meals a day`}
+                  accessibilityState={{ selected: mealsPerDay === n }}
                 >
-                  <Text style={[s.chipText, mealsPerDay === n && s.chipTextActive]}>{n}</Text>
+                  <Text style={[s.chipText, mealsPerDay === n && s.chipTextActive]} maxFontSizeMultiplier={1.2}>{n}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -807,6 +817,7 @@ export default function CreateDietScreen() {
           disabled={!name.trim()}
           onPress={() => setStep(2)}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           <Text style={s.ctaText}>Build the day</Text>
           <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
@@ -830,12 +841,12 @@ export default function CreateDietScreen() {
     return (
       <View style={s.macroCard}>
         <View style={s.macroTopRow}>
-          <Text style={s.macroKcal}>
+          <Text style={s.macroKcal} maxFontSizeMultiplier={1.2}>
             {Math.round(activeTotals.calories).toLocaleString()}
             <Text style={s.macroKcalTarget}> of {kcal.toLocaleString()} kcal</Text>
           </Text>
           <View style={[s.statusChip, onTarget && s.statusChipOn]}>
-            <Text style={[s.statusChipText, onTarget && s.statusChipTextOn]}>
+            <Text style={[s.statusChipText, onTarget && s.statusChipTextOn]} maxFontSizeMultiplier={1.2}>
               {onTarget ? 'On target' : `${Math.abs(kcalDiff)} ${kcalDiff < 0 ? 'under' : 'over'}`}
             </Text>
           </View>
@@ -845,7 +856,7 @@ export default function CreateDietScreen() {
           {seg(cShare, activeTotals.carbs, grams.c, MACRO_COLORS.c)}
           {seg(fShare, activeTotals.fat, grams.f, MACRO_COLORS.f)}
         </View>
-        <Text style={s.macroLine}>{macroLine(activeTotals)}</Text>
+        <Text style={s.macroLine} maxFontSizeMultiplier={1.2}>{macroLine(activeTotals)}</Text>
       </View>
     );
   };
@@ -866,8 +877,11 @@ export default function CreateDietScreen() {
               key={v}
               style={[s.segment, dayVariant === v && s.segmentActive]}
               onPress={() => { setDayVariant(v); Haptics.selectionAsync(); }}
+              accessibilityRole="button"
+              accessibilityLabel={v === 'training' ? 'Training day' : 'Rest day'}
+              accessibilityState={{ selected: dayVariant === v }}
             >
-              <Text style={[s.segmentText, dayVariant === v && s.segmentTextActive]}>
+              <Text style={[s.segmentText, dayVariant === v && s.segmentTextActive]} maxFontSizeMultiplier={1.2}>
                 {v === 'training' ? 'Training day' : 'Rest day'}
               </Text>
             </TouchableOpacity>
@@ -876,7 +890,7 @@ export default function CreateDietScreen() {
 
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.scroll}>
           {dayVariant === 'rest' && restEmpty && trainingHasMeals && (
-            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.copyBtn} onPress={copyTrainingToRest} activeOpacity={0.8}>
+            <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={s.copyBtn} onPress={copyTrainingToRest} activeOpacity={0.8} accessibilityRole="button">
               <Ionicons name="copy-outline" size={18} color={CoachColors.accent} />
               <Text style={s.copyBtnText}>Copy training day at reduced portions</Text>
             </TouchableOpacity>
@@ -886,12 +900,14 @@ export default function CreateDietScreen() {
             const swapCount = slot.swaps.allowedMealIds.length;
             return (
               <View key={`${dayVariant}-${index}`} style={{ marginBottom: 12 }}>
-                <Text style={s.slotLabel}>{slot.label}</Text>
+                <Text style={s.slotLabel} maxFontSizeMultiplier={1.2}>{slot.label}</Text>
                 {slot.meal ? (
                   <TouchableOpacity
                     style={s.slotCard}
                     activeOpacity={0.8}
                     onPress={() => { setSlotSheetIndex(index); setEditServings(slot.meal!.servings); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${slot.meal.name}`}
                   >
                     <SlotThumb
                       name={slot.meal.name}
@@ -908,7 +924,7 @@ export default function CreateDietScreen() {
                       {dayVariant === 'training' && swapCount > 0 && (
                         <View style={s.swapTag}>
                           <Ionicons name="swap-horizontal" size={12} color={CoachColors.accent} />
-                          <Text style={s.swapTagText}>{swapCount} swap{swapCount === 1 ? '' : 's'} allowed</Text>
+                          <Text style={s.swapTagText} maxFontSizeMultiplier={1.2}>{swapCount} swap{swapCount === 1 ? '' : 's'} allowed</Text>
                         </View>
                       )}
                     </View>
@@ -919,6 +935,7 @@ export default function CreateDietScreen() {
                     style={s.slotEmpty}
                     activeOpacity={0.7}
                     onPress={() => setSearchSlotIndex(index)}
+                    accessibilityRole="button"
                   >
                     <Ionicons name="add" size={18} color={CoachColors.textMuted} />
                     <Text style={s.slotEmptyText}>Pick a meal</Text>
@@ -937,6 +954,7 @@ export default function CreateDietScreen() {
             disabled={!trainingHasMeals}
             onPress={() => setStep(3)}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Text style={s.ctaText}>Set the week</Text>
             <Ionicons name="arrow-forward" size={18} color={CoachColors.onAccent} />
@@ -964,9 +982,12 @@ export default function CreateDietScreen() {
                 style={[s.dayChip, isTraining && s.dayChipActive]}
                 onPress={() => toggleTrainingDay(d.key)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${d.full}, ${isTraining ? 'training day' : 'rest day'}`}
+                accessibilityState={{ selected: isTraining }}
               >
-                <Text style={[s.dayChipDay, isTraining && s.dayChipDayActive]}>{d.short}</Text>
-                <Text style={[s.dayChipKcal, isTraining && s.dayChipKcalActive]}>
+                <Text style={[s.dayChipDay, isTraining && s.dayChipDayActive]} maxFontSizeMultiplier={1.2}>{d.short}</Text>
+                <Text style={[s.dayChipKcal, isTraining && s.dayChipKcalActive]} maxFontSizeMultiplier={1.2}>
                   {fmtK(isTraining ? trainingTotals.calories : restTotals.calories)}
                 </Text>
               </TouchableOpacity>
@@ -974,7 +995,14 @@ export default function CreateDietScreen() {
           })}
         </View>
 
-        <TouchableOpacity style={s.toggleRow} onPress={() => setFreeMealEnabled(v => !v)} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.toggleRow}
+          onPress={() => setFreeMealEnabled(v => !v)}
+          activeOpacity={0.7}
+          accessibilityRole="switch"
+          accessibilityLabel="One free meal a week"
+          accessibilityState={{ checked: freeMealEnabled }}
+        >
           <View style={{ flex: 1 }}>
             <Text style={s.toggleTitle}>One free meal a week</Text>
             <Text style={s.toggleSub}>{freeMealDayFull} dinner, off the books</Text>
@@ -984,12 +1012,20 @@ export default function CreateDietScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]}>Where does it go</Text>
+        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]} maxFontSizeMultiplier={1.2}>Where does it go</Text>
         {dietPasses.map(p => {
           const nodeCount = p.track!.filter(n => n.type === 'diet').length;
           const selected = assignTarget === p.id;
           return (
-            <TouchableOpacity key={p.id} style={[s.radioRow, selected && s.radioRowActive]} onPress={() => setAssignTarget(p.id)} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={p.id}
+              style={[s.radioRow, selected && s.radioRowActive]}
+              onPress={() => setAssignTarget(p.id)}
+              activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityLabel={`Into ${p.name}`}
+              accessibilityState={{ checked: selected }}
+            >
               <View style={[s.radio, selected && s.radioActive]}>
                 {selected && <View style={s.radioDot} />}
               </View>
@@ -1000,7 +1036,14 @@ export default function CreateDietScreen() {
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity style={[s.radioRow, assignTarget === 'library' && s.radioRowActive]} onPress={() => setAssignTarget('library')} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={[s.radioRow, assignTarget === 'library' && s.radioRowActive]}
+          onPress={() => setAssignTarget('library')}
+          activeOpacity={0.7}
+          accessibilityRole="radio"
+          accessibilityLabel="Library only"
+          accessibilityState={{ checked: assignTarget === 'library' }}
+        >
           <View style={[s.radio, assignTarget === 'library' && s.radioActive]}>
             {assignTarget === 'library' && <View style={s.radioDot} />}
           </View>
@@ -1010,12 +1053,14 @@ export default function CreateDietScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]}>Cover and notes (optional)</Text>
+        <Text style={[s.eyebrow, { marginTop: 28, marginBottom: 12 }]} maxFontSizeMultiplier={1.2}>Cover and notes (optional)</Text>
         <TouchableOpacity
           style={[s.imageUploadBtn, imageUrl && s.imageUploadBtnActive]}
           onPress={pickImage}
           disabled={uploadingImage}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={imageUrl ? 'Change cover image' : 'Add cover image'}
         >
           {uploadingImage ? (
             <ActivityIndicator color={CoachColors.accent} />
@@ -1046,7 +1091,14 @@ export default function CreateDietScreen() {
       </ScrollView>
 
       <View style={s.footer}>
-        <TouchableOpacity style={[s.cta, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[s.cta, saving && { opacity: 0.7 }]}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={isEditing ? 'Save changes' : 'Save meal plan'}
+        >
           {saving ? <ActivityIndicator color={CoachColors.onAccent} /> : (
             <>
               <Ionicons name="checkmark" size={20} color={CoachColors.onAccent} />
@@ -1074,8 +1126,13 @@ export default function CreateDietScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{slotSheetSlot?.label || 'Meal'}</Text>
-              <TouchableOpacity hitSlop={12} onPress={() => setSlotSheetIndex(null)}>
+              <Text style={s.modalTitle} maxFontSizeMultiplier={1.3}>{slotSheetSlot?.label || 'Meal'}</Text>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() => setSlotSheetIndex(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -1087,17 +1144,29 @@ export default function CreateDietScreen() {
                 <View style={s.servingRow}>
                   <Text style={s.servingLabel}>Servings</Text>
                   <View style={s.portionControls}>
-                    <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setEditServings(v => Math.max(0.25, v - 0.25))}>
+                    <TouchableOpacity
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      style={s.portionBtn}
+                      onPress={() => setEditServings(v => Math.max(0.25, v - 0.25))}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease servings"
+                    >
                       <Ionicons name="remove" size={25} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={s.portionValue}>{editServings}</Text>
-                    <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setEditServings(v => v + 0.25)}>
+                    <Text style={s.portionValue} maxFontSizeMultiplier={1.2}>{editServings}</Text>
+                    <TouchableOpacity
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      style={s.portionBtn}
+                      onPress={() => setEditServings(v => v + 0.25)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase servings"
+                    >
                       <Ionicons name="add" size={25} color={CoachColors.textPrimary} />
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <TouchableOpacity style={s.sheetPrimaryBtn} onPress={saveSlotServings}>
+                <TouchableOpacity style={s.sheetPrimaryBtn} onPress={saveSlotServings} accessibilityRole="button">
                   <Text style={s.sheetPrimaryText}>Save servings</Text>
                 </TouchableOpacity>
 
@@ -1105,6 +1174,7 @@ export default function CreateDietScreen() {
                   <TouchableOpacity
                     style={s.sheetActionBtn}
                     onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSwapSheetIndex(i); }}
+                    accessibilityRole="button"
                   >
                     <Ionicons name="swap-horizontal" size={20} color={CoachColors.accent} />
                     <Text style={s.sheetActionText}>
@@ -1116,6 +1186,7 @@ export default function CreateDietScreen() {
                 <TouchableOpacity
                   style={s.sheetActionBtn}
                   onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSearchSlotIndex(i); }}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="repeat" size={20} color={CoachColors.textPrimary} />
                   <Text style={s.sheetActionText}>Replace meal</Text>
@@ -1124,6 +1195,7 @@ export default function CreateDietScreen() {
                 <TouchableOpacity
                   style={[s.sheetActionBtn, s.dangerBtn]}
                   onPress={() => isExtraSlot ? removeExtraSlot(slotSheetIndex) : clearSlot(slotSheetIndex)}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="trash" size={20} color={CoachColors.danger} />
                   <Text style={[s.sheetActionText, { color: CoachColors.danger }]}>
@@ -1141,10 +1213,15 @@ export default function CreateDietScreen() {
         <View style={s.modalOverlay}>
           <View style={[s.modalContent, { maxHeight: '85%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle} numberOfLines={1}>
+              <Text style={s.modalTitle} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                 If they can't have {swapSlot?.meal ? swapSlot.meal.name.split(',')[0].split(' with ')[0] : 'this'}
               </Text>
-              <TouchableOpacity hitSlop={12} onPress={() => setSwapSheetIndex(null)}>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() => setSwapSheetIndex(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -1159,7 +1236,16 @@ export default function CreateDietScreen() {
               {swapCandidates.inRange.map(m => {
                 const checked = swapSlot?.swaps.allowedMealIds.includes(m.id);
                 return (
-                  <TouchableOpacity key={m.id} hitSlop={{ top: 4, bottom: 4 }} style={s.swapRow} onPress={() => toggleSwapMeal(m.id)} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    key={m.id}
+                    hitSlop={{ top: 4, bottom: 4 }}
+                    style={s.swapRow}
+                    onPress={() => toggleSwapMeal(m.id)}
+                    activeOpacity={0.7}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={m.name}
+                    accessibilityState={{ checked: !!checked }}
+                  >
                     <View style={[s.checkbox, checked && s.checkboxOn]}>
                       {checked && <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />}
                     </View>
@@ -1181,7 +1267,14 @@ export default function CreateDietScreen() {
               ))}
             </ScrollView>
 
-            <TouchableOpacity style={s.ownLogRow} onPress={toggleAllowOwnLog} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={s.ownLogRow}
+              onPress={toggleAllowOwnLog}
+              activeOpacity={0.7}
+              accessibilityRole="switch"
+              accessibilityLabel="Let them log their own"
+              accessibilityState={{ checked: !!swapSlot?.swaps.allowOwnLog }}
+            >
               <View style={{ flex: 1 }}>
                 <Text style={s.toggleTitle}>Let them log their own</Text>
                 <Text style={s.toggleSub}>You see it in their check-in either way</Text>
@@ -1191,7 +1284,7 @@ export default function CreateDietScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.sheetPrimaryBtn} onPress={() => setSwapSheetIndex(null)}>
+            <TouchableOpacity style={s.sheetPrimaryBtn} onPress={() => setSwapSheetIndex(null)} accessibilityRole="button">
               <Text style={s.sheetPrimaryText}>
                 Allow these {swapSlot?.swaps.allowedMealIds.length || 0}
               </Text>
@@ -1205,10 +1298,15 @@ export default function CreateDietScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={[s.modalContent, { height: '90%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
+              <Text style={s.modalTitle} maxFontSizeMultiplier={1.3}>
                 {searchSlotIndex !== null && slots[searchSlotIndex] ? slots[searchSlotIndex].label : 'Add a meal'}
               </Text>
-              <TouchableOpacity hitSlop={12} onPress={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -1227,18 +1325,30 @@ export default function CreateDietScreen() {
                 selectionColor={CoachColors.accent}
               />
               {searchMode === 'api' && (
-                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={performSearch} style={s.searchBtn}>
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} onPress={performSearch} style={s.searchBtn} accessibilityRole="button">
                   <Text style={s.searchBtnText}>Search</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <View style={s.searchTabs}>
-              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={[s.searchTab, searchMode === 'saved' && s.searchTabActive]} onPress={() => setSearchMode('saved')}>
-                <Text style={[s.searchTabText, searchMode === 'saved' && s.searchTabTextActive]}>My meals</Text>
+              <TouchableOpacity
+                hitSlop={{ top: 6, bottom: 6 }}
+                style={[s.searchTab, searchMode === 'saved' && s.searchTabActive]}
+                onPress={() => setSearchMode('saved')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: searchMode === 'saved' }}
+              >
+                <Text style={[s.searchTabText, searchMode === 'saved' && s.searchTabTextActive]} maxFontSizeMultiplier={1.2}>My meals</Text>
               </TouchableOpacity>
-              <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={[s.searchTab, searchMode === 'api' && s.searchTabActive]} onPress={() => setSearchMode('api')}>
-                <Text style={[s.searchTabText, searchMode === 'api' && s.searchTabTextActive]}>USDA DB</Text>
+              <TouchableOpacity
+                hitSlop={{ top: 6, bottom: 6 }}
+                style={[s.searchTab, searchMode === 'api' && s.searchTabActive]}
+                onPress={() => setSearchMode('api')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: searchMode === 'api' }}
+              >
+                <Text style={[s.searchTabText, searchMode === 'api' && s.searchTabTextActive]} maxFontSizeMultiplier={1.2}>USDA DB</Text>
               </TouchableOpacity>
             </View>
 
@@ -1259,6 +1369,9 @@ export default function CreateDietScreen() {
                           setSelectedResultId(isExpanded ? null : item._uid);
                           setTempServings(1);
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.name}, ${isExpanded ? 'collapse' : 'add'}`}
+                        accessibilityState={{ expanded: isExpanded }}
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={s.resultName} numberOfLines={2}>{item.name}</Text>
@@ -1282,18 +1395,36 @@ export default function CreateDietScreen() {
                         <View style={s.portionEditor}>
                           <Text style={s.portionLabel}>Servings:</Text>
                           <View style={s.portionControls}>
-                            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setTempServings(v => Math.max(0.25, v - 0.25))}>
+                            <TouchableOpacity
+                              hitSlop={{ top: 6, bottom: 6 }}
+                              style={s.portionBtn}
+                              onPress={() => setTempServings(v => Math.max(0.25, v - 0.25))}
+                              accessibilityRole="button"
+                              accessibilityLabel="Decrease servings"
+                            >
                               <Ionicons name="remove" size={22} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
-                            <Text style={s.portionValue}>{tempServings}</Text>
-                            <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.portionBtn} onPress={() => setTempServings(v => v + 0.25)}>
+                            <Text style={s.portionValue} maxFontSizeMultiplier={1.2}>{tempServings}</Text>
+                            <TouchableOpacity
+                              hitSlop={{ top: 6, bottom: 6 }}
+                              style={s.portionBtn}
+                              onPress={() => setTempServings(v => v + 0.25)}
+                              accessibilityRole="button"
+                              accessibilityLabel="Increase servings"
+                            >
                               <Ionicons name="add" size={22} color={CoachColors.textPrimary} />
                             </TouchableOpacity>
                           </View>
-                          <TouchableOpacity hitSlop={{ top: 5, bottom: 5 }} style={s.portionAddBtn} onPress={() => {
-                            if (searchMode === 'saved') addFromLocal(item, tempServings);
-                            else addFromApi(item, tempServings);
-                          }}>
+                          <TouchableOpacity
+                            hitSlop={{ top: 5, bottom: 5 }}
+                            style={s.portionAddBtn}
+                            onPress={() => {
+                              if (searchMode === 'saved') addFromLocal(item, tempServings);
+                              else addFromApi(item, tempServings);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add ${item.name}`}
+                          >
                             <Text style={s.portionAddText}>Add</Text>
                           </TouchableOpacity>
                         </View>

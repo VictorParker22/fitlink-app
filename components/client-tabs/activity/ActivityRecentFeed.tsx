@@ -68,7 +68,7 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagHeader}>Recent history</Text>
+      <Text style={styles.tagHeader} maxFontSizeMultiplier={1.2}>Recent history</Text>
       <View style={styles.divider} />
 
       {mergedFeed.length === 0 ? (
@@ -89,22 +89,24 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
               onPress={() => handlePress(item)}
               disabled={item.type !== 'workout' || !onPressWorkout}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${item.name}`}
             >
               <View style={styles.contentArea}>
-                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemName} maxFontSizeMultiplier={1.4}>{item.name}</Text>
                 <View style={styles.metaRow}>
                   {item.isCoachAssigned ? (
                     <View style={[styles.pill, { backgroundColor: CoachColors.accentSoft }]}>
-                      <Text style={[styles.pillText, { color: CoachColors.accent }]}>Coach</Text>
+                      <Text style={[styles.pillText, { color: CoachColors.accent }]} maxFontSizeMultiplier={1.2}>Coach</Text>
                     </View>
                   ) : (
                     <View style={[styles.pill, { borderWidth: 1, borderColor: CoachColors.border }]}>
-                      <Text style={[styles.pillText, { color: CoachColors.textSecondary }]}>Logged</Text>
+                      <Text style={[styles.pillText, { color: CoachColors.textSecondary }]} maxFontSizeMultiplier={1.2}>Logged</Text>
                     </View>
                   )}
-                  {item.duration ? <Text style={styles.metaText}>{item.duration}</Text> : null}
-                  {item.duration ? <Text style={styles.metaDot}>•</Text> : null}
-                  <Text style={styles.metaText}>{getRelativeDate(item.date)}</Text>
+                  {item.duration ? <Text style={styles.metaText} maxFontSizeMultiplier={1.4}>{item.duration}</Text> : null}
+                  {item.duration ? <Text style={styles.metaDot} maxFontSizeMultiplier={1.4}>•</Text> : null}
+                  <Text style={styles.metaText} maxFontSizeMultiplier={1.4}>{getRelativeDate(item.date)}</Text>
                 </View>
               </View>
               <View style={styles.navButtonContainer}>

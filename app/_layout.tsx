@@ -16,10 +16,6 @@ import { ClientRoute, AuthRoute, SharedRoute } from '../types/routes';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
-// Editorial onboarding faces (constants/onboardingDesign.ts). Used only by
-// app/(auth)/welcome, role, intake, coach-intake and account.
-import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AppProvider, useApp } from '../context/AppContext';
 import { ClientProvider } from '../context/ClientContext';
@@ -500,12 +496,6 @@ export default Sentry.wrap(function RootLayout() {
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
     JetBrainsMono_500Medium,
-    InstrumentSerif_400Regular,
-    InstrumentSerif_400Regular_Italic,
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
   });
 
   // DON'T hide splash here — AuthGuard handles it after navigation.

@@ -200,7 +200,7 @@ export default function OrgBillingScreen() {
         <Header router={router} />
         <View style={st.center}>
           <Ionicons name="business-outline" size={40} color={CoachColors.textFaint} />
-          <Text style={st.emptyTitle}>You are not part of an organisation</Text>
+          <Text style={st.emptyTitle} maxFontSizeMultiplier={1.3}>You are not part of an organisation</Text>
           <Text style={st.emptyBody}>
             Seat billing is for gyms running several coaches. As an independent coach you keep
             everything you earn, minus the platform fee.
@@ -216,8 +216,8 @@ export default function OrgBillingScreen() {
         <Header router={router} />
         <View style={st.center}>
           <Ionicons name="alert-circle-outline" size={40} color={CoachColors.warning} />
-          <Text style={st.emptyTitle}>{phase.message}</Text>
-          <TouchableOpacity style={st.retry} onPress={load}>
+          <Text style={st.emptyTitle} maxFontSizeMultiplier={1.3}>{phase.message}</Text>
+          <TouchableOpacity style={st.retry} onPress={load} accessibilityRole="button">
             <Text style={st.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -238,16 +238,16 @@ export default function OrgBillingScreen() {
         contentContainerStyle={[st.body, pad]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
       >
-        <Text style={st.orgName}>{b.org_name}</Text>
+        <Text style={st.orgName} maxFontSizeMultiplier={1.3}>{b.org_name}</Text>
 
         {/* ── Seats ───────────────────────────────────────────── */}
         <View style={st.card}>
-          <Text style={st.cardLabel}>Seats</Text>
+          <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>Seats</Text>
           <View style={st.seatRow}>
-            <Text style={st.seatBig}>{b.seats_used}</Text>
+            <Text style={st.seatBig} maxFontSizeMultiplier={1.2}>{b.seats_used}</Text>
             {/* No denominator when nothing is provisioned — "3 of 0" would be
                 a lie about a limit that does not exist yet. */}
-            {!neverSubscribed && <Text style={st.seatOf}>of {b.seats_paid}</Text>}
+            {!neverSubscribed && <Text style={st.seatOf} maxFontSizeMultiplier={1.2}>of {b.seats_paid}</Text>}
           </View>
           <Text style={st.seatSub}>
             {b.seats_used === 1 ? '1 coach working' : `${b.seats_used} coaches working`}
@@ -270,8 +270,8 @@ export default function OrgBillingScreen() {
         {/* ── Billing status ──────────────────────────────────── */}
         {status.label !== '' && (
           <View style={[st.card, status.tone === 'warn' && st.cardWarn]}>
-            <Text style={st.cardLabel}>Billing</Text>
-            <Text style={[st.statusLabel, status.tone === 'warn' && st.statusWarn]}>{status.label}</Text>
+            <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>Billing</Text>
+            <Text style={[st.statusLabel, status.tone === 'warn' && st.statusWarn]} maxFontSizeMultiplier={1.3}>{status.label}</Text>
             {status.detail !== '' && <Text style={st.statusDetail}>{status.detail}</Text>}
 
             {/* Price and renewal are omitted, not zeroed, when unknown. */}
@@ -288,12 +288,12 @@ export default function OrgBillingScreen() {
 
         {/* ── The gym's cut ───────────────────────────────────── */}
         <View style={st.card}>
-          <Text style={st.cardLabel}>Your share of coach revenue</Text>
+          <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>Your share of coach revenue</Text>
           {b.org_share_bps > 0 ? (
-            <Text style={st.shareBig}>{bpsToPercentLabel(b.org_share_bps)}</Text>
+            <Text style={st.shareBig} maxFontSizeMultiplier={1.2}>{bpsToPercentLabel(b.org_share_bps)}</Text>
           ) : (
             <>
-              <Text style={st.shareNone}>No org share set</Text>
+              <Text style={st.shareNone} maxFontSizeMultiplier={1.3}>No org share set</Text>
               <Text style={st.statusDetail}>
                 Your coaches keep everything they earn, minus the platform fee. Set a share
                 only if your gym takes a cut of what its coaches bill.
@@ -314,6 +314,8 @@ export default function OrgBillingScreen() {
               style={[st.primary, busy && st.disabled]}
               disabled={busy}
               onPress={() => changeSeats(Math.max(b.seats_used, (b.seats_paid ?? 1)) + 1)}
+              accessibilityRole="button"
+              accessibilityLabel={neverSubscribed ? 'Buy seats' : 'Add a seat'}
             >
               {busy
                 ? <ActivityIndicator color={CoachColors.onAccent} />
@@ -330,6 +332,7 @@ export default function OrgBillingScreen() {
                 style={[st.secondary, busy && st.disabled]}
                 disabled={busy}
                 onPress={() => changeSeats((b.seats_paid ?? 1) - 1)}
+                accessibilityRole="button"
               >
                 <Text style={st.secondaryText}>Remove a seat</Text>
               </TouchableOpacity>
@@ -353,10 +356,10 @@ export default function OrgBillingScreen() {
 function Header({ router }: { router: ReturnType<typeof useRouter> }) {
   return (
     <View style={st.header}>
-      <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+      <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
         <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
       </TouchableOpacity>
-      <Text style={st.headerTitle}>Seats and billing</Text>
+      <Text style={st.headerTitle} maxFontSizeMultiplier={1.3}>Seats and billing</Text>
       <View style={{ width: 24 }} />
     </View>
   );

@@ -12,18 +12,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetwork } from '../context/NetworkContext';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { Motion } from '../constants/motion';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 const SLIDE_DISTANCE = 72;
 
 export default function OfflineBanner() {
   const { isConnected } = useNetwork();
   const insets = useSafeAreaInsets();
+  const reduced = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   const slide = useRef(new Animated.Value(-SLIDE_DISTANCE)).current;
 
   useEffect(() => {
     if (!isConnected) {
       setMounted(true);
+      if (reduced) {
+        Animated.timing(slide, { toValue: 0, duration: Motion.reduced, useNativeDriver: true }).start();
+        return;
+      }
       Animated.spring(slide, {
         toValue: 0,
         useNativeDriver: true,
@@ -33,11 +40,11 @@ export default function OfflineBanner() {
     } else if (mounted) {
       Animated.timing(slide, {
         toValue: -SLIDE_DISTANCE,
-        duration: 260,
+        duration: reduced ? Motion.reduced : 260,
         useNativeDriver: true,
       }).start(() => setMounted(false));
     }
-  }, [isConnected, mounted, slide]);
+  }, [isConnected, mounted, slide, reduced]);
 
   if (!mounted) return null;
 

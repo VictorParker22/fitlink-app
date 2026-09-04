@@ -104,6 +104,11 @@ export default function TrainerSessionScreen() {
   const [showCancelSheet, setShowCancelSheet]   = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Fires the session-start haptic exactly once per screen instance, at the
+  // idle → active transition (entering track mode) — not on every re-render
+  // that happens to re-run the timer effect below.
+  const sessionStartHapticFired = useRef(false);
+
   // Rest timer
   const { triggerRestCue, triggerCountdownTick } = useRestChime();
   const [restRemaining, setRestRemaining]       = useState<number | null>(null);
@@ -168,6 +173,12 @@ export default function TrainerSessionScreen() {
 
   useEffect(() => {
     if (session && mode === 'track') {
+      if (!sessionStartHapticFired.current) {
+        sessionStartHapticFired.current = true;
+        // Session start: idle → active. Separate from the per-set completion
+        // haptic in completeSet — this fires once, here, and nowhere else.
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
       timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -289,8 +300,9 @@ export default function TrainerSessionScreen() {
   }, [session, detailNotes, updateSession, showAlert]);
 
   const handleStartTracking = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Replace current detail view with the tracker
+    // No haptic here — the session-start Medium impact fires once, at the
+    // actual idle → active transition in the timer effect above, so this
+    // button press and that transition don't produce a double haptic.
     router.replace(`/session/${sessionId}` as any);
   }, [router, sessionId]);
 

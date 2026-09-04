@@ -145,17 +145,22 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       keyboardDismissMode="interactive"
     >
       <View style={styles.header}>
-        <Text style={styles.tagHeader}>Log activity</Text>
-        <TouchableOpacity hitSlop={12} onPress={onClose}>
+        <Text style={styles.tagHeader} maxFontSizeMultiplier={1.2}>Log activity</Text>
+        <TouchableOpacity hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="close" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.modalTitle}>{isFuture ? 'Schedule activity' : 'Add activity'}</Text>
+      <Text style={styles.modalTitle} maxFontSizeMultiplier={1.3}>{isFuture ? 'Schedule activity' : 'Add activity'}</Text>
 
-      <TouchableOpacity style={styles.typeSelector} onPress={() => setScreen('picker')}>
+      <TouchableOpacity
+        style={styles.typeSelector}
+        onPress={() => setScreen('picker')}
+        accessibilityRole="button"
+        accessibilityLabel={`Change activity type, currently ${selectedType.name}`}
+      >
         <View style={styles.categoryDot} />
-        <Text style={styles.typeSelectorText}>{selectedType.name}</Text>
+        <Text style={styles.typeSelectorText} maxFontSizeMultiplier={1.2}>{selectedType.name}</Text>
         <Ionicons name="chevron-down" size={22} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
@@ -187,22 +192,35 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
               key={i}
               style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
               onPress={() => setSelectedDate(d)}
+              accessibilityRole="button"
+              accessibilityLabel={`${isToday ? 'Today' : dayName} ${dateNum}`}
+              accessibilityState={{ selected: isSelected }}
             >
-              <Text style={[styles.dayName, isSelected && styles.dayTextSelected]}>{isToday ? 'Today' : dayName}</Text>
-              <Text style={[styles.dateNum, isSelected && styles.dayTextSelected]}>{dateNum}</Text>
+              <Text style={[styles.dayName, isSelected && styles.dayTextSelected]} maxFontSizeMultiplier={1.2}>{isToday ? 'Today' : dayName}</Text>
+              <Text style={[styles.dateNum, isSelected && styles.dayTextSelected]} maxFontSizeMultiplier={1.2}>{dateNum}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       <View style={styles.timeDurationRow}>
-        <TouchableOpacity style={styles.timeBlock} onPress={() => setShowTimePickers(!showTimePickers)}>
-          <Text style={styles.blockLabel}>Start time</Text>
-          <Text style={styles.blockValue}>{hour}:{minute.toString().padStart(2, '0')} {ampm}</Text>
+        <TouchableOpacity
+          style={styles.timeBlock}
+          onPress={() => setShowTimePickers(!showTimePickers)}
+          accessibilityRole="button"
+          accessibilityLabel="Edit start time"
+        >
+          <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Start time</Text>
+          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2}>{hour}:{minute.toString().padStart(2, '0')} {ampm}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.timeBlock} onPress={() => setShowTimePickers(!showTimePickers)}>
-          <Text style={styles.blockLabel}>Duration</Text>
-          <Text style={styles.blockValue}>{durationHr > 0 ? `${durationHr}h ` : ''}{durationMn}min</Text>
+        <TouchableOpacity
+          style={styles.timeBlock}
+          onPress={() => setShowTimePickers(!showTimePickers)}
+          accessibilityRole="button"
+          accessibilityLabel="Edit duration"
+        >
+          <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Duration</Text>
+          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2}>{durationHr > 0 ? `${durationHr}h ` : ''}{durationMn}min</Text>
         </TouchableOpacity>
       </View>
 
@@ -216,19 +234,31 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         <TouchableOpacity
           style={[styles.locationBtn, location === 'In club' && styles.locationBtnSelected]}
           onPress={() => setLocation('In club')}
+          accessibilityRole="button"
+          accessibilityLabel="In club"
+          accessibilityState={{ selected: location === 'In club' }}
         >
-          <Text style={[styles.locationText, location === 'In club' && styles.locationTextSelected]}>In club</Text>
+          <Text style={[styles.locationText, location === 'In club' && styles.locationTextSelected]} maxFontSizeMultiplier={1.2}>In club</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.locationBtn, location === 'Not in club' && styles.locationBtnSelected]}
           onPress={() => setLocation('Not in club')}
+          accessibilityRole="button"
+          accessibilityLabel="Not in club"
+          accessibilityState={{ selected: location === 'Not in club' }}
         >
-          <Text style={[styles.locationText, location === 'Not in club' && styles.locationTextSelected]}>Not in club</Text>
+          <Text style={[styles.locationText, location === 'Not in club' && styles.locationTextSelected]} maxFontSizeMultiplier={1.2}>Not in club</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.notesToggle} onPress={() => setShowNotes(!showNotes)}>
-        <Text style={styles.notesToggleText}>Add notes</Text>
+      <TouchableOpacity
+        style={styles.notesToggle}
+        onPress={() => setShowNotes(!showNotes)}
+        accessibilityRole="button"
+        accessibilityLabel={showNotes ? 'Hide notes' : 'Add notes'}
+        accessibilityState={{ expanded: showNotes }}
+      >
+        <Text style={styles.notesToggleText} maxFontSizeMultiplier={1.4}>Add notes</Text>
         <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={22} color={CoachColors.textPrimary} />
       </TouchableOpacity>
 
@@ -253,14 +283,17 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         disabled={!canSubmit || saving}
         onPress={handleSubmit}
         style={{ marginTop: Spacing.xl }}
+        accessibilityRole="button"
+        accessibilityLabel={saving ? 'Saving activity' : 'Save activity'}
+        accessibilityState={{ disabled: !canSubmit || saving }}
       >
         {canSubmit && !saving ? (
           <View style={styles.submitButton}>
-            <Text style={styles.submitButtonText}>Save activity</Text>
+            <Text style={styles.submitButtonText} maxFontSizeMultiplier={1.4}>Save activity</Text>
           </View>
         ) : (
           <View style={[styles.submitButton, styles.submitButtonDisabled]}>
-            <Text style={styles.submitButtonTextDisabled}>{saving ? 'Saving...' : 'Save activity'}</Text>
+            <Text style={styles.submitButtonTextDisabled} maxFontSizeMultiplier={1.4}>{saving ? 'Saving...' : 'Save activity'}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -270,10 +303,15 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   const renderPicker = () => (
     <View style={styles.pickerContainer}>
       <View style={styles.pickerHeader}>
-        <TouchableOpacity onPress={() => setScreen('form')} style={styles.pickerBack}>
+        <TouchableOpacity
+          onPress={() => setScreen('form')}
+          style={styles.pickerBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Ionicons name="arrow-back" size={27} color={CoachColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.pickerTitle}>Select activity type</Text>
+        <Text style={styles.pickerTitle} maxFontSizeMultiplier={1.3}>Select activity type</Text>
       </View>
 
       <View style={[
@@ -296,7 +334,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         sections={filteredTypes}
         keyExtractor={(item) => item.name}
         renderSectionHeader={({ section: { title } }) => (
-          <Text style={styles.sectionHeader}>{title}</Text>
+          <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>{title}</Text>
         )}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -308,11 +346,14 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
               }
               setScreen('form');
             }}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.name}, ${item.category}`}
+            accessibilityState={{ selected: selectedType.name === item.name }}
           >
             <View style={styles.typeItemLeft}>
-              <Text style={styles.typeItemName}>{item.name}</Text>
+              <Text style={styles.typeItemName} maxFontSizeMultiplier={1.4}>{item.name}</Text>
               <View style={styles.typeItemDot} />
-              <Text style={styles.typeItemCategory}>{item.category}</Text>
+              <Text style={styles.typeItemCategory} maxFontSizeMultiplier={1.2}>{item.category}</Text>
             </View>
           </TouchableOpacity>
         )}

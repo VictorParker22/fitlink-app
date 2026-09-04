@@ -80,10 +80,14 @@ export const RosterHeatmap: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="grid-outline" size={16} color={CoachColors.textSecondary} />
-          <Text style={styles.title}>Team adherence</Text>
+          <Text style={styles.title} maxFontSizeMultiplier={1.3}>Team adherence</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/clients' as any)}>
-          <Text style={styles.seeAll}>See roster</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/clients' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="View full roster"
+        >
+          <Text style={styles.seeAll} maxFontSizeMultiplier={1.2}>See roster</Text>
         </TouchableOpacity>
       </View>
 
@@ -92,7 +96,7 @@ export const RosterHeatmap: React.FC = () => {
         <View style={styles.nameCol} />
         {days.map((d, i) => (
           <View key={i} style={styles.dayCol}>
-            <Text style={[styles.dayLabel, d.iso === today && styles.dayLabelToday]}>
+            <Text style={[styles.dayLabel, d.iso === today && styles.dayLabelToday]} maxFontSizeMultiplier={1.2}>
               {d.label}
             </Text>
           </View>
@@ -115,11 +119,13 @@ export const RosterHeatmap: React.FC = () => {
             style={styles.clientRow}
             onPress={() => router.push(`/client/${client.id}` as any)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${client.name}`}
           >
             {/* Avatar initial */}
             <View style={styles.nameCol}>
               <View style={styles.avatarChip}>
-                <Text style={styles.avatarText}>
+                <Text style={styles.avatarText} maxFontSizeMultiplier={1.2}>
                   {client.name.slice(0, 2).toUpperCase()}
                 </Text>
               </View>
@@ -151,7 +157,7 @@ export const RosterHeatmap: React.FC = () => {
                 styles.scoreText,
                 isAlert && { color: CoachColors.danger },
                 activeDays >= 5 && { color: CoachColors.accent },
-              ]}>
+              ]} maxFontSizeMultiplier={1.2}>
                 {activeDays}/7
               </Text>
             </View>
@@ -168,7 +174,7 @@ export const RosterHeatmap: React.FC = () => {
         ].map((item, i) => (
           <View key={i} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: item.color, opacity: item.opacity }]} />
-            <Text style={styles.legendText}>{item.label}</Text>
+            <Text style={styles.legendText} maxFontSizeMultiplier={1.2}>{item.label}</Text>
           </View>
         ))}
       </View>

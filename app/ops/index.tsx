@@ -181,7 +181,7 @@ export default function OpsScreen() {
         <Header router={router} />
         <View style={st.center}>
           <Ionicons name="lock-closed-outline" size={40} color={CoachColors.textFaint} />
-          <Text style={st.emptyTitle}>This is an internal screen</Text>
+          <Text style={st.emptyTitle} maxFontSizeMultiplier={1.3}>This is an internal screen</Text>
           <Text style={st.emptyBody}>
             Ops data is limited to FitLink staff. Nothing here is part of your account.
           </Text>
@@ -196,8 +196,8 @@ export default function OpsScreen() {
         <Header router={router} />
         <View style={st.center}>
           <Ionicons name="alert-circle-outline" size={40} color={CoachColors.warning} />
-          <Text style={st.emptyTitle}>{phase.message}</Text>
-          <TouchableOpacity style={st.retry} onPress={load}>
+          <Text style={st.emptyTitle} maxFontSizeMultiplier={1.3}>{phase.message}</Text>
+          <TouchableOpacity style={st.retry} onPress={load} accessibilityRole="button">
             <Text style={st.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -218,12 +218,14 @@ export default function OpsScreen() {
             key={t}
             style={[st.tab, tab === t && st.tabOn]}
             onPress={() => setTab(t)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: tab === t }}
           >
-            <Text style={[st.tabText, tab === t && st.tabTextOn]}>
+            <Text style={[st.tabText, tab === t && st.tabTextOn]} maxFontSizeMultiplier={1.2}>
               {t === 'health' ? 'Health' : 'Attack signals'}
             </Text>
             {t === 'signals' && criticals > 0 && (
-              <View style={st.badge}><Text style={st.badgeText}>{criticals}</Text></View>
+              <View style={st.badge}><Text style={st.badgeText} maxFontSizeMultiplier={1.2}>{criticals}</Text></View>
             )}
           </TouchableOpacity>
         ))}
@@ -231,8 +233,14 @@ export default function OpsScreen() {
 
       <View style={st.windowRow}>
         {[24, 168, 720].map((h) => (
-          <TouchableOpacity key={h} onPress={() => setHours(h)} style={[st.chip, hours === h && st.chipOn]}>
-            <Text style={[st.chipText, hours === h && st.chipTextOn]}>
+          <TouchableOpacity
+            key={h}
+            onPress={() => setHours(h)}
+            style={[st.chip, hours === h && st.chipOn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: hours === h }}
+          >
+            <Text style={[st.chipText, hours === h && st.chipTextOn]} maxFontSizeMultiplier={1.2}>
               {h === 24 ? '24 hours' : h === 168 ? '7 days' : '30 days'}
             </Text>
           </TouchableOpacity>
@@ -246,6 +254,7 @@ export default function OpsScreen() {
         {tab === 'health' ? (
           <>
             <View style={st.grid}>
+              {/* Metric renders cardLabel + big, both capped inside the component */}
               <Metric
                 label="Payment success"
                 /* NULL means nothing was attempted. 0% would read as "every
@@ -269,8 +278,8 @@ export default function OpsScreen() {
             </View>
 
             <View style={[st.card, health.critical_events > 0 && st.cardAlert]}>
-              <Text style={st.cardLabel}>Rejected calls</Text>
-              <Text style={st.big}>{health.auth_denials}</Text>
+              <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>Rejected calls</Text>
+              <Text style={st.big} maxFontSizeMultiplier={1.2}>{health.auth_denials}</Text>
               <Text style={st.sub}>
                 {health.denial_actors} signed-in caller{health.denial_actors === 1 ? '' : 's'} ·{' '}
                 {health.denial_anonymous} with no identity
@@ -284,7 +293,7 @@ export default function OpsScreen() {
 
             {/* The honest half of 27a. */}
             <View style={st.card}>
-              <Text style={st.cardLabel}>Not measured yet</Text>
+              <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>Not measured yet</Text>
               <Text style={st.sub}>
                 Design 27a asks for these. Nothing in the system records them, so they are
                 named here rather than shown as numbers we did not compute.
@@ -304,7 +313,7 @@ export default function OpsScreen() {
           <>
             {signals.length === 0 ? (
               <View style={st.card}>
-                <Text style={st.cardLabel}>No signals</Text>
+                <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>No signals</Text>
                 <Text style={st.sub}>
                   Nothing above informal severity was recorded in this window. That is a real
                   reading from the audit log, not an empty placeholder.
@@ -321,7 +330,7 @@ export default function OpsScreen() {
                       <Text style={st.sigAgo}>{ago(s.last_seen)}</Text>
                     </View>
 
-                    {s.subject && <Text style={st.sigSubject}>{s.subject}</Text>}
+                    {s.subject && <Text style={st.sigSubject} maxFontSizeMultiplier={1.2}>{s.subject}</Text>}
 
                     <Text style={st.sub}>
                       {s.occurrences} attempt{s.occurrences === 1 ? '' : 's'}
@@ -358,10 +367,10 @@ export default function OpsScreen() {
 function Metric({ label, value, sub }: { label: string; value: string | null; sub: string }) {
   return (
     <View style={st.tile}>
-      <Text style={st.cardLabel}>{label}</Text>
+      <Text style={st.cardLabel} maxFontSizeMultiplier={1.2}>{label}</Text>
       {/* An omitted value renders as a dash with its reason underneath —
           never as 0, which would be a claim. */}
-      <Text style={[st.big, value === null && st.bigAbsent]}>{value ?? '—'}</Text>
+      <Text style={[st.big, value === null && st.bigAbsent]} maxFontSizeMultiplier={1.2}>{value ?? '—'}</Text>
       <Text style={st.sub}>{sub}</Text>
     </View>
   );
@@ -370,12 +379,12 @@ function Metric({ label, value, sub }: { label: string; value: string | null; su
 function Header({ router }: { router: ReturnType<typeof useRouter> }) {
   return (
     <View style={st.header}>
-      <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+      <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
         <Ionicons name="chevron-back" size={24} color={CoachColors.textPrimary} />
       </TouchableOpacity>
       <View style={st.headerMid}>
-        <Text style={st.headerTitle}>FitLink Ops</Text>
-        <View style={st.internal}><Text style={st.internalText}>Internal</Text></View>
+        <Text style={st.headerTitle} maxFontSizeMultiplier={1.3}>FitLink Ops</Text>
+        <View style={st.internal}><Text style={st.internalText} maxFontSizeMultiplier={1.2}>Internal</Text></View>
       </View>
       <View style={{ width: 24 }} />
     </View>

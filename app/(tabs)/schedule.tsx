@@ -49,6 +49,7 @@ import { useAlert } from '../../context/AlertContext';
 import Avatar from '../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import CancelSessionSheet, { type SheetSession } from '../../components/sessions/CancelSessionSheet';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ export default function ScheduleScreen() {
   const insets   = useSafeAreaInsets();
   const { showAlert } = useAlert();
   const { sessions, getClientById, getSessionsForDate, updateSession, addSession, refreshData } = useApp();
+  const reduceMotion = useReducedMotion();
 
   const [selectedDate, setSelectedDate]       = useState(new Date());
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
@@ -121,11 +123,15 @@ export default function ScheduleScreen() {
 
   const toggleFullCal = () => {
     const toValue = showFullCal ? 0 : FULL_CAL_HEIGHT;
-    Animated.timing(calAnim, {
-      toValue,
-      duration: 280,
-      useNativeDriver: false,
-    }).start();
+    if (reduceMotion) {
+      calAnim.setValue(toValue);
+    } else {
+      Animated.timing(calAnim, {
+        toValue,
+        duration: 280,
+        useNativeDriver: false,
+      }).start();
+    }
     setShowFullCal(prev => !prev);
   };
 

@@ -16,6 +16,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { guardRate, clampText } from '../_shared/rateLimit.ts';
+import { withRetry, AiTimeout, PROMPT_VERSION, numbersNotInContext, report } from '../_shared/ai.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,7 +54,7 @@ serve(async (req) => {
     // Paid boundary: clients.premium_until, service-role read.
     const { data: clientRow } = await caller.admin
       .from('clients')
-      .select('id, premium_until, solo_character, name')
+      .select('id, premium_until, solo_character, name, solo_summary')
       .eq('auth_user_id', caller.id)
       .maybeSingle();
 
@@ -67,7 +68,7 @@ serve(async (req) => {
 
     // Per-user cap even for paying athletes: bounds the credit blast
     // radius of a compromised/abused account.
-    const limited = await guardRate(caller.admin, caller.id, { bucket: 'solo-corner', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    const limited = await guardRate(caller.admin, caller.id, { bucket: 'solo-corner', limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (limited) return limited;
 
     const body = await req.json();
@@ -107,6 +108,10 @@ serve(async (req) => {
       }
     }
 
+    // Rolling memory: a server-written summary of everything older than the
+    // recent turns below, so grounding survives past the 12-turn window.
+    const memoryBlock = clientRow?.solo_summary ? clampText(String(clientRow.solo_summary), 1200) : '';
+
     // Short rolling history keeps the thread coherent without letting the
     // request grow unboundedly.
     const turns = Array.isArray(history)
@@ -118,20 +123,75 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `${persona}\n${SHARED_RULES}\n\nAthlete${clientRow?.name ? ` (${clientRow.name})` : ''} data:${contextBlock || '\n(no data available yet)'}\n\nRecent conversation:\n${turns || '(first message)'}\n\nAthlete: ${message.trim()}\n\nReply as the corner:`;
+    const prompt = `${persona}\n${SHARED_RULES}\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete${clientRow?.name ? ` (${clientRow.name})` : ''} data:${contextBlock || '\n(no data available yet)'}\n\nRecent conversation:\n${turns || '(first message)'}\n\nAthlete: ${message.trim()}\n\nReply as the corner:`;
 
-    const result = await model.generateContent(prompt);
-    const reply = result.response.text();
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'solo-corner' });
+    let reply = result.response.text();
+
+    // Grounding check: flag any number the reply states that never appeared
+    // in the context it was given, and ask the model to rewrite once rather
+    // than ship a hallucinated figure.
+    const groundingSource = `${memoryBlock}\n${contextBlock}`;
+    let flagged = numbersNotInContext(reply, groundingSource);
+    if (flagged.length > 0) {
+      const fixPrompt = `Your reply below states number(s) that do not appear anywhere in the athlete's data or memory: ${flagged.join(', ')}. Rewrite the reply so it states NO number that isn't in the data/memory provided. Keep the same voice, length limit, and intent. Never mention this correction to the athlete.\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete data:${contextBlock || '\n(no data available yet)'}\n\nOriginal reply:\n${reply}\n\nRewritten reply:`;
+      try {
+        const fixResult = await withRetry(() => model.generateContent(fixPrompt), { timeoutMs: 20000, label: 'solo-corner-fix' });
+        reply = fixResult.response.text();
+      } catch (fixErr) {
+        // The rewrite call itself failing is not fatal — ship the flagged
+        // original rather than error the whole reply, but keep the flag.
+        report(fixErr, { fn: 'solo-corner-grounding-fix' });
+      }
+    }
+
+    // Rolling memory: every 8th athlete message, ask the model to fold the
+    // old summary + this exchange into a fresh ≤120-word summary and persist
+    // it. Fire-and-forget — must not slow down or fail the athlete's reply.
+    if (clientRow?.id && mode === 'reply') {
+      const priorAthleteTurns = history.filter((h: any) => h?.role === 'athlete').length;
+      const athleteTurnNumber = priorAthleteTurns + 1;
+      if (athleteTurnNumber % 8 === 0) {
+        const clientId = clientRow.id;
+        const oldSummary = memoryBlock;
+        const summaryTask = async () => {
+          try {
+            const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const summaryPrompt = `Merge the existing summary and this new exchange into ONE updated summary of this athlete for a coaching AI's long-term memory. Keep concrete facts (goals, equipment, injuries, preferences, patterns) and drop small talk. 120 words maximum, plain prose, no bullet points.\n\nExisting summary:\n${oldSummary || '(none yet)'}\n\nNew exchange:\nAthlete: ${message.trim()}\nCorner: ${reply}\n\nUpdated summary:`;
+            const summaryResult = await withRetry(() => summaryModel.generateContent(summaryPrompt), { timeoutMs: 20000, label: 'solo-corner-summary' });
+            const summary = summaryResult.response.text().trim().slice(0, 1600);
+            const { error: updErr } = await caller.admin
+              .from('clients')
+              .update({ solo_summary: summary, solo_summary_at: new Date().toISOString() })
+              .eq('id', clientId);
+            if (updErr) console.error('[solo-corner] summary write failed:', updErr.message);
+          } catch (sumErr) {
+            console.error('[solo-corner] summary refresh failed:', sumErr);
+            report(sumErr, { fn: 'solo-corner-summary' });
+          }
+        };
+        // EdgeRuntime.waitUntil() keeps the worker alive after the Response
+        // returns; a plain unawaited promise would be silently killed.
+        EdgeRuntime.waitUntil(summaryTask());
+      }
+    }
 
     // `based_on` names the real data the line was built from, so the UI can
     // show it honestly (and show nothing when there was nothing).
-    return new Response(JSON.stringify({ reply, based_on: basedOn, mode }), {
+    return new Response(JSON.stringify({ reply, based_on: basedOn, mode, prompt_version: PROMPT_VERSION, grounding: { flagged } }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
+    report(err, { fn: 'solo-corner' });
     console.error('[solo-corner]', err);
+    if (err instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: 'Something went wrong' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

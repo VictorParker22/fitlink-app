@@ -48,12 +48,15 @@ export default function ExerciseMediaDemo({
     if (isExternal && onPlayVideo) {
       return (
         <View style={{ marginBottom: Spacing.xl }}>
-          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }} 
-            style={styles.watchVideoBtn} 
+          <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
+            style={styles.watchVideoBtn}
             onPress={() => onPlayVideo(videoUrl, exerciseName)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Watch exercise demo video"
           >
             <Ionicons name="play-circle" size={20} color={CoachColors.textPrimary} />
-            <Text style={styles.watchVideoText}>Watch demo video</Text>
+            <Text style={styles.watchVideoText} maxFontSizeMultiplier={1.2}>Watch demo video</Text>
           </TouchableOpacity>
         </View>
       );

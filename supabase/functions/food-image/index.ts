@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
 
 // Deploy: supabase functions deploy food-image
 // Secret:  supabase secrets set spooncalc=<your key>   (already set by the user)
@@ -28,7 +29,7 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'food-image', limit: 60, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'food-image', limit: 60, windowSeconds: 3600, daily: 120 }, corsHeaders);
     if (rl) return rl;
 
     let { query } = await req.json();
@@ -57,11 +58,11 @@ serve(async (req) => {
     let imageUrl: string | null = null;
     for (const attempt of attempts) {
       const url = `https://api.spoonacular.com/recipes/complexSearch?query=${encodeURIComponent(attempt)}&number=1&apiKey=${apiKey}`;
-      const res = await fetch(url);
+      const res = await withRetry(() => fetch(url), { timeoutMs: 20000, label: 'food-image' });
       if (res.status === 402) {
         // Daily points exhausted — tell the client so it can back off
         // without caching a permanent null for this meal.
-        return new Response(JSON.stringify({ imageUrl: null, quotaExhausted: true }), {
+        return new Response(JSON.stringify({ imageUrl: null, quotaExhausted: true, prompt_version: PROMPT_VERSION }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         });
@@ -75,12 +76,19 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ imageUrl }), {
+    return new Response(JSON.stringify({ imageUrl, prompt_version: PROMPT_VERSION }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'food-image' });
+    report(err, { fn: 'food-image' });
+    if (err instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

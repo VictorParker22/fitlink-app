@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { Motion } from '../../../constants/motion';
+import { useReducedMotion } from '../../../lib/useReducedMotion';
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
@@ -38,20 +40,30 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
   const isComplete = workoutProgress >= 1 && (stepsProgress === null || stepsProgress >= 1) && mealsProgress >= 1;
   const maxProgress = Math.max(workoutProgress, stepsProgress || 0, mealsProgress);
 
+  const reduceMotion = useReducedMotion();
   const animWorkout = useRef(new Animated.Value(0)).current;
   const animSteps = useRef(new Animated.Value(0)).current;
   const animMeals = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      // Snap the rings straight to their real values — no stagger, no sweep.
+      animWorkout.setValue(workoutProgress);
+      if (stepsProgress !== null) animSteps.setValue(stepsProgress);
+      animMeals.setValue(mealsProgress);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      return;
+    }
+
     const animations = [
       Animated.timing(animWorkout, {
         toValue: workoutProgress,
-        duration: 600,
+        duration: Motion.moment,
         useNativeDriver: false,
       }),
       Animated.timing(animMeals, {
         toValue: mealsProgress,
-        duration: 600,
+        duration: Motion.moment,
         useNativeDriver: false,
       })
     ];
@@ -59,7 +71,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
     if (stepsProgress !== null) {
       animations.splice(1, 0, Animated.timing(animSteps, {
         toValue: stepsProgress,
-        duration: 600,
+        duration: Motion.moment,
         useNativeDriver: false,
       }));
     }
@@ -69,7 +81,7 @@ export const ActivityTripleRings: React.FC<ActivityTripleRingsProps> = ({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
     });
-  }, [workoutProgress, stepsProgress, mealsProgress]);
+  }, [workoutProgress, stepsProgress, mealsProgress, reduceMotion]);
 
   const size = 160;
   const strokeWidth = 10;

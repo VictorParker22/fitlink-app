@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { CoachColors } from '../constants/coachDesign';
+import { Motion } from '../constants/motion';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 /**
  * FitLink splash.
@@ -38,13 +40,20 @@ export default function SplashOverlay({
   onFadeComplete,
   done = false,
 }: Props) {
+  const reduced = useReducedMotion();
   const opacity = useRef(new Animated.Value(1)).current;
   const markScale = useRef(new Animated.Value(0.94)).current;
   const contentIn = useRef(new Animated.Value(0)).current;
   const bar = useRef(new Animated.Value(0)).current;
 
   // Entrance: the mark settles, then the wordmark and bar arrive under it.
+  // Reduce Motion: jump straight to the settled state, no spring/slide.
   useEffect(() => {
+    if (reduced) {
+      markScale.setValue(1);
+      contentIn.setValue(1);
+      return;
+    }
     Animated.parallel([
       Animated.spring(markScale, {
         toValue: 1,
@@ -60,21 +69,40 @@ export default function SplashOverlay({
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [reduced]);
 
   // Bar follows real progress — never animates ahead of it.
+  // Reduce Motion: snap to the value instead of tweening toward it.
   useEffect(() => {
+    const clamped = Math.min(Math.max(progress, 0), 1);
+    if (reduced) {
+      bar.setValue(clamped);
+      return;
+    }
     Animated.timing(bar, {
-      toValue: Math.min(Math.max(progress, 0), 1),
+      toValue: clamped,
       duration: 320,
       easing: Easing.out(Easing.quad),
       useNativeDriver: false,
     }).start();
-  }, [progress]);
+  }, [progress, reduced]);
 
   // Exit: brief pulse on the mark, then fade the whole plate away.
+  // Reduce Motion: skip the pulse; fade is the one allowed fallback, at the
+  // standard 200ms Reduce Motion crossfade rather than the full-motion timing.
   useEffect(() => {
     if (!done) return;
+    if (reduced) {
+      bar.setValue(1);
+      markScale.setValue(1);
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: Motion.reduced,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }).start(() => onFadeComplete?.());
+      return;
+    }
     Animated.sequence([
       Animated.timing(bar, {
         toValue: 1,
@@ -98,7 +126,7 @@ export default function SplashOverlay({
         }),
       ]),
     ]).start(() => onFadeComplete?.());
-  }, [done]);
+  }, [done, reduced]);
 
   const heading = fontsReady
     ? { fontFamily: 'SpaceGrotesk_700Bold' as const }

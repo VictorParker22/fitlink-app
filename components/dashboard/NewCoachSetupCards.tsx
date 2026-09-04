@@ -124,13 +124,13 @@ export default function NewCoachSetupCards() {
               />
             </Svg>
             <View style={styles.ringLabel}>
-              <Text style={styles.ringNumber}>{completedCount}</Text>
-              <Text style={styles.ringOf}>/{totalCount}</Text>
+              <Text style={styles.ringNumber} maxFontSizeMultiplier={1.2}>{completedCount}</Text>
+              <Text style={styles.ringOf} maxFontSizeMultiplier={1.2}>/{totalCount}</Text>
             </View>
           </View>
 
           <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Set up your coaching</Text>
+            <Text style={styles.headerTitle} maxFontSizeMultiplier={1.3}>Set up your coaching</Text>
             <Text style={styles.headerSub}>About 3 minutes</Text>
           </View>
         </View>
@@ -149,6 +149,9 @@ export default function NewCoachSetupCards() {
                 onPress={item.complete ? undefined : item.onPress}
                 activeOpacity={item.complete ? 1 : 0.7}
                 disabled={item.complete}
+                accessibilityRole="button"
+                accessibilityLabel={item.complete ? `${item.label}, complete` : item.label}
+                accessibilityState={{ disabled: item.complete, checked: item.complete }}
               >
                 {/* Check / number indicator */}
                 <View style={[
@@ -159,7 +162,7 @@ export default function NewCoachSetupCards() {
                   {item.complete ? (
                     <Ionicons name="checkmark" size={15} color={CoachColors.onAccent} />
                   ) : (
-                    <Text style={[styles.checkNumber, isNext && styles.checkNumberNext]}>
+                    <Text style={[styles.checkNumber, isNext && styles.checkNumberNext]} maxFontSizeMultiplier={1.2}>
                       {index + 1}
                     </Text>
                   )}
@@ -171,11 +174,11 @@ export default function NewCoachSetupCards() {
                     styles.checkLabel,
                     item.complete && styles.checkLabelDone,
                     isNext && styles.checkLabelNext,
-                  ]}>
+                  ]} maxFontSizeMultiplier={1.4}>
                     {item.label}
                   </Text>
                   {isNext && item.sublabel && (
-                    <Text style={styles.checkSublabel}>{item.sublabel}</Text>
+                    <Text style={styles.checkSublabel} maxFontSizeMultiplier={1.4}>{item.sublabel}</Text>
                   )}
                 </View>
 

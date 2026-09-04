@@ -51,11 +51,11 @@ export default function ClassCinemaCard({ item, onPress, onDelete }: ClassCinema
       <View style={s.topRow}>
         <View style={s.pill}>
           {published && <View style={s.liveDot} />}
-          <Text style={[s.pillText, { color: statusColor }]}>{statusLabel}</Text>
+          <Text style={[s.pillText, { color: statusColor }]} maxFontSizeMultiplier={1.2}>{statusLabel}</Text>
         </View>
         {(item.duration_minutes || 0) > 0 && (
           <View style={s.pill}>
-            <Text style={[s.pillText, s.monoPillText]}>{item.duration_minutes} min</Text>
+            <Text style={[s.pillText, s.monoPillText]} maxFontSizeMultiplier={1.2}>{item.duration_minutes} min</Text>
           </View>
         )}
       </View>
@@ -63,25 +63,25 @@ export default function ClassCinemaCard({ item, onPress, onDelete }: ClassCinema
       {/* Bottom: title + stats + play circle */}
       <View style={s.bottomRow}>
         <View style={s.bottomText}>
-          <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={s.title} numberOfLines={2} maxFontSizeMultiplier={1.4}>{item.title}</Text>
           {(takes > 0 || rating > 0 || watchMin > 0) && (
             <View style={s.statRow}>
               {takes > 0 && (
                 <View style={s.stat}>
                   <Ionicons name="play-outline" size={12} color={CoachColors.textSecondary} />
-                  <Text style={s.statText}>{takes}</Text>
+                  <Text style={s.statText} maxFontSizeMultiplier={1.2}>{takes}</Text>
                 </View>
               )}
               {rating > 0 && (
                 <View style={s.stat}>
                   <Ionicons name="star" size={12} color={CoachColors.textSecondary} />
-                  <Text style={s.statText}>{rating.toFixed(1)}</Text>
+                  <Text style={s.statText} maxFontSizeMultiplier={1.2}>{rating.toFixed(1)}</Text>
                 </View>
               )}
               {watchMin > 0 && (
                 <View style={s.stat}>
                   <Ionicons name="time-outline" size={12} color={CoachColors.textSecondary} />
-                  <Text style={s.statText}>{watchMin} min</Text>
+                  <Text style={s.statText} maxFontSizeMultiplier={1.2}>{watchMin} min</Text>
                 </View>
               )}
             </View>

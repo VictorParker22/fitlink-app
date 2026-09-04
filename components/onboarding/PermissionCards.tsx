@@ -8,6 +8,11 @@
  *
  * Nothing here blocks the flow: the parent screen's Continue works whether
  * the user granted everything, something, or nothing. Priming, not a wall.
+ *
+ * `variant` picks the type voice: 'coach' (default, Space Grotesk/Epilogue
+ * on CoachColors — trainer-wizard.tsx, unchanged) or 'editorial' (Manrope on
+ * the athlete Arrival onboarding's OB tokens — see constants/onboardingDesign.ts
+ * — so athlete-permissions.tsx keeps one typographic voice until Home).
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -15,6 +20,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { OB, OBFonts, OBRadius } from '../../constants/onboardingDesign';
 import { openAppSettings, type PermState } from '../../lib/permissions';
 
 export interface PermissionItem {
@@ -26,7 +32,42 @@ export interface PermissionItem {
   request: () => Promise<PermState>;
 }
 
-function PermissionCard({ item }: { item: PermissionItem }) {
+type Variant = 'coach' | 'editorial';
+
+const TOKENS = {
+  coach: {
+    surface: CoachColors.surface,
+    border: CoachColors.borderMuted,
+    borderStrong: CoachColors.border,
+    iconTile: CoachColors.accentSofter,
+    fg: CoachColors.textPrimary,
+    muted: CoachColors.textMuted,
+    faint: CoachColors.textFaint,
+    accent: CoachColors.accent,
+    onAccent: CoachColors.onAccent,
+    titleFont: CoachFonts.headingSemiBold,
+    bodyFont: CoachFonts.body,
+    semiBoldFont: CoachFonts.bodySemiBold,
+    radius: 16,
+  },
+  editorial: {
+    surface: OB.glass,
+    border: OB.line,
+    borderStrong: OB.lineStrong,
+    iconTile: OB.accentSoft,
+    fg: OB.fg,
+    muted: OB.muted,
+    faint: OB.faint,
+    accent: OB.accent,
+    onAccent: OB.onAccent,
+    titleFont: OBFonts.sansSemiBold,
+    bodyFont: OBFonts.sans,
+    semiBoldFont: OBFonts.sansSemiBold,
+    radius: OBRadius.l,
+  },
+} as const;
+
+function PermissionCard({ item, t }: { item: PermissionItem; t: (typeof TOKENS)[Variant] }) {
   const [state, setState] = useState<PermState>('ask');
   const [busy, setBusy] = useState(false);
 
@@ -53,33 +94,34 @@ function PermissionCard({ item }: { item: PermissionItem }) {
   }, [busy, state, item]);
 
   return (
-    <View style={s.card}>
-      <View style={s.iconTile}>
-        <Ionicons name={item.icon} size={22} color={CoachColors.accent} />
+    <View style={[s.card, { backgroundColor: t.surface, borderColor: t.border, borderRadius: t.radius }]}>
+      <View style={[s.iconTile, { backgroundColor: t.iconTile }]}>
+        <Ionicons name={item.icon} size={22} color={t.accent} />
       </View>
       <View style={s.copy}>
-        <Text style={s.cardTitle} maxFontSizeMultiplier={1.4}>{item.title}</Text>
-        <Text style={s.cardWhy} maxFontSizeMultiplier={1.4}>{item.why}</Text>
+        <Text style={[s.cardTitle, { fontFamily: t.titleFont, color: t.fg }]} maxFontSizeMultiplier={1.4}>{item.title}</Text>
+        <Text style={[s.cardWhy, { fontFamily: t.bodyFont, color: t.muted }]} maxFontSizeMultiplier={1.4}>{item.why}</Text>
       </View>
       {state === 'granted' ? (
-        <View style={s.onChip} accessibilityLabel={`${item.title}: on`}>
-          <Ionicons name="checkmark" size={14} color={CoachColors.onAccent} />
-          <Text style={s.onChipText} maxFontSizeMultiplier={1.2}>On</Text>
+        <View style={[s.onChip, { backgroundColor: t.accent }]} accessibilityLabel={`${item.title}: on`}>
+          <Ionicons name="checkmark" size={14} color={t.onAccent} />
+          <Text style={[s.onChipText, { fontFamily: t.semiBoldFont, color: t.onAccent }]} maxFontSizeMultiplier={1.2}>On</Text>
         </View>
       ) : (
+        // 44pt Allow button, per the Editorial control minimum.
         <TouchableOpacity
-          style={s.allowBtn}
+          style={[s.allowBtn, { borderColor: t.borderStrong }]}
           onPress={onAllow}
           activeOpacity={0.85}
           disabled={busy}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           accessibilityRole="button"
           accessibilityLabel={state === 'blocked' ? `Open Settings to allow ${item.title}` : `Allow ${item.title}`}
         >
           {busy ? (
-            <ActivityIndicator size="small" color={CoachColors.textPrimary} />
+            <ActivityIndicator size="small" color={t.fg} />
           ) : (
-            <Text style={s.allowBtnText} maxFontSizeMultiplier={1.2}>
+            <Text style={[s.allowBtnText, { fontFamily: t.semiBoldFont, color: t.fg }]} maxFontSizeMultiplier={1.2}>
               {state === 'blocked' ? 'Settings' : 'Allow'}
             </Text>
           )}
@@ -89,11 +131,12 @@ function PermissionCard({ item }: { item: PermissionItem }) {
   );
 }
 
-export default function PermissionCards({ items }: { items: PermissionItem[] }) {
+export default function PermissionCards({ items, variant = 'coach' }: { items: PermissionItem[]; variant?: Variant }) {
+  const t = TOKENS[variant];
   return (
     <View style={s.list}>
-      {items.map((item) => <PermissionCard key={item.key} item={item} />)}
-      <Text style={s.footnote} maxFontSizeMultiplier={1.4}>
+      {items.map((item) => <PermissionCard key={item.key} item={item} t={t} />)}
+      <Text style={[s.footnote, { fontFamily: t.bodyFont, color: t.faint }]} maxFontSizeMultiplier={1.4}>
         Everything here is optional and can be changed any time in Settings.
       </Text>
     </View>
@@ -106,11 +149,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: CoachColors.surface,
-    borderRadius: 16,
     borderCurve: 'continuous',
     borderWidth: 1,
-    borderColor: CoachColors.borderMuted,
     padding: 16,
   },
   iconTile: {
@@ -118,38 +158,23 @@ const s = StyleSheet.create({
     height: 44,
     borderRadius: 12,
     borderCurve: 'continuous',
-    backgroundColor: CoachColors.accentSofter,
     alignItems: 'center',
     justifyContent: 'center',
   },
   copy: { flex: 1, gap: 2 },
-  cardTitle: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 15,
-    color: CoachColors.textPrimary,
-  },
-  cardWhy: {
-    fontFamily: CoachFonts.body,
-    fontSize: 12,
-    lineHeight: 17,
-    color: CoachColors.textMuted,
-  },
+  cardTitle: { fontSize: 15 },
+  cardWhy: { fontSize: 12, lineHeight: 17 },
   allowBtn: {
     minWidth: 74,
-    height: 36,
+    height: 44,
     borderRadius: 999,
     borderCurve: 'continuous',
     borderWidth: 1,
-    borderColor: CoachColors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
-  allowBtnText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
-    color: CoachColors.textPrimary,
-  },
+  allowBtnText: { fontSize: 13 },
   onChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,19 +182,8 @@ const s = StyleSheet.create({
     height: 36,
     borderRadius: 999,
     borderCurve: 'continuous',
-    backgroundColor: CoachColors.accent,
     paddingHorizontal: 12,
   },
-  onChipText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 13,
-    color: CoachColors.onAccent,
-  },
-  footnote: {
-    fontFamily: CoachFonts.body,
-    fontSize: 12,
-    color: CoachColors.textFaint,
-    textAlign: 'center',
-    marginTop: 4,
-  },
+  onChipText: { fontSize: 13 },
+  footnote: { fontSize: 12, textAlign: 'center', marginTop: 4 },
 });

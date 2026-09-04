@@ -12,7 +12,7 @@ export type SoloProgramResult =
   | { ok: true; created: { id: string; name: string; date: string }[]; skipped?: string }
   | { ok: false; reason: 'premium_required' | 'no_client' | 'error'; message?: string };
 
-export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number } = {}): Promise<SoloProgramResult> {
+export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number; adapt?: boolean } = {}): Promise<SoloProgramResult> {
   const { data, error } = await supabase.functions.invoke('solo-program', { body: opts });
   if (error) {
     const status = (error as any)?.context?.status ?? (error as any)?.status;

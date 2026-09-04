@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 import { playChime } from '../../lib/sounds';
+import { useReducedMotion } from '../../lib/useReducedMotion';
+import { Motion } from '../../constants/motion';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -84,12 +86,18 @@ export default function SeasonComplete({
     insertSquadEvent(squad, 'season_complete', { plan_name: planName });
   };
 
-  const cardScale = useRef(new Animated.Value(0.9)).current;
+  const reduced = useReducedMotion();
+  const cardScale = useRef(new Animated.Value(reduced ? 1 : 0.9)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playChime();
+    if (reduced) {
+      // Reduce Motion: crossfade only, no scale spring.
+      Animated.timing(cardOpacity, { toValue: 1, duration: Motion.reduced, useNativeDriver: true }).start();
+      return;
+    }
     Animated.parallel([
       Animated.timing(cardOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
       Animated.spring(cardScale, { toValue: 1, useNativeDriver: true, speed: 12, bounciness: 6 }),

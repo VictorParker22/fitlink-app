@@ -45,12 +45,20 @@ export default function ExerciseThumbnail({
   };
 
   const Wrapper = onPress ? TouchableOpacity : View;
-  
+
+  const accessibilityProps = onPress
+    ? {
+        accessibilityRole: 'button' as const,
+        accessibilityLabel: hasVideo ? 'Play exercise demo' : 'View exercise details',
+      }
+    : {};
+
   return (
-    <Wrapper 
+    <Wrapper
       activeOpacity={0.7}
       onPress={onPress}
       style={[styles.container, { width: size, height: size }]}
+      {...accessibilityProps}
     >
       {renderContent()}
       

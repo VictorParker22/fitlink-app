@@ -76,10 +76,10 @@ export default function LibraryTabs({ tabs, active, onSelect, reduceMotion }: Li
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={`${tab.label}, ${tab.count} items`}
           >
-            <Text style={[s.label, isActive && s.labelActive]} maxFontSizeMultiplier={1.3}>
+            <Text style={[s.label, isActive && s.labelActive]} maxFontSizeMultiplier={1.2}>
               {tab.label}
             </Text>
-            <Text style={[s.count, isActive && s.countActive]} maxFontSizeMultiplier={1.3}>
+            <Text style={[s.count, isActive && s.countActive]} maxFontSizeMultiplier={1.2}>
               {tab.count}
             </Text>
           </TouchableOpacity>

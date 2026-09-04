@@ -20,7 +20,7 @@ export default function LibraryHeader({ onAdd, addLabel }: LibraryHeaderProps) {
     <View style={s.row}>
       <View>
         <Text style={s.kicker} maxFontSizeMultiplier={1.2}>EVERYTHING YOU SELL</Text>
-        <Text style={s.title}>Library</Text>
+        <Text style={s.title} maxFontSizeMultiplier={1.3}>Library</Text>
       </View>
       <TouchableOpacity
         style={s.addBtn}

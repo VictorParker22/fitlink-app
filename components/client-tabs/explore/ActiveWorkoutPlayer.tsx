@@ -13,7 +13,7 @@ import { useAlert } from '../../../context/AlertContext';
 
 import ExerciseMediaDemo from '../../../components/shared/exercise/ExerciseMediaDemo';
 import ExerciseInstructions from '../../../components/shared/exercise/ExerciseInstructions';
-import PRCelebrationModal from './PRCelebrationModal';
+import CelebrationOverlay from '../../CelebrationOverlay';
 import MuscleMap from '../../anatomy/MuscleMap';
 import SessionSetRow from '../workout/SessionSetRow';
 import { muscleInfoForExercise, targetsLine, type WorkoutMuscleInfo } from '../season/workoutMuscles';
@@ -949,20 +949,38 @@ export default function ActiveWorkoutPlayer({
 
       {/* ── PR Celebration Overlay ─────────────────────────────────────────── */}
       {/* Rendered inside the player so it sits on top of everything mid-workout */}
-      <PRCelebrationModal
-        visible={pendingPr !== null}
-        exerciseName={pendingPr?.exerciseName ?? ''}
-        weight={pendingPr?.weight ?? 0}
-        onDismiss={() => {
-          setPendingPr(null);
-          const rest = pendingRestRef.current;
-          pendingRestRef.current = null;
-          // Let the celebration finish dismissing before the next Modal opens.
-          if (rest && rest > 0 && !skipAllRest) {
-            setTimeout(() => openRestTimer(rest), 300);
-          }
-        }}
-      />
+      {pendingPr !== null && (
+        <CelebrationOverlay
+          visible={pendingPr !== null}
+          kind="pr"
+          title={pendingPr.exerciseName}
+          subtitle="That's your best ever. Keep pushing."
+          stat={{
+            value: `${pendingPr.weight % 1 === 0 ? pendingPr.weight : pendingPr.weight.toFixed(1)} kg`,
+            label: 'lifted',
+          }}
+          primary={{
+            label: 'Continue',
+            onPress: () => {
+              setPendingPr(null);
+              const rest = pendingRestRef.current;
+              pendingRestRef.current = null;
+              // Let the celebration finish dismissing before the next Modal opens.
+              if (rest && rest > 0 && !skipAllRest) {
+                setTimeout(() => openRestTimer(rest), 300);
+              }
+            },
+          }}
+          onDismiss={() => {
+            setPendingPr(null);
+            const rest = pendingRestRef.current;
+            pendingRestRef.current = null;
+            if (rest && rest > 0 && !skipAllRest) {
+              setTimeout(() => openRestTimer(rest), 300);
+            }
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -30,6 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useAlert } from '../../context/AlertContext';
+import { layers } from '../../lib/layers';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { ensureSoloClient } from '../../lib/soloClient';
 import { useSoloVoice, sampleLine } from '../../lib/soloVoice';
@@ -142,12 +143,14 @@ export default function SoloSetupScreen() {
         return;
       }
       await refreshData();
+      layers.track('voice_chosen', { character: selectedKey });
       if (isPremiumActive) {
         router.replace('/(client-tabs)/solo' as any);
       } else {
         // No active premium yet — open the paywall right here instead of
         // bouncing to the corner, which would just 402 and send them back.
         setShowPaywall(true);
+        layers.track('paywall_shown', { source: 'setup' });
       }
     } finally {
       setSaving(false);
@@ -272,6 +275,7 @@ export default function SoloSetupScreen() {
         onClose={() => setShowPaywall(false)}
         onSuccess={() => {
           setShowPaywall(false);
+          layers.track('trial_started', { source: 'setup' });
           router.replace('/(client-tabs)/solo' as any);
         }}
       />

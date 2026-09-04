@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ const TOP_H = SCREEN_HEIGHT * 0.50;
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
 
   // ── Animation values
   const logoY = useRef(new Animated.Value(-24)).current;
@@ -36,6 +38,16 @@ export default function OnboardingScreen() {
   const sheetOp = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      // Jump straight to the settled layout — no drop/rise/slide sequence.
+      logoY.setValue(0);
+      logoOp.setValue(1);
+      cardsOp.setValue(1);
+      cardsY.setValue(0);
+      sheetY.setValue(0);
+      sheetOp.setValue(1);
+      return;
+    }
     Animated.sequence([
       // 1. Logo drops in
       Animated.parallel([
@@ -53,7 +65,7 @@ export default function OnboardingScreen() {
         Animated.timing(sheetY, { toValue: 0, duration: 450, useNativeDriver: true }),
       ]),
     ]).start();
-  }, []);
+  }, [reduceMotion]);
 
   const goTrainer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

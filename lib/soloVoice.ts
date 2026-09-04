@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio, type AVPlaybackStatus } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid, type AVPlaybackStatus } from 'expo-av';
 import { supabase } from './supabase';
 import { SOLO_CHARACTERS, type SoloCharacter } from './soloCharacters';
 
@@ -53,6 +53,21 @@ export interface VoiceState {
 
 const IDLE: VoiceState = { activeText: null, loading: false, playing: false, progress: 0, durationMs: 0, positionMs: 0, error: null };
 
+// Ducking, not silencing: whatever the athlete was already playing (music,
+// a podcast) drops in volume while the corner speaks and comes back once it
+// stops — the corner is a guest in someone else's audio, not an interrupter.
+const DUCK_AUDIO_MODE = {
+  playsInSilentModeIOS: true,
+  interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+  interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+  shouldDuckAndroid: true,
+  staysActiveInBackground: false,
+} as const;
+const RESTORE_AUDIO_MODE = {
+  ...DUCK_AUDIO_MODE,
+  interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+} as const;
+
 /**
  * One player per screen. `speak(text, voice)` stops whatever is playing,
  * fetches (or reuses) the audio, and plays it; `stop()` halts. State
@@ -65,7 +80,6 @@ export function useSoloVoice() {
   const seqRef = useRef(0);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false }).catch(() => {});
     return () => { soundRef.current?.unloadAsync().catch(() => {}); soundRef.current = null; };
   }, []);
 
@@ -79,6 +93,9 @@ export function useSoloVoice() {
     seqRef.current += 1;
     await unload();
     setState(IDLE);
+    // The corner is done talking over whatever else was playing — give it
+    // back full volume rather than leaving the app permanently ducking.
+    Audio.setAudioModeAsync(RESTORE_AUDIO_MODE).catch(() => {});
   }, [unload]);
 
   const speak = useCallback(async (text: string, voice: VoiceKey) => {
@@ -86,6 +103,9 @@ export function useSoloVoice() {
     await unload();
     setState({ ...IDLE, activeText: text, loading: true });
     try {
+      // Duck other audio for the moment the corner speaks, not the app's
+      // whole lifetime — set right before this playback starts.
+      await Audio.setAudioModeAsync(DUCK_AUDIO_MODE).catch(() => {});
       const url = await fetchSoloAudioUrl(text, voice);
       if (seq !== seqRef.current) return;
       const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true }, (st: AVPlaybackStatus) => {
@@ -96,6 +116,7 @@ export function useSoloVoice() {
         if (st.didJustFinish) {
           setState({ ...IDLE, activeText: null });
           unload();
+          Audio.setAudioModeAsync(RESTORE_AUDIO_MODE).catch(() => {});
           return;
         }
         setState({
@@ -113,6 +134,7 @@ export function useSoloVoice() {
     } catch (e: any) {
       if (seq !== seqRef.current) return;
       setState({ ...IDLE, error: e?.message || 'Could not play that' });
+      Audio.setAudioModeAsync(RESTORE_AUDIO_MODE).catch(() => {});
     }
   }, [unload]);
 

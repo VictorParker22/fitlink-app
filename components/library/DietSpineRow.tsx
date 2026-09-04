@@ -85,7 +85,7 @@ export default function DietSpineRow({ item, onPress, onDelete }: DietSpineRowPr
       />
       <View style={s.body}>
         <View style={s.titleRow}>
-          <Text style={s.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={s.name} numberOfLines={1} maxFontSizeMultiplier={1.4}>{item.name}</Text>
           <TouchableOpacity
             onPress={onDelete}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -95,10 +95,10 @@ export default function DietSpineRow({ item, onPress, onDelete }: DietSpineRowPr
             <Ionicons name="trash-outline" size={16} color={CoachColors.textFaint} />
           </TouchableOpacity>
         </View>
-        <Text style={s.subtitle} numberOfLines={1}>{subtitle}</Text>
+        <Text style={s.subtitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>{subtitle}</Text>
         {catLabel && (
           <View style={s.catPill}>
-            <Text style={s.catPillText}>{catLabel}</Text>
+            <Text style={s.catPillText} maxFontSizeMultiplier={1.2}>{catLabel}</Text>
           </View>
         )}
         {macroTotal > 0 && (
@@ -108,7 +108,7 @@ export default function DietSpineRow({ item, onPress, onDelete }: DietSpineRowPr
               <View style={[s.macroSeg, { flex: macros.c, backgroundColor: CoachColors.warning }]} />
               <View style={[s.macroSeg, { flex: macros.f, backgroundColor: CoachColors.textSecondary }]} />
             </View>
-            <Text style={s.macroLegend} numberOfLines={1}>
+            <Text style={s.macroLegend} numberOfLines={1} maxFontSizeMultiplier={1.2}>
               P {Math.round(macros.p)}g · C {Math.round(macros.c)}g · F {Math.round(macros.f)}g
             </Text>
           </View>

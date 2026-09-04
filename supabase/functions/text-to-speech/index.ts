@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,16 +72,16 @@ serve(async (req) => {
       // Cache hit: the same line in the same voice is one file forever.
       const { data: signed } = await admin.storage.from('solo-audio').createSignedUrl(path, 600);
       if (signed?.signedUrl) {
-        return new Response(JSON.stringify({ audio_url: signed.signedUrl, cached: true }), {
+        return new Response(JSON.stringify({ audio_url: signed.signedUrl, cached: true, prompt_version: PROMPT_VERSION }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
         });
       }
 
       // Fresh synthesis is the only paid path: rate-limit it.
-      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 80, windowSeconds: 3600 }, corsHeaders);
+      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 80, windowSeconds: 3600, daily: 150 }, corsHeaders);
       if (rl) return rl;
 
-      const tts = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      const tts = await withRetry(() => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: 'POST',
         headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
         body: JSON.stringify({
@@ -88,7 +89,7 @@ serve(async (req) => {
           model_id: 'eleven_multilingual_v2',
           voice_settings: { ...(SOLO_SETTINGS[key] ?? SOLO_SETTINGS.reyes), use_speaker_boost: true },
         }),
-      });
+      }), { timeoutMs: 20000, label: 'text-to-speech-solo' });
       if (!tts.ok) {
         console.error('ElevenLabs error (solo):', tts.status, await tts.text());
         throw new Error(`ElevenLabs API error: ${tts.status}`);
@@ -98,7 +99,7 @@ serve(async (req) => {
       if (upErr) { console.error('solo-audio upload:', upErr); throw new Error('Failed to cache audio file'); }
       const { data: fresh, error: signErr } = await admin.storage.from('solo-audio').createSignedUrl(path, 600);
       if (signErr || !fresh?.signedUrl) throw new Error('Failed to sign audio URL');
-      return new Response(JSON.stringify({ audio_url: fresh.signedUrl, cached: false }), {
+      return new Response(JSON.stringify({ audio_url: fresh.signedUrl, cached: false, prompt_version: PROMPT_VERSION }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
       });
     }
@@ -136,7 +137,7 @@ serve(async (req) => {
     if (existingFile?.signedUrl) {
       // Return the public URL instead
       const publicUrl = `${supabaseUrl}/storage/v1/object/public/exercise-audio/${audioPath}`;
-      return new Response(JSON.stringify({ audio_url: publicUrl, cached: true }), {
+      return new Response(JSON.stringify({ audio_url: publicUrl, cached: true, prompt_version: PROMPT_VERSION }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
@@ -145,7 +146,7 @@ serve(async (req) => {
     // Only the fresh-synthesis path costs an ElevenLabs call — a cache hit
     // above returned already. Rate-limit + clamp only here so cached audio
     // stays free and unthrottled.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'text-to-speech', limit: 100, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'text-to-speech', limit: 100, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (rl) return rl;
 
     // Strip HTML tags for clean speech
@@ -159,7 +160,7 @@ serve(async (req) => {
     }
 
     // Call ElevenLabs TTS API
-    const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+    const ttsResponse = await withRetry(() => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,
@@ -176,7 +177,7 @@ serve(async (req) => {
           use_speaker_boost: true,
         },
       }),
-    });
+    }), { timeoutMs: 20000, label: 'text-to-speech-exercise' });
 
     if (!ttsResponse.ok) {
       const errText = await ttsResponse.text();
@@ -203,14 +204,21 @@ serve(async (req) => {
 
     const publicUrl = `${supabaseUrl}/storage/v1/object/public/exercise-audio/${audioPath}`;
 
-    return new Response(JSON.stringify({ audio_url: publicUrl, cached: false }), {
+    return new Response(JSON.stringify({ audio_url: publicUrl, cached: false, prompt_version: PROMPT_VERSION }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error: any) {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'text-to-speech' });
+    report(error, { fn: 'text-to-speech' });
     console.error('TTS Error:', error);
+    if (error instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

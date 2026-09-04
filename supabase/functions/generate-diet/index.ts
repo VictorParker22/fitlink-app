@@ -2,11 +2,15 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const CATEGORIES = ['balanced', 'high-protein', 'keto', 'vegan', 'weight-loss', 'custom'] as const;
+const MEAL_TIMES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,7 +24,7 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'generate-diet', limit: 30, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'generate-diet', limit: 30, windowSeconds: 3600, daily: 60 }, corsHeaders);
     if (rl) return rl;
 
     let { prompt, availableMeals } = await req.json();
@@ -59,7 +63,7 @@ Here is the coach's existing library of saved meals:
 ${mealListStr || "(No saved meals yet)"}
 
 CRITICAL INSTRUCTION:
-You MUST prioritize using the exact meals from the coach's library above if they fit the diet's macros. 
+You MUST prioritize using the exact meals from the coach's library above if they fit the diet's macros.
 Use their EXACT name and macros.
 If, and only if, the existing meals do not fulfill the prompt's requirements, you may invent new meals.
 When inventing new meals, the meal name MUST describe the actual food being eaten (e.g., "3 Scrambled Eggs and Half Avocado", "Grilled Chicken Breast with Sweet Potato", "1 cup Oatmeal with Blueberries").
@@ -97,11 +101,46 @@ Rules:
 - Use accurate macronutrient ratios. 1g Protein = 4 kcal, 1g Carbs = 4 kcal, 1g Fat = 9 kcal.
 `;
 
-    const result = await model.generateContent(systemPrompt);
+    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: 20000, label: 'generate-diet' });
     const response = result.response;
     const text = response.text().trim();
 
-    const data = JSON.parse(text);
+    const raw = parseJson(text);
+    if (!raw) {
+      return new Response(JSON.stringify({ error: 'bad_generation' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 502,
+      });
+    }
+
+    const meals = (Array.isArray(raw.meals) ? raw.meals : [])
+      .slice(0, 12)
+      .map((m: any) => ({
+        name: clampStr(m?.name, 80, 'Meal'),
+        meal_time: pickEnum(m?.meal_time, MEAL_TIMES, 'snack'),
+        category: clampStr(m?.category, 30, 'Mixed'),
+        calories: clampInt(m?.calories, 0, 3000, 0),
+        protein: clampInt(m?.protein, 0, 400, 0),
+        carbs: clampInt(m?.carbs, 0, 600, 0),
+        fat: clampInt(m?.fat, 0, 300, 0),
+        servings: Math.min(10, Math.max(0.25, Number.isFinite(Number(m?.servings)) ? Number(m.servings) : 1)),
+      }))
+      .filter((m: any) => m.name);
+
+    const targets = raw.targets ?? {};
+    const data = {
+      name: clampStr(raw.name, 60, 'Custom Diet'),
+      description: clampStr(raw.description, 300, ''),
+      category: pickEnum(raw.category, CATEGORIES, 'custom'),
+      targets: {
+        calories: clampInt(targets.calories, 0, 8000, 2000),
+        protein: clampInt(targets.protein, 0, 600, 150),
+        carbs: clampInt(targets.carbs, 0, 900, 200),
+        fat: clampInt(targets.fat, 0, 400, 70),
+      },
+      meals,
+      prompt_version: PROMPT_VERSION,
+    };
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,7 +148,14 @@ Rules:
     });
   } catch (error: any) {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'generate-diet' });
+    report(error, { fn: 'generate-diet' });
     console.error('Error generating diet:', error);
+    if (error instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

@@ -6,9 +6,9 @@
  *
  * Data mechanics kept from the previous chat build: messages persist to
  * solo_messages (last 50 load on mount), buildContext sends only real data
- * (INVARIANTS §4), a 402 routes to SoloPaywall with the same 90s
- * post-purchase "activating" grace window, and failures get a quiet retry —
- * never a toast storm.
+ * (INVARIANTS §4), a 402 within PURCHASE_GRACE_MS of a purchase polls and
+ * shows "Activating…" instead of routing to SoloPaywall, and failures get a
+ * quiet retry — never a toast storm.
  *
  * No mic in v1 — voice input is v2, so no dead control ships.
  */
@@ -36,15 +36,20 @@ import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useHealth } from '../../context/HealthContext';
 import { useWorkout } from '../../context/WorkoutContext';
+import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { computeStreak } from '../../lib/streak';
 import { getSoloCharacter } from '../../lib/soloCharacters';
 import { ensureSoloClient } from '../../lib/soloClient';
 import { useSoloVoice, getAutoPlay, setAutoPlay as persistAutoPlay } from '../../lib/soloVoice';
+import { useDictation } from '../../lib/soloDictation';
 import { Orb, SpokenLine, SOLO_TINT } from '../../components/solo/Presence';
 import SoloPaywall from '../../components/paywalls/SoloPaywall';
+import AiConsentSheet from '../../components/solo/AiConsentSheet';
+import { hasAiConsent } from '../../lib/aiConsent';
 import { buildSoloProgram } from '../../lib/soloProgram';
+import { layers } from '../../lib/layers';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 
 interface SoloMessage {
@@ -65,7 +70,16 @@ const WELCOME: Record<string, string> = {
 const QUICK_ASKS = ['Plan today', 'Build my week', 'I slept badly', 'Log a PR', 'Swap an exercise'];
 // Anything that reads as "write me a program" rebuilds the week before the
 // corner answers, so the reply can talk about real sessions.
-const BUILD_INTENT = /(build|rebuild|make|write|create|plan).*(week|program|plan|programme)|new (week|program|plan)/i;
+const BUILD_INTENT = /(build|rebuild|make|write|create|plan).*(week|program|plan|programme)|new (week|program|plan)/i;
+
+// A 402 in the minutes after a local purchase is RevenueCat's webhook still
+// landing, not a missing subscription — this is how long we keep polling and
+// showing "Activating..." before treating a 402 as a real paywall again.
+const PURCHASE_GRACE_MS = 5 * 60 * 1000;
+const PURCHASE_POLL_MS = 4_000;
+// solo-program is idempotent under six days; past that the week is stale and
+// the corner should rewrite it from what was actually logged.
+const PROGRAM_STALE_MS = 6 * 24 * 60 * 60 * 1000;
 
 function dayHeader(iso: string): string {
   const d = new Date(iso);
@@ -82,10 +96,14 @@ export default function SoloScreen() {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const { showAlert } = useAlert();
+  const { user } = useAuth();
   const { clientData, todayWorkout, workouts, progressLogs, healthSharingEnabled, refreshData } = useClient();
   const { isConnected: healthConnected, healthData } = useHealth();
   const { workoutHistory } = useWorkout();
   const voice = useSoloVoice();
+  // Hold-to-talk. Falls back to a plain send button when the native
+  // recognizer is missing (builds that predate expo-speech-recognition).
+  const dictation = useDictation();
 
   const character = getSoloCharacter((clientData as any)?.solo_character);
   const tint = SOLO_TINT[character.key];
@@ -101,6 +119,35 @@ export default function SoloScreen() {
   const [waitingReply, setWaitingReply] = useState(false);
   const [athleteEcho, setAthleteEcho] = useState<string | null>(null);
   const echoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── AI consent (Apple 5.1.2(i)) — asked once, before the first call ever
+  // reaches the model. Whichever entry point gets there first (the brief or
+  // a typed message) queues its own call and runs it once the sheet resolves.
+  const [consentVisible, setConsentVisible] = useState(false);
+  const pendingAfterConsentRef = useRef<(() => void) | null>(null);
+  const ensureConsent = useCallback((action: () => void) => {
+    if (hasAiConsent(user)) { action(); return; }
+    pendingAfterConsentRef.current = action;
+    setConsentVisible(true);
+  }, [user]);
+  const handleConsentAgree = useCallback(() => {
+    layers.track('ai_consent', { granted: true });
+    setConsentVisible(false);
+    const action = pendingAfterConsentRef.current;
+    pendingAfterConsentRef.current = null;
+    action?.();
+  }, []);
+  const handleConsentDecline = useCallback(() => {
+    layers.track('ai_consent', { granted: false });
+    setConsentVisible(false);
+    pendingAfterConsentRef.current = null;
+    setCurrentLine('The corner stays quiet until you agree.');
+  }, []);
+
+  // ── Feedback on the current spoken line — one vote per line ────────────────
+  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const [promptVersion, setPromptVersion] = useState<string | null>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<{ line: string; verdict: 'up' | 'down' } | null>(null);
 
   const [input, setInput] = useState('');
   const [autoPlay, setAutoPlayState] = useState(true);
@@ -123,6 +170,9 @@ export default function SoloScreen() {
 
   useEffect(() => () => { if (echoTimerRef.current) clearTimeout(echoTimerRef.current); }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { layers.track('solo_opened', { character: character.key }); }, []);
+
   // ── Solo client existence: coachless athletes may have no row yet ─────────
   useEffect(() => {
     if (clientData?.id || ensureAttemptedRef.current) return;
@@ -139,29 +189,64 @@ export default function SoloScreen() {
     })();
   }, [clientData?.id, refreshData]);
 
-  // ── First week: the corner writes the program once premium is live ────────
-  // solo-program is idempotent server-side (skips when built < 6 days ago),
-  // so this can fire on every mount without duplicating a week.
+  // ── First week (and its weekly rewrite): the corner writes the program
+  // once premium is live, then rewrites it once the current week goes stale.
+  // solo-program is idempotent server-side (skips a fresh-enough week), so
+  // this can fire on every mount without duplicating or over-adapting.
   const programAttemptedRef = useRef(false);
   // The brief waits for this so a first-ever line can name real sessions.
   const [programSettled, setProgramSettled] = useState(false);
   const [buildingWeek, setBuildingWeek] = useState(false);
+  const [adapting, setAdapting] = useState(false);
+  const preAdaptLineRef = useRef('');
   useEffect(() => {
     if (!clientData?.id || programAttemptedRef.current) return;
     const until = (clientData as any)?.premium_until ? new Date((clientData as any).premium_until).getTime() : 0;
-    if (until <= Date.now() || (clientData as any)?.solo_program_built_at) { setProgramSettled(true); return; }
-    programAttemptedRef.current = true;
-    (async () => {
-      setBuildingWeek(true);
-      try {
-        const res = await buildSoloProgram();
-        if (res.ok && res.created.length > 0) await refreshData();
-        else if (!res.ok && __DEV__) console.warn('[solo] program build:', res.reason, res.message);
-      } finally {
-        setBuildingWeek(false);
-        setProgramSettled(true);
-      }
-    })();
+    if (until <= Date.now()) { setProgramSettled(true); return; }
+
+    const builtAtRaw = (clientData as any)?.solo_program_built_at as string | undefined;
+    if (!builtAtRaw) {
+      // No week written yet — the very first one.
+      programAttemptedRef.current = true;
+      (async () => {
+        setBuildingWeek(true);
+        try {
+          const res = await buildSoloProgram();
+          if (res.ok && res.created.length > 0) {
+            layers.track('program_built', { created: res.created.length, adapt: false });
+            await refreshData();
+          } else if (!res.ok && __DEV__) console.warn('[solo] program build:', res.reason, res.message);
+        } finally {
+          setBuildingWeek(false);
+          setProgramSettled(true);
+        }
+      })();
+      return;
+    }
+
+    const builtAt = new Date(builtAtRaw).getTime();
+    if (Date.now() - builtAt > PROGRAM_STALE_MS) {
+      // The week is stale — rewrite it from what was actually logged.
+      programAttemptedRef.current = true;
+      (async () => {
+        setAdapting(true);
+        setCurrentLine((prev) => { preAdaptLineRef.current = prev; return 'Rewriting next week from what you logged…'; });
+        try {
+          const res = await buildSoloProgram({ adapt: true });
+          if (res.ok && res.created.length > 0) {
+            layers.track('program_built', { created: res.created.length, adapt: true });
+            await refreshData();
+          } else if (!res.ok && __DEV__) console.warn('[solo] program adapt:', res.reason, res.message);
+        } finally {
+          setAdapting(false);
+          setCurrentLine((cur) => cur === 'Rewriting next week from what you logged…' ? preAdaptLineRef.current : cur);
+          setProgramSettled(true);
+        }
+      })();
+      return;
+    }
+
+    setProgramSettled(true);
   }, [clientData?.id, (clientData as any)?.premium_until, (clientData as any)?.solo_program_built_at, refreshData]);
 
   // ── History: last 50, oldest first ─────────────────────────────────────────
@@ -182,7 +267,11 @@ export default function SoloScreen() {
         const ordered = [...data].reverse() as SoloMessage[];
         setMessages(ordered);
         const lastCorner = [...ordered].reverse().find((m) => m.role === 'corner');
-        if (lastCorner) setCurrentLine(lastCorner.content);
+        if (lastCorner) {
+          setCurrentLine(lastCorner.content);
+          setCurrentMessageId(lastCorner.id);
+          setPromptVersion(null);
+        }
       }
       setLoading(false);
     })();
@@ -227,17 +316,31 @@ export default function SoloScreen() {
     return ctx;
   }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthSharingEnabled, healthConnected, healthData, progressLogs]);
 
-  // The activating line has a lifetime — the same 90s grace window. Past it,
-  // a 402 is a real paywall again.
+  // The activating line has a lifetime — PURCHASE_GRACE_MS from the purchase.
+  // Past it, a 402 is a real paywall again; a paying athlete never bounces
+  // inside the window while RevenueCat's webhook is still landing.
   useEffect(() => {
     if (!activating) return;
-    const remaining = Math.max(0, 90_000 - (Date.now() - lastPurchaseAtRef.current));
+    const remaining = Math.max(0, PURCHASE_GRACE_MS - (Date.now() - lastPurchaseAtRef.current));
     const t = setTimeout(() => setActivating(false), remaining);
-    // The webhook lands premium_until in seconds; poll the profile so the
-    // corner (and the program build above) wake up without a restart.
-    const poll = setInterval(() => { refreshData().catch(() => {}); }, 5_000);
+    const poll = setInterval(() => { refreshData().catch(() => {}); }, PURCHASE_POLL_MS);
     return () => { clearTimeout(t); clearInterval(poll); };
   }, [activating]);
+
+  // Shared 402 handling for both the brief and a sent message: inside the
+  // purchase grace window this is the webhook still landing, not a real
+  // denial, so it shows "Activating…" and polls rather than showing the
+  // paywall the athlete just paid on.
+  const handle402 = useCallback(() => {
+    if (Date.now() - lastPurchaseAtRef.current < PURCHASE_GRACE_MS) {
+      setActivating(true);
+      setCurrentLine('Activating your subscription…');
+    } else {
+      setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
+      setPaywallVisible(true);
+      layers.track('paywall_shown', { source: 'corner' });
+    }
+  }, [character.name]);
 
   // ── Core call to the corner ─────────────────────────────────────────────────
   const callCorner = useCallback(
@@ -253,13 +356,37 @@ export default function SoloScreen() {
     if (autoPlay) voice.speak(text, character.key);
   }, [autoPlay, voice, character.key]);
 
-  const persistCornerMessage = useCallback(async (content: string) => {
-    if (!clientData?.id) return;
-    const { error } = await supabase
+  /** Returns the persisted row's id (for feedback's message_id), or null. */
+  const persistCornerMessage = useCallback(async (content: string): Promise<string | null> => {
+    if (!clientData?.id) return null;
+    const { data, error } = await supabase
       .from('solo_messages')
-      .insert({ client_id: clientData.id, role: 'corner', content });
-    if (error && __DEV__) console.warn('[Solo] corner row not saved:', error.message);
+      .insert({ client_id: clientData.id, role: 'corner', content })
+      .select('id')
+      .single();
+    if (error) {
+      if (__DEV__) console.warn('[Solo] corner row not saved:', error.message);
+      return null;
+    }
+    return (data as any)?.id ?? null;
   }, [clientData?.id]);
+
+  // One vote per line: submit at most once for the currently-spoken content.
+  const submitFeedback = useCallback((verdict: 'up' | 'down') => {
+    if (!clientData?.id || feedbackGiven?.line === currentLine) return;
+    Haptics.selectionAsync().catch(() => {});
+    setFeedbackGiven({ line: currentLine, verdict });
+    supabase.from('solo_feedback').insert({
+      client_id: clientData.id,
+      message_id: currentMessageId,
+      content: currentLine,
+      verdict,
+      character: character.key,
+      prompt_version: promptVersion,
+    }).then(({ error }) => {
+      if (error && __DEV__) console.warn('[Solo] feedback not saved:', error.message);
+    });
+  }, [clientData?.id, feedbackGiven, currentLine, currentMessageId, character.key, promptVersion]);
 
   // ── First-open brief: when a brand-new corner has no history yet ──────────
   useEffect(() => {
@@ -267,34 +394,36 @@ export default function SoloScreen() {
     if (!programSettled) { setCurrentLine(buildingWeek ? 'Writing your first week…' : (WELCOME[character.key] ?? WELCOME.reyes)); return; }
     briefRequestedRef.current = true;
     setCurrentLine(WELCOME[character.key] ?? WELCOME.reyes);
-    (async () => {
+    const requestBrief = async () => {
       setWaitingReply(true);
+      const startedAt = Date.now();
       try {
         const { data, error } = await callCorner({ mode: 'brief', history: [], context: buildContext() });
         if (error) {
           const status = (error as any)?.context?.status;
-          if (status === 402) {
-            setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
-            if (Date.now() - lastPurchaseAtRef.current >= 90_000) setPaywallVisible(true);
-          }
+          if (status === 402) handle402();
           return;
         }
         const reply: string | undefined = data?.reply;
         if (!reply) return;
         setCurrentLine(reply);
         setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
-        await persistCornerMessage(reply);
+        const msgId = await persistCornerMessage(reply);
+        setCurrentMessageId(msgId);
+        setPromptVersion(typeof data?.prompt_version === 'string' ? data.prompt_version : null);
         setMessages((prev) => [...prev, {
-          id: `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+          id: msgId ?? `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
         }]);
+        layers.track('brief_delivered', { character: character.key, latency_ms: Date.now() - startedAt });
         speakReply(reply);
       } catch (e) {
         if (__DEV__) console.warn('[Solo] brief request threw:', e);
       } finally {
         setWaitingReply(false);
       }
-    })();
-  }, [loading, clientData?.id, messages.length, programSettled, buildingWeek, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply]);
+    };
+    ensureConsent(requestBrief);
+  }, [loading, clientData?.id, messages.length, programSettled, buildingWeek, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply, ensureConsent, handle402]);
 
   // ── Send an athlete message (composer or quick-ask chip) ──────────────────
   const deliver = useCallback(
@@ -302,6 +431,8 @@ export default function SoloScreen() {
       if (!clientData?.id) return;
       setWaitingReply(true);
       setPendingRetry(null);
+      const startedAt = Date.now();
+      const autoPlayedThisReply = autoPlay;
       try {
         const history = priorHistory
           .slice(-12)
@@ -315,6 +446,7 @@ export default function SoloScreen() {
           const res = await buildSoloProgram({ rebuild: true });
           if (res.ok && res.created.length > 0) {
             extra.just_built_week = res.created.map((c) => `${c.name} on ${c.date}`).join('; ');
+            layers.track('program_built', { created: res.created.length, adapt: false });
             refreshData().catch(() => {});
           } else if (!res.ok && res.reason !== 'premium_required') {
             extra.program_build_failed = 'the program could not be written just now';
@@ -326,13 +458,7 @@ export default function SoloScreen() {
         if (error) {
           const status = (error as any)?.context?.status;
           if (status === 402) {
-            if (Date.now() - lastPurchaseAtRef.current < 90_000) {
-              setActivating(true);
-              setCurrentLine('Activating your subscription…');
-            } else {
-              setPaywallVisible(true);
-              setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
-            }
+            handle402();
           } else if (status === 429) {
             setCurrentLine("Give me a minute. You've asked a lot this hour.");
           } else {
@@ -354,10 +480,17 @@ export default function SoloScreen() {
         setCurrentLine(reply);
         setBasedOn(Array.isArray(data?.based_on) ? data.based_on : []);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        await persistCornerMessage(reply);
+        const msgId = await persistCornerMessage(reply);
+        setCurrentMessageId(msgId);
+        setPromptVersion(typeof data?.prompt_version === 'string' ? data.prompt_version : null);
         setMessages((prev) => [...prev, {
-          id: `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+          id: msgId ?? `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
         }]);
+        layers.track('corner_reply', {
+          character: character.key,
+          latency_ms: Date.now() - startedAt,
+          audio_autoplayed: autoPlayedThisReply,
+        });
         speakReply(reply);
       } catch (e) {
         if (__DEV__) console.warn('[Solo] deliver threw:', e);
@@ -367,40 +500,44 @@ export default function SoloScreen() {
         setWaitingReply(false);
       }
     },
-    [clientData?.id, callCorner, buildContext, character.name, persistCornerMessage, speakReply]
+    [clientData?.id, callCorner, buildContext, character.key, character.name, persistCornerMessage, speakReply, handle402, autoPlay]
   );
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback((content: string) => {
     const trimmed = content.trim();
     if (!trimmed || sendingRef.current || !clientData?.id) return;
-    sendingRef.current = true;
-    Keyboard.dismiss();
+    // Gated before anything else happens — a decline must not even echo the
+    // athlete's line, since the corner is never going to answer it.
+    ensureConsent(async () => {
+      sendingRef.current = true;
+      Keyboard.dismiss();
 
-    // Echo the athlete's own line above the orb for a beat, then let the
-    // reply (or waiting state) take over the spoken line.
-    setAthleteEcho(trimmed);
-    if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
-    echoTimerRef.current = setTimeout(() => setAthleteEcho(null), 1500);
+      // Echo the athlete's own line above the orb for a beat, then let the
+      // reply (or waiting state) take over the spoken line.
+      setAthleteEcho(trimmed);
+      if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
+      echoTimerRef.current = setTimeout(() => setAthleteEcho(null), 1500);
 
-    const prior = messages;
-    const athleteMsg: SoloMessage = {
-      id: `local-athlete-${Date.now()}`,
-      role: 'athlete',
-      content: trimmed,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, athleteMsg]);
+      const prior = messages;
+      const athleteMsg: SoloMessage = {
+        id: `local-athlete-${Date.now()}`,
+        role: 'athlete',
+        content: trimmed,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, athleteMsg]);
 
-    try {
-      const { error: insertError } = await supabase
-        .from('solo_messages')
-        .insert({ client_id: clientData.id, role: 'athlete', content: trimmed });
-      if (insertError && __DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
-      await deliver(trimmed, prior);
-    } finally {
-      sendingRef.current = false;
-    }
-  }, [messages, clientData?.id, deliver]);
+      try {
+        const { error: insertError } = await supabase
+          .from('solo_messages')
+          .insert({ client_id: clientData.id, role: 'athlete', content: trimmed });
+        if (insertError && __DEV__) console.warn('[Solo] athlete row not saved:', insertError.message);
+        await deliver(trimmed, prior);
+      } finally {
+        sendingRef.current = false;
+      }
+    });
+  }, [messages, clientData?.id, deliver, ensureConsent]);
 
   const handleSend = useCallback(() => {
     const content = input.trim();
@@ -408,6 +545,38 @@ export default function SoloScreen() {
     setInput('');
     sendMessage(content);
   }, [input, sendMessage]);
+
+  // ── Hold to talk ──────────────────────────────────────────────────────────
+  const holdStartedAt = useRef(0);
+  const onHoldStart = useCallback(async () => {
+    if (!dictation.available || waitingReply) return;
+    voice.stop();
+    holdStartedAt.current = Date.now();
+    const ok = await dictation.start();
+    if (ok) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      showAlert({ title: 'Microphone', message: `Allow the microphone and speech recognition in Settings to talk to ${character.name}.` });
+    }
+  }, [dictation, waitingReply, voice, showAlert, character.name]);
+
+  const onHoldEnd = useCallback(async () => {
+    if (!dictation.available) return;
+    const heldMs = Date.now() - holdStartedAt.current;
+    const text = await dictation.stop();
+    Haptics.selectionAsync();
+    if (heldMs < 400 && !text) return; // a tap, not a hold — nothing to send
+    if (text) {
+      setInput('');
+      sendMessage(text);
+    }
+  }, [dictation, sendMessage]);
+
+  // Mirror the live transcript into the composer so the athlete sees what
+  // was heard before it is sent.
+  useEffect(() => {
+    if (dictation.listening) setInput(dictation.transcript);
+  }, [dictation.listening, dictation.transcript]);
 
   const handleRetry = useCallback(() => {
     if (!pendingRetry) return;
@@ -527,14 +696,48 @@ export default function SoloScreen() {
           {loading ? (
             <ActivityIndicator size="small" color={C.accent} style={{ marginTop: 22 }} />
           ) : (
-            <View style={[s.spokenBlock, orbLoading && s.spokenBlockDim]}>
-              <SpokenLine
-                text={currentLine}
-                tint={tint}
-                state={voice.state}
-                onToggle={() => voice.toggle(currentLine, character.key)}
-              />
-            </View>
+            <>
+              <View style={[s.spokenBlock, orbLoading && s.spokenBlockDim]}>
+                <SpokenLine
+                  text={currentLine}
+                  tint={tint}
+                  state={voice.state}
+                  onToggle={() => voice.toggle(currentLine, character.key)}
+                />
+              </View>
+              {!!currentLine && (
+                <View style={s.feedbackRow}>
+                  <TouchableOpacity
+                    style={s.feedbackBtn}
+                    onPress={() => submitFeedback('up')}
+                    disabled={feedbackGiven?.line === currentLine}
+                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="This helped"
+                  >
+                    <Ionicons
+                      name="thumbs-up-outline"
+                      size={20}
+                      color={feedbackGiven?.line === currentLine && feedbackGiven.verdict === 'up' ? C.accent : C.textFaint}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.feedbackBtn}
+                    onPress={() => submitFeedback('down')}
+                    disabled={feedbackGiven?.line === currentLine}
+                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="This missed"
+                  >
+                    <Ionicons
+                      name="thumbs-down-outline"
+                      size={20}
+                      color={feedbackGiven?.line === currentLine && feedbackGiven.verdict === 'down' ? C.accent : C.textFaint}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
 
           {basedOn.length > 0 && (
@@ -596,16 +799,34 @@ export default function SoloScreen() {
               blurOnSubmit={false}
               accessibilityLabel={`Message ${character.name}`}
             />
-            <TouchableOpacity
-              style={[s.sendBtn, input.trim() ? s.sendBtnActive : null]}
-              onPress={handleSend}
-              disabled={!input.trim() || waitingReply}
-              hitSlop={2}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-            >
-              <Ionicons name="arrow-up" size={19} color={input.trim() ? C.onAccent : C.textFaint} />
-            </TouchableOpacity>
+            {dictation.available && !input.trim() ? (
+              <TouchableOpacity
+                style={[s.sendBtn, dictation.listening ? s.micBtnLive : null]}
+                onPressIn={onHoldStart}
+                onPressOut={onHoldEnd}
+                disabled={waitingReply}
+                delayPressIn={0}
+                activeOpacity={0.9}
+                hitSlop={2}
+                accessibilityRole="button"
+                accessibilityLabel={`Hold to talk to ${character.name}`}
+                accessibilityHint="Press and hold, speak, then release to send"
+                accessibilityState={{ busy: dictation.listening }}
+              >
+                <Ionicons name={dictation.listening ? 'mic' : 'mic-outline'} size={20} color={dictation.listening ? C.onAccent : C.textPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[s.sendBtn, input.trim() ? s.sendBtnActive : null]}
+                onPress={handleSend}
+                disabled={!input.trim() || waitingReply}
+                hitSlop={2}
+                accessibilityRole="button"
+                accessibilityLabel="Send"
+              >
+                <Ionicons name="arrow-up" size={19} color={input.trim() ? C.onAccent : C.textFaint} />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={{ height: Math.max(insets.bottom, 14) + 55, backgroundColor: C.bg }} />
         </View>
@@ -684,10 +905,19 @@ export default function SoloScreen() {
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
         onSuccess={() => {
-          // Opens the 90s grace window for the webhook to land server-side.
+          // Opens the purchase grace window for the webhook to land server-side.
           lastPurchaseAtRef.current = Date.now();
           setPaywallVisible(false);
+          setActivating(true);
+          setCurrentLine('Activating your subscription…');
+          layers.track('trial_started', { source: 'corner' });
         }}
+      />
+
+      <AiConsentSheet
+        visible={consentVisible}
+        onAgree={handleConsentAgree}
+        onDecline={handleConsentDecline}
       />
     </View>
   );
@@ -729,6 +959,8 @@ const s = StyleSheet.create({
   },
   spokenBlock: { marginTop: 4 },
   spokenBlockDim: { opacity: 0.45 },
+  feedbackRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
+  feedbackBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 
   basedOnRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
@@ -766,6 +998,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnActive: { backgroundColor: C.accent },
+  micBtnLive: { backgroundColor: C.accent, transform: [{ scale: 1.08 }] },
 
   historyContainer: { flex: 1, backgroundColor: C.bg },
   historyHeader: {

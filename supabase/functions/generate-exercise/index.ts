@@ -2,18 +2,19 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CATEGORIES = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core', 'Cardio', 'Full Body', 'Flexibility'];
+const CATEGORIES = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core', 'Cardio', 'Full Body', 'Flexibility'] as const;
 const MUSCLE_GROUPS = [
-  'Pectorals', 'Latissimus Dorsi', 'Quadriceps', 'Hamstrings', 'Glutes', 
+  'Pectorals', 'Latissimus Dorsi', 'Quadriceps', 'Hamstrings', 'Glutes',
   'Biceps', 'Triceps', 'Deltoids', 'Trapezius', 'Abs', 'Obliques', 'Calves', 'Cardiovascular'
-];
-const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Machine', 'Cables', 'Kettlebell', 'Bands', 'Bodyweight', 'Plate', 'None'];
+] as const;
+const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Machine', 'Cables', 'Kettlebell', 'Bands', 'Bodyweight', 'Plate', 'None'] as const;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -27,7 +28,7 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'generate-exercise', limit: 40, windowSeconds: 3600 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'generate-exercise', limit: 40, windowSeconds: 3600, daily: 80 }, corsHeaders);
     if (rl) return rl;
 
     let { name } = await req.json();
@@ -46,7 +47,7 @@ serve(async (req) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       generationConfig: { responseMimeType: "application/json" }
     });
@@ -78,12 +79,25 @@ Rules:
 - If you do not know the exercise, estimate based on the name.
 `;
 
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'generate-exercise' });
     const response = await result.response;
     const text = response.text().trim();
-    
-    // Parse to ensure it's valid JSON matching the schema
-    const data = JSON.parse(text);
+
+    const raw = parseJson(text);
+    if (!raw) {
+      return new Response(JSON.stringify({ error: 'bad_generation' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 502,
+      });
+    }
+
+    const data = {
+      category: pickEnum(raw.category, CATEGORIES, 'Full Body'),
+      muscle_group: pickEnum(raw.muscle_group, MUSCLE_GROUPS, 'Cardiovascular'),
+      equipment: pickEnum(raw.equipment, EQUIPMENT_OPTIONS, 'None'),
+      instructions: clampStr(raw.instructions, 1500, ''),
+      prompt_version: PROMPT_VERSION,
+    };
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -91,7 +105,14 @@ Rules:
     });
   } catch (error: any) {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders, { req, endpoint: 'generate-exercise' });
+    report(error, { fn: 'generate-exercise' });
     console.error('Error generating exercise details:', error);
+    if (error instanceof AiTimeout) {
+      return new Response(JSON.stringify({ error: 'ai_timeout' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 504,
+      });
+    }
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

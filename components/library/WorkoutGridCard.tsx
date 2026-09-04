@@ -60,10 +60,10 @@ export default function WorkoutGridCard({ item, onPress, onDelete }: WorkoutGrid
         accessible={false}
       />
       <View style={s.bottom}>
-        <Text style={s.name} numberOfLines={2}>{item.name}</Text>
-        <Text style={s.muscles} numberOfLines={1}>{muscleSummary}</Text>
+        <Text style={s.name} numberOfLines={2} maxFontSizeMultiplier={1.4}>{item.name}</Text>
+        <Text style={s.muscles} numberOfLines={1} maxFontSizeMultiplier={1.4}>{muscleSummary}</Text>
         <View style={s.statRow}>
-          <Text style={s.stats} numberOfLines={1}>{statLine}</Text>
+          <Text style={s.stats} numberOfLines={1} maxFontSizeMultiplier={1.2}>{statLine}</Text>
           <TouchableOpacity
             onPress={onDelete}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
