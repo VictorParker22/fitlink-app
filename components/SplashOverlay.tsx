@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { CoachColors } from '../constants/coachDesign';
 import { Motion } from '../constants/motion';
@@ -57,7 +57,7 @@ export default function SplashOverlay({
     Animated.parallel([
       Animated.spring(markScale, {
         toValue: 1,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         speed: 14,
         bounciness: 6,
       }),
@@ -66,7 +66,7 @@ export default function SplashOverlay({
         duration: 420,
         delay: 120,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, [reduced]);
@@ -92,6 +92,13 @@ export default function SplashOverlay({
   // standard 200ms Reduce Motion crossfade rather than the full-motion timing.
   useEffect(() => {
     if (!done) return;
+    // The exit MUST hand over exactly once, whatever the animation driver
+    // does: on web the mixed JS/native sequence never fires its completion
+    // callback and the app sat alive behind the plate. A timer sized to the
+    // choreography guarantees the hand-over; the callback wins when it runs.
+    let handed = false;
+    const handOver = () => { if (handed) return; handed = true; onFadeComplete?.(); };
+    const native = Platform.OS !== 'web';
     if (reduced) {
       bar.setValue(1);
       markScale.setValue(1);
@@ -99,9 +106,10 @@ export default function SplashOverlay({
         toValue: 0,
         duration: Motion.reduced,
         easing: Easing.linear,
-        useNativeDriver: true,
-      }).start(() => onFadeComplete?.());
-      return;
+        useNativeDriver: native,
+      }).start(handOver);
+      const t = setTimeout(handOver, Motion.reduced + 150);
+      return () => clearTimeout(t);
     }
     Animated.sequence([
       Animated.timing(bar, {
@@ -113,7 +121,7 @@ export default function SplashOverlay({
       Animated.parallel([
         Animated.spring(markScale, {
           toValue: 1.05,
-          useNativeDriver: true,
+          useNativeDriver: native,
           speed: 30,
           bounciness: 10,
         }),
@@ -122,10 +130,12 @@ export default function SplashOverlay({
           duration: 420,
           delay: 90,
           easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: native,
         }),
       ]),
-    ]).start(() => onFadeComplete?.());
+    ]).start(handOver);
+    const t = setTimeout(handOver, 180 + 90 + 420 + 200);
+    return () => clearTimeout(t);
   }, [done, reduced]);
 
   const heading = fontsReady

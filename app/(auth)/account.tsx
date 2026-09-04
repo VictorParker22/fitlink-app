@@ -111,7 +111,9 @@ export default function AccountScreen() {
     if (!nameOk || !dobOk) return;
     setError('');
     await saveDraft({ name: name.trim(), ...(isClient && dobCheck.ok ? { dob: dobCheck.iso } : {}) });
-    router.push((isClient ? '/(auth)/client-signup' : '/(auth)/coach-signup') as any);
+    // `from=account`: the signup screen skips its own welcome step — the
+    // athlete already chose, answered and named themselves.
+    router.push((isClient ? '/(auth)/client-signup?from=account' : '/(auth)/coach-signup?from=account') as any);
   };
 
   /* ── Phone ─────────────────────────────────────────────────────────── */

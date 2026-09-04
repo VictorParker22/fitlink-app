@@ -66,7 +66,7 @@ export default function ClientSignupScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const reduced = useReducedMotion();
-  const params = useLocalSearchParams<{ ref?: string; trainer?: string }>();
+  const params = useLocalSearchParams<{ ref?: string; trainer?: string; from?: string }>();
 
   const [flowStep, setFlowStep] = useState<FlowStep>('welcome');
   const [loading, setLoading] = useState(false);
@@ -110,7 +110,14 @@ export default function ClientSignupScreen() {
     loadDraft().then((d) => {
       if (d.dob) setDraftDob(d.dob);
       if (d.role === 'client' && d.goals?.length) setDraftAck(true);
+      if (d.name) setName((prev) => prev || d.name!);
+      // Arriving from the editorial account step: the athlete already chose a
+      // path, answered the intake and typed their name — the welcome pitch and
+      // the "already set up by a coach?" lookup are the wrong first screens.
+      // Go straight to the email step.
+      if (params.from === 'account') setFlowStep('new_signup');
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Resolve the inviting coach from the link ref ──────────────────────

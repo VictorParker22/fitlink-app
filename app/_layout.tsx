@@ -458,6 +458,15 @@ function StartupDoctor() {
 
 export default Sentry.wrap(function RootLayout() {
   const [bootSplashVisible, setBootSplashVisible] = useState(true);
+  // LAST RESORT for the JS overlay itself. StartupDoctor's 8 s timer hides the
+  // NATIVE splash only; if the overlay's exit animation never completes (an
+  // Animated driver quirk, a throw inside a milestone effect) nothing else
+  // removes it and the app is alive but invisible. Nine seconds after mount
+  // the overlay leaves no matter what.
+  useEffect(() => {
+    const t = setTimeout(() => setBootSplashVisible(false), 9000);
+    return () => clearTimeout(t);
+  }, []);
   // Real startup milestones, fed to the splash's determinate bar:
   // fonts .33 → session + onboarding flags .66 → route settled 1.
   const [startupProgress, setStartupProgress] = useState(0.15);
@@ -530,7 +539,10 @@ export default Sentry.wrap(function RootLayout() {
                       <WorkoutProvider>
                         <HealthProvider>
                           <ThemedStatusBar />
-                          <AuthGuard onProgress={setStartupProgress} />
+                          {/* Monotonic: a late milestone report must never pull the
+                              bar back below the fail-open value, or the splash exit
+                              (which waits for progress >= 1) never fires. */}
+                          <AuthGuard onProgress={(v) => setStartupProgress((p) => Math.max(p, v))} />
                           <OfflineBanner />
                         </HealthProvider>
                       </WorkoutProvider>

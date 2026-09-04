@@ -164,8 +164,13 @@ export function streamCorner(
  * be at least 12 characters so a bare "Ok." doesn't trigger synthesis.
  */
 export function firstSentence(text: string): string | null {
-  const m = /^[\s\S]*?[.!?](?=\s|$)/.exec(text);
-  if (!m) return null;
-  const s = m[0].trim();
-  return s.length >= 12 ? s : null;
+  // Walk sentence boundaries; the first prefix long enough to be worth a
+  // clip wins, so "Ok. Now the real line." is spoken as one piece.
+  const re = /[.!?](?=\s|$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const candidate = text.slice(0, m.index + 1).trim();
+    if (candidate.length >= 12) return candidate;
+  }
+  return null;
 }
