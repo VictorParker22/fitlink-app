@@ -55,6 +55,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { readClientGoals } from '../../lib/clientGoals';
 import type { TrackNode } from '../../context/AppContext';
 
+import StaleNotice from '../../components/client-tabs/StaleNotice';
 import ExploreDashboard from '../../components/client-tabs/explore/ExploreDashboard';
 import ActiveWorkoutPlayer from '../../components/client-tabs/explore/ActiveWorkoutPlayer';
 import WorkoutPreview from '../../components/client-tabs/explore/WorkoutPreview';
@@ -807,7 +808,7 @@ export default function ClientWorkoutsScreen() {
           paddingHorizontal: 20,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textMuted} />}
-        ListHeaderComponent={<>{headerContent}</>}
+        ListHeaderComponent={<><StaleNotice />{headerContent}</>}
         ListFooterComponent={
           <>
             {footerContent}

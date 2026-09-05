@@ -48,7 +48,7 @@ serve(async (req) => {
 
     const { data: client, error: clientErr } = await admin
       .from('clients')
-      .select('id, name, premium_until, solo_program_built_at, trainer_id')
+      .select('id, name, premium_until, solo_program_built_at, solo_program_request_id, trainer_id')
       .eq('auth_user_id', caller.id)
       .maybeSingle();
     if (clientErr) throw clientErr;
@@ -60,6 +60,12 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const rebuild = body?.rebuild === true;
     const adapt = body?.adapt === true;
+    // Idempotency: the same request_id never builds twice (a retry or a
+    // double tap returns the earlier outcome instead of a second week).
+    const requestId = clampStr(body?.request_id, 80) || null;
+    if (requestId && client.solo_program_request_id === requestId) {
+      return json({ ok: true, created: [], skipped: 'duplicate' });
+    }
 
     // Rate check moved ABOVE the "built recently -> skip" branch: a
     // rebuild:true (or adapt:true) caller must always be counted against
@@ -130,7 +136,8 @@ ${adapt
   : ''}
 
 Write exactly ${days} workouts. Return ONLY JSON:
-{"workouts":[{"name":string,"description":string,"category":"strength"|"cardio"|"flexibility"|"hiit"|"circuit","estimated_duration":number,"exercises":[{"exercise_name":string,"sets":number,"reps":string,"rest_seconds":number}]}]}
+{"workouts":[{"name":string,"description":string,"category":"strength"|"cardio"|"flexibility"|"hiit"|"circuit","estimated_duration":number,"exercises":[{"exercise_name":string,"sets":number,"reps":string,"rest_seconds":number}]}]${adapt ? ',"changes":string' : ''}}${adapt ? `
+- "changes": ONE spoken sentence, under 35 words, in the corner's voice, saying what changed from last week and why (name the sessions or lifts; no numbers that are not in the last 14 days above).` : ''}
 Rules:
 - exercise_name MUST exactly match a name from the list below.
 - When a goal names a muscle (for example "hamstrings and glutes"), prefer exercises whose primary OR secondary muscle matches it.
@@ -210,8 +217,13 @@ ${list}`;
 
     if (created.length === 0) return json({ error: 'bad_generation' }, 502);
     console.log('[solo-program] wrote', created.length, 'workouts; unmatched exercise names:', unmatched);
-    await admin.from('clients').update({ solo_program_built_at: new Date().toISOString() }).eq('id', client.id);
-    return json({ ok: true, created, prompt_version: PROMPT_VERSION });
+    await admin.from('clients').update({
+      solo_program_built_at: new Date().toISOString(),
+      ...(requestId ? { solo_program_request_id: requestId } : {}),
+    }).eq('id', client.id);
+    // The adaptation note is spoken by the corner; keep it one clean sentence.
+    const changes = adapt ? clampStr(parsed?.changes, 320) : '';
+    return json({ ok: true, created, prompt_version: PROMPT_VERSION, ...(changes ? { changes } : {}) });
   } catch (err: any) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     report(err, { fn: 'solo-program' });

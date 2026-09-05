@@ -237,6 +237,17 @@ export default function SoloScreen() {
           if (res.ok && res.created.length > 0) {
             layers.track('program_built', { created: res.created.length, adapt: true });
             await refreshData();
+            // Say what changed and why, in the corner's voice, and keep it in
+            // the thread so the athlete can scroll back to it.
+            if (res.changes) {
+              preAdaptLineRef.current = res.changes;
+              const msgId = await persistCornerMessage(res.changes);
+              setCurrentMessageId(msgId);
+              setMessages((prev) => [...prev, {
+                id: msgId ?? `local-adapt-${Date.now()}`, role: 'corner', content: res.changes!, created_at: new Date().toISOString(),
+              }]);
+              speakReply(res.changes);
+            }
           } else if (!res.ok && __DEV__) console.warn('[solo] program adapt:', res.reason, res.message);
         } finally {
           setAdapting(false);

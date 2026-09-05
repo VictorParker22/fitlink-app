@@ -31,6 +31,7 @@ import * as Haptics from 'expo-haptics';
 
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import BoltEmptyState from '../../components/mascot/BoltEmptyState';
+import StaleNotice from '../../components/client-tabs/StaleNotice';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { ClientRoute } from '../../types/routes';
@@ -461,6 +462,8 @@ export default function MySessionsScreen() {
           />
         }
       >
+        {/* Offline: sessions are whatever the last fetch left in state. */}
+        <StaleNotice />
         {!hasAnyData ? (
           <EmptyState
               coachName={coachFirst}

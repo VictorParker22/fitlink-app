@@ -47,6 +47,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import MealCard from '../../components/client-tabs/food/MealCard';
+import StaleNotice from '../../components/client-tabs/StaleNotice';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -525,6 +526,7 @@ export default function AthleteFoodScreen() {
         scrollEventThrottle={32}
         ListHeaderComponent={
           <>
+            <StaleNotice />
             <Text style={st.title}>Food</Text>
             <Text style={st.subtitle}>
               {weekdayLine}

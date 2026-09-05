@@ -13,9 +13,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
+  View, Text, StyleSheet, TouchableOpacity, Platform,
   Modal, ScrollView, TextInput, RefreshControl, KeyboardAvoidingView,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ClientRoute } from '../../types/routes';
@@ -26,6 +27,7 @@ import { FontSize, Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Bolt } from '../../components/mascot/Bolt';
 import CardImage from '../../components/ui/CardImage';
+import StaleNotice from '../../components/client-tabs/StaleNotice';
 import { CATEGORY_COLORS } from '../../data/categoryColors';
 import { supabase } from '../../lib/supabase';
 import { useAlert } from '../../context/AlertContext';
@@ -328,6 +330,67 @@ export default function ExploreClassesScreen() {
     return `${m.toString().padStart(2, '0')}:00`;
   };
 
+  // Live rail row. A class that has not started is NOT tappable — it states
+  // its real day and time instead. Only a genuinely live row offers the join.
+  const renderLiveItem = useCallback(({ item: stream }: { item: any }) => {
+    const isLive = stream.status === 'live';
+    const when = scheduleLabel(stream.scheduled_for);
+    const label = isLive
+      ? `Live now: ${stream.title}, with ${stream.trainers?.name || coachFirst}. Double tap to join`
+      : `${stream.title}, with ${stream.trainers?.name || coachFirst}${when ? `, ${when}` : ''}. Not started yet`;
+
+    const body = (
+      <>
+        <View style={s.liveThumb}>
+          {/* Session photography as ground; the veil keeps the
+              avatar and badge readable on top. */}
+          <CardImage
+            source={require('../../assets/images/session-bg.jpg')}
+            scrim="veil"
+            recyclingKey={stream.id}
+          />
+          {stream.trainers?.avatar_url ? (
+            <Image source={{ uri: stream.trainers.avatar_url }} style={s.liveAvatar} />
+          ) : null}
+          <View style={[s.liveBadge, !isLive && s.upcomingBadge]}>
+            <Text style={[s.liveBadgeText, !isLive && s.upcomingBadgeText]}>
+              {isLive ? 'LIVE NOW' : 'UPCOMING'}
+            </Text>
+          </View>
+        </View>
+        <View style={s.liveInfo}>
+          <Text style={s.liveTitle} numberOfLines={1}>{stream.title}</Text>
+          {/* The real scheduled time, or the coach's name when the
+              row carries no usable date. Never a fake countdown. */}
+          <Text style={s.liveInstructor} numberOfLines={1}>
+            {isLive
+              ? `${stream.trainers?.name || coachFirst} is streaming now`
+              : when || (stream.trainers?.name || coachFirst)}
+          </Text>
+        </View>
+      </>
+    );
+
+    return isLive ? (
+      <TouchableOpacity
+        style={[s.liveCard, s.liveCardActive]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push(`/live-player/${stream.id}` as any);
+        }}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {body}
+      </TouchableOpacity>
+    ) : (
+      <View style={s.liveCard} accessible={true} accessibilityLabel={label}>
+        {body}
+      </View>
+    );
+  }, [router, coachFirst]);
+
   const renderClassItem = useCallback(({ item }: { item: FitnessClass }) => {
     const catColor = CATEGORY_COLORS[item.category] || '#FFFFFF';
 
@@ -516,73 +579,20 @@ export default function ExploreClassesScreen() {
       {/* Structural Hairline Divider */}
       <View style={s.divider} />
 
-      {/* Live schedule. A class that has not started is NOT tappable — it
-          states its real day and time instead. Only a genuinely live row
-          offers the join. */}
+      {/* Live schedule — a horizontal rail of this coach's live and scheduled
+          rows (see renderLiveItem for the join / not-started split). */}
       {activeLiveStreams.length > 0 && (
         <View style={s.liveSection}>
           <Text style={s.liveSectionTitle}>LIVE &amp; UPCOMING</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.liveScroll}>
-            {activeLiveStreams.map((stream) => {
-              const isLive = stream.status === 'live';
-              const when = scheduleLabel(stream.scheduled_for);
-              const label = isLive
-                ? `Live now: ${stream.title}, with ${stream.trainers?.name || coachFirst}. Double tap to join`
-                : `${stream.title}, with ${stream.trainers?.name || coachFirst}${when ? `, ${when}` : ''}. Not started yet`;
-
-              const body = (
-                <>
-                  <View style={s.liveThumb}>
-                    {/* Session photography as ground; the veil keeps the
-                        avatar and badge readable on top. */}
-                    <CardImage
-                      source={require('../../assets/images/session-bg.jpg')}
-                      scrim="veil"
-                      recyclingKey={stream.id}
-                    />
-                    {stream.trainers?.avatar_url ? (
-                      <Image source={{ uri: stream.trainers.avatar_url }} style={s.liveAvatar} />
-                    ) : null}
-                    <View style={[s.liveBadge, !isLive && s.upcomingBadge]}>
-                      <Text style={[s.liveBadgeText, !isLive && s.upcomingBadgeText]}>
-                        {isLive ? 'LIVE NOW' : 'UPCOMING'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={s.liveInfo}>
-                    <Text style={s.liveTitle} numberOfLines={1}>{stream.title}</Text>
-                    {/* The real scheduled time, or the coach's name when the
-                        row carries no usable date. Never a fake countdown. */}
-                    <Text style={s.liveInstructor} numberOfLines={1}>
-                      {isLive
-                        ? `${stream.trainers?.name || coachFirst} is streaming now`
-                        : when || (stream.trainers?.name || coachFirst)}
-                    </Text>
-                  </View>
-                </>
-              );
-
-              return isLive ? (
-                <TouchableOpacity
-                  key={stream.id}
-                  style={[s.liveCard, s.liveCardActive]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/live-player/${stream.id}` as any);
-                  }}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={label}
-                >
-                  {body}
-                </TouchableOpacity>
-              ) : (
-                <View key={stream.id} style={s.liveCard} accessible={true} accessibilityLabel={label}>
-                  {body}
-                </View>
-              );
-            })}
-          </ScrollView>
+          <FlashList
+            horizontal
+            data={activeLiveStreams}
+            keyExtractor={(stream: any) => stream.id}
+            renderItem={renderLiveItem}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.liveScroll}
+            ItemSeparatorComponent={() => <View style={s.liveGap} />}
+          />
         </View>
       )}
 
@@ -590,14 +600,18 @@ export default function ExploreClassesScreen() {
           than sliding under the keyboard raised by the search field above.
           'padding' on iOS only; Android already resizes via adjustResize. */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <FlatList keyboardShouldPersistTaps="handled"
+      <FlashList keyboardShouldPersistTaps="handled"
         data={sortedClasses}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: FitnessClass) => item.id}
         renderItem={renderClassItem}
+        style={{ flex: 1 }}
         // Floating tab bar (and the WorkoutMiniPlayer above it) sit over this
         // list — same clearance the Train column uses — plus room for the FAB.
-        contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 190 }]}
+        contentContainerStyle={{ paddingTop: 14, paddingBottom: insets.bottom + 190 }}
         showsVerticalScrollIndicator={false}
+        // Offline: the rows are whatever the last fetch left in state. Say so
+        // at the top of the list rather than pretending it is fresh.
+        ListHeaderComponent={<StaleNotice style={s.staleNotice} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -866,12 +880,17 @@ const s = StyleSheet.create({
     backgroundColor: CoachColors.borderMuted,
   },
 
-  // List — paddingBottom is applied inline from the safe-area inset.
-  listContent: { paddingTop: 14 },
+  // List padding is applied inline (FlashList takes padding only on its
+  // content container; paddingBottom comes from the safe-area inset).
   // Cards breathe with space, not hairlines (rows got the hairline; covers
   // get the gap).
   separator: {
     height: 14,
+  },
+  // The list content has no horizontal padding — cards carry their own
+  // margin — so the offline strip matches the card edges itself.
+  staleNotice: {
+    marginHorizontal: 16,
   },
 
   // Class row
@@ -888,9 +907,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  // FlashList content containers take padding only; the 12 pt gap between
+  // rail cards is the separator below.
   liveScroll: {
     paddingHorizontal: 16,
-    gap: 12,
+  },
+  liveGap: {
+    width: 12,
   },
   liveCard: {
     width: 200,
