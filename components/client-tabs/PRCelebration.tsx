@@ -10,6 +10,7 @@ import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 import { playChime } from '../../lib/sounds';
+import { WeightUnit, formatWeight, formatWeightNumber, unitLabel } from '../../lib/units';
 
 /**
  * The PR payoff (design turn 22c) — shown in-screen when a strength session
@@ -36,13 +37,14 @@ type Particle = {
 
 export interface WeeklyBest {
   label: string;    // e.g. "W1"
-  weight: number;   // kg — real logged top weight that week
+  weight: number;   // real logged top weight that week, in the athlete's unit
   isCurrent: boolean;
 }
 
 export default function PRCelebration({
   exerciseName,
   weight,
+  unit,
   reps,
   setsCount,
   priorBest,
@@ -57,10 +59,12 @@ export default function PRCelebration({
 }: {
   exerciseName: string;
   weight: number;
+  /** The athlete's lifting unit — every number on this screen is read in it (lib/units.ts). */
+  unit: WeightUnit;
   reps: number;
   setsCount: number;
   priorBest: number;
-  gainSinceFirst: { kg: number; weeksAgo: number } | null;
+  gainSinceFirst: { amount: number; weeksAgo: number } | null;
   weeklyBests: WeeklyBest[];
   coachName: string;
   defaultMessage: string;
@@ -85,9 +89,12 @@ export default function PRCelebration({
   const shareWithSquad = () => {
     if (!squad || !shareSquad || squadSharedRef.current) return;
     squadSharedRef.current = true;
+    // `unit` travels with the number so other athletes read it in the
+    // LIFTER's unit (SquadFeed), whatever their own preference is.
     insertSquadEvent(squad, 'pr', {
       exercise: exerciseName,
       weight,
+      unit,
       prev: priorBest,
     });
   };
@@ -195,16 +202,16 @@ export default function PRCelebration({
           >
             <Text style={s.eyebrow}>New best</Text>
             <View style={s.bigRow}>
-              <Text style={s.bigNumber}>{formatKg(weight)}</Text>
-              <Text style={s.bigUnit}> kg</Text>
+              <Text style={s.bigNumber}>{formatWeightNumber(weight)}</Text>
+              <Text style={s.bigUnit}> {unitLabel(unit)}</Text>
             </View>
             <Text style={s.liftLine}>
               {exerciseName}, {setsCount} {setsCount === 1 ? 'set' : 'sets'} of {reps}
             </Text>
             <Text style={s.priorLine}>
               {gainSinceFirst
-                ? `Up ${formatKg(gainSinceFirst.kg)} kg since you started${gainSinceFirst.weeksAgo >= 1 ? `, ${gainSinceFirst.weeksAgo === 1 ? 'a week' : `${gainSinceFirst.weeksAgo} weeks`} ago` : ''}`
-                : `Previous best: ${formatKg(priorBest)} kg`}
+                ? `Up ${formatWeight(gainSinceFirst.amount, unit)} since you started${gainSinceFirst.weeksAgo >= 1 ? `, ${gainSinceFirst.weeksAgo === 1 ? 'a week' : `${gainSinceFirst.weeksAgo} weeks`} ago` : ''}`
+                : `Previous best: ${formatWeight(priorBest, unit)}`}
             </Text>
 
             {weeklyBests.length >= 2 && (
@@ -276,7 +283,7 @@ export default function PRCelebration({
                 <View style={{ flex: 1 }}>
                   <Text style={s.squadLabel}>Share with the squad</Text>
                   <Text style={s.squadHint}>
-                    Athletes on your pass see "{exerciseName} PR — {formatKg(weight)} kg". Nothing else.
+                    Athletes on your pass see "{exerciseName} PR — {formatWeight(weight, unit)}". Nothing else.
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -300,10 +307,6 @@ export default function PRCelebration({
       </KeyboardAvoidingView>
     </View>
   );
-}
-
-function formatKg(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
 }
 
 const s = StyleSheet.create({

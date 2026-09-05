@@ -16,10 +16,16 @@
  * AuthGuard handles the redirect once a session exists — this screen never
  * navigates on a successful sign-in.
  *
- * The 16+ date-of-birth gate lives here (parseDob/formatDobInput, copied
- * from account.tsx so both format identically) — UNLESS the onboarding
- * draft (lib/onboardingDraft.ts) already has a dob, in which case the field
- * is skipped and the draft value is used directly.
+ * The 16+ date-of-birth gate lives here (parseDob/formatDobInput from
+ * lib/dob.ts, shared with account.tsx) — UNLESS the onboarding draft
+ * (lib/onboardingDraft.ts) already has a dob, in which case the field is
+ * skipped and the draft value is used directly. The same goes for the name:
+ * arriving from the account step (?from=account) with a draft name hides the
+ * Name field and shows "Signing up as …" with a way back to change it.
+ *
+ * Every auth failure is shown through lib/authErrors.ts, and the sign-up
+ * requests get one retry when the phone could not reach the server at all
+ * (the "Network request failed" finding from the 2026-09-04 device pass).
  */
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
@@ -34,6 +40,7 @@ import { supabase } from '../../lib/supabase';
 import { useAlert } from '../../context/AlertContext';
 import { loadDraft } from '../../lib/onboardingDraft';
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
+import { friendlyAuthError, withNetworkRetry } from '../../lib/authErrors';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { OB, OBFonts, OBRadius, OBSpace, OBMotion } from '../../constants/onboardingDesign';
 import {
@@ -59,14 +66,14 @@ function firstName(name?: string): string {
   return (name || '').split(' ')[0] || '';
 }
 
-/** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. Copied
- *  from account.tsx so both screens format identically. */
-
 export default function ClientSignupScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const reduced = useReducedMotion();
   const params = useLocalSearchParams<{ ref?: string; trainer?: string; from?: string }>();
+  // The account step pushed this screen, so it is still on the stack and
+  // "Change" can simply go back to it.
+  const fromAccount = params.from === 'account';
 
   const [flowStep, setFlowStep] = useState<FlowStep>('welcome');
   const [loading, setLoading] = useState(false);
@@ -85,6 +92,9 @@ export default function ClientSignupScreen() {
   // If the onboarding draft already carries a dob, the field is skipped
   // entirely and this value is used at submit time.
   const [draftDob, setDraftDob] = useState<string | null>(null);
+  // The name typed on the account step. With it, the Name field is hidden
+  // rather than asked for a second time.
+  const [draftName, setDraftName] = useState<string | null>(null);
   const [draftAck, setDraftAck] = useState(false);
 
   // Coach resolved from the invite link (?ref= / ?trainer=), if any.
@@ -110,12 +120,15 @@ export default function ClientSignupScreen() {
     loadDraft().then((d) => {
       if (d.dob) setDraftDob(d.dob);
       if (d.role === 'client' && d.goals?.length) setDraftAck(true);
-      if (d.name) setName((prev) => prev || d.name!);
+      if (d.name) {
+        setName((prev) => prev || d.name!);
+        setDraftName(d.name.trim() || null);
+      }
       // Arriving from the editorial account step: the athlete already chose a
       // path, answered the intake and typed their name — the welcome pitch and
       // the "already set up by a coach?" lookup are the wrong first screens.
       // Go straight to the email step.
-      if (params.from === 'account') setFlowStep('new_signup');
+      if (fromAccount) setFlowStep('new_signup');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -195,7 +208,9 @@ export default function ClientSignupScreen() {
       }
     } catch (err) {
       if (__DEV__) console.error('[ClientSignup] Lookup error:', err);
-      setError('Something went wrong. Try again.');
+      // The RPC's own text is not written for the athlete; only a connection
+      // problem or a rate limit is worth naming.
+      setError(friendlyAuthError(err, "Couldn't look that up. Try again.", { exposeRaw: false }));
     } finally {
       setLoading(false);
     }
@@ -213,14 +228,16 @@ export default function ClientSignupScreen() {
         ? contact.trim().toLowerCase()
         : `${formatPhone(contact.trim()).replace('+', '')}@fitlink.phone`;
 
-      const { error: signUpErr } = await supabase.auth.signUp({
+      const { error: signUpErr } = await withNetworkRetry(() => supabase.auth.signUp({
         email: contactEmail,
         password,
         options: { data: { name: name || 'Client', role: 'client' } },
-      });
+      }));
       if (signUpErr) throw signUpErr;
 
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: contactEmail, password });
+      // Also retried: if this one failed on transport after the sign-up
+      // landed, a fresh tap would only be told the email is taken.
+      const { error: signInErr } = await withNetworkRetry(() => supabase.auth.signInWithPassword({ email: contactEmail, password }));
       if (signInErr) throw signInErr;
 
       const { data: linkResult, error: linkErr } = await supabase.rpc('link_client_to_auth_user', {
@@ -231,7 +248,7 @@ export default function ClientSignupScreen() {
       // Left loading — AuthGuard takes it from here.
     } catch (err: any) {
       if (__DEV__) console.error('[ClientSignup] Error:', err);
-      setError(err.message || 'Failed to create account');
+      setError(friendlyAuthError(err, "Couldn't create your account. Try again."));
       setLoading(false);
     }
   };
@@ -247,11 +264,11 @@ export default function ClientSignupScreen() {
 
     setLoading(true);
     try {
-      const { error: signUpErr } = await supabase.auth.signUp({
+      const { error: signUpErr } = await withNetworkRetry(() => supabase.auth.signUp({
         email: contact.trim().toLowerCase(),
         password,
         options: { data: { name: name.trim(), role: 'client', date_of_birth: dobCheck.iso } },
-      });
+      }));
       if (signUpErr) throw signUpErr;
 
       // Arrived on a coach's link — connect straight to that coach. Wins even
@@ -284,7 +301,7 @@ export default function ClientSignupScreen() {
       setFlowStep('pick_trainer');
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+      setError(friendlyAuthError(err, "Couldn't create your account. Try again."));
       setLoading(false);
     }
   };
@@ -306,7 +323,10 @@ export default function ClientSignupScreen() {
       if (!result?.success) throw new Error(result?.reason || 'Failed to connect');
       // Left loading — AuthGuard takes it from here.
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to coach');
+      // "Not authenticated" and the RPC's reason strings are for the log,
+      // not the screen.
+      if (__DEV__) console.error('[ClientSignup] Connect error:', err);
+      setError(friendlyAuthError(err, "Couldn't connect you to your coach. Try again.", { exposeRaw: false }));
       setLoading(false);
     }
   };
@@ -316,10 +336,14 @@ export default function ClientSignupScreen() {
     if (flowStep === 'welcome') router.back();
     else if (flowStep === 'lookup') setFlowStep('welcome');
     else if (flowStep === 'pick_trainer') setFlowStep('new_signup');
+    // From the account step there was no lookup screen; back is the account
+    // step itself.
+    else if (flowStep === 'new_signup' && fromAccount) router.back();
     else { setFlowStep('lookup'); setPassword(''); }
   };
 
   const coachFirst = firstName(inviteTrainer?.name);
+  const signingUpAs = fromAccount && draftName ? draftName : null;
 
   return (
     <Screen footer={flowStep === 'pick_trainer' ? undefined : renderFooter()}>
@@ -417,22 +441,39 @@ export default function ClientSignupScreen() {
                   </Sub>
                 </View>
                 <View style={{ marginTop: 24, gap: 14 }}>
-                  <Field label="Name">
-                    <TextInput
-                      ref={nameRef}
-                      style={styles.input}
-                      placeholder="Your name"
-                      placeholderTextColor={OB.faint}
-                      value={name}
-                      onChangeText={setName}
-                      autoComplete="name"
-                      textContentType="name"
-                      returnKeyType="next"
-                      onSubmitEditing={() => emailRef.current?.focus()}
-                      accessibilityLabel="Name"
-                      selectionColor={OB.accent}
-                    />
-                  </Field>
+                  {signingUpAs ? (
+                    <View style={styles.asRow}>
+                      <Text style={styles.asText} numberOfLines={1} accessibilityLabel={`Signing up as ${signingUpAs}`}>
+                        Signing up as <Text style={styles.asName}>{signingUpAs}</Text>
+                      </Text>
+                      <Text style={styles.asText}> · </Text>
+                      <Pressable
+                        onPress={() => router.back()}
+                        hitSlop={12}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change name"
+                      >
+                        <Text style={styles.asChange}>Change</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Field label="Name">
+                      <TextInput
+                        ref={nameRef}
+                        style={styles.input}
+                        placeholder="Your name"
+                        placeholderTextColor={OB.faint}
+                        value={name}
+                        onChangeText={setName}
+                        autoComplete="name"
+                        textContentType="name"
+                        returnKeyType="next"
+                        onSubmitEditing={() => emailRef.current?.focus()}
+                        accessibilityLabel="Name"
+                        selectionColor={OB.accent}
+                      />
+                    </Field>
+                  )}
                   <Field label="Email">
                     <TextInput
                       ref={emailRef}
@@ -445,6 +486,7 @@ export default function ClientSignupScreen() {
                       autoCapitalize="none"
                       autoComplete="email"
                       textContentType="emailAddress"
+                      autoFocus={!!signingUpAs}
                       returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()}
                       accessibilityLabel="Email"
@@ -693,6 +735,12 @@ const styles = StyleSheet.create({
 
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
   noteText: { flex: 1, fontFamily: OBFonts.sans, fontSize: 13, lineHeight: 18, color: OB.muted },
+
+  // "Signing up as Name · Change": one 44pt row in place of the Name field.
+  asRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  asText: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.muted, flexShrink: 1 },
+  asName: { fontFamily: OBFonts.sansSemiBold, color: OB.fg },
+  asChange: { fontFamily: OBFonts.sansSemiBold, fontSize: 14, color: OB.fg, textDecorationLine: 'underline' },
 
   errorText: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.danger, marginBottom: 4 },
 

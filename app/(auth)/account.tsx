@@ -12,19 +12,19 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View, Text, TextInput, StyleSheet, Pressable, Linking, Keyboard,
-  KeyboardAvoidingView, Platform, ScrollView, AccessibilityInfo,
+  KeyboardAvoidingView, Platform, ScrollView, AccessibilityInfo, TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { saveDraft } from '../../lib/onboardingDraft';
 import { useAuth } from '../../context/AuthContext';
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
+import { friendlyAuthError } from '../../lib/authErrors';
 import { OB, OBFonts, OBRadius, OBSpace } from '../../constants/onboardingDesign';
 import { Screen, TopNav, Headline, Sub, AccentDot, PrimaryButton, TextButton, Segment, Hairline } from '../../components/onboarding/Editorial';
+// Birth-date formatting and the 16+ check are shared with client-signup.tsx
+// through lib/dob.ts, so both screens read a date the same way.
 import { formatDobInput, parseDob } from '../../lib/dob';
-
-/** Keeps the birth-date field to digits and dashes as YYYY-MM-DD. Copied
- *  from client-signup.tsx so both screens format identically. */
 
 /** Formats a raw phone entry into E.164, matching login.tsx exactly so
  *  the two screens read numbers the same way. */
@@ -34,12 +34,6 @@ function formatPhone(raw: string): string {
   if (digits.length === 10) return `+1${digits}`;
   if (raw.startsWith('+')) return raw;
   return `+${digits}`;
-}
-
-function friendlyError(err: any, fallback: string): string {
-  const msg = err?.message || '';
-  if (msg.toLowerCase().includes('rate limit')) return 'Too many codes. Try again in a few minutes.';
-  return msg || fallback;
 }
 
 function formatCountdown(totalSeconds: number): string {
@@ -130,7 +124,7 @@ export default function AccountScreen() {
       setPhoneStep('otp');
       startCountdown();
     } catch (err: any) {
-      setError(friendlyError(err, 'Failed to send code'));
+      setError(friendlyAuthError(err, "Couldn't send the code. Try again."));
     } finally {
       setLoading(false);
     }
@@ -151,7 +145,7 @@ export default function AccountScreen() {
       // AuthGuard routes from there.
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyError(err, 'Invalid code'));
+      setError(friendlyAuthError(err, "That code didn't work. Check it and try again."));
     } finally {
       setLoading(false);
     }
@@ -208,40 +202,43 @@ export default function AccountScreen() {
     );
   }
 
+  // Keyboard layout mirrors login.tsx: KeyboardAvoidingView pads on iOS
+  // only (Android resizes the window itself), the whole screen dismisses the
+  // keyboard on a tap outside a field, and the scroll content grows past the
+  // viewport instead of being pinned to it, so nothing paints over the footer.
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Screen
-        footer={(
-          <>
-            {error ? (
-              <Text style={s.errorText} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
-                {error}
-              </Text>
-            ) : null}
-            {footerButton}
-            <View style={s.legalWrap}>
-              <Text style={s.legalText}>
-                By continuing you agree to the{' '}
-                <Text style={s.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
-                {' '}and{' '}
-                <Text style={s.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>
-                .
-              </Text>
-            </View>
-          </>
-        )}
-      >
-        <TopNav onBack={() => router.back()} />
-
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={s.body}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          showsVerticalScrollIndicator={false}
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <Screen
+          footer={(
+            <>
+              {error ? (
+                <Text style={s.errorText} accessible accessibilityRole="alert" accessibilityLiveRegion="assertive">
+                  {error}
+                </Text>
+              ) : null}
+              {footerButton}
+              <View style={s.legalWrap}>
+                <Text style={s.legalText}>
+                  By continuing you agree to the{' '}
+                  <Text style={s.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of use</Text>
+                  {' '}and{' '}
+                  <Text style={s.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy policy</Text>
+                  .
+                </Text>
+              </View>
+            </>
+          )}
         >
-          <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss} accessible={false}>
+          <TopNav onBack={() => router.back()} />
+
+          <ScrollView
+            contentContainerStyle={s.body}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
             <View style={{ gap: 10 }}>
               <Headline>Keep this. Save your FitLink.</Headline>
               <Sub>
@@ -386,9 +383,9 @@ export default function AccountScreen() {
                   : 'You set every price. Athletes pay in the app.'}
               </Text>
             </View>
-          </Pressable>
-        </ScrollView>
-      </Screen>
+          </ScrollView>
+        </Screen>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

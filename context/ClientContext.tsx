@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { decode } from 'base-64';
 import { isMissingSchemaError } from '../lib/schemaErrors';
 import { countCompletedWorkoutsForClient } from '../lib/workoutCounts';
+import { asWeightUnit, type WeightUnit } from '../lib/units';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -41,6 +42,12 @@ export interface ExerciseLogEntry {
    * migration — same way `feel` was added.
    */
   seconds?: number;
+  /**
+   * The unit the athlete was logging in when this set was recorded
+   * (lib/units.ts). Stamped on every new set so a future conversion can be
+   * honest; older rows carry no unit and are read in the current preference.
+   */
+  unit?: WeightUnit;
 }
 
 interface ClientData {
@@ -80,6 +87,8 @@ interface ClientData {
   trial_end_date?: string;
   health_sharing_enabled?: boolean;
   health_sharing_requested?: boolean;
+  /** 'lbs' | 'kg' (DB check). Read through `weightUnit` on the context, never raw. */
+  weight_unit?: string;
   xp?: number;
   progress?: { streak: number; workoutsThisMonth: number };
   created_at: string;
@@ -115,7 +124,12 @@ interface ClientContextType {
   subscription: any;
   paymentHistory: any[];
   exerciseLogs: Record<string, ExerciseLogEntry>;
-  exercisePrs: Record<string, number>; // exerciseId → max weight ever lifted (kg or lb, whichever client uses)
+  /**
+   * exerciseId → max weight ever lifted, as a bare number READ in the
+   * athlete's current `weightUnit`. Both logging flows write into this map
+   * and nothing is converted when the preference flips (lib/units.ts).
+   */
+  exercisePrs: Record<string, number>;
   /**
    * Workouts this athlete has actually completed, per the single app-wide
    * definition in lib/workoutCounts.ts. Computed from rows already fetched for
@@ -151,6 +165,10 @@ interface ClientContextType {
   setupPaymentMethod: () => Promise<{ clientSecret: string, customerId: string }>;
   healthSharingEnabled: boolean;
   toggleHealthSharing: (enabled: boolean) => Promise<void>;
+  /** The unit every lifted weight is logged and shown in. Defaults to lbs. */
+  weightUnit: WeightUnit;
+  /** Persists the preference on the athlete's own row; rejects (throws) on a server error. */
+  setWeightUnit: (unit: WeightUnit) => Promise<void>;
   refreshData: () => Promise<void>;
   activeGymVisit: any;
   checkInGym: () => Promise<void>;
@@ -169,6 +187,7 @@ export type ClientIdentitySlice = Pick<ClientContextType,
   | 'refreshData' | 'conversation'
   | 'updateAssessment' | 'updateClientAvatar'
   | 'subscription' | 'paymentHistory' | 'cancelSubscription' | 'setupPaymentMethod'
+  | 'weightUnit' | 'setWeightUnit'
 >;
 
 /** Assigned workouts, the season enrollment, set logs and PRs. */
@@ -586,6 +605,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
   // had marked active, checkout or not.
 
 
+  // Derived, not state: the row is the source of truth, so the reset and
+  // snapshot paths need nothing extra. An unknown or missing value reads as lbs.
+  const weightUnit = asWeightUnit(clientData?.weight_unit);
+
   // Log individual exercise set completion (in-memory only)
   const logExerciseSet = useCallback((workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel, seconds?: number) => {
     const key = `${workoutId}-${exerciseId}-${setIndex}`;
@@ -595,13 +618,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
         weight,
         reps,
         completed: true,
+        unit: weightUnit,
         ...(feel ? { feel } : {}),
         // Guard on > 0, not on presence: an untimed set passes undefined and a
         // stopwatch stopped on the same second passes 0. Neither is a duration.
         ...(seconds && seconds > 0 ? { seconds: Math.round(seconds) } : {}),
       },
     }));
-  }, []);
+  }, [weightUnit]);
 
   const clearExerciseLogs = useCallback(() => {
     setExerciseLogs({});
@@ -698,6 +722,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
            weight: entry.weight,
            reps: entry.reps,
            completed: entry.completed,
+           ...(entry.unit ? { unit: entry.unit } : {}),
            ...(entry.feel ? { feel: entry.feel } : {}),
            ...(entry.seconds ? { seconds: entry.seconds } : {})
         };
@@ -1070,6 +1095,21 @@ export function ClientProvider({ children }: PropsWithChildren) {
     return data;
   }, [clientData]);
 
+  // Same shape as toggleHealthSharing: own-row update, then state, then the
+  // offline snapshot so a cold start does not flip the labels back to lbs.
+  const setWeightUnit = useCallback(async (unit: WeightUnit) => {
+    if (!clientData) return;
+    const { error } = await supabase
+      .from('clients')
+      .update({ weight_unit: unit })
+      .eq('id', clientData.id);
+    if (error) throw error;
+
+    const next = { ...clientData, weight_unit: unit };
+    setClientData(next);
+    saveSnapshot(user?.id, 'client_profile', next);
+  }, [clientData, user?.id]);
+
   const toggleHealthSharing = useCallback(async (enabled: boolean) => {
     if (!clientData) return;
     const { error } = await supabase
@@ -1189,10 +1229,12 @@ export function ClientProvider({ children }: PropsWithChildren) {
     loading, clientData, trainer, pendingCoach, cancelCoachRequest, refreshData, conversation,
     updateAssessment, updateClientAvatar,
     subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
+    weightUnit, setWeightUnit,
   }), [
     loading, clientData, trainer, pendingCoach, cancelCoachRequest, refreshData, conversation,
     updateAssessment, updateClientAvatar,
     subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
+    weightUnit, setWeightUnit,
   ]);
 
   const trainingSlice: ClientTrainingSlice = useMemo(() => ({

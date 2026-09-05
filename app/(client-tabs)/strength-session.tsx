@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { proxyGifUrl } from '../../lib/exercisedb';
 import { useWorkout, StrengthSetLog, SetFeel, WorkoutHistoryEntry } from '../../context/WorkoutContext';
 import { suggestNextLoad } from '../../lib/loadSuggestion';
+import { formatWeight, formatWeightNumber, unitLabel, unitLongName, weightStep } from '../../lib/units';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useClient } from '../../context/ClientContext';
 import { useAlert } from '../../context/AlertContext';
@@ -142,10 +143,6 @@ function fmtClock(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function fmtKg(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
-}
-
 function cap(t: string): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
@@ -170,7 +167,9 @@ export default function StrengthSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId: string }>();
   const { workoutHistory, recordStrengthWorkout } = useWorkout();
-  const { clientData, trainer, conversation, enrollment, exercisePrs, logExerciseSet, checkAndUpdatePr } = useClient();
+  const { clientData, trainer, conversation, enrollment, exercisePrs, logExerciseSet, checkAndUpdatePr, weightUnit } = useClient();
+  // One plate-pair in the athlete's unit: the ± buttons and the suggestion's floor.
+  const step = weightStep(weightUnit);
   const reducedMotion = useReducedMotion();
   const { showAlert } = useAlert();
 
@@ -327,7 +326,7 @@ export default function StrengthSessionScreen() {
     const last = lastLoggedFor(ex.exerciseId);
     if (last) {
       const top = last.sets.reduce((a, b) => (b.weight > a.weight ? b : a));
-      setWeightStr(fmtKg(top.weight));
+      setWeightStr(formatWeightNumber(top.weight));
       setRepsStr(String(ex.reps));
     } else {
       setWeightStr('');
@@ -341,14 +340,14 @@ export default function StrengthSessionScreen() {
     if (!currentEx) return null;
     const last = lastLoggedFor(currentEx.exerciseId);
     if (!last) return null;
-    return suggestNextLoad(last.sets);
-  }, [currentEx, lastLoggedFor]);
+    return suggestNextLoad(last.sets, weightUnit);
+  }, [currentEx, lastLoggedFor, weightUnit]);
 
   // Opt-in fill only — tapping the chip is the one way it touches the input.
   const applySuggestion = useCallback(() => {
     if (!suggestion) return;
     Haptics.selectionAsync();
-    setWeightStr(fmtKg(suggestion.suggestedWeight));
+    setWeightStr(formatWeightNumber(suggestion.suggestedWeight));
   }, [suggestion]);
 
   // ── Outbox: flush sets that were saved offline, on mount and on return ──
@@ -424,7 +423,7 @@ export default function StrengthSessionScreen() {
   const bumpWeight = (delta: number) => {
     Haptics.selectionAsync();
     const w = Math.max(0, (parseFloat(weightStr) || 0) + delta);
-    setWeightStr(fmtKg(w));
+    setWeightStr(formatWeightNumber(w));
   };
 
   const bumpReps = (delta: number) => {
@@ -689,7 +688,7 @@ export default function StrengthSessionScreen() {
     const first = points[0];
     const weeksAgo = Math.floor((Date.now() - first.at) / WEEK);
     const gain = prHit.weight - first.weight;
-    const gainSinceFirst = points.length >= 2 && gain > 0 ? { kg: gain, weeksAgo } : null;
+    const gainSinceFirst = points.length >= 2 && gain > 0 ? { amount: gain, weeksAgo } : null;
 
     // Weekly bests chart: bucket by week since first log, keep last 4 buckets.
     const buckets = new Map<number, number>();
@@ -706,11 +705,11 @@ export default function StrengthSessionScreen() {
 
     const coachName = trainer?.name || 'your coach';
     const defaultMessage =
-      `New ${prHit.exerciseName.toLowerCase()} PR — ${fmtKg(prHit.weight)} kg for ${prHit.reps}. ` +
-      `Previous best was ${fmtKg(prHit.priorBest)} kg.`;
+      `New ${prHit.exerciseName.toLowerCase()} PR — ${formatWeight(prHit.weight, weightUnit)} for ${prHit.reps}. ` +
+      `Previous best was ${formatWeight(prHit.priorBest, weightUnit)}.`;
 
     return { gainSinceFirst, weeklyBests: weeklyBests.length >= 2 ? weeklyBests : [], coachName, defaultMessage };
-  }, [prHit, workoutHistory, trainer]);
+  }, [prHit, workoutHistory, trainer, weightUnit]);
 
   const sendPrToCoach = useCallback(async (content: string) => {
     if (!conversation) throw new Error('No conversation');
@@ -764,7 +763,7 @@ export default function StrengthSessionScreen() {
               activeOpacity={0.85}
               onPress={() => toggleExercise(ex.key)}
               accessibilityRole="button"
-              accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${equipment ? `, ${equipment}` : ''}${lastTop ? `, last time ${fmtKg(lastTop.weight)} kilograms` : ''}`}
+              accessibilityLabel={`${ex.name}, ${ex.sets} sets of ${ex.reps}, ${ex.restSec} seconds rest${equipment ? `, ${equipment}` : ''}${lastTop ? `, last time ${formatWeightNumber(lastTop.weight)} ${unitLongName(weightUnit)}` : ''}`}
               accessibilityState={{ expanded: open }}
               accessibilityHint={open ? 'Double tap to collapse details' : 'Double tap to expand details'}
             >
@@ -773,7 +772,7 @@ export default function StrengthSessionScreen() {
                 <Text style={s.exMeta}>
                   {ex.sets}×{ex.reps} · {ex.restSec}s rest
                   {equipment ? ` · ${cap(equipment)}` : ''}
-                  {lastTop ? ` · last time ${fmtKg(lastTop.weight)} kg` : ''}
+                  {lastTop ? ` · last time ${formatWeight(lastTop.weight, weightUnit)}` : ''}
                 </Text>
               </View>
               <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={19} color={CoachColors.textFaint} />
@@ -966,7 +965,7 @@ export default function StrengthSessionScreen() {
                     <Text style={s.lastTimeText}>
                       Last time:{' '}
                       <Text style={s.lastTimeStrong}>
-                        {lastTime!.sets.length}×{lastTop.reps} at {fmtKg(lastTop.weight)} kg
+                        {lastTime!.sets.length}×{lastTop.reps} at {formatWeight(lastTop.weight, weightUnit)}
                       </Text>
                       {lastTop.feel ? `, and ${FEEL_PHRASE[lastTop.feel]}.` : '.'}
                     </Text>
@@ -985,11 +984,11 @@ export default function StrengthSessionScreen() {
                       onPress={applySuggestion}
                       activeOpacity={0.8}
                       accessibilityRole="button"
-                      accessibilityLabel={`Try ${fmtKg(suggestion.suggestedWeight)} kilograms, ${suggestion.basis}`}
+                      accessibilityLabel={`Try ${formatWeightNumber(suggestion.suggestedWeight)} ${unitLongName(weightUnit)}, ${suggestion.basis}`}
                       accessibilityHint="Double tap to fill the weight"
                     >
                       <Text style={s.suggestChipText}>
-                        Try {fmtKg(suggestion.suggestedWeight)} kg — {suggestion.basis}
+                        Try {formatWeight(suggestion.suggestedWeight, weightUnit)} — {suggestion.basis}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -1004,9 +1003,9 @@ export default function StrengthSessionScreen() {
                         placeholder="0"
                         placeholderTextColor={CoachColors.textFaint}
                         selectTextOnFocus
-                        accessibilityLabel="Weight in kilograms"
+                        accessibilityLabel={`Weight in ${unitLongName(weightUnit)}`}
                       />
-                      <Text style={s.numberUnit}>kg</Text>
+                      <Text style={s.numberUnit}>{unitLabel(weightUnit)}</Text>
                       <Text style={s.numberTimes}>×</Text>
                       <TextInput
                         style={s.numberInput}
@@ -1023,11 +1022,11 @@ export default function StrengthSessionScreen() {
                   </View>
 
                   <View style={s.stepRow}>
-                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(-2.5)} accessibilityRole="button" accessibilityLabel="Minus 2.5 kilograms">
-                      <Text style={s.stepBtnText}>−2.5</Text>
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(-step)} accessibilityRole="button" accessibilityLabel={`Minus ${step} ${unitLongName(weightUnit)}`}>
+                      <Text style={s.stepBtnText}>−{step}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(2.5)} accessibilityRole="button" accessibilityLabel="Plus 2.5 kilograms">
-                      <Text style={s.stepBtnText}>+2.5</Text>
+                    <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpWeight(step)} accessibilityRole="button" accessibilityLabel={`Plus ${step} ${unitLongName(weightUnit)}`}>
+                      <Text style={s.stepBtnText}>+{step}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }} style={s.stepBtn} onPress={() => bumpReps(-1)} accessibilityRole="button" accessibilityLabel="Minus one rep">
                       <Text style={s.stepBtnText}>−1 rep</Text>
@@ -1093,10 +1092,10 @@ export default function StrengthSessionScreen() {
                         key={set.setIndex}
                         style={s.doneSetRow}
                         accessible={true}
-                        accessibilityLabel={`Set ${set.setIndex + 1} done, ${fmtKg(set.weight)} kilograms for ${set.reps}${set.feel ? `, felt ${FEELS.find(f => f.key === set.feel)?.label.toLowerCase()}` : ''}`}
+                        accessibilityLabel={`Set ${set.setIndex + 1} done, ${formatWeightNumber(set.weight)} ${unitLongName(weightUnit)} for ${set.reps}${set.feel ? `, felt ${FEELS.find(f => f.key === set.feel)?.label.toLowerCase()}` : ''}`}
                       >
                         <View style={s.doneSetBadge}><Text style={s.doneSetBadgeText}>{set.setIndex + 1}</Text></View>
-                        <Text style={s.doneSetText}>{fmtKg(set.weight)} kg × {set.reps}</Text>
+                        <Text style={s.doneSetText}>{formatWeight(set.weight, weightUnit)} × {set.reps}</Text>
                         {set.feel && (
                           <Text style={s.doneSetFeel}>{FEELS.find(f => f.key === set.feel)?.label}</Text>
                         )}
@@ -1210,6 +1209,7 @@ export default function StrengthSessionScreen() {
           <PRCelebration
             exerciseName={prHit.exerciseName}
             weight={prHit.weight}
+            unit={weightUnit}
             reps={prHit.reps}
             setsCount={prHit.setsCount}
             priorBest={prHit.priorBest}

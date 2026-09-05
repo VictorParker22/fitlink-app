@@ -34,12 +34,10 @@ import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { WeightUnit, unitLabel, unitLongName, weightStep } from '../../../lib/units';
 
 const C = CoachColors;
 const F = CoachFonts;
-
-/** Plate-sized jump. The barbell case; anything finer is a tap on the number. */
-const WEIGHT_STEP = 5;
 
 /** mm:ss — the one duration format the session uses. */
 export function formatClock(seconds: number): string {
@@ -55,6 +53,11 @@ export interface SessionSetRowProps {
   weight: string;
   reps: string;
   completed: boolean;
+  /**
+   * The athlete's lifting unit (lib/units.ts). Decides the plate-sized step,
+   * the suffix under the number, the logged summary and the spoken labels.
+   */
+  unit: WeightUnit;
 
   /** Recorded stopwatch time for this set, when it was timed. */
   seconds?: number;
@@ -160,6 +163,7 @@ export default function SessionSetRow({
   weight,
   reps,
   completed,
+  unit,
   seconds,
   timerRunning,
   timerElapsed,
@@ -169,6 +173,8 @@ export default function SessionSetRow({
 }: SessionSetRowProps) {
   const shownSeconds = timerRunning ? timerElapsed : seconds ?? 0;
   const hasTime = timerRunning || (seconds ?? 0) > 0;
+  /** Plate-sized jump in the athlete's unit; anything finer is a tap on the number. */
+  const step = weightStep(unit);
 
   // ── Logged: one compact line ──────────────────────────────────────────────
   // A finished set has nothing left to adjust, and three expanded sets push the
@@ -176,7 +182,7 @@ export default function SessionSetRow({
   // mistake.
   if (completed) {
     const summary = [
-      toNum(weight) > 0 ? `${weight} lbs` : 'Bodyweight',
+      toNum(weight) > 0 ? `${weight} ${unitLabel(unit)}` : 'Bodyweight',
       `${reps || 0} reps`,
       (seconds ?? 0) > 0 ? formatClock(seconds!) : null,
     ]
@@ -235,12 +241,12 @@ export default function SessionSetRow({
       <View style={st.steppers}>
         <Stepper
           label="Weight"
-          unit="lbs"
+          unit={unitLabel(unit)}
           value={weight}
           onChange={(v) => onChange('weight', v)}
-          step={WEIGHT_STEP}
+          step={step}
           min={0}
-          fieldLabel={`${exerciseName}, set ${setNumber}, weight in pounds`}
+          fieldLabel={`${exerciseName}, set ${setNumber}, weight in ${unitLongName(unit)}`}
           editable
         />
         <Stepper

@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { loadDraft } from '../../lib/onboardingDraft';
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
+import { friendlyAuthError } from '../../lib/authErrors';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { OB, OBFonts, OBRadius, OBSpace, OBMotion } from '../../constants/onboardingDesign';
 import {
@@ -124,11 +125,7 @@ export default function CoachSignupScreen() {
         buttons: [{ text: 'Got it' }],
       });
     } catch (err: any) {
-      if (err.message?.toLowerCase().includes('rate limit')) {
-        setError('Too many attempts. Try again later.');
-      } else {
-        setError(err.message || 'Something went wrong');
-      }
+      setError(friendlyAuthError(err, "Couldn't create your account. Try again."));
     } finally {
       setLoading(false);
     }
@@ -149,7 +146,7 @@ export default function CoachSignupScreen() {
       setSecondsLeft(RESEND_SECONDS);
       setStep('otp');
     } catch (err: any) {
-      setError(err.message || 'Failed to send code');
+      setError(friendlyAuthError(err, "Couldn't send the code. Try again."));
     } finally {
       setLoading(false);
     }
@@ -164,11 +161,7 @@ export default function CoachSignupScreen() {
       await verifyOtp(phone, otpCode, { name: name.trim() });
       // Left loading — AuthGuard takes it from here.
     } catch (err: any) {
-      if (err.message?.toLowerCase().includes('rate limit')) {
-        setError('Too many attempts. Try again later.');
-      } else {
-        setError(err.message || 'Invalid code');
-      }
+      setError(friendlyAuthError(err, "That code didn't work. Check it and try again."));
       setLoading(false);
     }
   };
@@ -182,7 +175,7 @@ export default function CoachSignupScreen() {
       setOtpCode('');
       setSecondsLeft(RESEND_SECONDS);
     } catch (err: any) {
-      setError(err.message || 'Failed to resend code');
+      setError(friendlyAuthError(err, "Couldn't resend the code. Try again."));
     } finally {
       setLoading(false);
     }

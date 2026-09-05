@@ -32,6 +32,7 @@ import { useRouter } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { friendlyAuthError } from '../../lib/authErrors';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { OB, OBFonts, OBRadius, OBSpace, OBMotion } from '../../constants/onboardingDesign';
 import { Screen, TopNav, Headline, Sub, Segment, PrimaryButton } from '../../components/onboarding/Editorial';
@@ -48,12 +49,6 @@ function formatPhone(raw: string): string {
   if (digits.length === 10) return `+1${digits}`;
   if (raw.startsWith('+')) return raw;
   return `+${digits}`;
-}
-
-function friendlyError(err: any, fallback: string): string {
-  const msg = err?.message || '';
-  if (msg.toLowerCase().includes('rate limit')) return 'Too many attempts. Try again later.';
-  return msg || fallback;
 }
 
 function formatCountdown(totalSeconds: number): string {
@@ -134,7 +129,7 @@ export default function LoginScreen() {
     try {
       await signIn(email.trim(), password);
     } catch (err: any) {
-      setError(friendlyError(err, 'Something went wrong'));
+      setError(friendlyAuthError(err, "Couldn't sign you in. Try again."));
     } finally {
       setLoading(false);
     }
@@ -149,7 +144,7 @@ export default function LoginScreen() {
       if (e) throw e;
       setForgotSent(true);
     } catch (err: any) {
-      setError(friendlyError(err, 'Failed to send reset email'));
+      setError(friendlyAuthError(err, "Couldn't send the reset email. Try again."));
     } finally {
       setLoading(false);
     }
@@ -169,7 +164,7 @@ export default function LoginScreen() {
       setPhoneStep('otp');
       startCountdown();
     } catch (err: any) {
-      setError(friendlyError(err, 'Failed to send code'));
+      setError(friendlyAuthError(err, "Couldn't send the code. Try again."));
     } finally {
       setLoading(false);
     }
@@ -194,7 +189,7 @@ export default function LoginScreen() {
         if (trainerRow) setIsNewUser(false);
       }
     } catch (err: any) {
-      setError(friendlyError(err, 'Invalid code'));
+      setError(friendlyAuthError(err, "That code didn't work. Check it and try again."));
     } finally {
       setLoading(false);
     }

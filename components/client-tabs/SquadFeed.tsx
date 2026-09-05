@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { isCohort } from '../../lib/cohort';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { WeightUnit, formatWeight, isWeightUnit } from '../../lib/units';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -34,8 +35,14 @@ type SquadEvent = {
   created_at: string;
 };
 
-function formatKg(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
+/**
+ * A PR line is rendered in the LIFTER's unit, which travels in the payload
+ * (PRCelebration stamps it). Events written before the unit preference
+ * existed carry none; they all came from the kg-labelled strength flow, so
+ * kg is the honest reading for them — not the viewer's own preference.
+ */
+function lifterUnit(payload: any): WeightUnit {
+  return isWeightUnit(payload?.unit) ? payload.unit : 'kg';
 }
 
 function timeAgo(iso: string): string {
@@ -106,7 +113,7 @@ export default function SquadFeed() {
       const exercise = e.payload?.exercise;
       const weight = parseFloat(String(e.payload?.weight));
       if (!exercise || !(weight > 0)) return null;
-      return `${name} hit a ${String(exercise).toLowerCase()} PR — ${formatKg(weight)} kg`;
+      return `${name} hit a ${String(exercise).toLowerCase()} PR — ${formatWeight(weight, lifterUnit(e.payload))}`;
     }
     const planName = e.payload?.plan_name;
     return planName ? `${name} finished ${planName}` : `${name} finished the season`;

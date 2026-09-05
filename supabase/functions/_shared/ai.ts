@@ -12,7 +12,7 @@
 //   otherwise. Fire-and-forget.
 // ============================================================
 
-export const PROMPT_VERSION = '2026-09-04.1';
+export const PROMPT_VERSION = '2026-09-05.1';
 
 export class AiTimeout extends Error {
   constructor() { super('ai_timeout'); }

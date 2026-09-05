@@ -1,4 +1,7 @@
 import { StrengthSetLog, SetFeel } from '../context/WorkoutContext';
+import {
+  DEFAULT_WEIGHT_UNIT, WeightUnit, formatWeight, roundToPlate, weightStep,
+} from './units';
 
 /**
  * Suggested next load for a strength exercise, derived ONLY from the athlete's
@@ -13,25 +16,16 @@ import { StrengthSetLog, SetFeel } from '../context/WorkoutContext';
  *   felt right  → repeat the weight
  *   grind       → hold the weight
  *   failed rep  → −5%
+ *
+ * UNITS. The engine is relative math (percentages of last time's top set), so
+ * it never converts: the logged numbers are read in the athlete's current
+ * unit (lib/units.ts) and the answer comes back in the same unit. The unit
+ * only decides the plate increment (5 lb / 2.5 kg) and the suffix in `basis`.
  */
 
 export interface LoadSuggestion {
-  suggestedWeight: number; // kg, rounded to a real plate increment
-  basis: string;           // the honest reason, e.g. "80 felt easy last time"
-}
-
-// The whole strength flow is kg-native (inputs, ±2.5 steppers). The smallest
-// practical jump in a kg gym is a pair of 1.25 plates = 2.5 kg total, which
-// also matches the in-session stepper.
-export const KG_INCREMENT = 2.5;
-
-function roundToIncrement(x: number, inc: number): number {
-  // Two-decimal fix so 82.499999 doesn't leak into the UI.
-  return Math.round((Math.round(x / inc) * inc) * 100) / 100;
-}
-
-function fmt(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
+  suggestedWeight: number; // in the athlete's unit, rounded to a real plate increment
+  basis: string;           // the honest reason, e.g. "80 kg felt easy last time"
 }
 
 // Ties break toward the harder feel — conservative by design, since athletes
@@ -60,41 +54,43 @@ function predominantFeel(sets: StrengthSetLog[]): SetFeel | null {
  */
 export function suggestNextLoad(
   lastSessionSets: StrengthSetLog[] | null | undefined,
-  increment: number = KG_INCREMENT,
+  unit: WeightUnit = DEFAULT_WEIGHT_UNIT,
 ): LoadSuggestion | null {
   const real = (lastSessionSets ?? []).filter(
     s => Number.isFinite(s.weight) && s.weight > 0,
   );
   if (real.length === 0) return null;
 
+  const increment = weightStep(unit);
   const top = real.reduce((max, s) => Math.max(max, s.weight), 0);
+  const topLabel = formatWeight(top, unit);
   const feel = predominantFeel(real);
 
   // Feels missing entirely → plain repeat, basis states it's just last session.
   if (!feel) {
-    return { suggestedWeight: top, basis: `${fmt(top)} kg last session` };
+    return { suggestedWeight: top, basis: `${topLabel} last session` };
   }
 
   switch (feel) {
     case 'easy': {
-      // +2.5% rounded to a plate; for lighter bars 2.5 kg is simply the
-      // smallest expressible jump, so it becomes the floor.
-      const target = roundToIncrement(top * 1.025, increment);
-      const suggested = Math.max(roundToIncrement(top + increment, increment), target);
-      return { suggestedWeight: suggested, basis: `${fmt(top)} felt easy last time` };
+      // +2.5% rounded to a plate; for lighter bars one increment is simply
+      // the smallest expressible jump, so it becomes the floor.
+      const target = roundToPlate(top * 1.025, unit);
+      const suggested = Math.max(roundToPlate(top + increment, unit), target);
+      return { suggestedWeight: suggested, basis: `${topLabel} felt easy last time` };
     }
     case 'right':
-      return { suggestedWeight: top, basis: `${fmt(top)} felt right last time` };
+      return { suggestedWeight: top, basis: `${topLabel} felt right last time` };
     case 'grind':
-      return { suggestedWeight: top, basis: `${fmt(top)} was a grind last time` };
+      return { suggestedWeight: top, basis: `${topLabel} was a grind last time` };
     case 'failed': {
-      const dropped = Math.max(0, roundToIncrement(top * 0.95, increment));
+      const dropped = Math.max(0, roundToPlate(top * 0.95, unit));
       // Rounding can bounce a tiny weight back up to (or past) the top —
       // then the honest drop is one increment; if even that hits zero,
       // there is no sensible number to suggest.
       const final = dropped >= top ? Math.max(0, top - increment) : dropped;
       if (final <= 0) return null;
-      return { suggestedWeight: final, basis: `a rep failed at ${fmt(top)} last time` };
+      return { suggestedWeight: final, basis: `a rep failed at ${topLabel} last time` };
     }
   }
 }

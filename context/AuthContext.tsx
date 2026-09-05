@@ -12,6 +12,7 @@ import { clearSnapshots } from '../lib/offlineCache';
 import { clearOutbox } from '../lib/outbox';
 import { clearMediaUrlCache } from '../lib/privateMedia';
 import { applyOnboardingDraft } from '../lib/onboardingDraft';
+import { withNetworkRetry } from '../lib/authErrors';
 import type { User, Session } from '@supabase/supabase-js';
 
 Notifications.setNotificationHandler({
@@ -207,19 +208,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     layers.track('login', { method: 'email', role: 'trainer' });
   }, []);
 
+  // Sign-up and send-code calls get one retry when the request never left
+  // the phone (lib/authErrors.ts). Code verification does not: a second
+  // attempt with the same code is a real attempt against the rate limit.
   const signUp = useCallback(async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await withNetworkRetry(() => supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
-    });
+    }));
     if (error) throw error;
     layers.track('sign_up', { method: 'email', role: 'trainer', name });
   }, []);
 
   // --- Phone OTP (Shared) ---
   const signInWithPhone = useCallback(async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    const { error } = await withNetworkRetry(() => supabase.auth.signInWithOtp({ phone }));
     if (error) throw error;
   }, []);
 
@@ -243,11 +247,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   // --- Client-Specific Auth ---
   const signUpAsClient = useCallback(async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await withNetworkRetry(() => supabase.auth.signUp({
       email,
       password,
       options: { data: { name, role: 'client' } },
-    });
+    }));
     if (error) throw error;
     layers.track('sign_up', { method: 'email', role: 'client', name });
     // DB trigger on auth.users automatically links matching client row

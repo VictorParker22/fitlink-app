@@ -11,6 +11,7 @@ import { insertSquadEvent, SquadShare } from '../../lib/squadEvents';
 import { playChime } from '../../lib/sounds';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Motion } from '../../constants/motion';
+import { WeightUnit, formatWeight, formatWeightNumber } from '../../lib/units';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -37,16 +38,13 @@ const F = CoachFonts;
 
 type LiftLine = { name: string; first: number; best: number };
 
-function formatKg(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
-}
-
 export default function SeasonComplete({
   enrollment,
   planName,
   weeks,
   trainerWorkouts,
   otherPlans,
+  unit,
   coachName,
   canSend,
   onSend,
@@ -61,6 +59,8 @@ export default function SeasonComplete({
   trainerWorkouts: any[];
   /** The coach's other plans (finished one excluded by the caller). Empty array hides the section. */
   otherPlans: any[];
+  /** The athlete's lifting unit — the best-lifts list is read in it (lib/units.ts). */
+  unit: WeightUnit;
   coachName: string;
   canSend: boolean;
   onSend: (message: string) => Promise<boolean>;
@@ -224,9 +224,9 @@ export default function SeasonComplete({
                     {i > 0 && <View style={s.divider} />}
                     <View style={s.liftRow}>
                       <Text style={s.liftName} numberOfLines={1}>{l.name}</Text>
-                      <Text style={s.liftFrom}>{formatKg(l.first)}</Text>
+                      <Text style={s.liftFrom}>{formatWeightNumber(l.first)}</Text>
                       <Text style={s.liftArrow}>→</Text>
-                      <Text style={s.liftTo}>{formatKg(l.best)} kg</Text>
+                      <Text style={s.liftTo}>{formatWeight(l.best, unit)}</Text>
                     </View>
                   </View>
                 ))}

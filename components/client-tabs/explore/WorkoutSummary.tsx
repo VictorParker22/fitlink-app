@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { WeightUnit, unitLabel, unitLongName } from '../../../lib/units';
 
 interface SetLog {
   weight: string;
@@ -31,6 +32,8 @@ interface WorkoutSummaryProps {
   activeWorkout: any;
   elapsedSeconds: number;
   exerciseStates: ExerciseState[];
+  /** The athlete's lifting unit — the volume is a sum of numbers in it. */
+  unit: WeightUnit;
   onConfirmFinish: () => void;
   onContinueWorkout: () => void;
 }
@@ -39,6 +42,7 @@ export default function WorkoutSummary({
   activeWorkout,
   elapsedSeconds,
   exerciseStates,
+  unit,
   onConfirmFinish,
   onContinueWorkout,
 }: WorkoutSummaryProps) {
@@ -95,12 +99,12 @@ export default function WorkoutSummary({
             <Text style={s.statValue}>{totalSetsCompleted}</Text>
             <Text style={s.statLabel}>Sets done</Text>
           </View>
-          <View style={s.statCard} accessible accessibilityLabel={`Volume, ${totalVolume.toLocaleString()} pounds`}>
+          <View style={s.statCard} accessible accessibilityLabel={`Volume, ${totalVolume.toLocaleString()} ${unitLongName(unit)}`}>
             <Ionicons name="trending-up-outline" size={20} color={CoachColors.accent} />
             <Text style={s.statValue}>
               {totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume.toLocaleString()}
             </Text>
-            <Text style={s.statLabel}>Volume (lbs)</Text>
+            <Text style={s.statLabel}>Volume ({unitLabel(unit)})</Text>
           </View>
         </View>
 

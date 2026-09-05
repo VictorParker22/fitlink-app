@@ -33,6 +33,7 @@ import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute, SharedRoute } from '../../types/routes';
+import { WEIGHT_UNITS, WeightUnit, unitLabel, unitLongName } from '../../lib/units';
 
 export default function ClientProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -41,6 +42,7 @@ export default function ClientProfileScreen() {
   const {
     clientData, trainer, exercisePrs, progressLogs, completedWorkoutCount,
     updateClientAvatar, healthSharingEnabled, toggleHealthSharing,
+    weightUnit, setWeightUnit,
   } = useClient();
   const { showAlert } = useAlert();
 
@@ -53,6 +55,7 @@ export default function ClientProfileScreen() {
   // the athlete got a confusing error after their account was already gone.
   const deletingRef = useRef(false);
   const [healthBusy, setHealthBusy] = useState(false);
+  const [unitBusy, setUnitBusy] = useState(false);
 
   const name = clientData?.name || 'You';
   const coachFirst = (trainer?.name || 'your coach').split(' ')[0];
@@ -152,6 +155,21 @@ export default function ClientProfileScreen() {
       showAlert({ type: 'error', title: 'Something went wrong', message: 'Could not update health sharing. Try again.' });
     } finally {
       setHealthBusy(false);
+    }
+  };
+
+  // Mirrors handleHealthToggle: one in-flight write at a time, the row is the
+  // truth, and a failed write leaves the pill where it was.
+  const handleUnitChange = async (next: WeightUnit) => {
+    if (unitBusy || next === weightUnit) return;
+    setUnitBusy(true);
+    Haptics.selectionAsync();
+    try {
+      await setWeightUnit(next);
+    } catch {
+      showAlert({ type: 'error', title: 'Something went wrong', message: 'Could not change your units. Try again.' });
+    } finally {
+      setUnitBusy(false);
     }
   };
 
@@ -292,6 +310,43 @@ export default function ClientProfileScreen() {
             <Text style={s.statNum}>{weeksIn ?? '—'}</Text>
             <Text style={s.statLabel}>{weeksIn === 1 ? 'week in' : 'weeks in'}</Text>
           </View>
+        </View>
+
+        {/* Units — one preference for every lifted weight (lib/units.ts) */}
+        <Text style={s.sectionLabel}>Units</Text>
+        <View style={s.visCard}>
+          <View style={s.unitRow}>
+            <Text style={s.visLabel}>Lift weights in</Text>
+            <View
+              style={s.unitPill}
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Lift weights in"
+              accessibilityState={{ disabled: unitBusy }}
+            >
+              {WEIGHT_UNITS.map((u) => {
+                const on = weightUnit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    style={[s.unitBtn, on && s.unitBtnOn]}
+                    onPress={() => handleUnitChange(u)}
+                    hitSlop={{ top: 3, bottom: 3 }}
+                    disabled={unitBusy}
+                    activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityLabel={unitLongName(u)}
+                    accessibilityState={{ checked: on, selected: on, disabled: unitBusy, busy: unitBusy && !on }}
+                    accessibilityHint={on ? undefined : `Switches every weight you log and see to ${unitLongName(u)}`}
+                  >
+                    <Text style={[s.unitText, on && s.unitTextOn]}>{unitLabel(u)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          <Text style={s.visFootnote}>
+            Applies to every set you log and see, and to the +/- step. Weights you already logged keep their numbers.
+          </Text>
         </View>
 
         {/* What the coach can see */}
@@ -504,6 +559,30 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   visRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 30 },
+  unitRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 44 },
+  // Two-segment pill, same idiom as the body-weight entry on the coach side
+  // (app/client/[id]/log-progress.tsx). Each segment is a 44pt target.
+  unitPill: {
+    flexDirection: 'row',
+    backgroundColor: CoachColors.bg,
+    borderWidth: 1,
+    borderColor: CoachColors.border,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    padding: 3,
+  },
+  unitBtn: {
+    minWidth: 56,
+    minHeight: 38,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitBtnOn: { backgroundColor: CoachColors.accent },
+  unitText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.textMuted },
+  unitTextOn: { color: CoachColors.onAccent },
   visLabel: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 21.5 },
   visAlways: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.textMuted },
   visDivider: { height: 1, backgroundColor: '#21241F', marginVertical: 10 },

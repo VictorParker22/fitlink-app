@@ -34,6 +34,7 @@ import Animated, {
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { asWeightUnit, unitLabel } from '../../lib/units';
 import Avatar from '../../components/Avatar';
 import { useRestChime } from '../../hooks/useRestChime';
 import CancelSessionSheet from '../../components/sessions/CancelSessionSheet';
@@ -96,6 +97,8 @@ export default function TrainerSessionScreen() {
 
   const [session, setSession]                   = useState<any>(null);
   const [client,  setClient]                    = useState<any>(null);
+  // Weights are typed in the ATHLETE's unit (their preference), not the coach's.
+  const weightUnit = asWeightUnit(client?.weight_unit);
   const [noWorkoutAssigned, setNoWorkoutAssigned] = useState(false);
   const [exerciseStates, setExerciseStates]     = useState<ExerciseState[]>([]);
 
@@ -486,7 +489,7 @@ export default function TrainerSessionScreen() {
                               selectTextOnFocus
                               accessibilityLabel={`Weight for set ${setIdx + 1}`}
                             />
-                            <Text style={styles.awSetUnit}>lbs</Text>
+                            <Text style={styles.awSetUnit}>{unitLabel(weightUnit)}</Text>
                           </View>
                           <View style={styles.awSetInputContainer}>
                             <TextInput

@@ -56,6 +56,8 @@ export interface Client {
    */
   progress?: { streak: number; workoutsThisMonth: number };
   xp?: number;
+  /** The athlete's lifting unit, 'lbs' | 'kg'. Read it with asWeightUnit (lib/units.ts). */
+  weight_unit?: string;
   created_at: string;
 }
 

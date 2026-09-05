@@ -9,8 +9,10 @@
 //
 // Idempotent: refuses when a program was built in the last 6 days unless
 // { rebuild: true } or { adapt: true }. Exercises are chosen ONLY from the
-// shared library (exercises.trainer_id IS NULL) so every pick has
-// instructions and media.
+// global library rows (is_custom = false) that carry a demo image and
+// instructions, filtered to the athlete's equipment and sampled so every
+// muscle group is represented (see sample.ts) — so every pick has a demo
+// the athlete can watch and copy the corner can read aloud.
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -18,6 +20,7 @@ import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { guardRate, clampText } from '../_shared/rateLimit.ts';
 import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts';
+import { equipmentFor, normalizeName, dedupePreferMedia, sampleBalanced, formatForPrompt, type LibraryRow } from './sample.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,17 +83,34 @@ serve(async (req) => {
     const experience = clampText(String(body?.experience ?? meta.intake_experience ?? 'not stated'), 80);
     const limitation = clampText(String(body?.limitation ?? meta.intake_limitation ?? ''), 200);
 
-    // Library exercises only.
-    const { data: exercises } = await admin
-      .from('exercises')
-      .select('id, name, category, muscle_group, equipment, difficulty')
-      .is('trainer_id', null)
-      .limit(220);
-    if (!exercises || exercises.length < 10) return json({ error: 'library_unavailable' }, 500);
+    // Global library rows with a demo and instructions, in the athlete's
+    // equipment. PostgREST caps a page at 1,000 rows, so page defensively.
+    const equipment = equipmentFor(location);
+    const all: LibraryRow[] = [];
+    for (let from = 0; from < 5000; from += 1000) {
+      const { data: page, error: pageErr } = await admin
+        .from('exercises')
+        .select('id, name, category, muscle_group, secondary_muscles, equipment, difficulty, image_url')
+        .eq('is_custom', false)
+        .not('image_url', 'is', null)
+        .neq('instructions', '')
+        .in('equipment', equipment)
+        .order('name')
+        .range(from, from + 999);
+      if (pageErr) throw pageErr;
+      if (!page || page.length === 0) break;
+      for (const r of page) all.push({ ...r, instructions_len: 1 });
+      if (page.length < 1000) break;
+    }
+    if (all.length < 10) return json({ error: 'library_unavailable' }, 500);
 
-    const byName = new Map<string, any>();
-    for (const e of exercises) byName.set(String(e.name).toLowerCase(), e);
-    const list = exercises.map((e: any) => `${e.name} | ${e.category ?? ''} | ${e.muscle_group ?? ''} | ${e.equipment ?? ''}`).join('\n');
+    const today = new Date().toISOString().slice(0, 10);
+    const pool = sampleBalanced(dedupePreferMedia(all), { target: 230, seed: `${client.id}:${today}` });
+    console.log('[solo-program] library', all.length, 'pool', pool.length, 'equipment', equipment.join(','));
+
+    const byName = new Map<string, LibraryRow>();
+    for (const e of pool) byName.set(normalizeName(e.name), e);
+    const list = pool.map(formatForPrompt).join('\n');
 
     // Last 14 days of completed (and skipped) work, when it exists, so the
     // corner can progress what worked and repeat what got missed instead of
@@ -113,13 +133,14 @@ Write exactly ${days} workouts. Return ONLY JSON:
 {"workouts":[{"name":string,"description":string,"category":"strength"|"cardio"|"flexibility"|"hiit"|"circuit","estimated_duration":number,"exercises":[{"exercise_name":string,"sets":number,"reps":string,"rest_seconds":number}]}]}
 Rules:
 - exercise_name MUST exactly match a name from the list below.
+- When a goal names a muscle (for example "hamstrings and glutes"), prefer exercises whose primary OR secondary muscle matches it.
 - 4 to 7 exercises per workout, compound movements first, then accessories. Balance push, pull, legs and core across the week.
 - reps as a string like "8" or "8-10" or "30s".
 - estimated_duration in minutes, 35-60.
 - Beginners: fewer sets, simpler movements. Respect the setting: never pick equipment the athlete does not have.
 - Names: short and specific ("Lower body A", "Upper body pull"). description: one sentence on the intent.
 
-Available exercises (name | category | muscle | equipment):
+Available exercises (name | category | primary muscle | secondary muscles | equipment):
 ${list}`;
 
     const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'solo-program' });
@@ -140,6 +161,7 @@ ${list}`;
     // Spread across the next 7 days, starting tomorrow.
     const slots = spreadDays(days);
     const created: { id: string; name: string; date: string }[] = [];
+    let unmatched = 0;
     for (let i = 0; i < workouts.length; i++) {
       const w = workouts[i];
       const name = clampStr(w?.name, 60, `Session ${i + 1}`);
@@ -159,8 +181,8 @@ ${list}`;
       const rows: any[] = [];
       let order = 0;
       for (const ex of (Array.isArray(w?.exercises) ? w.exercises : []).slice(0, 8)) {
-        const lib = byName.get(String(ex?.exercise_name ?? '').toLowerCase());
-        if (!lib) continue;
+        const lib = byName.get(normalizeName(ex?.exercise_name));
+        if (!lib) { unmatched++; continue; }
         rows.push({
           workout_id: wRow.id,
           exercise_id: lib.id,
@@ -187,6 +209,7 @@ ${list}`;
     }
 
     if (created.length === 0) return json({ error: 'bad_generation' }, 502);
+    console.log('[solo-program] wrote', created.length, 'workouts; unmatched exercise names:', unmatched);
     await admin.from('clients').update({ solo_program_built_at: new Date().toISOString() }).eq('id', client.id);
     return json({ ok: true, created, prompt_version: PROMPT_VERSION });
   } catch (err: any) {

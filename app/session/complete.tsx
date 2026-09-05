@@ -43,6 +43,7 @@ import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { WeightUnit, asWeightUnit, formatWeight, unitLabel } from '../../lib/units';
 import Avatar from '../../components/Avatar';
 import {
   getCompletionData,
@@ -61,9 +62,10 @@ function formatDuration(sec: number): string {
   return `${m}m`;
 }
 
-function formatVolume(lbs: number): string {
-  if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k`;
-  return lbs.toLocaleString();
+/** Total volume in the athlete's own unit — the label next to it names it. */
+function formatVolume(total: number): string {
+  if (total >= 1000) return `${(total / 1000).toFixed(1)}k`;
+  return total.toLocaleString();
 }
 
 /** Extract unique muscle groups from exercises */
@@ -159,8 +161,8 @@ function StatTile({ value, label, delay = 0 }: { value: string; label: string; d
 
 /** Animated horizontal fill bar for exercise breakdown */
 function ExerciseBar({
-  exercise, index,
-}: { exercise: CompletedExercise; index: number }) {
+  exercise, index, unit,
+}: { exercise: CompletedExercise; index: number; unit: WeightUnit }) {
   const completedSets = exercise.sets.filter(s => s.completed).length;
   const totalSets     = exercise.sets.length;
   const pct           = totalSets > 0 ? completedSets / totalSets : 0;
@@ -203,7 +205,7 @@ function ExerciseBar({
         <Text style={st.exName} numberOfLines={1}>{exercise.exerciseName}</Text>
         <Text style={[st.exMeta, isPartial && st.exMetaWarning]}>
           {completedSets}/{totalSets} sets
-          {topWeight > 0 ? `  ·  ${topWeight}kg` : ''}
+          {topWeight > 0 ? `  ·  ${formatWeight(topWeight, unit)}` : ''}
         </Text>
       </View>
       <View style={st.exBarTrack}>
@@ -238,6 +240,8 @@ export default function SessionCompleteScreen() {
     () => (session?.client_id ? getClientById(session.client_id) : null),
     [session, getClientById],
   );
+  // The logged numbers are in the ATHLETE's unit, not the coach's.
+  const unit = asWeightUnit(client?.weight_unit);
   const clientSessions = useMemo(
     () => (session?.client_id ? getClientSessions(session.client_id) : []),
     [session, getClientSessions],
@@ -426,7 +430,7 @@ export default function SessionCompleteScreen() {
                 <StatTile value={formatDuration(durationSec)} label="Duration" delay={80} />
                 <StatTile value={`${completedSets}/${totalSets}`} label="Sets done" delay={140} />
                 {totalVolume > 0 && (
-                  <StatTile value={`${formatVolume(totalVolume)}`} label="Volume (kg)" delay={200} />
+                  <StatTile value={`${formatVolume(totalVolume)}`} label={`Volume (${unitLabel(unit)})`} delay={200} />
                 )}
                 <StatTile value={`${adherence}%`} label="Adherence" delay={260} />
               </View>
@@ -439,7 +443,7 @@ export default function SessionCompleteScreen() {
                 <Text style={st.cardTitle}>Exercise breakdown</Text>
                 <View style={st.exList}>
                   {exercises.map((ex, i) => (
-                    <ExerciseBar key={i} exercise={ex} index={i} />
+                    <ExerciseBar key={i} exercise={ex} index={i} unit={unit} />
                   ))}
                 </View>
               </Animated.View>

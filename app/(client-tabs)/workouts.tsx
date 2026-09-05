@@ -120,6 +120,7 @@ export default function ClientWorkoutsScreen() {
     completeTrackWorkout,
     rescheduleWorkoutToToday,
     refreshData,
+    weightUnit,
   } = useClient();
   const { showAlert } = useAlert();
   const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string }>();
@@ -480,6 +481,7 @@ export default function ClientWorkoutsScreen() {
           activeWorkout={activeWorkout}
           elapsedSeconds={summaryElapsedSeconds}
           exerciseStates={summaryExerciseStates}
+          unit={weightUnit}
           onConfirmFinish={handleConfirmFinish}
           onContinueWorkout={() => setShowSummary(false)}
         />
@@ -864,6 +866,7 @@ export default function ClientWorkoutsScreen() {
           )}
           trainerWorkouts={trainerWorkouts}
           otherPlans={(plans || []).filter((p: any) => p.id !== finishedSeason.plan_id)}
+          unit={weightUnit}
           coachName={coachFirst}
           canSend={!!trainer && !!clientData}
           onSend={sendToCoach}

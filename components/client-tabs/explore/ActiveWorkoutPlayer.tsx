@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
+import { formatWeight } from '../../../lib/units';
 import { useClient } from '../../../context/ClientContext';
 import { useAlert } from '../../../context/AlertContext';
 
@@ -81,7 +82,7 @@ export default function ActiveWorkoutPlayer({
   onFinishWorkout,
   onCancelWorkout,
 }: ActiveWorkoutPlayerProps) {
-  const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer } = useClient();
+  const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer, weightUnit } = useClient();
   const { showAlert } = useAlert();
   // This player renders inside the Train tab, so it sits under BOTH the status
   // bar / Dynamic Island and the floating tab bar. It had no safe-area
@@ -344,7 +345,9 @@ export default function ActiveWorkoutPlayer({
       const isPr = weight > 0 && checkAndUpdatePr(exercise.exerciseId, weight);
       if (isPr) {
         setPendingPr({ exerciseName: exercise.exerciseName, weight });
-        // Notify coach — fire-and-forget, never block the workout UI
+        // Notify coach — fire-and-forget, never block the workout UI. The
+        // number is in the ATHLETE's unit, so the suffix always travels with it.
+        const prLine = `${clientData?.name} just hit a new ${exercise.exerciseName} PR at ${formatWeight(weight, weightUnit)}!`;
         if (clientData?.trainer_id) {
           // Insert notification row for the coach dashboard
           (async () => {
@@ -352,8 +355,8 @@ export default function ActiveWorkoutPlayer({
               trainer_id: clientData.trainer_id,
               type: 'score',
               title: 'New personal record',
-              description: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
-              metadata: { client_id: clientData.id, exercise: exercise.exerciseName, weight },
+              description: prLine,
+              metadata: { client_id: clientData.id, exercise: exercise.exerciseName, weight, unit: weightUnit },
               is_read: false,
             });
             if (error && __DEV__) console.warn('[ActiveWorkoutPlayer] PR notification insert failed:', error);
@@ -364,7 +367,7 @@ export default function ActiveWorkoutPlayer({
               body: {
                 pushToken: trainer.expo_push_token,
                 title: 'New PR',
-                body: `${clientData.name} just hit a new ${exercise.exerciseName} PR at ${weight} lbs!`,
+                body: prLine,
                 data: { url: `/client/${clientData.id}` },
               },
             }).catch(() => { /* silent fail */ });
@@ -434,7 +437,7 @@ export default function ActiveWorkoutPlayer({
     // callback often enough to hide the stale reads — `skipAllRest` in
     // particular was captured from a render before the athlete turned rest off.
   }, [
-    exerciseStates, activeWorkout, logExerciseSet, checkAndUpdatePr, clientData, trainer,
+    exerciseStates, activeWorkout, logExerciseSet, checkAndUpdatePr, clientData, trainer, weightUnit,
     skipAllRest, openRestTimer, runningSet, autoTime, startSetTimer,
   ]);
 
@@ -869,6 +872,7 @@ export default function ActiveWorkoutPlayer({
                         weight={set.weight}
                         reps={set.reps}
                         completed={set.completed}
+                        unit={weightUnit}
                         seconds={set.seconds}
                         timerRunning={
                           !!runningSet && runningSet.exIdx === exIdx && runningSet.setIdx === setIdx
@@ -956,7 +960,7 @@ export default function ActiveWorkoutPlayer({
           title={pendingPr.exerciseName}
           subtitle="That's your best ever. Keep pushing."
           stat={{
-            value: `${pendingPr.weight % 1 === 0 ? pendingPr.weight : pendingPr.weight.toFixed(1)} kg`,
+            value: formatWeight(pendingPr.weight, weightUnit),
             label: 'lifted',
           }}
           primary={{
