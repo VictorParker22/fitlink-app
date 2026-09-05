@@ -48,6 +48,7 @@ import { ClientRoute } from '../../types/routes';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import MealCard from '../../components/client-tabs/food/MealCard';
 import StaleNotice from '../../components/client-tabs/StaleNotice';
+import { groupRowsBySlot, foodTotals } from '../../lib/dietSlots';
 
 const C = CoachColors;
 const F = CoachFonts;
@@ -71,8 +72,9 @@ const realOrNull = (v: number | null | undefined): number | null =>
 
 // ─── Shapes ───────────────────────────────────────────────────────────────────
 
-interface DayMeal {
-  key: string;              // dpm.id (training) or `rest-{idx}` (rest variant)
+/** One food in a slot: the unit that gets logged (one client_meal_logs row). */
+interface DayMealItem {
+  key: string;              // dpm.id (training) or `rest-{slot}-{i}` (rest variant)
   dpmId: string | null;     // null on rest days — no diet_plan_meals row exists
   mealId: string | null;
   name: string;
@@ -81,14 +83,35 @@ interface DayMeal {
   carbs: number;
   fat: number;
   servings: number;
-  mealTime: string | null;
-  slotLabel: string | null;
   imageUrl: string | null;
   imageColor: string | null;   // meals.image_color — null until sampled
+}
+
+/**
+ * One meal slot of the day — one or more foods. The slot is done when every
+ * food is logged; a coach-approved swap replaces the whole slot.
+ */
+interface DayMeal {
+  key: string;              // `slot-{slotIndex}` (training) or `rest-{slotIndex}` (rest variant)
+  slotIndex: number;
+  items: DayMealItem[];
+  name: string;             // one food: its name; several: the names joined
+  calories: number;         // slot totals
+  protein: number;
+  carbs: number;
+  fat: number;
+  mealTime: string | null;
+  slotLabel: string | null;
+  imageUrl: string | null;  // first food's photo
+  imageColor: string | null;
   swapEntry: { allowedMealIds: string[]; allowOwnLog: boolean } | null;
 }
 
 interface LogEntry { swapMealId: string | null }
+
+const MEAL_TIME_LABELS: Record<string, string> = {
+  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
+};
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -124,57 +147,89 @@ export default function AthleteFoodScreen() {
   // ── Today's meal list — the actual day variant ────────────────────────────
   const dayMeals: DayMeal[] = useMemo(() => {
     if (!plan) return [];
+    const toSlot = (key: string, slotIndex: number, items: DayMealItem[], mealTime: string | null, slotLabel: string | null, swapEntry: DayMeal['swapEntry']): DayMeal => {
+      const t = foodTotals(items);
+      return {
+        key,
+        slotIndex,
+        items,
+        name: items.map((it) => it.name).join(' + '),
+        calories: t.calories,
+        protein: t.protein,
+        carbs: t.carbs,
+        fat: t.fat,
+        mealTime,
+        slotLabel,
+        imageUrl: items[0]?.imageUrl || null,
+        imageColor: items[0]?.imageColor || null,
+        swapEntry,
+      };
+    };
     if (isTrainingDay || !week) {
-      const dpms = [...(plan.diet_plan_meals || [])].sort(
-        (a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)
-      );
-      return dpms
-        .filter((dpm: any) => dpm.meals)
-        .map((dpm: any) => {
+      // Rows grouped by slot (legacy rows without slot_index: one per order_index).
+      const rows = (plan.diet_plan_meals || []).filter((dpm: any) => dpm.meals);
+      return groupRowsBySlot<any>(rows).map(({ slotIndex, items: dpms }) => {
+        const items: DayMealItem[] = dpms.map((dpm: any) => {
           const m = dpm.meals;
           const s = dpm.servings || 1;
-          const entry = swaps?.[String(dpm.order_index)];
           return {
             key: dpm.id,
             dpmId: dpm.id,
             mealId: m.id,
             name: m.name,
+            // Stored per serving; the card and the meter both want the plated amount.
             calories: (m.calories || 0) * s,
             protein: (m.protein || 0) * s,
             carbs: (m.carbs || 0) * s,
             fat: (m.fat || 0) * s,
-            servings: s,
-            mealTime: dpm.meal_time || null,
-            slotLabel: week?.slotLabels?.[dpm.order_index] || null,
+            servings: 1,
             imageUrl: m.image_url || null,
             imageColor: m.image_color || null,
-            swapEntry: entry && ((entry.allowedMealIds || []).length > 0 || entry.allowOwnLog)
-              ? { allowedMealIds: entry.allowedMealIds || [], allowOwnLog: !!entry.allowOwnLog }
-              : null,
           };
         });
+        const entry = swaps?.[String(slotIndex)];
+        const mealTime = dpms[0]?.meal_time || null;
+        return toSlot(
+          `slot-${slotIndex}`,
+          slotIndex,
+          items,
+          mealTime,
+          week?.slotLabels?.[slotIndex] || null,
+          entry && ((entry.allowedMealIds || []).length > 0 || entry.allowOwnLog)
+            ? { allowedMealIds: entry.allowedMealIds || [], allowOwnLog: !!entry.allowOwnLog }
+            : null,
+        );
+      });
     }
-    // Rest day — restVariant carries the macros inline
-    return (week.restVariant?.mealList || []).map((m: any, idx: number) => {
-      const s = m.servings || 1;
-      return {
-        key: `rest-${idx}`,
-        dpmId: null,
-        mealId: m.meal_id || null,
-        name: m.name,
-        calories: (m.calories || 0) * s,
-        protein: (m.protein || 0) * s,
-        carbs: (m.carbs || 0) * s,
-        fat: (m.fat || 0) * s,
-        servings: s,
-        mealTime: m.meal_time || null,
-        slotLabel: m.slotLabel || null,
-        imageUrl: null,
-        imageColor: null,
-        swapEntry: null, // swaps are keyed to training-day slots only
-      };
+    // Rest day — restVariant carries the macros inline. Entries carry
+    // slot_index when several foods share a slot; older ones are one per slot.
+    const restRows = (week.restVariant?.mealList || []).map((m: any, idx: number) => ({ ...m, order_index: idx, slot_index: m.slot_index }));
+    return groupRowsBySlot<any>(restRows).map(({ slotIndex, items: entries }) => {
+      const items: DayMealItem[] = entries.map((m: any, i: number) => {
+        const s = m.servings || 1;
+        return {
+          key: `rest-${slotIndex}-${i}`,
+          dpmId: null,
+          mealId: m.meal_id || null,
+          name: m.name,
+          calories: (m.calories || 0) * s,
+          protein: (m.protein || 0) * s,
+          carbs: (m.carbs || 0) * s,
+          fat: (m.fat || 0) * s,
+          servings: 1,
+          imageUrl: null,
+          imageColor: null,
+        };
+      });
+      // swaps are keyed to training-day slots only
+      return toSlot(`rest-${slotIndex}`, slotIndex, items, entries[0]?.meal_time || null, entries[0]?.slotLabel || null, null);
     });
   }, [plan, week, swaps, isTrainingDay]);
+
+  const allItems = useMemo(() => dayMeals.flatMap((m) => m.items), [dayMeals]);
+  const slotDone = useCallback((m: DayMeal) => m.items.length > 0 && m.items.every((it) => !!logs[it.key]), [logs]);
+  // A swap replaces the whole slot: the first logged food carrying one speaks for the slot.
+  const slotSwapId = useCallback((m: DayMeal) => m.items.map((it) => logs[it.key]?.swapMealId || null).find(Boolean) || null, [logs]);
 
   // ── Resolve coach-approved swap meals (context has no meals library) ──────
   useEffect(() => {
@@ -224,12 +279,12 @@ export default function AthleteFoodScreen() {
       });
       const claimed = new Set<string>();
       restRows.forEach((row: any) => {
-        const slot = dayMeals.find((m) => m.dpmId === null && m.mealId === row.swapped_meal_id && !claimed.has(m.key));
-        if (slot) { claimed.add(slot.key); next[slot.key] = { swapMealId: null }; }
+        const item = allItems.find((it) => it.dpmId === null && it.mealId === row.swapped_meal_id && !claimed.has(it.key));
+        if (item) { claimed.add(item.key); next[item.key] = { swapMealId: null }; }
       });
     }
     setLogs(next);
-  }, [clientData?.id, dayMeals]);
+  }, [clientData?.id, allItems]);
 
   useEffect(() => { fetchTodayLogs(); }, [fetchTodayLogs]);
 
@@ -256,14 +311,18 @@ export default function AthleteFoodScreen() {
   const consumed = useMemo(() => {
     let kcal = 0, p = 0, c = 0, f = 0;
     dayMeals.forEach((m) => {
-      const entry = logs[m.key];
-      if (!entry) return;
-      const sw = entry.swapMealId ? swapMealsById[entry.swapMealId] : null;
+      // A swap stands in for the whole slot and is counted once; otherwise
+      // each logged food counts on its own.
+      const swapId = m.items.map((it) => logs[it.key]?.swapMealId || null).find(Boolean) || null;
+      const sw = swapId ? swapMealsById[swapId] : null;
       if (sw) {
         kcal += sw.calories || 0; p += sw.protein || 0; c += sw.carbs || 0; f += sw.fat || 0;
-      } else {
-        kcal += m.calories; p += m.protein; c += m.carbs; f += m.fat;
+        return;
       }
+      m.items.forEach((it) => {
+        if (!logs[it.key]) return;
+        kcal += it.calories; p += it.protein; c += it.carbs; f += it.fat;
+      });
     });
     return { kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f) };
   }, [dayMeals, logs, swapMealsById]);
@@ -300,36 +359,37 @@ export default function AthleteFoodScreen() {
   const stickyStyle = useAnimatedStyle(() => ({ opacity: stickyOpacity.value }));
 
   // ── Log / unlog ───────────────────────────────────────────────────────────
-  const logMeal = useCallback(async (m: DayMeal, swapMealId: string | null) => {
+  // One food = one client_meal_logs row (UNIQUE client, diet_plan_meal, date).
+  const logItem = useCallback(async (it: DayMealItem, swapMealId: string | null, haptic = true) => {
     if (!clientData || !plan) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setLogs((prev) => ({ ...prev, [m.key]: { swapMealId } }));
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLogs((prev) => ({ ...prev, [it.key]: { swapMealId } }));
     const today = new Date().toISOString().split('T')[0];
     const base: any = {
       client_id: clientData.id,
       diet_plan_id: plan.id,
-      diet_plan_meal_id: m.dpmId, // null for rest-variant slots
+      diet_plan_meal_id: it.dpmId, // null for rest-variant foods
       logged_date: today,
     };
-    const wantSwapCol = swapMealId || m.dpmId === null;
-    const payload = wantSwapCol ? { ...base, swapped_meal_id: swapMealId || m.mealId } : base;
+    const wantSwapCol = swapMealId || it.dpmId === null;
+    const payload = wantSwapCol ? { ...base, swapped_meal_id: swapMealId || it.mealId } : base;
     let { error } = await supabase.from('client_meal_logs').insert(payload);
     if (error && wantSwapCol && MISSING_COLUMN(error.code)) {
-      if (m.dpmId === null) {
+      if (it.dpmId === null) {
         // Column not deployed: a rest-day row would be unattributable, so
         // nothing is written. Drop the optimistic tick too — a checkmark with
         // no row behind it is a lie that survives until the next reload.
         if (__DEV__) console.warn('[Food] swapped_meal_id missing; rest-day meal not logged');
-        setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
+        setLogs((prev) => { const n = { ...prev }; delete n[it.key]; return n; });
         return;
       }
-      // Training-day swap degrades to a plain log of the slot.
-      setLogs((prev) => ({ ...prev, [m.key]: { swapMealId: null } }));
+      // Training-day swap degrades to a plain log of the food.
+      setLogs((prev) => ({ ...prev, [it.key]: { swapMealId: null } }));
       ({ error } = await supabase.from('client_meal_logs').insert(base));
     }
     if (error) {
       if (__DEV__) console.warn('[Food] Failed to log meal:', error);
-      setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
+      setLogs((prev) => { const n = { ...prev }; delete n[it.key]; return n; });
       return;
     }
     // XP retired: clients.xp was written on every meal tick and read by
@@ -338,20 +398,20 @@ export default function AthleteFoodScreen() {
     // with a surface that reads it.
   }, [clientData, plan]);
 
-  const unlogMeal = useCallback(async (m: DayMeal) => {
+  const unlogItem = useCallback(async (it: DayMealItem, haptic = true) => {
     if (!clientData) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const prevEntry = logs[m.key];
-    setLogs((prev) => { const n = { ...prev }; delete n[m.key]; return n; });
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const prevEntry = logs[it.key];
+    setLogs((prev) => { const n = { ...prev }; delete n[it.key]; return n; });
     const today = new Date().toISOString().split('T')[0];
     let error: any = null;
-    if (m.dpmId) {
+    if (it.dpmId) {
       ({ error } = await supabase.from('client_meal_logs').delete()
         .eq('client_id', clientData.id)
         .eq('logged_date', today)
-        .eq('diet_plan_meal_id', m.dpmId));
-    } else if (m.mealId) {
-      // Rest-day slot: duplicate identical meals share swapped_meal_id, so a
+        .eq('diet_plan_meal_id', it.dpmId));
+    } else if (it.mealId) {
+      // Rest-day food: duplicate identical meals share swapped_meal_id, so a
       // blanket delete would wipe every duplicate's log. Pick exactly one row
       // (newest first — the inverse of the claim order) and delete it by id.
       const { data: rows, error: selError } = await supabase.from('client_meal_logs')
@@ -359,7 +419,7 @@ export default function AthleteFoodScreen() {
         .eq('client_id', clientData.id)
         .eq('logged_date', today)
         .is('diet_plan_meal_id', null)
-        .eq('swapped_meal_id', m.mealId)
+        .eq('swapped_meal_id', it.mealId)
         .order('created_at', { ascending: false })
         .limit(1);
       if (selError) error = selError;
@@ -371,9 +431,36 @@ export default function AthleteFoodScreen() {
     }
     if (error) {
       if (__DEV__) console.warn('[Food] Failed to unlog meal:', error);
-      setLogs((prev) => ({ ...prev, [m.key]: prevEntry || { swapMealId: null } }));
+      setLogs((prev) => ({ ...prev, [it.key]: prevEntry || { swapMealId: null } }));
     }
   }, [clientData, logs]);
+
+  // Whole slot: log every food still open (a swap re-logs each food under the
+  // swap so the slot reads as done and the swap survives a reload).
+  const logMeal = useCallback(async (m: DayMeal, swapMealId: string | null) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    for (const it of m.items) {
+      const cur = logs[it.key];
+      if (cur && (cur.swapMealId || null) === swapMealId) continue;
+      if (cur) await unlogItem(it, false);
+      await logItem(it, swapMealId, false);
+    }
+  }, [logs, logItem, unlogItem]);
+
+  const unlogMeal = useCallback(async (m: DayMeal) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    for (const it of m.items) {
+      if (logs[it.key]) await unlogItem(it, false);
+    }
+  }, [logs, unlogItem]);
+
+  // One food in a several-food slot; a swapped slot toggles as a whole.
+  const toggleItem = useCallback((m: DayMeal, itemKey: string) => {
+    const it = m.items.find((x) => x.key === itemKey);
+    if (!it) return;
+    if (slotSwapId(m)) { unlogMeal(m); return; }
+    if (logs[it.key]) unlogItem(it); else logItem(it, null);
+  }, [logs, logItem, unlogItem, unlogMeal, slotSwapId]);
 
   // ── "Suggest my own" → a real message to the coach ────────────────────────
   const sendOwnLog = useCallback(async (m: DayMeal) => {
@@ -412,8 +499,8 @@ export default function AthleteFoodScreen() {
     setOwnLogState(null);
   }, []);
 
-  // First unlogged meal = "next up"
-  const nextKey = dayMeals.find((m) => !logs[m.key])?.key || null;
+  // First slot with a food still open = "next up"
+  const nextKey = dayMeals.find((m) => !slotDone(m))?.key || null;
   const sheetMeal = swapSheetKey ? dayMeals.find((m) => m.key === swapSheetKey) || null : null;
 
   if (loading && !clientData) {
@@ -457,15 +544,19 @@ export default function AthleteFoodScreen() {
 
   // One meal row — real macros, real swap state, the shared MealCard.
   const renderMeal = (m: (typeof dayMeals)[number]) => {
-    const logged = !!logs[m.key];
-    const swapMeal = logs[m.key]?.swapMealId ? swapMealsById[logs[m.key].swapMealId!] : null;
+    const logged = slotDone(m);
+    const swapId = slotSwapId(m);
+    const swapMeal = swapId ? swapMealsById[swapId] : null;
     const isNext = m.key === nextKey;
     const resolvedSwaps = (m.swapEntry?.allowedMealIds || []).filter((id) => swapMealsById[id]);
     const canSwap = !!m.swapEntry && (resolvedSwaps.length > 0 || m.swapEntry.allowOwnLog);
-    const slotName = m.slotLabel || m.mealTime || 'Meal';
+    const slotName = m.slotLabel || (m.mealTime ? MEAL_TIME_LABELS[m.mealTime] || m.mealTime : null) || 'Meal';
+    const multi = m.items.length > 1 && !swapMeal;
+    const single = m.items[0];
 
     // A swapped log shows the meal actually eaten, with its own macros
-    // and its own photo — same values the room-left maths counted.
+    // and its own photo — same values the room-left maths counted. A slot of
+    // several foods is titled by its slot and lists the foods beneath.
     const shown = swapMeal
       ? {
           id: swapMeal.id as string,
@@ -475,8 +566,17 @@ export default function AthleteFoodScreen() {
           image_url: swapMeal.image_url || null,
           image_color: swapMeal.image_color || null,
         }
+      : multi
+      ? {
+          id: single?.mealId || null,
+          name: slotName,
+          calories: realOrNull(m.calories),
+          protein: realOrNull(m.protein),
+          image_url: m.imageUrl,
+          image_color: m.imageColor,
+        }
       : {
-          id: m.mealId,
+          id: single?.mealId || null,
           name: m.name,
           calories: realOrNull(m.calories),
           protein: realOrNull(m.protein),
@@ -484,17 +584,27 @@ export default function AthleteFoodScreen() {
           image_color: m.imageColor,
         };
 
-    const slotLine = [
-      isNext ? `Next up · ${slotName}` : slotName,
-      swapMeal ? 'swapped' : null,
-    ].filter(Boolean).join(' · ');
+    const slotLine = multi
+      ? [isNext ? 'Next up' : null, `${m.items.length} foods`].filter(Boolean).join(' · ')
+      : [
+          isNext ? `Next up · ${slotName}` : slotName,
+          swapMeal ? 'swapped' : null,
+        ].filter(Boolean).join(' · ');
 
     return (
       <MealCard
         meal={shown}
         slot={slotLine}
+        items={multi ? m.items.map((it) => ({
+          key: it.key,
+          name: it.name,
+          calories: realOrNull(it.calories),
+          protein: realOrNull(it.protein),
+          logged: !!logs[it.key],
+        })) : undefined}
+        onToggleItem={multi ? (key) => toggleItem(m, key) : undefined}
         logged={logged}
-        actionHint={logged ? 'unlog it' : 'log it as eaten'}
+        actionHint={logged ? 'unlog it' : (multi ? 'log every food as eaten' : 'log it as eaten')}
         onPress={() => (logged ? unlogMeal(m) : logMeal(m, null))}
         onSwap={canSwap ? () => setSwapSheetKey(m.key) : undefined}
         swapLabel={

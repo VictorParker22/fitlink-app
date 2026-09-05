@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView,
-  Dimensions, Linking, ActivityIndicator, Image,
+  Linking, ActivityIndicator, Image,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { Motion, Ease } from '../../constants/motion';
+import CelebrationOverlay from '../../components/CelebrationOverlay';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,20 +27,51 @@ import PermissionCards from '../../components/onboarding/PermissionCards';
 import { getNotificationState, requestNotifications, getCameraMicState, requestCameraMic } from '../../lib/permissions';
 import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../../lib/platformFee';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Three steps. A first-athlete invite used to live here as step 3, duplicating
+// Four stops. A first-athlete invite used to live here as a step, duplicating
 // the dedicated add-client flow (app/add-client.tsx) in a weaker form — that
 // same task is also step 4 of the home checklist. It's been cut from the
-// wizard; the done screen below hands off to add-client instead of copying it.
+// wizard; the celebration at the end hands off to add-client instead of
+// copying it. `stop` is the label on the step strip under the header.
 const STEPS = [
-  { title: 'Who are your\nathletes training with?', subtitle: 'This is what they see when they open your profile.' },
-  { title: 'When do athletes\nbook you?', subtitle: 'Rough hours are fine — you can change any day later.' },
-  { title: 'Turn on the tools\nyou’ll coach with', subtitle: 'Each ask has one job. Say yes here and the app never has to interrupt a session to ask.' },
-  { title: 'Where should the\nmoney go?', subtitle: 'Athletes pay in the app. Stripe pays out to your bank.' },
+  { stop: 'Profile', title: 'Who are your\nathletes training with?', subtitle: 'This is what they see when they open your profile.' },
+  { stop: 'Hours', title: 'When do athletes\nbook you?', subtitle: 'Rough hours are fine — you can change any day later.' },
+  { stop: 'Tools', title: 'Turn on the tools\nyou’ll coach with', subtitle: 'Each ask has one job. Say yes here and the app never has to interrupt a session to ask.' },
+  { stop: 'Payouts', title: 'Where should the\nmoney go?', subtitle: 'Athletes pay in the app. Stripe pays out to your bank.' },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// "What you coach" is one free-text field on screen and two columns in the
+// database: trainers.specializations (text[], written by the onboarding
+// draft and read by matching) and trainers.specialization (the display
+// string). The field shows the array joined with " · " and saves both, so
+// the two stop diverging after the coach edits here.
+const SPEC_JOIN = ' · ';
+
+function specialtiesFromTrainer(t: any): string {
+  const list = Array.isArray(t?.specializations)
+    ? t.specializations.map((s: unknown) => String(s).trim()).filter(Boolean)
+    : [];
+  if (list.length) return list.join(SPEC_JOIN);
+  return String(t?.specialization || '').trim();
+}
+
+function splitSpecialties(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of text.split(/[·,]/)) {
+    const s = raw.trim();
+    const key = s.toLowerCase();
+    if (!s || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || '';
+}
 
 // Same derivation the athlete-side match card uses (find-coach.tsx) — the
 // preview below must show exactly what an athlete with no avatar would see.
@@ -64,31 +97,52 @@ export default function TrainerWizardScreen() {
   const keepPct = split ? split.coachKeepsBps / 100 : null;
 
   const [step, setStep] = useState(0);
-  const slideAnim = useSharedValue(0);
   const reduceMotion = useReducedMotion();
 
   const [completionVisible, setCompletionVisible] = useState(false);
-  const progressAnim = useSharedValue(1 / STEPS.length);
 
-  const setProgress = (nextStep: number) => {
-    progressAnim.value = withTiming((nextStep + 1) / STEPS.length, { duration: reduceMotion ? 0 : 350 });
-  };
+  // Stops the coach has finished (saved, or walked past on the permissions
+  // step). Drives the lime fill on the strip; going back never un-fills one,
+  // because what was saved stays saved.
+  const [completed, setCompleted] = useState<boolean[]>(() => STEPS.map(() => false));
+  const markCompleted = (i: number) => setCompleted((prev) => prev.map((v, idx) => (idx === i ? true : v)));
 
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progressAnim.value * 100}%`,
-  }));
-
+  // Step enter: the new step fades in from a 24pt offset on Motion.screen /
+  // Ease.out. Reduce Motion: a plain Motion.reduced crossfade, no offset.
+  const enterProgress = useSharedValue(1);
+  const enterDir = useSharedValue(1);
   const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: slideAnim.value }],
+    opacity: enterProgress.value,
+    transform: [{ translateX: reduceMotion ? 0 : (1 - enterProgress.value) * 24 * enterDir.value }],
   }));
 
   // Step 1 — Profile
   const [name, setName] = useState(trainer?.name || '');
   const [bio, setBio] = useState(trainer?.bio || '');
-  const [specialization, setSpecialization] = useState(trainer?.specialization || '');
+  const [specialization, setSpecialization] = useState(() => specialtiesFromTrainer(trainer));
   const [certifications, setCertifications] = useState(trainer?.certifications || '');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  // The sign-up already asked for the name (account step → coach-signup →
+  // trainers.name). When it is on file the field is folded into a quiet row
+  // with an Edit button instead of being asked a third time.
+  const nameOnFile = !!(trainer?.name || '').trim();
+  const [editingName, setEditingName] = useState(false);
+  const showNameField = !nameOnFile || editingName;
+  const nameInputRef = useRef<TextInput>(null);
+
+  // The trainer row can arrive after this screen mounts (AppContext hydrates
+  // from cache, then from the network). Fill any field the coach has not
+  // typed into yet, once.
+  const hydratedFromTrainer = useRef(false);
+  useEffect(() => {
+    if (!trainer || hydratedFromTrainer.current) return;
+    hydratedFromTrainer.current = true;
+    setName((v) => v || trainer.name || '');
+    setBio((v) => v || trainer.bio || '');
+    setSpecialization((v) => v || specialtiesFromTrainer(trainer));
+    setCertifications((v) => v || trainer.certifications || '');
+  }, [trainer]);
 
   const handlePickAvatar = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -118,24 +172,23 @@ export default function TrainerWizardScreen() {
   const [saving, setSaving] = useState(false);
 
   const animateToStep = (nextStep: number) => {
-    // Reduce Motion: swap steps in place rather than sliding the whole screen
-    // sideways, which is the most nausea-inducing motion in the wizard.
-    if (reduceMotion) {
-      slideAnim.value = 0;
-      setStep(nextStep);
-      setProgress(nextStep);
-      return;
-    }
-    const direction = nextStep > step ? 1 : -1;
-    // Slide current step out, swap step, then slide new step in
-    slideAnim.value = withTiming(-direction * SCREEN_WIDTH, { duration: 200 }, (finished) => {
-      if (finished) {
-        runOnJS(setStep)(nextStep);
-        runOnJS(setProgress)(nextStep);
-        slideAnim.value = direction * SCREEN_WIDTH;
-        slideAnim.value = withTiming(0, { duration: 250 });
-      }
-    });
+    enterDir.value = nextStep > step ? 1 : -1;
+    // Opacity drops before the swap so the outgoing step never shows at full
+    // strength for a frame; the incoming one then rises on the screen curve.
+    enterProgress.value = 0;
+    setStep(nextStep);
+    enterProgress.value = withTiming(
+      1,
+      reduceMotion ? { duration: Motion.reduced } : { duration: Motion.screen, easing: Ease.out },
+    );
+  };
+
+  // A stop is done: the strip dot fills, one success haptic (only when
+  // something was actually written — see the permissions step).
+  const finishStep = (i: number, saved: boolean) => {
+    markCompleted(i);
+    if (saved) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    animateToStep(i + 1);
   };
 
   const handleNext = async () => {
@@ -168,20 +221,25 @@ export default function TrainerWizardScreen() {
       }
 
       try {
-        await updateTrainer({
+        // `specializations` is not on the Trainer type yet (AppContext owns
+        // that); the column exists and the onboarding draft writes it.
+        const profileUpdate: Parameters<typeof updateTrainer>[0] & { specializations?: string[] } = {
           name: name.trim(),
           bio: bio.trim() || undefined,
           specialization: specialization.trim() || undefined,
+          specializations: splitSpecialties(specialization),
           certifications: certifications.trim() || undefined,
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-        });
+        };
+        await updateTrainer(profileUpdate);
       } catch (err: any) {
         showAlert({ type: 'error', title: 'Error', message: err.message || 'Failed to save profile' });
         setSaving(false);
         return;
       }
       setSaving(false);
-      animateToStep(1);
+      setEditingName(false);
+      finishStep(0, true);
     } else if (step === 1) {
       // Save availability
       const workingHours: Record<string, any> = {};
@@ -201,11 +259,12 @@ export default function TrainerWizardScreen() {
         return;
       }
       setSaving(false);
-      animateToStep(2);
+      finishStep(1, true);
     } else if (step === 2) {
       // Permissions are primed via the cards themselves — Continue moves on
-      // whether the coach allowed everything, something, or nothing.
-      animateToStep(3);
+      // whether the coach allowed everything, something, or nothing. Nothing
+      // is written here, so the dot fills without a haptic.
+      finishStep(2, false);
     } else {
       // Step 4 (payments) — connect bank, then finish
       await handleConnectBank();
@@ -296,56 +355,19 @@ export default function TrainerWizardScreen() {
     } catch (e) {
       if (__DEV__) console.warn('[TrainerWizard] metadata write threw:', e);
     }
+    // Every stop is done — the strip fills before the card rises over it.
+    setCompleted(STEPS.map(() => true));
     setCompletionVisible(true);
   };
 
   const activeDayCount = DAYS.filter(d => activeDays[d]).length;
   const bookableHours = activeDayCount * 8;
 
-  if (completionVisible) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.doneBody}>
-          <View style={styles.doneCheckCircle}>
-            <Ionicons name="checkmark" size={36} color={CoachColors.onAccent} />
-          </View>
-          <Text style={styles.doneTitle}>{`You're set up${name.trim() ? `,\n${name.trim().split(' ')[0]}` : ''}`}</Text>
-          <Text style={styles.doneSubtitle}>
-            {stripeComplete
-              ? "Payments are connected and your week is bookable. One thing left before the app has anything to show you."
-              : "Your week is bookable — you can connect payments anytime from settings. One thing left before the app has anything to show you."}
-          </Text>
-
-          <View style={styles.doneCard}>
-            <Text style={styles.doneCardEyebrow}>Last step</Text>
-            <Text style={styles.doneCardTitle}>Bring in your first athlete</Text>
-            <Text style={styles.doneCardSubtitle}>Someone you already train is the easiest place to start.</Text>
-            <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
-              style={styles.doneCardBtn}
-              onPress={() => router.push('/add-client' as any)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Add an athlete"
-            >
-              <Text style={styles.doneCardBtnText}>Add an athlete</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.doneFooter}>
-          <TouchableOpacity
-            onPress={() => router.replace('/(tabs)')}
-            accessibilityRole="button"
-            accessibilityLabel="Go to my dashboard"
-          >
-            <Text style={styles.doneFooterLink}>Take me to my dashboard</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const specialtyCount = splitSpecialties(specialization).length;
+  const coachFirstName = firstName(name);
 
   return (
+    <View style={styles.container}>
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
@@ -360,9 +382,26 @@ export default function TrainerWizardScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, progressStyle]} />
+      {/* Step strip: the four stops as labelled dots. Done ones fill lime with
+          a check, the current one is ringed, the rest wait. */}
+      <View
+        style={styles.strip}
+        accessibilityRole="progressbar"
+        accessibilityLabel={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step].stop}. ${completed.filter(Boolean).length} of ${STEPS.length} done.`}
+      >
+        {STEPS.map((s, i) => (
+          <View key={s.stop} style={styles.stripStop}>
+            {i < STEPS.length - 1 ? <View style={[styles.stripLine, completed[i] && styles.stripLineDone]} /> : null}
+            <StepDot done={completed[i]} current={i === step} reduceMotion={reduceMotion} />
+            <Text
+              style={[styles.stripLabel, i === step && styles.stripLabelCurrent, completed[i] && styles.stripLabelDone]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.2}
+            >
+              {s.stop}
+            </Text>
+          </View>
+        ))}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -411,18 +450,40 @@ export default function TrainerWizardScreen() {
                   </View>
                 </View>
 
-                <View style={[styles.fieldRow, name.trim() && styles.fieldRowFilled]}>
-                  <Text style={styles.fieldLabel}>Your name</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="e.g. Coach Mike"
-                    placeholderTextColor={CoachColors.textFaint}
-                    autoFocus
-                    accessibilityLabel="Your name"
-                  />
-                </View>
+                {/* The field only mounts when nothing is on file, or the coach
+                    just tapped Edit — so its autoFocus is never a cold focus
+                    over a saved name. */}
+                {showNameField ? (
+                  <View style={[styles.fieldRow, name.trim() && styles.fieldRowFilled]}>
+                    <Text style={styles.fieldLabel}>Your name</Text>
+                    <TextInput
+                      ref={nameInputRef}
+                      style={styles.fieldInput}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="e.g. Coach Mike"
+                      placeholderTextColor={CoachColors.textFaint}
+                      autoFocus
+                      accessibilityLabel="Your name"
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.nameRow}>
+                    <Text style={styles.nameRowText} numberOfLines={1} accessibilityLabel={`Name: ${name.trim()}`}>
+                      Name: <Text style={styles.nameRowValue}>{name.trim()}</Text>
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setEditingName(true)}
+                      style={styles.nameEditBtn}
+                      hitSlop={8}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit name"
+                    >
+                      <Text style={styles.nameEditText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 <View style={[styles.fieldRow, specialization.trim() && styles.fieldRowFilled]}>
                   <Text style={styles.fieldLabel}>What you coach</Text>
@@ -656,6 +717,48 @@ export default function TrainerWizardScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+
+    {/* Outside the SafeAreaView so the scrim reaches the screen edges
+        (INVARIANTS §5). The overlay fires its own haptic and confetti. */}
+    <CelebrationOverlay
+      visible={completionVisible}
+      kind="coach-live"
+      title={coachFirstName ? `You're set up, ${coachFirstName}` : "You're set up"}
+      subtitle={stripeComplete
+        ? 'Athletes can find you now, and Stripe pays you out.'
+        : 'Athletes can find you now. Connect payouts any time from settings.'}
+      stat={specialtyCount > 0
+        ? { value: String(specialtyCount), label: specialtyCount === 1 ? 'specialty listed' : 'specialties listed' }
+        : undefined}
+      primary={{ label: 'Bring in your first athlete', onPress: () => router.push('/add-client' as any) }}
+      secondary={{ label: 'Go to my dashboard', onPress: () => router.replace('/(tabs)') }}
+      onDismiss={() => router.replace('/(tabs)')}
+    />
+    </View>
+  );
+}
+
+/**
+ * One stop on the step strip. The lime fill scales in on Motion.instant
+ * (a chip fill, per constants/motion.ts); Reduce Motion jumps to the end.
+ */
+function StepDot({ done, current, reduceMotion }: { done: boolean; current: boolean; reduceMotion: boolean }) {
+  const fill = useSharedValue(done ? 1 : 0);
+  useEffect(() => {
+    const to = done ? 1 : 0;
+    fill.value = reduceMotion ? to : withTiming(to, { duration: Motion.instant, easing: Ease.out });
+  }, [done, reduceMotion, fill]);
+  const fillStyle = useAnimatedStyle(() => ({
+    opacity: fill.value,
+    transform: [{ scale: fill.value }],
+  }));
+  return (
+    <View style={[styles.dot, current && styles.dotCurrent]}>
+      {current && !done ? <View style={styles.dotCore} /> : null}
+      <Animated.View style={[styles.dotFill, fillStyle]}>
+        <Ionicons name="checkmark" size={12} color={CoachColors.onAccent} />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -673,8 +776,30 @@ const styles = StyleSheet.create({
   },
   stepLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.textMuted },
 
-  progressTrack: { height: 4, marginHorizontal: 20, marginTop: 14, borderRadius: 2, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
+  // Step strip
+  strip: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginTop: 14 },
+  stripStop: { flex: 1, alignItems: 'center', gap: 6 },
+  // The connector sits at dot mid-height and runs from this stop's centre to
+  // the next one's. It is painted before both dots (its own sibling and the
+  // later stop), so the dots always sit on top of it.
+  stripLine: {
+    position: 'absolute', top: 9, left: '50%', right: '-50%', height: 2,
+    backgroundColor: CoachColors.borderMuted,
+  },
+  stripLineDone: { backgroundColor: CoachColors.accent },
+  dot: {
+    width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: CoachColors.borderMuted,
+    backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  dotCurrent: { borderColor: CoachColors.accent },
+  dotCore: { width: 6, height: 6, borderRadius: 3, backgroundColor: CoachColors.accent },
+  dotFill: {
+    ...StyleSheet.absoluteFillObject, borderRadius: 10, backgroundColor: CoachColors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stripLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.textFaint },
+  stripLabelCurrent: { color: CoachColors.textPrimary },
+  stripLabelDone: { color: CoachColors.textSecondary },
 
   stepContainer: { flex: 1, paddingHorizontal: 20 },
   titleBlock: { marginTop: 26 },
@@ -716,6 +841,12 @@ const styles = StyleSheet.create({
     marginTop: 2, padding: 0,
   },
   fieldTextArea: { minHeight: 53 },
+  // Quiet "Name: … · Edit" row shown when trainers.name is already on file.
+  nameRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: 4, gap: 8 },
+  nameRowText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textMuted },
+  nameRowValue: { fontFamily: CoachFonts.bodySemiBold, color: CoachColors.textPrimary },
+  nameEditBtn: { minHeight: 44, minWidth: 44, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  nameEditText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
   // Sits directly under its field; the negative top pulls it inside the
   // ScrollView's `gap: 11` so hint and field read as one unit.
   fieldHint: { fontFamily: CoachFonts.body, fontSize: 12.5, lineHeight: 17.5, color: CoachColors.textFaint, marginTop: -5, paddingHorizontal: 4 },
@@ -793,23 +924,4 @@ const styles = StyleSheet.create({
   footerCaption: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
   skipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.textMuted },
   skipCaption: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textFaint },
-
-  // Done screen
-  doneBody: { flex: 1, paddingHorizontal: 26, paddingTop: 56 },
-  doneCheckCircle: {
-    width: 64, height: 64, borderRadius: 32, borderCurve: 'continuous', backgroundColor: CoachColors.accent,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  doneTitle: { fontFamily: CoachFonts.headingBold, fontSize: 33.5, letterSpacing: -0.9, lineHeight: 38, color: CoachColors.textPrimary, marginTop: 22 },
-  doneSubtitle: { fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textSecondary, marginTop: 11, lineHeight: 22.5 },
-
-  doneCard: { marginTop: 26, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
-  doneCardEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
-  doneCardTitle: { fontFamily: CoachFonts.headingBold, fontSize: 20, color: CoachColors.textPrimary, marginTop: 6 },
-  doneCardSubtitle: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, marginTop: 6, lineHeight: 20 },
-  doneCardBtn: { marginTop: 15, backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 13, alignItems: 'center' },
-  doneCardBtnText: { fontFamily: CoachFonts.headingSemiBold, fontSize: 15.5, color: CoachColors.onAccent },
-
-  doneFooter: { paddingHorizontal: 26, paddingBottom: 12, alignItems: 'center' },
-  doneFooterLink: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textMuted },
 });

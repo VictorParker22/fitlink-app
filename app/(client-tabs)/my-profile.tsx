@@ -34,6 +34,7 @@ import Avatar from '../../components/Avatar';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute, SharedRoute } from '../../types/routes';
 import { WEIGHT_UNITS, WeightUnit, unitLabel, unitLongName } from '../../lib/units';
+import { getSoloCharacter } from '../../lib/soloCharacters';
 
 export default function ClientProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -59,6 +60,11 @@ export default function ClientProfileScreen() {
 
   const name = clientData?.name || 'You';
   const coachFirst = (trainer?.name || 'your coach').split(' ')[0];
+
+  // Solo corner voice — only a coachless athlete who has already picked one.
+  // Changing it goes through the same setup screen in change mode.
+  const soloCharacterKey = ((clientData as any)?.solo_character as string | null | undefined) || null;
+  const soloCharacter = !trainer && soloCharacterKey ? getSoloCharacter(soloCharacterKey) : null;
 
   const sinceLabel = useMemo(() => {
     if (!clientData?.created_at) return null;
@@ -349,6 +355,35 @@ export default function ClientProfileScreen() {
           </Text>
         </View>
 
+        {/* Solo corner — the AI voice, changeable any time (solo-setup in change mode) */}
+        {soloCharacter ? (
+          <>
+            <Text style={s.sectionLabel}>Solo corner</Text>
+            <View style={s.visCard}>
+              <View style={s.unitRow}>
+                <Text style={s.visLabel}>Voice</Text>
+                <Text style={s.voiceValue} accessibilityLabel={`Current voice, ${soloCharacter.name}`}>
+                  {soloCharacter.name}
+                </Text>
+                <TouchableOpacity
+                  style={s.changeBtn}
+                  onPress={() => router.push(`${ClientRoute.soloSetup}?change=1` as any)}
+                  hitSlop={{ top: 3, bottom: 3 }}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change voice, currently ${soloCharacter.name}`}
+                  accessibilityHint="Opens the four corner voices. Same brain, same numbers."
+                >
+                  <Text style={s.changeBtnText}>Change</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={s.visFootnote}>
+                Same brain, same numbers. Everything you logged stays.
+              </Text>
+            </View>
+          </>
+        ) : null}
+
         {/* What the coach can see */}
         <Text style={s.sectionLabel}>What {coachFirst} can see</Text>
         <View style={s.visCard}>
@@ -584,6 +619,14 @@ const s = StyleSheet.create({
   unitText: { fontFamily: CoachFonts.bodyBold, fontSize: 14, color: CoachColors.textMuted },
   unitTextOn: { color: CoachColors.onAccent },
   visLabel: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: CoachColors.textPrimary, lineHeight: 21.5 },
+  voiceValue: { fontFamily: CoachFonts.bodyBold, fontSize: 15, color: CoachColors.textPrimary },
+  // Same idiom as the profile-photo "Edit" pill, sized to a 44pt target.
+  changeBtn: {
+    minHeight: 44, minWidth: 44, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#2E322B', borderRadius: 999, borderCurve: 'continuous',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  changeBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: '#C9CEC2' },
   visAlways: { fontFamily: CoachFonts.bodyBold, fontSize: 13, color: CoachColors.textMuted },
   visDivider: { height: 1, backgroundColor: '#21241F', marginVertical: 10 },
   visFootnote: {

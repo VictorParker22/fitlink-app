@@ -257,14 +257,31 @@ interface Meal {
   image_url?: string;
 }
 
+// One food in a meal slot. slot_index is the slot (index into
+// week_structure.slotLabels, key of diet_plans.swaps); order_index is the
+// food's position within that slot. Rows older than migration
+// 20260905050000_diet_slot_index carry no slot_index — lib/dietSlots.ts falls
+// back to order_index for those.
 interface DietPlanMeal {
   id: string;
   diet_plan_id: string;
   meal_id: string;
   order_index: number;
+  slot_index?: number | null;
   meal_time?: string;  // 'breakfast' | 'lunch' | 'dinner' | 'snack'
   servings?: number;
   meals?: Meal;
+}
+
+/** Input row for createDietPlan / updateDietPlan: one food in one slot. */
+export interface DietPlanMealInput {
+  meal_id: string;
+  meal_time?: string;
+  servings?: number;
+  /** Slot the food belongs to. Defaults to the row's position in the list (one food per slot). */
+  slot_index?: number;
+  /** Position within the slot. Defaults to the row's position in the list. */
+  order_index?: number;
 }
 
 // -- Week structure / swaps JSON shapes (diet_plans.week_structure, diet_plans.swaps) --
@@ -279,6 +296,8 @@ export interface DietRestMealSnapshot {
   meal_time: string;
   servings: number;
   slotLabel: string;
+  /** Rest-day slot the food belongs to (several foods share one). Older snapshots omit it: one food per entry. */
+  slot_index?: number;
 }
 
 export interface DietWeekStructure {
@@ -289,7 +308,7 @@ export interface DietWeekStructure {
   freeMeal: { enabled: boolean; day: string } | null;
 }
 
-// Keyed by the training-day meal's order_index in diet_plan_meals.
+// Keyed by the training-day slot's slot_index in diet_plan_meals (as a string).
 export type DietSwapsMap = Record<string, { allowedMealIds: string[]; allowOwnLog: boolean }>;
 
 export interface DietPlanExtras {
@@ -424,8 +443,8 @@ interface AppContextType {
   duplicateWorkout: (id: string) => Promise<Workout>;
   assignWorkout: (workoutId: string, clientId: string, date: string) => Promise<void>;
   createMeal: (meal: Partial<Meal>, isGlobal?: boolean) => Promise<Meal>;
-  createDietPlan: (name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
-  updateDietPlan: (id: string, name: string, description: string, mealList: { meal_id: string; meal_time?: string; servings?: number }[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
+  createDietPlan: (name: string, description: string, mealList: DietPlanMealInput[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
+  updateDietPlan: (id: string, name: string, description: string, mealList: DietPlanMealInput[], category?: string, targets?: { calories: number; protein: number; carbs: number; fat: number }, imageUrl?: string | null, extras?: DietPlanExtras) => Promise<DietPlan>;
   duplicateDietPlan: (id: string) => Promise<DietPlan>;
   deleteDietPlan: (id: string) => Promise<void>;
   assignDietPlan: (dietPlanId: string, clientId: string, date: string) => Promise<void>;
@@ -525,6 +544,32 @@ const isMissingSchema = (e: any) =>
 async function logActivity(row: { trainer_id: string; type: string; message: string }) {
   const { error } = await supabase.from('activities').insert(row);
   if (error && __DEV__) console.warn('[AppContext] Activity not recorded:', error.message);
+}
+
+/**
+ * Write the diet_plan_meals rows for a plan: one row per food, slot_index =
+ * its slot, order_index = its position in the slot. Before migration
+ * 20260905050000_diet_slot_index the slot_index column does not exist and
+ * the insert fails 42703 (PGRST204 through PostgREST's schema cache); retry
+ * without it so a plan still saves, and lib/dietSlots.ts then recovers one
+ * food per slot from order_index.
+ */
+async function insertDietMealRows(planId: string, mealList: DietPlanMealInput[]) {
+  if (mealList.length === 0) return;
+  const rows = mealList.map((m, i) => ({
+    diet_plan_id: planId,
+    meal_id: m.meal_id,
+    slot_index: m.slot_index ?? i,
+    order_index: m.order_index ?? i,
+    meal_time: m.meal_time || 'snack',
+    servings: m.servings || 1,
+  }));
+  let { error } = await supabase.from('diet_plan_meals').insert(rows);
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    ({ error } = await supabase.from('diet_plan_meals').insert(rows.map(({ slot_index: _slot, ...rest }) => rest)));
+  }
+  // A plan saved without its meals is an empty plan — do not report success.
+  if (error) throw error;
 }
 
 const sanitizeEquipment = (eq?: string): string | null => {
@@ -1389,7 +1434,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const createDietPlan = useCallback(async (
     name: string,
     description: string,
-    mealList: { meal_id: string; meal_time?: string; servings?: number }[],
+    mealList: DietPlanMealInput[],
     category?: string,
     targets?: { calories: number; protein: number; carbs: number; fat: number },
     imageUrl?: string | null,
@@ -1426,18 +1471,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
     if (error) throw error;
 
-    if (mealList.length > 0) {
-      const rows = mealList.map((m, i) => ({
-        diet_plan_id: dietPlan.id,
-        meal_id: m.meal_id,
-        order_index: i,
-        meal_time: m.meal_time || 'snack',
-        servings: m.servings || 1,
-      }));
-      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
-      // A plan saved without its meals is an empty plan — do not report success.
-      if (mealsError) throw mealsError;
-    }
+    await insertDietMealRows(dietPlan.id, mealList);
 
     const { data: full } = await supabase
       .from('diet_plans')
@@ -1458,7 +1492,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     id: string,
     name: string,
     description: string,
-    mealList: { meal_id: string; meal_time?: string; servings?: number }[],
+    mealList: DietPlanMealInput[],
     category?: string,
     targets?: { calories: number; protein: number; carbs: number; fat: number },
     imageUrl?: string | null,
@@ -1498,18 +1532,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     const { error: clearMealsError } = await supabase.from('diet_plan_meals').delete().eq('diet_plan_id', id);
     // Without a clean slate the insert below would duplicate every meal.
     if (clearMealsError) throw clearMealsError;
-    if (mealList.length > 0) {
-      const rows = mealList.map((m, i) => ({
-        diet_plan_id: id,
-        meal_id: m.meal_id,
-        order_index: i,
-        meal_time: m.meal_time || 'snack',
-        servings: m.servings || 1,
-      }));
-      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
-      // A plan saved without its meals is an empty plan — do not report success.
-      if (mealsError) throw mealsError;
-    }
+    await insertDietMealRows(id, mealList);
 
     const { data: full } = await supabase
       .from('diet_plans')
@@ -1542,16 +1565,14 @@ export function AppProvider({ children }: PropsWithChildren) {
     if (error) throw error;
 
     if (original.diet_plan_meals && original.diet_plan_meals.length > 0) {
-      const rows = original.diet_plan_meals.map((m) => ({
-        diet_plan_id: copy.id,
+      await insertDietMealRows(copy.id, original.diet_plan_meals.map((m) => ({
         meal_id: m.meal_id,
+        // Legacy rows (no slot_index) were one food per slot keyed by order_index.
+        slot_index: m.slot_index ?? m.order_index,
         order_index: m.order_index,
         meal_time: m.meal_time,
         servings: m.servings || 1,
-      }));
-      const { error: mealsError } = await supabase.from('diet_plan_meals').insert(rows);
-      // A plan saved without its meals is an empty plan — do not report success.
-      if (mealsError) throw mealsError;
+      })));
     }
 
     const { data: full } = await supabase

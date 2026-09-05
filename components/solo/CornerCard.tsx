@@ -29,16 +29,9 @@ import { useWorkout } from '../../context/WorkoutContext';
 import { computeStreak } from '../../lib/streak';
 import { getSoloCharacter } from '../../lib/soloCharacters';
 import { useSoloVoice, sampleLine, formatClock } from '../../lib/soloVoice';
+import { SOLO_TINT } from './Presence';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
-
-// Orb glow only — delivery tint, same four characters as soloCharacters.ts.
-const PERSONA_TINT: Record<string, string> = {
-  reyes: '#9FB4C7',
-  imani: '#B7A6F0',
-  dane: '#F0A860',
-  sol: '#A8D8B0',
-};
 
 export default function CornerCard() {
   const router = useRouter();
@@ -47,7 +40,8 @@ export default function CornerCard() {
   const voice = useSoloVoice();
 
   const character = getSoloCharacter((clientData as any)?.solo_character);
-  const tint = PERSONA_TINT[character.key] ?? PERSONA_TINT.reyes;
+  // Orb glow only — the same persona tints as the corner itself.
+  const tint = SOLO_TINT[character.key];
   const hasCharacter = !!(clientData as any)?.solo_character;
   const premiumUntilRaw = (clientData as any)?.premium_until as string | undefined;
   const premiumActive = !!premiumUntilRaw && new Date(premiumUntilRaw).getTime() > Date.now();

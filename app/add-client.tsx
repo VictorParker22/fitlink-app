@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ActivityIndicator, Animated, Keyboard, Share,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,6 +151,16 @@ export default function AddClientScreen() {
   const [contactsIndex, setContactsIndex] = useState<Contacts.Contact[] | null>(null);
   const [contactsDenied, setContactsDenied] = useState(false);
   const searchSeq = useRef(0);
+
+  // The hero name field used to autoFocus. With the header outside the
+  // keyboard-avoiding view and a keyboard-aware scroller inside it, the
+  // focus fired before layout settled and the auto-scroll pushed the field up
+  // under the fixed header. Focus after the screen has laid out instead.
+  const nameInputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    const t = setTimeout(() => nameInputRef.current?.focus(), 350);
+    return () => clearTimeout(t);
+  }, []);
 
   // Free tier holds 5 active athletes; Elite is unlimited. The database
   // enforces this too (trg_roster_cap) — this is the friendly wall, the
@@ -488,9 +497,16 @@ export default function AddClientScreen() {
   }
 
   // ═══════════ RENDER ═══════════
+  // Same shape as app/(auth)/login.tsx: the keyboard-avoiding view wraps the
+  // header, progress and content together, so the whole column shrinks above
+  // the keyboard and nothing scrolls up behind a fixed header. One plain
+  // ScrollView per step, taps outside a field dismiss the keyboard.
   return (
     <View style={st.container}>
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
         {/* Header */}
         <View style={st.header}>
           <TouchableOpacity hitSlop={4} onPress={goBack} style={st.headerBack}>
@@ -514,10 +530,15 @@ export default function AddClientScreen() {
           <Animated.View style={[st.progressFill, { width: `${progressPct * 100}%` }]} />
         </View>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           {/* ═══ STEP 1: Identity — the name is the screen (design option C) ═══ */}
           {step === 1 && (
-            <KeyboardAwareScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" extraScrollHeight={80} enableOnAndroid>
+            <ScrollView
+              contentContainerStyle={st.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              bounces={false}
+            >
               {/* Hero name field: one oversized input; contacts + FitLink
                   matches surface live underneath as the coach types. */}
               <View style={st.heroRow}>
@@ -540,13 +561,14 @@ export default function AddClientScreen() {
                 <View style={st.heroField}>
                   <Text style={st.heroLabel}>Athlete name</Text>
                   <TextInput
+                    ref={nameInputRef}
                     style={st.heroInput}
                     placeholder="Start typing…"
                     placeholderTextColor={CoachColors.textFaint}
                     value={name}
                     onChangeText={setName}
-                    autoFocus
                     autoCorrect={false}
+                    accessibilityLabel="Athlete name"
                   />
                 </View>
               </View>
@@ -697,12 +719,18 @@ export default function AddClientScreen() {
                 </View>
               </View>
               <Text style={st.helperText}>The email is how they get their invite and sign in.</Text>
-            </KeyboardAwareScrollView>
+            </ScrollView>
           )}
 
           {/* ═══ STEP 2: Pass enrollment (status folded into the choice) ═══ */}
           {step === 2 && (
-            <KeyboardAwareScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false} extraScrollHeight={80} enableOnAndroid>
+            <ScrollView
+              contentContainerStyle={st.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              bounces={false}
+            >
               <Text style={st.sectionLabel}>Choose a pass</Text>
 
               {plans.map(plan => {
@@ -782,12 +810,18 @@ export default function AddClientScreen() {
                   </View>
                 </>
               )}
-            </KeyboardAwareScrollView>
+            </ScrollView>
           )}
 
           {/* ═══ STEP 3: Goals, Notes & Invite ═══ */}
           {step === 3 && (
-            <KeyboardAwareScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" extraScrollHeight={80} enableOnAndroid>
+            <ScrollView
+              contentContainerStyle={st.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              bounces={false}
+            >
               {/* Goals */}
               <Text style={st.sectionLabel}>Goals</Text>
               <View style={st.goalChips}>
@@ -881,7 +915,7 @@ export default function AddClientScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
               </TouchableOpacity>
-            </KeyboardAwareScrollView>
+            </ScrollView>
           )}
 
           {/* ═══ Bottom CTA ═══ */}
@@ -913,6 +947,8 @@ export default function AddClientScreen() {
               )}
             </View>
           )}
+        </View>
+        </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </SafeAreaView>
       <CoachElitePaywall
@@ -948,7 +984,9 @@ const st = StyleSheet.create({
   progressTrack: { height: 3, backgroundColor: TRACK_BG, marginHorizontal: 20, borderRadius: 2, borderCurve: 'continuous' },
   progressFill: { height: 3, backgroundColor: CoachColors.accent, borderRadius: 2, borderCurve: 'continuous' },
 
-  scrollContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 130 },
+  // 130 keeps the last field clear of the absolute CTA; flexGrow lets the
+  // column fill the screen so a tap on empty space reaches the dismisser.
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 130 },
 
   // Section label — sentence case text, small eyebrow treatment
   sectionLabel: {

@@ -9,6 +9,11 @@
  * AuthContext so layers tracking keeps firing exactly as before. AuthGuard
  * handles the redirect once a session exists — this screen never navigates
  * on a successful phone verification.
+ *
+ * Arriving from the editorial account step (?from=account) with a draft name
+ * (lib/onboardingDraft.ts) hides the Name field and shows "Signing up as …"
+ * with a way back to change it — the same pattern as client-signup.tsx, so a
+ * coach is never asked for their name twice in a row.
  */
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -17,7 +22,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { loadDraft } from '../../lib/onboardingDraft';
@@ -53,10 +58,17 @@ export default function CoachSignupScreen() {
   const { signUp, signInWithPhone, verifyOtp } = useAuth();
   const { showAlert } = useAlert();
   const reduced = useReducedMotion();
+  const params = useLocalSearchParams<{ from?: string }>();
+  // The account step pushed this screen, so it is still on the stack and
+  // "Change" can simply go back to it.
+  const fromAccount = params.from === 'account';
 
   const [authMode, setAuthMode] = useState<AuthMode>('email');
   const [step, setStep] = useState<Step>('info');
   const [draftAck, setDraftAck] = useState(false);
+  // The name typed on the account step. With it, the Name field is hidden
+  // rather than asked for a second time.
+  const [draftName, setDraftName] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -83,9 +95,14 @@ export default function CoachSignupScreen() {
     loadDraft().then((d) => {
       if (d.role === 'trainer' && d.goals?.length) setDraftAck(true);
       // The account step already asked for the name; do not ask twice.
-      if (d.name) setName((prev) => prev || d.name!);
+      if (d.name) {
+        setName((prev) => prev || d.name!);
+        setDraftName(d.name.trim() || null);
+      }
     });
   }, []);
+
+  const signingUpAs = fromAccount && draftName ? draftName : null;
 
   // ── Step transition: 320ms fade + 16px slide, 200ms crossfade with Reduce
   // Motion. ──────────────────────────────────────────────────────────────
@@ -259,22 +276,39 @@ export default function CoachSignupScreen() {
                 </View>
 
                 <View style={{ marginTop: 20, gap: 14 }}>
-                  <Field label="Your name">
-                    <TextInput
-                      ref={nameRef}
-                      style={styles.input}
-                      placeholder="Coach Mike Johnson"
-                      placeholderTextColor={OB.faint}
-                      value={name}
-                      onChangeText={setName}
-                      autoComplete="name"
-                      textContentType="name"
-                      returnKeyType="next"
-                      onSubmitEditing={() => (authMode === 'email' ? emailRef : phoneRef).current?.focus()}
-                      accessibilityLabel="Full name"
-                      selectionColor={OB.accent}
-                    />
-                  </Field>
+                  {signingUpAs ? (
+                    <View style={styles.asRow}>
+                      <Text style={styles.asText} numberOfLines={1} accessibilityLabel={`Signing up as ${signingUpAs}`}>
+                        Signing up as <Text style={styles.asName}>{signingUpAs}</Text>
+                      </Text>
+                      <Text style={styles.asText}> · </Text>
+                      <Pressable
+                        onPress={() => router.back()}
+                        hitSlop={12}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change name"
+                      >
+                        <Text style={styles.asChange}>Change</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Field label="Your name">
+                      <TextInput
+                        ref={nameRef}
+                        style={styles.input}
+                        placeholder="Coach Mike Johnson"
+                        placeholderTextColor={OB.faint}
+                        value={name}
+                        onChangeText={setName}
+                        autoComplete="name"
+                        textContentType="name"
+                        returnKeyType="next"
+                        onSubmitEditing={() => (authMode === 'email' ? emailRef : phoneRef).current?.focus()}
+                        accessibilityLabel="Full name"
+                        selectionColor={OB.accent}
+                      />
+                    </Field>
+                  )}
 
                   {authMode === 'email' ? (
                     <>
@@ -290,6 +324,7 @@ export default function CoachSignupScreen() {
                           autoCapitalize="none"
                           autoComplete="email"
                           textContentType="emailAddress"
+                          autoFocus={!!signingUpAs}
                           returnKeyType="next"
                           onSubmitEditing={() => passwordRef.current?.focus()}
                           accessibilityLabel="Email address"
@@ -338,6 +373,7 @@ export default function CoachSignupScreen() {
                         keyboardType="phone-pad"
                         autoComplete="tel"
                         textContentType="telephoneNumber"
+                        autoFocus={!!signingUpAs}
                         returnKeyType="done"
                         onSubmitEditing={handleSendOtp}
                         accessibilityLabel="Phone number"
@@ -448,6 +484,12 @@ const styles = StyleSheet.create({
 
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
   noteText: { flex: 1, fontFamily: OBFonts.sans, fontSize: 13, lineHeight: 18, color: OB.muted },
+
+  // "Signing up as Name · Change": one 44pt row in place of the Name field.
+  asRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  asText: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.muted, flexShrink: 1 },
+  asName: { fontFamily: OBFonts.sansSemiBold, color: OB.fg },
+  asChange: { fontFamily: OBFonts.sansSemiBold, fontSize: 14, color: OB.fg, textDecorationLine: 'underline' },
 
   errorText: { fontFamily: OBFonts.sans, fontSize: 14, color: OB.danger, marginBottom: 4 },
 

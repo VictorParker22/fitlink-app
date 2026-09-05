@@ -11,6 +11,7 @@ import Avatar from '../../components/Avatar';
 import { Spacing, FontSize, Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useFoodImage } from '../../lib/foodImages';
+import { groupRowsBySlot } from '../../lib/dietSlots';
 
 const CARB_GREY = '#7A8072';
 const FAT_GREY = '#4A4F45';
@@ -79,7 +80,7 @@ export default function DietDetailScreen() {
   const [deleting, setDeleting] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedSwapId, setExpandedSwapId] = useState<string | null>(null);
+  const [expandedSwapSlot, setExpandedSwapSlot] = useState<number | null>(null);
 
   const diet = useMemo(() => diets.find((d) => d.id === id), [diets, id]);
 
@@ -96,19 +97,17 @@ export default function DietDetailScreen() {
     return acc;
   }, { calories: 0, protein: 0, carbs: 0, fat: 0 }), [mealsList]);
 
-  const groupedMeals = useMemo(() => {
-    const groups: Record<string, typeof mealsList> = {};
-    for (const dm of mealsList) {
-      const key = dm.meal_time || dm.meals?.category?.toLowerCase() || 'other';
-      const normalised = MEAL_SECTIONS.some(s => s.key === key && s.key !== 'other') ? key : 'other';
-      if (!groups[normalised]) groups[normalised] = [];
-      groups[normalised].push(dm);
-    }
-    for (const key of Object.keys(groups)) {
-      groups[key].sort((a, b) => a.order_index - b.order_index);
-    }
-    return groups;
-  }, [mealsList]);
+  // One section per slot, several foods in each. Rows are grouped by
+  // slot_index (legacy rows without it: one per order_index) and labelled
+  // from week_structure.slotLabels, falling back to the meal time.
+  const slotLabels = diet?.week_structure?.slotLabels;
+  const slotGroups = useMemo(() => groupRowsBySlot(mealsList).map(({ slotIndex, items }) => {
+    const timeKey = items[0]?.meal_time || items[0]?.meals?.category?.toLowerCase() || 'other';
+    const section = MEAL_SECTIONS.find(s => s.key === timeKey) || MEAL_SECTIONS[MEAL_SECTIONS.length - 1];
+    const label = slotLabels?.[slotIndex] || (section.key === 'other' ? `Meal ${slotIndex + 1}` : section.label);
+    const kcal = Math.round(items.reduce((sum, dm) => sum + (dm.meals ? dm.meals.calories * (dm.servings || 1) : 0), 0));
+    return { slotIndex, items, label, icon: section.icon, kcal };
+  }), [mealsList, slotLabels]);
 
   if (!diet) {
     return (
@@ -300,10 +299,6 @@ export default function DietDetailScreen() {
     const m = dm.meals;
     if (!m) return null;
     const servings = dm.servings || 1;
-    const swapEntry = swaps?.[String(dm.order_index)];
-    const swapMealIds = swapEntry?.allowedMealIds || [];
-    const hasSwaps = swapMealIds.length > 0;
-    const expanded = expandedSwapId === dm.id;
 
     return (
       <View key={dm.id}>
@@ -317,24 +312,46 @@ export default function DietDetailScreen() {
             <Text style={styles.mealMacroLine}>
               P {Math.round(m.protein * servings)}  C {Math.round(m.carbs * servings)}  F {Math.round(m.fat * servings)}
             </Text>
-            {hasSwaps && (
-              <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
-                style={styles.swapTag}
-                onPress={() => setExpandedSwapId(prev => prev === dm.id ? null : dm.id)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="swap-horizontal" size={13} color={CoachColors.accent} />
-                <Text style={styles.swapTagText}>
-                  {swapMealIds.length} swap{swapMealIds.length !== 1 ? 's' : ''} allowed
-                </Text>
-                <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={CoachColors.accent} />
-              </TouchableOpacity>
-            )}
           </View>
           <Text style={styles.mealKcal}>{Math.round(m.calories * servings)} kcal</Text>
         </View>
 
-        {hasSwaps && expanded && (
+        {!isLast && <View style={styles.rowDivider} />}
+      </View>
+    );
+  };
+
+  // Swaps are slot-level: the athlete may switch the whole slot for one of these.
+  const renderSlotSwaps = (slotIndex: number, slotLabel: string) => {
+    const swapEntry = swaps?.[String(slotIndex)];
+    const swapMealIds = swapEntry?.allowedMealIds || [];
+    const hasSwaps = swapMealIds.length > 0 || !!swapEntry?.allowOwnLog;
+    if (!hasSwaps) return null;
+    const expanded = expandedSwapSlot === slotIndex;
+
+    return (
+      <View key={`swaps-${slotIndex}`}>
+        <View style={styles.rowDivider} />
+        <TouchableOpacity
+          style={styles.slotSwapRow}
+          onPress={() => setExpandedSwapSlot(prev => prev === slotIndex ? null : slotIndex)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Swaps for ${slotLabel}`}
+          accessibilityState={{ expanded }}
+        >
+          <View style={styles.swapTag}>
+            <Ionicons name="swap-horizontal" size={13} color={CoachColors.accent} />
+            <Text style={styles.swapTagText}>
+              {swapMealIds.length > 0
+                ? `${swapMealIds.length} swap${swapMealIds.length !== 1 ? 's' : ''} allowed`
+                : 'Own log allowed'}
+            </Text>
+            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={CoachColors.accent} />
+          </View>
+        </TouchableOpacity>
+
+        {expanded && (
           <View style={styles.swapList}>
             {swapMealIds.map(mid => {
               const swapMeal = meals.find(x => x.id === mid);
@@ -355,8 +372,6 @@ export default function DietDetailScreen() {
             )}
           </View>
         )}
-
-        {!isLast && <View style={styles.rowDivider} />}
       </View>
     );
   };
@@ -497,23 +512,19 @@ export default function DietDetailScreen() {
             </View>
           )}
 
-          {/* ── Meals grouped by meal time ── */}
-          {MEAL_SECTIONS.map((section) => {
-            const group = groupedMeals[section.key];
-            if (!group || group.length === 0) return null;
-            const groupKcal = Math.round(group.reduce((sum, dm) => sum + (dm.meals ? dm.meals.calories * (dm.servings || 1) : 0), 0));
-            return (
-              <View key={section.key} style={styles.mealSection}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionEyebrow}>{section.label.toUpperCase()}</Text>
-                  <Text style={styles.sectionKcal}>{groupKcal.toLocaleString()} kcal</Text>
-                </View>
-                <View style={styles.mealGroupCard}>
-                  {group.map((dm, i) => renderMealCard(dm, section.icon, i === group.length - 1))}
-                </View>
+          {/* ── Meals grouped by slot — one section per slot, its foods inside ── */}
+          {slotGroups.map((group) => (
+            <View key={`slot-${group.slotIndex}`} style={styles.mealSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionEyebrow}>{group.label.toUpperCase()}</Text>
+                <Text style={styles.sectionKcal}>{group.kcal.toLocaleString()} kcal</Text>
               </View>
-            );
-          })}
+              <View style={styles.mealGroupCard}>
+                {group.items.map((dm, i) => renderMealCard(dm, group.icon, i === group.items.length - 1))}
+                {renderSlotSwaps(group.slotIndex, group.label)}
+              </View>
+            </View>
+          ))}
 
           {/* ── Who's on it ── */}
           {assignedClients.length > 0 && (
@@ -717,10 +728,11 @@ const styles = StyleSheet.create({
   },
   rowDivider: { height: 1, backgroundColor: CoachColors.borderMuted, marginHorizontal: Spacing.lg },
 
-  // Swaps
+  // Swaps (slot-level; the row is the 44pt target, the tag is the glyph)
+  slotSwapRow: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Spacing.lg, paddingVertical: 6 },
   swapTag: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    alignSelf: 'flex-start', marginTop: 6,
+    alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3,
     backgroundColor: CoachColors.accentSofter,
     borderRadius: Radius.full, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.accentSoft,

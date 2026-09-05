@@ -62,18 +62,27 @@ The coach has requested a diet plan with the following prompt:
 Here is the coach's existing library of saved meals:
 ${mealListStr || "(No saved meals yet)"}
 
-CRITICAL INSTRUCTION:
-You MUST prioritize using the exact meals from the coach's library above if they fit the diet's macros.
-Use their EXACT name and macros.
-If, and only if, the existing meals do not fulfill the prompt's requirements, you may invent new meals.
-When inventing new meals, the meal name MUST describe the actual food being eaten (e.g., "3 Scrambled Eggs and Half Avocado", "Grilled Chicken Breast with Sweet Potato", "1 cup Oatmeal with Blueberries").
-NEVER use abstract names like "Lean Start Breakfast", "Healthy Lunch", or "Pre-workout Snack". Name the actual food.
-Provide accurate macronutrient data for a single standard serving of the food, and then specify how many servings the person should eat to hit the target.
+CRITICAL INSTRUCTIONS:
+1. Each entry in "meals" is ONE food or ONE dish — never a whole meal made of several dishes.
+   A meal slot (e.g. breakfast) is built from several entries that share the same meal_time.
+   RIGHT: three entries for breakfast — "Rolled oats", "Whole milk", "Blueberries".
+   WRONG: one entry "Oatmeal with milk and blueberries plus a black coffee".
+   A single composed dish that is eaten as one thing ("Chicken burrito bowl", "Greek yoghurt with honey") is fine as one entry.
+2. Prefer the coach's library above. When a library food fits, use its EXACT name and EXACT macros.
+   Only add a food that is not in the library when the library cannot cover the prompt.
+3. Name the actual food, never the slot. RIGHT: "Grilled chicken breast", "Basmati rice, cooked", "2 whole eggs".
+   WRONG: "Lean start breakfast", "Healthy lunch", "Pre-workout snack".
+4. Macros are for ONE realistic serving of that food (a standard portion: 100 g cooked rice, 1 medium banana,
+   30 g whey, 1 tbsp olive oil, one egg). Then set "servings" so the day lands on the targets.
+   Servings must be between 0.25 and 6, in steps of 0.25.
+5. "meal_time" MUST be exactly one of "breakfast", "lunch", "dinner", "snack" — lower-case, nothing else.
+   Snacks between meals and around training all use "snack".
+6. Respect every restriction in the prompt (allergies, "no dairy", vegan, budget, cooking time). Never include a food the prompt rules out.
 
 You MUST respond with a JSON object exactly matching this schema:
 {
-  "name": string,           // A punchy, professional diet name (e.g. "Lean Summer Cut")
-  "description": string,    // Brief description of the diet's goal and style (1-2 sentences)
+  "name": string,           // A short, professional plan name (e.g. "Lean Summer Cut")
+  "description": string,    // Brief description of the plan's goal and style (1-2 sentences)
   "category": string,       // MUST be one of: ["balanced", "high-protein", "keto", "vegan", "weight-loss", "custom"]
   "targets": {
     "calories": number,
@@ -83,22 +92,23 @@ You MUST respond with a JSON object exactly matching this schema:
   },
   "meals": [
     {
-      "name": string,       // e.g. "Chicken Breast & Sweet Potato"
+      "name": string,       // ONE food or dish, e.g. "Grilled chicken breast"
       "meal_time": string,  // MUST be one of: ["breakfast", "lunch", "dinner", "snack"]
       "category": string,   // e.g. "Protein", "Carbs", "Fats", "Vegetables", "Mixed"
-      "calories": number,   // Calories for 1 standard serving of this combined meal
-      "protein": number,    // Protein (g) for 1 standard serving
-      "carbs": number,      // Carbs (g) for 1 standard serving
-      "fat": number,        // Fat (g) for 1 standard serving
-      "servings": number    // How many servings the client should eat of this meal in the plan (e.g., 1, 1.5, 2)
+      "calories": number,   // Calories for 1 serving of this food
+      "protein": number,    // Protein (g) for 1 serving
+      "carbs": number,      // Carbs (g) for 1 serving
+      "fat": number,        // Fat (g) for 1 serving
+      "servings": number    // How many servings in the plan (0.25 – 6, steps of 0.25)
     }
   ]
 }
 
 Rules:
-- The sum of (meal.calories * meal.servings) across all meals MUST roughly equal the targets.calories.
-- Generate at least 3-5 realistic meals covering Breakfast, Lunch, Dinner, and optionally Snacks.
-- Use accurate macronutrient ratios. 1g Protein = 4 kcal, 1g Carbs = 4 kcal, 1g Fat = 9 kcal.
+- The sum of (meal.calories * meal.servings) across all entries MUST land within 5% of targets.calories, and protein within 10% of targets.protein.
+- Cover breakfast, lunch and dinner. Add snacks when the calories or the prompt call for them.
+- Return between 6 and 16 entries in total, 1 to 4 per meal_time, listed in the order they are eaten through the day.
+- Macros must be internally consistent: calories ≈ 4 × protein + 4 × carbs + 9 × fat (within 10%).
 `;
 
     const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: 20000, label: 'generate-diet' });
@@ -113,8 +123,10 @@ Rules:
       });
     }
 
+    // Up to 16 foods: one food per entry, several per slot, so a full day
+    // with snacks needs more than the old 12-meal ceiling.
     const meals = (Array.isArray(raw.meals) ? raw.meals : [])
-      .slice(0, 12)
+      .slice(0, 16)
       .map((m: any) => ({
         name: clampStr(m?.name, 80, 'Meal'),
         meal_time: pickEnum(m?.meal_time, MEAL_TIMES, 'snack'),
@@ -123,7 +135,8 @@ Rules:
         protein: clampInt(m?.protein, 0, 400, 0),
         carbs: clampInt(m?.carbs, 0, 600, 0),
         fat: clampInt(m?.fat, 0, 300, 0),
-        servings: Math.min(10, Math.max(0.25, Number.isFinite(Number(m?.servings)) ? Number(m.servings) : 1)),
+        // Quarter-serving steps, matching the builder's stepper.
+        servings: Math.round(Math.min(10, Math.max(0.25, Number.isFinite(Number(m?.servings)) ? Number(m.servings) : 1)) * 4) / 4,
       }))
       .filter((m: any) => m.name);
 

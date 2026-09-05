@@ -51,6 +51,7 @@ import AiConsentSheet from '../../components/solo/AiConsentSheet';
 import { hasAiConsent } from '../../lib/aiConsent';
 import { buildSoloProgram } from '../../lib/soloProgram';
 import { layers } from '../../lib/layers';
+import { ClientRoute } from '../../types/routes';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 
 interface SoloMessage {
@@ -58,6 +59,9 @@ interface SoloMessage {
   role: 'athlete' | 'corner';
   content: string;
   created_at: string;
+  /** Which persona spoke a corner line. NULL on rows from before the
+   *  column existed — those are shown under the current character. */
+  character?: string | null;
 }
 
 /** First-open brief fallback if the server call fails before anything else has spoken. */
@@ -244,7 +248,7 @@ export default function SoloScreen() {
               const msgId = await persistCornerMessage(res.changes);
               setCurrentMessageId(msgId);
               setMessages((prev) => [...prev, {
-                id: msgId ?? `local-adapt-${Date.now()}`, role: 'corner', content: res.changes!, created_at: new Date().toISOString(),
+                id: msgId ?? `local-adapt-${Date.now()}`, role: 'corner', content: res.changes!, created_at: new Date().toISOString(), character: character.key,
               }]);
               speakReply(res.changes);
             }
@@ -268,7 +272,7 @@ export default function SoloScreen() {
     (async () => {
       const { data, error } = await supabase
         .from('solo_messages')
-        .select('id, role, content, created_at')
+        .select('id, role, content, created_at, character')
         .eq('client_id', clientData.id)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -448,12 +452,14 @@ export default function SoloScreen() {
     }
   }, [voice, character.key, autoPlay, callCorner]);
 
-  /** Returns the persisted row's id (for feedback's message_id), or null. */
+  /** Returns the persisted row's id (for feedback's message_id), or null.
+   *  Stamps the persona that spoke it so the transcript stays honest after
+   *  a voice change. */
   const persistCornerMessage = useCallback(async (content: string): Promise<string | null> => {
     if (!clientData?.id) return null;
     const { data, error } = await supabase
       .from('solo_messages')
-      .insert({ client_id: clientData.id, role: 'corner', content })
+      .insert({ client_id: clientData.id, role: 'corner', content, character: character.key })
       .select('id')
       .single();
     if (error) {
@@ -461,7 +467,38 @@ export default function SoloScreen() {
       return null;
     }
     return (data as any)?.id ?? null;
-  }, [clientData?.id]);
+  }, [clientData?.id, character.key]);
+
+  // ── Voice changed while the corner is open (solo-setup in change mode
+  // pushes over this screen, writes the row, refreshData() lands here, then
+  // pops back). Only a change between two REAL saved values counts — the
+  // first hydrate from "no row yet" to the saved pick is not a switch.
+  const savedCharacterRaw = ((clientData as any)?.solo_character as string | null | undefined) || null;
+  const prevSavedCharacterRef = useRef<string | null>(savedCharacterRaw);
+  useEffect(() => {
+    const prev = prevSavedCharacterRef.current;
+    if (savedCharacterRaw) prevSavedCharacterRef.current = savedCharacterRaw;
+    if (!prev || !savedCharacterRaw || prev === savedCharacterRaw) return;
+    const next = getSoloCharacter(savedCharacterRaw);
+    const line = `${next.name} here. Same numbers, new voice.`;
+    voice.stop();
+    streamKeyRef.current = null;
+    setBasedOn([]);
+    setCurrentMessageId(null);
+    setPromptVersion(null);
+    setCurrentLine(line);
+    // speakReply and persistCornerMessage were rebuilt on this render with
+    // the new character.key, so both already speak and stamp the new voice.
+    speakReply(line);
+    (async () => {
+      const msgId = await persistCornerMessage(line);
+      setCurrentMessageId(msgId);
+      setMessages((prevMsgs) => [...prevMsgs, {
+        id: msgId ?? `local-switch-${Date.now()}`, role: 'corner', content: line, created_at: new Date().toISOString(), character: next.key,
+      }]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedCharacterRaw]);
 
   // One vote per line: submit at most once for the currently-spoken content.
   const submitFeedback = useCallback((verdict: 'up' | 'down') => {
@@ -502,7 +539,7 @@ export default function SoloScreen() {
         setCurrentMessageId(msgId);
         setPromptVersion(out.promptVersion);
         setMessages((prev) => [...prev, {
-          id: msgId ?? `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+          id: msgId ?? `local-brief-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(), character: character.key,
         }]);
         layers.track('brief_delivered', {
           character: character.key,
@@ -571,7 +608,7 @@ export default function SoloScreen() {
         setCurrentMessageId(msgId);
         setPromptVersion(out.promptVersion);
         setMessages((prev) => [...prev, {
-          id: msgId ?? `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(),
+          id: msgId ?? `local-corner-${Date.now()}`, role: 'corner', content: reply, created_at: new Date().toISOString(), character: character.key,
         }]);
         layers.track('corner_reply', {
           character: character.key,
@@ -685,16 +722,28 @@ export default function SoloScreen() {
   const speaking = voice.state.activeText === currentLine && voice.state.playing;
   const orbLoading = waitingReply || (voice.state.activeText === currentLine && voice.state.loading);
 
+  // Grouped by day; each corner line carries the persona that said it, and a
+  // line whose persona differs from the previous corner line is marked as a
+  // switch so the transcript can show "Switched to X" between them. Rows
+  // from before the character column are shown under the current voice.
   const groupedHistory = useMemo(() => {
-    const groups: { header: string; items: SoloMessage[] }[] = [];
+    const groups: { header: string; items: { msg: SoloMessage; speaker: ReturnType<typeof getSoloCharacter>; switched: boolean }[] }[] = [];
+    let lastCornerKey: string | null = null;
     messages.forEach((m) => {
       const header = dayHeader(m.created_at);
+      const speaker = getSoloCharacter(m.character ?? character.key);
+      let switched = false;
+      if (m.role === 'corner') {
+        switched = lastCornerKey !== null && lastCornerKey !== speaker.key;
+        lastCornerKey = speaker.key;
+      }
+      const item = { msg: m, speaker, switched };
       const last = groups[groups.length - 1];
-      if (last && last.header === header) last.items.push(m);
-      else groups.push({ header, items: [m] });
+      if (last && last.header === header) last.items.push(item);
+      else groups.push({ header, items: [item] });
     });
     return groups;
-  }, [messages]);
+  }, [messages, character.key]);
 
   // ── Corner not set up yet: a real state, not a spinner forever ────────────
   if (!clientData?.id) {
@@ -765,6 +814,17 @@ export default function SoloScreen() {
             accessibilityLabel="Open transcript history"
           >
             <Ionicons name="time-outline" size={18} color={C.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.iconBtn}
+            onPress={() => router.push(`${ClientRoute.soloSetup}?change=1` as any)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Change voice, currently ${character.name}`}
+            accessibilityHint="Opens the four corner voices. Same brain, same numbers."
+          >
+            <Ionicons name="swap-horizontal-outline" size={18} color={C.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -942,42 +1002,57 @@ export default function SoloScreen() {
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={s.kicker} maxFontSizeMultiplier={1.4}>This week</Text>
-              <Text style={s.title} maxFontSizeMultiplier={1.3}>Everything {character.name} said</Text>
+              <Text style={s.title} maxFontSizeMultiplier={1.3}>Everything your corner said</Text>
             </View>
           </View>
           <ScrollView contentContainerStyle={s.historyScroll} showsVerticalScrollIndicator={false}>
             {groupedHistory.map((group) => (
               <View key={group.header}>
                 <Text style={s.dayHeader} maxFontSizeMultiplier={1.3}>{group.header.toUpperCase()}</Text>
-                {group.items.map((m) => {
+                {group.items.map(({ msg: m, speaker, switched }) => {
                   const isAthlete = m.role === 'athlete';
                   const isActive = voice.state.activeText === m.content && (voice.state.playing || voice.state.loading);
+                  const rowTint = SOLO_TINT[speaker.key];
                   return (
-                    <View key={m.id} style={s.historyRow}>
-                      <View style={s.historyLabelRow}>
-                        {!isAthlete && <View style={[s.historyDot, { backgroundColor: tint }]} />}
-                        <Text style={s.historyLabel} maxFontSizeMultiplier={1.3}>
-                          {isAthlete ? 'You' : character.name}
-                        </Text>
-                      </View>
-                      <Text style={[s.historyText, isAthlete && s.historyTextMuted]} maxFontSizeMultiplier={1.4}>
-                        {m.content}
-                      </Text>
-                      {!isAthlete && (
-                        <TouchableOpacity
-                          style={s.historyPlay}
-                          onPress={() => voice.toggle(m.content, character.key)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={isActive && voice.state.playing ? 'Pause' : 'Play this line'}
+                    <View key={m.id}>
+                      {switched && (
+                        <View
+                          style={s.historySwitch}
+                          accessible
+                          accessibilityRole="text"
+                          accessibilityLabel={`Switched to ${speaker.name}`}
                         >
-                          <Ionicons
-                            name={isActive && voice.state.playing ? 'pause' : 'play'}
-                            size={12}
-                            color={C.textFaint}
-                          />
-                        </TouchableOpacity>
+                          <View style={s.historySwitchLine} />
+                          <Text style={s.historySwitchText} maxFontSizeMultiplier={1.3}>Switched to {speaker.name}</Text>
+                          <View style={s.historySwitchLine} />
+                        </View>
                       )}
+                      <View style={s.historyRow}>
+                        <View style={s.historyLabelRow}>
+                          {!isAthlete && <View style={[s.historyDot, { backgroundColor: rowTint }]} />}
+                          <Text style={s.historyLabel} maxFontSizeMultiplier={1.3}>
+                            {isAthlete ? 'You' : speaker.name}
+                          </Text>
+                        </View>
+                        <Text style={[s.historyText, isAthlete && s.historyTextMuted]} maxFontSizeMultiplier={1.4}>
+                          {m.content}
+                        </Text>
+                        {!isAthlete && (
+                          <TouchableOpacity
+                            style={s.historyPlay}
+                            onPress={() => voice.toggle(m.content, speaker.key)}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityRole="button"
+                            accessibilityLabel={isActive && voice.state.playing ? 'Pause' : `Play this line in ${speaker.name}'s voice`}
+                          >
+                            <Ionicons
+                              name={isActive && voice.state.playing ? 'pause' : 'play'}
+                              size={12}
+                              color={C.textFaint}
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -1111,5 +1186,12 @@ const s = StyleSheet.create({
   historyText: { fontFamily: F.body, fontSize: 15, lineHeight: 22, color: C.textPrimary },
   historyTextMuted: { color: C.textSecondary },
   historyPlay: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  // "Switched to X" — a quiet seam between two personas, not a message.
+  historySwitch: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  historySwitchLine: { flex: 1, height: 1, backgroundColor: C.borderMuted },
+  historySwitchText: {
+    fontFamily: F.bodySemiBold, fontSize: 11, letterSpacing: 0.8,
+    textTransform: 'uppercase', color: C.textFaint,
+  },
   historyEmpty: { fontFamily: F.body, fontSize: 14, color: C.textFaint, textAlign: 'center', marginTop: 40 },
 });

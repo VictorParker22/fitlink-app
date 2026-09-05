@@ -13,11 +13,12 @@ import { Image as ExpoImage } from 'expo-image';
 import { decode } from 'base64-arraybuffer';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
-import { useApp, DietWeekStructure, DietSwapsMap, DietPlanExtras } from '../context/AppContext';
+import { useApp, DietWeekStructure, DietSwapsMap, DietPlanExtras, DietPlanMealInput, DietRestMealSnapshot } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { searchNutrition, nutritionToMeal } from '../lib/nutritionApi';
+import { foodTotals, groupRowsBySlot } from '../lib/dietSlots';
 import { Spacing, Radius } from '../constants/theme';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -39,15 +40,44 @@ interface SelectedMeal {
   serving_size_g?: number;
 }
 
+/**
+ * One meal slot of the day. A slot holds one or more foods (`items`); each
+ * food becomes its own diet_plan_meals row with slot_index = the slot's
+ * position and order_index = its position here. Swaps are slot-level.
+ */
 interface Slot {
   label: string;
   meal_time: MealTimeKey;
-  meal: SelectedMeal | null;
+  items: SelectedMeal[];
   swaps: { allowedMealIds: string[]; allowOwnLog: boolean };
 }
 
 type DayVariant = 'training' | 'rest';
 type PresetKey = 'building' | 'cutting' | 'holding' | 'custom';
+type ScreenMode = 'wizard' | 'describe';
+
+const MEAL_TIME_KEYS: MealTimeKey[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_TIME_LABELS: Record<MealTimeKey, string> = {
+  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
+};
+const asMealTime = (v: unknown, fallback: MealTimeKey = 'snack'): MealTimeKey =>
+  MEAL_TIME_KEYS.includes(v as MealTimeKey) ? (v as MealTimeKey) : fallback;
+// meals.category is checked against Breakfast|Lunch|Dinner|Snack — always
+// derive it from the slot's meal_time for any row this screen creates.
+const categoryForMealTime = (mt: MealTimeKey) => MEAL_TIME_LABELS[mt];
+const snapServings = (v: unknown) => {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  return Math.max(0.25, Math.round(n * 4) / 4);
+};
+const emptySwaps = () => ({ allowedMealIds: [] as string[], allowOwnLog: false });
+
+const DIET_CATEGORIES = ['balanced', 'high-protein', 'keto', 'vegan', 'weight-loss', 'custom'];
+const AI_EXAMPLE_PROMPTS = [
+  'High-protein day for a 75 kg lifter cutting, 1,850 kcal, no dairy',
+  'Vegan bulk, 3,000 kcal, four meals, cheap staples',
+  'Balanced 2,200 kcal day for a runner, two snacks around a lunchtime session',
+];
 
 // Percent splits (protein / carbs / fat, of calories).
 const PRESETS: Record<Exclude<PresetKey, 'custom'>, { p: number; c: number; f: number; label: string; category: string }> = {
@@ -97,19 +127,14 @@ const WEEK_DAYS = [
 
 const emptySlots = (count: number): Slot[] =>
   (SLOT_TEMPLATES[count] || SLOT_TEMPLATES[4]).map(t => ({
-    ...t, meal: null, swaps: { allowedMealIds: [], allowOwnLog: false },
+    ...t, items: [], swaps: emptySwaps(),
   }));
 
-const slotTotals = (slots: Slot[]) =>
-  slots.reduce((acc, s) => {
-    if (!s.meal) return acc;
-    const sv = s.meal.servings || 1;
-    acc.calories += s.meal.calories * sv;
-    acc.protein += s.meal.protein * sv;
-    acc.carbs += s.meal.carbs * sv;
-    acc.fat += s.meal.fat * sv;
-    return acc;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+const slotTotals = (slots: Slot[]) => foodTotals(slots.flatMap(s => s.items));
+
+const itemLine = (it: SelectedMeal) =>
+  `${Math.round(it.calories * it.servings)} kcal · P ${Math.round(it.protein * it.servings)} C ${Math.round(it.carbs * it.servings)} F ${Math.round(it.fat * it.servings)}`
+  + (it.servings !== 1 ? ` · ${it.servings}x` : '');
 
 const fmtK = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`;
 
@@ -204,6 +229,11 @@ export default function CreateDietScreen() {
 
   // ── STEP MACHINE ──
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  // 'describe' is the AI describe-it screen reached from Step 1; it returns
+  // to the wizard on Step 2 with the day filled in.
+  const [mode, setMode] = useState<ScreenMode>('wizard');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   // ── Step 1: targets ──
   const [name, setName] = useState('');
@@ -233,7 +263,9 @@ export default function CreateDietScreen() {
   const [saving, setSaving] = useState(false);
 
   // ── Search modal (reused meal search, scoped to a slot) ──
+  // searchItemIndex: null appends a food to the slot; a number replaces that food.
   const [searchSlotIndex, setSearchSlotIndex] = useState<number | null>(null);
+  const [searchItemIndex, setSearchItemIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [apiResults, setApiResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -241,9 +273,10 @@ export default function CreateDietScreen() {
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [tempServings, setTempServings] = useState<number>(1);
 
-  // ── Slot detail sheet + swap sheet ──
-  const [slotSheetIndex, setSlotSheetIndex] = useState<number | null>(null);
+  // ── Sheets: one food (servings / replace / remove), one slot (swaps / clear), swaps ──
+  const [itemSheet, setItemSheet] = useState<{ slot: number; item: number } | null>(null);
   const [editServings, setEditServings] = useState<number>(1);
+  const [slotSheetIndex, setSlotSheetIndex] = useState<number | null>(null);
   const [swapSheetIndex, setSwapSheetIndex] = useState<number | null>(null);
 
   const slots = dayVariant === 'training' ? trainingSlots : restSlots;
@@ -277,50 +310,56 @@ export default function CreateDietScreen() {
     const count = ws?.mealsPerDay && SLOT_TEMPLATES[ws.mealsPerDay] ? ws.mealsPerDay : 4;
     setMealsPerDay(count);
 
-    // Fill training slots from diet_plan_meals in order.
-    const orderedMeals = (editDiet.diet_plan_meals || [])
-      .slice().sort((a, b) => a.order_index - b.order_index)
-      .map(dpm => ({
-        dpm,
-        meal: {
-          id: dpm.meal_id,
-          name: dpm.meals?.name || 'Unknown',
-          category: dpm.meals?.category || 'Snack',
-          calories: dpm.meals?.calories || 0,
-          protein: dpm.meals?.protein || 0,
-          carbs: dpm.meals?.carbs || 0,
-          fat: dpm.meals?.fat || 0,
-          servings: dpm.servings || 1,
-        } as SelectedMeal,
-      }));
-
+    // Fill training slots from diet_plan_meals, grouped by slot (legacy rows
+    // without slot_index fall back to order_index — one food per slot).
     const base = emptySlots(count);
     if (ws?.slotLabels) {
       ws.slotLabels.forEach((label, i) => { if (base[i]) base[i].label = label; });
     }
     const savedSwaps = editDiet.swaps || {};
-    orderedMeals.forEach(({ dpm, meal }, i) => {
-      const sw = savedSwaps[String(i)];
-      const swaps = sw ? { allowedMealIds: sw.allowedMealIds || [], allowOwnLog: !!sw.allowOwnLog } : { allowedMealIds: [], allowOwnLog: false };
-      if (i < base.length) {
-        base[i] = { ...base[i], meal_time: (dpm.meal_time as MealTimeKey) || base[i].meal_time, meal, swaps };
-      } else {
-        base.push({ label: `Meal ${i + 1}`, meal_time: (dpm.meal_time as MealTimeKey) || 'snack', meal, swaps });
+    groupRowsBySlot(editDiet.diet_plan_meals || []).forEach(({ slotIndex, items: rows }) => {
+      const items: SelectedMeal[] = rows.map(dpm => ({
+        id: dpm.meal_id,
+        name: dpm.meals?.name || 'Unknown',
+        category: dpm.meals?.category || 'Snack',
+        calories: dpm.meals?.calories || 0,
+        protein: dpm.meals?.protein || 0,
+        carbs: dpm.meals?.carbs || 0,
+        fat: dpm.meals?.fat || 0,
+        servings: dpm.servings || 1,
+      }));
+      const sw = savedSwaps[String(slotIndex)];
+      const swaps = sw ? { allowedMealIds: sw.allowedMealIds || [], allowOwnLog: !!sw.allowOwnLog } : emptySwaps();
+      const mealTime = asMealTime(rows[0]?.meal_time, base[slotIndex]?.meal_time || 'snack');
+      // Slots past the template are appended in order; any gap between is
+      // filled with an empty extra slot so slot positions stay stable.
+      while (base.length <= slotIndex) {
+        base.push({ label: ws?.slotLabels?.[base.length] || `Meal ${base.length + 1}`, meal_time: 'snack', items: [], swaps: emptySwaps() });
       }
+      base[slotIndex] = { ...base[slotIndex], meal_time: mealTime, items, swaps };
     });
     setTrainingSlots(base);
 
-    // Rest variant from week_structure snapshot.
+    // Rest variant from week_structure snapshot. Entries carry slot_index
+    // since several foods can share a slot; older snapshots are one per entry.
     const rest = emptySlots(count);
     if (ws?.restVariant?.mealList) {
-      ws.restVariant.mealList.forEach((m, i) => {
-        const meal: SelectedMeal = {
+      const restRows = ws.restVariant.mealList.map((m, i) => ({ ...m, order_index: i, slot_index: m.slot_index }));
+      groupRowsBySlot(restRows).forEach(({ slotIndex, items: rows }) => {
+        const items: SelectedMeal[] = rows.map(m => ({
           id: m.meal_id, name: m.name, category: 'Custom',
           calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
           servings: m.servings || 1,
+        }));
+        while (rest.length <= slotIndex) {
+          rest.push({ label: `Meal ${rest.length + 1}`, meal_time: 'snack', items: [], swaps: emptySwaps() });
+        }
+        rest[slotIndex] = {
+          label: rows[0]?.slotLabel || rest[slotIndex].label,
+          meal_time: asMealTime(rows[0]?.meal_time, rest[slotIndex].meal_time),
+          items,
+          swaps: emptySwaps(),
         };
-        const slot: Slot = { label: m.slotLabel || `Meal ${i + 1}`, meal_time: (m.meal_time as MealTimeKey) || 'snack', meal, swaps: { allowedMealIds: [], allowOwnLog: false } };
-        if (i < rest.length) rest[i] = slot; else rest.push(slot);
       });
     }
     setRestSlots(rest);
@@ -370,15 +409,13 @@ export default function CreateDietScreen() {
   const changeMealsPerDay = (count: number) => {
     setMealsPerDay(count);
     const resize = (prev: Slot[]): Slot[] => {
-      const filled = prev.filter(s => s.meal);
+      const filled = prev.filter(s => s.items.length > 0);
       const next = emptySlots(count);
-      let extra = 0;
       filled.forEach((s, i) => {
         if (i < next.length) {
-          next[i] = { ...next[i], meal: s.meal, swaps: s.swaps, meal_time: s.meal_time };
+          next[i] = { ...next[i], items: s.items, swaps: s.swaps, meal_time: s.meal_time };
         } else {
-          extra += 1;
-          next.push({ label: `Meal ${next.length + 1}`, meal_time: s.meal_time, meal: s.meal, swaps: s.swaps });
+          next.push({ label: `Meal ${next.length + 1}`, meal_time: s.meal_time, items: s.items, swaps: s.swaps });
         }
       });
       return next;
@@ -419,18 +456,35 @@ export default function CreateDietScreen() {
     }
   };
 
-  const fillSlot = (slotIndex: number, meal: SelectedMeal) => {
-    setSlots(prev => {
-      const copy = [...prev];
-      if (copy[slotIndex]) copy[slotIndex] = { ...copy[slotIndex], meal };
-      return copy;
-    });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const openSearch = (slotIndex: number, itemIndex: number | null) => {
+    setSearchItemIndex(itemIndex);
+    setSearchSlotIndex(slotIndex);
+  };
+
+  const closeSearch = () => {
     setSearchSlotIndex(null);
+    setSearchItemIndex(null);
     setSearchQuery('');
     setApiResults([]);
     setSelectedResultId(null);
     setTempServings(1);
+  };
+
+  // The one mutation point for foods entering a slot: appends, or replaces
+  // the food the search was opened for.
+  const fillSlot = (slotIndex: number, meal: SelectedMeal, itemIndex: number | null = searchItemIndex) => {
+    setSlots(prev => {
+      const copy = [...prev];
+      const slot = copy[slotIndex];
+      if (!slot) return prev;
+      const items = itemIndex !== null && slot.items[itemIndex]
+        ? slot.items.map((it, i) => (i === itemIndex ? meal : it))
+        : [...slot.items, meal];
+      copy[slotIndex] = { ...slot, items };
+      return copy;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    closeSearch();
   };
 
   const addFromLocal = (item: any, finalServings: number) => {
@@ -448,7 +502,7 @@ export default function CreateDietScreen() {
       const slot = slots[searchSlotIndex];
       const saved = await createMeal({
         name: item.name,
-        category: slot ? slot.meal_time.charAt(0).toUpperCase() + slot.meal_time.slice(1) : 'Snack',
+        category: categoryForMealTime(slot ? slot.meal_time : 'snack'),
         calories: item.calories,
         protein: item.protein,
         carbs: item.carbs,
@@ -471,7 +525,7 @@ export default function CreateDietScreen() {
   const clearSlot = (index: number) => {
     setSlots(prev => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], meal: null, swaps: { allowedMealIds: [], allowOwnLog: false } };
+      copy[index] = { ...copy[index], items: [], swaps: emptySwaps() };
       return copy;
     });
     setSlotSheetIndex(null);
@@ -484,44 +538,67 @@ export default function CreateDietScreen() {
 
   const appendSlot = () => {
     setSlots(prev => [...prev, {
-      label: `Meal ${prev.length + 1}`, meal_time: 'snack', meal: null,
-      swaps: { allowedMealIds: [], allowOwnLog: false },
+      label: `Meal ${prev.length + 1}`, meal_time: 'snack', items: [],
+      swaps: emptySwaps(),
     }]);
-    setSearchSlotIndex(slots.length);
+    openSearch(slots.length, null);
   };
 
-  const saveSlotServings = () => {
-    if (slotSheetIndex === null) return;
+  const openItemSheet = (slot: number, item: number) => {
+    const it = slots[slot]?.items[item];
+    if (!it) return;
+    setEditServings(it.servings);
+    setItemSheet({ slot, item });
+  };
+
+  const saveItemServings = () => {
+    if (!itemSheet) return;
+    const { slot, item } = itemSheet;
     setSlots(prev => {
       const copy = [...prev];
-      const s = copy[slotSheetIndex];
-      if (s?.meal) copy[slotSheetIndex] = { ...s, meal: { ...s.meal, servings: editServings } };
+      const s = copy[slot];
+      if (!s?.items[item]) return prev;
+      copy[slot] = { ...s, items: s.items.map((it, i) => (i === item ? { ...it, servings: editServings } : it)) };
       return copy;
     });
-    setSlotSheetIndex(null);
+    setItemSheet(null);
+  };
+
+  const removeItem = (slot: number, item: number) => {
+    setSlots(prev => {
+      const copy = [...prev];
+      const s = copy[slot];
+      if (!s) return prev;
+      const items = s.items.filter((_, i) => i !== item);
+      // Swaps describe the slot's food; an emptied slot has nothing to swap.
+      copy[slot] = { ...s, items, swaps: items.length === 0 ? emptySwaps() : s.swaps };
+      return copy;
+    });
+    setItemSheet(null);
   };
 
   // Copy training day into rest slots at reduced portions (85%, snapped to 0.25).
   const copyTrainingToRest = () => {
-    setRestSlots(trainingSlots.map(s => s.meal ? {
+    setRestSlots(trainingSlots.map(s => ({
       ...s,
-      swaps: { allowedMealIds: [], allowOwnLog: false },
-      meal: { ...s.meal, servings: Math.max(0.25, Math.round((s.meal.servings * 0.85) / 0.25) * 0.25) },
-    } : { ...s, swaps: { allowedMealIds: [], allowOwnLog: false } }));
+      swaps: emptySwaps(),
+      items: s.items.map(it => ({ ...it, servings: Math.max(0.25, Math.round((it.servings * 0.85) / 0.25) * 0.25) })),
+    })));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // ── Swap candidates: within ±40 kcal and ±5 g protein of the slot meal ──
+  // ── Swap candidates: within ±40 kcal and ±5 g protein of the slot's foods ──
   const swapSlot = swapSheetIndex !== null ? trainingSlots[swapSheetIndex] : null;
   const swapCandidates = useMemo(() => {
-    if (!swapSlot?.meal) return { inRange: [], outOfRange: [] as { meal: any; reason: string }[] };
-    const ref = swapSlot.meal;
-    const refCal = ref.calories * ref.servings;
-    const refPro = ref.protein * ref.servings;
+    if (!swapSlot || swapSlot.items.length === 0) return { inRange: [], outOfRange: [] as { meal: any; reason: string }[] };
+    const ref = foodTotals(swapSlot.items);
+    const refCal = ref.calories;
+    const refPro = ref.protein;
+    const inSlot = new Set(swapSlot.items.map(it => it.id));
     const inRange: any[] = [];
     const outOfRange: { meal: any; reason: string }[] = [];
     meals.forEach(m => {
-      if (m.id === ref.id) return;
+      if (inSlot.has(m.id)) return;
       const dCal = m.calories - refCal;
       const dPro = m.protein - refPro;
       if (Math.abs(dCal) <= 40 && Math.abs(dPro) <= 5) {
@@ -606,43 +683,53 @@ export default function CreateDietScreen() {
 
   // ── Save ──
   const handleSave = async () => {
-    const filledTraining = trainingSlots.filter(s => s.meal);
+    const trainingFoodCount = trainingSlots.reduce((n, s) => n + s.items.length, 0);
     if (!name.trim()) return showAlert({ type: 'warning', title: 'Missing name', message: 'Please enter a plan name.' });
-    if (filledTraining.length === 0) return showAlert({ type: 'warning', title: 'No meals', message: 'Add at least one meal to the training day.' });
+    if (trainingFoodCount === 0) return showAlert({ type: 'warning', title: 'No meals', message: 'Add at least one food to the training day.' });
 
     setSaving(true);
     try {
-      const mealList = filledTraining.map(s => ({
-        meal_id: s.meal!.id,
-        meal_time: s.meal_time,
-        servings: s.meal!.servings,
-      }));
+      // One row per food: slot_index = the slot's position (the key of swaps
+      // and the index into slotLabels), order_index = position in the slot.
+      const mealList: DietPlanMealInput[] = trainingSlots.flatMap((s, slotIndex) =>
+        s.items.map((it, orderIndex) => ({
+          meal_id: it.id,
+          meal_time: s.meal_time,
+          servings: it.servings,
+          slot_index: slotIndex,
+          order_index: orderIndex,
+        }))
+      );
 
-      // Swaps keyed by the meal's order_index in mealList.
+      // Swaps keyed by slot_index.
       const swaps: DietSwapsMap = {};
-      filledTraining.forEach((s, i) => {
-        if (s.swaps.allowedMealIds.length > 0 || s.swaps.allowOwnLog) {
-          swaps[String(i)] = { allowedMealIds: s.swaps.allowedMealIds, allowOwnLog: s.swaps.allowOwnLog };
+      trainingSlots.forEach((s, slotIndex) => {
+        if (s.items.length > 0 && (s.swaps.allowedMealIds.length > 0 || s.swaps.allowOwnLog)) {
+          swaps[String(slotIndex)] = { allowedMealIds: s.swaps.allowedMealIds, allowOwnLog: s.swaps.allowOwnLog };
         }
       });
 
+      const restMealList: DietRestMealSnapshot[] = restSlots.flatMap((s, slotIndex) =>
+        s.items.map(it => ({
+          meal_id: it.id,
+          name: it.name,
+          calories: it.calories,
+          protein: it.protein,
+          carbs: it.carbs,
+          fat: it.fat,
+          meal_time: s.meal_time,
+          servings: it.servings,
+          slotLabel: s.label,
+          slot_index: slotIndex,
+        }))
+      );
+
       const week_structure: DietWeekStructure = {
         mealsPerDay,
+        // Every slot, filled or not, so slot_index lines up with its label.
         slotLabels: trainingSlots.map(s => s.label),
         trainingDays,
-        restVariant: {
-          mealList: restSlots.filter(s => s.meal).map(s => ({
-            meal_id: s.meal!.id,
-            name: s.meal!.name,
-            calories: s.meal!.calories,
-            protein: s.meal!.protein,
-            carbs: s.meal!.carbs,
-            fat: s.meal!.fat,
-            meal_time: s.meal_time,
-            servings: s.meal!.servings,
-            slotLabel: s.label,
-          })),
-        },
+        restVariant: { mealList: restMealList },
         freeMeal: freeMealEnabled ? { enabled: true, day: freeMealDay } : null,
       };
 
@@ -684,12 +771,127 @@ export default function CreateDietScreen() {
   // whole meal plan. The sheets above own their own onRequestClose, so back
   // closes an open sheet first and only then walks the steps.
   useAndroidBack(useCallback(() => {
+    if (mode === 'describe') {
+      if (!aiLoading) setMode('wizard');
+      return true;
+    }
     if (step === 1) return false;
     setStep((s) => (s - 1) as 1 | 2);
     return true;
-  }, [step]));
+  }, [step, mode, aiLoading]));
 
   const kickerBase = isEditing ? 'Edit meal plan' : 'New meal plan';
+
+  // ── Describe it: one call to generate-diet, foods matched to the library ──
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim() || aiLoading) return;
+    setAiLoading(true);
+    try {
+      // Condensed library so the model picks from real rows where it can.
+      const availableMeals = meals.slice(0, 50).map(m => ({
+        name: m.name, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
+      }));
+      const { data, error } = await supabase.functions.invoke('generate-diet', {
+        body: { prompt: aiPrompt.trim(), availableMeals },
+      });
+      if (error) {
+        const status = (error as any)?.context?.status ?? (error as any)?.status;
+        if (status === 429) throw new Error('You’ve hit the hourly limit for AI plans.');
+        if (status === 504) throw new Error('That took too long. Try a shorter description.');
+        throw new Error('Couldn’t write the day. Try again in a moment.');
+      }
+      const aiMeals: any[] = Array.isArray(data?.meals) ? data.meals : [];
+      if (aiMeals.length === 0) throw new Error('No foods came back. Try describing the day differently.');
+
+      // Targets: the model's numbers, as a custom split.
+      const t = data.targets || {};
+      const tCal = Math.round(Number(t.calories) || 0);
+      if (tCal > 0) setKcal(tCal);
+      setPreset('custom');
+      setCustomP(String(Math.round(Number(t.protein) || 0)));
+      setCustomC(String(Math.round(Number(t.carbs) || 0)));
+      setCustomF(String(Math.round(Number(t.fat) || 0)));
+      if (typeof data.name === 'string' && data.name.trim()) setName(data.name.trim());
+      if (typeof data.description === 'string') setDescription(data.description.trim());
+      setCategory(DIET_CATEGORIES.includes(data.category) ? data.category : 'custom');
+
+      // Match each food to the library by name (exact, then contains either
+      // way), otherwise save it to the library with the slot's category.
+      const library = [...meals];
+      let created = 0;
+      const resolved: { meal: SelectedMeal; meal_time: MealTimeKey }[] = [];
+      for (const ai of aiMeals) {
+        const nm = String(ai?.name || '').trim();
+        if (!nm) continue;
+        const lower = nm.toLowerCase();
+        const mt = asMealTime(ai?.meal_time);
+        let match = library.find(m => m.name.toLowerCase() === lower);
+        if (!match) {
+          match = library.find(m => {
+            const ln = m.name.toLowerCase();
+            const shorter = Math.min(ln.length, lower.length);
+            // A three-letter name would "contain" its way into everything.
+            return shorter >= 4 && (ln.includes(lower) || lower.includes(ln));
+          });
+        }
+        if (!match) {
+          const saved = await createMeal({
+            name: nm.slice(0, 80),
+            category: categoryForMealTime(mt),
+            calories: Math.max(0, Math.round(Number(ai?.calories) || 0)),
+            protein: Math.max(0, Math.round(Number(ai?.protein) || 0)),
+            carbs: Math.max(0, Math.round(Number(ai?.carbs) || 0)),
+            fat: Math.max(0, Math.round(Number(ai?.fat) || 0)),
+          });
+          created += 1;
+          library.push(saved);
+          match = saved;
+        }
+        resolved.push({
+          meal_time: mt,
+          meal: {
+            id: match.id, name: match.name, category: match.category,
+            calories: match.calories, protein: match.protein, carbs: match.carbs, fat: match.fat,
+            servings: snapServings(ai?.servings),
+          },
+        });
+      }
+      if (resolved.length === 0) throw new Error('No foods came back. Try describing the day differently.');
+
+      // Bucket by meal time into the training day. Meals a day = distinct
+      // meal times (3–6); a time the template has no slot for gets its own.
+      const distinct = new Set(resolved.map(r => r.meal_time)).size;
+      const count = Math.min(6, Math.max(3, distinct));
+      changeMealsPerDay(count);
+      const built = emptySlots(count);
+      resolved.forEach(({ meal, meal_time }) => {
+        let slot = built.find(s => s.meal_time === meal_time);
+        if (!slot) {
+          slot = { label: MEAL_TIME_LABELS[meal_time], meal_time, items: [], swaps: emptySwaps() };
+          built.push(slot);
+        }
+        slot.items.push(meal);
+      });
+      setTrainingSlots(built);
+      setDayVariant('training');
+
+      const filledSlots = built.filter(s => s.items.length > 0).length;
+      setAiPrompt('');
+      setMode('wizard');
+      setStep(2);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showAlert({
+        type: 'success',
+        title: 'Day written',
+        message: `Filled ${filledSlots} slot${filledSlots === 1 ? '' : 's'} with ${resolved.length} food${resolved.length === 1 ? '' : 's'} (${created} new in your library).`,
+      });
+    } catch (err: any) {
+      // The prompt stays in the box so the coach can shorten or retry it.
+      showAlert({ type: 'error', title: 'Couldn’t generate', message: err?.message || 'Failed to generate the day' });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const renderHeader = () => (
     <View style={s.topBarWrap}>
@@ -805,6 +1007,24 @@ export default function CreateDietScreen() {
             </View>
           </View>
 
+          <TouchableOpacity
+            style={s.describeCard}
+            onPress={() => setMode('describe')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Describe it instead"
+            accessibilityHint="Write the day in a sentence and fill the slots from your library"
+          >
+            <View style={s.describeCardIcon}>
+              <Ionicons name="chatbubble-outline" size={22} color={CoachColors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.describeCardTitle}>Describe it instead</Text>
+              <Text style={s.describeCardHint} numberOfLines={1}>"{AI_EXAMPLE_PROMPTS[0]}"</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
+          </TouchableOpacity>
+
           <Text style={s.footnote}>
             Targets are yours, not medical advice. Athletes see them as a guide with your name on it.
           </Text>
@@ -862,8 +1082,8 @@ export default function CreateDietScreen() {
   };
 
   const renderStep2 = () => {
-    const restEmpty = restSlots.every(sl => !sl.meal);
-    const trainingHasMeals = trainingSlots.some(sl => sl.meal);
+    const restEmpty = restSlots.every(sl => sl.items.length === 0);
+    const trainingHasMeals = trainingSlots.some(sl => sl.items.length > 0);
     return (
       <>
         <View style={s.headingWrap}>
@@ -898,47 +1118,80 @@ export default function CreateDietScreen() {
 
           {slots.map((slot, index) => {
             const swapCount = slot.swaps.allowedMealIds.length;
+            const hasItems = slot.items.length > 0;
+            const totals = foodTotals(slot.items);
             return (
               <View key={`${dayVariant}-${index}`} style={{ marginBottom: 12 }}>
-                <Text style={s.slotLabel} maxFontSizeMultiplier={1.2}>{slot.label}</Text>
-                {slot.meal ? (
-                  <TouchableOpacity
-                    style={s.slotCard}
-                    activeOpacity={0.8}
-                    onPress={() => { setSlotSheetIndex(index); setEditServings(slot.meal!.servings); }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Edit ${slot.meal.name}`}
-                  >
-                    <SlotThumb
-                      name={slot.meal.name}
-                      existingUrl={meals.find(m => m.id === slot.meal!.id)?.image_url}
-                      mealId={slot.meal.id}
-                      mealTime={slot.meal_time}
-                    />
-                    <View style={s.slotBody}>
-                      <Text style={s.slotMealName} numberOfLines={1}>{slot.meal.name}</Text>
-                      <Text style={s.slotMealMacros} maxFontSizeMultiplier={1.3}>
-                        {Math.round(slot.meal.calories * slot.meal.servings)} kcal · P {Math.round(slot.meal.protein * slot.meal.servings)} C {Math.round(slot.meal.carbs * slot.meal.servings)} F {Math.round(slot.meal.fat * slot.meal.servings)}
-                        {slot.meal.servings !== 1 ? ` · ${slot.meal.servings}x` : ''}
-                      </Text>
-                      {dayVariant === 'training' && swapCount > 0 && (
+                <View style={s.slotLabelRow}>
+                  <Text style={s.slotLabel} maxFontSizeMultiplier={1.2}>{slot.label}</Text>
+                  {hasItems && (
+                    <>
+                      <Text style={s.slotKcal} maxFontSizeMultiplier={1.2}>{Math.round(totals.calories)} kcal</Text>
+                      <TouchableOpacity
+                        style={s.slotOptionsBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => setSlotSheetIndex(index)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Options for ${slot.label}`}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={19} color={CoachColors.textSecondary} />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+                {hasItems ? (
+                  <View style={s.slotCard}>
+                    {slot.items.map((it, itemIndex) => (
+                      <TouchableOpacity
+                        key={`${it.id}-${itemIndex}`}
+                        style={[s.itemRow, itemIndex > 0 && s.itemRowDivider]}
+                        activeOpacity={0.8}
+                        onPress={() => openItemSheet(index, itemIndex)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit ${it.name}, ${itemLine(it)}`}
+                      >
+                        <SlotThumb
+                          name={it.name}
+                          existingUrl={meals.find(m => m.id === it.id)?.image_url}
+                          mealId={it.id}
+                          mealTime={slot.meal_time}
+                        />
+                        <View style={s.slotBody}>
+                          <Text style={s.slotMealName} numberOfLines={1}>{it.name}</Text>
+                          <Text style={s.slotMealMacros} maxFontSizeMultiplier={1.3}>{itemLine(it)}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} style={s.slotChevron} />
+                      </TouchableOpacity>
+                    ))}
+                    {dayVariant === 'training' && swapCount > 0 && (
+                      <View style={s.swapTagRow}>
                         <View style={s.swapTag}>
                           <Ionicons name="swap-horizontal" size={12} color={CoachColors.accent} />
                           <Text style={s.swapTagText} maxFontSizeMultiplier={1.2}>{swapCount} swap{swapCount === 1 ? '' : 's'} allowed</Text>
                         </View>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-forward" size={17} color={CoachColors.textFaint} style={s.slotChevron} />
-                  </TouchableOpacity>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      style={s.addFoodRow}
+                      activeOpacity={0.7}
+                      onPress={() => openSearch(index, null)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add food to ${slot.label}`}
+                    >
+                      <Ionicons name="add" size={18} color={CoachColors.accent} />
+                      <Text style={s.addFoodText} maxFontSizeMultiplier={1.2}>Add food</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <TouchableOpacity
                     style={s.slotEmpty}
                     activeOpacity={0.7}
-                    onPress={() => setSearchSlotIndex(index)}
+                    onPress={() => openSearch(index, null)}
                     accessibilityRole="button"
+                    accessibilityLabel={`Pick a food for ${slot.label}`}
                   >
                     <Ionicons name="add" size={18} color={CoachColors.textMuted} />
-                    <Text style={s.slotEmptyText}>Pick a meal</Text>
+                    <Text style={s.slotEmptyText}>Pick a food</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1110,9 +1363,99 @@ export default function CreateDietScreen() {
     </>
   );
 
+  // ── Describe-it screen (mirrors create-workout's describe mode) ──
+  const renderDescribe = () => (
+    <>
+      <View style={s.describeHeader}>
+        <TouchableOpacity
+          onPress={() => !aiLoading && setMode('wizard')}
+          style={s.describeBackBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={aiLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={19} color={CoachColors.textPrimary} />
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <WizardHeading kicker={`${kickerBase} · Describe it`} title="Describe the day" />
+          <Text style={[s.sub, { marginTop: 12 }]}>
+            Foods come from your library where they match; new ones are saved to it.
+          </Text>
+
+          <View style={[s.describeInputWrap, aiLoading && { opacity: 0.5 }]}>
+            <TextInput
+              style={s.describeInput}
+              placeholder={AI_EXAMPLE_PROMPTS[0]}
+              placeholderTextColor={CoachColors.textFaint}
+              value={aiPrompt}
+              onChangeText={setAiPrompt}
+              multiline
+              editable={!aiLoading}
+              selectionColor={CoachColors.accent}
+              accessibilityLabel="Describe the day"
+            />
+          </View>
+
+          <View style={s.chipRow}>
+            {AI_EXAMPLE_PROMPTS.map(ex => (
+              <TouchableOpacity
+                hitSlop={{ top: 7, bottom: 7 }}
+                key={ex}
+                style={s.exampleChip}
+                onPress={() => !aiLoading && setAiPrompt(ex)}
+                activeOpacity={0.7}
+                disabled={aiLoading}
+                accessibilityRole="button"
+                accessibilityLabel={`Use example: ${ex}`}
+              >
+                <Text style={s.exampleChipText}>{ex}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <View style={s.footer}>
+          <TouchableOpacity
+            style={[s.cta, (!aiPrompt.trim() || aiLoading) && { opacity: 0.5 }]}
+            onPress={handleAiGenerate}
+            disabled={!aiPrompt.trim() || aiLoading}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Generate the day"
+            accessibilityState={{ disabled: !aiPrompt.trim() || aiLoading, busy: aiLoading }}
+          >
+            {aiLoading ? (
+              <>
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
+                <Text style={s.ctaText}>Writing the day…</Text>
+              </>
+            ) : (
+              <Text style={s.ctaText}>Generate the day</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </>
+  );
+
   // ── Sheets / modals ──
+  const itemSheetSlot = itemSheet ? slots[itemSheet.slot] : null;
+  const itemSheetFood = itemSheet && itemSheetSlot ? itemSheetSlot.items[itemSheet.item] : null;
   const slotSheetSlot = slotSheetIndex !== null ? slots[slotSheetIndex] : null;
+  const slotSheetTotals = slotSheetSlot ? foodTotals(slotSheetSlot.items) : null;
   const isExtraSlot = slotSheetIndex !== null && slotSheetIndex >= (SLOT_TEMPLATES[mealsPerDay]?.length ?? 4);
+
+  if (mode === 'describe') {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
+        {renderDescribe()}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
@@ -1121,15 +1464,15 @@ export default function CreateDietScreen() {
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
 
-      {/* Slot detail sheet */}
-      <Modal visible={slotSheetIndex !== null} animationType="slide" transparent onRequestClose={() => setSlotSheetIndex(null)}>
+      {/* Food sheet: servings, replace, remove — for ONE food in a slot */}
+      <Modal visible={itemSheet !== null} animationType="slide" transparent onRequestClose={() => setItemSheet(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle} maxFontSizeMultiplier={1.3}>{slotSheetSlot?.label || 'Meal'}</Text>
+              <Text style={s.modalTitle} maxFontSizeMultiplier={1.3} numberOfLines={2}>{itemSheetFood?.name || 'Food'}</Text>
               <TouchableOpacity
                 hitSlop={12}
-                onPress={() => setSlotSheetIndex(null)}
+                onPress={() => setItemSheet(null)}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
@@ -1137,9 +1480,9 @@ export default function CreateDietScreen() {
               </TouchableOpacity>
             </View>
 
-            {slotSheetSlot?.meal && slotSheetIndex !== null && (
+            {itemSheet && itemSheetFood && (
               <>
-                <Text style={s.modalLabel}>{slotSheetSlot.meal.name}</Text>
+                <Text style={s.modalLabel}>{itemSheetSlot?.label} · {itemLine({ ...itemSheetFood, servings: editServings })}</Text>
 
                 <View style={s.servingRow}>
                   <Text style={s.servingLabel}>Servings</Text>
@@ -1166,14 +1509,81 @@ export default function CreateDietScreen() {
                   </View>
                 </View>
 
-                <TouchableOpacity style={s.sheetPrimaryBtn} onPress={saveSlotServings} accessibilityRole="button">
+                <TouchableOpacity style={s.sheetPrimaryBtn} onPress={saveItemServings} accessibilityRole="button">
                   <Text style={s.sheetPrimaryText}>Save servings</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.sheetActionBtn}
+                  onPress={() => {
+                    const { slot, item } = itemSheet;
+                    setItemSheet(null);
+                    // Two native Modals at once freeze iOS: let this one close first.
+                    setTimeout(() => openSearch(slot, item), 300);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="repeat" size={20} color={CoachColors.textPrimary} />
+                  <Text style={s.sheetActionText}>Replace this food</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.sheetActionBtn, s.dangerBtn]}
+                  onPress={() => removeItem(itemSheet.slot, itemSheet.item)}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="trash" size={20} color={CoachColors.danger} />
+                  <Text style={[s.sheetActionText, { color: CoachColors.danger }]}>Remove this food</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Slot sheet: swaps and clearing — for the WHOLE slot */}
+      <Modal visible={slotSheetIndex !== null} animationType="slide" transparent onRequestClose={() => setSlotSheetIndex(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle} maxFontSizeMultiplier={1.3}>{slotSheetSlot?.label || 'Meal'}</Text>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() => setSlotSheetIndex(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={25} color={CoachColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {slotSheetSlot && slotSheetTotals && slotSheetIndex !== null && (
+              <>
+                <Text style={s.modalLabel}>
+                  {slotSheetSlot.items.length} food{slotSheetSlot.items.length === 1 ? '' : 's'} · {Math.round(slotSheetTotals.calories)} kcal · P {Math.round(slotSheetTotals.protein)} C {Math.round(slotSheetTotals.carbs)} F {Math.round(slotSheetTotals.fat)}
+                </Text>
+
+                <TouchableOpacity
+                  style={s.sheetActionBtn}
+                  onPress={() => {
+                    const i = slotSheetIndex;
+                    setSlotSheetIndex(null);
+                    setTimeout(() => openSearch(i, null), 300);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+                  <Text style={s.sheetActionText}>Add food</Text>
                 </TouchableOpacity>
 
                 {dayVariant === 'training' && (
                   <TouchableOpacity
                     style={s.sheetActionBtn}
-                    onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSwapSheetIndex(i); }}
+                    onPress={() => {
+                      const i = slotSheetIndex;
+                      setSlotSheetIndex(null);
+                      setTimeout(() => setSwapSheetIndex(i), 300);
+                    }}
                     accessibilityRole="button"
                   >
                     <Ionicons name="swap-horizontal" size={20} color={CoachColors.accent} />
@@ -1182,15 +1592,6 @@ export default function CreateDietScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
-
-                <TouchableOpacity
-                  style={s.sheetActionBtn}
-                  onPress={() => { const i = slotSheetIndex; setSlotSheetIndex(null); setSearchSlotIndex(i); }}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="repeat" size={20} color={CoachColors.textPrimary} />
-                  <Text style={s.sheetActionText}>Replace meal</Text>
-                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[s.sheetActionBtn, s.dangerBtn]}
@@ -1205,7 +1606,7 @@ export default function CreateDietScreen() {
               </>
             )}
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Swap sheet (training day only) */}
@@ -1214,7 +1615,9 @@ export default function CreateDietScreen() {
           <View style={[s.modalContent, { maxHeight: '85%' }]}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                If they can't have {swapSlot?.meal ? swapSlot.meal.name.split(',')[0].split(' with ')[0] : 'this'}
+                If they can't have {swapSlot && swapSlot.items.length === 1
+                  ? swapSlot.items[0].name.split(',')[0].split(' with ')[0]
+                  : swapSlot && swapSlot.items.length > 1 ? swapSlot.label.toLowerCase() : 'this'}
               </Text>
               <TouchableOpacity
                 hitSlop={12}
@@ -1294,16 +1697,18 @@ export default function CreateDietScreen() {
       </Modal>
 
       {/* Food search modal (saved + USDA) */}
-      <Modal visible={searchSlotIndex !== null} animationType="slide" transparent onRequestClose={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}>
+      <Modal visible={searchSlotIndex !== null} animationType="slide" transparent onRequestClose={closeSearch}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={[s.modalContent, { height: '90%' }]}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle} maxFontSizeMultiplier={1.3}>
-                {searchSlotIndex !== null && slots[searchSlotIndex] ? slots[searchSlotIndex].label : 'Add a meal'}
+                {searchSlotIndex !== null && slots[searchSlotIndex]
+                  ? (searchItemIndex !== null ? `Replace in ${slots[searchSlotIndex].label}` : `Add to ${slots[searchSlotIndex].label}`)
+                  : 'Add a food'}
               </Text>
               <TouchableOpacity
                 hitSlop={12}
-                onPress={() => { setSearchSlotIndex(null); setSelectedResultId(null); }}
+                onPress={closeSearch}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
@@ -1529,16 +1934,55 @@ const s = StyleSheet.create({
   copyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: Radius.md, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.accent, backgroundColor: CoachColors.accentSofter, marginBottom: 16 },
   copyBtnText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14.5, color: CoachColors.accent },
 
-  slotLabel: { fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  // Filled slot: food-image slit leads, radius 14 continuous clips it.
-  slotCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden', minHeight: 62 },
+  slotLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6, minHeight: 28 },
+  slotLabel: { flex: 1, fontFamily: CoachFonts.bodySemiBold, fontSize: 12.5, color: CoachColors.textSecondary, letterSpacing: 1, textTransform: 'uppercase' },
+  slotKcal: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted, fontVariant: ['tabular-nums'] },
+  // 28pt glyph, 44pt reach via hitSlop.
+  slotOptionsBtn: { width: 28, height: 28, borderRadius: 14, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
+  // Filled slot: one row per food, the food-image slit leads each row; radius 14 continuous clips it.
+  slotCard: { backgroundColor: CoachColors.surface, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.borderMuted, overflow: 'hidden' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', minHeight: 62 },
+  itemRowDivider: { borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
+  swapTagRow: { paddingHorizontal: 12, paddingBottom: 8 },
+  addFoodRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderTopWidth: 1, borderTopColor: CoachColors.borderMuted },
+  addFoodText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13.5, color: CoachColors.accent },
   slotThumb: { width: 62, alignSelf: 'stretch' },
   slotThumbFallback: { backgroundColor: CoachColors.bg, alignItems: 'center', justifyContent: 'center' },
   slotBody: { flex: 1, paddingHorizontal: 12, paddingVertical: 10 },
   slotChevron: { marginRight: 12 },
   slotMealName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 3 },
   slotMealMacros: { fontFamily: CoachFonts.mono, fontSize: 12.5, color: CoachColors.textMuted, fontVariant: ['tabular-nums'] },
-  swapTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: CoachColors.accentSofter, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full, borderCurve: 'continuous', marginTop: 6 },
+  swapTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: CoachColors.accentSofter, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full, borderCurve: 'continuous' },
+
+  // Describe-it (create-workout precedent)
+  describeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    borderRadius: Radius.md, borderCurve: 'continuous', padding: 14, marginBottom: 16, minHeight: 64,
+  },
+  describeCardIcon: {
+    width: 36, height: 36, borderRadius: Radius.xs, borderCurve: 'continuous', backgroundColor: CoachColors.accentSofter,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  describeCardTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15.5, color: CoachColors.textPrimary, marginBottom: 2 },
+  describeCardHint: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, fontStyle: 'italic' },
+  describeHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
+  describeBackBtn: { width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', marginLeft: -8, backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border },
+  describeInputWrap: {
+    backgroundColor: CoachColors.surface, borderRadius: Radius.sm, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: 14, marginBottom: 16,
+  },
+  describeInput: {
+    fontFamily: CoachFonts.body, fontSize: 15.5, color: CoachColors.textPrimary,
+    paddingVertical: 14, minHeight: 108, textAlignVertical: 'top',
+  },
+  exampleChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full, borderCurve: 'continuous',
+    backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.border,
+  },
+  exampleChipText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textSecondary },
   swapTagText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 11, color: CoachColors.accent },
   slotEmpty: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, backgroundColor: CoachColors.surface, borderRadius: Radius.md, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border, borderStyle: 'dashed' },
   slotEmptyText: { fontFamily: CoachFonts.bodyMedium, fontSize: 14.5, color: CoachColors.textMuted },

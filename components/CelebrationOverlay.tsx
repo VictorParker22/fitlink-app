@@ -9,7 +9,7 @@ import { Motion, Ease } from '../constants/motion';
 import ConfettiBurst from './coach/ConfettiBurst';
 
 /**
- * CelebrationOverlay — the one celebration card, five kinds.
+ * CelebrationOverlay — the one celebration card, six kinds.
  *
  * Consolidates DayOneOverlay, PRCelebration/PRCelebrationModal,
  * SeasonComplete, FirstClientOverlay and PassPublishedOverlay, which had
@@ -38,7 +38,7 @@ import ConfettiBurst from './coach/ConfettiBurst';
 const C = CoachColors;
 const F = CoachFonts;
 
-export type CelebrationKind = 'day-one' | 'pr' | 'season-complete' | 'first-client' | 'pass-published';
+export type CelebrationKind = 'day-one' | 'pr' | 'season-complete' | 'first-client' | 'pass-published' | 'coach-live';
 
 export interface CelebrationAction {
   label: string;
@@ -67,6 +67,8 @@ const EYEBROW: Record<CelebrationKind, string> = {
   'season-complete': 'Season complete',
   'first-client': 'First athlete in',
   'pass-published': "It's live",
+  // The coach wizard's last stop (app/(auth)/trainer-wizard.tsx).
+  'coach-live': "You're live",
 };
 
 export default function CelebrationOverlay({

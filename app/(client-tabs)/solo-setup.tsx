@@ -10,6 +10,13 @@
  * Confirming needs a clients row to write to: a coachless athlete may not
  * have one yet, so `ensureSoloClient()` creates the trainer-less "solo" row
  * on demand before the write, exactly like the corner screen does.
+ *
+ * Change mode (`?change=1`, or simply an existing solo_character): the same
+ * four cards with change copy, the CTA reads "Switch to X" and is disabled
+ * while the pick equals the current voice, and a successful switch drops
+ * today's cached brief (CornerCard's `solo_brief_<clientId>_<date>` key) so
+ * the old register is not spoken again, then goes back to wherever the
+ * athlete came from instead of replacing to the corner.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -24,9 +31,10 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useAlert } from '../../context/AlertContext';
@@ -62,14 +70,22 @@ export default function SoloSetupScreen() {
   const { showAlert } = useAlert();
   const voice = useSoloVoice();
   const { offerings } = useRevenueCat();
+  const params = useLocalSearchParams<{ change?: string }>();
+
+  // The voice already on the row, if any. A saved character means this is a
+  // change, not a first pick — whether or not the caller said so.
+  const savedKey = ((clientData as any)?.solo_character as string | null | undefined) || null;
+  const isChange = params.change === '1' || !!savedKey;
 
   // Start from whatever is already saved on the clients row.
   const [selectedKey, setSelectedKey] = useState<SoloCharacter['key']>(
-    getSoloCharacter((clientData as any)?.solo_character).key
+    getSoloCharacter(savedKey).key
   );
   const [saving, setSaving] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const selected = getSoloCharacter(selectedKey);
+  // "Keep Reyes" — nothing to write when the pick is the current voice.
+  const isSameAsSaved = isChange && !!savedKey && selectedKey === savedKey;
 
   // Store pricing for the footnote — never hardcoded, and only rendered
   // when the store actually has a monthly package.
@@ -110,7 +126,7 @@ export default function SoloSetupScreen() {
   }, [voice]);
 
   const confirm = useCallback(async () => {
-    if (saving) return;
+    if (saving || isSameAsSaved) return;
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try {
@@ -143,9 +159,18 @@ export default function SoloSetupScreen() {
         return;
       }
       await refreshData();
-      layers.track('voice_chosen', { character: selectedKey });
+      if (isChange) {
+        layers.track('voice_chosen', { character: selectedKey, changed_from: savedKey, is_change: true });
+        // Today's brief was written and cached in the old register — drop it
+        // so the Home card fetches a fresh one in the new voice.
+        const todayKey = new Date().toISOString().split('T')[0];
+        await AsyncStorage.removeItem(`solo_brief_${clientId}_${todayKey}`).catch(() => {});
+      } else {
+        layers.track('voice_chosen', { character: selectedKey });
+      }
       if (isPremiumActive) {
-        router.replace('/(client-tabs)/solo' as any);
+        if (isChange && router.canGoBack()) router.back();
+        else router.replace('/(client-tabs)/solo' as any);
       } else {
         // No active premium yet — open the paywall right here instead of
         // bouncing to the corner, which would just 402 and send them back.
@@ -155,7 +180,13 @@ export default function SoloSetupScreen() {
     } finally {
       setSaving(false);
     }
-  }, [saving, clientData?.id, selectedKey, refreshData, router, showAlert, isPremiumActive]);
+  }, [saving, isSameAsSaved, isChange, savedKey, clientData?.id, selectedKey, refreshData, router, showAlert, isPremiumActive]);
+
+  const ctaLabel = !isChange
+    ? `Start with ${selected.name}`
+    : isSameAsSaved
+      ? `Keep ${selected.name}`
+      : `Switch to ${selected.name}`;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -175,8 +206,8 @@ export default function SoloSetupScreen() {
           <View style={s.backBtnSpacer} />
         )}
         <View style={{ flex: 1 }}>
-          <Text style={s.kicker} maxFontSizeMultiplier={1.4}>Solo mode</Text>
-          <Text style={s.headerTitle} maxFontSizeMultiplier={1.3}>Choose your corner</Text>
+          <Text style={s.kicker} maxFontSizeMultiplier={1.4}>{isChange ? 'Your corner' : 'Solo mode'}</Text>
+          <Text style={s.headerTitle} maxFontSizeMultiplier={1.3}>{isChange ? 'Change voice' : 'Choose your corner'}</Text>
         </View>
       </View>
 
@@ -186,10 +217,14 @@ export default function SoloSetupScreen() {
       >
         <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(360)}>
           <Text style={s.title} maxFontSizeMultiplier={1.4}>
-            Same brain, same numbers. Pick the voice in your ear.
+            {isChange
+              ? 'Change the voice in your ear'
+              : 'Same brain, same numbers. Pick the voice in your ear.'}
           </Text>
           <Text style={s.sub} maxFontSizeMultiplier={1.4}>
-            Tap play to hear each one say the same line. All four are AI, and say so.
+            {isChange
+              ? 'Same brain, same numbers. Everything you logged stays.'
+              : 'Tap play to hear each one say the same line. All four are AI, and say so.'}
           </Text>
         </Animated.View>
 
@@ -249,20 +284,24 @@ export default function SoloSetupScreen() {
       <View style={[s.ctaBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={s.footNote}>
           <View style={s.footDot} />
-          <Text style={s.footNoteText} maxFontSizeMultiplier={1.3}>Change any time from the corner.</Text>
+          <Text style={s.footNoteText} maxFontSizeMultiplier={1.3}>
+            {isChange ? 'Takes effect on the next thing your corner says.' : 'Change any time from the corner.'}
+          </Text>
         </View>
         <TouchableOpacity
-          style={[s.cta, saving && s.ctaDisabled]}
+          style={[s.cta, (saving || isSameAsSaved) && s.ctaDisabled]}
           onPress={confirm}
-          disabled={saving}
+          disabled={saving || isSameAsSaved}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={`Start with ${selected.name}`}
+          accessibilityLabel={ctaLabel}
+          accessibilityState={{ disabled: saving || isSameAsSaved, busy: saving }}
+          accessibilityHint={isSameAsSaved ? `${selected.name} is already your voice. Pick another to switch.` : undefined}
         >
           {saving ? (
             <ActivityIndicator color={C.onAccent} />
           ) : (
-            <Text style={s.ctaText} maxFontSizeMultiplier={1.2}>Start with {selected.name}</Text>
+            <Text style={s.ctaText} maxFontSizeMultiplier={1.2}>{ctaLabel}</Text>
           )}
         </TouchableOpacity>
         {!isPremiumActive && (

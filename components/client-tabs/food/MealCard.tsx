@@ -39,10 +39,27 @@ export interface MealCardMeal {
   image_color?: string | null;
 }
 
+/** One food in a slot that holds several. */
+export interface MealCardItem {
+  key: string;
+  name: string;
+  calories?: number | null;
+  protein?: number | null;
+  logged?: boolean;
+}
+
 export interface MealCardProps {
   meal: MealCardMeal;
   /** Optional slot name ("Breakfast", "Next up · Lunch") prefixed to the meta line. */
   slot?: string | null;
+  /**
+   * The slot's foods. With two or more, the card lists them under the title
+   * (name + macros per line) and `meal` describes the slot as a whole. With
+   * one or none the card is unchanged.
+   */
+  items?: MealCardItem[];
+  /** Toggle one listed food. Rows read as checkboxes only when this is passed. */
+  onToggleItem?: (key: string) => void;
   /** When defined, the card reads as a checkbox and shows a tick instead of the arrow. */
   logged?: boolean;
   /** What the card's single action does, spoken to screen readers ("log", "unlog"). */
@@ -70,7 +87,7 @@ export function mealMetaLine(meal: MealCardMeal, slot?: string | null): string |
 }
 
 export default function MealCard({
-  meal, slot, logged, actionHint, onPress, onSwap, swapLabel, reduceMotion,
+  meal, slot, items, onToggleItem, logged, actionHint, onPress, onSwap, swapLabel, reduceMotion,
 }: MealCardProps) {
   const imageUrl = useFoodImage(meal.name, meal.image_url, meal.id || undefined);
   const sampled = useMealImageColor(imageUrl, meal.image_color, meal.id);
@@ -87,51 +104,103 @@ export default function MealCard({
     + (logged === undefined ? '' : `, ${logged ? 'logged' : 'not logged'}`)
     + (actionHint ? `. Double tap to ${actionHint}` : '');
 
+  const multi = items && items.length > 1 ? items : null;
+
+  const header = (
+    <>
+      {/* Top: the plated overhead shot, top-left */}
+      <View style={st.topRow}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={st.plate} contentFit="cover" transition={180} />
+        ) : (
+          <View style={[st.plate, st.plateEmpty, { borderColor: palette.inkSoft }]}>
+            <Ionicons name="restaurant-outline" size={29} color={palette.inkSoft} />
+          </View>
+        )}
+      </View>
+
+      {/* Oversized title, tight leading */}
+      <Text style={[st.title, { color: palette.ink }]} numberOfLines={2}>
+        {meal.name}
+      </Text>
+
+      {/* Meta + the circular action button */}
+      <View style={st.bottomRow}>
+        <View style={{ flex: 1 }}>
+          {meta && <Text style={[st.meta, { color: palette.inkSoft }]} numberOfLines={1}>{meta}</Text>}
+        </View>
+        <View style={[st.arrowBtn, { backgroundColor: palette.buttonBg }]}>
+          <Ionicons
+            name={logged ? 'checkmark' : 'arrow-forward'}
+            size={22}
+            color={palette.buttonInk}
+          />
+        </View>
+      </View>
+    </>
+  );
+
+  const pressProps = {
+    onPress,
+    disabled: !onPress,
+    onPressIn: () => press(0.975),
+    onPressOut: () => press(1),
+    accessibilityRole: (logged === undefined ? 'button' : 'checkbox') as 'button' | 'checkbox',
+    accessibilityState: logged === undefined ? undefined : { checked: logged },
+    accessibilityLabel: label,
+  };
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       {/* The swap button is a SIBLING of the card press target, not a child:
           a Pressable groups its children into one accessibility element, which
-          would swallow the swap button's own label. */}
-      <Pressable
-        style={[st.card, { backgroundColor: palette.bg }, logged && { opacity: 0.62 }]}
-        onPress={onPress}
-        disabled={!onPress}
-        onPressIn={() => press(0.975)}
-        onPressOut={() => press(1)}
-        accessibilityRole={logged === undefined ? 'button' : 'checkbox'}
-        accessibilityState={logged === undefined ? undefined : { checked: logged }}
-        accessibilityLabel={label}
-      >
-        {/* Top: the plated overhead shot, top-left */}
-        <View style={st.topRow}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={st.plate} contentFit="cover" transition={180} />
-          ) : (
-            <View style={[st.plate, st.plateEmpty, { borderColor: palette.inkSoft }]}>
-              <Ionicons name="restaurant-outline" size={29} color={palette.inkSoft} />
-            </View>
-          )}
-        </View>
-
-        {/* Oversized title, tight leading */}
-        <Text style={[st.title, { color: palette.ink }]} numberOfLines={2}>
-          {meal.name}
-        </Text>
-
-        {/* Meta + the circular action button */}
-        <View style={st.bottomRow}>
-          <View style={{ flex: 1 }}>
-            {meta && <Text style={[st.meta, { color: palette.inkSoft }]} numberOfLines={1}>{meta}</Text>}
+          would swallow the swap button's own label. The same rule shapes the
+          several-food card: the header is the press target and each food row
+          is its own control beside it, not inside it. */}
+      {multi ? (
+        <View style={[st.card, { backgroundColor: palette.bg }, logged && { opacity: 0.62 }]}>
+          <Pressable {...pressProps}>{header}</Pressable>
+          <View style={[st.itemList, { borderTopColor: palette.inkSoft }]}>
+            {multi.map((it) => {
+              const line = mealMetaLine({ name: it.name, calories: it.calories, protein: it.protein });
+              const body = (
+                <>
+                  {onToggleItem && (
+                    <View style={[st.itemCheck, { borderColor: palette.inkSoft }, it.logged && { backgroundColor: palette.buttonBg, borderColor: palette.buttonBg }]}>
+                      {it.logged && <Ionicons name="checkmark" size={14} color={palette.buttonInk} />}
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[st.itemName, { color: palette.ink }, it.logged && { opacity: 0.62 }]} numberOfLines={1}>{it.name}</Text>
+                    {line && <Text style={[st.itemMeta, { color: palette.inkSoft }]} numberOfLines={1}>{line}</Text>}
+                  </View>
+                </>
+              );
+              return onToggleItem ? (
+                <Pressable
+                  key={it.key}
+                  style={st.itemRow}
+                  onPress={() => onToggleItem(it.key)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: !!it.logged }}
+                  accessibilityLabel={`${it.name}${line ? `, ${line}` : ''}`}
+                >
+                  {body}
+                </Pressable>
+              ) : (
+                <View key={it.key} style={st.itemRow}>{body}</View>
+              );
+            })}
           </View>
-          <View style={[st.arrowBtn, { backgroundColor: palette.buttonBg }]}>
-            <Ionicons
-              name={logged ? 'checkmark' : 'arrow-forward'}
-              size={22}
-              color={palette.buttonInk}
-            />
-          </View>
         </View>
-      </Pressable>
+      ) : (
+        <Pressable
+          style={[st.card, { backgroundColor: palette.bg }, logged && { opacity: 0.62 }]}
+          {...pressProps}
+        >
+          {header}
+        </Pressable>
+      )}
 
       {/* Swap — only ever drawn when there is a real handler behind it. */}
       {onSwap && (
@@ -164,5 +233,11 @@ const st = StyleSheet.create({
   },
   bottomRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 10 },
   meta: { fontFamily: F.bodyMedium, fontSize: 14.5, marginBottom: 6 },
+  // Several foods in one slot: one 44pt row per food under the header.
+  itemList: { marginTop: 14, borderTopWidth: 1, paddingTop: 4 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 6 },
+  itemCheck: { width: 22, height: 22, borderRadius: 11, borderCurve: 'continuous', borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  itemName: { fontFamily: F.bodySemiBold, fontSize: 15.5 },
+  itemMeta: { fontFamily: F.bodyMedium, fontSize: 13, marginTop: 1 },
   arrowBtn: { width: 52, height: 52, borderRadius: 26, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 });
