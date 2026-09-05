@@ -60,6 +60,10 @@ repository secret).
   `premium_until`, `trainer_id`, `requested_trainer_id`, `coach_*_at/by`, `solo_summary*`.
 - Trigger functions are `REVOKE EXECUTE ... FROM anon, authenticated` so they cannot be called
   over RPC. Every `SECURITY DEFINER` function pins `SET search_path TO ''`.
+- `trainers_public` is a TABLE (safe columns only) synced from `trainers` by the
+  `sync_trainer_public` trigger, SELECT-only for anon and authenticated. It used to be a
+  SECURITY DEFINER view that anon could UPDATE through; never bring the view back. Any new
+  public coach field must be added to the table, the trigger and the backfill together.
 - Row security was consolidated on 2026-09-05: one permissive policy per table and command,
   `auth.uid()` always as `(select auth.uid())`. Before touching policies, dump
   `pg_policies` and dry-run inside a rolled-back transaction with role simulation
