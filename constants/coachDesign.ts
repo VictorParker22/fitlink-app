@@ -12,6 +12,10 @@ export const CoachColors = {
   bg: '#101210',
   surface: '#181B17',
   surfaceRaised: 'rgba(24,27,23,0.9)',
+  // The lifted top of an image-less cover (coach match cards, profile hero):
+  // gradients run raised → surface so a missing photo reads as designed,
+  // never as a stock stand-in.
+  raised: '#2A3126',
   border: '#33382F',
   borderMuted: '#262A24',
 
