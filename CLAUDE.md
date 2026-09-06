@@ -124,6 +124,13 @@ repository secret).
   clientGoals. `client-onboarding.tsx` (old 5-question form) is legacy-only: it redirects
   when the flag/draft exists. Never add a question to onboarding that nothing downstream
   reads; defer it into the product (weight, time of day, coaching style live there now).
+- **Coach finder (2026-09-06, canvas "FitLink Coach Match").** app/(client-tabs)/find-coach.tsx
+  opens on `matches` when onboarding answers exist: a horizontal card pager (best fit first),
+  every card line a derived fact from trainers_public + working_hours + plans (`buildMatch`:
+  facts/gaps/goalMatch/dayFit), profile with fit bars and real passes, a request PRE-WRITTEN from
+  the answers (time/style optional chips), a sent moment with a timeline. The legacy `intake`
+  step exists only for accounts without `intake_goal_key`/`intake_days`. Never add ratings,
+  response times or athlete counts to a coach card: the data does not exist.
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`
