@@ -36,9 +36,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-// PACKAGE_TYPE is a runtime enum; PurchasesPackage is a type. Both come from
-// the platform-split module — the real SDK cannot be imported on web.
-import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import type { PurchasesPackage } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useAlert } from '../../context/AlertContext';
@@ -69,19 +66,15 @@ interface ClientPaywallProps {
 export default function ClientPaywall({ visible, onDismiss, onPurchased, blockedClass }: ClientPaywallProps) {
   // A Modal inherits no safe area — the scroll supplies its own bottom clearance.
   const insets = useSafeAreaInsets();
-  const { offerings, purchasePackage, restorePurchases, isLoading } = useRevenueCat();
+  const { athletePlan, purchasePackage, restorePurchases, isLoading } = useRevenueCat();
   const { showAlert } = useAlert();
   const [selectedType, setSelectedType] = useState<'annual' | 'monthly'>('annual');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  // Find packages from offering
-  const monthlyPkg = offerings?.availablePackages.find(
-    (p) => p.packageType === PACKAGE_TYPE.MONTHLY
-  );
-  const annualPkg = offerings?.availablePackages.find(
-    (p) => p.packageType === PACKAGE_TYPE.ANNUAL
-  );
+  // Athlete packages, picked by product identifier (lib/storePlans.ts).
+  const monthlyPkg = athletePlan.monthly ?? undefined;
+  const annualPkg = athletePlan.annual ?? undefined;
 
   const selectedPkg: PurchasesPackage | undefined =
     selectedType === 'annual' ? annualPkg : monthlyPkg;

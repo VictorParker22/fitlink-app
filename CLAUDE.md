@@ -140,8 +140,15 @@ repository secret).
 - **Purchases.** `context/RevenueCatContext.tsx` classifies failures (`classifyPurchaseError`)
   and tracks `purchase_failed`/`purchase_cancelled`; the paywall owns the success moment
   (haptic + 400 ms pulse). Products: `fitlink_athlete_monthly/annual` (client_premium),
-  `fitlink_coach_elite_monthly/annual` (coach_elite); offerings `default` and `coach`.
-  Empty offerings surface `storeStatus` on the paywalls — read it before guessing.
+  `fitlink_coach_elite_monthly/annual` (coach_elite). **Packages are picked by PRODUCT
+  IDENTIFIER** across every offering (`lib/storePlans.ts` → context `athletePlan` /
+  `coachPlan`), never by package type: on 2026-09-06 the dashboard had the coach products in
+  `default`'s standard monthly/annual slots and no `coach` offering, which would have sold
+  athletes the coach product. Empty offerings surface `storeStatus` on the paywalls with a
+  diagnostic line (storefront country, canMakePayments, which of the four ids StoreKit
+  returned) — read it before guessing. RevenueCat's public API answers what it serves the
+  phone without a dashboard login: `GET https://api.revenuecat.com/v1/subscribers/<any-id>/offerings`
+  with the app's public key as Bearer and `X-Platform: ios`.
 
 ## Editing pitfalls on this machine
 

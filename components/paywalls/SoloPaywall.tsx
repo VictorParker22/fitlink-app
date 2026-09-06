@@ -36,9 +36,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-// PACKAGE_TYPE is a runtime enum, so it comes from the platform-split module —
-// react-native-purchases cannot be imported on web at all.
-import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useAlert } from '../../context/AlertContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -69,9 +66,10 @@ interface SoloPaywallProps {
 export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywallProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  // The DEFAULT offering — athlete products (fitlink_athlete_monthly/annual
-  // → client_premium). The coach offering is a different audience entirely.
-  const { offerings, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
+  // The athlete plan — fitlink_athlete_monthly/annual → client_premium,
+  // picked by product identifier so a dashboard layout change can never
+  // put the coach product on this screen.
+  const { athletePlan, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
   const { showAlert } = useAlert();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -84,12 +82,8 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
   const isWeb = Platform.OS === 'web';
 
   // ── Store packages ─────────────────────────────────────────────────────────
-  const monthlyPkg =
-    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
-    offerings?.availablePackages?.[0];
-  const annualPkg = offerings?.availablePackages.find(
-    (p) => p.packageType === PACKAGE_TYPE.ANNUAL,
-  );
+  const monthlyPkg = athletePlan.monthly ?? athletePlan.annual ?? undefined;
+  const annualPkg = athletePlan.annual ?? undefined;
 
   const pkg = term === 'annual' && annualPkg ? annualPkg : monthlyPkg;
 

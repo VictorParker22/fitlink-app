@@ -39,7 +39,6 @@ import {
 import { loadDraft, saveDraft, GOAL_LABEL, type GoalKey } from '../../lib/onboardingDraft';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useRevenueCat } from '../../context/RevenueCatContext';
-import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { supabase } from '../../lib/supabase';
 
 type OnboardingPath = 'coach' | 'solo';
@@ -584,12 +583,9 @@ function RevealStep({
   const week = draftWeek(goal, days);
   const first = days[0] ? DAY_NAME[days[0]] : 'Monday';
 
-  const { offerings } = useRevenueCat();
-  const monthlyPkg =
-    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
-    offerings?.availablePackages?.[0] ??
-    null;
-  const annualPkg = offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.ANNUAL) ?? null;
+  const { athletePlan } = useRevenueCat();
+  const monthlyPkg = athletePlan.monthly ?? athletePlan.annual;
+  const annualPkg = athletePlan.annual;
   const priceString = monthlyPkg?.product.priceString ?? null;
   const annualPriceString = annualPkg?.product.priceString ?? null;
   const intro = monthlyPkg?.product.introPrice;

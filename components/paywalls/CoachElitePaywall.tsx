@@ -35,9 +35,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-// PACKAGE_TYPE is a runtime enum, so it comes from the platform-split module —
-// react-native-purchases cannot be imported on web at all.
-import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import { useRevenueCat } from '../../context/RevenueCatContext';
 import { useApp } from '../../context/AppContext';
 import { useAlert } from '../../context/AlertContext';
@@ -85,9 +82,9 @@ interface CoachElitePaywallProps {
 
 export default function CoachElitePaywall({ visible, onClose, onSuccess }: CoachElitePaywallProps) {
   const insets = useSafeAreaInsets();
-  // The COACH offering, not the athlete default — the two audiences buy
-  // different products and the packages would otherwise collide.
-  const { coachOfferings: offerings, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
+  // The coach plan — fitlink_coach_elite_monthly/annual → coach_elite, picked
+  // by product identifier whichever offering the dashboard puts them in.
+  const { coachPlan, purchasePackage, restorePurchases, storeStatus } = useRevenueCat();
   const { plans, activeClients, trainer } = useApp();
   const { split } = usePaymentSplit(trainer?.id);
   const { showAlert } = useAlert();
@@ -107,12 +104,8 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const isWeb = Platform.OS === 'web';
 
   // ── Store packages ─────────────────────────────────────────────────────────
-  const monthlyPkg =
-    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
-    offerings?.availablePackages?.[0];
-  const annualPkg = offerings?.availablePackages.find(
-    (p) => p.packageType === PACKAGE_TYPE.ANNUAL,
-  );
+  const monthlyPkg = coachPlan.monthly ?? coachPlan.annual ?? undefined;
+  const annualPkg = coachPlan.annual ?? undefined;
 
   const [term, setTerm] = useState<'monthly' | 'annual'>('monthly');
   const pkg = term === 'annual' && annualPkg ? annualPkg : monthlyPkg;

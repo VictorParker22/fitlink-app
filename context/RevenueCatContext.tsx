@@ -27,7 +27,6 @@ import * as Haptics from 'expo-haptics';
 // types and are erased at compile time.
 import { PURCHASES_ERROR_CODE } from '../lib/revenuecat-sdk';
 import type {
-  PurchasesOffering,
   PurchasesPackage,
   CustomerInfo,
 } from '../lib/revenuecat-sdk';
@@ -40,7 +39,38 @@ import {
   OFFERING_DEFAULT,
   OFFERING_COACH,
 } from '../lib/revenuecat';
+import { pickPlan, storeDiagnostic, ALL_PRODUCT_IDS, type StorePlan } from '../lib/storePlans';
 import { useAuth } from './AuthContext';
+
+/** A plan is the pair of packages one audience can buy. */
+export type Plan = StorePlan<PurchasesPackage>;
+const EMPTY_PLAN: Plan = { monthly: null, annual: null };
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+/**
+ * When the store hands back nothing, ask the phone what it can see: its
+ * storefront country, whether it may pay at all, and which of our product
+ * identifiers StoreKit/Play actually return. Each probe fails on its own.
+ */
+async function diagnoseStore(): Promise<string> {
+  const [sf, canPay, products] = await Promise.all([
+    withTimeout(Purchases.getStorefront(), 8000).catch(() => null),
+    withTimeout(Purchases.canMakePayments(), 8000).catch(() => null),
+    withTimeout(Purchases.getProducts(ALL_PRODUCT_IDS), 12000).catch(() => null),
+  ]);
+  return storeDiagnostic({
+    country: sf?.countryCode ?? null,
+    canPay,
+    tried: ALL_PRODUCT_IDS,
+    fetched: products ? products.map((p) => p.identifier) : null,
+  });
+}
 import { layers } from '../lib/layers';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,10 +78,13 @@ import { layers } from '../lib/layers';
 interface RevenueCatContextType {
   isLoading: boolean;
   customerInfo: CustomerInfo | null;
-  offerings: PurchasesOffering | null;
-  /** The "coach" offering — Coach Elite packages. Separate because one
-   *  offering cannot carry two audiences' monthly products at once. */
-  coachOfferings: PurchasesOffering | null;
+  /** Athlete products (fitlink_athlete_monthly/annual → client_premium),
+   *  picked by PRODUCT IDENTIFIER across every offering. Never by package
+   *  type: the dashboard once carried the coach products in the default
+   *  offering's standard slots. See lib/storePlans.ts. */
+  athletePlan: Plan;
+  /** Coach Elite products (fitlink_coach_elite_monthly/annual → coach_elite). */
+  coachPlan: Plan;
   isClientPremium: boolean;
   isCoachElite: boolean;
   /** Plain-language reason the store has no prices, or null when it does.
@@ -109,8 +142,8 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
-  const [coachOfferings, setCoachOfferings] = useState<PurchasesOffering | null>(null);
+  const [athletePlan, setAthletePlan] = useState<Plan>(EMPTY_PLAN);
+  const [coachPlan, setCoachPlan] = useState<Plan>(EMPTY_PLAN);
   const [storeStatus, setStoreStatus] = useState<string | null>(null);
 
   // ── Computed entitlement flags ──
@@ -140,26 +173,31 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
 
         setCustomerInfo(info);
 
-        const defaultOffering = offeringsResult.current ?? offeringsResult.all[OFFERING_DEFAULT] ?? null;
-        setOfferings(defaultOffering);
-        setCoachOfferings(offeringsResult.all[OFFERING_COACH] ?? null);
+        const athlete = pickPlan(offeringsResult, 'athlete', OFFERING_DEFAULT);
+        const coach = pickPlan(offeringsResult, 'coach', OFFERING_COACH);
+        setAthletePlan(athlete);
+        setCoachPlan(coach);
 
-        // Diagnose an empty store precisely. The three usual causes look
-        // identical from the paywall (no price) but need different fixes.
+        // Diagnose an empty store precisely. The usual causes look identical
+        // from the paywall (no price) but need different fixes.
         const ids = Object.keys(offeringsResult.all);
-        const pkgCount = defaultOffering?.availablePackages.length ?? 0;
+        const packageCount = ids.reduce((n, id) => n + (offeringsResult.all[id]?.availablePackages.length ?? 0), 0);
         if (ids.length === 0) {
           setStoreStatus('RevenueCat returned no offerings. Check the app API key and that an offering named "default" is marked current.');
-        } else if (!defaultOffering) {
-          setStoreStatus(`Offerings found (${ids.join(', ')}) but none is current or named "default".`);
-        } else if (pkgCount === 0) {
-          setStoreStatus(`Offering "${defaultOffering.identifier}" has no packages. The store rejected its products: in App Store Connect check the Paid Applications agreement, product status "Ready to Submit", and identifiers matching RevenueCat.`);
+        } else if (packageCount === 0) {
+          setStoreStatus(
+            `Offerings (${ids.join(', ')}) have no packages: the store returned none of their products. ` +
+              (await diagnoseStore()),
+          );
+        } else if (!athlete.monthly && !athlete.annual) {
+          setStoreStatus(`No athlete product in offerings (${ids.join(', ')}). Expected ${ALL_PRODUCT_IDS.slice(0, 2).join(' / ')}.`);
         } else {
           setStoreStatus(null);
         }
       } catch (err: any) {
         if (__DEV__) console.warn('[RevenueCat] Init error:', err);
-        setStoreStatus(`Store error: ${err?.message ?? String(err)}`);
+        const diag = await diagnoseStore().catch(() => '');
+        setStoreStatus(`Store error: ${err?.message ?? String(err)}${diag ? `\n${diag}` : ''}`);
       } finally {
         setIsLoading(false);
       }
@@ -262,8 +300,8 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       value={{
         isLoading,
         customerInfo,
-        offerings,
-        coachOfferings,
+        athletePlan,
+        coachPlan,
         isClientPremium,
         isCoachElite,
         storeStatus,

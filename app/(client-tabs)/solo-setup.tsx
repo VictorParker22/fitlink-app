@@ -46,7 +46,6 @@ import { Orb, SOLO_TINT } from '../../components/solo/Presence';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { SOLO_CHARACTERS, getSoloCharacter, type SoloCharacter } from '../../lib/soloCharacters';
 import { useRevenueCat } from '../../context/RevenueCatContext';
-import { PACKAGE_TYPE } from '../../lib/revenuecat-sdk';
 import SoloPaywall from '../../components/paywalls/SoloPaywall';
 
 /** Days in an intro-offer period, from the store's unit fields. */
@@ -69,7 +68,7 @@ export default function SoloSetupScreen() {
   const { clientData, refreshData } = useClient();
   const { showAlert } = useAlert();
   const voice = useSoloVoice();
-  const { offerings } = useRevenueCat();
+  const { athletePlan } = useRevenueCat();
   const params = useLocalSearchParams<{ change?: string }>();
 
   // The voice already on the row, if any. A saved character means this is a
@@ -89,10 +88,7 @@ export default function SoloSetupScreen() {
 
   // Store pricing for the footnote — never hardcoded, and only rendered
   // when the store actually has a monthly package.
-  const monthlyPkg =
-    offerings?.availablePackages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ??
-    offerings?.availablePackages?.[0] ??
-    null;
+  const monthlyPkg = athletePlan.monthly ?? athletePlan.annual;
   const priceString = monthlyPkg?.product.priceString ?? null;
   const intro = monthlyPkg?.product.introPrice;
   const hasTrial = !!intro && intro.price === 0;
