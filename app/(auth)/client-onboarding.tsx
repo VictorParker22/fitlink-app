@@ -1,6 +1,12 @@
 /**
  * Client intake — one question at a time, and it says why (design 23e).
  *
+ * LEGACY PATH. New athletes answer these in the editorial onboarding before
+ * an account exists (app/(auth)/intake.tsx → lib/onboardingDraft.ts), so this
+ * screen skips itself on mount whenever auth metadata says client_onboarded
+ * or a client draft is still on the device. It only renders for accounts
+ * that predate that flow and have neither.
+ *
  * Five questions, each on its own screen with a line explaining why the coach
  * asks it. Mirrors the WeeklyCheckIn conversation pattern: segmented progress,
  * coach attribution, answer-and-advance.
@@ -30,6 +36,9 @@ import * as SecureStore from '../../lib/secureStore';
 import { clientOnboardedKey } from '../../lib/onboardingFlags';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { loadDraft } from '../../lib/onboardingDraft';
+import { goalLabelToKey } from '../../lib/intakeMap';
+import { useAuth } from '../../context/AuthContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -106,6 +115,34 @@ export default function ClientOnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const { user: authUserCtx } = useAuth();
+
+  // Ask each question once. An athlete who came through the editorial
+  // onboarding (app/(auth)/intake.tsx) already answered all of this: their
+  // answers sit in auth metadata (client_onboarded) or, for the few hundred
+  // milliseconds before applyOnboardingDraft's un-awaited write lands, in
+  // the on-device draft. Either one means this form is not for them — go
+  // straight to the permissions primer. Only legacy accounts with neither
+  // ever see the questions below.
+  const [checkingSkip, setCheckingSkip] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const truthy = (v: unknown) => v === true || v === 'true';
+      const metaDone = truthy((authUserCtx?.user_metadata as any)?.client_onboarded);
+      const draft = metaDone ? null : await loadDraft();
+      if (cancelled) return;
+      if (metaDone || draft?.role === 'client') {
+        router.replace('/(auth)/athlete-permissions' as any);
+        return;
+      }
+      setCheckingSkip(false);
+    })();
+    return () => { cancelled = true; };
+    // Mount-only: a later metadata refresh must not yank the athlete away
+    // from a form they have started filling in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [step, setStep] = useState(0);
   const [coachFirst, setCoachFirst] = useState<string | null>(null);
@@ -302,6 +339,9 @@ export default function ClientOnboardingScreen() {
     const metadata = {
       client_onboarded: true,
       intake_goal: goal,
+      // Same canonical key the editorial onboarding writes (lib/intakeMap.ts),
+      // so every reader gets one vocabulary regardless of which form ran.
+      intake_goal_key: goalLabelToKey(goal) ?? null,
       intake_days: days,
       intake_experience: experience,
       intake_limitation: limitation.trim() || null,
@@ -323,6 +363,15 @@ export default function ClientOnboardingScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setDone(true);
   };
+
+  // Skip check in flight: a blank ground, never a flash of the questions.
+  if (checkingSkip) {
+    return (
+      <View style={s.container}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      </View>
+    );
+  }
 
   // ── Done state ────────────────────────────────────────────────────────────
   if (done) {

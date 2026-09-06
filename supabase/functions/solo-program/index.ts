@@ -84,7 +84,11 @@ serve(async (req) => {
     const intake = meta.onboarding_intake ?? {};
     const goals: string[] = Array.isArray(intake.goals) ? intake.goals.slice(0, 6) : [];
     const location: string = String(intake.location ?? body?.location ?? 'gym');
-    const daysRaw = Number(body?.days ?? meta.intake_days ?? 3);
+    // The weekdays the athlete chose in onboarding (['tue','thu','sat']),
+    // when they chose any. Sessions land on those days; absent, the week is
+    // spread evenly from tomorrow as before.
+    const trainingDays = parseTrainingDays(meta.intake_training_days ?? intake.training_days);
+    const daysRaw = Number(body?.days ?? meta.intake_days ?? (trainingDays.length || 3));
     const days = clampInt(daysRaw, 2, 6, 3);
     const experience = clampText(String(body?.experience ?? meta.intake_experience ?? 'not stated'), 80);
     const limitation = clampText(String(body?.limitation ?? meta.intake_limitation ?? ''), 200);
@@ -129,7 +133,7 @@ serve(async (req) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
 
     const prompt = `You are a strength and conditioning coach writing ONE WEEK of training for an athlete who trains without a human coach.
-Athlete: goals = ${goals.join(', ') || 'general fitness'}; experience = ${experience}; trains ${days} days a week; setting = ${LOCATION_EQUIPMENT[location] ?? LOCATION_EQUIPMENT.gym}${limitation ? `; must work around: ${limitation}` : ''}.
+Athlete: goals = ${goals.join(', ') || 'general fitness'}; experience = ${experience}; trains ${days} days a week${trainingDays.length ? ` (trains on ${trainingDays.map(weekdayLabel).join('/')})` : ''}; setting = ${LOCATION_EQUIPMENT[location] ?? LOCATION_EQUIPMENT.gym}${limitation ? `; must work around: ${limitation}` : ''}.
 ${historyBlock ? `\nAthlete's last 14 days:\n${historyBlock}\n` : ''}
 ${adapt
   ? 'This is an ADAPTIVE rewrite: use the last 14 days above. Progress (more weight/reps/sets, or a harder variation) whatever was logged as completed. Repeat, essentially unchanged, whatever was assigned but never logged (skipped) so the athlete gets another chance at it.'
@@ -165,8 +169,9 @@ ${list}`;
       await admin.from('client_workouts').delete().eq('client_id', client.id).is('trainer_id', null).eq('assigned_date', today).neq('status', 'completed');
     }
 
-    // Spread across the next 7 days, starting tomorrow.
-    const slots = spreadDays(days);
+    // On the athlete's chosen weekdays from the next occurrence, or spread
+    // across the next 7 days from tomorrow when none were chosen.
+    const slots = spreadDays(days, trainingDays);
     const created: { id: string; name: string; date: string }[] = [];
     let unmatched = 0;
     for (let i = 0; i < workouts.length; i++) {
@@ -233,9 +238,55 @@ ${list}`;
   }
 });
 
-/** ISO dates for `days` sessions spread over the next 7 days, from tomorrow. */
-function spreadDays(days: number): string[] {
+// Weekday keys as onboarding stores them (intake_training_days), Sunday first
+// to line up with Date#getUTCDay().
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
+const WEEKDAY_LABELS: Record<WeekdayKey, string> = {
+  sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat',
+};
+
+function weekdayLabel(key: WeekdayKey): string {
+  return WEEKDAY_LABELS[key];
+}
+
+/**
+ * Metadata is athlete-written data: accept only known keys, once each, in
+ * week order, and never more than seven. Anything else is [] (no preference).
+ */
+function parseTrainingDays(raw: unknown): WeekdayKey[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<WeekdayKey>();
+  for (const v of raw.slice(0, 14)) {
+    const key = String(v ?? '').trim().toLowerCase().slice(0, 3) as WeekdayKey;
+    if ((WEEKDAY_KEYS as readonly string[]).includes(key)) seen.add(key);
+  }
+  return WEEKDAY_KEYS.filter((k) => seen.has(k));
+}
+
+/**
+ * ISO dates for `days` sessions.
+ *
+ * With chosen weekdays: each session lands on the next occurrence of those
+ * days starting tomorrow, in order, wrapping into the following week when
+ * there are more sessions than chosen days (three sessions on Tue/Thu on a
+ * Monday → Tue, Thu, next Tue).
+ *
+ * Without: spread evenly over the next 7 days, from tomorrow.
+ */
+function spreadDays(days: number, trainingDays: WeekdayKey[] = []): string[] {
   const out: string[] = [];
+  if (trainingDays.length > 0) {
+    const wanted = new Set<number>(trainingDays.map((k) => WEEKDAY_KEYS.indexOf(k)));
+    const d = new Date();
+    d.setUTCHours(12, 0, 0, 0);
+    // Walk day by day from tomorrow; at most `days` weeks are ever needed.
+    for (let offset = 1; out.length < days && offset <= 7 * days + 7; offset++) {
+      const probe = new Date(d.getTime() + offset * 24 * 3600 * 1000);
+      if (wanted.has(probe.getUTCDay())) out.push(probe.toISOString().slice(0, 10));
+    }
+    return out;
+  }
   const step = 7 / days;
   for (let i = 0; i < days; i++) {
     const d = new Date();

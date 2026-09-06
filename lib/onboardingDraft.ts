@@ -1,35 +1,61 @@
 /**
  * onboardingDraft — answers collected BEFORE an account exists.
  *
- * The editorial onboarding asks role, goals and preferences first and only
- * then asks for an account (value first, one-tap auth). Until the session
- * exists the answers live here, on-device. `applyOnboardingDraft` runs once
- * a session appears (AuthContext), writes the answers where the app reads
- * them, and clears the draft.
+ * The editorial onboarding asks role, then (athletes) one goal, the days and
+ * the setting — "FitLink First Week" — and only then asks for an account
+ * (value first). Until the session exists the answers live here, on-device.
+ * `applyOnboardingDraft` runs once a session appears (AuthContext), writes
+ * the answers where the app reads them, and clears the draft.
  *
- * Athlete answers → clients.assessment_data.intake (existing contract with
- * find-coach) plus auth metadata intake_* keys. There is no clients row
- * until the athlete picks a coach, so the athlete's draft is kept in auth
- * metadata (`onboarding_intake`) and folded into the clients row by
- * find-coach / create_client_and_notify later.
+ * Athlete answers → auth metadata intake_* keys (the contract with
+ * find-coach, add-client, search-unassigned-clients and solo-program) plus
+ * `onboarding_intake`. There is no clients row until the athlete picks a
+ * coach or goes solo, so the draft stays in metadata and is folded into the
+ * clients row by find-coach / create_client_and_notify / ensure_solo_client
+ * later. The per-account device flag the route guard reads is set first.
  *
  * Coach answers → trainers.specializations, trainers.training_locations,
  * trainers.coaching_mode.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Platform-aware wrapper: expo-secure-store has no web implementation.
+import * as SecureStore from './secureStore';
 import { supabase } from './supabase';
+import { clientOnboardedKey } from './onboardingFlags';
 
 const KEY = 'fitlink_onboarding_draft_v1';
 
 export type DraftRole = 'client' | 'trainer';
 export type CoachingMode = 'in_person' | 'remote' | 'hybrid';
 
+/** The one goal the First Week intake asks for. */
+export type GoalKey = 'strength' | 'fat_loss' | 'return' | 'pain';
+
+/**
+ * Goal labels as other screens match on them (lib/coachMatch.ts keywords,
+ * find-coach prefill, add-client). Change a string here and those matches
+ * silently stop — the label IS the contract.
+ */
+export const GOAL_LABEL: Record<GoalKey, string> = {
+  strength: 'Get stronger on the big lifts',
+  fat_loss: 'Lose fat, keep the strength I have',
+  return: 'Get back into it after a break',
+  pain: 'Train around something that hurts',
+};
+
 export interface OnboardingDraft {
   role?: DraftRole;
-  /** Athlete goals (labels) or coach specialties (labels). */
+  /** Athlete: the single First Week goal. */
+  goal?: GoalKey;
+  /** Athlete goals (labels, `[GOAL_LABEL[goal]]`) or coach specialties (labels). */
   goals?: string[];
-  /** Where training happens: athlete single value, coach multi. */
+  /** Athlete: sessions a week, 1-7 (= trainingDays.length). */
+  days?: number;
+  /** Athlete: three-letter lowercase weekday keys, e.g. ['tue','thu','sat']. */
+  trainingDays?: string[];
+  /** Where training happens: athlete single value (`locations[0]`), coach multi. */
   locations?: string[];
+  /** Coaches only now; kept optional on the type. */
   mode?: CoachingMode;
   /** ISO date; athletes only (16+ gate). */
   dob?: string;
@@ -87,17 +113,35 @@ export async function applyOnboardingDraft(userId: string): Promise<DraftRole | 
       await supabase.from('trainers').update({ name: d.name }).eq('id', userId);
     }
   } else {
+    // The route guard (app/_layout.tsx) reads this device flag alongside the
+    // metadata. Set it BEFORE the metadata round-trip so a slow or failed
+    // updateUser cannot bounce a freshly signed-up athlete back into intake.
+    await SecureStore.setItemAsync(clientOnboardedKey(userId), 'true').catch(() => {});
+
     // Athlete: role + intake into auth metadata. A stray trainers row from
     // the signup trigger (OAuth signups carry no role) is removed server-side.
+    // The intake_* keys are the contract with find-coach, add-client,
+    // search-unassigned-clients and solo-program — labels, not keys.
+    const goalLabel = d.goal ? GOAL_LABEL[d.goal] : (d.goals?.[0] ?? null);
+    const trainingDays = Array.isArray(d.trainingDays) ? d.trainingDays : [];
+    const days = d.days ?? (trainingDays.length > 0 ? trainingDays.length : null);
+    const location = d.locations?.[0] ?? null;
     const meta: Record<string, any> = {
       role: 'client',
       client_onboarded: true,
+      intake_goal: goalLabel,
+      intake_goal_key: d.goal ?? null,
+      intake_days: days,
+      intake_training_days: trainingDays,
+      intake_experience: 'not stated',
       onboarding_intake: {
-        goals: d.goals ?? [],
-        location: d.locations?.[0] ?? null,
-        mode: d.mode ?? null,
+        goals: goalLabel ? [goalLabel] : [],
+        goal_key: d.goal ?? null,
+        location,
+        ...(d.mode ? { mode: d.mode } : {}),
+        days,
+        training_days: trainingDays,
       },
-      intake_goal: d.goals?.[0] ?? null,
       onboarding_path: d.path ?? null,
     };
     if (d.dob) meta.date_of_birth = d.dob;

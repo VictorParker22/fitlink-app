@@ -22,9 +22,10 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { loadDraft, saveDraft, type CoachingMode } from '../../lib/onboardingDraft';
 import { OB, OBFonts, OBSpace, OBMotion } from '../../constants/onboardingDesign';
 import {
-  Screen, TopNav, Headline, Sub, Wordmark, Monogram, AccentDot,
+  Screen, Headline, Sub, Wordmark, Monogram, AccentDot,
   PrimaryButton, TextButton, Pill, RadioRow, Segment, Glass, Hairline,
 } from '../../components/onboarding/Editorial';
+import { SegmentBar } from '../../components/onboarding/Plan';
 
 const SPECIALTIES = [
   'Strength', 'Hypertrophy', 'Conditioning', 'Mobility', 'Fat loss',
@@ -166,7 +167,7 @@ export default function CoachIntakeScreen() {
       )}
     >
       {step < 2 ? (
-        <TopNav step={step + 2} total={TOTAL_STEPS} onBack={handleBack} />
+        <SegmentBar step={step + 1} total={3} onBack={handleBack} />
       ) : (
         <View style={s.arrivalHeader}><Wordmark /></View>
       )}

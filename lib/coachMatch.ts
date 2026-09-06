@@ -15,10 +15,15 @@
  *   goals like "Get stronger on the big lifts"
  * - (client-tabs)/find-coach: { goal, days, time, style, source }
  *   goals like "Get strong in the gym"
+ * Either may also carry goal_key ('strength' | 'fat_loss' | 'return' |
+ * 'pain', lib/intakeMap.ts); it is read when goal is absent.
  */
+
+import { resolveGoalLabel } from './intakeMap';
 
 export interface IntakeLike {
   goal?: string | null;
+  goal_key?: string | null;
   experience?: string | null;
   days_per_week?: number | null;
   days?: string | null;
@@ -49,6 +54,8 @@ const GOAL_KEYWORDS: Record<string, string[]> = {
   'Lose fat, keep the strength I have': ['fat loss', 'weight loss', 'nutrition', 'body composition', 'cutting', 'diet'],
   'Get back into it after a break': ['beginner', 'foundation', 'fundamentals', 'general fitness', 'getting started', 'habit'],
   'Train around something that hurts': ['rehab', 'injury', 'physio', 'recovery', 'mobility', 'corrective'],
+  // find-coach's "get back into it" option (same key as the onboarding one above)
+  'Get back into it': ['beginner', 'foundation', 'fundamentals', 'general fitness', 'getting started', 'habit'],
 };
 
 function findKeyword(haystack: string, keywords: string[]): string | null {
@@ -68,7 +75,8 @@ export function matchCoach(trainer: any, plans: any[], intake?: IntakeLike | nul
   let score = 0;
   let reason: string | null = null;
 
-  const keywords = intake?.goal ? GOAL_KEYWORDS[intake.goal] || [] : [];
+  const goalLabel = resolveGoalLabel(intake?.goal, intake?.goal_key);
+  const keywords = goalLabel ? GOAL_KEYWORDS[goalLabel] || [] : [];
 
   if (keywords.length > 0) {
     // 1. Specialization — the coach's own headline, quoted as written.

@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
 import { onboardedKey, clientOnboardedKey } from '../lib/onboardingFlags';
+import { loadDraft } from '../lib/onboardingDraft';
 import { ClientRoute, AuthRoute, SharedRoute } from '../types/routes';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -228,7 +229,14 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
     Promise.all([
       SecureStore.getItemAsync(trainerKey),
       SecureStore.getItemAsync(clientKey),
-    ]).then(([onboarded, clientOnboarded]) => {
+      // The editorial onboarding's pre-signup answers. They are applied to
+      // auth metadata by applyOnboardingDraft on SIGNED_IN, but that write
+      // is not awaited anywhere: this read can land first, see neither the
+      // device flag nor client_onboarded, and shove a brand-new athlete who
+      // just finished intake into the legacy client-onboarding form. A
+      // client draft on this device IS a finished intake — treat it so.
+      loadDraft(),
+    ]).then(([onboarded, clientOnboarded, draft]) => {
       // Another account signed in while this read was in flight — its own
       // effect run owns the flags now; writing here would cross accounts.
       if (readForUserId !== user.id) return;
@@ -237,7 +245,8 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       const truthy = (v: any) => v === true || v === 'true';
       const trainerDone =
         onboarded === 'true' || truthy(meta.onboarded) || truthy(meta.wizard_complete);
-      const clientDone = clientOnboarded === 'true' || truthy(meta.client_onboarded);
+      const clientDraft = draft?.role === 'client';
+      const clientDone = clientOnboarded === 'true' || truthy(meta.client_onboarded) || clientDraft;
       setHasOnboarded(trainerDone);
       setHasClientOnboarded(clientDone);
       setHasPrimed(truthy(meta.permissions_primed));
@@ -316,11 +325,15 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       const isOnboardingScreen = segments[1] === 'client-onboarding' || segments[1] === 'athlete-permissions';
       const isWizardScreen = segments[1] === 'trainer-wizard';
       if (userRole === 'client') {
+        // client-onboarding is only for legacy accounts with no draft and no
+        // flag; an athlete with a pending client draft counts as onboarded
+        // above, so this branch never sends them to the old form.
         if (!hasClientOnboarded && !isOnboardingScreen) {
           router.replace('/(auth)/client-onboarding' as any);
         } else if (hasClientOnboarded && !hasPrimed && !isOnboardingScreen) {
           // Onboarded (possibly via the pre-signup draft) but the OS asks have
           // never been explained: one pass through the primer, then home.
+          // No ?next — the primer reads onboarding_path itself.
           router.replace('/(auth)/athlete-permissions' as any);
         } else if (hasClientOnboarded && !isOnboardingScreen) {
           router.replace('/(client-tabs)');

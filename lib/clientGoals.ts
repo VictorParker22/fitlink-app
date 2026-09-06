@@ -1,3 +1,5 @@
+import { resolveGoalLabel } from './intakeMap';
+
 /**
  * Reading an athlete's goals.
  *
@@ -10,6 +12,9 @@
  *     by updateClient when a coach edits the goals field.
  *   - assessment_data.intake.goal   — a single string, written by the athlete's
  *     own onboarding (client-onboarding.tsx) and by find-coach.tsx.
+ *   - assessment_data.intake.goal_key — the canonical key ('strength' |
+ *     'fat_loss' | 'return' | 'pain', lib/intakeMap.ts). Read only when
+ *     intake.goal is absent, and rendered as its canonical label.
  *
  * Returns [] when the athlete genuinely has no goals recorded, so callers can
  * omit the section rather than render an empty heading.
@@ -27,7 +32,8 @@ export function readClientGoals(client: { assessment_data?: any } | null | undef
     }
   }
 
-  const intakeGoal = String((data as any).intake?.goal ?? '').trim();
+  const intake = (data as any).intake;
+  const intakeGoal = (resolveGoalLabel(intake?.goal, intake?.goal_key) ?? '').trim();
   if (intakeGoal && !goals.some((g) => g.toLowerCase() === intakeGoal.toLowerCase())) {
     goals.push(intakeGoal);
   }

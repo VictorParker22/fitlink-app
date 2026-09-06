@@ -106,9 +106,24 @@ repository secret).
   the corner or with Find your coach. Premium is `clients.premium_until`, written only by the
   RevenueCat webhook (and the entitlement trigger guard).
 - **Onboarding.** Editorial screens under `app/(auth)/` use `constants/onboardingDesign.ts`
-  and `components/onboarding/Editorial.tsx`; those fonts load in `app/(auth)/_layout.tsx`,
-  not the root. Account creation is email or phone code only — no Apple/Google sign-in (user
-  decision). The draft in `lib/onboardingDraft.ts` is applied on SIGNED_IN by AuthContext.
+  and `components/onboarding/Editorial.tsx` (+ `components/onboarding/Plan.tsx`: SegmentBar,
+  Tile, DayStrip, PlanCard); those fonts load in `app/(auth)/_layout.tsx`, not the root.
+  Account creation is email or phone code only — no Apple/Google sign-in (user decision).
+  The draft in `lib/onboardingDraft.ts` is applied on SIGNED_IN by AuthContext.
+- **Athlete onboarding map (2026-09-06, canvas "FitLink First Week").** welcome (value-first
+  week loop) → role → intake.tsx (3 steps: Goal tiles, Rhythm day strip + where, Writing 2.4 s
+  → Reveal with the coach/solo fork) → account (name, DOB, email|phone) → sign-in →
+  athlete-permissions → Home (solo → solo-setup). The ONLY question set: goal key
+  ('strength'|'fat_loss'|'return'|'pain', labels in `GOAL_LABEL`), training days
+  (['tue','thu','sat']), setting (gym|home|outdoors), path. `applyOnboardingDraft` writes the
+  SecureStore `fitlink_client_onboarded_<uid>` flag FIRST, then metadata `intake_goal`,
+  `intake_goal_key`, `intake_days`, `intake_training_days`, `onboarding_intake`,
+  `onboarding_path`, `client_onboarded`. Readers: AuthGuard (also treats a client draft as
+  onboarded), find-coach (skips its intake when goal+days exist; `lib/intakeMap.ts` is the
+  translation layer), solo-program (schedules on `intake_training_days`), coachMatch,
+  clientGoals. `client-onboarding.tsx` (old 5-question form) is legacy-only: it redirects
+  when the flag/draft exists. Never add a question to onboarding that nothing downstream
+  reads; defer it into the product (weight, time of day, coaching style live there now).
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`

@@ -12,7 +12,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { OB, OBSpace } from '../../constants/onboardingDesign';
-import { Screen, TopNav, Headline, Sub, ChoiceBlock, Hairline, PrimaryButton } from '../../components/onboarding/Editorial';
+import { Screen, Headline, Sub, ChoiceBlock, Hairline, PrimaryButton } from '../../components/onboarding/Editorial';
+import { SegmentBar } from '../../components/onboarding/Plan';
 import { loadDraft, saveDraft, type DraftRole } from '../../lib/onboardingDraft';
 
 export default function RoleScreen() {
@@ -34,7 +35,9 @@ export default function RoleScreen() {
     <Screen
       footer={<PrimaryButton label="Continue" onPress={onContinue} disabled={!role} />}
     >
-      <TopNav step={1} total={4} onBack={() => router.back()} />
+      {/* The three-question bar, empty: the questions start on the next screen,
+          and the denominator never changes from here on. */}
+      <SegmentBar step={0} total={3} onBack={() => router.back()} />
       <View style={s.body}>
         <View style={s.intro}>
           <Headline>How will you use FitLink?</Headline>

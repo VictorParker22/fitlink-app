@@ -1,14 +1,17 @@
 /**
  * find-coach.tsx — the coachless athlete's path (design turn 26, all four).
  *
- * 26a  Intake — one question at a time (WeeklyCheckIn pattern): goal, days a
- *      week, time of day, how they want to be talked to. Held in local state
- *      and written into clients.assessment_data.intake once a client row
- *      exists (it doesn't before the request — coachless athletes have no
- *      client row yet). Goal and days prefill from onboarding when they map
- *      cleanly (auth user_metadata / legacy signup metadata / saved intake),
- *      with a dismissible banner naming exactly what was carried; time and
- *      style are always asked — onboarding never had them.
+ * 26a  Intake — one question at a time (WeeklyCheckIn pattern): goal and
+ *      days a week. Held in local state and merged into
+ *      clients.assessment_data.intake by request_coach. When onboarding
+ *      already answered BOTH (auth user_metadata intake_goal_key / intake_goal
+ *      + intake_days, via lib/intakeMap.ts) the intake step is skipped
+ *      entirely: the screen opens on matches with a one-line "Matched on what
+ *      you told us" banner and a Change link back to the questions. A partial
+ *      prefill (one of the two) opens on the first unanswered question with a
+ *      dismissible banner naming what was carried. Time of day and coaching
+ *      style are optional chips on the request step — nothing scores on them,
+ *      so they are never required.
  * 26b  Matches — every public trainer, ranked on what is REAL: does their
  *      specialization/bio mention the goal, do their working_hours cover the
  *      athlete's days and time of day, do they have published passes and at
@@ -46,6 +49,10 @@ import { useClient } from '../../context/ClientContext';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { totalWeeks } from '../../lib/passWeeks';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import {
+  FIND_COACH_GOAL_LABELS, FIND_COACH_DAY_BUCKETS,
+  goalToFindCoachLabel, goalLabelToKey, goalKeyToLabel, daysToFindCoachBucket, daysToNumber,
+} from '../../lib/intakeMap';
 import type { TrackNode } from '../../context/AppContext';
 
 // ─── Intake model (26a) ───────────────────────────────────────────────────────
@@ -53,25 +60,33 @@ import type { TrackNode } from '../../context/AppContext';
 type IntakeAnswers = {
   goal?: string;
   days?: string;
+  /** Optional — chosen on the request step, never required. */
   time?: string;
+  /** Optional — chosen on the request step, never required. */
   style?: string;
 };
 
-const INTAKE_QUESTIONS: {
+type IntakeQuestion = {
   id: keyof IntakeAnswers;
   prompt: string;
   context: string;
   options: { label: string; sub?: string }[];
-}[] = [
+};
+
+// The two questions that decide the ranking. Labels double as stored values
+// (assessment_data.intake.goal / .days) — lib/coachMatch.ts and
+// lib/intakeMap.ts know this vocabulary, so change it there too.
+const INTAKE_QUESTIONS: IntakeQuestion[] = [
   {
     id: 'goal',
     prompt: 'What do you want a coach for?',
     context: 'This decides who we show you — not a directory of everyone.',
     options: [
-      { label: 'Get strong in the gym', sub: 'Barbells, progressive overload, real numbers' },
-      { label: 'Lose fat and keep muscle', sub: 'Food is most of the work here' },
+      { label: FIND_COACH_GOAL_LABELS.strength, sub: 'Barbells, progressive overload, real numbers' },
+      { label: FIND_COACH_GOAL_LABELS.fat_loss, sub: 'Food is most of the work here' },
+      { label: FIND_COACH_GOAL_LABELS.return, sub: 'Trained before, the routine lapsed' },
       { label: 'Train for an event', sub: 'Race, meet or a date on the calendar' },
-      { label: 'Come back from an injury', sub: 'Coaches who work alongside physios' },
+      { label: FIND_COACH_GOAL_LABELS.pain, sub: 'Coaches who work alongside physios' },
       { label: 'Start from nothing', sub: 'Never trained properly before' },
     ],
   },
@@ -79,17 +94,17 @@ const INTAKE_QUESTIONS: {
     id: 'days',
     prompt: 'How many days a week can you actually train?',
     context: 'Be honest — a plan you can keep beats a plan you admire.',
-    options: [
-      { label: '2 days' },
-      { label: '3 days' },
-      { label: '4 days' },
-      { label: '5 or more' },
-    ],
+    options: FIND_COACH_DAY_BUCKETS.map((label) => ({ label })),
   },
+];
+
+// Optional context for the coach. Nothing ranks on these, so they live on
+// the request step as chips the athlete can leave empty.
+const OPTIONAL_QUESTIONS: IntakeQuestion[] = [
   {
     id: 'time',
-    prompt: 'When do you usually get to train?',
-    context: 'We check this against each coach’s working hours.',
+    prompt: 'When do you usually train?',
+    context: 'Checked against the coach’s working hours if you answer.',
     options: [
       { label: 'Mornings' },
       { label: 'Daytime' },
@@ -99,12 +114,12 @@ const INTAKE_QUESTIONS: {
   },
   {
     id: 'style',
-    prompt: 'How do you want a coach to talk to you?',
-    context: 'This goes to the coach with your request, so they can tell you if they’re the wrong fit.',
+    prompt: 'How do you want to be coached?',
+    context: 'Goes with your request so they can say if they’re the wrong fit.',
     options: [
-      { label: 'Push me', sub: 'Direct, expects the numbers' },
-      { label: 'Keep it steady', sub: 'Encouragement over pressure' },
-      { label: 'Just give me the plan', sub: 'Minimal back and forth' },
+      { label: 'Push me' },
+      { label: 'Keep it steady' },
+      { label: 'Just give me the plan' },
     ],
   },
 ];
@@ -112,69 +127,65 @@ const INTAKE_QUESTIONS: {
 // ─── Prefill from onboarding — never re-ask what the athlete already said ────
 //
 // Sources, in priority order:
-//   1. auth user_metadata.intake_goal / intake_days   (onboarding contract)
+//   1. auth user_metadata.intake_goal_key / intake_goal / intake_days
+//      (the onboarding contract — lib/onboardingDraft.ts, lib/intakeMap.ts)
 //   2. auth user_metadata.fitness_goal / commit_days  (legacy signup metadata)
-//   3. clientData.assessment_data.intake.goal / days_per_week
+//   3. clientData.assessment_data.intake.goal_key / goal / days_per_week
 // Only answers that map cleanly onto THIS screen's option labels are carried;
 // anything ambiguous is asked again — a wrong prefill is worse than a repeat.
-
-const GOAL_PREFILL_MAP: Record<string, string> = {
-  'Get stronger on the big lifts': 'Get strong in the gym',
-  'Lose fat, keep the strength I have': 'Lose fat and keep muscle',
-  'Train around something that hurts': 'Come back from an injury',
-  // 'Get back into it after a break' deliberately has NO mapping — the two
-  // option sets genuinely differ, so that athlete is asked, not guessed at.
-};
 
 function mapPrefillGoal(raw: unknown): string | undefined {
   if (typeof raw !== 'string' || !raw) return undefined;
   // Already one of this screen's own labels (e.g. a saved marketplace intake).
   if (INTAKE_QUESTIONS[0].options.some((o) => o.label === raw)) return raw;
-  return GOAL_PREFILL_MAP[raw];
+  return goalToFindCoachLabel(raw);
 }
 
-function mapPrefillDays(raw: unknown): string | undefined {
-  if (typeof raw === 'string' && INTAKE_QUESTIONS[1].options.some((o) => o.label === raw)) return raw;
-  const n = typeof raw === 'number'
-    ? raw
-    : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? parseInt(raw.trim(), 10) : NaN;
-  if (!Number.isFinite(n) || n < 1 || n > 7) return undefined;
-  if (n <= 2) return '2 days';
-  if (n === 3) return '3 days';
-  if (n === 4) return '4 days';
-  return '5 or more';
-}
-
-function derivePrefill(user: any, clientData: any): {
+type Prefill = {
   answers: IntakeAnswers;
-  carried: string;  // human-readable list of what was carried, '' if nothing
-  qIndex: number;   // first unanswered question
-} {
+  carried: string;    // human-readable list of what was carried, '' if nothing
+  qIndex: number;     // first unanswered question
+  complete: boolean;  // goal AND days known — the intake step can be skipped
+  matchedOn: string;  // "<goal label> · <N> days a week" for the matches banner
+};
+
+function derivePrefill(user: any, clientData: any): Prefill {
   const meta = (user?.user_metadata as any) || {};
   const intake = clientData?.assessment_data?.intake || {};
-  const goal = mapPrefillGoal(meta.intake_goal)
+  const goal = goalToFindCoachLabel(meta.intake_goal_key)
+    ?? mapPrefillGoal(meta.intake_goal)
     ?? mapPrefillGoal(meta.fitness_goal)
+    ?? goalToFindCoachLabel(intake.goal_key)
     ?? mapPrefillGoal(intake.goal);
-  const days = mapPrefillDays(meta.intake_days)
-    ?? mapPrefillDays(meta.commit_days)
-    ?? mapPrefillDays(intake.days_per_week);
+  const daysRaw = [meta.intake_days, meta.commit_days, intake.days_per_week, intake.days]
+    .find((v) => daysToFindCoachBucket(v) !== undefined);
+  const days = daysToFindCoachBucket(daysRaw);
   const answers: IntakeAnswers = {};
   if (goal) answers.goal = goal;
   if (days) answers.days = days;
   const carried = [goal ? 'Goal' : null, days ? `${days} a week` : null].filter(Boolean).join(' · ');
   let qIndex = 0;
-  // Time and style are never asked at onboarding, so this always stops early.
   while (qIndex < INTAKE_QUESTIONS.length && answers[INTAKE_QUESTIONS[qIndex].id] !== undefined) qIndex++;
-  return { answers, carried, qIndex };
+  const complete = !!goal && !!days;
+  // The banner quotes the athlete's own words from onboarding when we have
+  // them (the canonical label), else this screen's label for the same goal.
+  const goalLabel = goalKeyToLabel(meta.intake_goal_key)
+    ?? (typeof meta.intake_goal === 'string' && meta.intake_goal.trim() ? meta.intake_goal.trim() : goal);
+  const daysN = daysToNumber(daysRaw);
+  const matchedOn = complete
+    ? `${goalLabel} · ${daysN !== undefined ? `${daysN} days a week` : `${days} a week`}`
+    : '';
+  return { answers, carried, qIndex, complete, matchedOn };
 }
 
 // Keywords per goal, matched against specialization + bio. Purely textual —
 // if nothing matches we say nothing, we never invent a fit.
 const GOAL_KEYWORDS: Record<string, string[]> = {
-  'Get strong in the gym': ['strength', 'powerlifting', 'barbell', 'lifting', 'weightlifting', 'hypertrophy', 'muscle'],
-  'Lose fat and keep muscle': ['fat loss', 'weight loss', 'nutrition', 'body composition', 'cutting', 'diet'],
+  [FIND_COACH_GOAL_LABELS.strength]: ['strength', 'powerlifting', 'barbell', 'lifting', 'weightlifting', 'hypertrophy', 'muscle'],
+  [FIND_COACH_GOAL_LABELS.fat_loss]: ['fat loss', 'weight loss', 'nutrition', 'body composition', 'cutting', 'diet'],
+  [FIND_COACH_GOAL_LABELS.return]: ['beginner', 'foundation', 'fundamentals', 'general fitness', 'getting started', 'habit'],
   'Train for an event': ['endurance', 'running', 'marathon', 'triathlon', 'race', 'competition', 'event', 'sport'],
-  'Come back from an injury': ['rehab', 'injury', 'physio', 'recovery', 'mobility', 'corrective'],
+  [FIND_COACH_GOAL_LABELS.pain]: ['rehab', 'injury', 'physio', 'recovery', 'mobility', 'corrective'],
   'Start from nothing': ['beginner', 'foundation', 'fundamentals', 'general fitness', 'getting started'],
 };
 
@@ -382,9 +393,12 @@ export default function FindCoachScreen() {
   const { user } = useAuth();
   const { clientData, refreshData, pendingCoach, cancelCoachRequest } = useClient();
 
-  const [step, setStep] = useState<Step>('intake');
   // Seed from onboarding once, at mount — the athlete already answered these.
   const [prefill] = useState(() => derivePrefill(user, clientData));
+  // Both answers known → open on matches; the intake step is only a Change
+  // link away. Otherwise open on the first unanswered question.
+  const [step, setStep] = useState<Step>(prefill.complete ? 'matches' : 'intake');
+  const [skippedIntake, setSkippedIntake] = useState(prefill.complete);
   const [qIndex, setQIndex] = useState(prefill.qIndex);
   const [answers, setAnswers] = useState<IntakeAnswers>(prefill.answers);
   // '' = nothing carried, or the banner was dismissed.
@@ -441,6 +455,13 @@ export default function FindCoachScreen() {
     }
   }, []);
 
+  // Intake skipped: the ranking runs straight away on the carried answers.
+  useEffect(() => {
+    if (prefill.complete) loadMatches(prefill.answers);
+    // Mount-only by design — prefill is fixed at mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const answerQuestion = (value: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const q = INTAKE_QUESTIONS[qIndex];
@@ -454,13 +475,27 @@ export default function FindCoachScreen() {
     }
   };
 
+  // The Change link on the matches banner: reopen the two questions with the
+  // carried answers still selected, so one tap changes one thing.
+  const changeAnswers = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSkippedIntake(false);
+    setPrefillNote('');
+    setQIndex(0);
+    setStep('intake');
+  };
+
   const goBack = () => {
     if (step === 'intake') {
       if (qIndex > 0) setQIndex(qIndex - 1);
       else router.back();
     } else if (step === 'matches') {
-      setStep('intake');
-      setQIndex(INTAKE_QUESTIONS.length - 1);
+      // No intake step was shown on this visit — back leaves the screen.
+      if (skippedIntake) router.back();
+      else {
+        setStep('intake');
+        setQIndex(INTAKE_QUESTIONS.length - 1);
+      }
     } else if (step === 'profile') {
       setStep('matches');
     } else if (step === 'request') {
@@ -497,9 +532,13 @@ export default function FindCoachScreen() {
 
       // A REQUEST, not an attachment: the coach must accept before anything
       // about the athlete's plan changes (request_coach RPC).
+      // request_coach MERGES this into assessment_data.intake, so the
+      // onboarding answers already there survive. goal_key carries the
+      // canonical vocabulary (lib/intakeMap.ts) alongside this screen's label.
+      const goalKey = goalLabelToKey(answers.goal);
       const { data: result, error: rpcErr } = await supabase.rpc('request_coach', {
         p_trainer_id: selected.trainer.id,
-        p_intake: { ...answers, source: 'marketplace' },
+        p_intake: { ...answers, ...(goalKey ? { goal_key: goalKey } : {}), source: 'marketplace' },
         p_message: content,
         p_name: athleteName,
         p_email: athleteEmail,
@@ -633,7 +672,7 @@ export default function FindCoachScreen() {
               <TouchableOpacity
                 hitSlop={8}
                 onPress={() => {
-                  setAnswers({});
+                  setAnswers({ time: answers.time, style: answers.style });
                   setQIndex(0);
                   setPrefillNote('');
                 }}
@@ -683,6 +722,22 @@ export default function FindCoachScreen() {
     return (
       <View style={s.container}>
         <Header title="Coaches who fit" sub={echo || undefined} />
+        {skippedIntake && prefill.matchedOn ? (
+          <View style={s.matchedRow} accessibilityRole="summary">
+            <Ionicons name="checkmark-circle-outline" size={16} color={C.accent} />
+            <Text style={s.matchedText} numberOfLines={2}>
+              Matched on what you told us: {prefill.matchedOn}
+            </Text>
+            <TouchableOpacity
+              hitSlop={12}
+              onPress={changeAnswers}
+              accessibilityRole="button"
+              accessibilityLabel="Change what we matched on"
+            >
+              <Text style={s.matchedAction}>Change</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {loadingMatches ? (
           <View style={s.centerFill}>
             <ActivityIndicator size="large" color={C.accent} />
@@ -959,14 +1014,51 @@ export default function FindCoachScreen() {
               ))}
             </View>
             <TouchableOpacity
-              onPress={() => { setStep('intake'); setQIndex(0); }}
+              onPress={changeAnswers}
               style={s.editRow}
               accessibilityRole="button"
               accessibilityLabel="Edit your answers"
             >
-              <Text style={s.editText}>Your answers from a minute ago — edit any of them</Text>
+              <Text style={s.editText}>
+                {skippedIntake ? 'Carried from onboarding — edit either of them' : 'Your answers from a minute ago — edit any of them'}
+              </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Optional context — nothing ranks on these, so an empty answer is
+              a fine answer. One tap selects, a second tap on the same chip
+              clears it. */}
+          {OPTIONAL_QUESTIONS.map((q) => (
+            <View key={q.id} style={s.optionalCard}>
+              <View style={s.optionalHead}>
+                <Text style={s.noteLabel}>{q.prompt}</Text>
+                <Text style={s.optionalTag}>Optional</Text>
+              </View>
+              <Text style={s.optionalContext}>{q.context}</Text>
+              <View style={s.chipRow}>
+                {q.options.map((opt) => {
+                  const active = answers[q.id] === opt.label;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      style={[s.choiceChip, active && s.choiceChipActive]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setAnswers((a) => ({ ...a, [q.id]: active ? undefined : opt.label }));
+                      }}
+                      activeOpacity={0.8}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={opt.label}
+                      hitSlop={6}
+                    >
+                      <Text style={[s.choiceChipText, active && s.choiceChipTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
 
           <View style={s.noteCard}>
             <Text style={s.noteLabel}>Anything they should know?</Text>
@@ -1114,6 +1206,35 @@ const s = StyleSheet.create({
     color: C.textSecondary, fontVariant: ['tabular-nums'],
   },
   prefillAction: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent, marginTop: 8 },
+
+  // Matches — the one-line "matched on" strip when intake was skipped.
+  matchedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 20, marginBottom: 4, padding: 12,
+    backgroundColor: C.accentSofter, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 12, borderCurve: 'continuous',
+  },
+  matchedText: {
+    flex: 1, fontFamily: F.body, fontSize: 13, lineHeight: 19,
+    color: C.textSecondary, fontVariant: ['tabular-nums'],
+  },
+  matchedAction: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent, paddingVertical: 4 },
+
+  // Request — optional chips (time of day, coaching style).
+  optionalCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted,
+    borderRadius: 20, borderCurve: 'continuous', padding: 17, marginTop: 12,
+  },
+  optionalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  optionalTag: { fontFamily: F.bodySemiBold, fontSize: 12, color: C.textFaint, letterSpacing: 0.5, textTransform: 'uppercase' },
+  optionalContext: { fontFamily: F.body, fontSize: 13, lineHeight: 19, color: C.textMuted, marginTop: 4 },
+  choiceChip: {
+    minHeight: 36, paddingHorizontal: 14, justifyContent: 'center',
+    borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous',
+  },
+  choiceChipActive: { borderColor: C.accent, backgroundColor: C.accentSoft },
+  choiceChipText: { fontFamily: F.bodySemiBold, fontSize: 13.5, color: C.textSecondary },
+  choiceChipTextActive: { color: C.accent },
 
   // Matches
   matchCard: {
