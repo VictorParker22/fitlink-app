@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useCoachElite } from '../../hooks/useCoachElite';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
@@ -43,7 +43,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { trainer, activeClients, sessions, totalReferrals, updateTrainer } = useApp();
-  const { isCoachElite } = useRevenueCat();
+  const isCoachElite = useCoachElite();
   const { showAlert } = useAlert();
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);

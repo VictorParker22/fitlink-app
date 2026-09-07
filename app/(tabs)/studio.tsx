@@ -27,7 +27,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useCoachElite } from '../../hooks/useCoachElite';
 import { isBroadcastDndEnabled, setBroadcastDnd } from '../../lib/broadcastFocus';
 import {
   liveBroadcastSupported,
@@ -376,7 +376,7 @@ export default function StudioScreen() {
   const insets = useSafeAreaInsets();
   const { classes, liveClasses, updateLiveClass, deleteLiveClass, createClass, activeClients, trainer } = useApp();
   const { showAlert } = useAlert();
-  const { isCoachElite } = useRevenueCat();
+  const isCoachElite = useCoachElite();
   const [showPaywall, setShowPaywall] = useState(false);
 
   // Pulsing live dot

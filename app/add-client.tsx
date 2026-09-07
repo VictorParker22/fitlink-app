@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
-import { useRevenueCat } from '../context/RevenueCatContext';
+import { useCoachElite } from '../hooks/useCoachElite';
 import CoachElitePaywall from '../components/paywalls/CoachElitePaywall';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { supabase } from '../lib/supabase';
@@ -165,7 +165,7 @@ export default function AddClientScreen() {
   // Free tier holds 5 active athletes; Elite is unlimited. The database
   // enforces this too (trg_roster_cap) — this is the friendly wall, the
   // trigger is the real one.
-  const { isCoachElite } = useRevenueCat();
+  const isCoachElite = useCoachElite();
   const [showElitePaywall, setShowElitePaywall] = useState(false);
   const atRosterCap = !isCoachElite && !(trainer as any)?.org_id &&
     clients.filter(c => c.status !== 'inactive').length >= 5;

@@ -8,7 +8,7 @@ import AccountabilityQueue from '../../components/dashboard/AccountabilityQueue'
 import GlobalSearchModal from '../../components/dashboard/GlobalSearchModal';
 import AICoachModal from '../../components/dashboard/AICoachModal';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
-import { useRevenueCat } from '../../context/RevenueCatContext';
+import { useCoachElite } from '../../hooks/useCoachElite';
 import { RosterHeatmap } from '../../components/coach/RosterHeatmap';
 import HomeModeGate from '../../components/dashboard/home/HomeModeGate';
 import DayOneHome from '../../components/dashboard/home/DayOneHome';
@@ -49,7 +49,7 @@ export default function CoachHomeScreen() {
   const [showElitePaywall, setShowElitePaywall] = useState(false);
   // AI assistant is Elite (paid inference; also enforced server-side with a
   // 402 in coach-assistant). Non-elite taps route to the paywall instead.
-  const { isCoachElite } = useRevenueCat();
+  const isCoachElite = useCoachElite();
 
   // Check-ins waiting on a reply — fetched once by PendingCheckInsSync and
   // shared with the subtitle and "Between sessions" rows as a number.

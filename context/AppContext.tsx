@@ -2126,15 +2126,13 @@ export function AppProvider({ children }: PropsWithChildren) {
     
     // 2. Save in database.
     //    `category` and `duration_minutes` have no column on public.live_classes
-    //    (they only exist on `classes`, for the VOD promotion). Sending them
-    //    fails the whole insert with 42703, which is why scheduling a live class
-    //    could never save. Try with them — so a future migration is picked up
-    //    automatically — then shed them and retry.
+    //    (they only exist on `classes`, for the VOD promotion). They are never
+    //    sent: PostgREST answers a phantom column with 400 PGRST204, and the
+    //    "try, then shed and retry" this used to do never retried because the
+    //    detector did not know that code — every Go Live on 2026-09-07 died
+    //    here. The values stay on the returned object for this session (the
+    //    VOD promotion reads them) but not in the row.
     const { category: _cat, duration_minutes: _dur, ...baseData } = data as any;
-    const vodExtras: Record<string, any> = {
-      ...(_cat !== undefined ? { category: _cat } : {}),
-      ...(_dur !== undefined ? { duration_minutes: _dur } : {}),
-    };
     const basePayload = {
       ...baseData,
       trainer_id: user!.id,
@@ -2144,13 +2142,9 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     let { data: newClass, error } = await supabase
       .from('live_classes')
-      .insert(Object.keys(vodExtras).length ? { ...basePayload, ...vodExtras } : basePayload)
+      .insert(basePayload)
       .select()
       .single();
-    if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
-      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.'); // invariant-ok: warning names the phantom columns on purpose
-      ({ data: newClass, error } = await supabase.from('live_classes').insert(basePayload).select().single());
-    }
     if (error) {
       reportBroadcastFailure(error, { step: 'createLiveClass.insert', elapsed_ms: Date.now() - startedAt });
       throw error;
@@ -2178,6 +2172,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       });
     }
     
+    if (_cat !== undefined) newClass.category = _cat;
+    if (_dur !== undefined) newClass.duration_minutes = _dur;
     setLiveClassesList((prev) => [newClass, ...prev].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
     broadcastBreadcrumb('createLiveClass: class saved', { live_class_id: newClass.id, elapsed_ms: Date.now() - startedAt });
     return newClass;
@@ -2187,21 +2183,17 @@ export function AppProvider({ children }: PropsWithChildren) {
     // Same phantom-column guard as createLiveClass: category/duration_minutes
     // do not exist on public.live_classes, and would take the whole update
     // (title, schedule, status…) down with them.
+    // They are never sent (PostgREST 400 PGRST204); they stay on the local
+    // object for the session.
     const { category: _cat, duration_minutes: _dur, ...baseUpdates } = updates as any;
-    const vodExtras: Record<string, any> = {
-      ...(_cat !== undefined ? { category: _cat } : {}),
-      ...(_dur !== undefined ? { duration_minutes: _dur } : {}),
-    };
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('live_classes')
-      .update(Object.keys(vodExtras).length ? { ...baseUpdates, ...vodExtras } : baseUpdates)
+      .update(baseUpdates)
       .eq('id', id).select().single();
-    if (error && Object.keys(vodExtras).length > 0 && isMissingSchema(error)) {
-      if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.'); // invariant-ok: warning names the phantom columns on purpose
-      ({ data, error } = await supabase.from('live_classes').update(baseUpdates).eq('id', id).select().single());
-    }
     if (error) throw error;
-    setLiveClassesList((prev) => prev.map((c) => (c.id === id ? data : c)));
+    if (_cat !== undefined) data.category = _cat;
+    if (_dur !== undefined) data.duration_minutes = _dur;
+    setLiveClassesList((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
     return data;
   }, []);
 

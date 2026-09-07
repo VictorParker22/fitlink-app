@@ -19,6 +19,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type PropsWithChildren,
 } from 'react';
 import * as Haptics from 'expo-haptics';
@@ -164,6 +165,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const [athletePlan, setAthletePlan] = useState<Plan>(EMPTY_PLAN);
   const [coachPlan, setCoachPlan] = useState<Plan>(EMPTY_PLAN);
   const [storeStatus, setStoreStatus] = useState<string | null>(null);
+  const initRunRef = useRef(0);
 
   // ── Computed entitlement flags ──
   const isClientPremium = !!customerInfo?.entitlements.active[ENTITLEMENT_CLIENT_PREMIUM];
@@ -177,6 +179,13 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    // Each session change starts a new run. A run that has been superseded
+    // (the app opened signed-out, then the session restored a moment later)
+    // must not write its stale, anonymous customer info over the real one —
+    // that race is how a paid coach opened the app and saw Elite gone.
+    const run = ++initRunRef.current;
+    const stale = () => run !== initRunRef.current;
+
     (async () => {
       try {
         initRevenueCat(user?.id);
@@ -184,11 +193,13 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         // Identity follows the session both ways: log in as this user, or
         // drop the previous user's identity when nobody is signed in.
         await ensureIdentity(user?.id);
+        if (stale()) return;
 
         const [info, offeringsResult] = await Promise.all([
           Purchases.getCustomerInfo(),
           Purchases.getOfferings(),
         ]);
+        if (stale()) return;
 
         setCustomerInfo(info);
 
