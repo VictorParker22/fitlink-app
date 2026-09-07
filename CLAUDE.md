@@ -160,6 +160,13 @@ repository secret).
   `compute.ts` is jest-tested). The Solo corner calls it on a 402 before showing a paywall; the
   context calls it once per launch when an entitlement is active (self-heal). The webhook stays
   the only thing that REVOKES.
+- **Array columns.** `trainers.certifications`, `specializations`, `training_locations` are
+  `text[]`; never seed a string state from them or call string methods on them (the coach
+  wizard's first step threw `certifications.trim is not a function` the moment the row
+  loaded, 2026-09-07). Test fixtures must use the real row shape:
+  `tests/trainerWizardSmoke.test.tsx` fails on the old code for exactly this reason.
+  "Something went wrong" = the expo-router ErrorBoundary in `app/_layout.tsx` (a render
+  error); it now prints the error's message in production too.
 - **Alerts and screen transitions.** `context/AlertContext.tsx` is a native Modal and presents
   only after `InteractionManager.runAfterInteractions`. Never call `showAlert` for something
   that the route guard is about to react to (a sign-up that yields a session, a role change):
