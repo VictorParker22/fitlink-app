@@ -26,7 +26,12 @@ repository secret).
 
 ## Shipping
 
-- **JS-only changes ship over the air.** `EAS_NO_VCS=1 npx eas update --channel production --message "..." --non-interactive`.
+- **JS-only changes ship over the air.** `EAS_NO_VCS=1 npx eas update --channel production --environment production --message "..." --non-interactive`.
+  **`--environment production` is mandatory.** `EXPO_PUBLIC_SENTRY_DSN`,
+  `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` (a `pk_live_` key) and `EXPO_PUBLIC_USDA_API_KEY` live
+  only in EAS's production environment (`npx eas env:list production`); without the flag the
+  bundle inlines EMPTY strings, Sentry never starts and the Stripe payment sheet has no key.
+  Every update on 2026-09-07 before the last one shipped that way.
   Runtime version policy is `appVersion` (currently `1.0.0`); every build on that version
   receives the update. Use this freely for JS changes.
 - **Native builds are ask-first** unless the user says ship. `EAS_NO_VCS=1` always.
