@@ -32,7 +32,7 @@
 import { createContext, useContext, useState, useCallback, type PropsWithChildren } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, Animated,
-  Dimensions, Platform,
+  Dimensions, Platform, InteractionManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -88,16 +88,25 @@ export function AlertProvider({ children }: PropsWithChildren) {
   const queueRef = useRef<AlertConfig[]>([]);
   const firedRef = useRef(false);
 
+  // The dialog is a native Modal. Presenting one while the navigator is
+  // still animating a screen change (a route guard replacing the screen the
+  // moment a sign-up resolves, for instance) throws inside UIKit and takes
+  // the app down. Every presentation therefore waits for in-flight
+  // interactions and transitions to finish first.
+  const present = useCallback((cfg: AlertConfig) => {
+    visibleRef.current = true;
+    firedRef.current = false;
+    setConfig(cfg);
+    InteractionManager.runAfterInteractions(() => setVisible(true));
+  }, []);
+
   const showAlert = useCallback((cfg: AlertConfig) => {
     if (visibleRef.current) {
       queueRef.current.push(cfg);
       return;
     }
-    visibleRef.current = true;
-    firedRef.current = false;
-    setConfig(cfg);
-    setVisible(true);
-  }, []);
+    present(cfg);
+  }, [present]);
 
   // When a dialog has fully gone, surface the next queued one. Going through
   // state (false → true) rather than swapping config in place guarantees the
@@ -106,11 +115,8 @@ export function AlertProvider({ children }: PropsWithChildren) {
     if (visible) return;
     const next = queueRef.current.shift();
     if (!next) return;
-    visibleRef.current = true;
-    firedRef.current = false;
-    setConfig(next);
-    setVisible(true);
-  }, [visible]);
+    present(next);
+  }, [visible, present]);
 
   useEffect(() => {
     if (!visible) return;

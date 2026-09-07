@@ -80,7 +80,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
 
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<{ signedIn: boolean }>;
   signInWithPhone: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, token: string, metadata?: Record<string, string>) => Promise<any>;
   signUpAsClient: (email: string, password: string, name: string) => Promise<void>;
@@ -211,14 +211,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
   // Sign-up and send-code calls get one retry when the request never left
   // the phone (lib/authErrors.ts). Code verification does not: a second
   // attempt with the same code is a real attempt against the rate limit.
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
-    const { error } = await withNetworkRetry(() => supabase.auth.signUp({
+  /**
+   * Resolves with whether the account is already signed in. With email
+   * confirmation off in Supabase Auth the session arrives at once and the
+   * route guard moves the coach on; only when it is on does the caller need
+   * to say "check your email". Showing that alert while the guard was
+   * already replacing the screen underneath it crashed the app on iOS
+   * (2026-09-07, every coach sign-up).
+   */
+  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ signedIn: boolean }> => {
+    const { data, error } = await withNetworkRetry(() => supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
     }));
     if (error) throw error;
     layers.track('sign_up', { method: 'email', role: 'trainer', name });
+    return { signedIn: !!data?.session };
   }, []);
 
   // --- Phone OTP (Shared) ---

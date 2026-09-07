@@ -38,13 +38,20 @@ jest.mock('../lib/supabase', () => ({
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+const draftState: { draft: Record<string, any> } = { draft: {} };
+jest.mock('../lib/onboardingDraft', () => ({
+  loadDraft: jest.fn(async () => draftState.draft),
+  saveDraft: jest.fn(async () => {}),
+  clearDraft: jest.fn(async () => {}),
+  GOAL_LABEL: { strength: 'Get stronger', fat_loss: 'Lose fat', return: 'Get back into it', pain: 'Train around pain' },
+}));
 jest.mock('../lib/layers', () => ({ layers: { track: jest.fn(), reset: jest.fn() } }));
 jest.mock('../lib/secureStore', () => ({ setItemAsync: jest.fn(async () => {}), getItemAsync: jest.fn(async () => null), deleteItemAsync: jest.fn(async () => {}) }));
 jest.mock('../context/AlertContext', () => ({ useAlert: () => ({ showAlert: jest.fn() }) }));
 jest.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: null,
-    signUp: jest.fn(async () => {}),
+    signUp: jest.fn(async () => ({ signedIn: true })),
     signInWithPhone: jest.fn(async () => {}),
     verifyOtp: jest.fn(async () => {}),
     signUpAsClient: jest.fn(async () => {}),
@@ -56,6 +63,8 @@ jest.mock('../context/RevenueCatContext', () => ({
 
 import AccountScreen from '../app/(auth)/account';
 import CoachIntakeScreen from '../app/(auth)/coach-intake';
+import CoachSignupScreen from '../app/(auth)/coach-signup';
+import ClientSignupScreen from '../app/(auth)/client-signup';
 
 describe('coach onboarding screens mount', () => {
   it('account step mounts for a coach', async () => {
@@ -76,6 +85,33 @@ describe('coach onboarding screens mount', () => {
     routerState.params = {};
     let tree: Tree | null = null;
     await act(async () => { tree = TestRenderer.create(<CoachIntakeScreen />); });
+    expect(texts(tree!).length).toBeGreaterThan(0);
+  });
+
+  it('coach sign-up mounts after the account step with the name on file', async () => {
+    routerState.params = { from: 'account' };
+    draftState.draft = { role: 'trainer', name: 'Coach Mike', goals: ['strength'], locations: ['gym'] };
+    let tree: Tree | null = null;
+    await act(async () => { tree = TestRenderer.create(<CoachSignupScreen />); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(texts(tree!).some((t) => t.includes('Coach Mike'))).toBe(true);
+  });
+
+  it('coach sign-up mounts cold with no draft', async () => {
+    routerState.params = {};
+    draftState.draft = {};
+    let tree: Tree | null = null;
+    await act(async () => { tree = TestRenderer.create(<CoachSignupScreen />); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(texts(tree!).length).toBeGreaterThan(0);
+  });
+
+  it('athlete sign-up mounts after the account step with the name on file', async () => {
+    routerState.params = { from: 'account' };
+    draftState.draft = { role: 'client', name: 'Sam Athlete', goal: 'strength', trainingDays: ['tue','thu'], path: 'solo' };
+    let tree: Tree | null = null;
+    await act(async () => { tree = TestRenderer.create(<ClientSignupScreen />); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(texts(tree!).length).toBeGreaterThan(0);
   });
 });

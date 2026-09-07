@@ -134,13 +134,18 @@ export default function CoachSignupScreen() {
 
     setLoading(true);
     try {
-      await signUp(email.trim().toLowerCase(), password, name.trim());
-      showAlert({
-        type: 'success',
-        title: 'Check your email',
-        message: 'Confirm your address, then sign in to finish setting up.',
-        buttons: [{ text: 'Got it' }],
-      });
+      const { signedIn } = await signUp(email.trim().toLowerCase(), password, name.trim());
+      // Signed in already: the route guard is moving the coach to the setup
+      // wizard right now. Presenting an alert on top of that transition is
+      // the crash every coach hit here; there is nothing to say anyway.
+      if (!signedIn) {
+        showAlert({
+          type: 'success',
+          title: 'Check your email',
+          message: 'Confirm your address, then sign in to finish setting up.',
+          buttons: [{ text: 'Got it' }],
+        });
+      }
     } catch (err: any) {
       setError(friendlyAuthError(err, "Couldn't create your account. Try again."));
     } finally {
