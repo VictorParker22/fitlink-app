@@ -33,6 +33,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
+import { confirmEntitlement } from '../../lib/entitlement';
 import { useClient } from '../../context/ClientContext';
 import { useHealth } from '../../context/HealthContext';
 import { useWorkout } from '../../context/WorkoutContext';
@@ -347,16 +348,31 @@ export default function SoloScreen() {
   // purchase grace window this is the webhook still landing, not a real
   // denial, so it shows "Activating…" and polls rather than showing the
   // paywall the athlete just paid on.
-  const handle402 = useCallback(() => {
+  const handle402 = useCallback(async () => {
     if (Date.now() - lastPurchaseAtRef.current < PURCHASE_GRACE_MS) {
       setActivating(true);
       setCurrentLine('Activating your subscription…');
-    } else {
-      setCurrentLine(`Solo is a paid corner. Start your trial to hear from ${character.name}.`);
-      setPaywallVisible(true);
-      layers.track('paywall_shown', { source: 'corner' });
+      // Ask the server to sync from RevenueCat now instead of waiting on
+      // the webhook; the poll in the activating effect picks up the row.
+      confirmEntitlement().then((r) => { if (r?.active.client_premium) refreshData().catch(() => {}); });
+      return;
     }
-  }, [character.name]);
+    // A 402 outside the window can still be a purchase the server never
+    // heard about (webhook lag or a gap). Ask RevenueCat before showing a
+    // paywall the athlete may already have paid on.
+    setCurrentLine('Checking your subscription…');
+    const confirmed = await confirmEntitlement(1);
+    if (confirmed?.active.client_premium) {
+      lastPurchaseAtRef.current = Date.now();
+      setActivating(true);
+      setCurrentLine('Activating your subscription…');
+      refreshData().catch(() => {});
+      return;
+    }
+    setCurrentLine(`Solo is a paid corner. Unlock it to hear from ${character.name}.`);
+    setPaywallVisible(true);
+    layers.track('paywall_shown', { source: 'corner' });
+  }, [character.name, refreshData]);
 
   // ── Core call to the corner ─────────────────────────────────────────────────
   const callCorner = useCallback(

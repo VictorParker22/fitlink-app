@@ -148,7 +148,38 @@ repository secret).
   diagnostic line (storefront country, canMakePayments, which of the four ids StoreKit
   returned) — read it before guessing. RevenueCat's public API answers what it serves the
   phone without a dashboard login: `GET https://api.revenuecat.com/v1/subscribers/<any-id>/offerings`
-  with the app's public key as Bearer and `X-Platform: ios`.
+  with the app's public key as Bearer and `X-Platform: ios`; `GET .../subscribers/<uid>` shows
+  that user's entitlements and `last_seen` (how the 2026-09-07 wrong-account purchase was found).
+- **Purchase identity and activation (2026-09-07).** The RevenueCat app user id MUST equal the
+  Supabase user id: `ensureIdentity()` in `context/RevenueCatContext.tsx` runs on every session
+  change (logIn / logOut) and before every purchase and restore. Never call
+  `Purchases.purchasePackage` without it. Activation does not wait for the webhook: after a
+  purchase or restore the context calls `lib/entitlement.ts` → edge function
+  `confirm-entitlement` (asks RevenueCat about the caller's own id with secret `RC_API_KEY`, the
+  public SDK key works; writes `clients.premium_until` / `trainers.elite_until` forward only,
+  `compute.ts` is jest-tested). The Solo corner calls it on a 402 before showing a paywall; the
+  context calls it once per launch when an entitlement is active (self-heal). The webhook stays
+  the only thing that REVOKES.
+- **Paywall → navigation handoff.** `SoloPaywall` and `CoachElitePaywall` hide their Modal first
+  and fire `onSuccess` from the Modal's `onDismiss` (Android: 350 ms delay). Never navigate from
+  inside a visible Modal: on iOS it leaves the app unresponsive (the 2026-09-07 "start live
+  freezes" report went through exactly that path).
+- **Live broadcast go-live (2026-09-07).** `lib/streamSetup.ts` is the only path to a Mux
+  stream: `requestMuxStream()` (15 s timeout, 402 → `confirmEntitlement` → retry once, never a
+  placeholder key), `readStreamSecrets`/`persistStreamSecrets`, typed `StreamSetupError`
+  reasons with alert copy, and Sentry breadcrumbs under category `broadcast`.
+  `createLiveClass` THROWS when no stream can be made (it used to save `key_…` placeholders
+  that dead-ended the studio). `app/broadcast/[id].tsx` runs a phase machine idle →
+  preparing → connecting → live (only on `onPublishStarted`) → failed, with a 20 s connect
+  watchdog that stops the publisher and offers retry. The RTMP publisher is iOS-only
+  (`lib/liveBroadcast.ts`); HaishinKit event ordering is unverified on a device.
+- **App Store Connect API from this machine.** Team key `VFPH6FZDX9` (App Manager) lives at
+  `credentials/AuthKey_VFPH6FZDX9.p8` (gitignored, not uploaded). Issuer
+  `a49b4160-1354-49c6-a156-254e1c076801`, app 6779058450. A read-only probe script pattern
+  (ES256 JWT via Node crypto, `dsaEncoding: 'ieee-p1363'`) is in the session scratchpad as
+  `asc.js`; subscriptions are 6802523621/6802523894 (athlete) and 6802524311/6802524427
+  (coach). As of 2026-09-07 the athlete products have NO introductory offer: trial copy in the
+  app is conditional on `introPrice`, but review notes must not promise a trial until one exists.
 
 ## Editing pitfalls on this machine
 

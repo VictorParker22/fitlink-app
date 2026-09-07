@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  AccessibilityInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,18 @@ import {
   liveBroadcastUnsupportedTitle,
   liveBroadcastUnsupportedMessage,
 } from '../../lib/liveBroadcast';
+import {
+  isPlaceholderStreamKey,
+  readStreamSecrets,
+  requestMuxStream,
+  persistStreamSecrets,
+  describeStreamSetupError,
+  broadcastBreadcrumb,
+  reportBroadcastFailure,
+  withTimeout,
+  NETWORK_TIMEOUT_MS,
+  StreamSetupError,
+} from '../../lib/streamSetup';
 
 const CATEGORIES = [
   { label: 'Strength', icon: 'barbell-outline' },
@@ -41,7 +54,7 @@ type Category = typeof CATEGORIES[number]['label'];
 export default function BroadcastSetupScreen() {
   const router = useRouter();
   const { existingClassId } = useLocalSearchParams<{ existingClassId?: string }>();
-  const { createLiveClass, liveClasses } = useApp();
+  const { createLiveClass, updateLiveClass, liveClasses } = useApp();
   const { showAlert } = useAlert();
   const reducedMotion = useReducedMotion();
 
@@ -51,6 +64,12 @@ export default function BroadcastSetupScreen() {
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
   const [isLaunching, setIsLaunching] = useState(false);
+  // What the launch is doing right now, shown under the button. Announced
+  // for VoiceOver by hand: accessibilityLiveRegion is Android-only.
+  const [launchStep, setLaunchStep] = useState<string | null>(null);
+  useEffect(() => {
+    if (launchStep) AccessibilityInfo.announceForAccessibility(launchStep);
+  }, [launchStep]);
 
   // Pulsing animation for the LIVE badge preview
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -86,14 +105,20 @@ export default function BroadcastSetupScreen() {
       showAlert({ type: 'error', title: 'Title required', message: 'Give your stream a title before going live.' });
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (isLaunching) return;
+    // 'start' in the haptic vocabulary (constants/motion.ts) is a medium impact.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLaunching(true);
+    const startedAt = Date.now();
+    broadcastBreadcrumb('setup: start tapped', { existing: !!existingClassId, category });
 
     try {
       let targetId = existingClassId;
 
       if (!targetId) {
-        // Ad-hoc stream — auto-create the DB row
+        // Ad-hoc stream: the class row is created with a real Mux stream or
+        // not at all (createLiveClass throws a StreamSetupError otherwise).
+        setLaunchStep('Creating your stream…');
         const newClass = await createLiveClass({
           title: title.trim(),
           description: description.trim() || undefined,
@@ -102,9 +127,36 @@ export default function BroadcastSetupScreen() {
           duration_minutes: 60,
         });
         targetId = newClass.id;
+        broadcastBreadcrumb('setup: class created', { live_class_id: targetId, elapsed_ms: Date.now() - startedAt });
+      } else {
+        // A class scheduled before streams were created up front may still
+        // carry placeholder keys. Repair it here, so the studio never opens
+        // on a class that cannot go live.
+        setLaunchStep('Checking your stream…');
+        const secrets = await readStreamSecrets(targetId);
+        broadcastBreadcrumb('setup: secrets read', { has_row: !!secrets, placeholder: isPlaceholderStreamKey(secrets?.stream_key) });
+        if (isPlaceholderStreamKey(secrets?.stream_key)) {
+          setLaunchStep('Creating your stream…');
+          const stream = await requestMuxStream();
+          await withTimeout(
+            updateLiveClass(targetId, { mux_playback_id: stream.playback_id }),
+            NETWORK_TIMEOUT_MS,
+            'live_classes playback update',
+          );
+          const { error: persistError } = await persistStreamSecrets(targetId, stream);
+          if (persistError) {
+            throw new StreamSetupError('mux_error', {
+              message: 'The stream was created but its credentials could not be saved. Try again.',
+              detail: persistError,
+            });
+          }
+          broadcastBreadcrumb('setup: stream repaired', { live_class_id: targetId, elapsed_ms: Date.now() - startedAt });
+        }
       }
 
-      // Navigate to live broadcast with setup params
+      // Only a class with a real stream key gets this far.
+      setLaunchStep('Opening the studio…');
+      broadcastBreadcrumb('setup: opening studio', { live_class_id: targetId, elapsed_ms: Date.now() - startedAt });
       router.replace({
         pathname: `/broadcast/${targetId}` as any,
         params: {
@@ -112,9 +164,12 @@ export default function BroadcastSetupScreen() {
           cameraFacing,
         },
       });
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Could not create stream.' });
+    } catch (err: unknown) {
+      const { title: alertTitle, message, reason } = describeStreamSetupError(err);
+      reportBroadcastFailure(err, { step: 'setup.handleStartBroadcast', reason, elapsed_ms: Date.now() - startedAt });
+      showAlert({ type: 'error', title: alertTitle, message });
       setIsLaunching(false);
+      setLaunchStep(null);
     }
   };
 
@@ -345,6 +400,9 @@ export default function BroadcastSetupScreen() {
               </>
             )}
           </TouchableOpacity>
+          {isLaunching && launchStep ? (
+            <Text style={s.launchStep}>{launchStep}</Text>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -605,5 +663,12 @@ const s = StyleSheet.create({
     fontFamily: CoachFonts.bodyBold,
     fontSize: 17,
     color: CoachColors.onAccent,
+  },
+  launchStep: {
+    fontFamily: CoachFonts.body,
+    fontSize: 13.5,
+    color: CoachColors.textMuted,
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

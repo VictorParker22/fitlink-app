@@ -21,7 +21,7 @@
  * the __DEV__-only bypass.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -73,6 +73,25 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
   const { showAlert } = useAlert();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  // Success handoff. The caller navigates in onSuccess. Navigating while an
+  // iOS Modal is still animating out leaves the app unresponsive (the
+  // classic RN modal-plus-navigation freeze), so success first hides the
+  // sheet and fires onSuccess from the Modal's onDismiss, once it is gone.
+  // Android has no onDismiss; a short delay covers its slide-out.
+  const [dismissing, setDismissing] = useState(false);
+  const pendingSuccess = useRef(false);
+  const fireSuccess = () => {
+    if (!pendingSuccess.current) return;
+    pendingSuccess.current = false;
+    setDismissing(false);
+    onSuccess();
+  };
+  const finishSuccess = () => {
+    pendingSuccess.current = true;
+    setDismissing(true);
+    if (Platform.OS !== 'ios') setTimeout(fireSuccess, 350);
+  };
   const [term, setTerm] = useState<'annual' | 'monthly'>('annual');
 
   // No store in a browser: RevenueCat purchases are native-only, so offerings
@@ -128,7 +147,7 @@ export default function SoloPaywall({ visible, onClose, onSuccess }: SoloPaywall
       // __DEV__ so it cannot ship.
       if (__DEV__) {
         console.warn('[SoloPaywall] No package — granting in dev only.');
-        onSuccess();
+        finishSuccess();
         return;
       }
       showAlert({
@@ -147,7 +166,7 @@ ${storeStatus}` : ''}`,
       // The moment reads as an event: success haptic plus a lime pulse on the
       // button for Motion.moment before the sheet closes (roast phase 1).
       await celebrate();
-      onSuccess();
+      finishSuccess();
     } else if (error) {
       showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
@@ -168,7 +187,7 @@ ${storeStatus}` : ''}`,
     setRestoring(false);
     if (restored) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onSuccess();
+      finishSuccess();
     } else if (error) {
       showAlert({ type: 'error', title: 'Restore failed', message: error });
     } else {
@@ -220,10 +239,11 @@ ${storeStatus}` : ''}`,
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !dismissing}
       animationType="slide"
       statusBarTranslucent
       onRequestClose={onClose}
+      onDismiss={fireSuccess}
     >
       <View style={s.container}>
         <ScrollView

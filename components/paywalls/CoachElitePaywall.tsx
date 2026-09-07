@@ -21,7 +21,7 @@
  *   <CoachElitePaywall visible={showPaywall} onClose={...} onSuccess={...} />
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -96,6 +96,25 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
   const perks = [...PERKS_BEFORE_FEE, feePerk, ...PERKS_AFTER_FEE];
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  // Success handoff. The caller navigates in onSuccess. Navigating while an
+  // iOS Modal is still animating out leaves the app unresponsive (the
+  // classic RN modal-plus-navigation freeze), so success first hides the
+  // sheet and fires onSuccess from the Modal's onDismiss, once it is gone.
+  // Android has no onDismiss; a short delay covers its slide-out.
+  const [dismissing, setDismissing] = useState(false);
+  const pendingSuccess = useRef(false);
+  const fireSuccess = () => {
+    if (!pendingSuccess.current) return;
+    pendingSuccess.current = false;
+    setDismissing(false);
+    onSuccess();
+  };
+  const finishSuccess = () => {
+    pendingSuccess.current = true;
+    setDismissing(true);
+    if (Platform.OS !== 'ios') setTimeout(fireSuccess, 350);
+  };
 
   // No store in a browser: RevenueCat purchases are native-only, so offerings
   // are null and the fallback price below would be a number we made up. On web
@@ -179,7 +198,7 @@ export default function CoachElitePaywall({ visible, onClose, onSuccess }: Coach
       // The dev convenience is kept, but gated on __DEV__ so it cannot ship.
       if (__DEV__) {
         console.warn('[CoachElitePaywall] No package — granting in dev only.');
-        onSuccess();
+        finishSuccess();
         return;
       }
       showAlert({
@@ -198,7 +217,7 @@ ${storeStatus}` : ''}`,
       // The moment reads as an event: success haptic plus a lime pulse on the
       // button for Motion.moment before the sheet closes (roast phase 1).
       await celebrate();
-      onSuccess();
+      finishSuccess();
     } else if (error) {
       showAlert({ type: 'error', title: 'Purchase failed', message: error });
     }
@@ -219,7 +238,7 @@ ${storeStatus}` : ''}`,
     setRestoring(false);
     if (restored) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onSuccess();
+      finishSuccess();
     } else if (error) {
       showAlert({ type: 'error', title: 'Restore failed', message: error });
     } else {
@@ -229,10 +248,11 @@ ${storeStatus}` : ''}`,
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !dismissing}
       animationType="slide"
       statusBarTranslucent
       onRequestClose={onClose}
+      onDismiss={fireSuccess}
     >
       <View style={s.container}>
         <ScrollView

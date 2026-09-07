@@ -40,7 +40,26 @@ import {
   OFFERING_COACH,
 } from '../lib/revenuecat';
 import { pickPlan, storeDiagnostic, ALL_PRODUCT_IDS, type StorePlan } from '../lib/storePlans';
+import { confirmEntitlement } from '../lib/entitlement';
 import { useAuth } from './AuthContext';
+
+/**
+ * The RevenueCat identity MUST equal the signed-in Supabase user id, always.
+ * On 2026-09-07 an athlete's purchase was credited to the coach account that
+ * had signed out minutes earlier, because the SDK kept the previous identity.
+ * Every purchase and restore goes through this first; sign-out resets to a
+ * fresh anonymous id so nothing can carry over.
+ */
+async function ensureIdentity(userId: string | undefined): Promise<void> {
+  if (!isRevenueCatAvailable) return;
+  const current = await Purchases.getAppUserID().catch(() => '');
+  if (userId) {
+    if (current !== userId) await Purchases.logIn(userId);
+    return;
+  }
+  const anonymous = await Purchases.isAnonymous().catch(() => true);
+  if (!anonymous) await Purchases.logOut().catch(() => {});
+}
 
 /** A plan is the pair of packages one audience can buy. */
 export type Plan = StorePlan<PurchasesPackage>;
@@ -162,9 +181,9 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
       try {
         initRevenueCat(user?.id);
 
-        if (user?.id) {
-          await Purchases.logIn(user.id);
-        }
+        // Identity follows the session both ways: log in as this user, or
+        // drop the previous user's identity when nobody is signed in.
+        await ensureIdentity(user?.id);
 
         const [info, offeringsResult] = await Promise.all([
           Purchases.getCustomerInfo(),
@@ -172,6 +191,12 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         ]);
 
         setCustomerInfo(info);
+
+        // Self-heal: a purchase the server never heard about (webhook lag or a
+        // gap) is synced on the next launch, without waiting for a 402.
+        if (user?.id && Object.keys(info.entitlements.active).length > 0) {
+          confirmEntitlement(1).catch(() => null);
+        }
 
         const athlete = pickPlan(offeringsResult, 'athlete', OFFERING_DEFAULT);
         const coach = pickPlan(offeringsResult, 'coach', OFFERING_COACH);
@@ -214,8 +239,16 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
   const purchasePackage = useCallback(
     async (pkg: PurchasesPackage): Promise<{ success: boolean; error?: string }> => {
       try {
+        if (!user?.id) {
+          return { success: false, error: 'Sign in before subscribing so the pass is tied to your account.' };
+        }
+        await ensureIdentity(user.id);
         const { customerInfo: info, transaction } = await Purchases.purchasePackage(pkg) as any;
         setCustomerInfo(info);
+        // Activate server-side NOW. Every paid gate reads clients.premium_until
+        // or trainers.elite_until, and the webhook may be late or absent. The
+        // paywall waits on this, so the screen it opens is already unlocked.
+        await withTimeout(confirmEntitlement(), 12_000).catch(() => null);
         // The paywall that called us owns the success moment (haptic + pulse);
         // firing here too doubled the notification.
 
@@ -263,7 +296,7 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         return { success: false, error: failure.message };
       }
     },
-    []
+    [user?.id]
   );
 
   // ── Restore purchases ──
@@ -273,17 +306,24 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
     error?: string;
   }> => {
     try {
+      if (!user?.id) {
+        return { success: false, restored: false, error: 'Sign in before restoring so the pass is tied to your account.' };
+      }
+      await ensureIdentity(user.id);
       const info = await Purchases.restorePurchases();
       setCustomerInfo(info);
       const hasActive =
         Object.keys(info.entitlements.active).length > 0;
-      if (hasActive) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hasActive) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await withTimeout(confirmEntitlement(), 12_000).catch(() => null);
+      }
       return { success: true, restored: hasActive };
     } catch (err: any) {
       if (__DEV__) console.warn('[RevenueCat] Restore error:', err);
       return { success: false, restored: false, error: err?.message || 'Restore failed.' };
     }
-  }, []);
+  }, [user?.id]);
 
   // ── Manual refresh (e.g., after webhook update) ──
   const refreshCustomerInfo = useCallback(async () => {

@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { Colors } from '../constants/theme';
 import { isMissingSchemaError } from '../lib/schemaErrors';
 import { buildCompletedWorkoutCounts } from '../lib/workoutCounts';
+import { requestMuxStream, broadcastBreadcrumb, reportBroadcastFailure, reportBroadcastWarning, StreamSetupError, type MuxStream } from '../lib/streamSetup';
 
 interface Trainer {
   id: string;
@@ -2100,26 +2101,28 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, []);
 
   const createLiveClass = useCallback(async (data: Omit<LiveClassItem, 'id' | 'trainer_id' | 'mux_playback_id' | 'status' | 'went_live_at' | 'viewer_count' | 'created_at' | 'updated_at'>): Promise<LiveClassItem> => {
-    let streamId = `stream_${Date.now()}`;
-    let streamKey = `key_${Date.now()}`;
-    let playbackId = `playback_${Date.now()}`;
-
-    // 1. Try calling the Supabase Edge Function to get real Mux stream details.
-    //    NOTE: supabase.functions.invoke returns { data, error: null } even on non-2xx responses —
-    //    the HTTP error body is placed inside `data`, not `error`. We must check data?.error too.
+    // 1. Ask the server for a real Mux stream. This used to fall back to
+    //    placeholder keys (`key_…`, `stream_…`) when create-mux-stream failed,
+    //    which saved a class that looked schedulable and then dead-ended the
+    //    studio at "Mux Not Configured". A class the coach cannot go live
+    //    with is not worth saving: requestMuxStream throws a StreamSetupError
+    //    (elite_required | unreachable | mux_error | timeout) whose message
+    //    the caller can show as is. It applies the 402 -> confirmEntitlement
+    //    -> retry-once rule for a coach whose Elite pass has not reached the
+    //    server yet, and every network call inside it has a 15 s timeout.
+    const startedAt = Date.now();
+    broadcastBreadcrumb('createLiveClass: requesting stream');
+    let stream: MuxStream;
     try {
-      const { data: muxData, error: muxError } = await supabase.functions.invoke('create-mux-stream');
-      if (!muxError && muxData?.stream_key && !muxData?.error) {
-        streamId = muxData.stream_id;
-        streamKey = muxData.stream_key;
-        playbackId = muxData.playback_id;
-      } else {
-        const reason = muxError?.message ?? muxData?.error ?? 'unknown';
-        console.warn('[AppContext] create-mux-stream failed, using fallback placeholder keys:', reason);
-      }
+      stream = await requestMuxStream();
     } catch (e) {
-      console.warn('[AppContext] Edge Function not deployed or unreachable, using fallback values:', e);
+      reportBroadcastFailure(e, { step: 'createLiveClass.requestMuxStream', elapsed_ms: Date.now() - startedAt });
+      throw e;
     }
+    const streamId = stream.stream_id;
+    const streamKey = stream.stream_key;
+    const playbackId = stream.playback_id;
+    broadcastBreadcrumb('createLiveClass: stream ready', { elapsed_ms: Date.now() - startedAt });
     
     // 2. Save in database.
     //    `category` and `duration_minutes` have no column on public.live_classes
@@ -2148,20 +2151,35 @@ export function AppProvider({ children }: PropsWithChildren) {
       if (__DEV__) console.warn('[AppContext] live_classes has no category/duration_minutes column — saving without them.'); // invariant-ok: warning names the phantom columns on purpose
       ({ data: newClass, error } = await supabase.from('live_classes').insert(basePayload).select().single());
     }
-    if (error) throw error;
+    if (error) {
+      reportBroadcastFailure(error, { step: 'createLiveClass.insert', elapsed_ms: Date.now() - startedAt });
+      throw error;
+    }
 
-    // Insert stream credentials into secrets table (trainer-only RLS).
-    // If this fails (e.g. RLS rejection) we log it but don't throw — the class row was already created.
+    // Insert stream credentials into the secrets table (trainer-only RLS).
+    // Without this row the studio cannot load a key and "go live" is a dead
+    // end, so a failed insert is fatal: drop the class row again (best
+    // effort) and fail honestly rather than hand back a class that looks
+    // ready.
     const { error: secretsError } = await supabase.from('live_class_secrets').insert({
       live_class_id: newClass.id,
       mux_stream_id: streamId,
       mux_stream_key: streamKey,
     });
     if (secretsError) {
-      console.error('[AppContext] live_class_secrets insert failed — GO LIVE will not work:', secretsError.message);
+      reportBroadcastFailure(secretsError, { step: 'createLiveClass.secretsInsert', elapsed_ms: Date.now() - startedAt, live_class_id: newClass.id });
+      const { error: cleanupError } = await supabase.from('live_classes').delete().eq('id', newClass.id);
+      if (cleanupError) {
+        reportBroadcastWarning('createLiveClass: orphan class row after secrets failure', { live_class_id: newClass.id, detail: cleanupError.message });
+      }
+      throw new StreamSetupError('mux_error', {
+        message: 'The stream was created but its credentials could not be saved. Try again.',
+        detail: secretsError.message,
+      });
     }
     
     setLiveClassesList((prev) => [newClass, ...prev].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()));
+    broadcastBreadcrumb('createLiveClass: class saved', { live_class_id: newClass.id, elapsed_ms: Date.now() - startedAt });
     return newClass;
   }, [user]);
 

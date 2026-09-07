@@ -32,6 +32,20 @@ import { supabase } from '../../lib/supabase';
 import { liveBroadcastUnsupportedTitle, liveBroadcastUnsupportedMessage } from '../../lib/liveBroadcast';
 import { Motion } from '../../constants/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import {
+  StreamSetupError,
+  isStreamSetupError,
+  isPlaceholderStreamKey,
+  readStreamSecrets,
+  requestMuxStream,
+  persistStreamSecrets,
+  describeStreamSetupError,
+  broadcastBreadcrumb,
+  reportBroadcastFailure,
+  reportBroadcastWarning,
+  withTimeout,
+  NETWORK_TIMEOUT_MS,
+} from '../../lib/streamSetup';
 
 let ExpoCameraRtmpPublisherView: any = null;
 let requestCameraPermissionsAsync: any = null;
@@ -54,6 +68,19 @@ if (Platform.OS === 'ios') {
 const { height: SCREEN_H } = Dimensions.get('window');
 const MSG_VISIBLE_MS = 7000;
 const MAX_VISIBLE = 5;
+
+const RTMP_INGEST_URL = 'rtmp://global-live.mux.com:5222/app';
+/** How long the publisher gets to report onPublishStarted before the attempt fails. */
+const CONNECT_WATCHDOG_MS = 20_000;
+/** Delay before the class is flipped to 'live' for athletes, so a stream that drops at once is never listed. */
+const LIVE_FLIP_DELAY_MS = 8000;
+
+/**
+ * Go-live phases. 'live' is only ever entered from onPublishStarted; the
+ * connect watchdog and onPublishError land in 'failed', which is tappable
+ * again.
+ */
+type BroadcastPhase = 'idle' | 'preparing' | 'connecting' | 'live' | 'failed';
 
 type DockTab = 'activity' | 'chat' | 'actions';
 
@@ -95,7 +122,10 @@ export default function BroadcastStudioScreen() {
   const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>(
     params.cameraFacing === 'back' ? 'back' : 'front'
   );
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [phase, setPhase] = useState<BroadcastPhase>('idle');
+  // Mirror for callbacks and timers that must read the phase without a stale closure.
+  const phaseRef = useRef<BroadcastPhase>('idle');
+  const isBroadcasting = phase === 'live';
   const [liveClass, setLiveClass] = useState<LiveClassItem | null>(null);
   const [isMuted, setIsMuted] = useState(params.micEnabled === '0');
   const [cameraReady, setCameraReady] = useState(false);
@@ -130,6 +160,14 @@ export default function BroadcastStudioScreen() {
   const markerToastAnim = useRef(new Animated.Value(0)).current;
 
   const publisherRef = useRef<any>(null);
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptStartedAtRef = useRef(0);
+  // The key in use for this attempt, held only to scrub it from anything reported.
+  const activeKeyRef = useRef<string | null>(null);
+  // Set when the coach ends the stream, so onPublishStopped can tell a chosen stop from a drop.
+  const userStoppedRef = useRef(false);
+  // Latest handleStartBroadcast, for the retry button on a failure alert.
+  const startRef = useRef<() => void>(() => {});
 
   // ── Unmount safety ────────────────────────────────────────────────────────
   const isMountedRef = useRef(true);
@@ -142,6 +180,7 @@ export default function BroadcastStudioScreen() {
       isMountedRef.current = false;
       // Cancel the deferred 'live' status update — prevents a ghost stream appearing in studio
       if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
+      if (watchdogRef.current) clearTimeout(watchdogRef.current);
       // Clear all pending fade-out animations so there are no post-unmount state updates
       opacityMap.clear();
     };
@@ -368,89 +407,250 @@ export default function BroadcastStudioScreen() {
     }
   }, [elapsedSeconds, showMarkerToast, addActivity, handleShareStream, liveClass?.title]);
 
+  // ── Go-live phase machine ─────────────────────────────────────────────────
+  //
+  //   idle ──tap──▶ preparing ──key in hand──▶ connecting ──onPublishStarted──▶ live
+  //                    │                          │  ▲                            │
+  //                    │ StreamSetupError         │  │ retry                      │ End
+  //                    ▼                          ▼  │                            ▼
+  //                  failed ◀──── watchdog (20 s) / onPublishError ──────────  idle
+  //
+  // Timeouts: 15 s on every network call (secrets read, create-mux-stream,
+  // confirm-entitlement, playback-id update, secrets save), 20 s from
+  // startPublishing to onPublishStarted. The LIVE timer only counts in 'live'.
+
+  const setPhaseSafe = (next: BroadcastPhase) => {
+    phaseRef.current = next;
+    if (isMountedRef.current) setPhase(next);
+  };
+
+  const clearWatchdog = () => {
+    if (watchdogRef.current) {
+      clearTimeout(watchdogRef.current);
+      watchdogRef.current = null;
+    }
+  };
+
+  const clearLiveFlip = () => {
+    if (liveTimeoutRef.current) {
+      clearTimeout(liveTimeoutRef.current);
+      liveTimeoutRef.current = null;
+    }
+  };
+
+  /** Stop the publisher without caring whether there was anything to stop. */
+  const stopPublisherQuietly = () => {
+    try {
+      const p = publisherRef.current?.stopPublishing?.();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch {
+      // Nothing to stop, or the native side already tore down.
+    }
+  };
+
+  /** Anything reported about a failure must never carry the stream key. */
+  const scrubKey = (text: string) => {
+    const key = activeKeyRef.current;
+    return key && text.includes(key) ? text.split(key).join('[stream key]') : text;
+  };
+
+  // Flip the class to 'live' for athletes a few seconds after the publisher
+  // connects, so a stream that drops at once is never listed.
+  const scheduleLiveFlip = (liveClassId: string) => {
+    clearLiveFlip();
+    liveTimeoutRef.current = setTimeout(async () => {
+      liveTimeoutRef.current = null;
+      // Guard: nothing to list if the coach left or the stream already died.
+      if (!isMountedRef.current || phaseRef.current !== 'live') return;
+      try {
+        await updateLiveClass(liveClassId, { status: 'live' });
+        broadcastBreadcrumb('studio: class marked live', { live_class_id: liveClassId });
+      } catch (e: any) {
+        // If this never lands the class stays 'scheduled' and no athlete can
+        // find the stream — the coach is broadcasting to nobody.
+        reportBroadcastFailure(e, { step: 'studio.liveFlip', live_class_id: liveClassId, phase: phaseRef.current });
+        showAlert({
+          type: 'error',
+          title: 'Stream not listed',
+          message: 'You are broadcasting, but the class could not be marked live so athletes may not see it. End and start again if nobody joins.',
+        });
+      }
+    }, LIVE_FLIP_DELAY_MS);
+  };
+
+  /**
+   * One exit for every way an attempt can die: a StreamSetupError while
+   * preparing, a rejected startPublishing, onPublishError, the connect
+   * watchdog, or a drop while live. Stops the publisher, lands in 'failed'
+   * and offers a retry. Never shows a second alert for an attempt that has
+   * already failed.
+   */
+  const failAttempt = (err: unknown, source: 'prepare' | 'publish_error' | 'watchdog' | 'stopped') => {
+    const prev = phaseRef.current;
+    const elapsed = attemptStartedAtRef.current ? Date.now() - attemptStartedAtRef.current : 0;
+    const detail = scrubKey(err instanceof Error ? err.message : String(err));
+    if (prev === 'idle' || prev === 'failed') {
+      broadcastBreadcrumb('studio: publisher event outside an attempt', { source, phase: prev, detail });
+      return;
+    }
+    const safeErr = err instanceof Error && err.message === detail ? err : new Error(detail);
+    clearWatchdog();
+    clearLiveFlip();
+    setPhaseSafe('failed');
+    stopPublisherQuietly();
+    activeKeyRef.current = null;
+    broadcastBreadcrumb('studio: attempt failed', { source, phase: prev, elapsed_ms: elapsed });
+    if (source === 'watchdog') {
+      reportBroadcastWarning('studio: connect watchdog expired', { phase: prev, elapsed_ms: elapsed, watchdog_ms: CONNECT_WATCHDOG_MS });
+    } else if (source === 'stopped') {
+      reportBroadcastWarning('studio: publisher stopped unexpectedly', { phase: prev, elapsed_ms: elapsed });
+    } else {
+      reportBroadcastFailure(safeErr, { step: `studio.${source}`, phase: prev, elapsed_ms: elapsed });
+    }
+    if (!isMountedRef.current) return;
+
+    let title: string;
+    let message: string;
+    if (source === 'watchdog') {
+      title = 'Stream did not connect';
+      message = `The stream service did not answer within ${Math.round(CONNECT_WATCHDOG_MS / 1000)} seconds. Check your connection and try again.`;
+    } else if (source === 'stopped') {
+      title = 'Stream stopped';
+      message = 'The stream stopped before you ended it. Try again to reconnect.';
+    } else if (source === 'publish_error' || (prev === 'connecting' && !isStreamSetupError(err))) {
+      title = prev === 'live' ? 'Stream dropped' : 'Stream could not connect';
+      message = prev === 'live'
+        ? 'The connection to the stream service was lost. Try again to reconnect.'
+        : 'The stream service refused the connection. Try again in a moment.';
+    } else {
+      ({ title, message } = describeStreamSetupError(err));
+    }
+    showAlert({
+      type: 'error',
+      title,
+      message,
+      buttons: [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Try again', onPress: () => startRef.current() },
+      ],
+    });
+  };
+
+  const handlePublishStarted = () => {
+    if (phaseRef.current !== 'connecting') {
+      // A start arriving after the watchdog gave up: it was already told to stop.
+      broadcastBreadcrumb('studio: publish started outside connecting', { phase: phaseRef.current });
+      if (phaseRef.current === 'failed' || phaseRef.current === 'idle') stopPublisherQuietly();
+      return;
+    }
+    clearWatchdog();
+    const connectMs = Date.now() - attemptStartedAtRef.current;
+    setPhaseSafe('live');
+    // 'done' in the haptic vocabulary: the one success moment of the flow.
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    broadcastBreadcrumb('studio: live', { elapsed_ms: connectMs, live_class_id: liveClass?.id ?? null });
+    if (liveClass) scheduleLiveFlip(liveClass.id);
+  };
+
+  const handlePublishStopped = () => {
+    broadcastBreadcrumb('studio: publish stopped', { phase: phaseRef.current, by_user: userStoppedRef.current });
+    // A stop while live that the coach did not ask for is a drop. During
+    // 'connecting' the watchdog and onPublishError already cover a failed
+    // connect, and a late stop from the previous attempt must not kill a
+    // retry, so nothing else is treated as a failure.
+    if (phaseRef.current === 'live' && !userStoppedRef.current) {
+      failAttempt(new Error('publisher stopped while live'), 'stopped');
+    }
+  };
+
   // ── Start broadcast ───────────────────────────────────────────────────────
   const handleStartBroadcast = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (!liveClass) return;
+    const before = phaseRef.current;
+    if (before === 'preparing' || before === 'connecting' || before === 'live') return;
+    // 'start' in the haptic vocabulary (constants/motion.ts) is a medium impact.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const { data: secrets, error: secretsError } = await supabase
-      .from('live_class_secrets')
-      .select('mux_stream_key, mux_stream_id')
-      .eq('live_class_id', liveClass.id)
-      .single();
-
-    if (secretsError || !secrets?.mux_stream_key) {
-      showAlert({ type: 'error', title: 'Broadcast Error', message: 'Could not load stream credentials.' });
-      return;
-    }
-
-    let activeStreamKey = secrets.mux_stream_key;
-
-    if (!activeStreamKey || activeStreamKey.startsWith('key_')) {
-      try {
-        // NOTE: supabase.functions.invoke puts HTTP error bodies in `data`, not in `error`
-        const { data: muxData, error: muxError } = await supabase.functions.invoke('create-mux-stream');
-        if (!muxError && muxData?.stream_key && !muxData?.error) {
-          activeStreamKey = muxData.stream_key;
-          await updateLiveClass(liveClass.id, { mux_playback_id: muxData.playback_id });
-          const { error: secretsUpdateError } = await supabase.from('live_class_secrets').update({
-            mux_stream_id: muxData.stream_id,
-            mux_stream_key: muxData.stream_key,
-          }).eq('live_class_id', liveClass.id);
-          // Not fatal for THIS broadcast (activeStreamKey is already in memory),
-          // but the key won't persist for the next one, so make it loud.
-          if (secretsUpdateError) {
-            console.error('[Broadcast] failed to persist new Mux stream key:', secretsUpdateError);
-          }
-        } else {
-          const reason = muxError?.message ?? muxData?.error ?? 'no stream_key in response';
-          console.warn('[Broadcast] create-mux-stream inline retry failed:', reason);
-        }
-      } catch (err: any) {
-        showAlert({ type: 'error', title: 'Mux Setup Error', message: err.message || 'Could not reach Mux Edge Function.' });
-      }
-    }
-
-    if (!activeStreamKey || activeStreamKey.startsWith('key_')) {
-      showAlert({
-        type: 'error',
-        title: 'Mux Not Configured',
-        message: 'Live streaming requires valid Mux credentials. Check that the MuxAccessToken and MuxSecret environment variables are set in your Supabase project.',
-      });
-      return;
-    }
+    const startedAt = Date.now();
+    attemptStartedAtRef.current = startedAt;
+    userStoppedRef.current = false;
+    activeKeyRef.current = null;
+    setElapsedSeconds(0);
+    setPhaseSafe('preparing');
+    broadcastBreadcrumb('studio: go live tapped', { live_class_id: liveClass.id, retry: before === 'failed' });
 
     try {
-      setIsBroadcasting(true);
-      setElapsedSeconds(0);
+      // 1. Credentials (15 s). No row, or a placeholder key, means the class
+      //    predates up-front stream creation or its stream was never saved.
+      const secrets = await readStreamSecrets(liveClass.id);
+      let activeKey = secrets?.stream_key ?? null;
+      broadcastBreadcrumb('studio: secrets loaded', {
+        has_row: !!secrets,
+        placeholder: isPlaceholderStreamKey(activeKey),
+        elapsed_ms: Date.now() - startedAt,
+      });
 
-      if (publisherRef.current) {
-        const rtmpUrl = 'rtmp://global-live.mux.com:5222/app';
-        await publisherRef.current.startPublishing(rtmpUrl, activeStreamKey, {
-          videoWidth: 720, videoHeight: 1280, videoBitrate: 2500000, audioBitrate: 128000,
+      // 2. No real key: ask for a stream once. requestMuxStream applies the
+      //    402 -> confirmEntitlement -> retry rule and times out at 15 s.
+      if (isPlaceholderStreamKey(activeKey)) {
+        const stream = await requestMuxStream();
+        activeKey = stream.stream_key;
+        // Athletes watch through mux_playback_id; without it the stream is
+        // invisible, so this update is part of the attempt.
+        await withTimeout(
+          updateLiveClass(liveClass.id, { mux_playback_id: stream.playback_id }),
+          NETWORK_TIMEOUT_MS,
+          'live_classes playback update',
+        );
+        // The key is already in memory for THIS broadcast; a failed save
+        // only costs the next one, so make it loud rather than fatal.
+        const { error: persistError } = await persistStreamSecrets(liveClass.id, stream);
+        if (persistError) {
+          reportBroadcastWarning('studio: could not persist new stream key', { live_class_id: liveClass.id, detail: persistError });
+        }
+        broadcastBreadcrumb('studio: stream created', { elapsed_ms: Date.now() - startedAt, persisted: !persistError });
+      }
+      if (!activeKey || isPlaceholderStreamKey(activeKey)) {
+        throw new StreamSetupError('mux_error', { detail: 'no usable key after setup' });
+      }
+      if (!publisherRef.current) {
+        throw new StreamSetupError('mux_error', {
+          message: 'The camera is not ready yet. Give it a moment and try again.',
+          detail: 'publisher ref missing',
         });
       }
 
-      liveTimeoutRef.current = setTimeout(async () => {
-        // Guard: don't update if the coach has already navigated away
-        if (!isMountedRef.current) return;
-        try {
-          await updateLiveClass(liveClass.id, { status: 'live' });
-        } catch (e: any) {
-          // If this never lands the class stays 'scheduled' and no athlete can
-          // find the stream — the coach is broadcasting to nobody.
-          console.error('[Broadcast] could not flip class to live:', e);
-          showAlert({
-            type: 'error',
-            title: 'Stream not listed',
-            message: 'You are broadcasting, but the class could not be marked live so athletes may not see it. End and start again if nobody joins.',
-          });
-        }
-      }, 8000);
-    } catch (e: any) {
-      console.warn('[Broadcast] Streaming start warning:', e);
+      // 3. Connect. 'live' is only declared by onPublishStarted; if that
+      //    never comes the watchdog fails the attempt.
+      activeKeyRef.current = activeKey;
+      setPhaseSafe('connecting');
+      broadcastBreadcrumb('studio: connecting', { elapsed_ms: Date.now() - startedAt });
+      clearWatchdog();
+      watchdogRef.current = setTimeout(() => {
+        watchdogRef.current = null;
+        if (phaseRef.current !== 'connecting') return;
+        failAttempt(new StreamSetupError('timeout', { detail: 'onPublishStarted never fired' }), 'watchdog');
+      }, CONNECT_WATCHDOG_MS);
+      await publisherRef.current.startPublishing(RTMP_INGEST_URL, activeKey, {
+        videoWidth: 720, videoHeight: 1280, videoBitrate: 2500000, audioBitrate: 128000,
+      });
+      broadcastBreadcrumb('studio: startPublishing returned', { elapsed_ms: Date.now() - startedAt, phase: phaseRef.current });
+    } catch (e) {
+      if (phaseRef.current === 'live') {
+        // startPublishing rejected after the publisher already reported a
+        // start. The stream is up; record the oddity and keep it.
+        reportBroadcastWarning('studio: startPublishing rejected after live', {
+          detail: scrubKey(e instanceof Error ? e.message : String(e)),
+        });
+        return;
+      }
+      failAttempt(e, 'prepare');
     }
   };
+
+  useEffect(() => {
+    startRef.current = handleStartBroadcast;
+  });
 
   // ── Stop broadcast ────────────────────────────────────────────────────────
   const handleStopBroadcast = async () => {
@@ -465,8 +665,13 @@ export default function BroadcastStudioScreen() {
           text: 'End Broadcast', style: 'destructive',
           onPress: async () => {
             try {
+              userStoppedRef.current = true;
+              clearWatchdog();
+              // A pending flip to 'live' must not fire after the class is ended.
+              clearLiveFlip();
+              broadcastBreadcrumb('studio: end confirmed', { phase: phaseRef.current, elapsed_s: elapsedSeconds });
               if (publisherRef.current) await publisherRef.current.stopPublishing();
-              setIsBroadcasting(false);
+              setPhaseSafe('idle');
               if (timerRef.current) clearInterval(timerRef.current);
               if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
               setShowRecap(true);
@@ -747,6 +952,21 @@ export default function BroadcastStudioScreen() {
 
   const PANEL_HEIGHT = SCREEN_H * 0.34;
 
+  // The Go live button reads the phase: busy while preparing or connecting,
+  // an End button while live, tappable again after a failure.
+  const goLiveBusy = phase === 'preparing' || phase === 'connecting';
+  const goLiveLabel =
+    phase === 'live' ? 'End'
+    : phase === 'preparing' ? 'Preparing'
+    : phase === 'connecting' ? 'Connecting'
+    : phase === 'failed' ? 'Try again'
+    : 'Go live';
+  const badgeLabel =
+    phase === 'live' ? 'LIVE'
+    : phase === 'connecting' ? 'CONNECTING'
+    : phase === 'preparing' ? 'PREPARING'
+    : 'READY';
+
   // ── Main view ─────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
@@ -756,12 +976,10 @@ export default function BroadcastStudioScreen() {
         style={[StyleSheet.absoluteFillObject, { bottom: PANEL_HEIGHT + 56 }]}
         cameraPosition={cameraPosition}
         muted={isMuted}
-        onReady={() => setCameraReady(true)}
-        onPublishStarted={() => setIsBroadcasting(true)}
-        onPublishStopped={() => setIsBroadcasting(false)}
-        onPublishError={(err: any) => {
-          showAlert({ type: 'error', title: 'Publish Error', message: String(err) });
-        }}
+        onReady={() => { setCameraReady(true); broadcastBreadcrumb('studio: camera ready'); }}
+        onPublishStarted={handlePublishStarted}
+        onPublishStopped={handlePublishStopped}
+        onPublishError={(err: unknown) => failAttempt(err, 'publish_error')}
       />
 
       {/* Fill below camera */}
@@ -781,6 +999,10 @@ export default function BroadcastStudioScreen() {
                   buttons: [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'End & Leave', style: 'destructive', onPress: async () => {
+                      userStoppedRef.current = true;
+                      clearWatchdog();
+                      clearLiveFlip();
+                      broadcastBreadcrumb('studio: end and leave', { phase: phaseRef.current });
                       try {
                         if (publisherRef.current) await publisherRef.current.stopPublishing();
                         if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
@@ -793,7 +1015,16 @@ export default function BroadcastStudioScreen() {
                     }},
                   ],
                 });
-              } else { router.back(); }
+              } else {
+                // Leaving mid-attempt: stop whatever the publisher is doing first.
+                clearWatchdog();
+                if (phaseRef.current === 'preparing' || phaseRef.current === 'connecting') {
+                  userStoppedRef.current = true;
+                  broadcastBreadcrumb('studio: left during attempt', { phase: phaseRef.current });
+                  stopPublisherQuietly();
+                }
+                router.back();
+              }
             }}
             style={s.iconBtn}
           >
@@ -804,7 +1035,7 @@ export default function BroadcastStudioScreen() {
             <View style={[s.liveBadge, isBroadcasting && s.liveBadgeActive]}>
               <View style={[s.liveDot, isBroadcasting && s.liveDotActive]} />
               <Text style={[s.liveBadgeText, isBroadcasting && s.liveBadgeTextActive]}>
-                {isBroadcasting ? 'LIVE' : 'READY'}
+                {badgeLabel}
               </Text>
             </View>
             {isBroadcasting && <Text style={s.timerText}>{formatTimer(elapsedSeconds)}</Text>}
@@ -897,16 +1128,22 @@ export default function BroadcastStudioScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[s.goLiveDockBtn, isBroadcasting && s.goLiveDockBtnLive]}
+              style={[s.goLiveDockBtn, isBroadcasting && s.goLiveDockBtnLive, goLiveBusy && s.goLiveDockBtnBusy]}
               onPress={isBroadcasting ? handleStopBroadcast : handleStartBroadcast}
+              disabled={goLiveBusy}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={isBroadcasting ? 'End stream' : goLiveLabel}
+              accessibilityState={{ disabled: goLiveBusy, busy: goLiveBusy }}
             >
               {/* onAccent in both states: on the live (danger) fill white is only
                   3.27:1, while onAccent reaches 5.75:1 on danger and 14.53:1 on accent. */}
-              <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={20} color={CoachColors.onAccent} />
-              <Text style={s.goLiveDockBtnText}>
-                {isBroadcasting ? 'End' : 'Go live'}
-              </Text>
+              {goLiveBusy ? (
+                <ActivityIndicator size="small" color={CoachColors.onAccent} />
+              ) : (
+                <Ionicons name={isBroadcasting ? 'stop-circle' : 'radio-outline'} size={20} color={CoachColors.onAccent} />
+              )}
+              <Text style={s.goLiveDockBtnText}>{goLiveLabel}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1095,6 +1332,7 @@ const s = StyleSheet.create({
     shadowColor: CoachColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6,
   },
   goLiveDockBtnLive: { backgroundColor: CoachColors.danger, shadowColor: CoachColors.danger },
+  goLiveDockBtnBusy: { opacity: 0.75 },
   goLiveDockBtnText: { fontFamily: CoachFonts.bodyBold, fontSize: 13.5, color: CoachColors.onAccent, letterSpacing: 0.8 },
 
   errorText: { fontFamily: CoachFonts.body, fontSize: 18, color: CoachColors.textPrimary, marginBottom: 20, marginTop: 12, textAlign: 'center' },
