@@ -160,6 +160,14 @@ repository secret).
   `compute.ts` is jest-tested). The Solo corner calls it on a 402 before showing a paywall; the
   context calls it once per launch when an entitlement is active (self-heal). The webhook stays
   the only thing that REVOKES.
+- **Alerts and screen transitions.** `context/AlertContext.tsx` is a native Modal and presents
+  only after `InteractionManager.runAfterInteractions`. Never call `showAlert` for something
+  that the route guard is about to react to (a sign-up that yields a session, a role change):
+  presenting a modal over an in-flight `router.replace` crashed every coach sign-up on
+  2026-09-07. `signUp()` returns `{ signedIn }`; show "Check your email" only when false.
+  Supabase Auth email confirmation was turned ON on 2026-09-07 (user decision): sign-up
+  screens must handle "no session yet" and the onboarding draft is applied at the later
+  SIGNED_IN.
 - **Paywall → navigation handoff.** `SoloPaywall` and `CoachElitePaywall` hide their Modal first
   and fire `onSuccess` from the Modal's `onDismiss` (Android: 350 ms delay). Never navigate from
   inside a visible Modal: on iOS it leaves the app unresponsive (the 2026-09-07 "start live

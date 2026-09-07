@@ -264,12 +264,26 @@ export default function ClientSignupScreen() {
 
     setLoading(true);
     try {
-      const { error: signUpErr } = await withNetworkRetry(() => supabase.auth.signUp({
+      const { data: signUpData, error: signUpErr } = await withNetworkRetry(() => supabase.auth.signUp({
         email: contact.trim().toLowerCase(),
         password,
         options: { data: { name: name.trim(), role: 'client', date_of_birth: dobCheck.iso } },
       }));
       if (signUpErr) throw signUpErr;
+
+      // Email confirmation on (Supabase Auth, 2026-09-07): no session yet, so
+      // nothing below can run and the guard has nothing to route. Say so and
+      // stop; the draft stays on the device for the sign-in that follows.
+      if (!signUpData?.session) {
+        setLoading(false);
+        showAlert({
+          type: 'success',
+          title: 'Check your email',
+          message: 'Confirm your address from the email we just sent, then sign in to finish setting up.',
+          buttons: [{ text: 'Got it' }],
+        });
+        return;
+      }
 
       // Arrived on a coach's link — connect straight to that coach. Wins even
       // over a 'solo' draft choice: a human invited them, so that invite is
