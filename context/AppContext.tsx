@@ -14,7 +14,8 @@ interface Trainer {
   phone?: string;
   bio?: string;
   specialization?: string;
-  certifications?: string;
+  /** text[] in the database; a legacy row may still carry a comma string. Never call string methods on it. */
+  certifications?: string[] | string | null;
   working_hours?: any;
   notification_prefs?: any;
   avatar_url?: string;

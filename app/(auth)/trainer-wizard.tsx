@@ -56,6 +56,31 @@ function specialtiesFromTrainer(t: any): string {
   return String(t?.specialization || '').trim();
 }
 
+// trainers.certifications is text[] in the database (and on trainers_public).
+// The field is one comma-separated line on screen; it is joined for display
+// and split back to an array to save. Seeding the state with the raw row
+// value put an ARRAY into a string state and the next render's `.trim()`
+// threw — the "Something went wrong" every new coach hit on this step the
+// moment their row loaded (2026-09-07).
+function certsFromTrainer(t: any): string {
+  const v = t?.certifications;
+  if (Array.isArray(v)) return v.map((s: unknown) => String(s).trim()).filter(Boolean).join(', ');
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function splitList(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of String(text ?? '').split(/[,\n]/)) {
+    const s = raw.trim();
+    const key = s.toLowerCase();
+    if (!s || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
 function splitSpecialties(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -120,7 +145,7 @@ export default function TrainerWizardScreen() {
   const [name, setName] = useState(trainer?.name || '');
   const [bio, setBio] = useState(trainer?.bio || '');
   const [specialization, setSpecialization] = useState(() => specialtiesFromTrainer(trainer));
-  const [certifications, setCertifications] = useState(trainer?.certifications || '');
+  const [certifications, setCertifications] = useState(() => certsFromTrainer(trainer));
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   // The sign-up already asked for the name (account step → coach-signup →
@@ -141,7 +166,7 @@ export default function TrainerWizardScreen() {
     setName((v) => v || trainer.name || '');
     setBio((v) => v || trainer.bio || '');
     setSpecialization((v) => v || specialtiesFromTrainer(trainer));
-    setCertifications((v) => v || trainer.certifications || '');
+    setCertifications((v) => v || certsFromTrainer(trainer));
   }, [trainer]);
 
   const handlePickAvatar = async () => {
@@ -228,7 +253,7 @@ export default function TrainerWizardScreen() {
           bio: bio.trim() || undefined,
           specialization: specialization.trim() || undefined,
           specializations: splitSpecialties(specialization),
-          certifications: certifications.trim() || undefined,
+          certifications: splitList(certifications),
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         };
         await updateTrainer(profileUpdate);

@@ -56,8 +56,8 @@ export default function CertificationsScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // trainers.certifications is a text column — persist as a comma-joined string.
-      await updateTrainer({ certifications: certs.join(', ') });
+      // trainers.certifications is text[] — persist the list as it is.
+      await updateTrainer({ certifications: certs });
       router.back();
     } catch (err: any) {
       showAlert({ type: 'error', title: 'Could not save', message: err.message || 'Something went wrong. Try again.' });

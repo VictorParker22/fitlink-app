@@ -678,6 +678,13 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
       <Text style={{ fontFamily: CoachFonts.body, fontSize: 17, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 20 }}>
         {__DEV__ ? props.error.message : "We're sorry, an unexpected error occurred. Please try again."}
       </Text>
+      {!__DEV__ && !!props.error?.message ? (
+        // The one line that turns "it crashed" into a fix. Small and grey;
+        // Sentry has the rest.
+        <Text selectable style={{ fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textFaint, textAlign: 'center', marginBottom: 20 }} numberOfLines={4}>
+          {String(props.error.message).slice(0, 240)}
+        </Text>
+      ) : null}
       <TouchableOpacity
         onPress={props.retry}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CoachColors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24 }}

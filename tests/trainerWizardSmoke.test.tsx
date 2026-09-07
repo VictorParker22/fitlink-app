@@ -69,7 +69,7 @@ describe('TrainerWizardScreen mount', () => {
   });
 
   it('mounts with the name on file and folds the field into a row', async () => {
-    appState.trainer = { id: 'coach-1', name: 'Coach Mike', bio: '', specializations: ['strength'], certifications: '' };
+    appState.trainer = { id: 'coach-1', name: 'Coach Mike', bio: '', specializations: ['strength'], certifications: [], training_locations: ['member_gym'], coaching_mode: 'in_person', working_hours: null };
     let tree: Tree | null = null;
     await act(async () => { tree = TestRenderer.create(<TrainerWizardScreen />); });
     expect(hasLabel(tree!, 'Edit name')).toBe(true);
@@ -80,7 +80,7 @@ describe('TrainerWizardScreen mount', () => {
     appState.trainer = null;
     let tree: Tree | null = null;
     await act(async () => { tree = TestRenderer.create(<TrainerWizardScreen />); });
-    appState.trainer = { id: 'coach-1', name: 'Late Row', bio: 'Hi', specialization: 'fat loss' };
+    appState.trainer = { id: 'coach-1', name: 'Late Row', bio: 'Hi', specialization: 'fat loss', specializations: ['fat loss'], certifications: ['NASM CPT', 'PN1'] };
     await act(async () => { tree!.update(<TrainerWizardScreen />); });
     expect(hasText(tree!, 'Step 1 of 4')).toBe(true);
   });
