@@ -164,6 +164,15 @@ repository secret).
   and fire `onSuccess` from the Modal's `onDismiss` (Android: 350 ms delay). Never navigate from
   inside a visible Modal: on iOS it leaves the app unresponsive (the 2026-09-07 "start live
   freezes" report went through exactly that path).
+- **Phantom columns.** `public.live_classes` has NO `category` / `duration_minutes` columns;
+  never send them (PostgREST answers 400 `PGRST204`). `lib/schemaErrors.ts` treats PGRST204 as
+  a missing column. When a write "fails 400 with no retry", check the edge logs first:
+  `source = 'edge_logs'`, `log_attributes['request.path']`, `['response.status_code']`;
+  function calls are `source = 'function_edge_logs'` with `['request.pathname']`.
+- **Coach Elite on the client** is `hooks/useCoachElite.ts` (RevenueCat cache OR the server's
+  `trainers.elite_until`), never `useRevenueCat().isCoachElite` alone. The RevenueCat init
+  effect numbers its runs so a superseded signed-out run cannot overwrite the signed-in
+  customer info.
 - **Live broadcast go-live (2026-09-07).** `lib/streamSetup.ts` is the only path to a Mux
   stream: `requestMuxStream()` (15 s timeout, 402 → `confirmEntitlement` → retry once, never a
   placeholder key), `readStreamSecrets`/`persistStreamSecrets`, typed `StreamSetupError`
