@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
 import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
+import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -219,9 +220,6 @@ serve(async (req) => {
         status: 504,
       });
     }
-    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return internalError('text-to-speech', error, corsHeaders);
   }
 });

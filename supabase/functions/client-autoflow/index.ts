@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireServiceRole, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -208,9 +209,6 @@ serve(async (req) => {
   } catch (err: any) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'client-autoflow' });
     console.error('[autoflow] Fatal error:', err.message)
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return internalError('client-autoflow', err, corsHeaders)
   }
 })

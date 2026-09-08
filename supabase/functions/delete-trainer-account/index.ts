@@ -16,6 +16,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { internalError } from '../_shared/http.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -83,7 +84,7 @@ serve(async (req) => {
     }
 
     const { error: rpcErr } = await admin.rpc('delete_trainer_account_for', { p_user_id: uid })
-    if (rpcErr) return json({ error: rpcErr.message }, 500)
+    if (rpcErr) return internalError('delete-trainer-account', rpcErr, corsHeaders)
 
     return json({ success: true, canceled: (subs ?? []).length })
   } catch (err: any) {

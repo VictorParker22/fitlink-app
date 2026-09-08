@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
 import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts'
+import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -169,9 +170,6 @@ Rules:
         status: 504,
       });
     }
-    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return internalError('generate-diet', error, corsHeaders);
   }
 });

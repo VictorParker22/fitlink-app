@@ -21,6 +21,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireCaller, requireTrainerSelf, AuthError, authErrorResponse } from '../_shared/auth.ts';
+import { asEmail, asPhoneDigits, escapeLike } from '../_shared/contact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,18 +30,6 @@ const corsHeaders = {
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function asEmail(v: string): string | null {
-  const s = v.trim().toLowerCase();
-  return s.length <= 254 && EMAIL_RE.test(s) ? s : null;
-}
-
-function asPhoneDigits(v: string): string | null {
-  const d = v.replace(/[^0-9]/g, '');
-  return d.length >= 7 && d.length <= 15 ? d : null;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -69,7 +58,10 @@ serve(async (req) => {
       .is('trainer_id', null)
       .not('auth_user_id', 'is', null)
       .limit(5);
-    q = email ? q.ilike('email', email) : q;
+    // ilike so a coach-typed "Coach@Example.com" still matches the stored
+    // lower-cased row — with the pattern characters escaped, or "%@gmail.com"
+    // would match every Gmail athlete (input review, 2026-09-08).
+    q = email ? q.ilike('email', escapeLike(email)) : q;
     const { data, error } = await q;
     if (error) return json({ error: 'Search failed' }, 500);
 

@@ -4,6 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { internalError } from '../_shared/http.ts'
 
 // Utility to verify Mux Signature using Web Crypto API
 async function verifyMuxSignature(rawBody: string, header: string | null, secret: string): Promise<boolean> {
@@ -220,6 +221,6 @@ serve(async (req) => {
     });
   } catch (err: any) {
     console.error(`[Mux Webhook] Error processing event: ${err.message}`);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return internalError('mux-webhook', err);
   }
 });

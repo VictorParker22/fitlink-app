@@ -83,6 +83,13 @@ with the service role. None of that was hard to find. Do the threat model FIRST,
    binds an account only once verified (`contact_verified`); pushes name a recipient
    (`toTrainerId` / `toClientId`) and `send-push-notification` resolves the token.
    `REVOKE EXECUTE` must name `PUBLIC` too, or the grant survives.
+   Input rules (`.agents/INPUT_REVIEW.md`, tests `supabase/security/input_validation.sql`):
+   every user-text column has a `char_length` CHECK (migration 20260908080000; add one
+   with every new text column); a value that reaches `.ilike()`/`.like()` goes through
+   `_shared/contact.ts escapeLike`; a 500 answers with `_shared/http.ts internalError()`
+   (generic sentence to the caller, real error in the log with the endpoint), never
+   `err.message`; never log a request or webhook payload whole; model input is clamped
+   (`clampText`/`clampStr`) and model output is clamped or dropped (`_shared/ai.ts`).
 
 ## Commands
 

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.14.0";
 import { requireServiceRole, AuthError, authErrorResponse } from '../_shared/auth.ts'
+import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,7 @@ serve(async (req) => {
     requireServiceRole(req)
 
     const payload = await req.json();
-    console.log('Webhook payload received:', payload);
+    console.log('cleanup-chat-attachments:', payload?.type, payload?.table, payload?.old_record?.id ?? '');
 
     // Ensure this is a DELETE event from the messages table
     if (payload.type === 'DELETE' && payload.table === 'messages') {
@@ -63,9 +64,6 @@ serve(async (req) => {
   } catch (err: any) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'cleanup-chat-attachments' });
     console.error('Webhook error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return internalError('cleanup-chat-attachments', err, corsHeaders);
   }
 });

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
 import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
+import { internalError } from '../_shared/http.ts'
 
 // Deploy: supabase functions deploy food-image
 // Secret:  supabase secrets set spooncalc=<your key>   (already set by the user)
@@ -89,9 +90,6 @@ serve(async (req) => {
         status: 504,
       });
     }
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return internalError('food-image', err, corsHeaders);
   }
 });

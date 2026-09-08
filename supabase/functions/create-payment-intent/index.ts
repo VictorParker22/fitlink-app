@@ -7,6 +7,7 @@ import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireCaller, requireClientAccess, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { getPaymentSplit, applicationFeeCents } from '../_shared/money.ts'
+import { internalError } from '../_shared/http.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -170,9 +171,6 @@ serve(async (req) => {
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders, { req, endpoint: 'create-payment-intent' })
     console.error('Error creating payment intent:', err)
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return internalError('create-payment-intent', err, corsHeaders)
   }
 })
