@@ -97,11 +97,11 @@
     "@testing-library/react-native": "^14.0.1",
     "@types/base-64": "^1.0.2",
     "@types/react": "~19.1.0",
-    "eslint": "^9.25.0",
-    "eslint-config-expo": "~10.0.0",
+    "eslint": "^10.10.0",
+    "eslint-config-expo": "~57.0.2",
     "husky": "^9.1.7",
     "patch-package": "^8.0.1",
-    "typescript": "~5.9.2"
+    "typescript": "~7.0.2"
   },
   "private": true,
   "overrides": {
