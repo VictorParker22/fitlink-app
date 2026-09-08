@@ -9,6 +9,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Motion, Ease } from '../../constants/motion';
 import CelebrationOverlay from '../../components/CelebrationOverlay';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -109,7 +110,7 @@ function initials(name?: string): string {
 
 export default function TrainerWizardScreen() {
   const router = useRouter();
-  const { trainer, updateTrainer } = useApp();
+  const { trainer, updateTrainer, refreshData } = useApp();
   const { user } = useAuth();
   const { showAlert } = useAlert();
   // The worked example on the payments step uses the coach's REAL split
@@ -330,9 +331,16 @@ export default function TrainerWizardScreen() {
       );
       const data = await response.json();
       if (data.error) throw new Error(data.error);
-      await Linking.openURL(data.url);
-      setStripeComplete(true);
-      return true;
+      // An in-app auth session: Stripe's fitlink://stripe-return lands back
+      // here as a resolved promise, never as a deep link the router has to
+      // place. Opening external Safari and returning by URL stranded the
+      // completion overlay behind an unmatched route (2026-09-08 freeze).
+      const result = await WebBrowser.openAuthSessionAsync(data.url, 'fitlink://stripe-return');
+      // Whatever happened in Stripe, pull the trainer row so the payouts
+      // flags on the dashboard are current.
+      refreshData().catch(() => {});
+      setStripeComplete(result.type === 'success');
+      return result.type === 'success';
     } catch (err: any) {
       showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Failed to start payment setup' });
       return false;
