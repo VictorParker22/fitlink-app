@@ -22,6 +22,8 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { guardRate } from '../_shared/rateLimit.ts';
 import { grantedUntil, nextUntil, type RcEntitlement } from './compute.ts';
+import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno';
+import { syncCoachApplicationFee } from '../_shared/money.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -107,6 +109,17 @@ serve(async (req) => {
         const { error: upErr } = await admin.from('trainers').update({ elite_until: write }).eq('id', data.id);
         if (upErr) throw upErr;
         eliteUntil = write;
+      }
+      // Runs once per launch for every coach (RevenueCatContext calls this
+      // when entitlements are active) and after every purchase/restore, so a
+      // coach's live Stripe subscriptions carry the rate their entitlement
+      // earns even if a webhook was missed. Best effort.
+      if (data?.id) {
+        const stripeSecret = Deno.env.get('STRIPE_SECRET');
+        if (stripeSecret) {
+          const stripe = new Stripe(stripeSecret, { httpClient: Stripe.createFetchHttpClient() });
+          await syncCoachApplicationFee(admin, stripe, data.id);
+        }
       }
     }
 

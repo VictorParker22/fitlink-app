@@ -14,6 +14,7 @@
 // ============================================================
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { LIVE_SUB_STATUSES, feeDiffers, isLiveSubStatus } from './fees.ts';
 
 export interface PaymentSplit {
   /** FitLink's cut, basis points. 0 for a coach on an org seat. */
@@ -81,4 +82,70 @@ export function applicationFeeCents(amountCents: number, split: PaymentSplit): n
 /** Same split as a percent, for Stripe's subscription API which wants one. */
 export function applicationFeePercent(split: PaymentSplit): number {
   return (split.platformFeeBps + split.orgShareBps) / 100;
+}
+
+// ── Keeping Stripe in step with the entitlement ─────────────────────────────
+
+/** The slice of a Stripe client this file needs; keeps money.ts free of the SDK import. */
+export interface StripeSubscriptionsApi {
+  subscriptions: {
+    retrieve(id: string): Promise<{ id: string; status: string; application_fee_percent?: number | null }>;
+    update(id: string, params: Record<string, unknown>): Promise<unknown>;
+  };
+}
+
+/**
+ * Rewrite application_fee_percent on every live Stripe subscription that
+ * pays this coach so it matches payment_split_for_trainer() RIGHT NOW.
+ *
+ * Why: the percent is frozen into a subscription when it is created. A
+ * coach who buys Elite after athletes subscribed would keep paying the
+ * standard rate on every renewal; a coach whose Elite lapsed would keep
+ * the discount. Both are the mistake nobody can afford — a coach charged
+ * 10% on a plan that promised 5%. Called from every place the entitlement
+ * changes (revenuecat-webhook, confirm-entitlement) and from the Stripe
+ * invoice.created net. Never throws: a Stripe blip must not fail the
+ * entitlement write that triggered it.
+ */
+export async function syncCoachApplicationFee(
+  admin: SupabaseClient,
+  stripe: StripeSubscriptionsApi,
+  trainerId: string,
+): Promise<{ desiredPercent: number; checked: number; updated: number }> {
+  const split = await getPaymentSplit(admin, trainerId);
+  const desiredPercent = applicationFeePercent(split);
+  let checked = 0;
+  let updated = 0;
+  try {
+    const { data: rows, error } = await admin
+      .from('client_subscriptions')
+      .select('stripe_subscription_id, status')
+      .eq('trainer_id', trainerId)
+      .in('status', [...LIVE_SUB_STATUSES]);
+    if (error) throw error;
+    for (const row of rows ?? []) {
+      const subId = (row as { stripe_subscription_id?: string | null }).stripe_subscription_id;
+      if (!subId) continue;
+      checked++;
+      try {
+        const live = await stripe.subscriptions.retrieve(subId);
+        if (!isLiveSubStatus(live.status)) continue;
+        if (!feeDiffers(live.application_fee_percent, desiredPercent)) continue;
+        await stripe.subscriptions.update(subId, {
+          application_fee_percent: desiredPercent,
+          metadata: {
+            fitlink_platform_fee_bps: String(split.platformFeeBps),
+            fitlink_org_share_bps: String(split.orgShareBps),
+          },
+        });
+        updated++;
+      } catch (e) {
+        console.warn('[money] fee sync failed for subscription', subId, (e as Error)?.message ?? e);
+      }
+    }
+  } catch (e) {
+    console.warn('[money] fee sync lookup failed:', (e as Error)?.message ?? e);
+  }
+  console.log(`[money] fee sync trainer=${trainerId} desired=${desiredPercent}% checked=${checked} updated=${updated}`);
+  return { desiredPercent, checked, updated };
 }

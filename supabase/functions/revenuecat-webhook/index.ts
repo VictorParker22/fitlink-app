@@ -20,6 +20,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno';
+import { syncCoachApplicationFee } from '../_shared/money.ts';
 
 // Events that assert an ACTIVE entitlement with a fresh expiration.
 const GRANT_EVENTS = new Set([
@@ -150,5 +152,17 @@ serve(async (req) => {
     return new Response(JSON.stringify({ ok: false }), { status: 500 });
   }
 
-  return new Response(JSON.stringify({ ok: true, type, until: eliteUntil }), { status: 200 });
+  // The fee Stripe takes on this coach's existing subscriptions follows the
+  // entitlement that was just written: Elite on → 5% from the next invoice,
+  // Elite off → back to the standard rate. Best effort; the grant is saved.
+  let feeSync: { desiredPercent: number; checked: number; updated: number } | null = null;
+  if (isElite) {
+    const stripeSecret = Deno.env.get('STRIPE_SECRET');
+    if (stripeSecret) {
+      const stripe = new Stripe(stripeSecret, { httpClient: Stripe.createFetchHttpClient() });
+      feeSync = await syncCoachApplicationFee(admin, stripe, appUserId);
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true, type, until: eliteUntil, feeSync }), { status: 200 });
 });

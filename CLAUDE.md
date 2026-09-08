@@ -260,6 +260,17 @@ repository secret).
   cannot be charged and create-subscription refuses it). `payoutsReady(trainer)` is the one
   check; never read the flags directly on a screen. `PayoutSetupModal` (image-based, three
   steps) is deleted.
+- **Elite fee (5%) is server-truth, and it follows the coach.** `payment_split_for_trainer()`
+  returns 500 bps while `trainers.elite_until > now()` (org seat 0, else `platform_config`).
+  `elite_until`, `org_id` and the three `stripe_*` columns are refused to authenticated
+  UPDATEs by `guard_entitlement_columns` (migration 20260908040000); only the service role and
+  postgres-owned definer functions write them, and `elite_until` comes only from RevenueCat
+  (`revenuecat-webhook`, `confirm-entitlement` reading RC for the caller's own uid). Stripe
+  freezes `application_fee_percent` into a subscription at creation, so
+  `_shared/money.ts syncCoachApplicationFee()` rewrites it on every live subscription of a
+  coach whenever the entitlement changes (both writers call it) and `stripe-webhook`
+  `invoice.created` re-checks before a renewal finalizes (the Stripe destination must send
+  that event). Pure rules in `_shared/fees.ts` (tests/fees.test.ts).
 - **App Store Connect API from this machine.** Team key `VFPH6FZDX9` (App Manager) lives at
   `credentials/AuthKey_VFPH6FZDX9.p8` (gitignored, not uploaded). Issuer
   `a49b4160-1354-49c6-a156-254e1c076801`, app 6779058450. A read-only probe script pattern

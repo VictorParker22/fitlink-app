@@ -5,6 +5,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getPaymentSplit, applicationFeePercent } from '../_shared/money.ts'
+import { feeDiffers, invoiceFeeCents, shouldRepriceInvoice } from '../_shared/fees.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -446,6 +448,49 @@ serve(async (req) => {
           .from('payments')
           .update({ status: 'failed', updated_at: new Date().toISOString() })
           .eq('stripe_payment_intent_id', pi.id)
+        break
+      }
+
+      // ---- Fee net: the rate follows the coach's CURRENT entitlement ----
+      // A renewal invoice is created ~an hour before it finalizes. Re-read
+      // payment_split_for_trainer() (Elite = 5%, org seat = 0, else the
+      // standard rate) and correct both the subscription (future invoices)
+      // and this draft (now). The creation invoice was priced moments ago by
+      // create-subscription from the same split, so it is left alone.
+      case 'invoice.created': {
+        const invoice = event.data.object as Stripe.Invoice
+        const subId = typeof invoice.subscription === 'string' ? invoice.subscription : (invoice.subscription as Stripe.Subscription | null)?.id
+        if (!subId) break
+        const { data: row } = await supabaseAdmin
+          .from('client_subscriptions')
+          .select('trainer_id')
+          .eq('stripe_subscription_id', subId)
+          .maybeSingle()
+        if (!row?.trainer_id) break
+        const split = await getPaymentSplit(supabaseAdmin, row.trainer_id)
+        const desired = applicationFeePercent(split)
+        try {
+          const live = await stripe.subscriptions.retrieve(subId)
+          if (feeDiffers(live.application_fee_percent, desired)) {
+            await stripe.subscriptions.update(subId, { application_fee_percent: desired })
+            console.log(`Fee corrected on subscription ${subId}: ${live.application_fee_percent}% -> ${desired}%`)
+          }
+        } catch (e) {
+          console.warn(`Fee sync (subscription ${subId}) failed:`, (e as Error)?.message ?? e)
+        }
+        if (shouldRepriceInvoice(invoice.billing_reason, invoice.status) && typeof invoice.total === 'number') {
+          const cents = invoiceFeeCents(invoice.total, desired)
+          if (invoice.application_fee_amount !== cents) {
+            try {
+              await stripe.invoices.update(invoice.id, { application_fee_amount: cents })
+              console.log(`Fee set on draft invoice ${invoice.id}: ${cents}c (${desired}%)`)
+            } catch (e) {
+              // Stripe may price the draft from the subscription at finalization
+              // instead; the subscription update above already covers that.
+              console.warn(`Fee set (invoice ${invoice.id}) refused:`, (e as Error)?.message ?? e)
+            }
+          }
+        }
         break
       }
 
