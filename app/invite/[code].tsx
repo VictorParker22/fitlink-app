@@ -201,11 +201,13 @@ export default function InviteScreen() {
       );
     }
 
-    if (isTrainer) {
+    // A coach may watch another coach's live class; only joining a roster
+    // is athlete-only.
+    if (isTrainer && info.kind === 'coach') {
       return (
         <Notice
           title="Invites are for athletes."
-          body="You are signed in as a coach. An athlete opens this link on their own phone to join a roster or watch a class."
+          body="You are signed in as a coach. An athlete opens this link on their own phone to join a roster."
           primary={{ label: 'Back to your dashboard', onPress: goHome }}
         />
       );

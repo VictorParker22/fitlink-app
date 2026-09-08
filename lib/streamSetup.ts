@@ -15,8 +15,10 @@
  * live_class_secrets row it belongs to.
  */
 import * as Sentry from '@sentry/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { confirmEntitlement } from './entitlement';
+import { withNetworkRetry } from './authErrors';
 
 export type StreamSetupReason = 'elite_required' | 'unreachable' | 'mux_error' | 'timeout';
 
@@ -217,6 +219,69 @@ export async function requestMuxStream(opts: { timeoutMs?: number } = {}): Promi
   const stream = await invokeCreateStream(timeoutMs);
   broadcastBreadcrumb('stream: created after confirm', { elapsed_ms: Date.now() - startedAt });
   return stream;
+}
+
+// ── Ending a class ──────────────────────────────────────────────────────────
+//
+// The publisher is stopped locally first, always. Telling the server is the
+// part a network drop can break (2026-09-08: "TypeError: Network request
+// failed" on End, the class stayed 'live' in Studio). So the status write is
+// retried with backoff, and if it still fails the class id is parked on the
+// device and flushed by Studio on its next focus. The server also closes a
+// class on its own once the stream goes idle, so a parked end is a race the
+// coach wins either way.
+
+const PENDING_END_KEY = 'fitlink_pending_end';
+const END_ATTEMPTS = 3;
+const END_RETRY_DELAY_MS = 1500;
+
+export type EndClassUpdater = (id: string, updates: { status: 'ended' }) => Promise<unknown>;
+
+export async function setPendingEnd(classId: string): Promise<void> {
+  try { await AsyncStorage.setItem(PENDING_END_KEY, JSON.stringify({ classId, at: Date.now() })); } catch {}
+}
+
+export async function getPendingEnd(): Promise<{ classId: string; at: number } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_END_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    return v && typeof v.classId === 'string' ? { classId: v.classId, at: Number(v.at) || 0 } : null;
+  } catch { return null; }
+}
+
+export async function clearPendingEnd(): Promise<void> {
+  try { await AsyncStorage.removeItem(PENDING_END_KEY); } catch {}
+}
+
+/**
+ * Mark a class ended on the server with retries. Resolves { confirmed }
+ * instead of throwing; an unconfirmed end is parked for Studio to flush.
+ */
+export async function endLiveClass(classId: string, update: EndClassUpdater): Promise<{ confirmed: boolean; detail?: string }> {
+  const startedAt = Date.now();
+  broadcastBreadcrumb('end: marking class ended', { live_class_id: classId });
+  try {
+    await withNetworkRetry(
+      () => withTimeout(update(classId, { status: 'ended' }), NETWORK_TIMEOUT_MS, 'live_classes end'),
+      { retries: END_ATTEMPTS - 1, delayMs: END_RETRY_DELAY_MS },
+    );
+    await clearPendingEnd();
+    broadcastBreadcrumb('end: confirmed', { live_class_id: classId, elapsed_ms: Date.now() - startedAt });
+    return { confirmed: true };
+  } catch (e) {
+    await setPendingEnd(classId);
+    reportBroadcastWarning('end: not confirmed, parked for Studio', { live_class_id: classId, elapsed_ms: Date.now() - startedAt, detail: errorText(e) });
+    return { confirmed: false, detail: errorText(e) };
+  }
+}
+
+/** Studio calls this on focus: retries a parked end once, quietly. */
+export async function flushPendingEnd(update: EndClassUpdater): Promise<string | null> {
+  const pending = await getPendingEnd();
+  if (!pending) return null;
+  const r = await endLiveClass(pending.classId, update);
+  return r.confirmed ? null : pending.classId;
 }
 
 // ── live_class_secrets ──────────────────────────────────────────────────────

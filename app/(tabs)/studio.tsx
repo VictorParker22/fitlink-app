@@ -34,6 +34,7 @@ import {
   liveBroadcastUnsupportedTitle,
   liveBroadcastUnsupportedMessage,
 } from '../../lib/liveBroadcast';
+import { flushPendingEnd, type EndClassUpdater } from '../../lib/streamSetup';
 import CoachElitePaywall from '../../components/paywalls/CoachElitePaywall';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 
@@ -529,9 +530,23 @@ export default function StudioScreen() {
   }, [nextScheduledStream]);
 
   // Derived
+  // A class whose end never reached the server (network drop on End) is
+  // parked on the device by lib/streamSetup.ts; it must not be offered as
+  // "Return to broadcast". Flushed on every focus of this tab.
+  const [pendingEndId, setPendingEndId] = useState<string | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      flushPendingEnd(updateLiveClass as EndClassUpdater).then((stillPending) => {
+        if (alive) setPendingEndId(stillPending);
+      });
+      return () => { alive = false; };
+    }, [updateLiveClass])
+  );
+
   const activeStream = useMemo(
-    () => liveClasses.find((c) => c.status === 'live') || liveClasses.find((c) => c.status === 'scheduled'),
-    [liveClasses]
+    () => liveClasses.find((c) => c.status === 'live' && c.id !== pendingEndId) || liveClasses.find((c) => c.status === 'scheduled'),
+    [liveClasses, pendingEndId]
   );
   const upcomingStreams = useMemo(() => liveClasses.filter((c) => c.status === 'scheduled'), [liveClasses]);
   const restOfQueue = useMemo(

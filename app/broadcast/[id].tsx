@@ -45,6 +45,7 @@ import {
   reportBroadcastWarning,
   withTimeout,
   NETWORK_TIMEOUT_MS,
+  endLiveClass,
 } from '../../lib/streamSetup';
 
 let ExpoCameraRtmpPublisherView: any = null;
@@ -184,8 +185,25 @@ export default function BroadcastStudioScreen() {
       if (watchdogRef.current) clearTimeout(watchdogRef.current);
       // Clear all pending fade-out animations so there are no post-unmount state updates
       opacityMap.clear();
+      // Leaving the screen unmounts the native publisher, so the stream is
+      // over whether or not the coach tapped End. Close the class on the
+      // server too (retried, parked on failure) instead of leaving Studio
+      // with a "Return to broadcast" that cannot return to anything.
+      if (!endedLocallyRef.current && (phaseRef.current === 'live' || phaseRef.current === 'connecting') && liveClassIdRef.current) {
+        const id = liveClassIdRef.current;
+        endedLocallyRef.current = true;
+        try { publisherRef.current?.stopPublishing?.(); } catch {}
+        broadcastBreadcrumb('studio: left while live, ending', { live_class_id: id });
+        endLiveClass(id, updateLiveClass).catch(() => {});
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The class id the unmount path needs after state is gone.
+  const liveClassIdRef = useRef<string | null>(null);
+  useEffect(() => { liveClassIdRef.current = liveClass?.id ?? null; }, [liveClass?.id]);
+  const endedLocallyRef = useRef(false);
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -656,13 +674,25 @@ export default function BroadcastStudioScreen() {
               // A pending flip to 'live' must not fire after the class is ended.
               clearLiveFlip();
               broadcastBreadcrumb('studio: end confirmed', { phase: phaseRef.current, elapsed_s: elapsedSeconds });
-              if (publisherRef.current) await publisherRef.current.stopPublishing();
+              // The camera stops no matter what the network does next.
+              if (publisherRef.current) { try { await publisherRef.current.stopPublishing(); } catch {} }
               setPhaseSafe('idle');
               if (timerRef.current) clearInterval(timerRef.current);
-              if (liveClass) await updateLiveClass(liveClass.id, { status: 'ended' });
+              endedLocallyRef.current = true;
+              if (liveClass) {
+                const r = await endLiveClass(liveClass.id, updateLiveClass);
+                if (!r.confirmed) {
+                  showAlert({
+                    type: 'info',
+                    title: 'Stream stopped',
+                    message: "Your camera is off and nobody can watch. We couldn't reach FitLink to close the class yet; it will close on its own within a couple of minutes, and Studio keeps trying.",
+                  });
+                }
+              }
               setShowRecap(true);
             } catch (e: any) {
-              showAlert({ type: 'error', title: 'Error', message: e.message || 'Could not stop stream.' });
+              reportBroadcastFailure(e, { step: 'studio.end', phase: phaseRef.current });
+              showAlert({ type: 'error', title: 'Could not stop the stream', message: 'Try End again. If the camera light is off, the stream has already stopped.' });
             }
           },
         },
