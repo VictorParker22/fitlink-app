@@ -308,6 +308,21 @@ repository secret).
   be buying from a coach who is not yet theirs). Entry points: find-coach → pass, Train tab
   "Find your season" → my-pass, my-subscription tiers. Coaches must have
   `stripe_charges_enabled` (Connect onboarding) or the server refuses the charge.
+  **Activation does not wait for the webhook (2026-09-08, the first live pass).** The Deno
+  build of the Stripe SDK throws on the synchronous `webhooks.constructEvent`
+  ("SubtleCryptoProvider cannot be used in a synchronous context"), so EVERY live delivery
+  was answered 400 and the athlete who paid $1 came back to an unpaid pass, a second tap
+  that said "Failed to create payment intent" (create-subscription answered
+  `alreadyActive` and checkout treated a missing clientSecret as failure), and a coach with
+  no revenue. Now: the webhook uses `constructEventAsync` (`tests/edgePatterns.test.ts`
+  forbids the sync form); the enrolment writers live in `_shared/enrollment.ts`
+  (`attachClientToPlan`, `ensurePlanEnrollment`, `activateStripeSubscription`) and are
+  shared by the webhook and by `confirm-subscription`, which the app calls right after
+  `presentPaymentSheet` succeeds (`lib/subscriptionConfirm.ts`, three tries) and once per
+  session from ClientContext when the membership row is still `incomplete`; checkout treats
+  `alreadyActive` as a success and skips the sheet. Stripe redelivers rejected events for
+  three days, and `stripe_events` dedupes them, so the webhook and the confirm path may
+  both run; both are idempotent.
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`

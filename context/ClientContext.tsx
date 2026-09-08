@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
+import { confirmSubscription } from '../lib/subscriptionConfirm';
 import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import type { SetFeel } from './WorkoutContext';
@@ -240,6 +241,8 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [conversation, setConversation] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
+  // One confirm-subscription call per session for an 'incomplete' membership row.
+  const confirmAttemptedRef = useRef(false);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
@@ -454,6 +457,15 @@ export function ClientProvider({ children }: PropsWithChildren) {
           ...row,
           plans: (plansRes.data || []).find((p: any) => p.id === row.plan_id) ?? null,
         });
+        // A membership still 'incomplete' after checkout means the webhook
+        // never landed (2026-09-08). Ask the server to read Stripe once per
+        // session; when it activates, the next fetch shows the pass.
+        if (row.status === 'incomplete' && !confirmAttemptedRef.current) {
+          confirmAttemptedRef.current = true;
+          confirmSubscription(client.id, { attempts: 1 }).then((r) => {
+            if (r?.active) fetchClientData().catch(() => {});
+          }).catch(() => {});
+        }
       } else {
         setSubscription(null);
       }

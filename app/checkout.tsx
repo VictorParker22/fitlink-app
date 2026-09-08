@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 // has to differ, not just the behaviour. See lib/stripe-checkout.web.tsx.
 import { useStripe } from '../lib/stripe-checkout';
 import { supabase, SUPABASE_URL } from '../lib/supabase';
+import { confirmSubscription } from '../lib/subscriptionConfirm';
 import { useApp } from '../context/AppContext';
 import { useClient } from '../context/ClientContext';
 import { useAlert } from '../context/AlertContext';
@@ -48,6 +49,9 @@ export default function CheckoutScreen() {
   // The post-success "go back" timer, cleared on unmount so a screen that was
   // dismissed early never calls router.back() on a route that no longer exists.
   const backTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set when create-subscription answers alreadyActive: the payment sheet is
+  // skipped and the flow continues as a success.
+  const alreadyPaidRef = useRef(false);
   useEffect(() => () => {
     if (backTimerRef.current) clearTimeout(backTimerRef.current);
   }, []);
@@ -173,6 +177,7 @@ export default function CheckoutScreen() {
     }
 
     setPaymentStatus('processing');
+    alreadyPaidRef.current = false;
 
     // The charge. Only THIS block may report "Payment failed" — everything
     // after a successful presentPaymentSheet() is bookkeeping and must never
@@ -193,17 +198,23 @@ export default function CheckoutScreen() {
         }),
       });
 
-      const { clientSecret, customerId, subscriptionId, error: apiError } = await response.json();
+      const { clientSecret, customerId, subscriptionId, alreadyActive, error: apiError } = await response.json();
 
-      if (apiError || !clientSecret) {
+      // The pass is already paid for (a second tap after a charge whose
+      // webhook had not landed, or a reopened checkout). That is a success,
+      // not "Failed to create payment intent" (2026-09-08).
+      if (alreadyActive) {
+        alreadyPaidRef.current = true;
+      } else if (apiError || !clientSecret) {
         const friendly = apiError === 'Coach has not completed payment setup'
           ? `${trainer?.name ?? 'Your coach'} has not finished setting up payouts yet, so this pass cannot be bought until they do.`
           : apiError;
         throw new Error(friendly || 'Failed to create payment intent');
       }
 
-      // Step 2: Initialize the Payment Sheet
-      const { error: initError } = await initPaymentSheet({
+      // Step 2: Initialize the Payment Sheet (skipped when Stripe says the
+      // subscription is already active: nothing to charge).
+      const { error: initError } = alreadyPaidRef.current ? { error: null } : await initPaymentSheet({
         paymentIntentClientSecret: clientSecret,
         customerId: customerId,
         merchantDisplayName: 'FitLink',
@@ -216,7 +227,7 @@ export default function CheckoutScreen() {
       }
 
       // Step 3: Present the Payment Sheet
-      const { error: presentError } = await presentPaymentSheet();
+      const { error: presentError } = alreadyPaidRef.current ? { error: null } : await presentPaymentSheet();
 
       if (presentError) {
         if (presentError.code === 'Canceled') {
@@ -236,6 +247,13 @@ export default function CheckoutScreen() {
 
     // Payment succeeded! From here on nothing may show "Payment failed".
     setPaymentStatus('success');
+
+    // Activation does not wait for the webhook: ask the server to read the
+    // subscription from Stripe and enrol the athlete now (three tries while
+    // Stripe settles the invoice). The webhook remains the fallback, and
+    // this is idempotent with it.
+    const confirmed = await confirmSubscription(client.id);
+    if (__DEV__ && !confirmed) console.warn('[Checkout] confirm-subscription did not report active yet; the webhook will finish it');
 
     // NOTE on enrollment: the season enrollment (client_plan_enrollments) is
     // created SERVER-SIDE by the stripe-webhook, which is the source of truth.
