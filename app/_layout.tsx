@@ -339,7 +339,9 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
     // leaves that group alone in both states.
     // Cast: the generated route union is regenerated at the next `expo start`,
     // and typecheck runs before that.
-    const inInviteGroup = (segments[0] as string) === 'invite';
+    // `i` and `live` are the universal-link landings (fitlink.coach/i/CODE,
+    // /live/CODE); they redirect into /invite and must be left alone too.
+    const inInviteGroup = ['invite', 'i', 'live'].includes(segments[0] as string);
 
     // A parked invite code wins over every onboarding redirect. A brand-new
     // athlete from a coach's link has no draft and no flag, and would
