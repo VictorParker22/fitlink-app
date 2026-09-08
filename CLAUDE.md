@@ -226,6 +226,14 @@ repository secret).
   preparing → connecting → live (only on `onPublishStarted`) → failed, with a 20 s connect
   watchdog that stops the publisher and offers retry. The RTMP publisher is iOS-only
   (`lib/liveBroadcast.ts`); HaishinKit event ordering is unverified on a device.
+  **Ending:** `endLiveClass()` stops the publisher first, retries the status write with backoff,
+  parks the class id (`fitlink_pending_end`) on failure; Studio's focus effect calls
+  `flushPendingEnd()` and never offers "Return to broadcast" for a parked class. Leaving the
+  broadcast screen while live ends the class (the native publisher unmounts with it). The
+  Mux webhook (`mux-webhook`, `video.live_stream.disconnected` → ended) is the server-side net
+  but Mux has NOT been configured to call it as of 2026-09-08 (zero deliveries); Studio's
+  60 s abrupt-end check is what actually closed today's class. A coach account may accept a
+  LIVE invite (watch only); `trainer_cannot_accept` is for coach invites.
 - **App Store Connect API from this machine.** Team key `VFPH6FZDX9` (App Manager) lives at
   `credentials/AuthKey_VFPH6FZDX9.p8` (gitignored, not uploaded). Issuer
   `a49b4160-1354-49c6-a156-254e1c076801`, app 6779058450. A read-only probe script pattern
