@@ -11,6 +11,7 @@ import { useClient } from '../../context/ClientContext';
 import { Radius, Spacing } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { LiveClassItem } from '../../context/AppContext';
+import { fetchSignedPlaybackUrl } from '../../lib/muxPlayback';
 
 interface ChatMessage {
   id: string;
@@ -296,9 +297,16 @@ export default function LivePlayerScreen() {
   }, [chatMessage, liveClass?.status, liveClass?.went_live_at, clientData, id]);
 
 
-  const playbackUrl = liveClass?.mux_playback_id
-    ? `https://stream.mux.com/${liveClass.mux_playback_id}.m3u8`
-    : null;
+  // Signed playback (threat model A8): the playback id alone plays nothing.
+  // The server checks that this viewer may watch, then signs a short-lived
+  // URL; it is re-asked when the class row changes (e.g. goes live).
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!liveClass?.id || !liveClass?.mux_playback_id) { setPlaybackUrl(null); return; }
+    fetchSignedPlaybackUrl(liveClass.id).then((url) => { if (alive) setPlaybackUrl(url); });
+    return () => { alive = false; };
+  }, [liveClass?.id, liveClass?.mux_playback_id, liveClass?.status]);
 
   const player = useVideoPlayer(playbackUrl, (p) => {
     p.loop = false;

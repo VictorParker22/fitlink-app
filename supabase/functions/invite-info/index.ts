@@ -23,6 +23,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
+import { signPlaybackToken } from '../_shared/muxToken.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -120,7 +121,23 @@ serve(async (req) => {
       }
     }
 
-    return json(200, data);
+    // ── Guest playback: the code is the credential ──
+    // Live streams use signed playback (threat model A8). A valid, unexpired
+    // live code earns a two-hour token; the page re-asks every 30 s, so a
+    // revoked code stops working within a poll.
+    const card = data as { kind?: string; expired?: unknown; live?: { status?: string; playback_id?: string | null } & Record<string, unknown> };
+    if (card.kind === 'live' && card.expired !== true && card.live?.status === 'live' && card.live?.playback_id) {
+      try {
+        const { token, expiresAt } = await signPlaybackToken(admin, card.live.playback_id, 2 * 3600);
+        card.live.playback_token = token;
+        card.live.playback_url = `https://stream.mux.com/${card.live.playback_id}.m3u8?token=${token}`;
+        card.live.token_expires_at = expiresAt;
+      } catch (e) {
+        console.error('[invite-info] playback token failed:', e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    return json(200, card);
   } catch (e) {
     console.error('[invite-info] unexpected:', e instanceof Error ? e.message : String(e));
     return json(500, { error: 'unexpected' });

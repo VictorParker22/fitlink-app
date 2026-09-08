@@ -65,7 +65,11 @@ serve(async (req) => {
         Authorization: `Basic ${btoa(`${MUX_TOKEN_ID}:${MUX_TOKEN_SECRET}`)}`,
       },
       body: JSON.stringify({
-        playback_policy: ['public'],
+        // Signed: the playback id alone plays nothing. Viewers get a
+        // short-lived token from mux-playback-token (signed-in) or
+        // invite-info (guests holding a live code). The recording stays
+        // public: transfer-vod pulls it into the class library by URL.
+        playback_policy: ['signed'],
         new_asset_settings: { playback_policy: ['public'] },
       }),
     })

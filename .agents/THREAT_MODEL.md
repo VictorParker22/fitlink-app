@@ -136,7 +136,7 @@ row). The only privileged principals are the Supabase service role, postgres-own
 
 **A7. Forge signals.** Athlete inserts "bought a pass" into a coach inbox; anyone writes `audit_events`; anyone inflates viewer counts; fake PR events in a squad feed. **Closed** for the first three (type allow-list, revoke, presence table + `can_view_live_class`). Squad events remain vanity (`squad_events_insert` requires an enrollment on that plan).
 
-**A8. Hijack a broadcast or watch free.** Read a coach's stream key; share a playback id. Stream keys are in `live_class_secrets` (owner-only) and the legacy `live_classes.mux_stream_key` column is NULL everywhere; playback ids are public-by-id (Mux `playback_policy: ['public']`) and reach roster athletes and invite holders, so a shared HLS URL plays for anyone — **open, low value** (a live class, not money).
+**A8. Hijack a broadcast or watch free.** Read a coach's stream key; share a playback id. Stream keys are in `live_class_secrets` (owner-only); the legacy `live_classes.mux_stream_key` column is **dropped** (migration `20260908100000`). Live playback is now **signed** (`create-mux-stream` → `playback_policy: ['signed']`): the id plays nothing; `mux-playback-token` signs a six-hour URL for a signed-in viewer after checking owner / roster / invite seat, and `invite-info` signs a two-hour one for a guest holding a live code. The RSA signing key is created once at Mux and kept in Supabase Vault behind service-only wrappers (`store_platform_secret`, `get_platform_secret`); `tests/muxToken.test.ts` proves the PKCS#1 → PKCS#8 wrap and the RS256 token against a real key. **Closed 2026-09-08.** Residual by design: the recording (VOD) stays public-by-id because `transfer-vod` pulls it into the class library by URL.
 
 **A9. Account pre-binding (identity).** A coach types `victim@x.com` into a client row (Add athlete → manual) before the victim signs up; the auth.users triggers `handle_new_client_user` / `link_client_auth_user` bound that row to whoever signed up with that email or phone first, verified or not. **Closed 2026-09-08** (migration `20260908070000` §5): binding needs a confirmed phone or a mail-confirmed email (`contact_verified`); `link_client_to_auth_user` answers `verify_contact` otherwise; invitation codes remain the verified path. While Auth auto-confirm is on, email-added athletes join by code or phone.
 
@@ -152,7 +152,7 @@ row). The only privileged principals are the Supabase service role, postgres-own
 
 **A12. Supply chain and operator.** Expo, Vercel, Supabase, Stripe, GitHub accounts; live secret files left in `credentials/`; the PAT in the git remote. **Open, operator-owned**: enable MFA on all four accounts, delete the three `*.env.txt` files, rotate the PAT and the Spotify secret in git history (memory: pending ops).
 
-**A13. Coach destroys an athlete's history.** `clients_delete` lets a coach delete a roster row and everything cascading from it, including data the athlete generated. **Open, by current design** (the coach "removes a client"); the athlete has no copy.
+**A13. Coach destroys an athlete's history.** `clients_delete` let a coach delete a roster row and the eighteen tables cascading from it. **Closed 2026-09-08**: the policy is gone; removal is `remove-client` (cancels the athlete's Stripe subscription to that coach first) → `detach_client()` (a real athlete becomes coachless and Solo with their history intact; a coach-typed placeholder with no account is deleted). Proofs in `supabase/security/open_items.sql`. The app has no delete UI today; the function is the only path.
 
 **A14. Org owner reads coach revenue and athletes.** B14 visibility is intentional for gyms; no org exists today, and membership requires the invited person's own acceptance.
 
@@ -161,6 +161,13 @@ row). The only privileged principals are the Supabase service role, postgres-own
 Ranked by value at risk × ease of reach:
 
 1. ~~A9 — pre-binding by contact~~ closed 2026-09-08; the operator still decides the Auth email-confirmation setting and enables leaked-password protection.
+2. ~~A12 — secret files~~ the three used `credentials/*.env.txt` files were deleted 2026-09-08 (regenerable at each vendor). Still operator-owned: MFA on Expo, Vercel, Supabase, Stripe, GitHub; the PAT embedded in this repo's git remote (replace with a credential-manager token); the old Spotify secret in history.
+3. ~~A8 — playback ids~~ closed 2026-09-08 (signed live playback, legacy column dropped).
+4. ~~A13 — coach deletion of athletes~~ closed 2026-09-08 (`remove-client` → `detach_client`).
+5. **Residual monitoring.** Alert on `audit_events` denials, on `stripe_events` gaps, and on `confirm-entitlement` 502s (RevenueCat unreachable).
+
+<details><summary>Original wording of the closed items</summary>
+
 2. **A12 — operator hygiene.** Delete `credentials/*.env.txt`, MFA everywhere, rotate the remote PAT.
 3. **A8 — playback ids.** Move Mux to signed playback (`playback_policy: ['signed']` + short-lived tokens minted by an edge function that checks `can_view_live_class`), and drop the legacy `live_classes.mux_stream_key` column.
 4. **A13 — coach deletion of athletes.** Make "remove client" detach (`trainer_id = NULL`, status inactive) instead of delete, so the athlete keeps their history.
@@ -168,3 +175,5 @@ Ranked by value at risk × ease of reach:
 
 The proofs for every "closed" entry are in `supabase/security/` and re-run with
 `python supabase/security/run_audit.py <file>`.
+
+</details>

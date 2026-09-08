@@ -73,10 +73,15 @@ with the service role. None of that was hard to find. Do the threat model FIRST,
    the map in the SAME commit, with its enforcement point, and gets a proof block in
    `supabase/security/`. When a fix closes an abuse path, flip its status there with the date.
    The map's §9 is the open security backlog; work it before new features and never
-   re-discover it. As of 2026-09-08 it holds: A12 operator hygiene (three used secret files
-   in `credentials/`, PAT in the remote, MFA); A8 Mux playback is public-by-id and the legacy
-   `live_classes.mux_stream_key` column still exists; A13 `clients_delete` lets a coach
-   delete an athlete's history instead of detaching them. The tenant-isolation review is
+   re-discover it. As of 2026-09-08 evening every code item is closed; what remains is
+   operator-owned (MFA on the five vendor accounts, replacing the PAT in this repo's git
+   remote, Auth CAPTCHA/rate settings). Live playback is SIGNED: `create-mux-stream` uses
+   `playback_policy: ['signed']`, viewers get URLs from `mux-playback-token` (signed-in) or
+   `invite-info` (guests with a live code), the RSA key lives in Vault via
+   `get_platform_secret` (service role only), and `_shared/muxTokenCore.ts` is jest-proved.
+   Never build a Mux URL from `mux_playback_id` in the app — use `lib/muxPlayback.ts`.
+   Removing an athlete is `remove-client` → `detach_client()`; `clients_delete` no longer
+   exists. The tenant-isolation review is
    `.agents/AUTHZ_REVIEW.md` (tests `supabase/security/authz_isolation.sql`): athletes read
    `trainers_public`, never `trainers` (the private row is self + org admin only); a coach
    writes only onto their own roster; live chat names come from the database; a contact
