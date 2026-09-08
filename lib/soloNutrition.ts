@@ -60,8 +60,13 @@ export function parseStatedWeight(text: string, fallbackUnit: 'lbs' | 'kg' = 'lb
   return { weight: n, unit };
 }
 
-/** Whether a message reads as "write me a meal plan". */
-export const NUTRITION_INTENT = /(meal plan|diet plan|nutrition plan|eating plan|food plan|my (diet|nutrition|macros|calories)|what (should|do|can) i eat|how (much|many) (should i|to) eat|calorie target|macros)/i;
+/**
+ * Whether a message reads as "write me a meal plan": a build verb near a food
+ * word ("Build my meal too", "make me a diet", "plan my food"), the plan
+ * phrases, or the eating questions. On 2026-09-08 "Build my meal too" matched
+ * nothing and the corner answered with an invented failure.
+ */
+export const NUTRITION_INTENT = /\b(build|rebuild|write|make|create|plan|set up|give me|do|sort|fix)\b[^.?!]{0,40}\b(meals?|diet|nutrition|food|eating|macros|calories)\b|\b(meal|meals|diet|nutrition|eating|food|macro) plan\b|\bmy (diet|nutrition|macros|calories|meals)\b|what (should|do|can) i (eat|be eating)|how (much|many) (should i|to) eat|calorie target|\bmacros\b/i;
 
 /** Restriction-sounding text worth passing along as preferences. */
 export const PREFERENCE_HINT = /(vegan|vegetarian|pescatarian|halal|kosher|dairy|lactose|gluten|celiac|coeliac|allerg|nut|shellfish|budget|cheap|no time|quick|don't eat|dont eat|can't eat|cant eat|hate|dislike|avoid)/i;

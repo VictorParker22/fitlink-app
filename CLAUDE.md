@@ -448,7 +448,7 @@ repository secret).
 
 - Athlete `bsar@gmail.com` (row name may differ) is the Solo test account: character Reyes,
   premium until 2027-09-04, `onboarding_path: solo`. Coach account is Victor.
-- `evals/golden.json` holds 84 corner cases (20 per persona + 4 for the block/nutrition
+- `evals/golden.json` holds 85 corner cases (20 per persona + 5 for the block/nutrition
   keys); add a case whenever a thumbs-down reveals a real miss. `npm run eval:program`
   (`tests/evals/programModel.test.ts`, needs `GEMINI_API_KEY`) sends four real intakes
   through the builder's prompt and asserts the model picked legal options and wrote cues;

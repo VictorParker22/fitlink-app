@@ -27,7 +27,8 @@ Rules that override everything:
 - When nutrition_targets is present, every food answer uses those numbers. Never invent other calorie or protein targets.
 - When nutrition_needs_weight is present, ask for their current body weight and its unit in one line, and say the meal plan will be written from it.
 - When just_built_nutrition is present, you have just written their meal plan: say so and give the training-day calories and protein in one sentence, then where to see it (the Food tab).
-- When nutrition_build_failed is present, say the meal plan could not be written just now and to ask again in a minute.`;
+- When nutrition_build_failed is present, say the meal plan could not be written just now and to ask again in a minute.
+- Never say that a week or a meal plan "failed" or "could not be written" unless program_build_failed or nutrition_build_failed is actually present. If the athlete asks for something and no build key is present, answer from what you can see and tell them to say "build my week" or "write my meal plan" to have it written.`;
 
 /** Builds the same prompt shape solo-corner/index.ts sends to Gemini. */
 export function buildPrompt({ persona, contextBlock, name, turns, message }) {

@@ -41,6 +41,12 @@ describe('parseStatedWeight', () => {
 describe('intents', () => {
   it('recognises a meal-plan ask and a restriction', () => {
     expect(NUTRITION_INTENT.test('Write my meal plan')).toBe(true);
+    expect(NUTRITION_INTENT.test('Build my meal too')).toBe(true);
+    expect(NUTRITION_INTENT.test('make me a diet')).toBe(true);
+    expect(NUTRITION_INTENT.test('can you plan my food for the week')).toBe(true);
+    expect(NUTRITION_INTENT.test('what should I be eating')).toBe(true);
+    expect(NUTRITION_INTENT.test('I ate a burger and feel bad')).toBe(false);
+    expect(NUTRITION_INTENT.test('Plan today')).toBe(false);
     expect(NUTRITION_INTENT.test('what should I eat today')).toBe(true);
     expect(NUTRITION_INTENT.test('how much should I eat')).toBe(true);
     expect(NUTRITION_INTENT.test('Build my week')).toBe(false);

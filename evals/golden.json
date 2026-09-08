@@ -1894,5 +1894,25 @@
         "can't see"
       ]
     }
+  },
+  {
+    "persona": "dane",
+    "context": {
+      "week_plan": "Upper A Strength on 2026-09-09; Lower A on 2026-09-10",
+      "just_built_week": "Upper A Strength on 2026-09-09; Lower A on 2026-09-10; Upper B on 2026-09-12; Lower B on 2026-09-13"
+    },
+    "message": "Build my meal too",
+    "expect": {
+      "maxWords": 120,
+      "mustNotContainNumbersOutsideContext": true,
+      "mustMention": [
+        "meal plan"
+      ],
+      "mustNotMention": [
+        "failed",
+        "could not be written",
+        "can't write"
+      ]
+    }
   }
 ]
