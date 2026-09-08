@@ -29,7 +29,7 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
@@ -51,6 +51,8 @@ import SoloPaywall from '../../components/paywalls/SoloPaywall';
 import AiConsentSheet from '../../components/solo/AiConsentSheet';
 import { hasAiConsent } from '../../lib/aiConsent';
 import { buildSoloProgram } from '../../lib/soloProgram';
+import { buildSoloNutrition, parseStatedWeight, NUTRITION_INTENT, PREFERENCE_HINT } from '../../lib/soloNutrition';
+import { describeBlock, describeNutrition, readSoloBlock } from '../../lib/soloBlock';
 import { layers } from '../../lib/layers';
 import { ClientRoute } from '../../types/routes';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
@@ -73,7 +75,7 @@ const WELCOME: Record<string, string> = {
   sol: "No rush. Whenever you're ready, tell me how training has been feeling.",
 };
 
-const QUICK_ASKS = ['Plan today', 'Build my week', 'I slept badly', 'Log a PR', 'Swap an exercise'];
+const QUICK_ASKS = ['Plan today', 'Build my week', 'Write my meal plan', 'I slept badly', 'Log a PR', 'Swap an exercise'];
 // Anything that reads as "write me a program" rebuilds the week before the
 // corner answers, so the reply can talk about real sessions.
 const BUILD_INTENT = /(build|rebuild|make|write|create|plan).*(week|program|plan|programme)|new (week|program|plan)/i;
@@ -169,6 +171,9 @@ export default function SoloScreen() {
 
   const sendingRef = useRef(false);
   const briefRequestedRef = useRef(false);
+  // The corner asked for body weight (solo-nutrition answered needs_weight);
+  // the next message carrying a weight builds the meal plan.
+  const pendingWeightRef = useRef(false);
 
   useEffect(() => {
     getAutoPlay().then(setAutoPlayState);
@@ -330,6 +335,13 @@ export default function SoloScreen() {
     if (upcoming.length > 0) ctx.week_plan = upcoming.join('; ');
     const logged = (workoutHistory || []).length;
     if (logged === 0) ctx.sessions_logged = "none yet, this is the athlete's first week";
+    // Where the athlete is in their four-week block, and the nutrition
+    // targets the corner wrote: both server-written (clients.solo_block).
+    const block = readSoloBlock((clientData as any)?.solo_block);
+    const program = describeBlock(block);
+    if (program) ctx.program = program;
+    const nutrition = describeNutrition(block);
+    if (nutrition) ctx.nutrition_targets = nutrition;
     return ctx;
   }, [todayWorkout, sessionName, sessionExercises, workoutHistory, workouts, healthSharingEnabled, healthConnected, healthData, progressLogs]);
 
@@ -593,6 +605,7 @@ export default function SoloScreen() {
           const res = await buildSoloProgram({ rebuild: true });
           if (res.ok && res.created.length > 0) {
             extra.just_built_week = res.created.map((c) => `${c.name} on ${c.date}`).join('; ');
+            if (res.block) extra.program = res.block;
             layers.track('program_built', { created: res.created.length, adapt: false });
             refreshData().catch(() => {});
           } else if (!res.ok && res.reason === 'rate_limited') {
@@ -601,6 +614,36 @@ export default function SoloScreen() {
             extra.program_build_failed = "today's rewrites are used up for now, so the week already written stands; a fresh rewrite is possible again within the hour";
           } else if (!res.ok && res.reason !== 'premium_required') {
             extra.program_build_failed = 'the program could not be written just now';
+          }
+        }
+
+        // "Write my meal plan" and its cousins, or the body weight the corner
+        // just asked for: write the plan first, then let the corner present it.
+        const unit: 'lbs' | 'kg' = (clientData as any)?.weight_unit === 'kg' ? 'kg' : 'lbs';
+        const stated = parseStatedWeight(content, unit);
+        if (NUTRITION_INTENT.test(content) || (pendingWeightRef.current && stated)) {
+          setCurrentLine('Writing your meal plan…');
+          const res = await buildSoloNutrition({
+            ...(stated ? { weight: stated.weight, unit: stated.unit } : {}),
+            ...(PREFERENCE_HINT.test(content) ? { preferences: content.slice(0, 300) } : {}),
+          });
+          if (res.ok) {
+            pendingWeightRef.current = false;
+            const t = res.targets;
+            const line = t?.training
+              ? `${res.name}: ${t.training.calories} kcal and ${t.training.protein} g protein on training days, ${t.rest.calories} kcal on rest days`
+              : res.name;
+            extra.just_built_nutrition = line;
+            extra.nutrition_targets = line;
+            layers.track('nutrition_built', { model: res.model });
+            refreshData().catch(() => {});
+          } else if (res.reason === 'needs_weight') {
+            pendingWeightRef.current = true;
+            extra.nutrition_needs_weight = 'no body weight on file yet';
+          } else if (res.reason === 'rate_limited') {
+            extra.nutrition_build_failed = "today's meal-plan rewrites are used up, so the plan already written stands";
+          } else if (res.reason !== 'premium_required') {
+            extra.nutrition_build_failed = 'the meal plan could not be written just now';
           }
         }
 
@@ -690,6 +733,18 @@ export default function SoloScreen() {
     setInput('');
     sendMessage(content);
   }, [input, sendMessage]);
+
+  // Arrived from the Food tab's "Write my meal plan": ask once, as the
+  // athlete would, once the screen is ready to answer.
+  const params = useLocalSearchParams<{ ask?: string }>();
+  const askHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    const ask = typeof params.ask === 'string' ? params.ask : '';
+    if (ask !== 'nutrition' || askHandledRef.current === ask) return;
+    if (loading || !clientData?.id || !programSettled || waitingReply) return;
+    askHandledRef.current = ask;
+    sendMessage('Write my meal plan');
+  }, [params.ask, loading, clientData?.id, programSettled, waitingReply, sendMessage]);
 
   // ── Hold to talk ──────────────────────────────────────────────────────────
   const holdStartedAt = useRef(0);

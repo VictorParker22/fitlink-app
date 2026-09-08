@@ -1818,5 +1818,81 @@
         "rest"
       ]
     }
+  },
+  {
+    "persona": "imani",
+    "context": {
+      "program": "week 4 of 4 (deload), upper lower, 4 days: An upper/lower split, built around the squat, bench, deadlift and overhead press; week 4 of the block: a deload, same lifts at two-thirds effort so next block starts fresh.",
+      "week_plan": "Upper A on 2026-09-09; Lower A on 2026-09-11"
+    },
+    "message": "Why is this week so light? Feels like a waste.",
+    "expect": {
+      "maxWords": 120,
+      "mustNotContainNumbersOutsideContext": true,
+      "mustMention": [
+        "deload"
+      ],
+      "mustNotMention": [
+        "can't see"
+      ]
+    }
+  },
+  {
+    "persona": "reyes",
+    "context": {
+      "nutrition_targets": "2,470 kcal and 194 g protein on training days, 2,280 kcal on rest days",
+      "todays_workout": "Lower A (6 exercises)"
+    },
+    "message": "What should I eat today?",
+    "expect": {
+      "maxWords": 120,
+      "mustNotContainNumbersOutsideContext": true,
+      "mustMention": [
+        "194"
+      ],
+      "mustNotMention": [
+        "2000 calories",
+        "2,000"
+      ]
+    }
+  },
+  {
+    "persona": "sol",
+    "context": {
+      "nutrition_needs_weight": "no body weight on file yet",
+      "week_plan": "Full body A on 2026-09-09"
+    },
+    "message": "Write my meal plan",
+    "expect": {
+      "maxWords": 80,
+      "mustNotContainNumbersOutsideContext": true,
+      "mustMention": [
+        "weight"
+      ],
+      "mustNotMention": [
+        "kcal",
+        "calories"
+      ]
+    }
+  },
+  {
+    "persona": "dane",
+    "context": {
+      "just_built_nutrition": "Simple cut: 2,470 kcal and 194 g protein on training days, 2,280 kcal on rest days",
+      "nutrition_targets": "2,470 kcal and 194 g protein on training days, 2,280 kcal on rest days"
+    },
+    "message": "Write my meal plan",
+    "expect": {
+      "maxWords": 120,
+      "mustNotContainNumbersOutsideContext": true,
+      "mustMention": [
+        "2,470",
+        "194",
+        "Food"
+      ],
+      "mustNotMention": [
+        "can't see"
+      ]
+    }
   }
 ]

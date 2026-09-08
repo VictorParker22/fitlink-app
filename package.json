@@ -15,7 +15,8 @@
     "prepare": "husky",
     "secrets": "node scripts/scan-secrets.js --all",
     "test": "jest",
-    "eval:personas": "node scripts/eval-personas.mjs"
+    "eval:personas": "node scripts/eval-personas.mjs",
+    "eval:program": "node scripts/eval-program.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/epilogue": "^0.4.2",

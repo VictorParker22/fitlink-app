@@ -201,6 +201,37 @@ repository secret).
   call). The grounding source includes the athlete's own message and recent turns.
 - `solo-program` writes `workouts` with `trainer_id NULL`; `category` must be one of
   strength/cardio/flexibility/hiit/circuit (DB check). `adapt` keeps today's completed session.
+  **The programming is code, the model only chooses (2026-09-08, "make it smarter").**
+  `solo-program/plan.ts` (pure, `tests/soloProgramPlan.test.ts`) decides the split from the day
+  count (2–3 full body, 4 upper/lower, 5 UL+PPL, 6 PPL×2), one main lift per session by
+  movement pattern (`patternOf`), sets × reps × RPE per goal and per week of a 4-week block
+  (`schemeFor`: base / build / peak / deload), finishers for fat loss or a running interest,
+  mobility for pain. Every slot gets ≤8 pattern-matched options (`candidatesFor`: classics
+  first for strength, dumbbell/machine first for return/pain/new, ballistics out, gadget
+  variants down); the model picks one per slot, names the session and writes a cue
+  (`buildProgramPrompt` + Gemini `responseSchema`); `assemble()` validates every pick and
+  fills gaps deterministically, so a week is written even when the model fails (`model:
+  'fallback'` in the response and `[solo-program] assembled … fallback picks N` in the log).
+  `workout_exercises.notes` = effort ("RPE 7 — leave 3 reps in the tank"), warm-up on the
+  main lift, the cue, and a load hint from `client_workout_logs` (`loadHint`); the player
+  renders it under the prescription. Block state is `clients.solo_block` (week, split, goal,
+  anchors, rationale, nutrition), server-written only (`guard_entitlement_columns`); a weekly
+  `adapt` moves to the next week, week 4 rolls into a fresh block; `rebuild` keeps the week.
+  The corner receives it as context key `program` (`lib/soloBlock.ts describeBlock`).
+- `solo-nutrition` writes a Solo athlete's meal plan into the SAME tables the Food tab reads:
+  `diet_plans` with `trainer_id NULL` (nullable since 20260908110000) → `diet_plan_meals` →
+  `meals` (`is_custom true, trainer_id NULL`, reachable only through the plan) + `client_diets`,
+  with a training-day list and `week_structure.restVariant`. The numbers are arithmetic
+  (`targets.ts targetsFor`: lb × 14–16.5 by training days, goal ×0.8/×1.08, protein 0.8–1.0
+  g/lb, carbs down 20% on rest days; `tests/soloNutrition.test.ts`); the model fills them with
+  foods, `cleanFood` reconciles macros, `applyRestrictions` enforces "no dairy"/vegan/gluten/
+  nut/… in code, `fitToTargets` scales servings (calories ±7%, protein −10%/+35%), and a
+  pantry day (`fallbackDay`) lands when the model does not. Body weight: request → metadata
+  `intake_weight_lbs` (saved back) → 409 `needs_weight`, and the corner asks. Triggers:
+  the corner's `NUTRITION_INTENT` ("write my meal plan", "what should I eat"), the Food
+  tab's empty-state button (`solo?ask=nutrition`), or a weight reply after `needs_weight`
+  (`lib/soloNutrition.ts parseStatedWeight`). Context keys: `nutrition_targets`,
+  `just_built_nutrition`, `nutrition_needs_weight`, `nutrition_build_failed`.
 - `text-to-speech` mode `solo`: one ElevenLabs voice per character, private bucket `solo-audio`,
   signed URLs, sha256 cache. Streaming replies make two clips per reply, caps are sized for that.
 
@@ -311,8 +342,9 @@ repository secret).
   `_shared/ai.ts` (thinkingBudget 0), `BUILD_TIMEOUT_MS` 45 s for whole-plan builds and
   `REPLY_TIMEOUT_MS` 30 s for single turns, a `maxOutputTokens` cap, and `solo-program`
   samples 140 exercises instead of 230 (`sample.ts` keeps every muscle-group floor).
-  `[solo-program] generation ms` in the function logs is the number to watch; if a build
-  still times out, shrink the catalogue before raising the ceiling.
+  `[solo-program] generation ms` in the function logs is the number to watch. Since the
+  plan.ts rewrite the prompt is ~10 k chars of options, not a catalogue, and a 5-day week
+  generates in ~8 s; a model failure no longer fails the build (see Edge functions).
 - **Purchase identity and activation (2026-09-07).** The RevenueCat app user id MUST equal the
   Supabase user id: `ensureIdentity()` in `context/RevenueCatContext.tsx` runs on every session
   change (logIn / logOut) and before every purchase and restore. Never call
@@ -416,5 +448,13 @@ repository secret).
 
 - Athlete `bsar@gmail.com` (row name may differ) is the Solo test account: character Reyes,
   premium until 2027-09-04, `onboarding_path: solo`. Coach account is Victor.
-- `evals/golden.json` holds 80 corner cases (20 per persona); add a case whenever a thumbs-down
-  reveals a real miss.
+- `evals/golden.json` holds 84 corner cases (20 per persona + 4 for the block/nutrition
+  keys); add a case whenever a thumbs-down reveals a real miss. `npm run eval:program`
+  (`tests/evals/programModel.test.ts`, needs `GEMINI_API_KEY`) sends four real intakes
+  through the builder's prompt and asserts the model picked legal options and wrote cues;
+  both evals run in `.github/workflows/evals.yml`.
+- End-to-end runs of the Solo builders as the test account: sign it in through an admin
+  magic link (`auth.admin.generateLink` + `verifyOtp`, service role from
+  `npx supabase projects api-keys -o json` kept in the session scratchpad, never in the
+  repo or in chat) and call the functions with that JWT; the 2026-09-08 runs are in the
+  function logs (`source = 'function_logs'` in the MCP log query).

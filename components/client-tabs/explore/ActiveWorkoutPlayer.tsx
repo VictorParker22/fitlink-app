@@ -39,6 +39,8 @@ interface ExerciseState {
   imageUrl?: string;
   videoUrl?: string;
   instructionText?: string;
+  /** The prescription's own note: effort, warm-up, cue, last load (workout_exercises.notes). */
+  note?: string;
   /** This exercise's own regions — the card's portrait. Null when unmappable. */
   muscleInfo: WorkoutMuscleInfo | null;
   /** Which face the expanded card shows: what it does to you, or how to do it. */
@@ -153,6 +155,7 @@ export default function ActiveWorkoutPlayer({
           imageUrl: ex.exercises?.image_url,
           videoUrl: ex.video_url,
           instructionText: ex.exercises?.instructions || '',
+          note: typeof ex.notes === 'string' ? ex.notes.trim() : '',
           muscleInfo,
           // Opens on the DEMO. The first question at the rack is "what am I
           // actually doing", and you answer it by watching the movement — the
@@ -723,6 +726,12 @@ export default function ActiveWorkoutPlayer({
                     {exercise.targetSets} sets · {exercise.targetReps} reps
                     {exercise.restSeconds > 0 ? ` · ${exercise.restSeconds}s rest` : ''}
                   </Text>
+                  {/* The corner's note: effort, warm-up, one cue, last load.
+                      Written by solo-program; a coach's own notes show the
+                      same way. Nothing renders when the row has none. */}
+                  {!!exercise.note && (
+                    <Text style={s.exNote} numberOfLines={exercise.expanded ? 6 : 2}>{exercise.note}</Text>
+                  )}
                 </View>
 
                 {/* The card language's circular action, carrying this
@@ -1220,6 +1229,13 @@ const s = StyleSheet.create({
   },
   // Oversized, tight-leading title — the card language's loudest signal, and
   // the thing you need to read from arm's length with a bar in your hands.
+  exNote: {
+    marginTop: 6,
+    fontFamily: CoachFonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: CoachColors.textSecondary,
+  },
   exName: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 22,

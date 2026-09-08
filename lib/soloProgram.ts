@@ -10,7 +10,7 @@ import * as Crypto from 'expo-crypto';
 import { supabase } from './supabase';
 
 export type SoloProgramResult =
-  | { ok: true; created: { id: string; name: string; date: string }[]; skipped?: string; /** Adapt only: one spoken sentence on what changed and why. */ changes?: string }
+  | { ok: true; created: { id: string; name: string; date: string }[]; skipped?: string; /** Adapt only: one spoken sentence on what changed and why. */ changes?: string; /** "week 2 of 4 (build), upper lower, 4 days: …" */ block?: string; /** Which brain wrote it: the model, or the plan alone when the model failed. */ model?: 'gemini' | 'fallback' }
   | { ok: false; reason: 'premium_required' | 'no_client' | 'rate_limited' | 'error'; message?: string };
 
 export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number; adapt?: boolean } = {}): Promise<SoloProgramResult> {
@@ -30,5 +30,12 @@ export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number;
   if (data?.error === 'premium_required') return { ok: false, reason: 'premium_required' };
   if (data?.error === 'no_client') return { ok: false, reason: 'no_client' };
   if (data?.error) return { ok: false, reason: 'error', message: String(data.error) };
-  return { ok: true, created: data?.created ?? [], skipped: data?.skipped, changes: typeof data?.changes === 'string' && data.changes.trim() ? data.changes.trim() : undefined };
+  return {
+    ok: true,
+    created: data?.created ?? [],
+    skipped: data?.skipped,
+    changes: typeof data?.changes === 'string' && data.changes.trim() ? data.changes.trim() : undefined,
+    block: typeof data?.block === 'string' && data.block.trim() ? data.block.trim() : undefined,
+    model: data?.model === 'gemini' ? 'gemini' : data?.model === 'fallback' ? 'fallback' : undefined,
+  };
 }

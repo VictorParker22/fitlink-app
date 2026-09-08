@@ -9,16 +9,22 @@ on:
     branches: [master]
     paths:
       - 'supabase/functions/solo-corner/**'
+      - 'supabase/functions/solo-program/**'
       - 'supabase/functions/_shared/ai.ts'
       - 'evals/**'
       - 'scripts/eval-personas.mjs'
+      - 'scripts/eval-program.mjs'
+      - 'tests/evals/**'
   pull_request:
     branches: [master]
     paths:
       - 'supabase/functions/solo-corner/**'
+      - 'supabase/functions/solo-program/**'
       - 'supabase/functions/_shared/ai.ts'
       - 'evals/**'
       - 'scripts/eval-personas.mjs'
+      - 'scripts/eval-program.mjs'
+      - 'tests/evals/**'
   workflow_dispatch:
 
 jobs:
@@ -39,3 +45,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: node scripts/eval-personas.mjs
+
+      - name: Run program builder evals
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/eval-program.mjs

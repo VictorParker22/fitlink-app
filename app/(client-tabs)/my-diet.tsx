@@ -524,18 +524,20 @@ export default function AthleteFoodScreen() {
             <Ionicons name="restaurant-outline" size={22} color={C.accent} />
           </View>
           <Text style={st.emptyTitle}>No meal plan yet</Text>
-          <Text style={st.emptyText} numberOfLines={2}>
+          <Text style={st.emptyText} numberOfLines={3}>
             {trainer
               ? `${coachFirst} hasn't put a plan on your account yet.`
-              : 'Track food yourself in the AI corner until a coach takes you on.'}
+              : 'The corner writes one from your weight, your training days and your goal: three meals and a snack around training, with rest-day portions.'}
           </Text>
           <Pressable
             hitSlop={{ top: 2, bottom: 2 }}
             style={st.emptyBtn}
-            onPress={() => router.push(trainer ? ClientRoute.myMessages : ClientRoute.solo)}
+            onPress={() => (trainer
+              ? router.push(ClientRoute.myMessages)
+              : router.push({ pathname: ClientRoute.solo, params: { ask: 'nutrition' } } as any))}
             accessibilityRole="button"
           >
-            <Text style={st.emptyBtnText}>{trainer ? `Ask ${coachFirst} about food` : 'Open the corner'}</Text>
+            <Text style={st.emptyBtnText}>{trainer ? `Ask ${coachFirst} about food` : 'Write my meal plan'}</Text>
           </Pressable>
         </View>
       </View>
