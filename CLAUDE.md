@@ -61,8 +61,19 @@ repository secret).
   keep the file even after applying so the history is reproducible.
 - **Column-level `REVOKE` on `public.clients` is a no-op** (authenticated holds table-wide
   UPDATE; column privileges are additive). Protect columns with the
-  `guard_entitlement_columns` BEFORE UPDATE trigger instead. It currently guards
-  `premium_until`, `trainer_id`, `requested_trainer_id`, `coach_*_at/by`, `solo_summary*`.
+  `guard_entitlement_columns` BEFORE INSERT OR UPDATE trigger instead (migration
+  20260908050000, the self-grant audit). Privileged = service_role / postgres-owned
+  definer functions / supabase_auth_admin; everyone else: on `trainers` no
+  `elite_until`, `org_id`, `stripe_*` on insert or update; on `clients` no
+  `premium_until`/`solo_summary*` ever, no coach relationship columns, an athlete's own
+  row may not change `plan_id`, `status`, `trial_end_date`, `stripe_customer_id`,
+  `referred_by`, `notes`, an athlete's self-insert starts coachless/planless, and a coach's
+  direct insert may not pre-bind another uid. `guard_enrollment_columns` keeps an athlete
+  from moving `client_plan_enrollments` to another plan. `payment_split_for_trainer` and
+  the roster-cap triggers waive fees/caps for an org only while `organizations.seat_status`
+  is active/trialing (anyone signed in may create an org row). `lookup_client_by_contact`
+  (anon, sign-up) returns only found / has_account / coach first name. Every one of these
+  was proved with `set local role authenticated` dry runs; repeat that before touching them.
 - Trigger functions are `REVOKE EXECUTE ... FROM anon, authenticated` so they cannot be called
   over RPC. Every `SECURITY DEFINER` function pins `SET search_path TO ''`.
 - `trainers_public` is a TABLE (safe columns only) synced from `trainers` by the
