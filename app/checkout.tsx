@@ -111,7 +111,7 @@ export default function CheckoutScreen() {
     // Only a coach row we actually hold can say payouts are not set up; a
     // coach read from trainers_public carries no Stripe flags, and the
     // server refuses the charge itself when payouts are not connected.
-    if (trainer && 'stripe_onboarding_complete' in trainer && trainer.stripe_onboarding_complete === false) {
+    if (trainer && 'stripe_charges_enabled' in trainer && trainer.stripe_charges_enabled === false) {
       showAlert({ type: 'warning', title: 'Payment setup required', message: 'The coach needs to complete Stripe setup before accepting payments.' });
       release();
       return;

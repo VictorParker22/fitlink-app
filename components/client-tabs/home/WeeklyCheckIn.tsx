@@ -260,10 +260,10 @@ export default function WeeklyCheckIn() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
 
-      if (trainer?.expo_push_token) {
+      if (trainer?.id) {
         supabase.functions.invoke('send-push-notification', {
           body: {
-            pushToken: trainer.expo_push_token,
+            toTrainerId: trainer.id,
             title: `Check-in from ${clientData.name}`,
             body: `${clientData.name} answered this week's questions. Tap to review.`,
             data: { url: '/messages' },

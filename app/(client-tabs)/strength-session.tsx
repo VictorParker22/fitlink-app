@@ -210,11 +210,18 @@ export default function StrengthSessionScreen() {
       try {
         const { data, error } = await supabase
           .from('workouts')
-          .select('*, workout_exercises(*, exercises(*)), trainers(*)')
+          .select('*, workout_exercises(*, exercises(*))')
           .eq('id', params.sessionId)
           .single();
         if (error) throw error;
-        setSession(data);
+        // Coach name from the public card; the private trainers row is not
+        // readable by athletes any more (2026-09-08).
+        let coach: { name?: string | null } | null = null;
+        if (data?.trainer_id) {
+          const { data: card } = await supabase.from('trainers_public').select('name').eq('id', data.trainer_id).maybeSingle();
+          coach = card ?? null;
+        }
+        setSession({ ...data, trainers: coach });
       } catch (err) {
         console.error('Error fetching session:', err);
       } finally {
@@ -540,10 +547,10 @@ export default function StrengthSessionScreen() {
           });
           if (notifErr && __DEV__) console.warn('[StrengthSession] Coach notification skipped:', notifErr.message);
         })();
-        if (trainer?.expo_push_token) {
+        if (trainer?.id) {
           supabase.functions.invoke('send-push-notification', {
             body: {
-              pushToken: trainer.expo_push_token,
+              toTrainerId: trainer.id,
               title: 'Workout completed',
               body: summary,
               data: { url: `/client/${clientData.id}` },
@@ -723,10 +730,10 @@ export default function StrengthSessionScreen() {
       conv_id: conversation.id,
       new_last_message: content,
     });
-    if (trainer?.expo_push_token) {
+    if (trainer?.id) {
       supabase.functions.invoke('send-push-notification', {
         body: {
-          pushToken: trainer.expo_push_token,
+          toTrainerId: trainer.id,
           title: `Message from ${clientData?.name || 'Client'}`,
           body: content,
           data: { url: '/messages' },

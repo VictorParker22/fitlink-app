@@ -362,10 +362,10 @@ export default function ActiveWorkoutPlayer({
             if (error && __DEV__) console.warn('[ActiveWorkoutPlayer] PR notification insert failed:', error);
           })();
           // Push notification to trainer's device
-          if (trainer?.expo_push_token) {
+          if (trainer?.id) {
             supabase.functions.invoke('send-push-notification', {
               body: {
-                pushToken: trainer.expo_push_token,
+                toTrainerId: trainer.id,
                 title: 'New PR',
                 body: prLine,
                 data: { url: `/client/${clientData.id}` },

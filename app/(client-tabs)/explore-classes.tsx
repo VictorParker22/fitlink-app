@@ -129,16 +129,28 @@ export default function ExploreClassesScreen() {
       return;
     }
     try {
+      // The coach's name and picture come from trainers_public: the private
+      // trainers row is no longer readable by athletes (2026-09-08), and an
+      // embedded `trainers(...)` would silently come back null.
+      const { data: coachCard } = await supabase
+        .from('trainers_public')
+        .select('name, avatar_url')
+        .eq('id', trainerId)
+        .maybeSingle();
+      const withCoach = <T extends object>(rows: T[] | null) =>
+        (rows || []).map((r) => ({ ...r, trainers: coachCard ?? null }));
+
       // Coach-scoped in the query, not only by policy.
-      const { data } = await supabase
+      const { data: classRows } = await supabase
         .from('classes')
-        .select('*, trainers(name, avatar_url)')
+        .select('*')
         .eq('trainer_id', trainerId)
         .eq('status', 'published')
         .order('created_at', { ascending: false });
       // Always mirror the table — an empty table must render an empty screen,
       // never stale or stand-in content.
-      setLiveClasses((data || []).map(c => ({
+      const data = withCoach<any>(classRows as any[] | null);
+      setLiveClasses(data.map(c => ({
         id: c.id,
         title: c.title,
         instructor: c.trainers?.name || 'Coach',
@@ -161,9 +173,9 @@ export default function ExploreClassesScreen() {
       // Same coach scope for the live schedule. Every scheduled and live row
       // is kept — this is one coach's calendar, so collapsing it to a single
       // "latest stream" would hide real sessions the athlete can attend.
-      const { data: liveData, error: liveError } = await supabase
+      const { data: liveRows, error: liveError } = await supabase
         .from('live_classes')
-        .select('*, trainers(name, avatar_url)')
+        .select('*')
         .eq('trainer_id', trainerId)
         .in('status', ['live', 'scheduled'])
         .order('scheduled_for', { ascending: true });
@@ -171,7 +183,7 @@ export default function ExploreClassesScreen() {
       if (liveError) {
         console.warn('[explore-classes] live_classes fetch failed:', liveError.message, liveError.code);
       }
-      setActiveLiveStreams(liveData || []);
+      setActiveLiveStreams(withCoach<any>(liveRows as any[] | null));
     } catch (e) {
       console.log('[explore-classes] Supabase fetch error:', e);
     } finally {

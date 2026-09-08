@@ -351,19 +351,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
       const [
         trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes, subscriptionRes
       ] = await Promise.all([
-        // Explicit columns, not select('*'): the athlete's own coach row was
-        // handing over stripe_account_id (the coach's Stripe Connect account)
-        // and every other private field. expo_push_token stays because the
-        // athlete legitimately messages this coach, and the push function now
-        // authorises by relationship anyway.
-        supabase.from('trainers')
-          // stripe_onboarding_complete is deliberately included: checkout
-          // gates on it, and an athlete paying their own coach legitimately
-          // needs the boolean "can this coach take payments". The Stripe
-          // ACCOUNT ID stays excluded — the flag is not the key.
-          .select('id, name, email, phone, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, referral_code, expo_push_token, notification_prefs, onboarding_complete, stripe_onboarding_complete, created_at')
-          // Solo athletes have no trainer: a null eq is a PostgREST error,
-          // and .single() on zero rows is another. Neither should exist.
+        // trainers_public, never trainers: the private row carried the coach's
+        // push token (Expo pushes need no auth — the token alone can phish the
+        // coach's phone), Stripe account id, Elite date, email and phone.
+        // trainers_select no longer returns another person's row at all
+        // (2026-09-08). stripe_charges_enabled is the one flag checkout needs
+        // and is synced onto the public card by sync_trainer_public.
+        supabase.from('trainers_public')
+          .select('id, name, bio, specialization, specializations, certifications, working_hours, avatar_url, cover_url, onboarding_complete, stripe_charges_enabled, created_at')
           .eq('id', client.trainer_id ?? '00000000-0000-0000-0000-000000000000').maybeSingle(),
         supabase.from('sessions').select('*').eq('client_id', client.id).order('date'),
         supabase.from('client_workouts')
@@ -655,10 +650,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
       });
       if (error && __DEV__) console.warn('[ClientContext] Coach notification skipped:', error.message);
     })();
-    if (trainer?.expo_push_token) {
+    if (trainer?.id) {
       supabase.functions.invoke('send-push-notification', {
         body: {
-          pushToken: trainer.expo_push_token,
+          toTrainerId: trainer.id,
           title: 'Workout completed',
           body: summary,
           data: { url: `/client/${clientData.id}` },

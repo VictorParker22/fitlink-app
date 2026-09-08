@@ -53,10 +53,29 @@ serve(async (req) => {
   }
 
   try {
-    const { pushToken, title, body, data } = await req.json()
+    const payload = await req.json()
+    const { title, body, data, toTrainerId, toClientId } = payload
+    let pushToken: string | undefined = typeof payload?.pushToken === 'string' ? payload.pushToken : undefined
 
-    if (!pushToken || !title || !body) {
-      return json({ error: 'Missing required fields: pushToken, title, or body' }, 400);
+    if (!title || !body) {
+      return json({ error: 'Missing required fields: title or body' }, 400);
+    }
+
+    // Athletes no longer read their coach's token (trainers_select stopped
+    // returning private columns on 2026-09-08). They name the recipient and
+    // the token is resolved here with the service role; a token in the body
+    // is ignored whenever a recipient id is given.
+    if (toTrainerId || toClientId) {
+      const lookup = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+      const { data: row } = toTrainerId
+        ? await lookup.from('trainers').select('expo_push_token').eq('id', toTrainerId).maybeSingle()
+        : await lookup.from('clients').select('expo_push_token').eq('id', toClientId).maybeSingle()
+      pushToken = row?.expo_push_token ?? undefined
+      if (!pushToken) return json({ ok: true, skipped: 'no-token' })
+    }
+
+    if (!pushToken) {
+      return json({ error: 'Missing recipient: pushToken, toTrainerId or toClientId' }, 400);
     }
 
     // ── Authorization ────────────────────────────────────────────────

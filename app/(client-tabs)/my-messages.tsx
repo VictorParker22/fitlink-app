@@ -279,14 +279,14 @@ export default function ClientMessagesScreen() {
       });
 
       // Trigger push notification to trainer
-      if (trainer?.expo_push_token) {
+      if (trainer?.id) {
         const pushBody = content.startsWith('[WORKOUT_CARD:')
           ? 'Client sent an attachment'
           : content;
 
         supabase.functions.invoke('send-push-notification', {
           body: {
-            pushToken: trainer.expo_push_token,
+            toTrainerId: trainer.id,
             title: `Message from ${clientData?.name || 'Client'}`,
             body: pushBody,
             data: { url: '/messages' }
@@ -351,10 +351,10 @@ export default function ClientMessagesScreen() {
         }).eq('id', conversation.id);
         if (convError && __DEV__) console.warn('[Messages] conversation preview update failed:', convError.message);
 
-        if (trainer?.expo_push_token) {
+        if (trainer?.id) {
           supabase.functions.invoke('send-push-notification', {
             body: {
-              pushToken: trainer.expo_push_token,
+              toTrainerId: trainer.id,
               title: `Message from ${clientData?.name || 'Client'}`,
               body: 'Client sent an image',
               data: { url: '/messages' }

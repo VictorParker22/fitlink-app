@@ -374,11 +374,11 @@ export default function ClientWorkoutsScreen() {
           conv_id: target.id,
           new_last_message: content,
         });
-        if (trainer?.expo_push_token) {
+        if (trainer?.id) {
           supabase.functions
             .invoke('send-push-notification', {
               body: {
-                pushToken: trainer.expo_push_token,
+                toTrainerId: trainer.id,
                 title: `Message from ${clientData.name || 'Client'}`,
                 body: content,
                 data: { url: '/messages' },
