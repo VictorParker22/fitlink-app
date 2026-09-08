@@ -11,7 +11,7 @@ import { supabase } from './supabase';
 
 export type SoloProgramResult =
   | { ok: true; created: { id: string; name: string; date: string }[]; skipped?: string; /** Adapt only: one spoken sentence on what changed and why. */ changes?: string }
-  | { ok: false; reason: 'premium_required' | 'no_client' | 'error'; message?: string };
+  | { ok: false; reason: 'premium_required' | 'no_client' | 'rate_limited' | 'error'; message?: string };
 
 export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number; adapt?: boolean } = {}): Promise<SoloProgramResult> {
   // One id per attempt: the server refuses to build the same id twice, so a
@@ -22,6 +22,9 @@ export async function buildSoloProgram(opts: { rebuild?: boolean; days?: number;
     const status = (error as any)?.context?.status ?? (error as any)?.status;
     if (status === 402) return { ok: false, reason: 'premium_required' };
     if (status === 404) return { ok: false, reason: 'no_client' };
+    // 429 is the corner's own ceiling on rewrites, 503 'capacity' the
+    // platform's; both mean "the week you have is the week to train".
+    if (status === 429 || status === 503) return { ok: false, reason: 'rate_limited', message: error.message };
     return { ok: false, reason: 'error', message: error.message };
   }
   if (data?.error === 'premium_required') return { ok: false, reason: 'premium_required' };

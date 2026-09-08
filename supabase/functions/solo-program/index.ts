@@ -67,16 +67,17 @@ serve(async (req) => {
       return json({ ok: true, created: [], skipped: 'duplicate' });
     }
 
-    // Rate check moved ABOVE the "built recently -> skip" branch: a
-    // rebuild:true (or adapt:true) caller must always be counted against
-    // the daily cap, not just the callers who get past the recency guard.
-    const rl = await guardRate(admin, caller.id, { bucket: 'solo-program', global: 500, limit: 4, windowSeconds: 86400 }, corsHeaders);
-    if (rl) return rl;
-
     if (!rebuild && !adapt && client.solo_program_built_at) {
       const age = Date.now() - new Date(client.solo_program_built_at).getTime();
       if (age < 6 * 24 * 3600 * 1000) return json({ ok: true, skipped: 'recent' });
     }
+
+    // Counted only when a generation is about to run (a duplicate or a
+    // fresh-enough week above costs nothing). 4 an hour absorbs a retry
+    // after a failure — on 2026-09-08 three timeouts plus one success ate a
+    // 4-a-day cap and the next "build my week" was refused for the day.
+    const rl = await guardRate(admin, caller.id, { bucket: 'solo-program', global: 500, limit: 4, windowSeconds: 3600, daily: 10 }, corsHeaders);
+    if (rl) return rl;
 
     // Intake from auth metadata (written by the onboarding draft).
     const { data: userRes } = await admin.auth.admin.getUserById(caller.id);

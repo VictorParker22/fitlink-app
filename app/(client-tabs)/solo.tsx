@@ -595,6 +595,10 @@ export default function SoloScreen() {
             extra.just_built_week = res.created.map((c) => `${c.name} on ${c.date}`).join('; ');
             layers.track('program_built', { created: res.created.length, adapt: false });
             refreshData().catch(() => {});
+          } else if (!res.ok && res.reason === 'rate_limited') {
+            // The honest reason: not a failure, a ceiling. The week that
+            // exists is the one to train; rewrites come back within the hour.
+            extra.program_build_failed = "today's rewrites are used up for now, so the week already written stands; a fresh rewrite is possible again within the hour";
           } else if (!res.ok && res.reason !== 'premium_required') {
             extra.program_build_failed = 'the program could not be written just now';
           }
