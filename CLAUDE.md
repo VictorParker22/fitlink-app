@@ -76,6 +76,12 @@ repository secret).
 - Secrets (set with `npx supabase secrets set`): `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`,
   `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RC_WEBHOOK_SECRET`, `SENTRY_DSN`, Mux keys, FCM.
   `STRIPE_CONNECT_WEBHOOK_SECRET` is not set (stripe-webhook accepts two secrets).
+  **Stripe is LIVE on the server since 2026-09-07** (`STRIPE_SECRET` = sk_live, `STRIPE_WEBHOOK_SECRET`
+  = the live "Stripe-Payments" destination, 7 events incl. account.updated); the app's
+  `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` on EAS is pk_live. All pre-switch `stripe_account_id`s
+  were sandbox accounts and were cleared (migration 20260907230000). `STRIPE_ORG_SEAT_PRICE` is
+  still a sandbox price id (gym seats are not in the launch path). A `credentials/*.env*`
+  file is how live secrets reach this machine; never paste them into chat or commit them.
 
 ## Edge functions (Deno, `supabase/functions/`)
 
