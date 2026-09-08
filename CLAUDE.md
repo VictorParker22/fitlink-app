@@ -10,6 +10,60 @@ Read these first, in this order:
 This file holds what those do not: how work actually ships here, and the
 decisions and traps from the 2026-09 release push.
 
+## Security — read before building ANYTHING that touches data, money or identity
+
+This is a marketplace where strangers pay strangers. The anon key ships in the binary, so
+**every client-side write is an attacker's write**; the only boundaries are RLS, triggers,
+SECURITY DEFINER RPCs and edge functions. On 2026-09-08 a sweep found coaches could set
+their own fee to 0% (org_id), athletes could put themselves on a pass, insert their own
+Elite/premium row, read every pass's workouts, and any coach could claim any Solo athlete
+with the service role. None of that was hard to find. Do the threat model FIRST, every time:
+
+1. **Who can write this column, and what is it worth?** For every table a screen writes,
+   dump `pg_policies` and ask what the row's OWN user gains by writing each column
+   (fee, entitlement, membership, plan, price, seat, status, another user's id). Anything
+   with value is server-written only: service role, a postgres-owned definer RPC, or a
+   BEFORE trigger that refuses it (`guard_entitlement_columns`, `guard_enrollment_columns`,
+   `guard_notification_insert`, `guard_org_billing_columns`). INSERT needs the guard as much
+   as UPDATE. Column-level REVOKE does nothing while the role holds table-wide grants.
+2. **Child rows inherit the parent's visibility.** A `USING (true)` SELECT on a child table
+   (workout_exercises, diet_plan_meals) leaks the paid content of every parent whose id can
+   be learned. Write `EXISTS (SELECT 1 FROM parent WHERE parent.id = child.parent_id)`.
+3. **Money is computed on the server from server rows.** Price from `plans`, payee from
+   `plans.trainer_id`, fee from `payment_split_for_trainer()`, entitlement from
+   `elite_until`/`premium_until`. The app sends ids, never amounts, never a payee, never a
+   flag that unlocks anything. A fee frozen into a Stripe object must be re-synced when the
+   entitlement changes (`syncCoachApplicationFee`).
+4. **A definer RPC is an API.** Its first lines check `auth.uid()` against the row it
+   touches; it clamps every text input; it never returns another person's contact, intake
+   or name unless the caller already holds a relationship to them. `REVOKE EXECUTE FROM
+   anon, authenticated` on anything only triggers call. Run the Security Advisor
+   (`get_advisors`) after every migration and explain every WARN.
+5. **Edge functions identify the caller from the JWT** (`requireCaller`,
+   `requireTrainerSelf`, `requireClientAccess`), never from the body. Webhooks verify a
+   signature or a shared secret; internal functions `requireServiceRole`. A function that
+   reads with the service role must filter by the caller's own id.
+6. **Relationships are consent.** `clients.trainer_id` is set only by `respond_coach_request`
+   / `accept_invite` / a paid pass. No "claim", "link" or "add existing athlete" path may
+   attach a person to a roster without that person acting. Binding an auth user to a
+   client row is `link_client_to_auth_user` (contact-verified) or the athlete's own row.
+7. **Storage paths are scoped** (`storage.foldername(name)[1] = auth.uid()`), private
+   buckets for anything personal, no public SELECT policy on a public bucket (it allows
+   listing), no unscoped INSERT policy.
+8. **Client-side inputs are hostile.** Deep links and universal links carry codes that are
+   normalised to a fixed alphabet (`normalizeCode`) before use; redirects go only to
+   `fitlink://` (`stripe-redirect`); user text renders in `<Text>` never as markup; URLs the
+   app opens come from our own constants or `lib/safeUrl.ts`. Never trust a return URL, a
+   query param or a pasted code to decide who a user is or what they own.
+9. **Prove it before reporting it.** Every guard/policy change is exercised with
+   `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claims = '{"sub":"<uid>","role":"authenticated"}'; <write>; ROLLBACK;`
+   for the attacker AND for the legitimate user. The proof files live in `supabase/security/`
+   (`python supabase/security/run_audit.py supabase/security/self_grant_audit.sql`, same
+   for `security_sweep.sql`); add a block for every new guard and re-run both before
+   shipping a policy, trigger or RPC change. A fix that was not run against the live
+   database is a hypothesis. "Noted as a follow-up" is not an outcome for a hole with money or
+   personal data behind it — close it or say plainly that it is open.
+
 ## Commands
 
 ```bash

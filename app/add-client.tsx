@@ -26,13 +26,9 @@ const RAISED_CIRCLE = '#1E211D';
 const TRACK_BG = '#1E211D';
 
 // ── Find-result intake display ──
-// The search-unassigned-clients function returns each athlete's own intake in
-// `assessment_data`, in either (or both) of two shapes. Display precedence is
-// intake_* first, legacy second, and ANY field may be absent — absent fields
-// are omitted entirely, never placeholdered (INVARIANTS §4).
-//   New:    { intake_goal, intake_days, intake_experience, intake_limitation }
-//   Legacy: { fitness_goal, fitness_goals[], commit_days, age, gender,
-//             weight, height, training_styles[], activities[] }
+// search-unassigned-clients answers one exact contact with a name and avatar
+// (no intake, no stored contact) since the 2026-09-08 sweep; the intake
+// helpers below still serve the athlete's own row after they accept.
 const present = (v: any): boolean => v !== null && v !== undefined && String(v).trim() !== '';
 
 function intakeGoal(ad: any, joinLegacyList: boolean): string | null {
@@ -147,7 +143,6 @@ export default function AddClientScreen() {
   // coach opts in to contact access (in-context ask, never cold).
   const [findResults, setFindResults] = useState<any[]>([]);
   const [findLoading, setFindLoading] = useState(false);
-  const [linking, setLinking] = useState<string | null>(null);
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
   const [contactsIndex, setContactsIndex] = useState<Contacts.Contact[] | null>(null);
   const [contactsDenied, setContactsDenied] = useState(false);
@@ -207,21 +202,24 @@ export default function AddClientScreen() {
   })();
 
   // ── Live FitLink search ──
-  // Debounced off the name field; silent (no alerts) — an empty result list
-  // just means nothing renders. Sequence guard drops stale responses.
+  // Off the email/phone fields, exact match only (the server refuses prefix
+  // search: it used to hand any coach every coachless athlete's contact and
+  // intake, 2026-09-08). A hit means "this person is on FitLink with no coach"
+  // and the action is an invitation — joining is the athlete's act.
   useEffect(() => {
-    const q = name.trim();
-    if (step !== 1 || q.length < 3) { setFindResults([]); return; }
+    const contact = email.trim() || phone.trim();
+    const looksLikeContact = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) || contact.replace(/[^0-9]/g, '').length >= 7;
+    if (step !== 1 || !looksLikeContact) { setFindResults([]); return; }
     const seq = ++searchSeq.current;
     const timer = setTimeout(async () => {
       setFindLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase.functions.invoke('search-unassigned-clients', {
-          body: { query: q, trainerId: user?.id },
+          body: { contact, trainerId: user?.id },
         });
         if (seq !== searchSeq.current) return;
-        setFindResults(error ? [] : (data?.data || []).slice(0, 3));
+        setFindResults(error ? [] : (data?.data || []).slice(0, 1));
       } catch {
         if (seq === searchSeq.current) setFindResults([]);
       } finally {
@@ -229,7 +227,7 @@ export default function AddClientScreen() {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [name, step]);
+  }, [email, phone, step]);
 
   // ── Avatar ──
   const handlePickAvatar = async () => {
@@ -389,65 +387,16 @@ export default function AddClientScreen() {
     setShowInviteSheet(true);
   };
 
-  const handleLinkClient = async (client: any) => {
+  // A found athlete is invited, never claimed. The old path inserted a
+  // clients row carrying THEIR auth_user_id (refused by the database now)
+  // or asked the server to set trainer_id on a Solo athlete's row with the
+  // service role — a roster hijack with no consent. accept_invite is the
+  // only way onto a roster from here.
+  const handleInviteFound = (client: any) => {
     if (atRosterCap) { setShowElitePaywall(true); return; }
-    setLinking(client.id);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      if (client.authUserId) {
-        // Auth user found on FitLink — create client record WITH auth_user_id + assessment
-        const { error } = await supabase
-          .from('clients')
-          .insert({
-            name: client.name || 'Client',
-            email: client.email || null,
-            phone: client.phone || null,
-            status: 'active',
-            trainer_id: user.id,
-            auth_user_id: client.authUserId,
-            assessment_data: client.assessment_data || null,
-          });
-        if (error) throw error;
-      } else {
-        // Existing client record — claim via the edge function, which is
-        // the ONLY path allowed to set trainer_id on a row this coach does
-        // not yet own. It refuses (409) when the client already has a coach.
-        //
-        // There used to be a direct-update fallback here for when the
-        // function errored. It is gone: a refusal is now a real answer, not
-        // an outage, and retrying it client-side would have been an attempt
-        // to take an athlete away from another coach.
-        const { error } = await supabase.functions.invoke('search-unassigned-clients', {
-          body: { action: 'link', clientId: client.id, trainerId: user.id }
-        });
-        if (error) throw new Error(error.message || 'Could not add that client');
-      }
-
-      // Navigate back FIRST. When the athlete arrived with their own intake,
-      // the confirm says so — the coach is not starting from a blank profile.
-      const hasIntake = intakeDetails(client.assessment_data).length > 0;
-      showAlert({
-        type: 'success',
-        title: 'Client added',
-        message: hasIntake
-          ? `${client.name} is now your athlete — their intake is already on their profile.`
-          : `${client.name} is now your client.`,
-      });
-      setLinking(null);
-      router.back();
-
-      // Refresh state AFTER navigation
-      setTimeout(() => { refreshClients(); }, 600);
-    } catch (err: any) {
-      if (String(err?.message || '').includes('roster_limit')) {
-        setShowElitePaywall(true);
-        return;
-      }
-      showAlert({ type: 'error', title: 'Link error', message: err.message || 'Failed to link client' });
-      setLinking(null);
-    }
+    if (!name.trim() && client?.name) setName(String(client.name));
+    Keyboard.dismiss();
+    setShowInviteSheet(true);
   };
 
   // ── Navigation ──
@@ -613,7 +562,7 @@ export default function AddClientScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={st.findResultName}>{client.name}</Text>
-                            <Text style={st.findResultContact}>On FitLink · {client.email || client.phone || 'no contact'}</Text>
+                            <Text style={st.findResultContact}>On FitLink · {client.contact || 'no coach yet'}</Text>
                           </View>
                           {canExpand && (
                             <Ionicons
@@ -623,15 +572,12 @@ export default function AddClientScreen() {
                           )}
                         </TouchableOpacity>
                         <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
-                          style={[st.linkBtn, linking === client.id && { opacity: 0.5 }]}
-                          onPress={() => handleLinkClient(client)}
-                          disabled={linking === client.id}
+                          style={st.linkBtn}
+                          onPress={() => handleInviteFound(client)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Invite ${client.name || 'this athlete'}`}
                         >
-                          {linking === client.id ? (
-                            <ActivityIndicator size="small" color={CoachColors.onAccent} />
-                          ) : (
-                            <Text style={st.linkBtnText}>Add</Text>
-                          )}
+                          <Text style={st.linkBtnText}>Invite</Text>
                         </TouchableOpacity>
                       </View>
                       {chips.length > 0 ? (

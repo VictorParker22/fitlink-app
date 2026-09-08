@@ -157,3 +157,24 @@ on web they can simply never settle, and on native they wait on a human.
 **Why a grep cannot check this.** The order of statements in an async function
 is not a pattern — it is a dependency claim, and only reading the function
 tells you whether the claim is true.
+
+## 13. Every client-side write is an attacker's write
+
+The anon key ships in the binary. A screen that writes a column is a stranger
+writing that column with their own JWT. On 2026-09-08 that let a coach zero
+their platform fee (org_id), an athlete put themselves on a pass (plan_id),
+anyone insert their own Elite row, anyone read every pass's workouts
+(workout_exercises SELECT true), and any coach claim any Solo athlete.
+
+**The rule.** Before a table, column, RPC or edge function ships: name who can
+write it, what the row's own user gains by writing it, and which server-side
+gate (RLS + a BEFORE trigger, a definer RPC that checks `auth.uid()`, an edge
+function that identifies the caller from the JWT) refuses the gain. Money,
+entitlement, membership, price, seat and identity columns are never written
+from the phone. Child tables inherit the parent's visibility. Then prove it
+with a role-simulated dry run against the live database, attacker and
+legitimate user both. The full checklist is in `CLAUDE.md` → Security.
+
+**Why a grep cannot check this.** A policy that reads `auth.uid() = trainer_id`
+looks right; whether `trainer_id` is a column the caller may set is a question
+about the business, not the syntax.
