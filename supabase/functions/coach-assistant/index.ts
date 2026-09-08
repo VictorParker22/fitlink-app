@@ -39,7 +39,7 @@ serve(async (req) => {
     }
 
     // Per-user cap: bounds credit blast radius of an abused Elite account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'coach-assistant', limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'coach-assistant', global: 1500, limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (rl) return rl;
 
     const body = await req.json();

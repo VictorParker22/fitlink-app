@@ -15,7 +15,7 @@
 // bucket so a client cannot ride the hourly limit forever.
 // ============================================================
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 
 export interface RateRule {
   bucket: string;
@@ -27,6 +27,12 @@ export interface RateRule {
   daily?: number;
   /** Default true: an infra error refuses the call instead of allowing it. */
   paid?: boolean;
+  /**
+   * Platform-wide ceiling over 24 hours, across every account. Per-account
+   * limits do nothing against account farming (sign up 200 free accounts,
+   * each gets its own hourly quota); this is the number the bill cannot pass.
+   */
+  global?: number;
 }
 
 function refuse(corsHeaders: Record<string, string>, status: number, error: string, message: string) {
@@ -49,6 +55,26 @@ export async function guardRate(
   ];
   if (rule.daily) windows.push({ bucket: `${rule.bucket}:day`, limit: rule.daily, windowSeconds: 86_400 });
 
+  if (rule.global) {
+    try {
+      const { data, error } = await admin.rpc('check_key_rate_limit', {
+        p_key: 'global',
+        p_bucket: `${rule.bucket}:global`,
+        p_limit: rule.global,
+        p_window_seconds: 86_400,
+      });
+      if (error) {
+        console.error('[rateLimit] global check failed:', rule.bucket, error.message);
+        if (paid) return refuse(corsHeaders, 503, 'rate_limit_unavailable', 'Please try again in a moment.');
+      } else if (data === false) {
+        console.warn('[rateLimit] GLOBAL CEILING reached:', rule.bucket, rule.global);
+        return refuse(corsHeaders, 503, 'capacity', "This feature is at today's capacity. Back tomorrow.");
+      }
+    } catch (e) {
+      console.error('[rateLimit] global threw:', rule.bucket, e);
+      if (paid) return refuse(corsHeaders, 503, 'rate_limit_unavailable', 'Please try again in a moment.');
+    }
+  }
   for (const w of windows) {
     try {
       const { data, error } = await admin.rpc('check_rate_limit', {

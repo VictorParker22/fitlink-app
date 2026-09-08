@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
 import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
@@ -46,6 +46,11 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     const { exercise_id, text, mode, voice } = await req.json();
+    // ElevenLabs bills per character. A corner line or an exercise cue is a
+    // few sentences; anything longer is not a voice request.
+    if (typeof text === 'string' && text.length > 1200) {
+      return new Response(JSON.stringify({ error: 'text_too_long', max: 1200 }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'Text is required' }), {
@@ -56,6 +61,14 @@ serve(async (req) => {
 
     // ── Solo mode: a corner line in the character's voice ──────────────
     if (mode === 'solo') {
+      // Solo voice is premium: the corner is gated on premium_until, so its
+      // lines must not be free to synthesise on their own.
+      {
+        const { data: me } = await caller.admin.from('clients').select('premium_until').eq('auth_user_id', caller.id).maybeSingle();
+        if (!me?.premium_until || Date.parse(me.premium_until) < Date.now()) {
+          return new Response(JSON.stringify({ error: 'premium_required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
       const key = String(voice || '');
       const voiceId = SOLO_VOICES[key];
       if (!voiceId) {
@@ -79,7 +92,7 @@ serve(async (req) => {
       }
 
       // Fresh synthesis is the only paid path: rate-limit it.
-      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', limit: 160, windowSeconds: 3600, daily: 450 }, corsHeaders);
+      const rl = await guardRate(admin, caller.id, { bucket: 'solo-voice', global: 5000, limit: 160, windowSeconds: 3600, daily: 450 }, corsHeaders);
       if (rl) return rl;
 
       const tts = await withRetry(() => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -147,7 +160,7 @@ serve(async (req) => {
     // Only the fresh-synthesis path costs an ElevenLabs call — a cache hit
     // above returned already. Rate-limit + clamp only here so cached audio
     // stays free and unthrottled.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'text-to-speech', limit: 100, windowSeconds: 3600, daily: 200 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'text-to-speech', global: 3000, limit: 100, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (rl) return rl;
 
     // Strip HTML tags for clean speech

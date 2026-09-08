@@ -19,7 +19,7 @@
 // generalises.
 // ============================================================
 
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 
 export interface Caller {
   id: string;

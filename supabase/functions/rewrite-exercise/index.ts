@@ -21,9 +21,17 @@ serve(async (req) => {
     // Gemini / Spoonacular quota indefinitely. Billing abuse, not data loss —
     // but it is somebody else's invoice.
     const caller = await requireCaller(req);
+    // Coaches only. This builds a coach's library; an athlete account is
+    // free to create in bulk and would otherwise burn the model budget.
+    {
+      const { data: coachRow } = await caller.admin.from('trainers').select('id').eq('id', caller.id).maybeSingle();
+      if (!coachRow) {
+        return new Response(JSON.stringify({ error: 'coaches_only' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'rewrite-exercise', limit: 40, windowSeconds: 3600, daily: 80 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'rewrite-exercise', global: 1500, limit: 40, windowSeconds: 3600, daily: 80 }, corsHeaders);
     if (rl) return rl;
 
     let { description } = await req.json();

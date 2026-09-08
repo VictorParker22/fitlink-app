@@ -90,6 +90,15 @@ with the service role. None of that was hard to find. Do the threat model FIRST,
    (generic sentence to the caller, real error in the log with the endpoint), never
    `err.message`; never log a request or webhook payload whole; model input is clamped
    (`clampText`/`clampStr`) and model output is clamped or dropped (`_shared/ai.ts`).
+   Abuse rules (`.agents/ABUSE_REVIEW.md`, tests `supabase/security/abuse_controls.sql`):
+   every paid route names who may call it (coach row, `premium_until`, `elite_until`) AND
+   carries a `global` daily ceiling in its `guardRate` rule — per-account limits do not
+   survive account farming; every table a user can insert into gets a `rate_limit_writes`
+   trigger; anonymous RPCs call `api_rate_ok()` (per address via `request_ip()`); every
+   bucket has `file_size_limit` + `allowed_mime_types`; a webhook verifies signature AND
+   age. Dependencies: `npm audit --omit=dev` runs in CI (advisory) and Dependabot opens
+   upgrades weekly; Expo/react-native bumps wait for a native build; esm.sh imports are
+   pinned by hand (`@supabase/supabase-js@2.105.3` everywhere).
 
 ## Commands
 

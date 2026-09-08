@@ -13,7 +13,7 @@
 // fee from here and the org share from somewhere else.
 // ============================================================
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 import { LIVE_SUB_STATUSES, feeDiffers, isLiveSubStatus } from './fees.ts';
 
 export interface PaymentSplit {

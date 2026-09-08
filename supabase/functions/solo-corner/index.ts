@@ -71,7 +71,7 @@ serve(async (req) => {
 
     // Per-user cap even for paying athletes: bounds the credit blast
     // radius of a compromised/abused account.
-    const limited = await guardRate(caller.admin, caller.id, { bucket: 'solo-corner', limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
+    const limited = await guardRate(caller.admin, caller.id, { bucket: 'solo-corner', global: 3000, limit: 60, windowSeconds: 3600, daily: 200 }, corsHeaders);
     if (limited) return limited;
 
     const body = await req.json();

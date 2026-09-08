@@ -70,7 +70,7 @@ serve(async (req) => {
     // Rate check moved ABOVE the "built recently -> skip" branch: a
     // rebuild:true (or adapt:true) caller must always be counted against
     // the daily cap, not just the callers who get past the recency guard.
-    const rl = await guardRate(admin, caller.id, { bucket: 'solo-program', limit: 4, windowSeconds: 86400 }, corsHeaders);
+    const rl = await guardRate(admin, caller.id, { bucket: 'solo-program', global: 500, limit: 4, windowSeconds: 86400 }, corsHeaders);
     if (rl) return rl;
 
     if (!rebuild && !adapt && client.solo_program_built_at) {

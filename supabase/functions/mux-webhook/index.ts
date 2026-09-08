@@ -3,7 +3,7 @@
 // Set secrets: supabase secrets set MUX_WEBHOOK_SECRET=your_mux_secret_here
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3'
 import { internalError } from '../_shared/http.ts'
 
 // Utility to verify Mux Signature using Web Crypto API
@@ -29,6 +29,10 @@ async function verifyMuxSignature(rawBody: string, header: string | null, secret
     }
 
     if (!timestamp || !signature) return false;
+    // Replay window. Mux signs the Unix time; a captured delivery must not
+    // be able to end a class or delete a stream a day later.
+    const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+    if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
 
     const payload = `${timestamp}.${rawBody}`;
     const encoder = new TextEncoder();

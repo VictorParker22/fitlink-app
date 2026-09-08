@@ -15,7 +15,8 @@
 // actually allowed to message. We resolve the token to its owner and
 // require a real coach<->athlete relationship in one direction or the other.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3'
+import { guardRate } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,6 +94,11 @@ serve(async (req) => {
       const { data: userData } = await userClient.auth.getUser();
       const caller = userData?.user;
       if (!caller) return json({ error: 'Unauthorized' }, 401);
+
+      // Linked people only (below) — but nothing stopped a caller pushing the
+      // same linked person ten thousand times.
+      const rl = await guardRate(admin, caller.id, { bucket: 'push', limit: 60, windowSeconds: 3600, daily: 300, paid: false }, corsHeaders);
+      if (rl) return rl;
 
       // Who owns this token? Look in both directions.
       const [{ data: clientOwner }, { data: trainerOwner }] = await Promise.all([

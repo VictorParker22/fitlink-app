@@ -30,7 +30,7 @@ serve(async (req) => {
     const caller = await requireCaller(req);
 
     // Per-user cap: bounds credit blast radius of an abused account.
-    const rl = await guardRate(caller.admin, caller.id, { bucket: 'food-image', limit: 60, windowSeconds: 3600, daily: 120 }, corsHeaders);
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'food-image', global: 2000, limit: 60, windowSeconds: 3600, daily: 120 }, corsHeaders);
     if (rl) return rl;
 
     let { query } = await req.json();

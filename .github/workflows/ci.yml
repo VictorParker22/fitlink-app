@@ -29,3 +29,10 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --ci
+
+      # Advisory only until the Expo toolchain catches up with its transitive
+      # advisories: a critical in a runtime dependency fails the job, the rest
+      # is reported. Dependabot (.github/dependabot.yml) opens the upgrades.
+      - name: Dependency advisories (runtime, critical)
+        run: npm audit --omit=dev --audit-level=critical
+        continue-on-error: true

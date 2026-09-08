@@ -22,6 +22,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireCaller, requireTrainerSelf, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { asEmail, asPhoneDigits, escapeLike } from '../_shared/contact.ts';
+import { guardRate } from '../_shared/rateLimit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +42,10 @@ serve(async (req) => {
     const caller = await requireCaller(req);
     // The coach is whoever is signed in — never whoever the body says.
     requireTrainerSelf(caller, trainerId);
+    // Exact-match only, but a probe is a probe: thirty an hour is plenty
+    // for a coach typing real contacts.
+    const rl = await guardRate(caller.admin, caller.id, { bucket: 'client-lookup', limit: 30, windowSeconds: 3600, daily: 100, paid: false }, corsHeaders);
+    if (rl) return rl;
 
     if (action === 'link' || action === 'claim') {
       return json({ error: 'Athletes join through an invitation now. Send them one from Add athlete.' }, 410);
