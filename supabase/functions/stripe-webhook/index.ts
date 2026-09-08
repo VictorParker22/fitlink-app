@@ -106,8 +106,8 @@ async function ensurePlanEnrollment(
           trainer_id: planOwner.trainer_id,
           type: 'cohort_over_capacity',
           title: 'Cohort is over capacity',
-          body: `${who?.name ?? 'An athlete'} paid for "${plan.name}" after it filled (${count + 1} of ${plan.capacity}). Add a seat or refund them.`,
-          data: { plan_id: planId, client_id: clientId },
+          description: `${who?.name ?? 'An athlete'} paid for "${plan.name}" after it filled (${count + 1} of ${plan.capacity}). Add a seat or refund them.`,
+          metadata: { plan_id: planId, client_id: clientId },
         })
       }
     }
@@ -252,6 +252,39 @@ async function handleOrgSeatEvent(
   }
 }
 
+/**
+ * A paid pass makes its owner the athlete's coach. clients.trainer_id is
+ * guarded for ordinary roles; the service role this function runs as may
+ * write it. Idempotent: an athlete already on that coach's roster only gets
+ * the plan and status.
+ */
+async function attachClientToPlan(admin: ReturnType<typeof createClient>, clientId: string, planId: string) {
+  const { data: plan } = await admin.from('plans').select('trainer_id').eq('id', planId).maybeSingle()
+  const { data: client } = await admin.from('clients').select('trainer_id, name').eq('id', clientId).maybeSingle()
+  if (!plan?.trainer_id) return
+  const switching = !!client && client.trainer_id !== plan.trainer_id
+  const { error } = await admin.from('clients').update({
+    status: 'active',
+    plan_id: planId,
+    trainer_id: plan.trainer_id,
+    requested_trainer_id: null,
+    coach_requested_at: null,
+    coach_declined_at: null,
+    coach_declined_by: null,
+    ...(switching ? { coach_accepted_at: new Date().toISOString() } : {}),
+  }).eq('id', clientId)
+  if (error) console.error('[webhook] attachClientToPlan failed:', error.message)
+  if (switching) {
+    await admin.from('notifications').insert({
+      trainer_id: plan.trainer_id,
+      type: 'pass_purchased',
+      title: `${client?.name ?? 'An athlete'} bought a pass`,
+      description: `${client?.name ?? 'An athlete'} is on your roster now.`,
+      metadata: { client_id: clientId, plan_id: planId },
+    })
+  }
+}
+
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature')!
   const body = await req.text()
@@ -340,13 +373,7 @@ serve(async (req) => {
 
         if (clientId && planId && trainerId) {
 
-          await supabaseAdmin
-            .from('clients')
-            .update({
-              status: 'active',
-              plan_id: planId,
-            })
-            .eq('id', clientId)
+          await attachClientToPlan(supabaseAdmin, clientId, planId)
 
           // One-off PaymentIntents (create-payment-intent) have no Stripe
           // subscription, so there is no real period to record. Never
@@ -466,6 +493,7 @@ serve(async (req) => {
               .from('clients')
               .update({ plan_id: subRecord.plan_id })
               .eq('id', subRecord.client_id)
+            await attachClientToPlan(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
 
             await ensurePlanEnrollment(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
           }

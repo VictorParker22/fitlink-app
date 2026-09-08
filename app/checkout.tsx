@@ -52,13 +52,47 @@ export default function CheckoutScreen() {
     if (backTimerRef.current) clearTimeout(backTimerRef.current);
   }, []);
 
-  const plan =
+  // The lists in memory do not always carry the pass: an athlete buying
+  // from a coach who is not yet their coach (find-coach → pass), or a pass
+  // created after this session's context loaded, arrived here as "Plan or
+  // client not found" on a real purchase (2026-09-08). Fall through to a
+  // direct read of the plan (plans are public to read) and of the plan's
+  // owner from trainers_public. The coach is always the PLAN's owner, never
+  // whoever the athlete's current coach happens to be.
+  const [fetchedPlan, setFetchedPlan] = useState<any | null>(null);
+  const [fetchedCoach, setFetchedCoach] = useState<{ id: string; name: string } | null>(null);
+  const [resolving, setResolving] = useState(true);
+  const listedPlan =
     plans.find((p) => p.id === planId) ||
     (athletePlans || []).find((p: any) => p.id === planId);
+  const plan = listedPlan || fetchedPlan;
   const client =
     clients.find((c) => c.id === clientId) ||
     (clientData?.id === clientId ? clientData : undefined);
-  const trainer = coachSideTrainer || athleteSideTrainer;
+  useEffect(() => {
+    if (listedPlan || !planId) { setResolving(false); return; }
+    let alive = true;
+    supabase.from('plans').select('*').eq('id', planId).maybeSingle().then(({ data }) => {
+      if (!alive) return;
+      setFetchedPlan(data ?? null);
+      setResolving(false);
+    });
+    return () => { alive = false; };
+  }, [planId, listedPlan]);
+  const planOwnerId: string | undefined = (plan as any)?.trainer_id;
+  useEffect(() => {
+    if (!planOwnerId) return;
+    if (coachSideTrainer?.id === planOwnerId || athleteSideTrainer?.id === planOwnerId) return;
+    let alive = true;
+    supabase.from('trainers_public').select('id, name').eq('id', planOwnerId).maybeSingle().then(({ data }) => {
+      if (alive && data) setFetchedCoach(data as { id: string; name: string });
+    });
+    return () => { alive = false; };
+  }, [planOwnerId, coachSideTrainer?.id, athleteSideTrainer?.id]);
+  const trainer: any =
+    (coachSideTrainer?.id === planOwnerId ? coachSideTrainer : null) ||
+    (athleteSideTrainer?.id === planOwnerId ? athleteSideTrainer : null) ||
+    fetchedCoach;
 
   // Billing cadence comes from the plan row ('month' | 'year'); every piece of
   // copy below reads it so a yearly pass is never described as monthly.
@@ -74,7 +108,10 @@ export default function CheckoutScreen() {
     setLoading(true);
     const release = () => { inFlightRef.current = false; setLoading(false); };
 
-    if (!trainer?.stripe_onboarding_complete) {
+    // Only a coach row we actually hold can say payouts are not set up; a
+    // coach read from trainers_public carries no Stripe flags, and the
+    // server refuses the charge itself when payouts are not connected.
+    if (trainer && 'stripe_onboarding_complete' in trainer && trainer.stripe_onboarding_complete === false) {
       showAlert({ type: 'warning', title: 'Payment setup required', message: 'The coach needs to complete Stripe setup before accepting payments.' });
       release();
       return;
@@ -153,14 +190,16 @@ export default function CheckoutScreen() {
         body: JSON.stringify({
           planId: plan.id,
           clientId: client.id,
-          trainerId: trainer.id,
         }),
       });
 
       const { clientSecret, customerId, subscriptionId, error: apiError } = await response.json();
 
       if (apiError || !clientSecret) {
-        throw new Error(apiError || 'Failed to create payment intent');
+        const friendly = apiError === 'Coach has not completed payment setup'
+          ? `${trainer?.name ?? 'Your coach'} has not finished setting up payouts yet, so this pass cannot be bought until they do.`
+          : apiError;
+        throw new Error(friendly || 'Failed to create payment intent');
       }
 
       // Step 2: Initialize the Payment Sheet
@@ -242,6 +281,14 @@ export default function CheckoutScreen() {
       router.back();
     }, 2000);
   }, [plan, client, trainer, initPaymentSheet, presentPaymentSheet, refreshData, refreshClientData, router, showAlert]);
+
+  if (resolving && !plan) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.errorState}><ActivityIndicator color={CoachColors.accent} /></View>
+      </SafeAreaView>
+    );
+  }
 
   if (!plan || !client) {
     return (

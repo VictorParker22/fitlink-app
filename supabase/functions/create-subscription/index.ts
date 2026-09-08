@@ -23,11 +23,13 @@ serve(async (req) => {
   }
 
   try {
-    const { planId, clientId, trainerId } = await req.json()
+    const body = await req.json()
+    const planId: string | undefined = body?.planId
+    const clientId: string | undefined = body?.clientId
 
-    if (!planId || !clientId || !trainerId) {
+    if (!planId || !clientId) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: planId, clientId, trainerId' }),
+        JSON.stringify({ error: 'Missing required fields: planId, clientId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -59,6 +61,12 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // The money goes to the PLAN's owner, always. The app used to send a
+    // trainerId, which for an athlete buying a pass from a coach who is not
+    // yet their coach was null or the wrong coach (2026-09-08). Nothing the
+    // client sends can redirect a payout.
+    const trainerId: string = plan.trainer_id
 
     // Fetch client details
     const { data: client, error: clientError } = await supabaseAdmin
