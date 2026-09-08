@@ -160,6 +160,17 @@ repository secret).
   Universal links for `fitlink.coach` need `associatedDomains` + an AASA file = a native
   build; until then the web page hands off via the custom scheme and the typed code.
   `tests/invites.test.ts` pins the code/link/message contract.
+- **Coach passes (Stripe, 2026-09-08).** A pass is a `plans` row (price, period). The athlete buys it
+  in `app/checkout.tsx` (Apple payment sheet) via edge fn `create-subscription`, which creates a
+  Stripe subscription with `transfer_data.destination` = the PLAN OWNER's connected account and
+  the platform fee; the payee comes from `plans.trainer_id` on the server, never from the app.
+  `stripe-webhook` (`invoice.payment_succeeded` / `payment_intent.succeeded`) calls
+  `attachClientToPlan`: status active, plan_id, and `trainer_id` = the plan's coach (service role
+  bypasses `guard_entitlement_columns`), so buying a pass IS joining that coach. Checkout resolves
+  the plan by id and the coach from trainers_public when they are not in context (the athlete may
+  be buying from a coach who is not yet theirs). Entry points: find-coach → pass, Train tab
+  "Find your season" → my-pass, my-subscription tiers. Coaches must have
+  `stripe_charges_enabled` (Connect onboarding) or the server refuses the charge.
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`
