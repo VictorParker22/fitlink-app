@@ -6,12 +6,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
 import { useHaptic } from '../hooks/useHaptic';
 import { getSoundsEnabled, setSoundsEnabled } from '../lib/sounds';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { payoutsStateFor } from '../lib/payoutsState';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -20,11 +20,11 @@ type DayHours = { start: string; end: string; enabled: boolean };
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { trainer, updateTrainer, createStripeConnectAccount } = useApp();
+  const { trainer, updateTrainer } = useApp();
   const { showAlert } = useAlert();
   const haptic = useHaptic();
 
-  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const payoutsState = payoutsStateFor(trainer);
 
   const [name, setName] = useState(trainer?.name || '');
   const [email, setEmail] = useState(trainer?.email || '');
@@ -103,23 +103,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleConnectStripe = async () => {
-    setIsConnectingStripe(true);
-    try {
-      const { url } = await createStripeConnectAccount();
-      if (url) {
-        const result = await WebBrowser.openAuthSessionAsync(url, 'fitlink://stripe-return');
-        if (result.type === 'success') {
-          showAlert({ type: 'success', title: 'Success', message: 'Stripe onboarding completed.' });
-          // AppContext refreshes the trainer object via realtime or next load
-        }
-      }
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Stripe error', message: err.message || 'Failed to connect to Stripe.' });
-    } finally {
-      setIsConnectingStripe(false);
-    }
-  };
+  // Every Stripe hop lives on /payouts (design canvas "FitLink Payouts");
+  // Settings only reports the state and links there.
+  const openPayouts = () => router.push('/payouts' as any);
 
   const notifRows = [
     { key: 'sessions', label: 'Session reminders', desc: '30 min before each session', value: sessionReminders, onToggle: setSessionReminders, icon: 'calendar-outline' },
@@ -258,26 +244,29 @@ export default function SettingsScreen() {
                 <Ionicons name="card-outline" size={18} color={CoachColors.textSecondary} />
               </View>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={s.notifLabel}>Stripe payments</Text>
+                <Text style={s.notifLabel}>Payouts</Text>
                 <Text style={s.notifDesc}>
-                  {trainer?.stripe_onboarding_complete
-                    ? 'Your account is connected and ready to accept payments.'
-                    : 'Connect Stripe to accept payments and manage subscriptions.'}
+                  {payoutsState === 'connected'
+                    ? 'Stripe pays your bank after every charge.'
+                    : payoutsState === 'in_progress'
+                      ? 'Stripe still needs a few details before athletes can be charged.'
+                      : 'Set up Stripe so athletes can buy your passes.'}
                 </Text>
               </View>
-              {trainer?.stripe_onboarding_complete ? (
-                <View style={s.connectedPill}>
+              {payoutsState === 'connected' ? (
+                <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }} style={s.connectedPill} onPress={openPayouts} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Payouts on. Open payouts">
                   <Ionicons name="checkmark-circle" size={15} color={CoachColors.accent} />
-                  <Text style={s.connectedPillText}>Connected</Text>
-                </View>
+                  <Text style={s.connectedPillText}>On</Text>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity hitSlop={{ top: 6, bottom: 6 }}
-                  style={[s.stripeBtn, isConnectingStripe && { opacity: 0.5 }]}
-                  onPress={handleConnectStripe}
-                  disabled={isConnectingStripe}
+                  style={s.stripeBtn}
+                  onPress={openPayouts}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={payoutsState === 'in_progress' ? 'Continue payouts setup' : 'Set up payouts'}
                 >
-                  <Text style={s.stripeBtnText}>{isConnectingStripe ? 'Connecting…' : 'Connect'}</Text>
+                  <Text style={s.stripeBtnText}>{payoutsState === 'in_progress' ? 'Continue' : 'Set up'}</Text>
                 </TouchableOpacity>
               )}
             </View>

@@ -13,6 +13,7 @@ import Avatar from '../components/Avatar';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { isCohort, formatRun, formatDeadline, formatDay, parseLocalDay } from '../lib/cohort';
 import { totalWeeks } from '../lib/passWeeks';
+import { payoutsReady } from '../lib/payoutsState';
 
 /**
  * "SEP 8 · 4 WEEKS" — the dated badge that makes a cohort instantly
@@ -168,14 +169,14 @@ export default function PlanDetailScreen() {
   }, [subscribers, sessions]);
 
   const handleCollectPayment = () => {
-    if (trainer?.stripe_onboarding_complete !== true) {
+    if (!payoutsReady(trainer)) {
       showAlert({
         type: 'warning',
-        title: 'Payment setup required',
-        message: 'Set up your Stripe account before collecting payments.',
+        title: 'Payouts not set up',
+        message: 'Athletes cannot be charged until Stripe can pay you. It takes about five minutes.',
         buttons: [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Set up now', onPress: () => router.push('/earnings' as any) },
+          { text: 'Set up payouts', onPress: () => router.push('/payouts' as any) },
         ],
       });
       return;

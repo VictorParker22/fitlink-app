@@ -1,17 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 import { useAlert } from '../context/AlertContext';
-import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import RollingNumber from '../components/RollingNumber';
 import BoltEmptyState from '../components/mascot/BoltEmptyState';
 import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../lib/platformFee';
+import { openStripeDashboard, payoutsErrorText, payoutsReady, reportPayoutsFailure } from '../lib/payouts';
 
 /**
  * Earnings — design turn 13 "Money".
@@ -71,7 +70,9 @@ export default function EarningsScreen() {
   const publishedClasses = useMemo(() => classes?.filter(c => c.status === 'published') || [], [classes]);
   const totalClassMinutes = useMemo(() => publishedClasses.reduce((sum, c) => sum + (c.total_watch_minutes || 0), 0), [publishedClasses]);
 
-  const isOnboarded = trainer?.stripe_onboarding_complete;
+  // Charges enabled (lib/payoutsState.ts): details_submitted alone still
+  // cannot pay out, and the banner below is about money that cannot move.
+  const isOnboarded = payoutsReady(trainer);
 
   // ── Helpers ──────────────────────────────────────────
   const activeClients = useMemo(
@@ -143,109 +144,26 @@ export default function EarningsScreen() {
   const pendingAmount = sinceStarted;
 
   // ── Stripe handlers ─────────────────────────────────
-  const handleStripeSetup = useCallback(async () => {
-    if (!trainer) return;
-    setStripeLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('Not authenticated');
-
-      const returnUrl = Linking.createURL('stripe-return');
-      const refreshUrl = Linking.createURL('stripe-refresh');
-
-      const endpoint = trainer.stripe_account_id
-        ? 'connect-account-link'
-        : 'create-connect-account';
-
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          trainerId: trainer.id,
-          email: trainer.email,
-          name: trainer.name,
-          returnUrl,
-          refreshUrl,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to connect Stripe');
-      if (data.url) {
-        await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
-
-        // Force a sync with Stripe to update the database status (bypassing the need for webhooks)
-        await fetch(`${SUPABASE_URL}/functions/v1/connect-account-link`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            trainerId: trainer.id,
-            email: trainer.email,
-            name: trainer.name,
-            returnUrl,
-            refreshUrl,
-          }),
-        });
-
-        await refreshData();
-      }
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Stripe error', message: err.message || 'Could not connect to Stripe.' });
-    } finally {
-      setStripeLoading(false);
-    }
-  }, [trainer, showAlert]);
+  // Set-up lives on /payouts (design canvas "FitLink Payouts"); this screen
+  // only links there. The dashboard hop goes through lib/payouts so it is
+  // the same call everywhere.
+  const handleStripeSetup = useCallback(() => {
+    router.push('/payouts' as any);
+  }, [router]);
 
   const handleStripeDashboard = useCallback(async () => {
     if (!trainer) return;
     setStripeLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('Not authenticated');
-
-      const returnUrl = Linking.createURL('stripe-return');
-      const refreshUrl = Linking.createURL('stripe-refresh');
-
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/connect-account-link`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          trainerId: trainer.id,
-          email: trainer.email,
-          name: trainer.name,
-          returnUrl,
-          refreshUrl,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to get dashboard link');
-
-      if (data.type === 'dashboard') {
-        // Express Dashboard is a regular web page, not an auth session
-        if (data.url) await WebBrowser.openBrowserAsync(data.url);
-      } else {
-        // Account Onboarding is an auth session that needs to return to the app
-        if (data.url) {
-          await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
-          await refreshData();
-        }
-      }
+      const outcome = await openStripeDashboard(trainer.id);
+      if (outcome !== 'dashboard') await refreshData();
     } catch (err: any) {
-      showAlert({ type: 'error', title: 'Stripe error', message: err.message || 'Could not open Stripe dashboard.' });
+      reportPayoutsFailure(err, { step: 'earnings-dashboard' });
+      showAlert({ type: 'error', title: 'Stripe', message: payoutsErrorText(err) });
     } finally {
       setStripeLoading(false);
     }
-  }, [trainer, showAlert]);
+  }, [trainer, showAlert, refreshData]);
 
   // ── Format helpers ─────────────────────────────────
   const formatDate = (d: Date) => {
@@ -307,7 +225,7 @@ export default function EarningsScreen() {
                   <Text style={styles.connectBtnText}>Connect my bank</Text>
                 )}
               </TouchableOpacity>
-              <Text style={styles.pendingFootnote}>About 4 minutes · needs your ID</Text>
+              <Text style={styles.pendingFootnote}>About five minutes · needs your ID</Text>
             </View>
 
             {/* ── Held for you ─────────────────────────── */}

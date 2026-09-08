@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
 } from 'react-native';
@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { useApp } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
-import PayoutSetupModal from './PayoutSetupModal';
+import { payoutsReady } from '../../lib/payoutsState';
 
 /**
  * Setup checklist with a step-progress ring — the coach's day-one empty
@@ -31,11 +31,12 @@ interface ChecklistItem {
 export default function NewCoachSetupCards() {
   const router = useRouter();
   const { trainer, clients, plans } = useApp();
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
 
   // ── Derive completion state from real data ──
   const hasAccount = true; // They signed up — always done
-  const hasPayouts = !!(trainer?.stripe_onboarding_complete || trainer?.stripe_charges_enabled);
+  // Charges enabled, not details submitted: the checklist ticks when an
+  // athlete can actually be charged (lib/payoutsState.ts).
+  const hasPayouts = payoutsReady(trainer);
   const hasSeasonPass = plans.length > 0;
   const hasClient = clients.length > 0;
 
@@ -53,7 +54,7 @@ export default function NewCoachSetupCards() {
       complete: hasPayouts,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setShowPayoutModal(true);
+        router.push('/payouts' as any);
       },
     },
     {
@@ -195,12 +196,6 @@ export default function NewCoachSetupCards() {
           })}
         </View>
       </View>
-
-      {/* Payout Setup Modal */}
-      <PayoutSetupModal
-        visible={showPayoutModal}
-        onClose={() => setShowPayoutModal(false)}
-      />
     </View>
   );
 }

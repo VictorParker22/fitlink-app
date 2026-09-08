@@ -470,7 +470,6 @@ interface AppContextType {
   refreshClients: () => Promise<void>;
   refreshPlans: () => Promise<void>;
   refreshSessions: (data: Session[]) => void;
-  createStripeConnectAccount: () => Promise<{ url: string; accountId: string }>;
   fetchAnalytics: () => Promise<{
     growth: any[];
     sessionStats: any[];
@@ -517,7 +516,7 @@ export type AppBusinessSlice = Pick<AppContextType,
   | 'trainer' | 'updateTrainer'
   | 'referrals' | 'totalReferrals' | 'totalMonthlyRevenue'
   | 'notifications' | 'markNotificationRead' | 'updatePushToken'
-  | 'createStripeConnectAccount' | 'fetchAnalytics'
+  | 'fetchAnalytics'
 >;
 
 export type AppMetaSlice = Pick<AppContextType, 'loading' | 'refreshData'>;
@@ -2247,22 +2246,6 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, [user]);
 
-  const createStripeConnectAccount = useCallback(async () => {
-    if (!user) throw new Error('Not authenticated');
-    
-    // Call the Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke('create-connect-account', {
-      body: { 
-        trainerId: user.id,
-        email: trainer?.email || user.email,
-        name: trainer?.name || 'FitLink Coach'
-      }
-    });
-
-    if (error) throw error;
-    return data as { url: string; accountId: string };
-  }, [user, trainer]);
-
   const clientsSlice: AppClientsSlice = useMemo(() => ({
     clients,
     coachRequests,
@@ -2374,12 +2357,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     notifications,
     markNotificationRead,
     updatePushToken,
-    createStripeConnectAccount,
     fetchAnalytics,
   }), [
     trainer, updateTrainer, referrals, totalReferrals, totalMonthlyRevenue,
     notifications, markNotificationRead, updatePushToken,
-    createStripeConnectAccount, fetchAnalytics,
+    fetchAnalytics,
   ]);
 
   const metaSlice: AppMetaSlice = useMemo(() => ({

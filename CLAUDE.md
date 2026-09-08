@@ -245,6 +245,21 @@ repository secret).
   but Mux has NOT been configured to call it as of 2026-09-08 (zero deliveries); Studio's
   60 s abrupt-end check is what actually closed today's class. A coach account may accept a
   LIVE invite (watch only); `trainer_cannot_accept` is for coach invites.
+- **Coach payouts (2026-09-08, canvas "FitLink Payouts").** ONE screen, `app/payouts.tsx`,
+  and one library, `lib/payouts.ts` (+ pure `lib/payoutsState.ts`, hook `hooks/usePayouts.ts`,
+  panel `components/payouts/PayoutsPanel.tsx`). Every entry routes there: home setup card,
+  Settings, Earnings "Connect my bank", plan-detail's collect gate; the sign-up wizard's
+  Payouts stop embeds the same panel. Stripe ALWAYS opens as
+  `WebBrowser.openAuthSessionAsync(url, 'fitlink://stripe-return')` and returns as a resolved
+  promise; after ANY outcome the app calls `connect-account-link` with `mode: 'status'` (refreshes
+  the trainer flags, reports `due` + `pendingVerification`, mints no link). `Linking.openURL`
+  for Stripe is banned: the return arrived as a deep link the router could not place
+  ("unmatched route" after "Return to FitLink"). `app/stripe-return.tsx`/`stripe-refresh.tsx`
+  are the safety net and redirect a coach to `/payouts`. States: not_connected / in_progress /
+  connected, where connected means `stripe_charges_enabled` (details_submitted alone still
+  cannot be charged and create-subscription refuses it). `payoutsReady(trainer)` is the one
+  check; never read the flags directly on a screen. `PayoutSetupModal` (image-based, three
+  steps) is deleted.
 - **App Store Connect API from this machine.** Team key `VFPH6FZDX9` (App Manager) lives at
   `credentials/AuthKey_VFPH6FZDX9.p8` (gitignored, not uploaded). Issuer
   `a49b4160-1354-49c6-a156-254e1c076801`, app 6779058450. A read-only probe script pattern

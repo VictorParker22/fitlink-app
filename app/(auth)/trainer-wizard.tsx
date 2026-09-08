@@ -9,7 +9,6 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Motion, Ease } from '../../constants/motion';
 import CelebrationOverlay from '../../components/CelebrationOverlay';
 import * as ImagePicker from 'expo-image-picker';
-import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,12 +20,14 @@ import { onboardedKey } from '../../lib/onboardingFlags';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
-import { supabase, SUPABASE_URL } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
 import PermissionCards from '../../components/onboarding/PermissionCards';
 import { getNotificationState, requestNotifications, getCameraMicState, requestCameraMic } from '../../lib/permissions';
-import { usePaymentSplit, coachKeeps, totalDeduction, bpsToPercentLabel } from '../../lib/platformFee';
+import { usePaymentSplit } from '../../lib/platformFee';
+import { usePayouts } from '../../hooks/usePayouts';
+import { PayoutsActions, PayoutsPanel } from '../../components/payouts/PayoutsPanel';
 
 // Four stops. A first-athlete invite used to live here as a step, duplicating
 // the dedicated add-client flow (app/add-client.tsx) in a weaker form — that
@@ -110,17 +111,14 @@ function initials(name?: string): string {
 
 export default function TrainerWizardScreen() {
   const router = useRouter();
-  const { trainer, updateTrainer, refreshData } = useApp();
+  const { trainer, updateTrainer } = useApp();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  // The worked example on the payments step uses the coach's REAL split
-  // (lib/platformFee.ts). Figures are omitted while it is unknown — never a
-  // guessed 90/10.
+  // The Payouts stop is the same panel as /payouts (design canvas "FitLink
+  // Payouts"): the worked example uses the coach's REAL split
+  // (lib/platformFee.ts), omitted while unknown — never a guessed 90/10.
   const { split } = usePaymentSplit(user?.id ?? trainer?.id);
-  const EXAMPLE_PRICE = 180;
-  const exampleKeeps = split ? coachKeeps(EXAMPLE_PRICE, split) : null;
-  const exampleFee = split ? totalDeduction(EXAMPLE_PRICE, split) : null;
-  const keepPct = split ? split.coachKeepsBps / 100 : null;
+  const payouts = usePayouts();
 
   const [step, setStep] = useState(0);
   const reduceMotion = useReducedMotion();
@@ -191,9 +189,10 @@ export default function TrainerWizardScreen() {
     }), {} as Record<string, boolean>)
   );
 
-  // Step 3 — Payments
-  const [stripeLoading, setStripeLoading] = useState(false);
-  const [stripeComplete, setStripeComplete] = useState(false);
+  // Step 3 — Payouts. Both derive from the shared hook so the celebration
+  // and the footer agree with what Stripe last said.
+  const stripeLoading = payouts.busy !== 'none';
+  const stripeComplete = payouts.state === 'connected';
 
   const [saving, setSaving] = useState(false);
 
@@ -309,52 +308,17 @@ export default function TrainerWizardScreen() {
     return true;
   }, [step]));
 
-  const handleStripeSetup = async () => {
-    if (!user) return false;
-    setStripeLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/create-connect-account`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            trainerId: user.id,
-            email: user.email,
-            name: name,
-          }),
-        }
-      );
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      // An in-app auth session: Stripe's fitlink://stripe-return lands back
-      // here as a resolved promise, never as a deep link the router has to
-      // place. Opening external Safari and returning by URL stranded the
-      // completion overlay behind an unmatched route (2026-09-08 freeze).
-      const result = await WebBrowser.openAuthSessionAsync(data.url, 'fitlink://stripe-return');
-      // Whatever happened in Stripe, pull the trainer row so the payouts
-      // flags on the dashboard are current.
-      refreshData().catch(() => {});
-      setStripeComplete(result.type === 'success');
-      return result.type === 'success';
-    } catch (err: any) {
-      showAlert({ type: 'error', title: 'Setup error', message: err.message || 'Failed to start payment setup' });
-      return false;
-    } finally {
-      setStripeLoading(false);
-    }
-  };
-
   const handleConnectBank = async () => {
-    // Reaching this step IS finishing setup. Stripe can be connected, skipped,
-    // or fail — none of that should leave the coach permanently un-onboarded,
-    // which is what happened while completion hung off a truthy return here.
-    await handleStripeSetup();
-    await completeWizard();
+    // lib/payouts opens Stripe inside the app and re-reads its status on
+    // return. Coming back — finished, or via Stripe's "Return to FitLink"
+    // part way — finishes the wizard; the panel and the celebration say
+    // whether payouts are on. Closing the sheet or a failed request keeps
+    // the coach on this stop with the error (or nothing) shown, and "Not
+    // now" is always one tap away, so nobody is stranded un-onboarded.
+    const outcome = await payouts.start();
+    if (outcome === 'returned' || outcome === 'already_connected') {
+      await completeWizard();
+    }
   };
 
   const handleSkipPayments = async () => {
@@ -662,90 +626,57 @@ export default function TrainerWizardScreen() {
               />
             )}
 
-            {/* ============ STEP 4: Payments ============ */}
+            {/* ============ STEP 4: Payouts ============ */}
             {step === 3 && (
-              <>
-                <View style={styles.payCard}>
-                  <Text style={styles.payEyebrow}>On a ${EXAMPLE_PRICE} pass</Text>
-                  {split && exampleKeeps != null && exampleFee != null && keepPct != null ? (
-                    <>
-                      <View style={styles.payAmountRow}>
-                        <Text style={styles.payAmount}>${Math.round(exampleKeeps)}</Text>
-                        <Text style={styles.payAmountLabel}>reaches you</Text>
-                      </View>
-                      <View style={styles.paySplitTrack}>
-                        <View style={[styles.paySplitFill, { width: `${keepPct}%` }]} />
-                      </View>
-                      <View style={styles.paySplitLabels}>
-                        <Text style={styles.paySplitYou}>Your {bpsToPercentLabel(split.coachKeepsBps)}</Text>
-                        <Text style={styles.paySplitFee}>
-                          {split.orgShareBps > 0 ? 'Fees' : 'FitLink fee'} {bpsToPercentLabel(split.platformFeeBps + split.orgShareBps)} · ${Math.round(exampleFee)}
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.payAmountRow}>
-                        <View style={styles.paySkeletonAmount} />
-                        <Text style={styles.payAmountLabel}>reaches you</Text>
-                      </View>
-                      <View style={styles.paySplitTrack} />
-                      <View style={styles.paySplitLabels}>
-                        <Text style={styles.paySplitYou}>Your share</Text>
-                        <Text style={styles.paySplitFee}>Loading your rate…</Text>
-                      </View>
-                    </>
-                  )}
-                  <Text style={styles.payFootnote}>Payouts land 2 business days after an athlete is charged.</Text>
-                </View>
-
-                <View style={styles.payInfoList}>
-                  <View style={styles.payInfoRow}>
-                    <View style={styles.payInfoIcon}>
-                      <Ionicons name="lock-closed-outline" size={16} color={CoachColors.accent} />
-                    </View>
-                    <Text style={styles.payInfoText}>Stripe holds your bank details, not FitLink</Text>
-                  </View>
-                  <View style={styles.payInfoRow}>
-                    <View style={styles.payInfoIcon}>
-                      <Ionicons name="time-outline" size={16} color={CoachColors.accent} />
-                    </View>
-                    <Text style={styles.payInfoText}>Takes about 4 minutes, needs your ID</Text>
-                  </View>
-                </View>
-              </>
+              <PayoutsPanel
+                variant="embedded"
+                state={payouts.state}
+                due={payouts.due}
+                pendingVerification={payouts.pendingVerification}
+                split={split}
+                error={payouts.error}
+              />
             )}
           </ScrollView>
         </Animated.View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.nextBtn, (saving || stripeLoading) && { opacity: 0.6 }]}
-            onPress={handleNext}
-            activeOpacity={0.85}
-            disabled={saving || stripeLoading}
-            accessibilityRole="button"
-            accessibilityLabel={step === 3 ? 'Connect my bank' : 'Continue to next step'}
-          >
-            {(saving || stripeLoading) ? (
-              <ActivityIndicator color={CoachColors.onAccent} />
-            ) : (
-              <Text style={styles.nextBtnText}>{step === 3 ? 'Connect my bank' : 'Continue'}</Text>
-            )}
-          </TouchableOpacity>
+          {step === 3 ? (
+            <View style={{ width: '100%', gap: 9, alignItems: 'center' }}>
+              <View style={{ width: '100%' }}>
+                <PayoutsActions
+                  state={payouts.state}
+                  busy={saving || stripeLoading}
+                  onStart={handleConnectBank}
+                  onDone={handleSkipPayments}
+                  onSkip={handleSkipPayments}
+                  doneLabel="Finish setup"
+                />
+              </View>
+              {!stripeComplete && (
+                <Text style={styles.skipCaption}>You can add athletes now, but not charge them</Text>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.nextBtn, saving && { opacity: 0.6 }]}
+              onPress={handleNext}
+              activeOpacity={0.85}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel="Continue to next step"
+            >
+              {saving ? (
+                <ActivityIndicator color={CoachColors.onAccent} />
+              ) : (
+                <Text style={styles.nextBtnText}>Continue</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           {step === 1 && (
             <Text style={styles.footerCaption}>{activeDayCount} days a week, {bookableHours} bookable hours</Text>
-          )}
-
-          {step === 3 && (
-            <TouchableOpacity onPress={handleSkipPayments} disabled={saving || stripeLoading} accessibilityRole="button" accessibilityLabel="Skip payment setup for now">
-              <Text style={styles.skipText}>I'll do this later</Text>
-            </TouchableOpacity>
-          )}
-          {step === 3 && (
-            <Text style={styles.skipCaption}>You can add athletes now, but not charge them</Text>
           )}
         </View>
       </KeyboardAvoidingView>
@@ -924,26 +855,6 @@ const styles = StyleSheet.create({
   hoursHint: { fontFamily: CoachFonts.body, fontSize: 12.5, lineHeight: 17.5, color: CoachColors.textFaint, marginTop: 4, paddingHorizontal: 4 },
 
   // Payments
-  payCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border, borderRadius: 16, borderCurve: 'continuous', padding: 18 },
-  payEyebrow: { fontFamily: CoachFonts.bodyBold, fontSize: 12.5, color: CoachColors.textFaint, letterSpacing: 0.8, textTransform: 'uppercase' },
-  payAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
-  payAmount: { fontFamily: CoachFonts.headingBold, fontSize: 36, letterSpacing: -0.9, color: CoachColors.accent },
-  payAmountLabel: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary },
-  paySplitTrack: { flexDirection: 'row', height: 8, borderRadius: 999, borderCurve: 'continuous', backgroundColor: CoachColors.border, overflow: 'hidden', marginTop: 14 },
-  paySplitFill: { height: '100%', backgroundColor: CoachColors.accent, borderRadius: 999, borderCurve: 'continuous' },
-  paySkeletonAmount: { width: 96, height: 36, borderRadius: 12, borderCurve: 'continuous', backgroundColor: CoachColors.border },
-  paySplitLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
-  paySplitYou: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textSecondary },
-  paySplitFee: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted },
-  payFootnote: { fontFamily: CoachFonts.body, fontSize: 13.5, color: CoachColors.textMuted, marginTop: 12, lineHeight: 19 },
-
-  payInfoList: { marginTop: 9, gap: 11 },
-  payInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  payInfoIcon: {
-    width: 26, height: 26, borderRadius: 13, borderCurve: 'continuous', backgroundColor: CoachColors.borderMuted,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  payInfoText: { flex: 1, fontFamily: CoachFonts.body, fontSize: 15, color: '#C9CEC2' },
 
   // Footer
   // edges={['bottom']} on the enclosing SafeAreaView supplies the home-indicator

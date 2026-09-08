@@ -446,6 +446,9 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       <Stack.Screen name="session/complete" options={{ animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="edit-client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="payouts" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="stripe-return" options={{ animation: 'none' }} />
+      <Stack.Screen name="stripe-refresh" options={{ animation: 'none' }} />
       <Stack.Screen name="certifications" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="specializations" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="subscriptions" options={{ animation: 'slide_from_right' }} />

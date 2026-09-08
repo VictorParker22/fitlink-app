@@ -1,12 +1,12 @@
 /**
  * fitlink://stripe-refresh — Stripe's "link expired, start again" return.
- * Same landing as stripe-return; the coach re-opens payouts from settings.
+ * Same landing as stripe-return: the payouts screen mints a fresh link.
  */
 import { Redirect } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { landingAfterStripe } from '../lib/payoutsState';
 
 export default function StripeRefresh() {
   const { userRole, isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Redirect href={'/(auth)/welcome' as any} />;
-  return <Redirect href={(userRole === 'client' ? '/(client-tabs)' : '/(tabs)') as any} />;
+  return <Redirect href={landingAfterStripe(userRole, isAuthenticated) as any} />;
 }
