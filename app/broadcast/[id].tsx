@@ -81,7 +81,9 @@ const LIVE_FLIP_DELAY_MS = 8000;
  * connect watchdog and onPublishError land in 'failed', which is tappable
  * again.
  */
-type BroadcastPhase = 'idle' | 'preparing' | 'connecting' | 'live' | 'failed';
+type BroadcastPhase = 'idle' | 'preparing' | 'connecting' | 'live' | 'ending' | 'failed';
+/** Server-side close of the class after the camera has stopped. */
+type CloseState = 'closing' | 'closed' | 'unconfirmed';
 
 type DockTab = 'activity' | 'chat' | 'actions';
 
@@ -131,6 +133,7 @@ export default function BroadcastStudioScreen() {
   const [isMuted, setIsMuted] = useState(params.micEnabled === '0');
   const [cameraReady, setCameraReady] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
+  const [closeState, setCloseState] = useState<CloseState>('closing');
   const [isSaving, setIsSaving] = useState(false);
 
   // Stream timer
@@ -493,7 +496,9 @@ export default function BroadcastStudioScreen() {
     const prev = phaseRef.current;
     const elapsed = attemptStartedAtRef.current ? Date.now() - attemptStartedAtRef.current : 0;
     const detail = scrubKey(err instanceof Error ? err.message : String(err));
-    if (prev === 'idle' || prev === 'failed') {
+    // 'ending' is the coach's own stop in progress: the publisher's stop and
+    // error events on the way down are expected, never a failure.
+    if (prev === 'idle' || prev === 'failed' || prev === 'ending') {
       broadcastBreadcrumb('studio: publisher event outside an attempt', { source, phase: prev, detail });
       return;
     }
@@ -674,22 +679,26 @@ export default function BroadcastStudioScreen() {
               // A pending flip to 'live' must not fire after the class is ended.
               clearLiveFlip();
               broadcastBreadcrumb('studio: end confirmed', { phase: phaseRef.current, elapsed_s: elapsedSeconds });
-              // The camera stops no matter what the network does next.
-              if (publisherRef.current) { try { await publisherRef.current.stopPublishing(); } catch {} }
-              setPhaseSafe('idle');
+              // The end is immediate on screen: the phase flips to 'ending' now
+              // (button and badge read it), the timer stops, and the camera is
+              // told to stop with a short ceiling so a slow native close cannot
+              // hold the recap back. The server write runs behind the recap.
+              setPhaseSafe('ending');
               if (timerRef.current) clearInterval(timerRef.current);
               endedLocallyRef.current = true;
-              if (liveClass) {
-                const r = await endLiveClass(liveClass.id, updateLiveClass);
-                if (!r.confirmed) {
-                  showAlert({
-                    type: 'info',
-                    title: 'Stream stopped',
-                    message: "Your camera is off and nobody can watch. We couldn't reach FitLink to close the class yet; it will close on its own within a couple of minutes, and Studio keeps trying.",
-                  });
-                }
+              if (publisherRef.current) {
+                try { await withTimeout(Promise.resolve(publisherRef.current.stopPublishing()), 4000, 'stopPublishing'); } catch {}
               }
+              setPhaseSafe('idle');
+              setCloseState('closing');
               setShowRecap(true);
+              if (liveClass) {
+                endLiveClass(liveClass.id, updateLiveClass).then((r) => {
+                  if (isMountedRef.current) setCloseState(r.confirmed ? 'closed' : 'unconfirmed');
+                });
+              } else {
+                setCloseState('closed');
+              }
             } catch (e: any) {
               reportBroadcastFailure(e, { step: 'studio.end', phase: phaseRef.current });
               showAlert({ type: 'error', title: 'Could not stop the stream', message: 'Try End again. If the camera light is off, the stream has already stopped.' });
@@ -811,7 +820,23 @@ export default function BroadcastStudioScreen() {
           </View>
           <Text style={s.recapTag}>Stream completed</Text>
           <Text style={s.recapTitle}>{liveClass.title}</Text>
-          <Text style={s.recapSub}>Great session! Here is your broadcast summary.</Text>
+          <Text style={s.recapSub}>Your camera is off. Here is the summary.</Text>
+          <View style={s.closeRow} accessibilityLiveRegion="polite" accessibilityLabel={
+            closeState === 'closing' ? 'Closing the class on FitLink'
+            : closeState === 'closed' ? 'Class closed'
+            : 'Could not reach FitLink. Studio will close the class.'
+          }>
+            {closeState === 'closing' ? (
+              <ActivityIndicator color={CoachColors.textSecondary} size="small" />
+            ) : (
+              <Ionicons name={closeState === 'closed' ? 'checkmark' : 'cloud-offline-outline'} size={16} color={closeState === 'closed' ? CoachColors.accent : CoachColors.warning} />
+            )}
+            <Text style={s.closeText}>
+              {closeState === 'closing' ? 'Closing the class…'
+              : closeState === 'closed' ? 'Class closed'
+              : "Couldn't reach FitLink. Studio will close it; nobody can watch."}
+            </Text>
+          </View>
 
           <View style={s.recapStatsRow}>
             <View style={s.recapStatBox}>
@@ -970,17 +995,19 @@ export default function BroadcastStudioScreen() {
 
   // The Go live button reads the phase: busy while preparing or connecting,
   // an End button while live, tappable again after a failure.
-  const goLiveBusy = phase === 'preparing' || phase === 'connecting';
+  const goLiveBusy = phase === 'preparing' || phase === 'connecting' || phase === 'ending';
   const goLiveLabel =
     phase === 'live' ? 'End'
     : phase === 'preparing' ? 'Preparing'
     : phase === 'connecting' ? 'Connecting'
+    : phase === 'ending' ? 'Ending'
     : phase === 'failed' ? 'Try again'
     : 'Go live';
   const badgeLabel =
     phase === 'live' ? 'LIVE'
     : phase === 'connecting' ? 'CONNECTING'
     : phase === 'preparing' ? 'PREPARING'
+    : phase === 'ending' ? 'ENDING'
     : 'READY';
 
   // ── Main view ─────────────────────────────────────────────────────────────
@@ -1372,7 +1399,9 @@ const s = StyleSheet.create({
   },
   recapTag: { fontFamily: CoachFonts.headingBold, fontSize: 10, color: CoachColors.textMuted, letterSpacing: 2, marginBottom: 4, textTransform: 'uppercase' },
   recapTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24.5, color: CoachColors.textPrimary, textAlign: 'center', marginBottom: 8 },
-  recapSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl },
+  recapSub: { fontFamily: CoachFonts.body, fontSize: 14.5, color: CoachColors.textSecondary, textAlign: 'center', marginBottom: 12 },
+  closeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 24, marginBottom: Spacing.xl, paddingHorizontal: 8 },
+  closeText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13, color: CoachColors.textSecondary, textAlign: 'center', flexShrink: 1 },
   recapStatsRow: {
     flexDirection: 'row', backgroundColor: CoachColors.bg,
     borderRadius: Radius.sm, borderCurve: 'continuous', paddingVertical: 14, paddingHorizontal: 16,
