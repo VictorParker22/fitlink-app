@@ -40,9 +40,19 @@ serve(async (req) => {
     return new Response('method not allowed', { status: 405 });
   }
 
-  const secret = Deno.env.get('RC_WEBHOOK_SECRET');
-  const auth = req.headers.get('authorization') ?? '';
-  if (!secret || auth !== `Bearer ${secret}`) {
+  // RevenueCat sends the dashboard's "Authorization header value" verbatim,
+  // so the value may arrive as `Bearer <secret>` or as the bare secret,
+  // depending on what was typed there. Accept both; compare in constant time.
+  const secret = Deno.env.get('RC_WEBHOOK_SECRET') ?? '';
+  const auth = (req.headers.get('authorization') ?? '').trim();
+  const presented = auth.replace(/^Bearer\s+/i, '');
+  const same = (a: string, b: string) => {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+  };
+  if (!secret || !same(presented, secret)) {
     return new Response('unauthorized', { status: 401 });
   }
 
