@@ -113,3 +113,16 @@ export function report(err: unknown, tags: Record<string, string> = {}): void {
     }).catch(() => {});
   } catch { /* never throw from a reporter */ }
 }
+
+// ── Generation profile (2026-09-08) ─────────────────────────────────────────
+// gemini-2.5-flash "thinks" before answering unless told not to, and a
+// structured-JSON build with a 200-line catalogue in the prompt took longer
+// than the 20 s ceiling every time (solo-program: ai_timeout ×3 in one hour,
+// the whole Solo week failing). Thinking adds nothing to a list-picking task;
+// off, the same call returns in a few seconds. Every builder uses these.
+export const NO_THINKING = { thinkingConfig: { thinkingBudget: 0 } } as const;
+export const FAST_JSON = { responseMimeType: 'application/json', ...NO_THINKING } as const;
+/** Builders that write a whole week or plan: generous, and still far below the runtime's wall clock. */
+export const BUILD_TIMEOUT_MS = 45_000;
+/** Single-turn helpers (a rewrite, a chat reply): quick. */
+export const REPLY_TIMEOUT_MS = 30_000;

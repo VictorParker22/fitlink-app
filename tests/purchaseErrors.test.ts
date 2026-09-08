@@ -4,7 +4,7 @@
  * which carries the same enum values as react-native-purchases).
  */
 import { PURCHASES_ERROR_CODE } from '../lib/revenuecat-sdk';
-import { classifyPurchaseError } from '../context/RevenueCatContext';
+import { classifyPurchaseError, shouldAutoRestore } from '../context/RevenueCatContext';
 
 jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 jest.mock('../lib/layers', () => ({ layers: { track: jest.fn() } }));
@@ -17,6 +17,15 @@ jest.mock('../lib/revenuecat', () => ({
   OFFERING_DEFAULT: 'default',
   OFFERING_COACH: 'coach',
 }));
+
+describe('shouldAutoRestore', () => {
+  it('turns "this Apple ID already owns it" into a restore, and nothing else', () => {
+    expect(shouldAutoRestore('already_owned')).toBe(true);
+    for (const r of ['offline', 'store_problem', 'payment_invalid', 'not_allowed', 'unknown']) {
+      expect(shouldAutoRestore(r)).toBe(false);
+    }
+  });
+});
 
 describe('classifyPurchaseError', () => {
   it('names an offline failure as retryable with a "nothing charged" line', () => {

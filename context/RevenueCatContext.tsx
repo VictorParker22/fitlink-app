@@ -126,6 +126,14 @@ function errorCodeName(code: unknown): string {
   return hit ? hit[0] : 'UNKNOWN';
 }
 
+/**
+ * The store refusing a purchase because this Apple ID already owns the plan
+ * is not a failure to explain — it is a restore waiting to happen.
+ */
+export function shouldAutoRestore(reason: string): boolean {
+  return reason === 'already_owned';
+}
+
 export function classifyPurchaseError(err: any): PurchaseFailure {
   const name = errorCodeName(err?.code);
   switch (name) {
@@ -303,6 +311,30 @@ export function RevenueCatProvider({ children }: PropsWithChildren) {
         // misconfigured product, and the athlete gets a sentence that says
         // what to do rather than the SDK's message.
         const failure = classifyPurchaseError(err);
+        // One Apple ID, one FitLink account at a time. When the store says
+        // this Apple ID already owns the plan (bought under another FitLink
+        // account on this phone), the fix is a restore: RevenueCat moves the
+        // subscription to the account that is signed in now, and the server
+        // grants it. The old account loses it — the webhook's TRANSFER
+        // handler takes care of that side. Nothing is charged twice.
+        if (shouldAutoRestore(failure.reason)) {
+          try {
+            const info = await Purchases.restorePurchases();
+            setCustomerInfo(info);
+            if (Object.keys(info.entitlements.active).length > 0) {
+              await withTimeout(confirmEntitlement(), 12_000).catch(() => null);
+              layers.track('purchase_restored_on_conflict', { product_id: pkg.product.identifier });
+              return { success: true };
+            }
+          } catch (restoreErr) {
+            if (__DEV__) console.warn('[RevenueCat] Restore after already-owned failed:', restoreErr);
+          }
+          layers.track('purchase_failed', { product_id: pkg.product.identifier, reason: failure.reason, code: String(err?.code ?? ''), retryable: false });
+          return {
+            success: false,
+            error: "This Apple ID already has this plan, attached to a different FitLink account. Sign in to that account, or tap Restore purchases here to move the plan to this one.",
+          };
+        }
         layers.track('purchase_failed', { product_id: pkg.product.identifier, reason: failure.reason, code: String(err?.code ?? ''), retryable: failure.retryable });
         return { success: false, error: failure.message };
       }

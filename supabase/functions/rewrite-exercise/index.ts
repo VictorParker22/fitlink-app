@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
-import { withRetry, AiTimeout, PROMPT_VERSION, clampStr, report } from '../_shared/ai.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, clampStr, report, NO_THINKING, REPLY_TIMEOUT_MS } from '../_shared/ai.ts'
 import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { ...NO_THINKING, maxOutputTokens: 1500 } as any });
 
     const prompt = `
 You are a professional fitness coach rewriting an exercise description for a coaching app.
@@ -72,7 +72,7 @@ Original Description:
 ${description}
 `;
 
-    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'rewrite-exercise' });
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: REPLY_TIMEOUT_MS, label: 'rewrite-exercise' });
     const response = await result.response;
     const text = response.text().trim();
 

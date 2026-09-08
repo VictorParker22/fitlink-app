@@ -16,7 +16,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { guardRate, clampText } from '../_shared/rateLimit.ts';
-import { withRetry, AiTimeout, PROMPT_VERSION, numbersNotInContext, report } from '../_shared/ai.ts';
+import { withRetry, AiTimeout, PROMPT_VERSION, numbersNotInContext, report, NO_THINKING } from '../_shared/ai.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,7 +124,7 @@ serve(async (req) => {
       : '';
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { ...NO_THINKING } as any });
 
     const prompt = `${persona}\n${SHARED_RULES}\n\nWhat you remember about this athlete:\n${memoryBlock || '(nothing yet)'}\n\nAthlete${clientRow?.name ? ` (${clientRow.name})` : ''} data:${contextBlock || '\n(no data available yet)'}\n\nRecent conversation:\n${turns || '(first message)'}\n\nAthlete: ${message.trim()}\n\nReply as the corner:`;
 
@@ -162,7 +162,7 @@ serve(async (req) => {
       const oldSummary = memoryBlock;
       const summaryTask = async () => {
         try {
-          const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+          const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { ...NO_THINKING } as any });
           const summaryPrompt = `Merge the existing summary and this new exchange into ONE updated summary of this athlete for a coaching AI's long-term memory. Keep concrete facts (goals, equipment, injuries, preferences, patterns) and drop small talk. 120 words maximum, plain prose, no bullet points.\n\nExisting summary:\n${oldSummary || '(none yet)'}\n\nNew exchange:\nAthlete: ${message.trim()}\nCorner: ${reply}\n\nUpdated summary:`;
           const summaryResult = await withRetry(() => summaryModel.generateContent(summaryPrompt), { timeoutMs: 20000, label: 'solo-corner-summary' });
           const summary = summaryResult.response.text().trim().slice(0, 1600);

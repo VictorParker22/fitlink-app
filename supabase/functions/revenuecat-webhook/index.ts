@@ -22,6 +22,30 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno';
 import { syncCoachApplicationFee } from '../_shared/money.ts';
+import { grantedUntil, type RcEntitlement } from '../confirm-entitlement/compute.ts';
+
+// A TRANSFER moves a store subscription from one app user id to another —
+// the "already subscribed on this Apple ID" restore from a second FitLink
+// account on the same phone. The event names both sides and no entitlement,
+// so each side is re-read from RevenueCat and written as it now stands: the
+// receiving account gains, the giving account loses. Best effort per id; a
+// failed read leaves that id as it was and RevenueCat retries on a 500.
+async function syncFromRevenueCat(admin: any, appUserId: string): Promise<boolean> {
+  const key = Deno.env.get('RC_API_KEY');
+  if (!key) return false;
+  const r = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`, {
+    headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+  });
+  if (!r.ok) { console.error('[revenuecat-webhook] transfer read failed', appUserId, r.status); return false; }
+  const ents: Record<string, RcEntitlement> = (await r.json())?.subscriber?.entitlements ?? {};
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const premium = grantedUntil(ents.client_premium, now) ?? nowIso;
+  const elite = grantedUntil(ents.coach_elite, now) ?? nowIso;
+  await admin.from('clients').update({ premium_until: premium }).eq('auth_user_id', appUserId);
+  await admin.from('trainers').update({ elite_until: elite }).eq('id', appUserId);
+  return true;
+}
 
 // Events that assert an ACTIVE entitlement with a fresh expiration.
 const GRANT_EVENTS = new Set([
@@ -74,14 +98,36 @@ serve(async (req) => {
 
   const isElite = entitlements.includes('coach_elite');
   const isPremium = entitlements.includes('client_premium');
-  if (!appUserId || (!isElite && !isPremium)) {
-    return new Response(JSON.stringify({ ok: true, ignored: true }), { status: 200 });
-  }
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  if (type === 'TRANSFER') {
+    const from: string[] = Array.isArray(event?.transferred_from) ? event.transferred_from.map(String) : [];
+    const to: string[] = Array.isArray(event?.transferred_to) ? event.transferred_to.map(String) : [];
+    const ids = [...new Set([...from, ...to])].filter(Boolean);
+    let failed = 0;
+    for (const id of ids) {
+      if (!(await syncFromRevenueCat(admin, id))) failed++;
+      // A coach on either side may have live Stripe subscriptions whose fee
+      // follows the Elite entitlement that just moved.
+      const stripeSecret = Deno.env.get('STRIPE_SECRET');
+      if (stripeSecret) {
+        const { data: t } = await admin.from('trainers').select('id').eq('id', id).maybeSingle();
+        if (t) {
+          const stripe = new Stripe(stripeSecret, { httpClient: Stripe.createFetchHttpClient() });
+          await syncCoachApplicationFee(admin, stripe, id);
+        }
+      }
+    }
+    return new Response(JSON.stringify({ ok: failed === 0, type, ids: ids.length, failed }), { status: failed === 0 ? 200 : 500 });
+  }
+
+  if (!appUserId || (!isElite && !isPremium)) {
+    return new Response(JSON.stringify({ ok: true, ignored: true }), { status: 200 });
+  }
 
   // RevenueCat does not guarantee delivery order. A late EXPIRATION for an
   // old period arriving after a fresh purchase must not revoke the new

@@ -19,7 +19,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts';
 import { guardRate, clampText } from '../_shared/rateLimit.ts';
-import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts';
+import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report, FAST_JSON, BUILD_TIMEOUT_MS } from '../_shared/ai.ts';
 import { equipmentFor, normalizeName, dedupePreferMedia, sampleBalanced, formatForPrompt, type LibraryRow } from './sample.ts';
 
 const corsHeaders = {
@@ -115,7 +115,11 @@ serve(async (req) => {
     if (all.length < 10) return json({ error: 'library_unavailable' }, 500);
 
     const today = new Date().toISOString().slice(0, 10);
-    const pool = sampleBalanced(dedupePreferMedia(all), { target: 230, seed: `${client.id}:${today}` });
+    // 140, not 230: the catalogue is the bulk of the prompt and the model
+    // picks 20–35 names from it; a smaller, still-balanced pool halves the
+    // tokens and the time without narrowing the week (sample.ts keeps every
+    // muscle group's floor).
+    const pool = sampleBalanced(dedupePreferMedia(all), { target: 140, seed: `${client.id}:${today}` });
     console.log('[solo-program] library', all.length, 'pool', pool.length, 'equipment', equipment.join(','));
 
     const byName = new Map<string, LibraryRow>();
@@ -130,7 +134,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { ...FAST_JSON, maxOutputTokens: 6000 } as any });
 
     const prompt = `You are a strength and conditioning coach writing ONE WEEK of training for an athlete who trains without a human coach.
 Athlete: goals = ${goals.join(', ') || 'general fitness'}; experience = ${experience}; trains ${days} days a week${trainingDays.length ? ` (trains on ${trainingDays.map(weekdayLabel).join('/')})` : ''}; setting = ${LOCATION_EQUIPMENT[location] ?? LOCATION_EQUIPMENT.gym}${limitation ? `; must work around: ${limitation}` : ''}.
@@ -154,7 +158,9 @@ Rules:
 Available exercises (name | category | primary muscle | secondary muscles | equipment):
 ${list}`;
 
-    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: 20000, label: 'solo-program' });
+    const t0 = Date.now();
+    const result = await withRetry(() => model.generateContent(prompt), { timeoutMs: BUILD_TIMEOUT_MS, label: 'solo-program' });
+    console.log('[solo-program] generation ms', Date.now() - t0, 'pool', pool.length);
     const parsed = parseJson(result.response.text());
     if (!parsed) return json({ error: 'bad_generation' }, 502);
     const workouts: any[] = Array.isArray(parsed?.workouts) ? parsed.workouts.slice(0, days) : [];

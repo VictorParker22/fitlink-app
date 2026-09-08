@@ -296,6 +296,23 @@ repository secret).
   phone without a dashboard login: `GET https://api.revenuecat.com/v1/subscribers/<any-id>/offerings`
   with the app's public key as Bearer and `X-Platform: ios`; `GET .../subscribers/<uid>` shows
   that user's entitlements and `last_seen` (how the 2026-09-07 wrong-account purchase was found).
+- **One Apple ID, one FitLink account at a time (2026-09-08).** A second account on the same
+  phone hits `PRODUCT_ALREADY_PURCHASED` when it tries to buy a plan the Apple ID already owns.
+  `purchasePackage` then restores instead of failing (`shouldAutoRestore`): RevenueCat's
+  restore behaviour is "transfer to new app user id", so the plan moves to the signed-in
+  account, `confirm-entitlement` grants it, and the `TRANSFER` webhook re-reads BOTH sides
+  from RevenueCat (`syncFromRevenueCat`) so the old account loses it and any coach fee
+  follows. Do not change RevenueCat's restore behaviour to "keep with original" without
+  changing this flow; do not auto-restore on sign-in (shared phones would silently move
+  plans between people).
+- **AI generation profile (2026-09-08).** `gemini-2.5-flash` thinks by default and a JSON
+  build with a catalogue in the prompt blew the 20 s ceiling every time (`solo-program`
+  ai_timeout ×3 in an hour). Every builder now uses `FAST_JSON` / `NO_THINKING` from
+  `_shared/ai.ts` (thinkingBudget 0), `BUILD_TIMEOUT_MS` 45 s for whole-plan builds and
+  `REPLY_TIMEOUT_MS` 30 s for single turns, a `maxOutputTokens` cap, and `solo-program`
+  samples 140 exercises instead of 230 (`sample.ts` keeps every muscle-group floor).
+  `[solo-program] generation ms` in the function logs is the number to watch; if a build
+  still times out, shrink the catalogue before raising the ceiling.
 - **Purchase identity and activation (2026-09-07).** The RevenueCat app user id MUST equal the
   Supabase user id: `ensureIdentity()` in `context/RevenueCatContext.tsx` runs on every session
   change (logIn / logOut) and before every purchase and restore. Never call

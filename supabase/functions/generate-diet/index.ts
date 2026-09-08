@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
-import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report } from '../_shared/ai.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, clampInt, clampStr, pickEnum, parseJson, report, FAST_JSON, BUILD_TIMEOUT_MS } from '../_shared/ai.ts'
 import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
@@ -54,7 +54,7 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      generationConfig: { responseMimeType: "application/json" }
+      generationConfig: { ...FAST_JSON, maxOutputTokens: 6000 } as any,
     });
 
     const mealListStr = (availableMeals || [])
@@ -120,7 +120,7 @@ Rules:
 - Macros must be internally consistent: calories ≈ 4 × protein + 4 × carbs + 9 × fat (within 10%).
 `;
 
-    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: 20000, label: 'generate-diet' });
+    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: BUILD_TIMEOUT_MS, label: 'generate-diet' });
     const response = result.response;
     const text = response.text().trim();
 

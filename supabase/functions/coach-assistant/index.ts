@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import { requireCaller, AuthError, authErrorResponse } from '../_shared/auth.ts'
 import { guardRate, clampText } from '../_shared/rateLimit.ts'
-import { withRetry, AiTimeout, PROMPT_VERSION, report } from '../_shared/ai.ts'
+import { withRetry, AiTimeout, PROMPT_VERSION, report, NO_THINKING, REPLY_TIMEOUT_MS } from '../_shared/ai.ts'
 import { internalError } from '../_shared/http.ts'
 
 const corsHeaders = {
@@ -61,6 +61,7 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
+      generationConfig: { ...NO_THINKING, maxOutputTokens: 1500 } as any,
     });
 
     // Build context sections
@@ -115,7 +116,7 @@ RESPONSE GUIDELINES:
 - If you don't have enough context to give a great answer, say what additional info you'd need.
 `;
 
-    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: 20000, label: 'coach-assistant' });
+    const result = await withRetry(() => model.generateContent(systemPrompt), { timeoutMs: REPLY_TIMEOUT_MS, label: 'coach-assistant' });
     const response = result.response;
     const text = response.text().trim();
 
