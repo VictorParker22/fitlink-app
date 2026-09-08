@@ -39,6 +39,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAlert } from '../../context/AlertContext';
 import { loadDraft } from '../../lib/onboardingDraft';
+import { getPendingInviteCode } from '../../lib/invites';
 import { TERMS_URL, PRIVACY_URL } from '../../lib/legalLinks';
 import { friendlyAuthError, withNetworkRetry } from '../../lib/authErrors';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -282,6 +283,13 @@ export default function ClientSignupScreen() {
           message: 'Confirm your address from the email we just sent, then sign in to finish setting up.',
           buttons: [{ text: 'Got it' }],
         });
+        return;
+      }
+
+      // A parked invite code (lib/invites.ts) means this athlete came from a
+      // coach's invite link. AuthGuard resumes it on SIGNED_IN and
+      // accept_invite puts them on that roster — never the pick-a-coach path.
+      if (await getPendingInviteCode()) {
         return;
       }
 

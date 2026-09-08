@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from '../lib/secureStore';
 import { onboardedKey, clientOnboardedKey } from '../lib/onboardingFlags';
 import { loadDraft } from '../lib/onboardingDraft';
+import { getPendingInviteCode, clearPendingInviteCode } from '../lib/invites';
 import { ClientRoute, AuthRoute, SharedRoute } from '../types/routes';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -197,6 +198,22 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
    */
   const [flagsUserId, setFlagsUserId] = useState<string | null>(null);
   const hasNavigated = useRef(false);
+  /**
+   * An invite code parked by app/invite/[code] while the person was signed
+   * out (lib/invites.ts). Read per account, like the flags above, so the
+   * router never routes a signed-in user on a stale or unread value.
+   */
+  const [pendingInvite, setPendingInvite] = useState<{ forUserId: string | null; code: string | null } | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+    const forUserId = user?.id ?? null;
+    let cancelled = false;
+    getPendingInviteCode()
+      .then((code) => { if (!cancelled) setPendingInvite({ forUserId, code }); })
+      .catch(() => { if (!cancelled) setPendingInvite({ forUserId, code: null }); });
+    return () => { cancelled = true; };
+  }, [user?.id, loading]);
 
   // Push notification listeners
   const notificationListener = useRef<any>(null);
@@ -311,12 +328,33 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
     // routing now would use the signed-out `false` and open the wizard for a
     // user who finished it long ago. Wait for this account's own answer.
     if (user && flagsUserId !== user.id) return;
+    // Same wait for the parked invite code: it decides where a new athlete goes.
+    if (user && pendingInvite?.forUserId !== user.id) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client-tabs)';
     const inTrainerGroup = segments[0] === '(tabs)';
+    // app/invite/[code] and app/invite/enter work signed out: the screen
+    // parks the code and sends the person to make an account, so the guard
+    // leaves that group alone in both states.
+    // Cast: the generated route union is regenerated at the next `expo start`,
+    // and typecheck runs before that.
+    const inInviteGroup = (segments[0] as string) === 'invite';
 
-    if (!isAuthenticated && !inAuthGroup) {
+    // A parked invite code wins over every onboarding redirect. A brand-new
+    // athlete from a coach's link has no draft and no flag, and would
+    // otherwise be shoved into the legacy client-onboarding form instead of
+    // onto their coach's roster. Consumed once, here; the screen takes over.
+    // A coach signed in on a phone holding an athlete's code just drops it.
+    const pendingCode = user && pendingInvite?.forUserId === user.id ? pendingInvite.code : null;
+    if (isAuthenticated && user && pendingCode && !inInviteGroup) {
+      setPendingInvite({ forUserId: user.id, code: null });
+      clearPendingInviteCode().catch(() => {});
+    }
+
+    if (isAuthenticated && pendingCode && !inInviteGroup && userRole === 'client') {
+      router.replace(`/invite/${pendingCode}` as any);
+    } else if (!isAuthenticated && !inAuthGroup && !inInviteGroup) {
       router.replace('/(auth)/welcome');
     } else if (isAuthenticated && inAuthGroup) {
       // Allow clients to re-enter onboarding to update their profile.
@@ -368,7 +406,7 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       // First observed on TestFlight build 10 — the native twin of the web
       // hang documented in AnimatedBootSplash and INVARIANTS §12.
     }
-  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded, hasPrimed, user, flagsUserId]);
+  }, [isAuthenticated, loading, segments, userRole, hasOnboarded, hasClientOnboarded, hasPrimed, user, flagsUserId, pendingInvite]);
 
 
 
@@ -394,6 +432,9 @@ function AuthGuard({ onProgress }: { onProgress?: (value: number) => void }) {
       <Stack.Screen name="client/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="add-client" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="invites" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="invite/[code]" options={{ animation: 'fade' }} />
+      <Stack.Screen name="invite/enter" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="create-plan" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="pass-track-editor" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="pass-holders" options={{ animation: 'slide_from_right' }} />

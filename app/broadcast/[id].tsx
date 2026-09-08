@@ -11,7 +11,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Dimensions,
-  Share,
   Modal,
   TextInput,
 } from 'react-native';
@@ -32,6 +31,7 @@ import { supabase } from '../../lib/supabase';
 import { liveBroadcastUnsupportedTitle, liveBroadcastUnsupportedMessage } from '../../lib/liveBroadcast';
 import { Motion } from '../../constants/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import InviteSheet from '../../components/invites/InviteSheet';
 import {
   StreamSetupError,
   isStreamSetupError,
@@ -114,7 +114,7 @@ export default function BroadcastStudioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const params = useLocalSearchParams<{ micEnabled?: string; cameraFacing?: string }>();
   const router = useRouter();
-  const { liveClasses, updateLiveClass, createClass, classes, deleteClass } = useApp();
+  const { liveClasses, updateLiveClass, createClass, classes, deleteClass, trainer } = useApp();
   const { showAlert } = useAlert();
   const reduceMotion = useReducedMotion();
 
@@ -152,6 +152,7 @@ export default function BroadcastStudioScreen() {
 
   // Edit title modal
   const [showEditTitle, setShowEditTitle] = useState(false);
+  const [showLiveInvite, setShowLiveInvite] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [isSavingTitle, setIsSavingTitle] = useState(false);
 
@@ -339,28 +340,13 @@ export default function BroadcastStudioScreen() {
   }, [markerToastAnim, reduceMotion]);
 
   // ── Share stream ──────────────────────────────────────────────────────────
-  const handleShareStream = useCallback(async () => {
-    if (!liveClass) return;
-    // A placeholder playback id (seeded as 'playback_…') means Mux has never
-    // issued a real stream for this class — there is nothing anyone could watch.
-    const hasPublicFeed =
-      !!liveClass.mux_playback_id && !liveClass.mux_playback_id.startsWith('playback_');
-    if (!hasPublicFeed) {
-      showAlert({
-        type: 'info',
-        title: 'Share stream',
-        message: 'This stream has no public feed yet. Go live once so the stream gets a playback feed, then share it.',
-      });
-      return;
-    }
-    try {
-      await Share.share({
-        message: `Join my live class "${liveClass.title}" on FitLink: fitlink://live-player/${liveClass.id}`,
-      });
-    } catch {
-      // User dismissed the share sheet or it failed to open — nothing to do.
-    }
-  }, [liveClass, showAlert]);
+  // Opens the live invite sheet (design canvas "FitLink Invitations", board
+  // 06): a fitlink.coach/live/<CODE> link that guests watch on the web. The
+  // edit-title Modal and this sheet are never visible together (INVARIANTS §5).
+  const handleShareStream = useCallback(() => {
+    if (!liveClass || showEditTitle) return;
+    setShowLiveInvite(true);
+  }, [liveClass, showEditTitle]);
 
   // ── Edit title ────────────────────────────────────────────────────────────
   const handleSaveTitle = useCallback(async () => {
@@ -1206,6 +1192,15 @@ export default function BroadcastStudioScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <InviteSheet
+        visible={showLiveInvite}
+        kind="live"
+        liveClassId={liveClass?.id ?? null}
+        liveTitle={liveClass?.title ?? null}
+        coachName={trainer?.name}
+        onClose={() => setShowLiveInvite(false)}
+      />
     </View>
   );
 }

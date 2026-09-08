@@ -108,6 +108,7 @@ export default function WelcomeScreen() {
       <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
         <PrimaryButton label="Build my week" onPress={() => router.push('/(auth)/role' as any)} />
         <TextButton label="I already have a coach" onPress={() => router.push('/(auth)/login' as any)} />
+        <TextButton label="Have an invite code?" onPress={() => router.push('/invite/enter' as any)} />
       </View>
     </View>
   );

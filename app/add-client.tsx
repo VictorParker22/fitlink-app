@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Animated, Keyboard, Share,
+  ActivityIndicator, Animated, Keyboard,
   KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -14,6 +14,7 @@ import { useApp } from '../context/AppContext';
 import { useAlert } from '../context/AlertContext';
 import { useCoachElite } from '../hooks/useCoachElite';
 import CoachElitePaywall from '../components/paywalls/CoachElitePaywall';
+import InviteSheet from '../components/invites/InviteSheet';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import { supabase } from '../lib/supabase';
 
@@ -167,6 +168,7 @@ export default function AddClientScreen() {
   // trigger is the real one.
   const isCoachElite = useCoachElite();
   const [showElitePaywall, setShowElitePaywall] = useState(false);
+  const [showInviteSheet, setShowInviteSheet] = useState(false);
   const atRosterCap = !isCoachElite && !(trainer as any)?.org_id &&
     clients.filter(c => c.status !== 'inactive').length >= 5;
 
@@ -379,15 +381,12 @@ export default function AddClientScreen() {
   };
 
   // ── Invite ──
-  const handleInvite = async () => {
-    const coachName = trainer?.name || 'your coach';
-    const clientFirst = name.trim().split(' ')[0] || 'there';
-    try {
-      await Share.share({
-        message: `Hey ${clientFirst}! ${coachName} has invited you to join FitLink to track your workouts and schedule sessions. Download here: https://fitlink.coach${trainer?.id ? `?ref=${trainer.id}` : ''}`,
-        title: 'Join me on FitLink',
-      });
-    } catch (err) {}
+  // The invite sheet (design canvas "FitLink Invitations", board 01) writes
+  // the message in the coach's words and creates a tracked invite row; the
+  // name and email typed on this screen prefill it.
+  const handleInvite = () => {
+    Keyboard.dismiss();
+    setShowInviteSheet(true);
   };
 
   const handleLinkClient = async (client: any) => {
@@ -911,7 +910,7 @@ export default function AddClientScreen() {
                   <Text style={st.inviteTitle}>
                     Send invite {name.trim() ? `to ${name.trim().split(' ')[0]}` : ''}
                   </Text>
-                  <Text style={st.inviteDesc}>Share a link to download FitLink and connect</Text>
+                  <Text style={st.inviteDesc}>A message in your words and a link with your name on it</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={CoachColors.textFaint} />
               </TouchableOpacity>
@@ -955,6 +954,14 @@ export default function AddClientScreen() {
         visible={showElitePaywall}
         onClose={() => setShowElitePaywall(false)}
         onSuccess={() => setShowElitePaywall(false)}
+      />
+      <InviteSheet
+        visible={showInviteSheet}
+        kind="coach"
+        coachName={trainer?.name}
+        initialName={name.trim()}
+        initialContact={email.trim() || phone.trim()}
+        onClose={() => setShowInviteSheet(false)}
       />
     </View>
   );

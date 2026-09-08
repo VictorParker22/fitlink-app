@@ -142,6 +142,24 @@ repository secret).
   the answers (time/style optional chips), a sent moment with a timeline. The legacy `intake`
   step exists only for accounts without `intake_goal_key`/`intake_days`. Never add ratings,
   response times or athlete counts to a coach card: the data does not exist.
+- **Invitations (2026-09-08, canvas "FitLink Invitations").** One table `invites` (6-char
+  code from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, `kind` coach|live, sent/opened/accepted
+  timestamps, Realtime on) plus `live_class_access` (a live invite grants ONE class, not the
+  coach; `live_classes_select` reads it). RPCs: `create_invite` (name+contact null = the
+  coach's standing link, reused), `invite_public` (anon-safe, trainers_public fields only),
+  `accept_invite(code, confirm_switch)` (attaches the athlete; error strings
+  `invite_not_found | invite_expired | invite_already_accepted | needs_switch_confirmation:
+  <coach> | trainer_cannot_accept`), `revoke_invite`. Edge fn `invite-info` (anon key, POST
+  {code}) is what the website calls; it marks opened and is IP rate-limited via
+  `check_key_rate_limit` (guardRate needs a real auth user id). App: `lib/invites.ts`
+  (links `https://fitlink.coach/i/CODE`, `/live/CODE`, deep link `fitlink://invite/CODE`,
+  pending code in AsyncStorage `fitlink_pending_invite`), `components/invites/InviteSheet.tsx`,
+  `app/invites.tsx` (coach list, realtime channel `invites:<uid>`), `app/invite/[code].tsx`
+  (arrival; signed-out parks the code and the AuthGuard resumes it after SIGNED_IN),
+  `app/invite/enter.tsx`. Website (C:\projects\fitlink): `/i/:code`, `/live/:code` (hls.js).
+  Universal links for `fitlink.coach` need `associatedDomains` + an AASA file = a native
+  build; until then the web page hands off via the custom scheme and the typed code.
+  `tests/invites.test.ts` pins the code/link/message contract.
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`

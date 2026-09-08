@@ -942,6 +942,16 @@ export default function ClientsScreen() {
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
+              style={styles.invitesBtn}
+              onPress={() => router.push('/invites' as any)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Invites"
+            >
+              <Ionicons name="paper-plane-outline" size={17} color={CoachColors.textPrimary} />
+              <Text style={styles.invitesBtnText}>Invites</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.addBtn}
               onPress={() => router.push('/add-client' as any)}
               activeOpacity={0.8}
@@ -1067,6 +1077,15 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.onAccent,
+  },
+  invitesBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.border,
+    paddingHorizontal: W * 0.035, paddingVertical: 10,
+    borderRadius: 999, borderCurve: 'continuous', minHeight: 44,
+  },
+  invitesBtnText: {
+    fontFamily: CoachFonts.bodySemiBold, fontSize: Math.round(W * 0.034), color: CoachColors.textPrimary,
   },
 
   // Search
