@@ -3,9 +3,13 @@
 Read these first, in this order:
 
 1. `.agents/INVARIANTS.md` — rules that each exist because breaking them shipped a bug.
-2. `.agents/AGENTS.md` — what the project is: stack, directories, edge functions, payments.
-3. `.agents/DESIGN.md` — the enforceable design system (dark/lime, type, motion, imagery).
-4. `docs/store/SUBMISSION.md` — App Privacy / Play data-safety answers derived from the code.
+2. `.agents/THREAT_MODEL.md` — the trust boundaries (B1–B15), public entry points, privileged
+   components, sensitive data, dependencies, irreversible actions and abuse paths (A1–A14),
+   each cited to the file or database object that creates it. Read it before touching any
+   table, RPC, edge function, route, bucket, deep link or vendor.
+3. `.agents/AGENTS.md` — what the project is: stack, directories, edge functions, payments.
+4. `.agents/DESIGN.md` — the enforceable design system (dark/lime, type, motion, imagery).
+5. `docs/store/SUBMISSION.md` — App Privacy / Play data-safety answers derived from the code.
 
 This file holds what those do not: how work actually ships here, and the
 decisions and traps from the 2026-09 release push.
@@ -63,6 +67,18 @@ with the service role. None of that was hard to find. Do the threat model FIRST,
    shipping a policy, trigger or RPC change. A fix that was not run against the live
    database is a hypothesis. "Noted as a follow-up" is not an outcome for a hole with money or
    personal data behind it — close it or say plainly that it is open.
+10. **Keep the map current.** `.agents/THREAT_MODEL.md` is the security ledger. Anything that
+   adds or moves a boundary — a new table or column with value, an RPC, an edge function, a
+   route the OS can open, a bucket, a webhook, a vendor, an irreversible action — is added to
+   the map in the SAME commit, with its enforcement point, and gets a proof block in
+   `supabase/security/`. When a fix closes an abuse path, flip its status there with the date.
+   The map's §9 is the open security backlog; work it before new features and never
+   re-discover it. As of 2026-09-08 it holds: A9 auth.users triggers
+   (`handle_new_client_user`, `link_client_auth_user`) bind a coach-typed contact to whoever
+   signs up with it first — dangerous while Auth email confirmation is off; A12 operator
+   hygiene (three used secret files in `credentials/`, PAT in the remote, MFA); A8 Mux
+   playback is public-by-id and the legacy `live_classes.mux_stream_key` column still exists;
+   A13 `clients_delete` lets a coach delete an athlete's history instead of detaching them.
 
 ## Commands
 
