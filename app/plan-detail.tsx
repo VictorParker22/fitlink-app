@@ -418,7 +418,7 @@ export default function PlanDetailScreen() {
             <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 12 }}>
               <TouchableOpacity hitSlop={1}
                 style={[st.editTrackBtn, st.editSeasonBtn]}
-                onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}
+                onPress={() => router.push(`/season/${plan.id}` as any)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Edit the season week by week"

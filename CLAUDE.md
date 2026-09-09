@@ -285,17 +285,30 @@ repository secret).
   `metadata.url`; athlete Home has the bell with the unread badge;
   `ClientContext.notifications` + `markNotificationRead` (realtime INSERT on the athlete's
   own rows). Proofs: `supabase/security/client_notifications.sql`.
-- **A live pass is edited on its season map (2026-09-09).** `create-plan?editId=` now walks
-  1 → 3 → 4 → 5: the live track is read back into weeks × days (`lib/passSeason.ts
-  trackToSeason`, week boundaries from `lib/passWeeks`, workouts spread Mon/Wed/Fri-style,
-  the node SEQUENCE preserved so a round trip is "no change" to `diffTracks`), the coach
-  drops new workouts and meal plans onto any week, and Save republishes through the SAME
-  protected flow as the roadmap editor: `lib/passPublish.ts` (`liveHoldersFor`,
-  `buildProtectedSnapshot`, `publishPlanTrack` → `publish_plan_track`, `sendUpdateMessages`,
-  `notifyHoldersOfUpdate` → a notification/push per holder). Nobody inside changes week; a
-  reorder-only edit saves without ceremony; with holders the coach chooses "Publish and tell
-  them" / "Publish quietly". plan-detail has "Edit season" (map) beside "Edit roadmap" (nodes).
-  `tests/passSeason.test.ts` pins the round trip and the protected week.
+- **A live pass is edited on ONE screen, the season editor (2026-09-09, canvas "Season
+  Editor").** `app/season/[planId].tsx` replaces the wizard-in-edit-mode and the
+  node-by-node roadmap for everyday edits; every "Edit season" / "Build the season" entry
+  (programs, pass-holders, subscriptions, plan-detail) pushes `/season/<planId>`. The grid IS
+  the pass: weeks down, days across, every week visible, a lime rail + initials on a week a
+  holder is in right now. Two ways to add: pick an item in the bottom rail and tap days
+  ("paint"; Every week paints the same weekday across the season, This week paints one
+  cell; tapping a cell that already has it removes it), or tap a day with nothing picked
+  for the day sheet (what's on it with remove/edit, search, Check-in / Live session / Rest
+  day chips, "Create a workout for this day" which drops the new workout back onto that
+  day on return, "Do this on every <weekday>"). Long-press a week number for a rest week.
+  Nothing saves by itself: the track is read into weeks × days (`lib/passSeason.ts
+  trackToSeason`, node SEQUENCE preserved so a round trip is "no change" to `diffTracks`),
+  the header badge counts `diffTracks` entries, Publish opens an IN-SCREEN review sheet
+  (each change with its week and a blast note: who is in that week and keeps it, or
+  "nobody has reached week N"; one switch "Tell them what changed") and publishes through
+  `lib/passPublish.ts` (`liveHoldersFor`, `publishPlanTrack` → `publish_plan_track`,
+  `sendUpdateMessages`, `notifyHoldersOfUpdate`). Nobody inside changes week; no holders or
+  a reorder-only edit just saves. After publishing you stay on the grid, the header says
+  Published and a card says who got it. Every sheet is an overlay `View`, never a native
+  Modal (the create-plan edit mode froze on a Modal over back-navigation on 2026-09-09).
+  Details (price, cover) and Versions are chips to `/create-plan?editId=` and
+  `/pass-versions`; the roadmap stays reachable as a chip. Back is `goBackOr` with a
+  leave-without-publishing confirm. `tests/passSeason.test.ts` pins the round trip.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and

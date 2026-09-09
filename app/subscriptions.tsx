@@ -157,7 +157,7 @@ export default function SubscriptionsScreen() {
                     <TouchableOpacity hitSlop={{ top: 9, bottom: 9 }}
                       style={st.footerBtn}
                       activeOpacity={0.7}
-                      onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}
+                      onPress={() => router.push(`/season/${plan.id}` as any)}
                       accessibilityRole="button"
                     >
                       <Text style={st.footerBtnText}>Edit season</Text>

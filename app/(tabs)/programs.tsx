@@ -134,7 +134,7 @@ function PassCard({
         <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={passStyles.buildTrackBtn}
           activeOpacity={0.8}
-          onPress={() => router.push({ pathname: '/create-plan', params: { editId: item.id } } as any)}
+          onPress={() => router.push(`/season/${item.id}` as any)}
         >
           <Text style={passStyles.buildTrackBtnText}>Build the season</Text>
         </TouchableOpacity>
@@ -148,7 +148,7 @@ function PassCard({
         <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
-          onPress={() => router.push({ pathname: '/create-plan', params: { editId: item.id } } as any)}
+          onPress={() => router.push(`/season/${item.id}` as any)}
           accessibilityRole="button"
           accessibilityLabel="Edit the season"
         >
