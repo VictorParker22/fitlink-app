@@ -142,12 +142,17 @@ function PassCard({
 
       {/* ── Footer actions ── */}
       <View style={passStyles.footer}>
+        {/* The everyday edit is the season map (weeks × days, new workouts and
+            meal plans dropped onto any week, republished to holders). The
+            node-by-node roadmap stays reachable from Pass details. */}
         <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
           style={passStyles.footerBtn}
           activeOpacity={0.7}
-          onPress={() => router.push(`/pass-track-editor?planId=${item.id}` as any)}
+          onPress={() => router.push({ pathname: '/create-plan', params: { editId: item.id } } as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Edit the season"
         >
-          <Text style={passStyles.footerBtnAccent}>Edit track</Text>
+          <Text style={passStyles.footerBtnAccent}>Edit season</Text>
         </TouchableOpacity>
         <View style={passStyles.footerDivider} />
         <TouchableOpacity hitSlop={{ top: 3, bottom: 3 }}
