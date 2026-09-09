@@ -26,6 +26,7 @@ import { useHaptic } from '../../hooks/useHaptic';
 import CelebrationOverlay from '../../components/CelebrationOverlay';
 import { acceptCoachRequest, declineCoachRequest, describeRequest, type RequestingClient } from '../../lib/coachRequests';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { goBackOr, COACH_HOME } from '../../lib/nav';
 
 export default function CoachRequestScreen() {
   const router = useRouter();
@@ -100,7 +101,7 @@ export default function CoachRequestScreen() {
           if (!res.ok) { showAlert({ type: 'error', title: 'Could not decline', message: 'The request could not be declined. Try again.' }); return; }
           if (res.noticeFailed) showAlert({ type: 'warning', title: 'Declined, but no message sent', message: `The note explaining why could not be sent: ${res.noticeFailed}` });
           await refreshClients();
-          router.back();
+          goBackOr(router, COACH_HOME);
         } },
       ],
     });
@@ -116,7 +117,7 @@ export default function CoachRequestScreen() {
   return (
     <View style={st.container}>
       <View style={[st.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity onPress={() => goBackOr(router, COACH_HOME)} style={st.backBtn} activeOpacity={0.7} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={22} color={CoachColors.textPrimary} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>Coaching request</Text>
@@ -196,7 +197,7 @@ export default function CoachRequestScreen() {
           subtitle={`${f.firstName} is on a trial from today. Your thread is open, and their first week is yours to write.`}
           primary={{ label: 'Set up their first week', onPress: () => { setAccepted(false); router.replace(`/client/${client.id}` as any); } }}
           secondary={{ label: 'Open the thread', onPress: () => { setAccepted(false); router.replace('/(tabs)/messages' as any); } }}
-          onDismiss={() => { setAccepted(false); router.back(); }}
+          onDismiss={() => { setAccepted(false); goBackOr(router, COACH_HOME); }}
         />
       )}
     </View>

@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { ClientRoute } from '../types/routes';
+import { goBackOr, COACH_HOME, ATHLETE_HOME } from '../lib/nav';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import BoltEmptyState from '../components/mascot/BoltEmptyState';
 
@@ -199,7 +200,7 @@ export default function NotificationsScreen() {
     <View style={[st.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={st.header}>
-        <TouchableOpacity hitSlop={2} onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity hitSlop={2} onPress={() => goBackOr(router, isAthlete ? ATHLETE_HOME : COACH_HOME)} style={st.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={25} color={CoachColors.textSecondary} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>Notifications</Text>

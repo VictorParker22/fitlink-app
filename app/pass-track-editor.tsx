@@ -12,7 +12,7 @@ import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { weekOfPosition, weekStartIndices, totalWeeks, diffTracks } from '../lib/passWeeks';
 import type { TrackDiffEntry } from '../lib/passWeeks';
-import { isMissingSchemaError } from '../lib/schemaErrors';
+import { publishPlanTrack, sendUpdateMessages, notifyHoldersOfUpdate } from '../lib/passPublish';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 
 const nodeKey = (n: TrackNode) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}`;
@@ -193,131 +193,33 @@ export default function PassTrackEditorScreen() {
     setReview(changes);
   };
 
-  /**
-   * "Nobody's current week changes under them": if the athlete's current week
-   * (in the snapshot they bought) contains a node this edit removes, keep that
-   * whole week's old shape in their new snapshot; everything from the next
-   * week start onward comes from the new track. track_position is never touched.
-   */
-  const buildProtectedSnapshot = (
-    oldSnap: TrackNode[],
-    newTrack: TrackNode[],
-    position: number,
-    removedKeys: Set<string>,
-  ): TrackNode[] => {
-    const w = weekOfPosition(position, oldSnap, durationWeeks);
-    const oldStarts = weekStartIndices(oldSnap, durationWeeks);
-    const oldSlice = oldSnap.slice(oldStarts[w - 1] ?? 0, oldStarts[w] ?? oldSnap.length);
-    const bitten = oldSlice.some(n => removedKeys.has(nodeKey(n)));
-    if (!bitten) return newTrack.map((n, i) => ({ ...n, order: i }));
-    const newStarts = weekStartIndices(newTrack, durationWeeks);
-    const start = Math.min(newStarts[w - 1] ?? newTrack.length, newTrack.length);
-    const end = Math.min(newStarts[w] ?? newTrack.length, newTrack.length);
-    const spliced = [...newTrack.slice(0, start), ...oldSlice, ...newTrack.slice(end)];
-    return spliced.map((n, i) => ({ ...n, order: i }));
-  };
-
-  /** Sends the update note to each athlete. Returns how many did NOT go out. */
-  const sendUpdateMessages = async (clientIds: string[], content: string): Promise<number> => {
-    if (!user || clientIds.length === 0) return 0;
-    const { data: convs } = await supabase.from('conversations').select('id, client_id');
-    let failed = 0;
-    for (const clientId of clientIds) {
-      let convId = (convs || []).find((c: any) => c.client_id === clientId)?.id;
-      if (!convId) {
-        const { data: created, error } = await supabase
-          .from('conversations')
-          .insert({ trainer_id: user.id, client_id: clientId })
-          .select()
-          .single();
-        if (error || !created) { failed++; continue; }
-        convId = created.id;
-      }
-      // Resolves with { error } — it does not throw, so the old catch never ran.
-      const { error: msgErr } = await supabase.from('messages').insert({
-        conversation_id: convId,
-        sender_type: 'trainer',
-        content,
-      });
-      if (msgErr) { failed++; continue; }
-      const { error: previewErr } = await supabase.from('conversations').update({
-        last_message: content,
-        last_message_at: new Date().toISOString(),
-      }).eq('id', convId);
-      if (__DEV__ && previewErr) console.warn('[TrackEditor] conversation preview update failed:', previewErr);
-    }
-    return failed;
-  };
-
   const handlePublish = async () => {
     if (!plan || !review) return;
     setSaving(true);
     try {
       const oldTrack = plan.track ?? [];
       const cleanTrack = toTrackNodes(track);
-      // 1. Snapshot the pre-edit track into version history. The audit trail is
-      //    best-effort ONLY while the plan_versions migration may not have run
-      //    (42P01/42703); anything else is a real failure and is reported below.
-      let versionWarning: string | null = null;
-      const { data: vRows, error: vErr } = await supabase
-        .from('plan_versions')
-        .select('version')
-        .eq('plan_id', plan.id)
-        .order('version', { ascending: false })
-        .limit(1);
-      if (!vErr) {
-        const nextVersion = ((vRows?.[0] as any)?.version ?? 0) + 1;
-        const { error: insErr } = await supabase.from('plan_versions').insert({
-          plan_id: plan.id,
-          version: nextVersion,
-          track: oldTrack,
-          summary: describeChanges(review),
-        });
-        if (insErr && !isMissingSchemaError(insErr)) versionWarning = insErr.message;
-      } else if (!isMissingSchemaError(vErr)) {
-        versionWarning = vErr.message;
-      }
-      // 2 + 3. The pass and every athlete's snapshot, in ONE transaction.
-      //
-      // These used to be separate writes: the plan first, then a per-athlete
-      // loop. A failure partway left the pass on the new track with some
-      // athletes stranded on the old one. publish_plan_track applies both
-      // atomically — everyone moves or nothing changes. The protected-week
-      // maths stays here, where it is shared with the review the coach just
-      // approved; the RPC only supplies the transaction boundary.
+      // Version history + the pass + every holder's snapshot (lib/passPublish.ts):
+      // the protected-week maths and the one-transaction RPC are shared with
+      // the season map's edit mode, so the two never drift.
       let messageFailures = 0;
-      const snapshots =
-        audience === 'everyone'
-          ? (() => {
-              const removedKeys = new Set(
-                review.filter(c => c.kind === 'removed').map(c => nodeKey(c.node)),
-              );
-              return liveHolders.map(h => ({
-                id: h.enrollment.id,
-                track_snapshot: buildProtectedSnapshot(
-                  h.snapshot,
-                  cleanTrack,
-                  h.enrollment.track_position,
-                  removedKeys,
-                ),
-              }));
-            })()
-          : []; // "new joiners only" — nobody inside is touched.
-
-      const { data: movedCount, error: publishErr } = await supabase.rpc('publish_plan_track', {
-        p_plan_id: plan.id,
-        p_track: cleanTrack,
-        p_snapshots: snapshots,
-      });
-
-      if (publishErr) {
+      let outcome: Awaited<ReturnType<typeof publishPlanTrack>>;
+      try {
+        outcome = await publishPlanTrack({
+          planId: plan.id, oldTrack, newTrack: cleanTrack, changes: review, holders: liveHolders,
+          audience, durationWeeks, summary: describeChanges(review),
+        });
+      } catch (publishErr: any) {
         showAlert({
           type: 'error',
           title: 'Not published',
-          message: `The pass was left exactly as it was — nothing changed for anyone. ${publishErr.message}`,
+          message: `The pass was left exactly as it was — nothing changed for anyone. ${publishErr?.message ?? ''}`,
         });
         return;
       }
+      const versionWarning = outcome.versionWarning;
+      const movedCount = outcome.moved;
+      const snapshots = { length: outcome.expected };
       // Keep local context in step with what the server now holds.
       await refreshPlans?.();
 
@@ -333,9 +235,11 @@ export default function PassTrackEditorScreen() {
 
       if (audience === 'everyone' && notify && message.trim()) {
         messageFailures = await sendUpdateMessages(
+          user!.id,
           liveHolders.map(h => h.enrollment.client_id),
           message.trim(),
         );
+        await notifyHoldersOfUpdate(liveHolders.map(h => h.enrollment.client_id), plan.name, describeChanges(review));
       }
       if (messageFailures > 0 || versionWarning) {
         const parts: string[] = [];

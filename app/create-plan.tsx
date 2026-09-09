@@ -16,6 +16,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
+import { seasonToTrack, trackToSeason, emptyDays, type DayNode, type SeasonWeek } from '../lib/passSeason';
+import { liveHoldersFor, publishPlanTrack, describeChanges, sendUpdateMessages, notifyHoldersOfUpdate } from '../lib/passPublish';
+import { diffTracks, isOnLatestTrack } from '../lib/passWeeks';
 import CelebrationOverlay from '../components/CelebrationOverlay';
 import { formatRun, formatDeadline, parseLocalDay } from '../lib/cohort';
 import { useAndroidBack } from '../hooks/useAndroidBack';
@@ -32,11 +35,11 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 // lets you vary it. Every stat shown is computed from real data or omitted.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type DayNode = { kind: 'workout' | 'diet' | 'checkin' | 'live' | 'rest'; id?: string; name?: string };
 // A day holds a stack of nodes — a workout AND a meal plan on the same day is
 // the normal case, not a conflict. 'rest' is exclusive: it marks the day as a
 // deliberate rest day (distinct from simply unplanned) and produces no track node.
-type SeasonWeek = { days: DayNode[][]; label: string; isRest?: boolean };
+// The types and the map ⇄ track conversion live in lib/passSeason.ts, shared
+// with edit mode (a live pass reads back into this same map).
 
 const WEEK_LENGTHS = [4, 6, 8, 12, 16];
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -63,6 +66,7 @@ const TOOL_META: Record<DayNode['kind'], { label: string; icon: keyof typeof Ion
   checkin: { label: 'Check-in', icon: 'chatbubble-ellipses-outline' },
   live: { label: 'Live session', icon: 'videocam-outline' },
   rest: { label: 'Rest', icon: 'moon-outline' },
+  milestone: { label: 'Milestone', icon: 'flag-outline' },
 };
 
 const dotColor = (kind: DayNode['kind']) => {
@@ -72,8 +76,6 @@ const dotColor = (kind: DayNode['kind']) => {
   return CoachColors.textFaint; // check-in / live session
 };
 
-const emptyDays = (): DayNode[][] => Array.from({ length: 7 }, () => []);
-
 const isRestDay = (day: DayNode[]) => day.some(n => n.kind === 'rest');
 // Nodes that become real track content — rest markers don't.
 const deliverable = (day: DayNode[]) => day.filter(n => n.kind !== 'rest');
@@ -82,7 +84,7 @@ export default function CreatePassScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { createPlan, updatePlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients } = useApp();
+  const { createPlan, updatePlan, updatePlanTrack, workouts, diets, plans, trainer, activeClients, clients: rosterClients, refreshPlans } = useApp();
   const { showAlert } = useAlert();
   // trainers.id IS auth.uid() (INVARIANTS §1), so either source resolves the
   // same coach; `user` is available before the trainer row has loaded.
@@ -208,6 +210,14 @@ export default function CreatePassScreen() {
     // cover_url exists in the DB (coach_identity_media.sql) but not on the
     // Plan interface yet — same access shape plan-detail.tsx already uses.
     setCoverUrl((editingPlan as any).cover_url ?? null);
+    // The live track, read back into the season map so a published pass can
+    // be edited week by week (new workouts and meal plans included).
+    const season = trackToSeason(editingPlan.track ?? [], editingPlan.duration_weeks, {
+      workoutName: (id) => workouts.find((w: any) => w.id === id)?.name,
+      dietName: (id) => diets.find((d: any) => d.id === id)?.name,
+    });
+    setSeasonWeeks(season.weeks);
+    setFinalMilestones(season.finalMilestones);
     const start = parseLocalDay(editingPlan.starts_on);
     if (start) {
       setProductType('cohort');
@@ -219,13 +229,12 @@ export default function CreatePassScreen() {
     }
   }, [editingPlan]);
 
-  // ── Edit mode skips the track steps ───────────────────────────────────────
-  // The pass-track-editor owns track editing (with its blast-radius flow), so
-  // an edit here never rebuilds or resaves the track. Rather than show steps
-  // 2–3 read-only — dead UI that implies editability — the wizard simply walks
-  // 1 → 4 → 5. This is the smallest change: every step keeps its number, only
-  // the walk order differs.
-  const stepSequence = useMemo(() => (isEdit ? [1, 4, 5] : [1, 2, 3, 4, 5]), [isEdit]);
+  // ── Edit mode walks 1 → 3 → 4 → 5 ────────────────────────────────────────
+  // Step 2 (one week, expanded) only makes sense before a season exists; a
+  // published pass reopens on its season map (step 3), prefilled from the
+  // live track, and saving republishes through the same protected flow the
+  // roadmap editor uses (lib/passPublish.ts).
+  const stepSequence = useMemo(() => (isEdit ? [1, 3, 4, 5] : [1, 2, 3, 4, 5]), [isEdit]);
   const goNextStep = () => {
     const i = stepSequence.indexOf(step);
     if (i >= 0 && i < stepSequence.length - 1) { setEditingWeek(null); setStep(stepSequence[i + 1]); }
@@ -367,37 +376,18 @@ export default function CreatePassScreen() {
 
   const templateNodes = weekTemplate.flatMap(deliverable);
   const templateCounts = useMemo(() => {
-    const c = { workout: 0, diet: 0, checkin: 0, live: 0 };
+    const c = { workout: 0, diet: 0, checkin: 0, live: 0, milestone: 0 };
     templateNodes.forEach(n => { if (n.kind !== 'rest') c[n.kind] += 1; });
     return c;
   }, [weekTemplate]);
   const templateTrainingDays = weekTemplate.filter(d => d.some(n => n.kind === 'workout')).length;
 
-  // Full track generation from the season map.
-  const buildTrack = useCallback((): TrackNode[] => {
-    const nodes: Omit<TrackNode, 'order'>[] = [];
-    seasonWeeks.forEach((wk, i) => {
-      const label = wk.label.trim();
-      if (label) nodes.push({ type: 'milestone', label: `Week ${i + 1}: ${label}` });
-      else if (wk.isRest) nodes.push({ type: 'milestone', label: `Week ${i + 1}: Rest week` });
-      wk.days.forEach(day => {
-        day.forEach(d => {
-          if (d.kind === 'workout' && d.id) nodes.push({ type: 'workout', id: d.id });
-          else if (d.kind === 'diet' && d.id) nodes.push({ type: 'diet', id: d.id });
-          else if (d.kind === 'checkin') nodes.push({ type: 'milestone', label: 'Check-in' });
-          else if (d.kind === 'live') nodes.push({ type: 'milestone', label: 'Live session' });
-          // 'rest' is a rhythm marker, not deliverable content — no node.
-        });
-      });
-    });
-    finalMilestones.forEach(m => nodes.push({ type: 'milestone', label: m }));
-    return nodes.map((n, i) => ({ ...n, order: i }));
-  }, [seasonWeeks, finalMilestones]);
+  // Full track generation from the season map (lib/passSeason.ts).
+  const buildTrack = useCallback((): TrackNode[] => seasonToTrack(seasonWeeks, finalMilestones), [seasonWeeks, finalMilestones]);
 
   const trackCounts = useMemo(() => {
-    // Edit mode never rebuilds the track — the preview counts what the pass
-    // already contains.
-    const track: TrackNode[] = editingPlan ? (editingPlan.track ?? []) : buildTrack();
+    // Edit mode counts the map the coach is editing, exactly as create does.
+    const track: TrackNode[] = buildTrack();
     let w = 0, m = 0, c = 0, ms = 0;
     track.forEach(n => {
       if (n.type === 'workout') w += 1;
@@ -581,9 +571,10 @@ export default function CreatePassScreen() {
     setSaving(true);
     try {
       if (isEdit && editingPlan) {
-        // An edit updates the plans row only. The track stays untouched (the
-        // pass-track-editor owns it, blast-radius flow included), no offers
-        // go out and no celebration shows — an edit is not a launch.
+        // An edit updates the plans row, then republishes the season map when
+        // it changed — through the same protected flow the roadmap editor
+        // uses, so nobody's current week moves under them. No offers go out
+        // and no celebration shows — an edit is not a launch.
         await updatePlan(editingPlan.id, {
           name: name.trim(),
           price,
@@ -598,7 +589,64 @@ export default function CreatePassScreen() {
           enrollment_closes: isCohort ? toISODate(enrollmentCloses) : null,
           capacity: isCohort && capacity > 0 ? capacity : null,
         });
-        router.back();
+        const oldTrack = editingPlan.track ?? [];
+        const newTrack = buildTrack();
+        const changes = diffTracks(oldTrack, newTrack, weeks);
+        const orderOnly = changes.length === 0 && !isOnLatestTrack(oldTrack, newTrack);
+        if (changes.length === 0 && !orderOnly) { router.back(); return; }
+        const { data: enrollRows } = await supabase
+          .from('client_plan_enrollments')
+          .select('id, client_id, track_position, status, track_snapshot, started_at, sync_with_plan, updated_at, plan_id, created_at')
+          .eq('plan_id', editingPlan.id);
+        const holders = liveHoldersFor((enrollRows ?? []) as any, rosterClients as any, oldTrack, weeks);
+        if (holders.length === 0 || orderOnly) {
+          // Nobody inside, or a reorder only: save with no ceremony.
+          await updatePlanTrack(editingPlan.id, newTrack);
+          router.back();
+          return;
+        }
+        const labelOf = (n: TrackNode) =>
+          n.type === 'workout' ? (workouts.find((w: any) => w.id === n.id)?.name ?? 'a workout')
+          : n.type === 'diet' ? (diets.find((d: any) => d.id === n.id)?.name ?? 'a meal plan')
+          : (n.label ?? 'a milestone');
+        const summary = describeChanges(changes, labelOf);
+        const planName = name.trim() || editingPlan.name;
+        const doPublish = async (notify: boolean) => {
+          setSaving(true);
+          try {
+            const outcome = await publishPlanTrack({
+              planId: editingPlan.id, oldTrack, newTrack, changes, holders, audience: 'everyone', durationWeeks: weeks, summary,
+            });
+            await refreshPlans?.();
+            const ids = holders.map(h => h.enrollment.client_id);
+            let failed = 0;
+            if (notify) {
+              failed = await sendUpdateMessages(user!.id, ids, `I've updated ${planName}: ${summary}. Your current week stays as it is.`);
+              await notifyHoldersOfUpdate(ids, planName, summary);
+            }
+            const problems: string[] = [];
+            if (outcome.moved < outcome.expected) problems.push(`${outcome.moved} of ${outcome.expected} athletes moved to the new season; the others are no longer on this pass.`);
+            if (failed > 0) problems.push(`${failed} athlete${failed === 1 ? '' : 's'} did not get the update message.`);
+            if (outcome.versionWarning) problems.push(`Version history was not recorded: ${outcome.versionWarning}`);
+            if (problems.length > 0) showAlert({ type: 'warning', title: 'Published, with problems', message: problems.join('\n\n') });
+            router.back();
+          } catch (err: any) {
+            showAlert({ type: 'error', title: 'Not published', message: `The pass was left exactly as it was — nothing changed for anyone. ${err?.message ?? ''}` });
+          } finally {
+            setSaving(false);
+          }
+        };
+        setSaving(false);
+        showAlert({
+          type: 'confirm',
+          title: `${changes.length} change${changes.length === 1 ? '' : 's'} to a live season`,
+          message: `${holders.length} ${holders.length === 1 ? 'person is' : 'people are'} mid-season inside ${planName}. Everyone gets the new season from where they stand; nobody's current week changes under them. ${summary}.`,
+          buttons: [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Publish quietly', onPress: () => { doPublish(false); } },
+            { text: 'Publish and tell them', onPress: () => { doPublish(true); } },
+          ],
+        });
         return;
       }
       const plan = await createPlan(
@@ -1406,7 +1454,7 @@ export default function CreatePassScreen() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const ctaConfig: Record<number, { label: string; disabled: boolean; onPress: () => void }> = {
-    1: { label: isEdit ? 'Set the price' : 'Build the week', disabled: !name.trim(), onPress: goNextStep },
+    1: { label: isEdit ? 'Edit the season' : 'Build the week', disabled: !name.trim(), onPress: goNextStep },
     2: { label: `Expand to ${weeks} weeks`, disabled: templateNodes.length === 0, onPress: expandToSeason },
     3: { label: 'Set the price', disabled: false, onPress: goNextStep },
     4: { label: 'See what athletes see', disabled: !price || price <= 0 || cohortErrors.any, onPress: goNextStep },

@@ -150,6 +150,10 @@ export default function ClientWorkoutsScreen() {
   // Deep links open the preview once; backing out must not re-open it when
   // the workouts list refreshes under the same params.
   const consumedStartIdRef = useRef<string | null>(null);
+  // True while the preview/player was opened from another screen (Home's
+  // "Start it", a push). Backing out or finishing then returns THERE, not
+  // to this tab's list (2026-09-09).
+  const arrivedFromElsewhereRef = useRef(false);
   const [summaryElapsedSeconds, setSummaryElapsedSeconds] = useState(0);
   const [summaryExerciseStates, setSummaryExerciseStates] = useState<any[]>([]);
 
@@ -207,6 +211,7 @@ export default function ClientWorkoutsScreen() {
 
     if (params?.startWorkoutId && consumedStartIdRef.current !== params.startWorkoutId) {
       consumedStartIdRef.current = params.startWorkoutId;
+      arrivedFromElsewhereRef.current = router.canGoBack();
       const found = (workouts || []).find(
         (w: any) =>
           w.id === params.startWorkoutId ||
@@ -481,6 +486,7 @@ export default function ClientWorkoutsScreen() {
     setSummaryExerciseStates([]);
     setSummaryElapsedSeconds(0);
     refreshData();
+    if (arrivedFromElsewhereRef.current) { arrivedFromElsewhereRef.current = false; if (router.canGoBack()) router.back(); }
   };
 
   const onRefresh = useCallback(async () => {
@@ -567,7 +573,10 @@ export default function ClientWorkoutsScreen() {
               source: activeWorkout.source === 'track' ? 'track' : undefined,
             });
           }}
-          onBack={() => setActiveWorkout(null)}
+          onBack={() => {
+            setActiveWorkout(null);
+            if (arrivedFromElsewhereRef.current) { arrivedFromElsewhereRef.current = false; if (router.canGoBack()) router.back(); }
+          }}
         />
       </SafeAreaView>
     );

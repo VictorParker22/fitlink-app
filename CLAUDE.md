@@ -285,6 +285,21 @@ repository secret).
   `metadata.url`; athlete Home has the bell with the unread badge;
   `ClientContext.notifications` + `markNotificationRead` (realtime INSERT on the athlete's
   own rows). Proofs: `supabase/security/client_notifications.sql`.
+- **A live pass is edited on its season map (2026-09-09).** `create-plan?editId=` now walks
+  1 → 3 → 4 → 5: the live track is read back into weeks × days (`lib/passSeason.ts
+  trackToSeason`, week boundaries from `lib/passWeeks`, workouts spread Mon/Wed/Fri-style,
+  the node SEQUENCE preserved so a round trip is "no change" to `diffTracks`), the coach
+  drops new workouts and meal plans onto any week, and Save republishes through the SAME
+  protected flow as the roadmap editor: `lib/passPublish.ts` (`liveHoldersFor`,
+  `buildProtectedSnapshot`, `publishPlanTrack` → `publish_plan_track`, `sendUpdateMessages`,
+  `notifyHoldersOfUpdate` → a notification/push per holder). Nobody inside changes week; a
+  reorder-only edit saves without ceremony; with holders the coach chooses "Publish and tell
+  them" / "Publish quietly". plan-detail has "Edit season" (map) beside "Edit roadmap" (nodes).
+  `tests/passSeason.test.ts` pins the round trip and the protected week.
+- **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
+  every screen a push or deep link can open (notifications, the request screen); the Train
+  tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and
+  backing out or finishing returns there instead of dropping the athlete on the Train list.
 - **Food tab on a rest day.** A coach plan with `week_structure.trainingDays` and an EMPTY
   `restVariant.mealList` rendered "No meal plan yet" four days a week (Laurel, 2026-09-09).
   `my-diet.tsx` shows the training plate whenever the rest variant is empty.

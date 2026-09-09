@@ -411,14 +411,32 @@ export default function PlanDetailScreen() {
               })}
             </ScrollView>
 
-            <TouchableOpacity hitSlop={1}
-              style={st.editTrackBtn}
-              onPress={() => router.push({ pathname: '/pass-track-editor', params: { planId: plan.id } } as any)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={16} color={CoachColors.textPrimary} />
-              <Text style={st.editTrackText}>Edit roadmap</Text>
-            </TouchableOpacity>
+            {/* Two ways in: the season map (weeks × days, new workouts and meal
+                plans dropped onto any week) is the everyday edit; the roadmap
+                is the node-by-node editor. Both republish through the same
+                protected flow, so holders keep their current week. */}
+            <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 12 }}>
+              <TouchableOpacity hitSlop={1}
+                style={[st.editTrackBtn, st.editSeasonBtn]}
+                onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Edit the season week by week"
+              >
+                <Ionicons name="calendar-outline" size={16} color={CoachColors.onAccent} />
+                <Text style={[st.editTrackText, { color: CoachColors.onAccent }]}>Edit season</Text>
+              </TouchableOpacity>
+              <TouchableOpacity hitSlop={1}
+                style={[st.editTrackBtn, { flex: 1, marginHorizontal: 0, marginTop: 0 }]}
+                onPress={() => router.push({ pathname: '/pass-track-editor', params: { planId: plan.id } } as any)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Edit the roadmap node by node"
+              >
+                <Ionicons name="create-outline" size={16} color={CoachColors.textPrimary} />
+                <Text style={st.editTrackText}>Edit roadmap</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -723,6 +741,7 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: CoachColors.borderMuted, backgroundColor: CoachColors.surface,
   },
   editTrackText: { fontFamily: CoachFonts.bodyMedium, fontSize: 13.5, color: CoachColors.textPrimary, letterSpacing: 0.2 },
+  editSeasonBtn: { flex: 1, marginHorizontal: 0, marginTop: 0, backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
   addTrackCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     marginHorizontal: 20, marginBottom: 24, padding: 16,
