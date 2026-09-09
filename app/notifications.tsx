@@ -4,6 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../context/AppContext';
+import { useClient } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { ClientRoute } from '../types/routes';
 import { CoachColors, CoachFonts } from '../constants/coachDesign';
 import BoltEmptyState from '../components/mascot/BoltEmptyState';
 
@@ -44,15 +47,28 @@ const ICON_MAP: Record<NotifType, string> = {
   new_client: 'person-add-outline',
   pass_purchased: 'card-outline',
   cohort_over_capacity: 'alert-circle-outline',
+  coach_accepted: 'checkmark-circle-outline',
+  coach_declined: 'close-circle-outline',
+  session: 'calendar-outline',
 };
 
-/** Only the two parameterised screens a notification may open. */
+/** Only the two parameterised coach screens a notification may open. */
 const ROW_URL = /^\/(request|client)\/[0-9a-f-]{36}$/;
+/** Athlete rows open only the athlete's own declared routes. */
+const ATHLETE_URLS = new Set<string>(Object.values(ClientRoute));
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { notifications, markNotificationRead, refreshData } = useApp();
+  // One screen, two inboxes: the coach's rows (trainer_id) or the athlete's
+  // rows (client_id), by the signed-in role.
+  const { userRole } = useAuth();
+  const coachCtx = useApp();
+  const athleteCtx = useClient();
+  const isAthlete = userRole === 'client';
+  const notifications: NotificationData[] = (isAthlete ? athleteCtx.notifications : coachCtx.notifications) as NotificationData[];
+  const markNotificationRead = isAthlete ? athleteCtx.markNotificationRead : coachCtx.markNotificationRead;
+  const refreshData = isAthlete ? athleteCtx.refreshData : coachCtx.refreshData;
   const [refreshing, setRefreshing] = useState(false);
 
   // Snapshot which notifications were unread when the screen opened, so cards
@@ -83,6 +99,10 @@ export default function NotificationsScreen() {
     if (!item.is_read) markNotificationRead(item.id).catch(() => {});
     const clientId = (item.metadata as any)?.client_id as string | undefined;
     const url = (item.metadata as any)?.url;
+    if (isAthlete) {
+      if (typeof url === 'string' && ATHLETE_URLS.has(url)) router.push(url as any);
+      return;
+    }
     if (item.type === 'coach_request' && clientId) {
       // The request screen: intake, note, accept / decline.
       router.push(`/request/${clientId}` as any);
@@ -95,7 +115,7 @@ export default function NotificationsScreen() {
     } else if (clientId) {
       router.push(`/client/${clientId}` as any);
     }
-  }, [markNotificationRead, router]);
+  }, [markNotificationRead, router, isAthlete]);
 
   const renderNotification = (item: NotificationData) => {
     const icon = ICON_MAP[item.type] || 'notifications-outline';
@@ -103,7 +123,9 @@ export default function NotificationsScreen() {
     const isNew = initialUnreadIds.current.has(item.id);
     const clientId = (meta as any)?.client_id;
     const rowUrl = (meta as any)?.url;
-    const tappable = item.type === 'message' || !!clientId || (typeof rowUrl === 'string' && ROW_URL.test(rowUrl));
+    const tappable = isAthlete
+      ? typeof rowUrl === 'string' && ATHLETE_URLS.has(rowUrl)
+      : item.type === 'message' || !!clientId || (typeof rowUrl === 'string' && ROW_URL.test(rowUrl));
 
     return (
       <TouchableOpacity

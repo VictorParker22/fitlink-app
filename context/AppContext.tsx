@@ -346,7 +346,7 @@ interface ClientDiet {
 export interface NotificationData {
   id: string;
   trainer_id: string;
-  type: 'message' | 'score' | 'water' | 'workout' | 'nutrition' | 'file' | 'coach_request' | 'new_client' | 'pass_purchased' | 'cohort_over_capacity';
+  type: 'message' | 'score' | 'water' | 'workout' | 'nutrition' | 'file' | 'coach_request' | 'new_client' | 'pass_purchased' | 'cohort_over_capacity' | 'coach_accepted' | 'coach_declined' | 'session';
   title: string;
   description: string;
   /** `client_id`, and for request/pass rows the in-app `url` the row opens. */

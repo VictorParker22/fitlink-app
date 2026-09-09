@@ -272,6 +272,22 @@ repository secret).
   bare token matches with `limit(1)`, a requesting athlete may push the coach they asked and
   that coach may push them back, and Expo ticket errors (`DeviceNotRegistered`, credentials)
   are logged as `[push]`. Prefer `toClientId`/`toTrainerId` in every new call site.
+- **Athletes have an inbox (migration 20260909020000).** `notifications` names EITHER
+  recipient (`trainer_id` or `client_id`, `notifications_recipient` check); the athlete reads
+  and marks their own rows, the push bridge sends to whichever side the row names, and the
+  server writes the athlete's rows: `respond_coach_request` (accepted / declined), the
+  `client_workouts` trigger (a coach's assignment, one notice per 15 minutes), the
+  `client_diets` trigger (a coach's plan only), the `sessions` trigger (unless the athlete
+  booked it), `attachClientToPlan` (a paid pass). Allowed types are the `notifications_type_check`
+  constraint AND the `guard_notification_insert` allow-lists: add a new type to BOTH and to
+  `NotificationData['type']` / `ICON_MAP`. `app/notifications.tsx` is one screen for both
+  roles (`useAuth().userRole`), athlete rows open only `ClientRoute` values from
+  `metadata.url`; athlete Home has the bell with the unread badge;
+  `ClientContext.notifications` + `markNotificationRead` (realtime INSERT on the athlete's
+  own rows). Proofs: `supabase/security/client_notifications.sql`.
+- **Food tab on a rest day.** A coach plan with `week_structure.trainingDays` and an EMPTY
+  `restVariant.mealList` rendered "No meal plan yet" four days a week (Laurel, 2026-09-09).
+  `my-diet.tsx` shows the training plate whenever the rest variant is empty.
 - **Solo mode.** Coachless athletes own a `clients` row with `trainer_id NULL`, `status 'solo'`
   (`ensure_solo_client()`). `onboarding_path` in auth metadata decides whether Home leads with
   the corner or with Find your coach. Premium is `clients.premium_until`, written only by the

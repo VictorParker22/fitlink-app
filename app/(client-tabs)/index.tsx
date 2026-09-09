@@ -28,7 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Motion } from '../../constants/motion';
-import { ClientRoute } from '../../types/routes';
+import { ClientRoute, SharedRoute } from '../../types/routes';
 import { getSoloCharacter } from '../../lib/soloCharacters';
 import { Ionicons } from '@expo/vector-icons';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
@@ -129,8 +129,10 @@ export default function AthleteTodayScreen() {
     checkInGym,
     checkOutGym,
     liveWorkout,
+    notifications,
   } = useClient();
   const { healthData } = useHealth();
+  const unreadNotifs = (notifications || []).filter((n) => !n.is_read).length;
 
   const [refreshing, setRefreshing] = useState(false);
   const [sentState, setSentState] = useState<SentState>(null);
@@ -584,6 +586,20 @@ export default function AthleteTodayScreen() {
               {greeting()}{firstName(clientData?.name) ? `, ${firstName(clientData?.name)}` : ''}
             </Text>
           </View>
+          <Pressable
+            onPress={() => router.push(SharedRoute.notifications)}
+            style={st.bellBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={unreadNotifs > 0 ? `Notifications, ${unreadNotifs} unread` : 'Notifications'}
+          >
+            <Ionicons name="notifications-outline" size={20} color={C.textSecondary} />
+            {unreadNotifs > 0 && (
+              <View style={st.bellBadge}>
+                <Text style={st.bellBadgeText}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</Text>
+              </View>
+            )}
+          </Pressable>
           <Pressable
             onPress={() => router.push(ClientRoute.myProfile)}
             accessibilityRole="button"
@@ -1145,7 +1161,16 @@ const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
 
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: {
+    width: 38, height: 38, borderRadius: 19, borderCurve: 'continuous', backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, borderCurve: 'continuous',
+    backgroundColor: C.accent, borderWidth: 2, borderColor: C.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+  },
+  bellBadgeText: { fontFamily: F.bodyBold, fontSize: 10, color: C.onAccent },
   dateLine: { fontFamily: F.body, fontSize: 13.5, color: C.textMuted },
   greeting: { fontFamily: F.headingBold, fontSize: 28, color: C.textPrimary, marginTop: 3, lineHeight: 32.5 },
   avatar: {

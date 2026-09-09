@@ -54,6 +54,16 @@ export async function attachClientToPlan(admin: ReturnType<typeof createClient>,
       metadata: { client_id: clientId, plan_id: planId },
     })
   }
+  // The athlete's side of the same moment (their inbox + a push).
+  const { data: coach } = await admin.from('trainers').select('name').eq('id', plan.trainer_id).maybeSingle()
+  const first = String(coach?.name ?? '').split(' ')[0] || 'your coach'
+  await admin.from('notifications').insert({
+    client_id: clientId,
+    type: 'coach_accepted',
+    title: `You're on ${first}'s roster`,
+    description: 'Your pass is active. Your season is in Train and your meal plan is on Food.',
+    metadata: { url: '/(client-tabs)/workouts', plan_id: planId },
+  })
 }
 
 /**

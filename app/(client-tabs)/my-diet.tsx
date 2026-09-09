@@ -140,7 +140,12 @@ export default function AthleteFoodScreen() {
   const swaps = plan?.swaps || null;
 
   const todayKey = DAY_KEYS[new Date().getDay()];
-  const isTrainingDay = week ? (week.trainingDays || []).includes(todayKey) : true;
+  const isTrainingDayByPlan = week ? (week.trainingDays || []).includes(todayKey) : true;
+  // A rest day with an EMPTY rest variant used to render "No meal plan yet"
+  // on four days of the week (Laurel, 2026-09-09: Spring's plan names
+  // Mon/Wed/Fri and has no rest list). The training plate is the plan; show it.
+  const restVariantEmpty = !!week && ((week.restVariant?.mealList || []).length === 0);
+  const isTrainingDay = isTrainingDayByPlan || restVariantEmpty;
   const isFreeMealDay = !!(week?.freeMeal?.enabled && week.freeMeal.day === todayKey);
   const weekdayLine = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
 

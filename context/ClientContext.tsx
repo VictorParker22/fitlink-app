@@ -31,6 +31,17 @@ export interface WriteResult {
   error?: string;
 }
 
+export interface ClientNotification {
+  id: string;
+  client_id: string;
+  type: string;
+  title: string;
+  description: string;
+  metadata: any;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface ExerciseLogEntry {
   weight: number;
   reps: number;
@@ -147,6 +158,9 @@ interface ClientContextType {
    * "Start session", cleared on finish or abandon, persisted per athlete so
    * a relaunch resumes it. Home and Train show the way back while it exists.
    */
+  /** The athlete's own notifications (rows with client_id = this athlete), newest first. */
+  notifications: ClientNotification[];
+  markNotificationRead: (id: string) => Promise<void>;
   liveWorkout: LiveWorkout | null;
   startLiveWorkout: (lw: Omit<LiveWorkout, 'startedAt'> & { startedAt?: number }) => void;
   updateLiveWorkout: (patch: Partial<LiveWorkout>) => void;
@@ -199,6 +213,7 @@ export type ClientIdentitySlice = Pick<ClientContextType,
   | 'updateAssessment' | 'updateClientAvatar'
   | 'subscription' | 'paymentHistory' | 'cancelSubscription' | 'setupPaymentMethod'
   | 'weightUnit' | 'setWeightUnit'
+  | 'notifications' | 'markNotificationRead'
 >;
 
 /** Assigned workouts, the season enrollment, set logs and PRs. */
@@ -258,6 +273,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
   const [liveWorkout, setLiveWorkout] = useState<LiveWorkout | null>(null);
+  const [notifications, setNotifications] = useState<ClientNotification[]>([]);
   const [exercisePrs, setExercisePrs] = useState<Record<string, number>>({});
   /** Session-log rows, narrowed to what the completed-workout count needs. null = not loaded. */
   const [workoutLogRows, setWorkoutLogRows] = useState<
@@ -289,6 +305,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setPaymentHistory([]);
     setExerciseLogs({});
     setLiveWorkout(null);
+    setNotifications([]);
     setExercisePrs({});
     setWorkoutLogRows([]);
     setHealthSharingEnabled(false);
@@ -365,7 +382,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       setHealthSharingEnabled(!!client.health_sharing_enabled);
 
       const [
-        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes, subscriptionRes
+        trainerRes, sessionsRes, workoutsRes, dietsRes, progressRes, convRes, plansRes, payRes, visitRes, mealLogsRes, enrollmentRes, trainerWorkoutsRes, workoutLogsRes, subscriptionRes, notifRes
       ] = await Promise.all([
         // trainers_public, never trainers: the private row carried the coach's
         // push token (Expo pushes need no auth — the token alone can phish the
@@ -416,6 +433,9 @@ export function ClientProvider({ children }: PropsWithChildren) {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        // The athlete's inbox: accepted / declined, new sessions, meal plans,
+        // bookings, passes (migration 20260909020000). Their own rows only.
+        supabase.from('notifications').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(60),
       ]);
 
       if (__DEV__) console.log('[ClientContext] Related data:', JSON.stringify({
@@ -442,6 +462,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (workoutsRes.data) setWorkouts(workoutsRes.data);
       if (dietsRes.data) setDiets(dietsRes.data);
+      if (notifRes?.data) setNotifications(notifRes.data as ClientNotification[]);
       if (progressRes.data) setProgressLogs(progressRes.data);
       
       if (mealLogsRes.data) {
@@ -589,6 +610,15 @@ export function ClientProvider({ children }: PropsWithChildren) {
     await fetchClientData(true);
   }, [fetchClientData]);
 
+  const markNotificationRead = useCallback(async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (error) {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: false } : n)));
+      throw error;
+    }
+  }, []);
+
   const cancelCoachRequest = useCallback(async () => {
     const { data, error } = await supabase.rpc('cancel_coach_request');
     if (error || !data?.success) return false;
@@ -609,6 +639,10 @@ export function ClientProvider({ children }: PropsWithChildren) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'client_plan_enrollments', filter: `client_id=eq.${clientData.id}` }, () => {
         refreshData();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `client_id=eq.${clientData.id}` }, (payload: any) => {
+        const row = payload?.new as ClientNotification | undefined;
+        if (row?.id) setNotifications((prev) => (prev.some((n) => n.id === row.id) ? prev : [row, ...prev]));
       })
       .subscribe((status) => {
         if (__DEV__) console.log('[ClientContext] Realtime subscription status:', status);
@@ -1294,11 +1328,13 @@ export function ClientProvider({ children }: PropsWithChildren) {
     updateAssessment, updateClientAvatar,
     subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
     weightUnit, setWeightUnit,
+    notifications, markNotificationRead,
   }), [
     loading, clientData, trainer, pendingCoach, cancelCoachRequest, refreshData, conversation,
     updateAssessment, updateClientAvatar,
     subscription, paymentHistory, cancelSubscription, setupPaymentMethod,
     weightUnit, setWeightUnit,
+    notifications, markNotificationRead,
   ]);
 
   const trainingSlice: ClientTrainingSlice = useMemo(() => ({
