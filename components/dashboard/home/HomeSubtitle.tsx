@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRenderCount } from '../../../lib/devRenderCount';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 import { useAtRiskClients, useTodaysSessions } from './homeSignals';
+import { useAppClients } from '../../../context/AppContext';
 
 interface HomeSubtitleProps {
   /** Fetched once by PendingCheckInsSync and handed down as a number. */
@@ -17,10 +18,14 @@ const HomeSubtitle = React.memo(function HomeSubtitle({ pendingCheckIns }: HomeS
   useRenderCount('HomeSubtitle');
   const todaysSessions = useTodaysSessions();
   const atRiskClients = useAtRiskClients();
+  const { coachRequests } = useAppClients();
 
   const subtitleParts: { text: string; danger?: boolean }[] = [
     { text: `${todaysSessions.length} session${todaysSessions.length === 1 ? '' : 's'}` },
   ];
+  if (coachRequests.length > 0) {
+    subtitleParts.push({ text: `${coachRequests.length} want${coachRequests.length === 1 ? 's' : ''} to train with you` });
+  }
   if (pendingCheckIns > 0) {
     subtitleParts.push({ text: `${pendingCheckIns} check-in${pendingCheckIns === 1 ? '' : 's'} waiting` });
   }

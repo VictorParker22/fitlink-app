@@ -18,6 +18,7 @@ import TodaySessions from '../../components/dashboard/home/TodaySessions';
 import BetweenSessions from '../../components/dashboard/home/BetweenSessions';
 import FooterCards from '../../components/dashboard/home/FooterCards';
 import CheckInInboxSection from '../../components/dashboard/home/CheckInInboxSection';
+import CoachRequestLead from '../../components/dashboard/home/CoachRequestLead';
 import PendingCheckInsSync from '../../components/dashboard/home/PendingCheckInsSync';
 import FirstClientCelebration from '../../components/dashboard/home/FirstClientCelebration';
 import { CoachColors } from '../../constants/coachDesign';
@@ -111,6 +112,9 @@ export default function CoachHomeScreen() {
                 onProfile={openProfile}
               />
               <HomeSubtitle pendingCheckIns={pendingCheckIns} />
+
+              {/* ── SOMEONE WANTS TO TRAIN WITH YOU — leads when pending ─── */}
+              <CoachRequestLead />
 
               {/* ── NEXT SESSION + REST OF TODAY ────────────────────────── */}
               <TodaySessions />

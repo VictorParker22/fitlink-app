@@ -139,7 +139,7 @@ ALLOWED_PUSH_PATHS_EXTRA.forEach((p) => ALLOWED_PUSH_PATHS.add(p));
  * `/client/<id>` → app/client/[id].tsx (ClientContext, strength-session,
  * ActiveWorkoutPlayer all push it).
  */
-const ALLOWED_PUSH_PREFIXES = ['/client/'];
+const ALLOWED_PUSH_PREFIXES = ['/client/', '/request/'];
 
 /**
  * Routes that are legitimate in-app destinations but are never sent in a push

@@ -40,7 +40,14 @@ const ICON_MAP: Record<NotifType, string> = {
   workout: 'barbell-outline',
   nutrition: 'nutrition-outline',
   file: 'document-text-outline',
+  coach_request: 'person-add-outline',
+  new_client: 'person-add-outline',
+  pass_purchased: 'card-outline',
+  cohort_over_capacity: 'alert-circle-outline',
 };
+
+/** Only the two parameterised screens a notification may open. */
+const ROW_URL = /^\/(request|client)\/[0-9a-f-]{36}$/;
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -75,7 +82,13 @@ export default function NotificationsScreen() {
   const handlePress = useCallback((item: NotificationData) => {
     if (!item.is_read) markNotificationRead(item.id).catch(() => {});
     const clientId = (item.metadata as any)?.client_id as string | undefined;
-    if (item.type === 'message') {
+    const url = (item.metadata as any)?.url;
+    if (item.type === 'coach_request' && clientId) {
+      // The request screen: intake, note, accept / decline.
+      router.push(`/request/${clientId}` as any);
+    } else if (typeof url === 'string' && ROW_URL.test(url)) {
+      router.push(url as any);
+    } else if (item.type === 'message') {
       // Notifications carry a client id, not a conversation id — the messages
       // list is the reliable landing spot for chat threads.
       router.push('/(tabs)/messages' as any);
@@ -89,7 +102,8 @@ export default function NotificationsScreen() {
     const meta = item.metadata || {};
     const isNew = initialUnreadIds.current.has(item.id);
     const clientId = (meta as any)?.client_id;
-    const tappable = item.type === 'message' || !!clientId;
+    const rowUrl = (meta as any)?.url;
+    const tappable = item.type === 'message' || !!clientId || (typeof rowUrl === 'string' && ROW_URL.test(rowUrl));
 
     return (
       <TouchableOpacity

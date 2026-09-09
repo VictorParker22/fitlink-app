@@ -538,10 +538,10 @@ export default function ClientsScreen() {
       const { data, error } = await supabase.rpc('respond_coach_request', { p_client_id: client.id, p_accept: true });
       if (error || !data?.success) throw new Error(error?.message || data?.reason || 'accept failed');
       // Tell the athlete on their phone — their programme is about to change hands.
-      if (client.expo_push_token) {
+      {
         supabase.functions.invoke('send-push-notification', {
           body: {
-            pushToken: client.expo_push_token,
+            toClientId: client.id,
             title: `${toTitleCase(trainer?.name || 'Your coach').split(' ')[0]} took you on`,
             body: 'Your sessions now come from your coach. Open FitLink to see what changes.',
             data: { type: 'coach_accepted' },

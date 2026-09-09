@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useAppClients } from '../../context/AppContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 
 // ─── Unread Messages Hook ─────────────────────────────────────────────────────
@@ -87,6 +88,8 @@ function CoachTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 14);
   const unreadMessages = useUnreadMessageCount();
+  // Pending coaching requests: the Clients tab carries the count until answered.
+  const pendingRequests = useAppClients().coachRequests.length;
 
   const handlePress = useCallback(
     (routeName: string, routeKey: string) => {
@@ -104,7 +107,9 @@ function CoachTabBar({ state, navigation }: any) {
           if (!route) return null;
           const globalIndex = state.routes.findIndex((r: any) => r.name === tab.name);
           const isFocused = state.index === globalIndex;
-          const badge = tab.name === 'messages' && unreadMessages > 0 ? unreadMessages : 0;
+          const badge = tab.name === 'messages' && unreadMessages > 0
+            ? unreadMessages
+            : tab.name === 'clients' && pendingRequests > 0 ? pendingRequests : 0;
 
           return (
             <Pressable hitSlop={{ top: 9, bottom: 9 }}
