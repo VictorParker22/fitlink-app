@@ -10,6 +10,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 // which fails the web build outright. See ../lib/DateTimePicker.tsx.
 import DateTimePicker from '../lib/DateTimePicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { useApp } from '../context/AppContext';
 import type { TrackNode } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -150,6 +151,12 @@ export default function CreatePassScreen() {
     setCoverUrl(data.publicUrl);
   };
   const [saving, setSaving] = useState(false);
+  // Edit mode: a live season's review (changes + who is inside) and the
+  // outcome of a save, both rendered in-screen so they can never be missed
+  // or wedge a navigation.
+  const [pendingPublish, setPendingPublish] = useState<{ oldTrack: TrackNode[]; newTrack: TrackNode[]; changes: ReturnType<typeof diffTracks>; holders: ReturnType<typeof liveHoldersFor> } | null>(null);
+  const [publishNotify, setPublishNotify] = useState(true);
+  const [outcome, setOutcome] = useState<{ title: string; sub: string } | null>(null);
 
   // ── Step 1 — Basics ──
   const [name, setName] = useState('');
@@ -189,7 +196,11 @@ export default function CreatePassScreen() {
   const [published, setPublished] = useState<{ offersSent: number } | null>(null);
 
   // Content picker (used by step 2 template and step 3 week editor)
-  const [picker, setPicker] = useState<{ dayIndex: number; weekIndex: number | null; kind: 'workout' | 'diet' } | null>(null);
+  // weekIndex: a season week, null = the step-2 template, 'all' = every week
+  // (bulk add on `bulkDay`) — the tedium of editing a season one week at a
+  // time is the reason 'all' exists (2026-09-09).
+  const [picker, setPicker] = useState<{ dayIndex: number; weekIndex: number | null | 'all'; kind: 'workout' | 'diet' } | null>(null);
+  const [bulkDay, setBulkDay] = useState(0);
 
   // ── Edit mode: prefill once from the existing plan ────────────────────────
   // A ref, not mount-only: plans can still be loading on first render, so the
@@ -462,6 +473,16 @@ export default function CreatePassScreen() {
   const handlePickContent = (id: string, itemName: string) => {
     if (!picker) return;
     const { weekIndex, dayIndex, kind } = picker;
+    if (weekIndex === 'all') {
+      // One tap, every training week: the item lands on the chosen weekday of
+      // each non-rest week, replacing that day's item of the same kind.
+      setSeasonWeeks(prev => prev.map(wk => wk.isRest ? wk : ({
+        ...wk,
+        days: wk.days.map((d, j) => (j === bulkDay ? [...d.filter(n => n.kind !== 'rest' && n.kind !== kind), { kind, id, name: itemName }] : d)),
+      })));
+      setPicker(null);
+      return;
+    }
     updateDay(weekIndex, dayIndex, d => [
       ...d.filter(n => n.kind !== 'rest' && n.kind !== kind),
       { kind, id, name: itemName },
@@ -476,7 +497,7 @@ export default function CreatePassScreen() {
   // the way back. We stash the day target, close the sheet, navigate after
   // the dismissal settles, and re-open the sheet when focus returns — the
   // new item is in the list because the library refreshes through AppContext.
-  const pendingPickerRef = useRef<{ dayIndex: number; weekIndex: number | null; kind: 'workout' | 'diet' } | null>(null);
+  const pendingPickerRef = useRef<{ dayIndex: number; weekIndex: number | null | 'all'; kind: 'workout' | 'diet' } | null>(null);
 
   const handleCreateFromPicker = () => {
     if (!picker) return;
@@ -557,6 +578,43 @@ export default function CreatePassScreen() {
     return sent;
   };
 
+  const labelOfNode = (n: TrackNode) =>
+    n.type === 'workout' ? (workouts.find((w: any) => w.id === n.id)?.name ?? 'a workout')
+    : n.type === 'diet' ? (diets.find((d: any) => d.id === n.id)?.name ?? 'a meal plan')
+    : (n.label ?? 'a milestone');
+
+  const confirmPublish = async () => {
+    if (!editingPlan || !pendingPublish || saving) return;
+    const { oldTrack, newTrack, changes, holders } = pendingPublish;
+    const summary = describeChanges(changes, labelOfNode);
+    const planName = name.trim() || editingPlan.name;
+    setSaving(true);
+    try {
+      const result = await publishPlanTrack({
+        planId: editingPlan.id, oldTrack, newTrack, changes, holders, audience: 'everyone', durationWeeks: weeks, summary,
+      });
+      await refreshPlans?.();
+      const ids = holders.map(h => h.enrollment.client_id);
+      let failed = 0;
+      if (publishNotify) {
+        failed = await sendUpdateMessages(user!.id, ids, `I've updated ${planName}: ${summary}. Your current week stays as it is.`);
+        await notifyHoldersOfUpdate(ids, planName, summary);
+      }
+      const parts: string[] = [];
+      parts.push(`${result.moved} of ${result.expected} athlete${result.expected === 1 ? '' : 's'} moved to the new season from where they stand.`);
+      if (publishNotify) parts.push(failed > 0 ? `${failed} did not get the message.` : 'Each of them got your note and a notification.');
+      if (result.versionWarning) parts.push(`Version history was not recorded: ${result.versionWarning}`);
+      setPendingPublish(null);
+      setOutcome({ title: 'Published', sub: parts.join(' ') });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (err: any) {
+      setPendingPublish(null);
+      setOutcome({ title: 'Not published', sub: `The pass was left exactly as it was — nothing changed for anyone. ${err?.message ?? ''}`.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (publish: boolean) => {
     if (!name.trim()) { showAlert({ type: 'warning', title: 'Missing name', message: 'Give the season a name first.' }); return; }
     if (!price || price <= 0) { showAlert({ type: 'warning', title: 'Missing price', message: 'Set a price before saving.' }); return; }
@@ -593,7 +651,10 @@ export default function CreatePassScreen() {
         const newTrack = buildTrack();
         const changes = diffTracks(oldTrack, newTrack, weeks);
         const orderOnly = changes.length === 0 && !isOnLatestTrack(oldTrack, newTrack);
-        if (changes.length === 0 && !orderOnly) { router.back(); return; }
+        if (changes.length === 0 && !orderOnly) {
+          setOutcome({ title: 'Saved', sub: 'Name, price and details updated. The season is unchanged.' });
+          return;
+        }
         const { data: enrollRows } = await supabase
           .from('client_plan_enrollments')
           .select('id, client_id, track_position, status, track_snapshot, started_at, sync_with_plan, updated_at, plan_id, created_at')
@@ -602,51 +663,13 @@ export default function CreatePassScreen() {
         if (holders.length === 0 || orderOnly) {
           // Nobody inside, or a reorder only: save with no ceremony.
           await updatePlanTrack(editingPlan.id, newTrack);
-          router.back();
+          setOutcome({ title: 'Saved', sub: holders.length === 0 ? 'The season is updated. Nobody is inside it yet, so nothing else changes.' : 'Reordered inside the weeks. Nobody inside notices a change.' });
           return;
         }
-        const labelOf = (n: TrackNode) =>
-          n.type === 'workout' ? (workouts.find((w: any) => w.id === n.id)?.name ?? 'a workout')
-          : n.type === 'diet' ? (diets.find((d: any) => d.id === n.id)?.name ?? 'a meal plan')
-          : (n.label ?? 'a milestone');
-        const summary = describeChanges(changes, labelOf);
-        const planName = name.trim() || editingPlan.name;
-        const doPublish = async (notify: boolean) => {
-          setSaving(true);
-          try {
-            const outcome = await publishPlanTrack({
-              planId: editingPlan.id, oldTrack, newTrack, changes, holders, audience: 'everyone', durationWeeks: weeks, summary,
-            });
-            await refreshPlans?.();
-            const ids = holders.map(h => h.enrollment.client_id);
-            let failed = 0;
-            if (notify) {
-              failed = await sendUpdateMessages(user!.id, ids, `I've updated ${planName}: ${summary}. Your current week stays as it is.`);
-              await notifyHoldersOfUpdate(ids, planName, summary);
-            }
-            const problems: string[] = [];
-            if (outcome.moved < outcome.expected) problems.push(`${outcome.moved} of ${outcome.expected} athletes moved to the new season; the others are no longer on this pass.`);
-            if (failed > 0) problems.push(`${failed} athlete${failed === 1 ? '' : 's'} did not get the update message.`);
-            if (outcome.versionWarning) problems.push(`Version history was not recorded: ${outcome.versionWarning}`);
-            if (problems.length > 0) showAlert({ type: 'warning', title: 'Published, with problems', message: problems.join('\n\n') });
-            router.back();
-          } catch (err: any) {
-            showAlert({ type: 'error', title: 'Not published', message: `The pass was left exactly as it was — nothing changed for anyone. ${err?.message ?? ''}` });
-          } finally {
-            setSaving(false);
-          }
-        };
-        setSaving(false);
-        showAlert({
-          type: 'confirm',
-          title: `${changes.length} change${changes.length === 1 ? '' : 's'} to a live season`,
-          message: `${holders.length} ${holders.length === 1 ? 'person is' : 'people are'} mid-season inside ${planName}. Everyone gets the new season from where they stand; nobody's current week changes under them. ${summary}.`,
-          buttons: [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Publish quietly', onPress: () => { doPublish(false); } },
-            { text: 'Publish and tell them', onPress: () => { doPublish(true); } },
-          ],
-        });
+        // Real changes to a live season: the review is a screen, not a dialog
+        // (a native alert over an in-flight navigation is the documented iOS
+        // freeze), and the outcome is shown before leaving.
+        setPendingPublish({ oldTrack, newTrack, changes, holders });
         return;
       }
       const plan = await createPlan(
@@ -963,7 +986,19 @@ export default function CreatePassScreen() {
   const renderStep3 = () => (
     <>
       <WizardHeading kicker={kicker} title={`${seasonWeeks.length} weeks, laid out`} />
-      <Text style={s.subtitle}>Tap a week to change it. Everything below is yours to edit before anyone sees it.</Text>
+      <Text style={s.subtitle}>{isEdit ? 'Your live season, week by week. Drop in anything new, then save to publish it to everyone inside.' : 'Tap a week to change it. Everything below is yours to edit before anyone sees it.'}</Text>
+
+      {/* Season tools — nobody edits sixteen weeks one at a time. */}
+      <Text style={[s.eyebrow, { marginTop: 4 }]}>Whole season</Text>
+      <View style={s.outlineBtnRow}>
+        <View style={{ flex: 1 }}>
+          <GhostSlot label="Workout, every week" icon="barbell-outline" height={48} onPress={() => setPicker({ dayIndex: bulkDay, weekIndex: 'all', kind: 'workout' })} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <GhostSlot label="Meal plan, every week" icon="nutrition-outline" height={48} onPress={() => setPicker({ dayIndex: bulkDay, weekIndex: 'all', kind: 'diet' })} />
+        </View>
+      </View>
+      <Text style={s.helperText}>Adds it to the same day of every training week. Rest weeks are left alone.</Text>
 
       {seasonWeeks.map((wk, i) => {
         const isEditing = editingWeek === i;
@@ -987,6 +1022,19 @@ export default function CreatePassScreen() {
               <View style={s.weekEditor}>
                 {renderDayStrip(wk.days, i)}
                 {renderPalette()}
+                {i < seasonWeeks.length - 1 && (
+                  <View style={{ marginTop: 10 }}>
+                    <GhostSlot
+                      label={`Copy week ${i + 1} to the ${seasonWeeks.length - i - 1} week${seasonWeeks.length - i - 1 === 1 ? '' : 's'} after it`}
+                      icon="copy-outline"
+                      height={44}
+                      onPress={() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                        setSeasonWeeks(prev => prev.map((w2, j) => (j > i ? { ...w2, days: prev[i].days.map(d => [...d]), isRest: false } : w2)));
+                      }}
+                    />
+                  </View>
+                )}
                 <Text style={[s.eyebrow, { marginTop: 12 }]}>Week label · optional</Text>
                 <TextInput
                   style={[s.weekLabelInput, focusedField === `week-${i}` && s.limeFieldActive]}
@@ -1540,16 +1588,102 @@ export default function CreatePassScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      {/* ── Edit mode: review of a live-season change (a screen, not a dialog) ── */}
+      {pendingPublish && editingPlan && (
+        <View style={[s.panelOverlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }]}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+            <Text style={s.panelTitle}>
+              {pendingPublish.changes.length} change{pendingPublish.changes.length === 1 ? '' : 's'} to a live season
+            </Text>
+            <Text style={s.panelSub}>
+              {pendingPublish.holders.length} {pendingPublish.holders.length === 1 ? 'person is' : 'people are'} mid-season inside {name.trim() || editingPlan.name}. Everyone gets the new season from where they stand; nobody's current week changes under them.
+            </Text>
+            <View style={{ gap: 10, marginTop: 18 }}>
+              {pendingPublish.changes.map((c, i) => (
+                <View key={i} style={s.changeRow}>
+                  <Text style={[s.changeSign, { color: c.kind === 'added' ? CoachColors.accent : CoachColors.warning }]}>{c.kind === 'added' ? '+' : '−'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.changeName} numberOfLines={1}>{labelOfNode(c.node)}</Text>
+                    <Text style={s.changeWeek}>Week {c.week}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity style={[s.toggleRow, { marginTop: 22 }]} onPress={() => setPublishNotify(v => !v)} activeOpacity={0.7}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toggleTitle}>Tell them what changed</Text>
+                <Text style={s.toggleSub}>A note in each thread and a notification on their phone.</Text>
+              </View>
+              <View style={[s.switch, publishNotify && s.switchOn]}>
+                <View style={[s.switchKnob, publishNotify && s.switchKnobOn]} />
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
+          <View style={s.footerRow}>
+            <TouchableOpacity style={s.panelBackBtn} onPress={() => setPendingPublish(null)} disabled={saving} activeOpacity={0.8}>
+              <Text style={s.panelBackText}>Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.primaryBtn, { flex: 1 }, saving && { opacity: 0.5 }]} onPress={confirmPublish} disabled={saving} activeOpacity={0.85}>
+              {saving ? <ActivityIndicator size="small" color={CoachColors.onAccent} /> : <Text style={s.primaryBtnText}>{publishNotify ? 'Publish and tell them' : 'Publish quietly'}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── The outcome of a save, said out loud before leaving ── */}
+      {outcome && (
+        <View style={[s.panelOverlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16, justifyContent: 'center' }]}>
+          <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
+            <View style={[s.outcomeMark, outcome.title === 'Not published' && { backgroundColor: CoachColors.warningSoft }]}>
+              <Ionicons name={outcome.title === 'Not published' ? 'alert' : 'checkmark'} size={34} color={outcome.title === 'Not published' ? CoachColors.warning : CoachColors.onAccent} />
+            </View>
+            <Text style={[s.panelTitle, { textAlign: 'center', marginTop: 20 }]}>{outcome.title}</Text>
+            <Text style={[s.panelSub, { textAlign: 'center' }]}>{outcome.sub}</Text>
+          </View>
+          <TouchableOpacity style={[s.primaryBtn, { marginTop: 32 }]} onPress={() => { setOutcome(null); router.back(); }} activeOpacity={0.85}>
+            <Text style={s.primaryBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ── Content picker sheet (workouts / meal plans) ── */}
       <Modal visible={picker !== null} animationType="slide" transparent onRequestClose={() => setPicker(null)}>
         <View style={s.sheetBackdrop}>
           <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHeader}>
-              <Text style={s.sheetTitle}>{picker?.kind === 'diet' ? 'Pick a meal plan' : 'Pick a workout'}</Text>
+              <Text style={s.sheetTitle}>
+                {picker?.weekIndex === 'all'
+                  ? (picker?.kind === 'diet' ? 'A meal plan for every week' : 'A workout for every week')
+                  : (picker?.kind === 'diet' ? 'Pick a meal plan' : 'Pick a workout')}
+              </Text>
               <TouchableOpacity onPress={() => setPicker(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color={CoachColors.textSecondary} />
               </TouchableOpacity>
             </View>
+            {picker?.weekIndex === 'all' && (
+              <View style={{ marginBottom: 10 }}>
+                <Text style={s.helperText}>On which day of each week?</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  {DAY_LETTERS.map((letter, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      onPress={() => setBulkDay(j)}
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Day ${j + 1}`}
+                      accessibilityState={{ selected: bulkDay === j }}
+                      style={{
+                        flex: 1, height: 40, borderRadius: 12, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: bulkDay === j ? CoachColors.accent : CoachColors.surface,
+                        borderWidth: 1, borderColor: bulkDay === j ? CoachColors.accent : CoachColors.borderMuted,
+                      }}
+                    >
+                      <Text style={{ fontFamily: CoachFonts.bodyBold, fontSize: 14, color: bulkDay === j ? CoachColors.onAccent : CoachColors.textSecondary }}>{letter}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 380 }}>
               {(picker?.kind === 'diet' ? diets : workouts).length === 0 ? (
                 <View style={s.sheetEmptyWrap}>
@@ -2001,6 +2135,24 @@ const s = StyleSheet.create({
 
   // Picker sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  panelOverlay: {
+    ...StyleSheet.absoluteFillObject, backgroundColor: CoachColors.bg, paddingHorizontal: 20, zIndex: 20,
+  },
+  panelTitle: { fontFamily: CoachFonts.headingBold, fontSize: 24, lineHeight: 28, color: CoachColors.textPrimary, marginTop: 8 },
+  panelSub: { fontFamily: CoachFonts.body, fontSize: 15, lineHeight: 22, color: CoachColors.textSecondary, marginTop: 10 },
+  changeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CoachColors.surface,
+    borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 12, borderCurve: 'continuous', paddingVertical: 10, paddingHorizontal: 12,
+  },
+  changeSign: { fontFamily: CoachFonts.headingBold, fontSize: 20, width: 20, textAlign: 'center' },
+  changeName: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  changeWeek: { fontFamily: CoachFonts.body, fontSize: 13, color: CoachColors.textMuted, marginTop: 2 },
+  panelBackBtn: {
+    minHeight: 52, paddingHorizontal: 22, borderRadius: 999, borderCurve: 'continuous', borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  panelBackText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 15, color: CoachColors.textPrimary },
+  outcomeMark: { width: 72, height: 72, borderRadius: 36, borderCurve: 'continuous', backgroundColor: CoachColors.accent, alignItems: 'center', justifyContent: 'center' },
   sheet: {
     backgroundColor: CoachColors.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 20, paddingTop: 18,
