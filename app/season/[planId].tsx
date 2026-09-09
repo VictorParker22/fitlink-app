@@ -330,7 +330,9 @@ export default function SeasonEditorScreen() {
       </View>
 
       {/* Details chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.chipsRow} style={{ flexGrow: 0 }}>
+      {/* A horizontal ScrollView inside a flex column gets squeezed to nothing
+          unless its height is fixed (the chips were clipped to a sliver). */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.chipsRow} style={st.chipsBar}>
         <TouchableOpacity style={st.chip} onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)} accessibilityRole="button">
           <Text style={st.chipText}>Details · ${Number(plan.price)}/{plan.period === 'year' ? 'yr' : 'mo'}</Text>
         </TouchableOpacity>
@@ -602,7 +604,8 @@ const st = StyleSheet.create({
   publishIdleText: { fontFamily: F.bodySemiBold, fontSize: 14, color: C.textSecondary },
   publishBadge: { backgroundColor: C.onAccent, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
   publishBadgeText: { fontFamily: F.bodyBold, fontSize: 12, color: C.accent },
-  chipsRow: { paddingHorizontal: 16, paddingTop: 12, gap: 8, flexDirection: 'row' },
+  chipsBar: { flexGrow: 0, flexShrink: 0, height: 50, marginTop: 10 },
+  chipsRow: { paddingHorizontal: 16, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: { borderWidth: 1, borderColor: C.border, borderRadius: 999, borderCurve: 'continuous', paddingVertical: 7, paddingHorizontal: 12 },
   chipText: { fontFamily: F.bodyMedium, fontSize: 12.5, color: C.textPrimary },
   publishedCard: { marginHorizontal: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1A2213', borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 16, borderCurve: 'continuous', padding: 12 },

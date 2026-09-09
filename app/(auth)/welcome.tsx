@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OB, OBFonts, OBRadius } from '../../constants/onboardingDesign';
 import { Motion, Ease } from '../../constants/motion';
-import { Wordmark, AccentDot, PrimaryButton, TextButton } from '../../components/onboarding/Editorial';
+import { Wordmark, AccentDot, PrimaryButton, SecondaryButton, TextButton } from '../../components/onboarding/Editorial';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 
 /** The sample week on the card: Tuesday / Thursday / Saturday, lime. */
@@ -105,9 +105,13 @@ export default function WelcomeScreen() {
         </Animated.Text>
       </ScrollView>
 
+      {/* Two front doors, not one: the athlete promise leads, but a coach
+          arriving here must see their own way in (2026-09-09: "sign in only
+          acknowledges the client, never the coach"). Sign-in is for both. */}
       <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
         <PrimaryButton label="Build my week" onPress={() => router.push('/(auth)/role' as any)} />
-        <TextButton label="I already have a coach" onPress={() => router.push('/(auth)/login' as any)} />
+        <SecondaryButton label="I'm a coach" onPress={() => router.push('/(auth)/coach-intake' as any)} />
+        <TextButton label="I already have an account" onPress={() => router.push('/(auth)/login' as any)} />
         <TextButton label="Have an invite code?" onPress={() => router.push('/invite/enter' as any)} />
       </View>
     </View>

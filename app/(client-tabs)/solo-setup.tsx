@@ -277,7 +277,9 @@ export default function SoloSetupScreen() {
         </View>
       </ScrollView>
 
-      <View style={[s.ctaBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      {/* The athlete tab bar is absolute-positioned over this route (same
+          clearance find-coach uses), or the button sits behind it. */}
+      <View style={[s.ctaBar, { paddingBottom: insets.bottom + 70 }]}>
         <View style={s.footNote}>
           <View style={s.footDot} />
           <Text style={s.footNoteText} maxFontSizeMultiplier={1.3}>
