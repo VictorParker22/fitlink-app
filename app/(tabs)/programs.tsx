@@ -134,9 +134,9 @@ function PassCard({
         <TouchableOpacity hitSlop={{ top: 4, bottom: 4 }}
           style={passStyles.buildTrackBtn}
           activeOpacity={0.8}
-          onPress={() => router.push(`/pass-track-editor?planId=${item.id}` as any)}
+          onPress={() => router.push({ pathname: '/create-plan', params: { editId: item.id } } as any)}
         >
-          <Text style={passStyles.buildTrackBtnText}>Build the track</Text>
+          <Text style={passStyles.buildTrackBtnText}>Build the season</Text>
         </TouchableOpacity>
       )}
 

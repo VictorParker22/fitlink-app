@@ -538,7 +538,7 @@ export default function PassHoldersScreen() {
         )}
         <TouchableOpacity hitSlop={{ top: 1, bottom: 1 }}
           style={st.limeBtn}
-          onPress={() => router.push(`/pass-track-editor?planId=${plan.id}` as any)}
+          onPress={() => router.push({ pathname: '/create-plan', params: { editId: plan.id } } as any)}
           activeOpacity={0.8}
         >
           <Text style={st.limeBtnText}>Edit season</Text>
