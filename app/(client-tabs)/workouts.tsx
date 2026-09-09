@@ -122,9 +122,12 @@ export default function ClientWorkoutsScreen() {
     rescheduleWorkoutToToday,
     refreshData,
     weightUnit,
+    liveWorkout,
+    startLiveWorkout,
+    endLiveWorkout,
   } = useClient();
   const { showAlert } = useAlert();
-  const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string }>();
+  const params = useLocalSearchParams<{ view?: string; startWorkoutId?: string; resume?: string }>();
 
   // View: the programme is home; the Library (the coach's on-demand classes
   // and live schedule) is kept reachable behind one row. The `view` param
@@ -152,6 +155,39 @@ export default function ClientWorkoutsScreen() {
 
   // Trainer's workout library — resolves track node ids into real sessions.
   const [trainerWorkouts, setTrainerWorkouts] = useState<any[]>([]);
+
+  // ── Resume a live session ─────────────────────────────────────────────
+  // The live record (context, persisted) outlives this screen: a wrong tap,
+  // a tab switch, an app relaunch. Whenever it exists and no player is open,
+  // reopen the player on it — from the Home strip (resume=1) or on arrival.
+  // A session that was just finished or abandoned is remembered so the same
+  // record cannot reopen it in the render before the context clears it.
+  const resumedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!liveWorkout || activeWorkout || showSummary) return;
+    if (resumedRef.current === liveWorkout.clientWorkoutId) return;
+    const open = (row: any) => {
+      resumedRef.current = liveWorkout.clientWorkoutId;
+      setShowExplore(false);
+      setActiveWorkout(row);
+      setSessionStarted(true);
+    };
+    const found = (workouts || []).find(
+      (w: any) => w.id === liveWorkout.clientWorkoutId || w.workout_id === liveWorkout.workoutId || w.workouts?.id === liveWorkout.workoutId
+    );
+    if (found) { open(found); return; }
+    let alive = true;
+    supabase
+      .from('workouts')
+      .select('*, workout_exercises(*, exercises(*))')
+      .eq('id', liveWorkout.workoutId)
+      .single()
+      .then(({ data }) => {
+        if (!alive || !data) return;
+        open({ id: liveWorkout.clientWorkoutId, workout_id: data.id, workouts: data, status: 'assigned', source: liveWorkout.source });
+      });
+    return () => { alive = false; };
+  }, [liveWorkout, activeWorkout, showSummary, params?.resume, workouts]);
 
   // Season finish (24a) — the enrollment snapshot at the moment the final
   // node was completed, so the receipt survives the refresh that follows.
@@ -437,6 +473,8 @@ export default function ClientWorkoutsScreen() {
         return;
       }
     }
+    resumedRef.current = activeWorkout.id;
+    endLiveWorkout();
     setActiveWorkout(null);
     setSessionStarted(false);
     setShowSummary(false);
@@ -501,6 +539,8 @@ export default function ClientWorkoutsScreen() {
           activeWorkout={activeWorkout}
           onFinishWorkout={handleFinishWorkout}
           onCancelWorkout={() => {
+            resumedRef.current = activeWorkout.id;
+            endLiveWorkout();
             setActiveWorkout(null);
             setSessionStarted(false);
           }}
@@ -517,7 +557,16 @@ export default function ClientWorkoutsScreen() {
         <StatusBar barStyle="light-content" />
         <WorkoutPreview
           activeWorkout={activeWorkout}
-          onStart={() => setSessionStarted(true)}
+          onStart={() => {
+            setSessionStarted(true);
+            resumedRef.current = activeWorkout.id;
+            startLiveWorkout({
+              clientWorkoutId: activeWorkout.id,
+              workoutId: activeWorkout.workout_id || activeWorkout.workouts?.id || activeWorkout.id,
+              name: activeWorkout.workouts?.name || activeWorkout.name || 'Workout',
+              source: activeWorkout.source === 'track' ? 'track' : undefined,
+            });
+          }}
           onBack={() => setActiveWorkout(null)}
         />
       </SafeAreaView>

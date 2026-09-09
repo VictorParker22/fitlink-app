@@ -41,6 +41,7 @@ import GymCheckInWidget from '../../components/client-tabs/progress/GymCheckInWi
 import HydrationCell from '../../components/client-tabs/home/HydrationCell';
 import HabitTracker from '../../components/client-tabs/home/HabitTracker';
 import CornerCard from '../../components/solo/CornerCard';
+import LiveWorkoutStrip from '../../components/client-tabs/home/LiveWorkoutStrip';
 import { useHealth } from '../../context/HealthContext';
 import { proxyGifStill } from '../../lib/exercisedb';
 import CardImage from '../../components/ui/CardImage';
@@ -127,6 +128,7 @@ export default function AthleteTodayScreen() {
     activeGymVisit,
     checkInGym,
     checkOutGym,
+    liveWorkout,
   } = useClient();
   const { healthData } = useHealth();
 
@@ -613,6 +615,15 @@ export default function AthleteTodayScreen() {
         <WelcomeGuide
           visible={!loading && !enrollment && (!workouts || workouts.length === 0)}
         />
+
+        {/* A session that is still running sits above everything: the clock
+            keeps wall time while the app is away, and one tap goes back. */}
+        {liveWorkout && (
+          <LiveWorkoutStrip
+            live={liveWorkout}
+            onResume={() => router.push({ pathname: ClientRoute.workouts, params: { resume: '1' } })}
+          />
+        )}
 
         {/* ── The instruction ── */}
         <View style={[st.hero, instruction.kind === 'workout' && st.heroActive]}>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type PropsWithChildren } from 'react';
 import { supabase } from '../lib/supabase';
 import { confirmSubscription } from '../lib/subscriptionConfirm';
+import { type LiveWorkout, loadLiveWorkout, saveLiveWorkout, clearLiveWorkout, saveLiveLogs, loadLiveLogs, clearLiveLogs } from '../lib/liveWorkout';
 import { loadSnapshot, saveSnapshot } from '../lib/offlineCache';
 import { useAuth } from './AuthContext';
 import type { SetFeel } from './WorkoutContext';
@@ -141,6 +142,15 @@ interface ClientContextType {
   logExerciseSet: (workoutId: string, exerciseId: string, setIndex: number, weight: number, reps: number, feel?: SetFeel, seconds?: number) => void;
   checkAndUpdatePr: (exerciseId: string, weight: number) => boolean; // returns true if this is a new PR
   clearExerciseLogs: () => void;
+  /**
+   * The session the athlete is in the middle of (lib/liveWorkout.ts): set on
+   * "Start session", cleared on finish or abandon, persisted per athlete so
+   * a relaunch resumes it. Home and Train show the way back while it exists.
+   */
+  liveWorkout: LiveWorkout | null;
+  startLiveWorkout: (lw: Omit<LiveWorkout, 'startedAt'> & { startedAt?: number }) => void;
+  updateLiveWorkout: (patch: Partial<LiveWorkout>) => void;
+  endLiveWorkout: () => void;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
   completeWorkoutWithLog: (clientWorkoutId: string, durationSeconds: number) => Promise<WriteResult>;
   /** Resolves { ok:false, error } when the server rejected the write — never throws. */
@@ -196,6 +206,7 @@ export type ClientTrainingSlice = Pick<ClientContextType,
   | 'workouts' | 'todayWorkout' | 'enrollment' | 'plans'
   | 'exerciseLogs' | 'exercisePrs' | 'completedWorkoutCount'
   | 'logExerciseSet' | 'checkAndUpdatePr' | 'clearExerciseLogs'
+  | 'liveWorkout' | 'startLiveWorkout' | 'updateLiveWorkout' | 'endLiveWorkout'
   | 'completeWorkoutWithLog' | 'markWorkoutComplete' | 'markWorkoutSkipped' | 'rescheduleWorkoutToToday'
   | 'completeTrackWorkout' | 'skipTrackWorkout' | 'advanceEnrollment'
 >;
@@ -246,6 +257,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLogEntry>>({});
+  const [liveWorkout, setLiveWorkout] = useState<LiveWorkout | null>(null);
   const [exercisePrs, setExercisePrs] = useState<Record<string, number>>({});
   /** Session-log rows, narrowed to what the completed-workout count needs. null = not loaded. */
   const [workoutLogRows, setWorkoutLogRows] = useState<
@@ -276,6 +288,7 @@ export function ClientProvider({ children }: PropsWithChildren) {
     setSubscription(null);
     setPaymentHistory([]);
     setExerciseLogs({});
+    setLiveWorkout(null);
     setExercisePrs({});
     setWorkoutLogRows([]);
     setHealthSharingEnabled(false);
@@ -637,6 +650,50 @@ export function ClientProvider({ children }: PropsWithChildren) {
   const clearExerciseLogs = useCallback(() => {
     setExerciseLogs({});
   }, []);
+
+  // ── Live session ───────────────────────────────────────────────────────
+  // Restored per athlete on sign-in (with the set logs it was carrying), so
+  // a phone that died mid-session comes back with the clock still right.
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    let alive = true;
+    (async () => {
+      const lw = await loadLiveWorkout(uid);
+      if (!alive || !lw) return;
+      const logs = await loadLiveLogs<ExerciseLogEntry>(uid);
+      if (!alive) return;
+      if (logs) setExerciseLogs((prev) => ({ ...logs, ...prev }));
+      setLiveWorkout(lw);
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  // The live session's set logs ride along with it.
+  useEffect(() => {
+    if (!user?.id || !liveWorkout) return;
+    saveLiveLogs(user.id, exerciseLogs);
+  }, [exerciseLogs, liveWorkout, user?.id]);
+
+  const startLiveWorkout = useCallback((lw: Omit<LiveWorkout, 'startedAt'> & { startedAt?: number }) => {
+    const record: LiveWorkout = { ...lw, startedAt: lw.startedAt ?? Date.now(), restEndsAt: null };
+    setLiveWorkout(record);
+    if (user?.id) saveLiveWorkout(user.id, record);
+  }, [user?.id]);
+
+  const updateLiveWorkout = useCallback((patch: Partial<LiveWorkout>) => {
+    setLiveWorkout((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      if (user?.id) saveLiveWorkout(user.id, next);
+      return next;
+    });
+  }, [user?.id]);
+
+  const endLiveWorkout = useCallback(() => {
+    setLiveWorkout(null);
+    if (user?.id) { clearLiveWorkout(user.id); clearLiveLogs(user.id); }
+  }, [user?.id]);
 
   // Notify the coach a workout was finished — in-app notifications row (lands
   // live via the coach's existing notifications realtime channel) plus a push
@@ -1248,12 +1305,14 @@ export function ClientProvider({ children }: PropsWithChildren) {
     workouts, todayWorkout, enrollment, plans,
     exerciseLogs, exercisePrs, completedWorkoutCount,
     logExerciseSet, checkAndUpdatePr, clearExerciseLogs,
+    liveWorkout, startLiveWorkout, updateLiveWorkout, endLiveWorkout,
     completeWorkoutWithLog, markWorkoutComplete, markWorkoutSkipped, rescheduleWorkoutToToday,
     completeTrackWorkout, skipTrackWorkout, advanceEnrollment,
   }), [
     workouts, todayWorkout, enrollment, plans,
     exerciseLogs, exercisePrs, completedWorkoutCount,
     logExerciseSet, checkAndUpdatePr, clearExerciseLogs,
+    liveWorkout, startLiveWorkout, updateLiveWorkout, endLiveWorkout,
     completeWorkoutWithLog, markWorkoutComplete, markWorkoutSkipped, rescheduleWorkoutToToday,
     completeTrackWorkout, skipTrackWorkout, advanceEnrollment,
   ]);

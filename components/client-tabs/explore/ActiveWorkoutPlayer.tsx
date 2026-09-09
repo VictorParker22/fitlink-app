@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  AppState,
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Vibration, Platform,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -19,6 +20,8 @@ import MuscleMap from '../../anatomy/MuscleMap';
 import SessionSetRow from '../workout/SessionSetRow';
 import { muscleInfoForExercise, targetsLine, type WorkoutMuscleInfo } from '../season/workoutMuscles';
 import { supabase } from '../../../lib/supabase';
+import * as Notifications from 'expo-notifications';
+import { elapsedSince, remainingUntil } from '../../../lib/liveWorkout';
 import { isKnownVideoHost, isSafeMediaUrl, openExternalUrl } from '../../../lib/safeUrl';
 
 interface SetLog {
@@ -84,7 +87,11 @@ export default function ActiveWorkoutPlayer({
   onFinishWorkout,
   onCancelWorkout,
 }: ActiveWorkoutPlayerProps) {
-  const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer, weightUnit } = useClient();
+  const { logExerciseSet, clearExerciseLogs, checkAndUpdatePr, clientData, trainer, weightUnit, exerciseLogs, liveWorkout, updateLiveWorkout } = useClient();
+  // Read at init time only (a resume rebuilds the rows from what was logged);
+  // a ref keeps every logged set from re-initialising the whole player.
+  const exerciseLogsRef = useRef(exerciseLogs);
+  exerciseLogsRef.current = exerciseLogs;
   const { showAlert } = useAlert();
   // This player renders inside the Train tab, so it sits under BOTH the status
   // bar / Dynamic Island and the floating tab bar. It had no safe-area
@@ -105,10 +112,26 @@ export default function ActiveWorkoutPlayer({
   // had enough of resting NOW", four sets in, and by then the only control was
   // gone. Offering it every time costs one line in a sheet that is already
   // open; hiding it costs the athlete the choice.
+  // Rest is a deadline, not a countdown: the sheet shows the seconds until
+  // `restEndsAtRef`, recomputed on every tick and on every return from the
+  // background, and the same deadline is written to the live record (Home's
+  // strip says "Resting") and to a local notification so a phone in the
+  // pocket still buzzes when the rest is over.
+  const restEndsAtRef = useRef<number | null>(null);
+  const restNotifRef = useRef<string | null>(null);
   const openRestTimer = useCallback((seconds: number) => {
+    const endsAt = Date.now() + Math.max(1, seconds) * 1000;
+    restEndsAtRef.current = endsAt;
     setRestTimeLeft(seconds);
     setShowRestTimer(true);
-  }, []);
+    updateLiveWorkout({ restEndsAt: endsAt });
+    if (Platform.OS !== 'web') {
+      Notifications.scheduleNotificationAsync({
+        content: { title: 'Rest is over', body: 'Next set.', sound: true },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.max(1, seconds), repeats: false } as any,
+      }).then((id) => { restNotifRef.current = id; }).catch(() => {});
+    }
+  }, [updateLiveWorkout]);
 
   // ── The set stopwatch ────────────────────────────────────────────────────
   // One timer for the whole session, held here rather than inside the row:
@@ -145,8 +168,12 @@ export default function ActiveWorkoutPlayer({
       const exercises = activeWorkout.workouts?.workout_exercises || [];
       const states: ExerciseState[] = exercises.map((ex: any) => {
         const muscleInfo = muscleInfoForExercise(ex);
+        const exerciseId: string = ex.exercise_id || ex.exercises?.id || `ex-${Math.random()}`;
+        // Resuming: sets already logged under this session come back logged,
+        // with the weight and reps that were entered.
+        const loggedSet = (i: number) => (activeWorkout?.id ? exerciseLogsRef.current[`${activeWorkout.id}-${exerciseId}-${i}`] : undefined);
         return {
-          exerciseId: ex.exercise_id || ex.exercises?.id || `ex-${Math.random()}`,
+          exerciseId,
           exerciseName: ex.exercises?.name || 'Exercise',
           muscleGroup: ex.exercises?.muscle_group || '',
           targetSets: ex.sets || 3,
@@ -164,11 +191,15 @@ export default function ActiveWorkoutPlayer({
           mediaView:
             ex.video_url || ex.exercises?.image_url ? ('demo' as const) : ('muscles' as const),
           mediaPinned: false,
-          sets: Array.from({ length: ex.sets || 3 }, () => ({
-            weight: '',
-            reps: String(ex.reps || 10),
-            completed: false,
-          })),
+          sets: Array.from({ length: ex.sets || 3 }, (_, i) => {
+            const logged = loggedSet(i);
+            return {
+              weight: logged && logged.weight > 0 ? String(logged.weight) : '',
+              reps: logged && logged.reps > 0 ? String(logged.reps) : String(ex.reps || 10),
+              completed: !!logged?.completed,
+              ...(logged?.seconds ? { seconds: logged.seconds } : {}),
+            };
+          }),
           expanded: false,
         };
       });
@@ -178,13 +209,25 @@ export default function ActiveWorkoutPlayer({
     }
   }, [activeWorkout]);
 
-  // Elapsed timer
+  // Elapsed timer: WALL TIME from the session's start timestamp. A counter
+  // built from ticks stopped whenever the app left the foreground (an hour on
+  // the floor read as 24 minutes, 2026-09-08). The start comes from the live
+  // record when this player is resuming that session, else from now.
+  const startedAtRef = useRef<number>(Date.now());
   useEffect(() => {
-    timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    const resuming = liveWorkout && activeWorkout && liveWorkout.clientWorkoutId === activeWorkout.id;
+    startedAtRef.current = resuming ? liveWorkout.startedAt : Date.now();
+    const tick = () => setElapsedSeconds(elapsedSince(startedAtRef.current));
+    tick();
+    timerRef.current = setInterval(tick, 1000);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') tick(); });
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      sub.remove();
     };
-  }, []);
+  // The start is fixed for the life of a session; only a different session re-arms it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkout?.id, liveWorkout?.clientWorkoutId, liveWorkout?.startedAt]);
 
   // Ticks the visible stopwatch. The VALUE is always derived from the start
   // timestamp, never accumulated from ticks — a JS thread that stalls (or a
@@ -236,32 +279,43 @@ export default function ActiveWorkoutPlayer({
    * up back on the floor with a timer that silently did not start.
    */
   const closeRest = useCallback(() => {
+    restEndsAtRef.current = null;
+    updateLiveWorkout({ restEndsAt: null });
+    if (restNotifRef.current) {
+      Notifications.cancelScheduledNotificationAsync(restNotifRef.current).catch(() => {});
+      restNotifRef.current = null;
+    }
     setShowRestTimer(false);
     const next = pendingAutoRef.current;
     pendingAutoRef.current = null;
     if (next && autoTime) startSetTimer(next.exIdx, next.setIdx);
-  }, [autoTime, startSetTimer]);
+  }, [autoTime, startSetTimer, updateLiveWorkout]);
 
-  // Rest countdown. Declared after closeRest because it depends on it —
-  // referencing it any earlier would hit the temporal dead zone on first render.
+  // Rest countdown, from the deadline. Declared after closeRest because it
+  // depends on it — referencing it any earlier would hit the temporal dead
+  // zone on first render. Backgrounded time counts: coming back after the
+  // deadline closes the sheet at once instead of resuming a stale countdown.
   useEffect(() => {
-    if (showRestTimer && restTimeLeft > 0) {
-      restTimerRef.current = setInterval(() => {
-        setRestTimeLeft((t) => {
-          if (t <= 1) {
-            closeRest();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            if (Platform.OS !== 'web') Vibration.vibrate([0, 300, 150, 300]);
-            return 0;
-          }
-          return t - 1;
-        });
-      }, 1000);
-    }
+    if (!showRestTimer) return;
+    let done = false;
+    const tick = () => {
+      const left = remainingUntil(restEndsAtRef.current);
+      setRestTimeLeft(left);
+      if (left <= 0 && !done) {
+        done = true;
+        closeRest();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') Vibration.vibrate([0, 300, 150, 300]);
+      }
+    };
+    tick();
+    restTimerRef.current = setInterval(tick, 500);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') tick(); });
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
+      sub.remove();
     };
-  }, [showRestTimer, restTimeLeft, closeRest]);
+  }, [showRestTimer, closeRest]);
 
   const setMediaView = useCallback((index: number, view: 'muscles' | 'demo') => {
     Haptics.selectionAsync();
@@ -446,7 +500,7 @@ export default function ActiveWorkoutPlayer({
 
   const handleFinish = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    onFinishWorkout(elapsedSeconds, exerciseStates);
+    onFinishWorkout(elapsedSince(startedAtRef.current), exerciseStates);
   };
 
   const handleConfirmCancel = () => {
