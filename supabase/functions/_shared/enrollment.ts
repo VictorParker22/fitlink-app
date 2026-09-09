@@ -184,6 +184,23 @@ export async function ensurePlanEnrollment(
   )
 }
 
+/**
+ * The season's first diet plan is put on the athlete's Food tab. A track's
+ * diet nodes are never assigned row-by-row; without this the Food tab of a
+ * paying athlete said "No meal plan yet" (2026-09-08). Idempotent: an
+ * existing assignment of that plan is left alone.
+ */
+export async function ensureTrackDiet(admin: Admin, clientId: string, planId: string): Promise<void> {
+  const { data: plan } = await admin.from('plans').select('track').eq('id', planId).maybeSingle()
+  const track = Array.isArray(plan?.track) ? [...plan.track].sort((a: any, b: any) => (a?.order ?? 0) - (b?.order ?? 0)) : []
+  const dietNode = track.find((n: any) => n?.type === 'diet' && typeof n?.id === 'string')
+  if (!dietNode) return
+  const { data: existing } = await admin.from('client_diets').select('id').eq('client_id', clientId).eq('diet_plan_id', dietNode.id).maybeSingle()
+  if (existing) return
+  const { error } = await admin.from('client_diets').insert({ client_id: clientId, diet_plan_id: dietNode.id, assigned_date: new Date().toISOString().slice(0, 10), status: 'assigned' })
+  if (error) console.error('[enrollment] track diet assignment failed', error.message)
+}
+
 export interface SubscriptionRowLike {
   client_id: string
   plan_id: string
@@ -240,5 +257,6 @@ export async function activateStripeSubscription(
 
   await attachClientToPlan(admin, row.client_id, row.plan_id)
   await ensurePlanEnrollment(admin, row.client_id, row.plan_id)
+  await ensureTrackDiet(admin, row.client_id, row.plan_id)
   return { status: live.status, activated: true }
 }

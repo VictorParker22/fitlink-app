@@ -323,6 +323,19 @@ repository secret).
   `alreadyActive` as a success and skips the sheet. Stripe redelivers rejected events for
   three days, and `stripe_events` dedupes them, so the webhook and the confirm path may
   both run; both are idempotent.
+  **A paid pass must be readable (migration 20260908120000).** The tenant sweep scoped
+  `workouts_select` to assigned rows and `diet_plans_select` to `client_diets`, which also
+  hid the season's own track nodes from the athlete who paid ("Loading the session
+  details…" forever, empty Food tab). `my_track_ids(kind)` (SECURITY INVOKER, authenticated
+  only) returns the workout/diet ids named in the caller's active or completed
+  `client_plan_enrollments.track_snapshot` and in the track of the plan they are attached
+  to; both SELECT policies add `id IN (SELECT my_track_ids(...))`, and child tables follow
+  through their parent-scoped EXISTS. `ensureTrackDiet` (in `_shared/enrollment.ts`, called
+  by the webhook and confirm-subscription) assigns the track's first diet node through
+  `client_diets` so the Food tab shows it. Proofs: `supabase/security/pass_content.sql`.
+  **Proof files must use `-- @@ <title>` blocks**: `run_audit.py` splits on that marker and a
+  file with no such blocks prints ALL AS EXPECTED having run nothing (solo_block.sql was
+  written with `-- title:` on 2026-09-08 and "passed" until it was re-marked).
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`

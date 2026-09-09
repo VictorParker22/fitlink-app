@@ -4,21 +4,21 @@
 -- is the stranger. A throwaway coachless plan is created as postgres and
 -- removed at the end.
 
--- title: blocked: athlete sets their own solo_block
+-- @@ blocked: athlete sets their own solo_block
 BEGIN;
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims = '{"sub":"61b74c97-20c6-44aa-947c-72dec7719c89","role":"authenticated"}';
 UPDATE public.clients SET solo_block = '{"week": 4}'::jsonb WHERE auth_user_id = '61b74c97-20c6-44aa-947c-72dec7719c89';
 ROLLBACK;
 
--- title: allowed: athlete still edits their own units
+-- @@ allowed: athlete still edits their own units
 BEGIN;
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims = '{"sub":"61b74c97-20c6-44aa-947c-72dec7719c89","role":"authenticated"}';
 UPDATE public.clients SET weight_unit = 'kg' WHERE auth_user_id = '61b74c97-20c6-44aa-947c-72dec7719c89';
 ROLLBACK;
 
--- title: allowed: service role writes a coachless plan and the athlete reads it
+-- @@ allowed: service role writes a coachless plan and the athlete reads it
 BEGIN;
 INSERT INTO public.diet_plans (id, trainer_id, name, category) VALUES ('11111111-2222-3333-4444-555555555555', NULL, 'proof plan', 'balanced');
 INSERT INTO public.meals (id, name, category, calories, protein, carbs, fat, trainer_id, is_custom) VALUES ('11111111-2222-3333-4444-666666666666', 'proof food', 'Lunch', 100, 10, 10, 1, NULL, true);
@@ -34,7 +34,7 @@ BEGIN
 END $$;
 ROLLBACK;
 
--- title: blocked: a stranger reads the coachless plan
+-- @@ blocked: a stranger reads the coachless plan
 BEGIN;
 INSERT INTO public.diet_plans (id, trainer_id, name, category) VALUES ('11111111-2222-3333-4444-555555555555', NULL, 'proof plan', 'balanced');
 INSERT INTO public.client_diets (client_id, diet_plan_id, assigned_date) VALUES ('7f14c282-d334-4cf3-8112-a264e681f7f5'::uuid, '11111111-2222-3333-4444-555555555555', current_date);
@@ -49,7 +49,7 @@ BEGIN
 END $$;
 ROLLBACK;
 
--- title: blocked: athlete inserts a coachless plan themselves
+-- @@ blocked: athlete inserts a coachless plan themselves
 BEGIN;
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims = '{"sub":"61b74c97-20c6-44aa-947c-72dec7719c89","role":"authenticated"}';

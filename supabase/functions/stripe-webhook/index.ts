@@ -7,7 +7,7 @@ import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3'
 import { getPaymentSplit, applicationFeePercent } from '../_shared/money.ts'
 import { feeDiffers, invoiceFeeCents, shouldRepriceInvoice } from '../_shared/fees.ts'
-import { attachClientToPlan, ensurePlanEnrollment } from '../_shared/enrollment.ts'
+import { attachClientToPlan, ensurePlanEnrollment, ensureTrackDiet } from '../_shared/enrollment.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET')!, {
   httpClient: Stripe.createFetchHttpClient(),
@@ -385,6 +385,7 @@ serve(async (req) => {
             await attachClientToPlan(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
 
             await ensurePlanEnrollment(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
+            await ensureTrackDiet(supabaseAdmin, subRecord.client_id, subRecord.plan_id)
           }
 
           // Also check if this is an On-Demand Pass subscription

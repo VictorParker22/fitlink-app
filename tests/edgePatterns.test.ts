@@ -39,5 +39,7 @@ describe('edge function patterns', () => {
     expect(shared).toMatch(/export async function attachClientToPlan/);
     expect(shared).toMatch(/export async function ensurePlanEnrollment/);
     expect(shared).toMatch(/export async function activateStripeSubscription/);
+    expect(shared).toMatch(/export async function ensureTrackDiet/);
+    expect(webhook).toMatch(/ensureTrackDiet\(/);
   });
 });
