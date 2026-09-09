@@ -29,14 +29,14 @@ const HomeHeader = React.memo(function HomeHeader({
   const weekday = now.toLocaleDateString(undefined, { weekday: 'long' });
   const monthDay = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 
+  /*
+   * Two rows, not one. "Wednesday" at 33.5pt beside four 38pt circles left
+   * the date shrunk and the avatar clipped at the screen edge (2026-09-09:
+   * "crowded and squeezed"). The actions sit on their own line, right-aligned,
+   * and the date gets the full width underneath.
+   */
   return (
     <View style={[styles.header, { paddingTop }]}>
-      <View>
-        {/* Dynamic Type: the date is a tight single line sharing the header
-            row with the icon buttons — shrink to fit rather than wrap. */}
-        <Text style={styles.weekday} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{weekday}</Text>
-        <Text style={styles.monthDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{monthDay}</Text>
-      </View>
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={styles.iconBtn}
@@ -80,6 +80,10 @@ const HomeHeader = React.memo(function HomeHeader({
           <Text style={styles.avatarInitial}>{firstName[0]?.toUpperCase()}</Text>
         </TouchableOpacity>
       </View>
+      <View style={styles.dateBlock}>
+        <Text style={styles.weekday} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityRole="header">{weekday}</Text>
+        <Text style={styles.monthDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{monthDay}</Text>
+      </View>
     </View>
   );
 });
@@ -88,11 +92,10 @@ export default HomeHeader;
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
+    gap: 14,
   },
+  dateBlock: { alignSelf: 'stretch' },
   weekday: {
     fontFamily: CoachFonts.headingBold,
     fontSize: 33.5,
@@ -108,6 +111,7 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 10,
   },
   iconBtn: {
