@@ -59,9 +59,14 @@ export function buildProtectedSnapshot(
 ): TrackNode[] {
   const w = weekOfPosition(position, oldSnap, durationWeeks);
   const oldStarts = weekStartIndices(oldSnap, durationWeeks);
-  const oldSlice = oldSnap.slice(oldStarts[w - 1] ?? 0, oldStarts[w] ?? oldSnap.length);
+  const weekStart = oldStarts[w - 1] ?? 0;
+  const oldSlice = oldSnap.slice(weekStart, oldStarts[w] ?? oldSnap.length);
   const bitten = oldSlice.some((n) => removedKeys.has(nodeKey(n)));
-  if (!bitten) return newTrack.map((n, i) => ({ ...n, order: i }));
+  // A week the athlete has not started (position at its first node) has no
+  // floor to pull out: they simply get the new season. Laurel at position 0
+  // was kept on a stale week 1 by an over-cautious version of this on 2026-09-09.
+  const started = position > weekStart;
+  if (!bitten || !started) return newTrack.map((n, i) => ({ ...n, order: i }));
   const newStarts = weekStartIndices(newTrack, durationWeeks);
   const start = Math.min(newStarts[w - 1] ?? newTrack.length, newTrack.length);
   const end = Math.min(newStarts[w] ?? newTrack.length, newTrack.length);
@@ -70,8 +75,19 @@ export function buildProtectedSnapshot(
 }
 
 export function describeChanges(changes: TrackDiffEntry[], labelOf: (n: TrackNode) => string): string {
-  const added = changes.filter((c) => c.kind === 'added').map((c) => labelOf(c.node));
-  const removed = changes.filter((c) => c.kind === 'removed').map((c) => labelOf(c.node));
+  // The same workout painted onto five days is one thing to say, not five:
+  // "added Lower Body Blast (5 days)". The 05:44 message on 2026-09-09 read
+  // "New day, New day, New day, New day, New day, New day, Full Body…".
+  const grouped = (kind: 'added' | 'removed') => {
+    const counts = new Map<string, number>();
+    changes.filter((c) => c.kind === kind).forEach((c) => {
+      const l = labelOf(c.node);
+      counts.set(l, (counts.get(l) ?? 0) + 1);
+    });
+    return [...counts.entries()].map(([l, n]) => (n > 1 ? `${l} (${n} days)` : l));
+  };
+  const added = grouped('added');
+  const removed = grouped('removed');
   const parts: string[] = [];
   if (added.length > 0) parts.push(`added ${added.join(', ')}`);
   if (removed.length > 0) parts.push(`removed ${removed.join(', ')}`);

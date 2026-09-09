@@ -28,9 +28,9 @@ import type { TrackNode } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { seasonToTrack, trackToSeason, emptyDays, type DayNode, type SeasonWeek } from '../../lib/passSeason';
+import { seasonToTrack, trackToSeason, emptyDays, isWeekMarker, type DayNode, type SeasonWeek } from '../../lib/passSeason';
 import { liveHoldersFor, publishPlanTrack, describeChanges, sendUpdateMessages, notifyHoldersOfUpdate, type LiveHolder } from '../../lib/passPublish';
-import { diffTracks, isOnLatestTrack, type TrackDiffEntry } from '../../lib/passWeeks';
+import { diffTracks, type TrackDiffEntry } from '../../lib/passWeeks';
 import { goBackOr, COACH_HOME } from '../../lib/nav';
 import { useAndroidBack } from '../../hooks/useAndroidBack';
 import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
@@ -78,7 +78,21 @@ export default function SeasonEditorScreen() {
 
   const newTrack = useMemo(() => seasonToTrack(weeks, finalMilestones), [weeks, finalMilestones]);
   const changes: TrackDiffEntry[] = useMemo(() => diffTracks(baseline, newTrack, durationWeeks), [baseline, newTrack, durationWeeks]);
-  const reorderOnly = changes.length === 0 && !isOnLatestTrack(baseline, newTrack) && baseline.length > 0;
+  // Layout-only edits (a day moved, a week reordered) are worth publishing
+  // but must not light up on a pass that was merely opened: a track from
+  // before the editor has no week markers and no weekdays, and reading it
+  // in adds both. Compare only what the baseline already knows about.
+  const layoutChanged = useMemo(() => {
+    if (baseline.length === 0) return false;
+    const withDay = baseline.some((n) => typeof n.day === 'number');
+    const withMarkers = baseline.some(isWeekMarker);
+    const keys = (t: TrackNode[]) => t
+      .filter((n) => withMarkers || !isWeekMarker(n))
+      .map((n) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}:${withDay ? n.day ?? '' : ''}`)
+      .join('|');
+    return keys(baseline) !== keys(newTrack);
+  }, [baseline, newTrack]);
+  const reorderOnly = changes.length === 0 && layoutChanged;
   const dirty = changes.length > 0 || reorderOnly;
 
   // ── Holders ───────────────────────────────────────────────────────────────
@@ -206,7 +220,7 @@ export default function SeasonEditorScreen() {
         await refreshPlans?.();
         setBaseline(newTrack);
         setReviewOpen(false);
-        setPublished({ moved: 0, expected: 0, note: holders.length === 0 ? 'Saved. Nobody is inside yet, so nothing else changes.' : 'Saved. A reorder inside the weeks; nobody inside notices a change.' });
+        setPublished({ moved: 0, expected: 0, note: holders.length === 0 ? 'Saved. Nobody is inside yet, so nothing else changes.' : 'Saved. Layout only; nobody inside gets anything new.' });
       } else {
         const outcome = await publishPlanTrack({ planId: plan.id, oldTrack: baseline, newTrack, changes, holders, audience: 'everyone', durationWeeks, summary });
         await refreshPlans?.();
@@ -530,12 +544,12 @@ export default function SeasonEditorScreen() {
           <Pressable style={{ flex: 1 }} onPress={() => (publishing ? undefined : setReviewOpen(false))} accessibilityLabel="Close" />
           <View style={[st.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={st.grabber} />
-            <Text style={st.sheetTitle}>{reorderOnly ? `Reorder inside ${plan.name}` : `${changes.length} change${changes.length === 1 ? '' : 's'} to ${plan.name}`}</Text>
+            <Text style={st.sheetTitle}>{reorderOnly ? `Layout change to ${plan.name}` : `${changes.length} change${changes.length === 1 ? '' : 's'} to ${plan.name}`}</Text>
             <Text style={st.sheetSub}>
               {holders.length === 0
                 ? 'Nobody is inside yet. This just updates the pass.'
                 : reorderOnly
-                  ? 'Nobody inside notices a reorder within a week.'
+                  ? 'Nothing added or removed. New athletes get this layout; nobody inside is moved.'
                   : `${holders.length} ${holders.length === 1 ? 'person is' : 'people are'} inside. Everyone gets the new season from where they stand; nobody's current week changes under them.`}
             </Text>
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>

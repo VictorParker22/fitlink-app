@@ -88,6 +88,9 @@ export interface TrackNode {
   id?: string; // workout_id, diet_plan_id, or class_id
   label?: string; // for milestones
   order: number;
+  /** 0 = Monday … 6 = Sunday. Layout only (the season editor); the athlete
+   *  experiences the sequence. Absent on tracks published before 2026-09-09. */
+  day?: number;
 }
 
 export interface PlanEnrollment {

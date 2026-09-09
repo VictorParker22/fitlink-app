@@ -101,9 +101,14 @@ export function diffTracks(
   durationWeeks?: number | null,
 ): TrackDiffEntry[] {
   const key = (n: TrackNode) => `${n.type}:${n.id ?? ''}:${n.label ?? ''}`;
+  // "Week N: …" markers are structure, not content: the season editor writes
+  // one per week so boundaries stop drifting, and that must not read as N
+  // additions the coach never made.
+  const isWeekMarker = (n: TrackNode) => n.type === 'milestone' && !!n.label && WEEK_LABEL_RE.test(n.label);
   const count = (list: TrackNode[]) => {
     const m = new Map<string, { node: TrackNode; n: number; firstIndex: number }>();
     list.forEach((node, i) => {
+      if (isWeekMarker(node)) return;
       const k = key(node);
       const e = m.get(k);
       if (e) e.n += 1;

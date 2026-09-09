@@ -309,6 +309,18 @@ repository secret).
   Details (price, cover) and Versions are chips to `/create-plan?editId=` and
   `/pass-versions`; the roadmap stays reachable as a chip. Back is `goBackOr` with a
   leave-without-publishing confirm. `tests/passSeason.test.ts` pins the round trip.
+  **Weeks are marked, days are stored (the first publish, 2026-09-09).** Spring had no
+  "Week N:" markers, so `weekStartIndices` sliced the node count evenly; painting two
+  workouts changed the count, every boundary moved, the diff said "removed Push Day ×4"
+  for edits the coach never made, and the protected-week rule then froze Laurel (position
+  0) on a stale week 1. `seasonToTrack` now writes a `Week N:` marker for EVERY week
+  (empty text allowed) and `day` (0 = Monday) on every content node; `trackToSeason`
+  honours `day` when every node in the week has one and pads to `duration_weeks`;
+  `diffTracks` ignores week markers; `buildProtectedSnapshot` protects only a week the
+  athlete has started (position past its first node); the athlete Home shows a marker as
+  "Week N starts here". A pass published before this reads back by even slicing ONCE and
+  is marked on its next publish (the editor's layout-only detection ignores markers and
+  days the baseline never had).
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and

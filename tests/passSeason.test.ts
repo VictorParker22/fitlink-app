@@ -4,7 +4,7 @@
  * the athlete experiences (diffTracks says "no change"), and rebasing a
  * holder onto a new track must never change their current week.
  */
-import { seasonToTrack, trackToSeason, spreadDays } from '../lib/passSeason';
+import { seasonToTrack, trackToSeason, spreadDays, isWeekMarker } from '../lib/passSeason';
 import { buildProtectedSnapshot, describeChanges, liveHoldersFor } from '../lib/passPublish';
 import { diffTracks } from '../lib/passWeeks';
 import type { TrackNode } from '../context/AppContext';
@@ -55,6 +55,44 @@ describe('trackToSeason', () => {
     expect(weeks[0].days.flat().map((n) => n.id)).toEqual(['a', 'b', 'c']);
     expect(weeks[1].days.flat().map((n) => n.id)).toEqual(['d', 'e', 'f']);
   });
+  it('pads a marked season out to the declared length', () => {
+    const { weeks } = trackToSeason(SPRING, 5);
+    expect(weeks).toHaveLength(5);
+    expect(weeks[4].days.flat()).toEqual([]);
+    expect(weeks[4].isRest).toBe(false);
+  });
+});
+
+describe('week markers keep boundaries put', () => {
+  // The 2026-09-09 bug: Spring had no markers, so weeks were an even slice of
+  // the node count. Painting two workouts changed the count, every boundary
+  // moved, and the diff reported four removals the coach never made.
+  const legacy = ordered([W('p'), D('d'), W('p'), D('d'), W('p'), D('d'), W('p'), D('d')]); // 2 weeks × 4
+  it('writes a marker for every week, labelled or not', () => {
+    const { weeks, finalMilestones } = trackToSeason(legacy, 2);
+    const track = seasonToTrack(weeks, finalMilestones);
+    expect(track.filter(isWeekMarker).map((n) => n.label)).toEqual(['Week 1:', 'Week 2:']);
+    expect(diffTracks(legacy, track, 2)).toEqual([]);
+  });
+  it('an addition lands in the week it was painted on and stays there', () => {
+    const { weeks, finalMilestones } = trackToSeason(legacy, 2);
+    weeks[0].days[2].push({ kind: 'workout', id: 'new' });
+    const published = seasonToTrack(weeks, finalMilestones);
+    expect(diffTracks(legacy, published, 2)).toEqual([
+      { kind: 'added', node: expect.objectContaining({ id: 'new' }), week: 1 },
+    ]);
+    // Reading it back: week 1 has the new workout on Wednesday, week 2 is untouched.
+    const again = trackToSeason(published, 2);
+    expect(again.weeks[0].days[2].map((n) => n.id)).toEqual(['new']);
+    expect(again.weeks[1].days.flat().map((n) => n.id)).toEqual(['p', 'd', 'p', 'd']);
+    expect(diffTracks(published, seasonToTrack(again.weeks, again.finalMilestones), 2)).toEqual([]);
+  });
+  it('remembers the weekday each node was painted on', () => {
+    const { weeks, finalMilestones } = trackToSeason(legacy, 2);
+    weeks[1].days[5].push({ kind: 'workout', id: 'sat' });
+    const again = trackToSeason(seasonToTrack(weeks, finalMilestones), 2);
+    expect(again.weeks[1].days[5].map((n) => n.id)).toEqual(['sat']);
+  });
 });
 
 describe('round trip', () => {
@@ -94,6 +132,11 @@ describe('buildProtectedSnapshot', () => {
   it('is the new track when nothing in the current week was removed', () => {
     const added = ordered([...SPRING, W('z')]);
     expect(buildProtectedSnapshot(SPRING, added, 2, new Set(), 3)).toEqual(added);
+  });
+  it('is the new track for a holder who has not started the week', () => {
+    // Position 0 = week 1's first node; nothing done yet, nothing to protect.
+    const removedC = SPRING.filter((n) => n.id !== 'c').map((n, i) => ({ ...n, order: i }));
+    expect(buildProtectedSnapshot(SPRING, removedC, 0, new Set(['workout:c:']), 3)).toEqual(removedC);
   });
 });
 

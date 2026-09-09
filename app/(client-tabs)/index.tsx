@@ -363,6 +363,20 @@ export default function AthleteTodayScreen() {
       };
     }
     if (trackNode?.type === 'milestone') {
+      // "Week N: …" opens a week (the season editor writes one per week);
+      // anything else is a marker the coach placed on purpose.
+      const week = /^Week (\d+):\s*(.*)$/.exec((trackNode.node as any)?.label ?? '');
+      if (week) {
+        const text = week[2].trim();
+        return {
+          kind: 'milestone' as const,
+          eyebrow: `Today · step ${trackNode.pos + 1} of ${trackNode.total}`,
+          title: text && !/^rest week$/i.test(text) ? `Week ${week[1]}: ${text}` : `Week ${week[1]} starts here`,
+          sub: /^rest week$/i.test(text)
+            ? `${coachFirst} made this a rest week. Nothing to lift — recover, and the next week starts from here.`
+            : `A new week of ${coachFirst}'s plan. Nothing to lift today — your first session of the week is next.`,
+        };
+      }
       return {
         kind: 'milestone' as const,
         eyebrow: `Today · step ${trackNode.pos + 1} of ${trackNode.total}`,
