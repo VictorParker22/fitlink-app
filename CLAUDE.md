@@ -180,7 +180,10 @@ repository secret).
   `pg_policies` and dry-run inside a rolled-back transaction with role simulation
   (`set local role authenticated; set local request.jwt.claims ...`).
 - Secrets (set with `npx supabase secrets set`): `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`,
-  `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RC_WEBHOOK_SECRET`, `SENTRY_DSN`, Mux keys, FCM.
+  `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RC_WEBHOOK_SECRET`, `SENTRY_DSN`, Mux keys, FCM,
+  `NOTIFY_HOOK_SECRET` (2026-09-09: the value the notifications trigger presents to
+  `send-push-notification`; the same value sits in Vault as `notify_hook_secret`, next to
+  `supabase_anon_key` and `mux_signing_key`, all written with `store_platform_secret`).
   `STRIPE_CONNECT_WEBHOOK_SECRET` is not set (stripe-webhook accepts two secrets).
   **Stripe is LIVE on the server since 2026-09-07** (`STRIPE_SECRET` = sk_live, `STRIPE_WEBHOOK_SECRET`
   = the live "Stripe-Payments" destination, 7 events incl. account.updated); the app's
@@ -249,6 +252,26 @@ repository secret).
   `cancel_coach_request` withdraws. Declines stamp `coach_declined_at/by`; the athlete home
   shows pending / accepted / declined strips for a week each. Solo athletes are not pitched a
   coach in their first week.
+- **A request ARRIVES (2026-09-09, canvas "Coach Request Arrival").** It was a quiet row two
+  tabs away with no push. Now: `request_coach` writes the notification with
+  `metadata.client_id`, `metadata.url = /request/<client_id>` and the intake summary; the
+  `trg_notify_push` trigger (`notify_push_on_notification`, pg_net) POSTs every notification
+  row except `message` to `send-push-notification` with the anon key as bearer and the Vault
+  hook secret in `x-notify-hook`; the coach's phone gets "<name> wants to train with you". Coach
+  Home leads with `CoachRequestLead` (above Next session), the subtitle counts requests, the
+  Clients tab carries a badge, `app/notifications.tsx` opens `coach_request` rows, and every
+  path lands on `app/request/[clientId].tsx` (intake, note, accept/decline, the roster
+  moment). Accept/decline logic lives ONCE in `lib/coachRequests.ts`. `/request/` is on the
+  push deep-link prefix allowlist in `app/_layout.tsx`. Proofs:
+  `supabase/security/coach_request.sql`; a real bridge check is one INSERT into
+  `notifications` for the test coach and `select status_code from net._http_response`.
+- **Push delivery (2026-09-09).** Most pushes were answered 403: `send-push-notification`
+  resolved the recipient by matching the token with `maybeSingle()`, which returns nothing
+  when two accounts on one phone share a token, and it refused an athlete who had only
+  REQUESTED a coach. Now named recipients (`toTrainerId` / `toClientId`) resolve by id, a
+  bare token matches with `limit(1)`, a requesting athlete may push the coach they asked and
+  that coach may push them back, and Expo ticket errors (`DeviceNotRegistered`, credentials)
+  are logged as `[push]`. Prefer `toClientId`/`toTrainerId` in every new call site.
 - **Solo mode.** Coachless athletes own a `clients` row with `trainer_id NULL`, `status 'solo'`
   (`ensure_solo_client()`). `onboarding_path` in auth metadata decides whether Home leads with
   the corner or with Find your coach. Premium is `clients.premium_until`, written only by the
@@ -336,6 +359,14 @@ repository secret).
   **Proof files must use `-- @@ <title>` blocks**: `run_audit.py` splits on that marker and a
   file with no such blocks prints ALL AS EXPECTED having run nothing (solo_block.sql was
   written with `-- title:` on 2026-09-08 and "passed" until it was re-marked).
+- **The session clock is wall time (2026-09-08).** At the gym the workout and rest timers
+  counted ticks and lost every backgrounded minute. `lib/liveWorkout.ts`: elapsed is
+  `elapsedSince(startedAt)`, rest is `remainingUntil(restEndsAt)` with a local notification
+  at the deadline, both resynced on `AppState` active; the live session is a persisted record
+  (`ClientContext.liveWorkout`, `startLiveWorkout/updateLiveWorkout/endLiveWorkout`, set logs
+  saved beside it) that Home shows as `LiveWorkoutStrip` with Resume, and the Train tab
+  reopens the player on it (`resume=1` or on arrival) with logged sets restored. Never add a
+  timer that accumulates ticks.
 - **Motion and haptics** come from `constants/motion.ts` (120/200/320/600 ms, two easings, one
   gesture spring, `HapticMoment`). No haptic on tab press, scroll, expand, collapse or refresh.
   Every animation checks `useReducedMotion()`. Celebrations use `components/CelebrationOverlay.tsx`
