@@ -98,6 +98,51 @@ interface HealthContextType {
 
 const HEALTH_INIT_TIMEOUT_MS = 30_000;
 
+const IOS_READ_PERMISSION_KEYS = [
+  'StepCount', 'HeartRate', 'RestingHeartRate', 'ActiveEnergyBurned', 'BasalEnergyBurned',
+  'OxygenSaturation', 'BloodPressureSystolic', 'BloodPressureDiastolic', 'Weight',
+] as const;
+
+/**
+ * One place that asks HealthKit for read access, with everything a diagnosis
+ * needs: how many types were requested, how long the answer took (a person
+ * needs seconds to answer Apple's sheet; an instant answer means no sheet was
+ * shown), Apple's error text, and the authorization statuses reported after.
+ */
+async function requestIOSAuthorization(AppleHealthKit: any): Promise<{ ok: boolean; err?: unknown; sheetMs: number; readTypes: number; authStatus: string | null }> {
+  const Permissions = AppleHealthKit.Constants?.Permissions ?? {};
+  const read = IOS_READ_PERMISSION_KEYS.map((k) => Permissions[k] ?? k).filter(Boolean);
+  const permissions = { permissions: { read, write: [] as string[] } };
+  const askedAt = Date.now();
+  const result = await new Promise<{ ok: boolean; err?: unknown }>((resolve) => {
+    const timer = setTimeout(() => resolve({ ok: false, err: 'Apple Health did not answer within 30 seconds' }), HEALTH_INIT_TIMEOUT_MS);
+    try {
+      AppleHealthKit.initHealthKit(permissions, (err: any, ok?: any) => {
+        clearTimeout(timer);
+        if (err) resolve({ ok: false, err });
+        else resolve({ ok: ok !== false });
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      resolve({ ok: false, err: e });
+    }
+  });
+  const sheetMs = Date.now() - askedAt;
+  let authStatus: string | null = null;
+  if (typeof AppleHealthKit.getAuthStatus === 'function') {
+    authStatus = await new Promise<string | null>((resolve) => {
+      const t = setTimeout(() => resolve('timeout'), 5000);
+      try {
+        AppleHealthKit.getAuthStatus(permissions, (err: any, res: any) => {
+          clearTimeout(t);
+          resolve(err ? `err:${errText(err)}` : JSON.stringify(res?.permissions ?? res).slice(0, 200));
+        });
+      } catch (e) { clearTimeout(t); resolve(`threw:${errText(e)}`); }
+    });
+  }
+  return { ...result, sheetMs, readTypes: read.length, authStatus };
+}
+
 function healthBreadcrumb(message: string, data?: Record<string, string | number | boolean | null | undefined>) {
   Sentry.addBreadcrumb({ category: 'health', message, level: 'info', data });
 }
@@ -126,7 +171,7 @@ async function logDiagnostic(clientId: string | undefined, row: {
       available: row.available ?? null,
       detail: row.detail ? row.detail.slice(0, 1000) : null,
       counts: row.counts ?? null,
-      app_version: `${Constants.expoConfig?.version ?? '?'}/${Updates.updateId?.slice(0, 8) ?? 'embedded'}`,
+      app_version: `${Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? '?'}(${Constants.nativeBuildVersion ?? '?'})/${Updates.updateId?.slice(0, 8) ?? 'embedded'}`,
     });
   } catch {
     /* diagnostics never break the feature */
@@ -518,50 +563,20 @@ export function HealthProvider({ children }: PropsWithChildren) {
       return false;
     }
 
-    const permissions = {
-      permissions: {
-        read: [
-          Permissions.StepCount,
-          Permissions.HeartRate,
-          Permissions.RestingHeartRate,
-          Permissions.ActiveEnergyBurned,
-          Permissions.BasalEnergyBurned,
-          Permissions.OxygenSaturation,
-          Permissions.BloodPressureSystolic,
-          Permissions.BloodPressureDiastolic,
-          Permissions.Weight,
-        ].filter(Boolean),
-        write: [],
-      },
-    };
-
-    healthBreadcrumb('healthkit init requested', { readTypes: permissions.permissions.read.length });
+    healthBreadcrumb('healthkit init requested', { readTypes: IOS_READ_PERMISSION_KEYS.length });
     noteAttempt('Asking Apple Health for access…');
-    const askedAt = Date.now();
-    diag({ event: 'connect_requested', module: true, counts: { readTypes: permissions.permissions.read.length } });
+    diag({ event: 'connect_requested', module: true, counts: { readTypes: IOS_READ_PERMISSION_KEYS.length } });
 
     // The permission sheet is Apple's; all we can do is wait for the callback.
     // If it never comes (interop failure, sheet swallowed) the athlete gets a
     // sentence instead of a spinner that stops for no reason.
-    const initialised = await new Promise<{ ok: boolean; err?: unknown }>((resolve) => {
-      const timer = setTimeout(() => resolve({ ok: false, err: 'Apple Health did not answer within 30 seconds' }), HEALTH_INIT_TIMEOUT_MS);
-      try {
-        AppleHealthKit.initHealthKit(permissions, (err: any, ok?: any) => {
-          clearTimeout(timer);
-          if (err) resolve({ ok: false, err });
-          else resolve({ ok: ok !== false });
-        });
-      } catch (e) {
-        clearTimeout(timer);
-        resolve({ ok: false, err: e });
-      }
-    });
+    const initialised = await requestIOSAuthorization(AppleHealthKit);
 
     if (!initialised.ok) {
       const detail = errText(initialised.err);
       noteAttempt(`Apple Health refused: ${detail}`);
       reportHealth('healthkit init failed', { module: true, detail }, initialised.err instanceof Error ? initialised.err : undefined);
-      diag({ event: 'connect_failed', module: true, detail, counts: { ms: Date.now() - askedAt } });
+      diag({ event: 'connect_failed', module: true, detail: `${detail} · auth=${initialised.authStatus}`, counts: { ms: initialised.sheetMs, readTypes: initialised.readTypes } });
       showAlert({
         type: 'error',
         title: 'Apple Health did not connect',
@@ -579,13 +594,13 @@ export function HealthProvider({ children }: PropsWithChildren) {
     healthBreadcrumb('healthkit init ok');
     // The sheet takes a person seconds to answer; an instant callback means
     // iOS did not show one (access was decided earlier — Settings → Health).
-    const sheetMs = Date.now() - askedAt;
+    const sheetMs = initialised.sheetMs;
     try {
       const snapshot = await readIOSMetrics();
       const found = snapshot ? countMetrics(snapshot) : 0;
       noteAttempt(found > 0 ? `Apple Health connected · ${found} metric${found === 1 ? '' : 's'} found` : 'Apple Health connected · no data in Apple Health yet (or read access was not allowed)');
       healthBreadcrumb('healthkit first read', { metrics: found });
-      diag({ event: 'connect_ok', module: true, available: true, counts: { sheetMs, metrics: found, hasSteps: (snapshot?.stepsToday ?? 0) > 0 ? 1 : 0 } });
+      diag({ event: 'connect_ok', module: true, available: true, detail: `auth=${initialised.authStatus}`, counts: { sheetMs, readTypes: initialised.readTypes, metrics: found, hasSteps: (snapshot?.stepsToday ?? 0) > 0 ? 1 : 0 } });
     } catch (e) {
       noteAttempt(`Connected, but the first read failed: ${errText(e)}`);
       reportHealth('healthkit first read failed', { module: true }, e);
@@ -855,6 +870,30 @@ export function HealthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (isConnected && healthData && !healthHistory) refreshHistory();
   }, [isConnected, healthData, healthHistory, refreshHistory]);
+
+  // Connected on paper, empty in practice (every account on 2026-09-15): ask
+  // HealthKit again, once per launch. If access was never really requested,
+  // Apple's sheet appears now; if it was, this is silent. Either way the
+  // attempt is recorded (`reauth`) with how long the answer took.
+  const reauthedRef = useRef(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !isConnected || !healthData || !healthHistory || reauthedRef.current) return;
+    if (countMetrics(healthData) > 0 || healthHistory.workouts.length > 0 || Object.keys(healthHistory.dailySteps).length > 0) return;
+    reauthedRef.current = true;
+    const AppleHealthKit = loadAppleHealth();
+    if (!AppleHealthKit) return;
+    (async () => {
+      const r = await requestIOSAuthorization(AppleHealthKit);
+      diag({ event: r.ok ? 'reauth_ok' : 'reauth_failed', module: true, available: true, detail: `${r.ok ? '' : errText(r.err) + ' · '}auth=${r.authStatus}`, counts: { sheetMs: r.sheetMs, readTypes: r.readTypes } });
+      healthBreadcrumb('healthkit reauth', { ok: r.ok, sheetMs: r.sheetMs });
+      if (r.ok) {
+        const s = await readIOSMetrics();
+        diag({ event: 'reauth_read', module: true, available: true, counts: { metrics: s ? countMetrics(s) : 0 } });
+        if (s && countMetrics(s) > 0) noteAttempt(`Apple Health connected · ${countMetrics(s)} metrics found`);
+        await refreshHistory();
+      }
+    })();
+  }, [isConnected, healthData, healthHistory, readIOSMetrics, refreshHistory, diag, noteAttempt]);
 
   const disconnectHealth = useCallback(async () => {
     await SecureStore.deleteItemAsync('health_connected');
