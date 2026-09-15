@@ -911,6 +911,29 @@ export function HealthProvider({ children }: PropsWithChildren) {
     if (isConnected && healthData && !healthHistory) refreshHistory();
   }, [isConnected, healthData, healthHistory, refreshHistory]);
 
+  // The read set grew (sleep, resting HR history on 2026-09-16). iOS only
+  // shows the sheet for types it has not been asked about, so an already
+  // connected athlete is asked once more, once, when the set changes.
+  const PERMISSION_SET_VERSION = '2026-09-16-sleep';
+  const permAskedRef = useRef(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !isConnected || permAskedRef.current) return;
+    permAskedRef.current = true;
+    (async () => {
+      try {
+        const seen = await SecureStore.getItemAsync('health_perm_version');
+        if (seen === PERMISSION_SET_VERSION) return;
+        const AppleHealthKit = loadAppleHealth();
+        if (!AppleHealthKit) return;
+        const r = await requestIOSAuthorization(AppleHealthKit);
+        diag({ event: r.ok ? 'permset_ok' : 'permset_failed', module: true, available: true, detail: `${PERMISSION_SET_VERSION} · auth=${r.authStatus}`, counts: { sheetMs: r.sheetMs, readTypes: r.readTypes } });
+        if (r.ok) { await SecureStore.setItemAsync('health_perm_version', PERMISSION_SET_VERSION); await refreshHistory(); }
+      } catch (e) {
+        reportHealth('permission set re-request failed', { module: true }, e);
+      }
+    })();
+  }, [isConnected, diag, refreshHistory]);
+
   // Connected on paper, empty in practice (every account on 2026-09-15): ask
   // HealthKit again, once per launch. If access was never really requested,
   // Apple's sheet appears now; if it was, this is silent. Either way the
