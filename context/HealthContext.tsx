@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type PropsWithChildren } from 'react';
 import { Platform, AppState, NativeModules } from 'react-native';
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 // Platform-aware wrapper: expo-secure-store has NO web implementation and
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
@@ -104,6 +106,32 @@ function reportHealth(message: string, data: Record<string, string | number | bo
   else Sentry.captureMessage(message, { level: 'warning', tags: { flow: 'health' }, extra: { ...data, detail: err == null ? undefined : String((err as any)?.message ?? err) } });
 }
 const errText = (e: unknown) => (e instanceof Error ? e.message : typeof e === 'string' ? e : (e as any)?.message ? String((e as any).message) : JSON.stringify(e ?? null));
+
+/**
+ * One technical row per step, so a "Connect does nothing" report can be read
+ * from the database instead of a screenshot (table client_health_diagnostics,
+ * migration 20260915020000). Counts only, never health values. Best effort:
+ * a missing table or a rate limit is ignored.
+ */
+async function logDiagnostic(clientId: string | undefined, row: {
+  event: string; module?: boolean | null; available?: boolean | null; detail?: string | null; counts?: Record<string, number> | null;
+}) {
+  if (!clientId) return;
+  try {
+    await supabase.from('client_health_diagnostics').insert({
+      client_id: clientId,
+      platform: Platform.OS,
+      event: row.event.slice(0, 40),
+      module: row.module ?? null,
+      available: row.available ?? null,
+      detail: row.detail ? row.detail.slice(0, 1000) : null,
+      counts: row.counts ?? null,
+      app_version: `${Constants.expoConfig?.version ?? '?'}/${Updates.updateId?.slice(0, 8) ?? 'embedded'}`,
+    });
+  } catch {
+    /* diagnostics never break the feature */
+  }
+}
 
 const DEFAULT_SNAPSHOT: HealthSnapshot = {
   stepsToday: 0,
@@ -234,6 +262,10 @@ export function HealthProvider({ children }: PropsWithChildren) {
   const [diagnostic, setDiagnostic] = useState<HealthDiagnostic>({ module: false, available: null, lastAttempt: null });
   const appState = useRef(AppState.currentState);
   const noteAttempt = useCallback((lastAttempt: string) => setDiagnostic((d) => ({ ...d, lastAttempt })), []);
+  // The connect/read callbacks are created once; the client id is read live.
+  const clientIdRef = useRef<string | undefined>(undefined);
+  clientIdRef.current = clientData?.id;
+  const diag = useCallback((row: Parameters<typeof logDiagnostic>[1]) => { logDiagnostic(clientIdRef.current, row); }, []);
 
   // Check availability on mount
   useEffect(() => {
@@ -260,6 +292,9 @@ export function HealthProvider({ children }: PropsWithChildren) {
               setIsHealthAvailable(false);
               healthBreadcrumb('healthkit unavailable', { err: err ? errText(err) : null });
             }
+            // The client row may not be loaded yet at mount; the probe is
+            // repeated from the first connect/read where it matters.
+            setTimeout(() => diag({ event: 'probe', module: true, available: yes, detail: err ? errText(err) : null }), 3000);
           });
         } catch (e) {
           setDiagnostic((d) => ({ ...d, available: false, lastAttempt: `isAvailable threw: ${errText(e)}` }));
@@ -267,6 +302,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
         }
       }
       healthBreadcrumb('health module probe', { module: !!mod });
+      if (!mod) setTimeout(() => diag({ event: 'probe', module: false, available: null }), 3000);
     }
 
     // Check if previously connected
@@ -326,6 +362,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
     const grantedCount = Array.isArray(permissions) ? permissions.length : 0;
     healthBreadcrumb('health connect permissions', { granted: grantedCount });
+    diag({ event: grantedCount > 0 ? 'connect_ok' : 'connect_denied', module: true, available: true, counts: { granted: grantedCount } });
     if (grantedCount === 0) {
       noteAttempt('Health Connect: no permissions granted');
       showAlert({ type: 'warning', title: 'No access granted', message: 'Health Connect did not grant FitLink any data. Open Health Connect → App permissions → FitLink to allow it, then connect again.' });
@@ -462,6 +499,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
       // Production copy. This used to print "run npx expo run:ios" to athletes.
       noteAttempt('Apple Health module is not in this build');
       reportHealth('apple health module missing', { module: false });
+      diag({ event: 'module_missing', module: false });
       showAlert({
         type: 'warning',
         title: 'Apple Health unavailable',
@@ -499,6 +537,8 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
     healthBreadcrumb('healthkit init requested', { readTypes: permissions.permissions.read.length });
     noteAttempt('Asking Apple Health for access…');
+    const askedAt = Date.now();
+    diag({ event: 'connect_requested', module: true, counts: { readTypes: permissions.permissions.read.length } });
 
     // The permission sheet is Apple's; all we can do is wait for the callback.
     // If it never comes (interop failure, sheet swallowed) the athlete gets a
@@ -521,6 +561,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
       const detail = errText(initialised.err);
       noteAttempt(`Apple Health refused: ${detail}`);
       reportHealth('healthkit init failed', { module: true, detail }, initialised.err instanceof Error ? initialised.err : undefined);
+      diag({ event: 'connect_failed', module: true, detail, counts: { ms: Date.now() - askedAt } });
       showAlert({
         type: 'error',
         title: 'Apple Health did not connect',
@@ -536,14 +577,19 @@ export function HealthProvider({ children }: PropsWithChildren) {
     await SecureStore.setItemAsync('health_connected', 'true');
     setIsConnected(true);
     healthBreadcrumb('healthkit init ok');
+    // The sheet takes a person seconds to answer; an instant callback means
+    // iOS did not show one (access was decided earlier — Settings → Health).
+    const sheetMs = Date.now() - askedAt;
     try {
       const snapshot = await readIOSMetrics();
       const found = snapshot ? countMetrics(snapshot) : 0;
       noteAttempt(found > 0 ? `Apple Health connected · ${found} metric${found === 1 ? '' : 's'} found` : 'Apple Health connected · no data in Apple Health yet (or read access was not allowed)');
       healthBreadcrumb('healthkit first read', { metrics: found });
+      diag({ event: 'connect_ok', module: true, available: true, counts: { sheetMs, metrics: found, hasSteps: (snapshot?.stepsToday ?? 0) > 0 ? 1 : 0 } });
     } catch (e) {
       noteAttempt(`Connected, but the first read failed: ${errText(e)}`);
       reportHealth('healthkit first read failed', { module: true }, e);
+      diag({ event: 'first_read_failed', module: true, detail: errText(e), counts: { sheetMs } });
     }
     return true;
   }, [noteAttempt, showAlert]);
@@ -605,12 +651,15 @@ export function HealthProvider({ children }: PropsWithChildren) {
       }
     }
 
-    // Resting heart rate
+    // Resting heart rate: the library answers ONE value, not a list (the
+    // old Array.isArray check silently dropped every reading).
     const rhrResult = await readPromise('getRestingHeartRate', {
       startDate: getStartOfDay(7).toISOString(), endDate: now.toISOString(),
     });
     if (Array.isArray(rhrResult) && rhrResult.length > 0) {
       snapshot.restingHeartRate = rhrResult[rhrResult.length - 1]?.value || null;
+    } else if (rhrResult && typeof rhrResult.value === 'number' && rhrResult.value > 0) {
+      snapshot.restingHeartRate = Math.round(rhrResult.value);
     }
 
     // SpO2
@@ -753,7 +802,9 @@ export function HealthProvider({ children }: PropsWithChildren) {
       const h = Platform.OS === 'ios' ? await readIOSHistory() : Platform.OS === 'android' ? await readAndroidHistory() : null;
       if (h) {
         setHealthHistory(h);
-        healthBreadcrumb('health history read', { days: Object.keys(h.dailySteps).length, workouts: h.workouts.length, weights: h.weights.length });
+        const counts = { days: Object.keys(h.dailySteps).length, workouts: h.workouts.length, weights: h.weights.length };
+        healthBreadcrumb('health history read', counts);
+        diag({ event: 'history', module: true, available: true, counts });
       }
     } catch (e) {
       reportHealth('health history read failed', { platform: Platform.OS }, e);
@@ -791,13 +842,14 @@ export function HealthProvider({ children }: PropsWithChildren) {
       if (Platform.OS === 'android') {
         await readAndroidMetrics();
       } else if (Platform.OS === 'ios') {
-        await readIOSMetrics();
+        const s = await readIOSMetrics();
+        diag({ event: 'read', module: true, available: true, counts: { metrics: s ? countMetrics(s) : 0 } });
       }
       await refreshHistory();
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, readAndroidMetrics, readIOSMetrics, refreshHistory]);
+  }, [isConnected, readAndroidMetrics, readIOSMetrics, refreshHistory, diag]);
 
   // A fresh connection reads history right after the first metrics read.
   useEffect(() => {

@@ -83,6 +83,7 @@ row). The only privileged principals are the Supabase service role, postgres-own
 |------|-------|--------------|----------|
 | Identity and contact (name, email, phone, DOB, avatar) | `clients`, `trainers`, `auth.users` | Self, own coach, org admins of that coach; `trainers_public` exposes only safe coach fields to everyone | B1, B14 |
 | Intake and health (goals, injuries/limitations, weight, Apple Health snapshots) | `clients.assessment_data`, `client_health_snapshots`, `client_checkins`, `client_progress` | Self; coach only when the athlete enabled sharing (`health_sharing_enabled`) | B1 |
+| Health integration diagnostics (platform, event, counts; NO health values) | `client_health_diagnostics` (migration 20260915020000) | Self only: insert + select own rows, append-only, 120/h `rate_limit_writes`; proofs `supabase/security/health_diagnostics.sql` | B1 |
 | Body photos | `progress-photos` (private bucket), `progress_photos` | Owner + coach | B12 |
 | Meal photos, chat attachments | `diet-images` (public bucket, no listing), `chat-attachments` (private, participants) | URL holders / participants | B12 |
 | Messages, AI conversations | `messages`, `conversations`, `solo_messages`, `live_class_messages` | Participants; solo messages are the athlete's only; live chat is roster + invitees | B1 |

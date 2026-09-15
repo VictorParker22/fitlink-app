@@ -346,6 +346,16 @@ repository secret).
   Progress merges weigh-ins into the weight trend (a FitLink log wins the day). Manual
   activities store `started_at` (migration 20260915010000; the insert falls back without
   it on PGRST204) and the Log activity sheet has a real clock picker + duration control.
+  **Read the phone from the database.** Build 33's IPA was pulled from EAS and checked:
+  the HealthKit entitlement is in the signed binary and the profile, both usage strings are
+  in Info.plist, `RNAppleHealthKit` and the new-arch patch are linked. So a "does nothing"
+  report is a runtime answer, and `client_health_diagnostics` (migration 20260915020000,
+  self-only, append-only, no health values) now receives one row per step from
+  `HealthContext.logDiagnostic`: `probe` (module/available), `connect_requested`,
+  `connect_ok` (with `sheetMs` — under ~1 s means iOS showed NO sheet because access was
+  decided earlier: Settings → Health → Data Access & Devices → FitLink), `connect_failed`
+  (Apple's error text), `connect_denied` (Health Connect), `read` / `history` (counts).
+  Query it as postgres before asking anyone for a screenshot.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and
