@@ -383,7 +383,12 @@ repository secret).
   (`sheetMs` 3930 in `client_health_diagnostics`). Sleep (`SleepAnalysis` /
   `SleepSession`) and resting-HR history joined the read set the same day.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
-  every screen a push or deep link can open (notifications, the request screen); the Train
+  every screen a push or deep link can open (notifications, the request screen). The athlete
+  `Tabs` navigator has `backBehavior="history"` (2026-09-16): its hidden routes (habits,
+  lift-detail, activity, health, connected-tech…) are TABS, and the react-navigation default
+  `firstRoute` sent every back button to Home. Keyboard: a screen whose inputs sit inside a
+  ScrollView uses `automaticallyAdjustKeyboardInsets` on iOS (Android resizes); wrapping it
+  in a `KeyboardAvoidingView` too double-counts and hides the field. The Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and
   backing out or finishing returns there instead of dropping the athlete on the Train list.
 - **Food tab on a rest day.** A coach plan with `week_structure.trainingDays` and an EMPTY
