@@ -53,11 +53,39 @@ export interface HealthDiagnostic {
   lastAttempt: string | null;
 }
 
+/** A workout another app or the watch wrote into the platform's health store. */
+export interface HealthWorkout {
+  id: string;
+  name: string;
+  /** ISO timestamps from the platform. */
+  start: string;
+  end: string;
+  minutes: number;
+  calories: number | null;
+  source: string;
+}
+
+/**
+ * The last 90 days, read from the platform store: steps per local day,
+ * workouts with their real start times, and weigh-ins. The Activity hub's
+ * heatmap, feed and rings and the Progress weight trend draw on this, so
+ * "daily progress" is the athlete's real history, not only what FitLink saw.
+ */
+export interface HealthHistory {
+  dailySteps: Record<string, number>; // 'YYYY-MM-DD' (local) → steps
+  workouts: HealthWorkout[];
+  weights: { date: string; lbs: number }[]; // date 'YYYY-MM-DD' local
+  readAt: Date;
+}
+
+export const HEALTH_HISTORY_DAYS = 90;
+
 interface HealthContextType {
   isHealthAvailable: boolean;
   isConnected: boolean;
   isLoading: boolean;
   healthData: HealthSnapshot | null;
+  healthHistory: HealthHistory | null;
   diagnostic: HealthDiagnostic;
   /** Resolves true only when the platform granted access and a first read ran. */
   connectHealth: () => Promise<boolean>;
@@ -108,6 +136,22 @@ export function countMetrics(s: HealthSnapshot): number {
   if (s.latestWeight !== null) n++;
   return n;
 }
+
+/** Local calendar day of an ISO timestamp (lib/streak.ts hazard: never slice the ISO string). */
+function localDayOf(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Health Connect exercise types → a name an athlete would use (subset; the rest say "Workout"). */
+const HC_EXERCISE_NAMES: Record<number, string> = {
+  8: 'Biking', 13: 'Calisthenics', 25: 'Elliptical', 26: 'Exercise class', 29: 'Football', 32: 'Gymnastics',
+  33: 'Handball', 34: 'HIIT', 35: 'Hiking', 36: 'Ice hockey', 37: 'Ice skating', 38: 'Martial arts', 39: 'Paddling',
+  44: 'Pilates', 48: 'Rowing', 49: 'Rowing machine', 50: 'Rugby', 53: 'Running', 54: 'Treadmill run', 56: 'Skating',
+  57: 'Skiing', 59: 'Soccer', 61: 'Stair climbing', 62: 'Stair machine', 64: 'Stretching', 66: 'Swimming', 67: 'Swimming',
+  68: 'Table tennis', 69: 'Tennis', 70: 'Volleyball', 71: 'Walking', 72: 'Water polo', 73: 'Weightlifting', 74: 'Wheelchair',
+  79: 'Yoga',
+};
 
 function getStartOfDay(daysAgo = 0): Date {
   const d = new Date();
@@ -186,6 +230,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [healthData, setHealthData] = useState<HealthSnapshot | null>(null);
+  const [healthHistory, setHealthHistory] = useState<HealthHistory | null>(null);
   const [diagnostic, setDiagnostic] = useState<HealthDiagnostic>({ module: false, available: null, lastAttempt: null });
   const appState = useRef(AppState.currentState);
   const noteAttempt = useCallback((lastAttempt: string) => setDiagnostic((d) => ({ ...d, lastAttempt })), []);
@@ -606,6 +651,115 @@ export function HealthProvider({ children }: PropsWithChildren) {
     return snapshot;
   }, []);
 
+  // ─── History: 90 days of steps, workouts and weigh-ins ────
+  const readIOSHistory = useCallback(async (): Promise<HealthHistory | null> => {
+    const AppleHealthKit = loadAppleHealth();
+    if (!AppleHealthKit) return null;
+    const now = new Date();
+    const start = getStartOfDay(HEALTH_HISTORY_DAYS);
+    const call = (method: string, options: any): Promise<any> =>
+      new Promise((resolve) => {
+        if (typeof (AppleHealthKit as any)[method] !== 'function') { resolve(null); return; }
+        try {
+          (AppleHealthKit as any)[method](options, (err: any, results: any) => resolve(err ? null : results));
+        } catch { resolve(null); }
+      });
+
+    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], readAt: now };
+
+    const steps = await call('getDailyStepCountSamples', { startDate: start.toISOString(), endDate: now.toISOString(), period: 1440, includeManuallyAdded: true });
+    if (Array.isArray(steps)) {
+      steps.forEach((s: any) => {
+        if (!s?.startDate) return;
+        const key = localDayOf(s.startDate);
+        history.dailySteps[key] = (history.dailySteps[key] ?? 0) + Math.round(s.value || 0);
+      });
+    }
+
+    const workouts = await call('getAnchoredWorkouts', { startDate: start.toISOString(), endDate: now.toISOString() });
+    const rows: any[] = Array.isArray(workouts?.data) ? workouts.data : Array.isArray(workouts) ? workouts : [];
+    rows.forEach((w: any) => {
+      if (!w?.start || !w?.end) return;
+      const minutes = Math.max(1, Math.round((w.duration || (new Date(w.end).getTime() - new Date(w.start).getTime()) / 1000) / 60));
+      history.workouts.push({
+        id: String(w.id ?? `${w.start}-${w.activityId}`),
+        name: String(w.activityName || 'Workout'),
+        start: w.start,
+        end: w.end,
+        minutes,
+        calories: typeof w.calories === 'number' && w.calories > 0 ? Math.round(w.calories) : null,
+        source: String(w.sourceName || 'Apple Health'),
+      });
+    });
+
+    const weights = await call('getWeightSamples', { startDate: start.toISOString(), endDate: now.toISOString(), unit: 'pound', ascending: true });
+    if (Array.isArray(weights)) {
+      weights.forEach((s: any) => {
+        if (!s?.startDate || !(s.value > 0)) return;
+        history.weights.push({ date: localDayOf(s.startDate), lbs: Math.round(s.value * 10) / 10 });
+      });
+    }
+    return history;
+  }, []);
+
+  const readAndroidHistory = useCallback(async (): Promise<HealthHistory | null> => {
+    const mod = loadHealthConnect();
+    if (!mod) return null;
+    const { readRecords } = mod;
+    const now = new Date();
+    const start = getStartOfDay(HEALTH_HISTORY_DAYS);
+    const range = { timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: now.toISOString() } };
+    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], readAt: now };
+
+    try {
+      const r = await readRecords('Steps', range);
+      (r?.records || []).forEach((rec: any) => {
+        if (!rec?.startTime) return;
+        const key = localDayOf(rec.startTime);
+        history.dailySteps[key] = (history.dailySteps[key] ?? 0) + (rec.count || 0);
+      });
+    } catch (e) { if (__DEV__) console.warn('[Health] steps history:', e); }
+
+    try {
+      const r = await readRecords('ExerciseSession', range);
+      (r?.records || []).forEach((rec: any) => {
+        if (!rec?.startTime || !rec?.endTime) return;
+        const minutes = Math.max(1, Math.round((new Date(rec.endTime).getTime() - new Date(rec.startTime).getTime()) / 60000));
+        history.workouts.push({
+          id: String(rec.metadata?.id ?? `${rec.startTime}-${rec.exerciseType}`),
+          name: String(rec.title || HC_EXERCISE_NAMES[rec.exerciseType] || 'Workout'),
+          start: rec.startTime,
+          end: rec.endTime,
+          minutes,
+          calories: null,
+          source: String(rec.metadata?.dataOrigin || 'Health Connect'),
+        });
+      });
+    } catch (e) { if (__DEV__) console.warn('[Health] exercise history:', e); }
+
+    try {
+      const r = await readRecords('Weight', range);
+      (r?.records || []).forEach((rec: any) => {
+        const lbs = rec?.weight?.inPounds ?? (rec?.weight?.inKilograms ? rec.weight.inKilograms * 2.20462 : null);
+        if (!rec?.time || !(lbs > 0)) return;
+        history.weights.push({ date: localDayOf(rec.time), lbs: Math.round(lbs * 10) / 10 });
+      });
+    } catch (e) { if (__DEV__) console.warn('[Health] weight history:', e); }
+    return history;
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const h = Platform.OS === 'ios' ? await readIOSHistory() : Platform.OS === 'android' ? await readAndroidHistory() : null;
+      if (h) {
+        setHealthHistory(h);
+        healthBreadcrumb('health history read', { days: Object.keys(h.dailySteps).length, workouts: h.workouts.length, weights: h.weights.length });
+      }
+    } catch (e) {
+      reportHealth('health history read failed', { platform: Platform.OS }, e);
+    }
+  }, [readIOSHistory, readAndroidHistory]);
+
   // ─── Unified connect/refresh ──────────────────────────────
   const connectHealth = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
@@ -639,15 +793,22 @@ export function HealthProvider({ children }: PropsWithChildren) {
       } else if (Platform.OS === 'ios') {
         await readIOSMetrics();
       }
+      await refreshHistory();
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, readAndroidMetrics, readIOSMetrics]);
+  }, [isConnected, readAndroidMetrics, readIOSMetrics, refreshHistory]);
+
+  // A fresh connection reads history right after the first metrics read.
+  useEffect(() => {
+    if (isConnected && healthData && !healthHistory) refreshHistory();
+  }, [isConnected, healthData, healthHistory, refreshHistory]);
 
   const disconnectHealth = useCallback(async () => {
     await SecureStore.deleteItemAsync('health_connected');
     setIsConnected(false);
     setHealthData(null);
+    setHealthHistory(null);
   }, []);
 
   const syncToServer = useCallback(async (clientId: string) => {
@@ -705,7 +866,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
   return (
     <HealthContext.Provider value={{
-      isHealthAvailable, isConnected, isLoading, healthData, diagnostic,
+      isHealthAvailable, isConnected, isLoading, healthData, healthHistory, diagnostic,
       connectHealth, refreshHealth, disconnectHealth, syncToServer,
     }}>
       {children}

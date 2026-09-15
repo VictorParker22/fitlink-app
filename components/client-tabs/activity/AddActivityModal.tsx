@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, SectionList, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { FontSize, Spacing, Radius } from '../../../constants/theme';
 import { CoachColors, CoachFonts } from '../../../constants/coachDesign';
 
 interface AddActivityModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (data: { type: string; category: string; name: string; duration: string; location: string; notes: string; date: string }) => void;
+  onSave: (data: { type: string; category: string; name: string; duration: string; location: string; notes: string; date: string; startedAt: string | null }) => void;
   saving: boolean;
 }
 
@@ -49,6 +50,8 @@ const ACTIVITY_TYPES = [
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90];
 const formatDuration = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
+const formatClock = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const roundedNow = () => { const d = new Date(); d.setMinutes(Math.floor(d.getMinutes() / 5) * 5, 0, 0); return d; };
 
 export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onClose, onSave, saving }) => {
   const [screen, setScreen] = useState<'form' | 'picker'>('form');
@@ -58,6 +61,9 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [totalMinutes, setTotalMinutes] = useState(45);
+  // Time of day the activity started. Defaults to now, rounded down to 5 min.
+  const [startTime, setStartTime] = useState<Date>(() => roundedNow());
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [location, setLocation] = useState<'In club' | 'Not in club'>('In club');
   const [showNotes, setShowNotes] = useState(false);
@@ -75,6 +81,8 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       setActivityName('');
       setSelectedDate(new Date());
       setTotalMinutes(45);
+      setStartTime(roundedNow());
+      setShowTimePicker(false);
       setLocation('In club');
       setShowNotes(false);
       setNotes('');
@@ -93,6 +101,8 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
     const durationHr = Math.floor(totalMinutes / 60);
     const durationMn = totalMinutes % 60;
     const durStr = durationHr > 0 ? `${durationHr}h ${durationMn}min` : `${durationMn}min`;
+    // The chosen day + the chosen clock time, in local time.
+    const startedAt = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), startTime.getHours(), startTime.getMinutes(), 0, 0);
     onSave({
       type: selectedType.name,
       category: selectedType.category,
@@ -101,6 +111,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       location,
       notes,
       date: dateStr,
+      startedAt: startedAt.toISOString(),
     });
   };
 
@@ -201,10 +212,40 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         })}
       </View>
 
-      {/* Duration is the one time field the row stores (duration_minutes).
-          A start time was shown here but never saved, and tapping either
-          block revealed a "Pickers placeholder" line — a tester rightly
-          called it fake (2026-09-15). Now: quick picks plus a stepper. */}
+      {/* Start time: a real clock picker, saved as started_at (2026-09-15).
+          The earlier form showed a start time it never stored, and tapping it
+          revealed a "Pickers placeholder" line. */}
+      <TouchableOpacity
+        style={styles.startTimeRow}
+        onPress={() => { Haptics.selectionAsync(); setShowTimePicker((v) => !v); }}
+        accessibilityRole="button"
+        accessibilityLabel={`Start time ${formatClock(startTime)}. ${showTimePicker ? 'Close the time picker' : 'Change'}`}
+        accessibilityState={{ expanded: showTimePicker }}
+      >
+        <View>
+          <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Start time</Text>
+          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2}>{formatClock(startTime)}</Text>
+        </View>
+        <Ionicons name={showTimePicker ? 'chevron-up' : 'time-outline'} size={22} color={CoachColors.textPrimary} />
+      </TouchableOpacity>
+      {showTimePicker && (
+        <View style={styles.timePickerWrap}>
+          <DateTimePicker
+            value={startTime}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minuteInterval={5}
+            themeVariant="dark"
+            onChange={(event: DateTimePickerEvent, date?: Date) => {
+              if (Platform.OS !== 'ios') setShowTimePicker(false);
+              if (event.type === 'dismissed' || !date) return;
+              setStartTime(date);
+            }}
+          />
+        </View>
+      )}
+
+      {/* Duration is what the row stores as duration_minutes. */}
       <View style={styles.durationCard}>
         <View style={styles.durationHead}>
           <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Duration</Text>
@@ -516,6 +557,22 @@ const styles = StyleSheet.create({
   },
   dayTextSelected: {
     color: CoachColors.onAccent,
+  },
+  startTimeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: CoachColors.bg,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderCurve: 'continuous',
+    marginBottom: Spacing.md,
+  },
+  timePickerWrap: {
+    backgroundColor: CoachColors.bg,
+    borderRadius: Radius.lg,
+    borderCurve: 'continuous',
+    marginBottom: Spacing.md,
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   durationCard: {
     backgroundColor: CoachColors.bg,

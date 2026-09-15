@@ -338,6 +338,14 @@ repository secret).
   READ access was granted, so the first read is the only honest signal (`countMetrics`).
   Not device-verified from this machine: after any change here, tap Connect on a real
   iPhone and read the diagnostic line.
+  **History too (2026-09-15).** `HealthContext.healthHistory` = 90 days from the store
+  (`getDailyStepCountSamples` / `getAnchoredWorkouts` / `getWeightSamples`; Health Connect
+  `Steps` / `ExerciseSession` / `Weight`): steps per LOCAL day, workouts with real start
+  times and source, weigh-ins. The Activity hub feeds them into the rings (today's
+  minutes), heatmap, week strip and feed (pill = source app, time of day shown), and
+  Progress merges weigh-ins into the weight trend (a FitLink log wins the day). Manual
+  activities store `started_at` (migration 20260915010000; the insert falls back without
+  it on PGRST204) and the Log activity sheet has a real clock picker + duration control.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and

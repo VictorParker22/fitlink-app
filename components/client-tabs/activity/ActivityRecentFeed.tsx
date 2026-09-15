@@ -27,6 +27,10 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
       date: new Date(w.completed_at || w.date),
       duration: `${Math.round((w.duration_seconds || 0) / 60)} min`,
       isCoachAssigned: !!w.isCoachAssigned,
+      // Rows with a real clock time (a logged start time, a watch workout)
+      // show it; day-only rows do not invent one.
+      hasTime: !!w.hasTime,
+      source: (w.source as string | undefined) ?? null,
     })),
     ...sessions.filter((s) => s.status === 'completed').map((s) => ({
       id: s.id,
@@ -36,6 +40,8 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
       date: new Date(s.date),
       duration: `${s.duration || 0} min`,
       isCoachAssigned: true,
+      hasTime: true,
+      source: null as string | null,
     })),
     ...progressLogs.map((p) => ({
       id: p.id,
@@ -45,8 +51,12 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
       date: new Date(p.date),
       duration: '',
       isCoachAssigned: false,
+      hasTime: false,
+      source: null as string | null,
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+
+  const timeOfDay = (date: Date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const getRelativeDate = (date: Date) => {
     const today = new Date();
@@ -101,12 +111,12 @@ export const ActivityRecentFeed: React.FC<ActivityRecentFeedProps> = ({
                     </View>
                   ) : (
                     <View style={[styles.pill, { borderWidth: 1, borderColor: CoachColors.border }]}>
-                      <Text style={[styles.pillText, { color: CoachColors.textSecondary }]} maxFontSizeMultiplier={1.2}>Logged</Text>
+                      <Text style={[styles.pillText, { color: CoachColors.textSecondary }]} maxFontSizeMultiplier={1.2} numberOfLines={1}>{item.source || 'Logged'}</Text>
                     </View>
                   )}
                   {item.duration ? <Text style={styles.metaText} maxFontSizeMultiplier={1.4}>{item.duration}</Text> : null}
                   {item.duration ? <Text style={styles.metaDot} maxFontSizeMultiplier={1.4}>•</Text> : null}
-                  <Text style={styles.metaText} maxFontSizeMultiplier={1.4}>{getRelativeDate(item.date)}</Text>
+                  <Text style={styles.metaText} maxFontSizeMultiplier={1.4}>{getRelativeDate(item.date)}{item.hasTime ? ` · ${timeOfDay(item.date)}` : ''}</Text>
                 </View>
               </View>
               <View style={styles.navButtonContainer}>

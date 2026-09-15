@@ -46,6 +46,16 @@ import { getWorkoutEmblem } from '../../utils/workoutEmblems';
 import WeeklyCheckIn from '../../components/client-tabs/home/WeeklyCheckIn';
 import { ClientRoute } from '../../types/routes';
 import { weekOfPosition, totalWeeks } from '../../lib/passWeeks';
+import { parseLocalDay, localDayString } from '../../lib/streak';
+
+// Health hook: optional module, same guard as activity.tsx, so the screen
+// still renders where the native health module is absent.
+let useHealthHook: (() => any) | null = null;
+try {
+  useHealthHook = require('../../context/HealthContext').useHealth;
+} catch {
+  useHealthHook = null;
+}
 import { countSetFeels, analyzeFeelCounts } from '../../lib/setFeel';
 import HabitGrid, { HABITS, getLast7Days } from '../../components/shared/HabitGrid';
 
@@ -105,6 +115,12 @@ export default function AthleteProgressScreen() {
     logProgress,
     refreshData,
   } = useClient();
+
+  let healthCtx: any = null;
+  if (useHealthHook) {
+    try { healthCtx = useHealthHook(); } catch { healthCtx = null; }
+  }
+  const healthConnected: boolean = healthCtx?.isConnected ?? false;
 
   const [refreshing, setRefreshing] = useState(false);
   const [workoutLogs, setWorkoutLogs] = useState<any[] | null>(null); // null = loading
@@ -238,13 +254,22 @@ export default function AthleteProgressScreen() {
     return events.slice(-3).reverse();
   }, [liftSeries]);
 
-  // ── Weight trend from client_progress ─────────────────────────────────────
+  // ── Weight trend: client_progress plus the health store's weigh-ins ──────
+  // A scale that writes to Apple Health / Health Connect counts here too
+  // (2026-09-15). One entry per day; a weight logged in FitLink wins the day.
+  const healthWeights: { date: string; lbs: number }[] = healthConnected && healthCtx?.healthHistory ? healthCtx.healthHistory.weights : [];
   const weightEntries = useMemo(() => {
-    return (progressLogs || [])
+    const byDay = new Map<string, { date: string; weight: number; source?: string }>();
+    healthWeights.forEach((w) => byDay.set(w.date, { date: w.date, weight: w.lbs, source: 'health' }));
+    (progressLogs || [])
       .filter((p: any) => p.weight != null)
-      .map((p: any) => ({ date: p.date || p.created_at, weight: Number(p.weight) }))
-      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [progressLogs]);
+      .forEach((p: any) => {
+        const raw = p.date || p.created_at;
+        const d = parseLocalDay(raw) ?? new Date(raw);
+        byDay.set(localDayString(d), { date: raw, weight: Number(p.weight) });
+      });
+    return [...byDay.values()].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [progressLogs, healthWeights]);
 
   // ── Photos from client_progress ────────────────────────────────────────────
   const photoLogs = useMemo(() => {

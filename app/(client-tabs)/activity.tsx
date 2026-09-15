@@ -24,7 +24,8 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import type { HealthWorkout } from '../../context/HealthContext';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -34,6 +35,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
 import { useAlert } from '../../context/AlertContext';
+import { isMissingSchemaError } from '../../lib/schemaErrors';
 import { useWorkout } from '../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Spacing, Radius, FontSize } from '../../constants/theme';
@@ -65,6 +67,7 @@ interface ManualActivity {
   location: string | null;
   notes: string | null;
   activity_date: string; // YYYY-MM-DD
+  started_at?: string | null; // ISO, the athlete's time of day (column since 2026-09-15)
   created_at: string;
 }
 
@@ -88,6 +91,10 @@ export default function ActivityScreen() {
     try { healthCtx = useHealthHook(); } catch { healthCtx = null; }
   }
   const healthConnected: boolean = healthCtx?.isConnected ?? false;
+  // 90 days from the platform store: workouts other apps and the watch wrote,
+  // with real start times. Never fabricated: absent until Health is connected.
+  const healthWorkouts: HealthWorkout[] = healthConnected && healthCtx?.healthHistory ? healthCtx.healthHistory.workouts : [];
+  const healthSource = Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect';
 
   const [manualActivities, setManualActivities] = useState<ManualActivity[]>([]);
   const [gymVisits, setGymVisits] = useState<any[]>([]);
@@ -148,8 +155,11 @@ export default function ActivityScreen() {
     const secs = (workoutHistory || [])
       .filter((e) => e?.completedAt && localDayString(new Date(e.completedAt)) === todayKey)
       .reduce((sum, e) => sum + (e.durationSec || 0), 0);
-    return Math.round(secs / 60);
-  }, [workoutHistory, todayKey]);
+    const healthMinutes = healthWorkouts
+      .filter((w) => localDayString(new Date(w.start)) === todayKey)
+      .reduce((sum, w) => sum + w.minutes, 0);
+    return Math.round(secs / 60) + healthMinutes;
+  }, [workoutHistory, healthWorkouts, todayKey]);
 
   // Real steps or nothing — the rings component drops the ring on null.
   const stepsToday: number | null =
@@ -214,8 +224,13 @@ export default function ActivityScreen() {
       bump(localDayString(new Date(v.check_in_time)), { inClub: true });
     });
 
+    // Workouts from the health store (watch, other apps) — local day of start.
+    healthWorkouts.forEach((w) => {
+      bump(localDayString(new Date(w.start)), { workoutName: w.name, duration: w.minutes });
+    });
+
     return map;
-  }, [workoutHistory, workouts, manualActivities, gymVisits]);
+  }, [workoutHistory, workouts, manualActivities, gymVisits, healthWorkouts]);
 
   // ── Feed / week strip: server rows + manual activities (adapter-mapped) ───
   // Device history is intentionally excluded (completed assignments already
@@ -224,36 +239,56 @@ export default function ActivityScreen() {
     const manualAsWorkouts = manualActivities.map((a) => ({
       id: a.id,
       status: 'completed' as const,
-      // No 'Z' suffix: parses as LOCAL noon, so the feed's toDateString and
-      // the week strip's startsWith(dStr) both land on the logged day.
-      completed_at: `${a.activity_date}T12:00:00`,
+      // A logged start time is the real moment; without one, LOCAL noon (no
+      // 'Z' suffix) keeps the feed's toDateString and the week strip's
+      // startsWith(dStr) on the logged day.
+      completed_at: a.started_at || `${a.activity_date}T12:00:00`,
       assigned_date: a.activity_date,
       workouts: { name: a.name || a.activity_type, category: a.category || 'Other' },
       duration_seconds: a.duration_minutes ? a.duration_minutes * 60 : 0,
       isCoachAssigned: false,
+      hasTime: !!a.started_at,
+      source: null as string | null,
     }));
-    return [...(workouts || []), ...manualAsWorkouts];
-  }, [workouts, manualActivities]);
+    const healthAsWorkouts = healthWorkouts.map((w) => ({
+      id: `health:${w.id}`,
+      status: 'completed' as const,
+      completed_at: w.start,
+      assigned_date: localDayString(new Date(w.start)),
+      workouts: { name: w.name, category: 'Health' },
+      duration_seconds: w.minutes * 60,
+      isCoachAssigned: false,
+      hasTime: true,
+      source: w.source || healthSource,
+    }));
+    return [...(workouts || []), ...manualAsWorkouts, ...healthAsWorkouts];
+  }, [workouts, manualActivities, healthWorkouts, healthSource]);
 
   // ── Save from AddActivityModal ────────────────────────────────────────────
   const handleSave = useCallback(
-    async (data: { type: string; category: string; name: string; duration: string; location: string; notes: string; date: string }) => {
+    async (data: { type: string; category: string; name: string; duration: string; location: string; notes: string; date: string; startedAt: string | null }) => {
       if (!clientData?.id || saving) return;
       setSaving(true);
-      const { data: row, error } = await supabase
+      const base = {
+        client_id: clientData.id,
+        activity_type: data.type,
+        category: data.category,
+        name: data.name || data.type,
+        duration_minutes: parseDurationToMinutes(data.duration),
+        location: data.location,
+        notes: data.notes || null,
+        activity_date: data.date,
+      };
+      let { data: row, error } = await supabase
         .from('client_activities')
-        .insert({
-          client_id: clientData.id,
-          activity_type: data.type,
-          category: data.category,
-          name: data.name || data.type,
-          duration_minutes: parseDurationToMinutes(data.duration),
-          location: data.location,
-          notes: data.notes || null,
-          activity_date: data.date,
-        })
+        .insert({ ...base, started_at: data.startedAt })
         .select('*')
         .single();
+      // started_at landed on 2026-09-15; a phone that reaches the database
+      // before the migration still saves the day (PGRST204 = unknown column).
+      if (error && isMissingSchemaError(error)) {
+        ({ data: row, error } = await supabase.from('client_activities').insert(base).select('*').single());
+      }
       setSaving(false);
 
       if (error) {
