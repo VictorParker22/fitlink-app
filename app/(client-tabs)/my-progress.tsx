@@ -13,7 +13,7 @@
  * sentence, never a zero ring or a dash.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Modal, Dimensions, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Modal, Dimensions, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -250,9 +250,15 @@ export default function ProgressScreen() {
 
   return (
     <View style={s.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* The check-in note and the weight composer sit deep in the scroll;
+          the scroll view itself lifts the focused field above the keyboard
+          (iOS insets; Android resizes the window). A KeyboardAvoidingView
+          here double-counted and left the field behind the keyboard. */}
+      <View style={{ flex: 1 }}>
         <ScrollView
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={[s.scroll, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 130 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
@@ -521,7 +527,7 @@ export default function ProgressScreen() {
             <View style={s.card}><Text style={s.emptyText}>No check-ins submitted yet. The first one is above.</Text></View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
 
       <Modal visible={!!viewerPhoto} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setViewerPhoto(null)}>
         <View style={s.viewerBackdrop}>

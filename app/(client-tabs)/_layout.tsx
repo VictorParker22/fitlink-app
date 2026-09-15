@@ -136,6 +136,10 @@ export default function ClientTabsLayout() {
       {/* OfflineBanner is mounted once at the root (app/_layout.tsx) */}
       <Tabs
         tabBar={(props) => <AthleteTabBar {...props} />}
+        // Hidden routes (habits, lift-detail, activity, health…) are tabs
+        // too, so "back" must mean the tab you came from. The default,
+        // firstRoute, sent every back button to Home (2026-09-16).
+        backBehavior="history"
         screenOptions={{ headerShown: false }}
       >
         {/* Bar tabs — mockup 22a order */}
