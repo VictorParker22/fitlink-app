@@ -12,6 +12,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { openHealthSettings } from '../../lib/healthSettings';
 
 // ─── Try to import health hook; gracefully handle missing module ────
 let useHealthHook: (() => any) | null = null;
@@ -226,8 +227,20 @@ export default function HealthInsightsScreen() {
         {isConnected && healthCtx?.healthData && countMetrics(data) === 0 && (
           <View style={styles.demoBanner}>
             <Ionicons name="information-circle-outline" size={16} color={CoachColors.textMuted} />
-            <Text style={styles.demoBannerText}>Connected, but {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} returned no data. Check that FitLink is allowed to read in {Platform.OS === 'ios' ? 'Settings → Health → Data Access & Devices' : 'Health Connect → App permissions'}, and that your watch or phone is recording.</Text>
+            <Text style={styles.demoBannerText}>Connected, but {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} returned no data. iOS only asks once: if you did not allow the categories then, turn them on in the Health app → your profile → Apps → FitLink.</Text>
           </View>
+        )}
+        {isConnected && healthCtx?.healthData && countMetrics(data) === 0 && (
+          <TouchableOpacity
+            style={[styles.connectBtn, { alignSelf: 'flex-start', marginBottom: 16 }]}
+            onPress={() => openHealthSettings()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}
+          >
+            <Ionicons name="open-outline" size={18} color={CoachColors.onAccent} />
+            <Text style={styles.connectBtnText}>{Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}</Text>
+          </TouchableOpacity>
         )}
 
         {isConnected && (<>

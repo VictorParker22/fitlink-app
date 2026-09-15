@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
 import { useHealth } from '../../context/HealthContext';
+import { openHealthSettings } from '../../lib/healthSettings';
 import { useAlert } from '../../context/AlertContext';
 import { loginWithSpotify, getStoredToken, disconnectSpotify } from '../../lib/spotify';
 
@@ -272,6 +273,18 @@ export default function ConnectedTechScreen() {
           </View>
           <Text style={s.deviceDesc}>{healthStatusLine}</Text>
           <Text style={s.diagLine} selectable accessibilityLabel={`Status: ${diagnosticLine}`}>{diagnosticLine}</Text>
+          {isHealthConnected && healthData?.lastSynced && syncingMetrics.length === 0 && (
+            <TouchableOpacity
+              style={s.openHealthBtn}
+              onPress={() => openHealthSettings()}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={Platform.OS === 'ios' ? 'Open the Health app to allow FitLink' : 'Open settings'}
+            >
+              <Ionicons name="open-outline" size={16} color={CoachColors.accent} />
+              <Text style={s.openHealthText}>{Platform.OS === 'ios' ? 'Allow in the Health app (profile → Apps → FitLink)' : 'Open settings'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={s.deviceDivider} />
@@ -575,6 +588,8 @@ const s = StyleSheet.create({
     color: CoachColors.textFaint,
     marginTop: 10,
   },
+  openHealthBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, minHeight: 44 },
+  openHealthText: { fontFamily: CoachFonts.bodySemiBold, fontSize: 14, color: CoachColors.accent, flex: 1 },
   deviceDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: CoachColors.borderMuted,
